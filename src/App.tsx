@@ -138,10 +138,10 @@ const INITIAL_BIO: ApothecaryBio = {
   travelStyle: "Rambling and Ready",
   speed: 3,
   carry: 4,
-  originName: "치료사 사고 후의 치료 서비스",
-  originDesc: "큰 사고를 당하고 치유를 받으면서 아포테카리의 길을 걷기로 결심했습니다.",
+  originName: "약제사 사고 후의 치료 서비스",
+  originDesc: "큰 사고를 당하고 치유를 받으면서 약제사의 길을 걷기로 결심했습니다.",
   familiarName: "",
-  familiarBenefit: "따뜻한 치유사 (모든 질병 치료 시작 타이머 +2시간)",
+  familiarBenefit: "따뜻한 약제사 (모든 질병 치료 시작 타이머 +2시간)",
   familiarRelation: "깊은 동반자 (서로 아끼고 의지함)"
 };
 
@@ -394,7 +394,7 @@ export default function App() {
               아포테카리아 (Apawthecaria)
             </h1>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
-              {state.bio.name ? `${state.bio.name}의 치유 방랑 일지` : '수의 아포테카리 저널 기록장'}
+              {state.bio.name ? `${state.bio.name}의 약제 방랑 일지` : '수의 약제사 저널 기록장'}
             </div>
           </div>
         </div>
@@ -408,7 +408,7 @@ export default function App() {
                 ) : (
                   <span style={{ fontSize: '1rem' }}>🐹</span>
                 )}
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary)' }}>{user.displayName || '치료사'}</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary)' }}>{user.displayName || '약제사'}</span>
                 <button onClick={handleSignOut} style={{ padding: '0.2rem 0.4rem', border: 'none', background: 'transparent', color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}>
                   로그아웃
                 </button>
@@ -420,7 +420,7 @@ export default function App() {
             )
           )}
           <button onClick={handleReset} style={{ padding: '0.4rem 0.8rem', border: '1.5px solid var(--accent-red)', borderRadius: '20px', background: 'transparent', color: 'var(--accent-red)', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer' }}>
-            새 치료사 캐릭터 시작 (초기화)
+            새 약제사 캐릭터 시작 (초기화)
           </button>
         </div>
       </header>
@@ -434,13 +434,13 @@ export default function App() {
           <div className="glass-panel cute-border" style={{ padding: '0.8rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
               {[
-                { id: 'play', label: '🎮 치료 여정', sub: '진행 및 활동' },
-                { id: 'bio', label: '🐹 치료사 시트', sub: '프로필 및 배낭' },
+                { id: 'play', label: '🎮 약제 여정', sub: '진행 및 활동' },
+                { id: 'bio', label: '🐹 약제사 시트', sub: '프로필 및 배낭' },
                 { id: 'reagents', label: '🌿 영약재 도감', sub: '약초 및 준비법' },
                 { id: 'ailments', label: '🤒 질병 도감', sub: '증상 및 처방전' },
                 { id: 'map', label: '🗺️ 가시나무 숲', sub: '전체 지도 보기' },
                 { id: 'rulebook', label: '📖 한국어 룰북', sub: '페이지 뷰어' },
-                { id: 'journals', label: '📝 치료사 일지', sub: '저널 백업 및 기록' }
+                { id: 'journals', label: '📝 약제사 일지', sub: '저널 백업 및 기록' }
               ].map(t => (
                 <button
                   key={t.id}
@@ -487,7 +487,7 @@ export default function App() {
               </div>
             ) : (
               <div style={{ fontStyle: 'italic', color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center' }}>
-                [치료사 시트] 탭에서 이름을 작성하고 캐릭터를 잠금해제 하세요!
+                [약제사 시트] 탭에서 이름을 작성하고 캐릭터를 잠금해제 하세요!
               </div>
             )}
           </div>
@@ -1259,7 +1259,7 @@ function PlayView({ state, updateState, currentWeight, activeTravelEncounter, se
         };
       });
 
-      alert("🏁 여정이 마감되었습니다! [치료사 일지] 또는 아래의 정산 프롬프트를 보며 휴식기(Downtime) 활동을 이어나가세요.");
+      alert("🏁 여정이 마감되었습니다! [약제사 일지] 또는 아래의 정산 프롬프트를 보며 휴식기(Downtime) 활동을 이어나가세요.");
     }
   };
 
@@ -1420,7 +1420,7 @@ function PlayView({ state, updateState, currentWeight, activeTravelEncounter, se
           {/* 3. Ailment Patient Care Section */}
           <div className="cute-card" style={{ border: '1.5px solid var(--accent-purple)' }}>
             <h3 style={{ color: 'var(--accent-purple)', margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>🤒 환자 진료소 (Patient Clinic)</span>
+              <span>🤒 환자 약제소 (Patient Clinic)</span>
               {state.activeAilment && (
                 <span style={{ fontSize: '0.9rem', color: '#ff6b6b' }}>⏱️ 치료 완료 기한: <strong>{state.activeAilment.timer} 시간 남음</strong></span>
               )}
@@ -1683,7 +1683,7 @@ function BioView({ state, updateState, currentWeight }: { state: GameState; upda
 
   return (
     <div>
-      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>👤 아포테카리 캐릭터 시트</h2>
+      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>👤 약제사 캐릭터 시트</h2>
       
       {!editing ? (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '1rem' }}>
@@ -1693,7 +1693,7 @@ function BioView({ state, updateState, currentWeight }: { state: GameState; upda
             <h3>📋 캐릭터 인적사항</h3>
             <div><strong>이름:</strong> {state.bio.name || '미등록'}</div>
             <div><strong>종족:</strong> {state.bio.descriptor} ({state.bio.examples})</div>
-            <div><strong>치료사 출발 동기:</strong> <br /><span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{state.bio.originName} - {state.bio.originDesc}</span></div>
+            <div><strong>약제사 출발 동기:</strong> <br /><span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{state.bio.originName} - {state.bio.originDesc}</span></div>
             <div><strong>사역마/메신저:</strong> {state.bio.familiarName || '없음'}</div>
             <div><strong>사역마 관계:</strong> {state.bio.familiarRelation}</div>
             <div><strong>사역마 조력 효과:</strong> <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{state.bio.familiarBenefit}</span></div>
@@ -1738,8 +1738,8 @@ function BioView({ state, updateState, currentWeight }: { state: GameState; upda
         <form onSubmit={handleSaveBio} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem', maxWidth: '500px' }}>
           <h3>🔧 프로필 편집</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <label><strong>치료사 이름:</strong></label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="치료사 동물의 이름을 지어주세요" />
+            <label><strong>약제사 이름:</strong></label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="약제사 동물의 이름을 지어주세요" />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             <label><strong>사역마 이름:</strong></label>
@@ -1910,7 +1910,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
     <div>
       <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>🤒 질병 도감 (Ailments Book)</h2>
       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-        치료사는 주민 야수들의 다양한 병증을 식별할 수 있습니다. 환자를 진료소에 등록할 때 이름을 도감에서 찾아 적용해 주세요.
+        약제사는 주민 야수들의 다양한 병증을 식별할 수 있습니다. 환자를 약제소에 등록할 때 이름을 도감에서 찾아 적용해 주세요.
       </p>
 
       {/* Search and Filters */}
@@ -2000,7 +2000,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
                 }}
                 style={{ width: '100%', padding: '0.4rem', marginTop: '0.6rem', background: 'var(--accent-purple)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 'bold' }}
               >
-                🏥 이 환자를 현재 진료소에 진단/등록
+                🏥 이 환자를 현재 약제소에 진단/등록
               </button>
             )}
           </div>
@@ -2170,7 +2170,7 @@ function JournalsView({ state, updateState }: { state: GameState; updateState: a
   return (
     <div>
       <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>📝 치료사 연대기 일지 (Journals & Saves)</span>
+        <span>📝 약제사 연대기 일지 (Journals & Saves)</span>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button onClick={handleExportData} style={{ padding: '0.4rem 0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem' }}>💾 내 데이터 백업하기</button>
           <label style={{ padding: '0.4rem 0.8rem', background: '#eee', color: '#333', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer' }}>
