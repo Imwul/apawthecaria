@@ -1,0 +1,225 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+
+:root {
+  --font-base: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+  --font-fancy: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+  
+  /* Bright, cute, simple herbal pastel palette */
+  --bg-deep: #f8f5ee; /* Soft warm cream */
+  --bg-gradient: linear-gradient(135deg, #fdfbf7 0%, #f4eee1 100%);
+  
+  --primary: #5c9c6f; /* Cute herbal/leafy green */
+  --primary-hover: #4b835b;
+  --primary-glow: rgba(92, 156, 111, 0.1);
+  --primary-light: #eef7f0;
+  
+  --secondary: #e59a73; /* Cute warm apricot orange */
+  --secondary-hover: #cd825c;
+  --secondary-glow: rgba(229, 154, 115, 0.15);
+  --secondary-light: #fdf2eb;
+
+  --accent-blue: #6ba6c9; /* Loch blue */
+  --accent-purple: #a58cb9; /* Bog purple */
+  --accent-red: #d97470; /* Mountain red */
+  
+  --glass: rgba(92, 156, 111, 0.03);
+  --glass-border: rgba(92, 156, 111, 0.12);
+  --glass-card: rgba(255, 255, 255, 0.94);
+  
+  --text-bright: #33302a; /* Soft warm charcoal */
+  --text-muted: #6b665c;
+  --text-dim: #9b9487;
+  
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --shadow-sm: 0 4px 12px rgba(80, 75, 65, 0.05);
+  --shadow-md: 0 8px 24px rgba(80, 75, 65, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+  font-family: var(--font-base);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(92, 156, 111, 0.2) transparent;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(92, 156, 111, 0.25);
+  border-radius: 3px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-gradient);
+  color: var(--text-bright);
+  min-height: 100vh;
+  background-attachment: fixed;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-fancy);
+  letter-spacing: -0.01em;
+  color: var(--text-bright);
+  font-weight: 700;
+  margin-top: 0;
+}
+
+/* Cute Forms styling */
+input, textarea, select {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1.5px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.9rem;
+  color: var(--text-bright);
+  font-size: 0.95rem;
+  outline: none;
+  transition: all 0.2s ease;
+  font-family: var(--font-base);
+  box-sizing: border-box;
+}
+
+input:not([type="checkbox"]):not([type="radio"]), select {
+  height: 44px;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 10px var(--primary-glow);
+  background: #ffffff;
+}
+
+button {
+  cursor: pointer;
+  font-family: var(--font-fancy);
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  outline: none;
+}
+
+button:active {
+  transform: scale(0.96);
+}
+
+/* Aesthetic Utility Classes */
+.cute-title {
+  font-family: var(--font-fancy);
+  font-weight: 800;
+  color: var(--primary);
+  background: linear-gradient(135deg, var(--text-bright) 30%, var(--primary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.glass-panel {
+  background: var(--glass-card);
+  border: 1.5px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.cute-border {
+  position: relative;
+}
+.cute-border::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px dashed rgba(92, 156, 111, 0.2);
+  pointer-events: none;
+  border-radius: calc(var(--radius-md) - 4px);
+}
+
+/* Grid layout for Dashboard */
+.grid-dashboard {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 1.5rem;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  min-height: calc(100vh - 75px);
+}
+
+@media (max-width: 1024px) {
+  .grid-dashboard {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+}
+
+/* Tab Navigation buttons */
+.nav-tab-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.7rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  border: 1.5px solid transparent;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+.nav-tab-btn:hover {
+  background: rgba(92, 156, 111, 0.05);
+  color: var(--primary);
+}
+.nav-tab-btn.active {
+  background: var(--primary-light);
+  color: var(--primary);
+  border-color: var(--primary);
+  font-weight: bold;
+}
+
+/* Custom cards */
+.cute-card {
+  padding: 1.2rem;
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  border: 1.5px solid var(--glass-border);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.cute-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Color pills for tags */
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+/* Animation utilities */
+@keyframes cute-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+.cute-bounce {
+  animation: cute-bounce 2s infinite ease-in-out;
+}

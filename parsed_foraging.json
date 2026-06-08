@@ -1,0 +1,752 @@
+{
+  "Bog": [
+    {
+      "page": 154,
+      "card": "3",
+      "title": "Bridge Across The Water\nSome considerate beast \nhas built a bridge across \na particularly large and \nfrightful gooey bit of bog",
+      "text": ". At the foot of the bridge lies a donation box for beasts to leave Trinkets to help with the upkeep of the bridge. Communal - If you leave a Trinket, make a note of it. Travelling through this Location in the future, doesn’t use up one of your Paths. Humble - It’s okay whether you haven’t the Trinkets to spare or the inclination, you're still free to cross. ACE Mind Yerself! A grouchy meadow hare comes bounding over to you, yelling \"watch yer paws\"! They explain that the peat bog is a delicate ecosystem. Though... you aren't walking on any peat right now. Despite this, they draw in deep breath as if to give a lecture. Listen & Learn - Unfortunately, once the hare gets started they cannot be stopped. Decrease Timers by 4. However, from now on everytime you Forage in a Bog, gain 1 Foraging Point. Interrupt - Lose 1 Reputation as the grouchy hare tells everyone they meet how rude you were."
+    },
+    {
+      "page": 154,
+      "card": "2",
+      "title": "Ancient Salvage\nYou see a gleaming speck \nof metal sticking out of \nthe peat just up ahead",
+      "text": ". It looks worse for wear but may be worth something to someone. Dig! - You can try to dig out the shining speck. Decrease Timers by 1 and draw a card. If the card’s value is: Equal to or greater than 10 - You manage to pull the item out. Add a Titan Thingamabob (page 65) to your Bags. Less then 10 - Your digging only further buries the object in mud. Eventually, it sinks out of sight and you give up. Bog Foraging Encounters Masses of biting midges, stinking mud and stalking herons separate you from the verdant reagents you need for your patients. 154"
+    },
+    {
+      "page": 155,
+      "card": "5",
+      "title": "Repellent\nYou bump into another \nPoulticepounder who \noffers you some of \ntheir secret recipe bug \ncream to keep the \nmidges away",
+      "text": ". What is this cream's main ingredient? Repellent - Ignore any Negative effects from midges until you next Move On."
+    },
+    {
+      "page": 155,
+      "card": "6",
+      "title": "Even The Mighty \nFall\nThe bones of a \nbehemoth lay here, \na reminder that even \nsuch tremendous \nbeasts aren't safe \nin these dangerous \nlands",
+      "text": ". Who was it in life? How did they die?"
+    },
+    {
+      "page": 155,
+      "card": "7",
+      "title": "Squelch!\nYou mistake a deep peat \npool for solid ground and \nsink in up to your waist",
+      "text": ". It takes an age to pull yourself free. How do you get the smell out of your bags and clothes? Escape - Decrease Timers by 1 as you pull yourself free."
+    },
+    {
+      "page": 155,
+      "card": "4",
+      "title": "The Rattlin' Bog",
+      "text": "\"Ho, ro, the rattlin' bog, The bog down in the valley-o. Real Bog, the rattlin' bog, The bog down in the valley-o.\" You hear a quartet of beasts singing as they dig at peat.. Old Verse - The beasts continue singing, and you continue listening: Well in that hole there was a tree, A rare tree, a rattlin' tree, Tree in the hole, And the hole in the bog, And the bog down in the valley-o... New Verse - One of the beasts pause to explain that anyone can join in with a new verse after every chorus is sung. As their companions rattle through the tune, they bet you can't make up a new verse. If you manage to sing along, gain 1 Reputation."
+    },
+    {
+      "page": 155,
+      "card": "8",
+      "title": "Right Place, \nWrong Time\nYou hear a grunt and a shout \nfrom the other side of some thick \nfoliage",
+      "text": ". It sounds like some beast is getting robbed! Vigilante - If you want to fend off the robber, draw a card for you and a card for the robber. If yours is: Higher - You chase them off and earn the thanks of their victim. Gain 3 Reputation. Lower - The robber gets the upper hand and leaves you Wounded before running off. Archer - If you have a Crossbow + Bolt you may chase off the robber. Gain 3 Reputation. Wounded - The robber hurts you badly, but you manage to scare them off. The beast you rescued takes you to the nearest Settlement. You must rest for the remainder of the Season; abandon your Journey. Gain 3 Reputation for trying to help. 155"
+    },
+    {
+      "page": 156,
+      "card": "M",
+      "title": "Legacy In Mud\nYou come across a tall tower, \nhalf sunk into the bog",
+      "text": ". It looks like it was built quickly and abandoned just as fast. Why would someone build a tower out here? Does it bear any markings? Get A Better View - You may be able to scout the land better from up there. Draw a Card: ♥ or ♦ - It holds remarkably well, and you get a good view. Gain 3 Foraging Points ♣ or ♠ - It shifts unexpectedly and sinks further in the bog. Something falls out of your satchel and vanishes into the mud below! Count down the Items in your Bags equal to the card’s value; discard the Item you land on."
+    },
+    {
+      "page": 156,
+      "card": "J",
+      "title": "Fluttering Fancy\nAn unusual butterfly flutters past, its colourful \nwings catching the light and seeming to almost \nshimmer",
+      "text": ". What unusual colours does it have on its wings? Befriend It - Use a PLANT Reagent to gain a Butterfly Companion (page 70). Follow It - Draw a card. Gain a Plant Reagent Part with Base Rarity equal to or lower it's value."
+    },
+    {
+      "page": 156,
+      "card": "10",
+      "title": "Deluge\nClouds gather overhead \nand rain starts to fall in \nthick sheets",
+      "text": ". The bog is quickly becoming a death-trap! Get High - You climb a natural feature to wait out the short storm. Decrease Timers by 2. Sail - You can try to surf the surging water if you have a Bark Coracle. Draw a card: ♥ or ♦ - You escape to an adjacent Location. What was the most perilous part of your journey? ♣ or ♠ - You capsize! Decrease Timers by 1 as you haul yourself to safer ground."
+    },
+    {
+      "page": 156,
+      "card": "9",
+      "title": "Guild of One\nYou meet an eccentric beast \nwith an unusual contraption",
+      "text": "; bellows, hollow tubes, and a massive copper helmet with a glass window. They call themselves a Peatdiver and say they are hunting for treasures beneath the bog. Why haven't they been able to convince anyone to join their boggy expeditions? Assistant - Somebeast needs to pump the bellows of the breathing apparatus so the diver can explore the suffocating muds. You can volunteer; decrease Timers by 2 but gain a Trinket! New Connections - Whether you help or ignore, this fledgling Guild of One won't forget you. Gain 1 Reputation (as they name drop you to their friends). 156"
+    },
+    {
+      "page": 157,
+      "card": "J",
+      "title": "Aerial Support\nA flock of courier birds \npasses overheard in a tight \nV-formation",
+      "text": ". One of them seems to notice you as they drift out of formation for a moment. Helping Wing - If the Guild Reputation is Upstanding or better, the bird swoops down to offer help. Gain 4 Foraging Points as they scout or let you ride upon their back. Unknown - If the Guild Reputation is less than Upstanding, the bird thinks better of breaking formation and continues on."
+    },
+    {
+      "page": 157,
+      "card": "M",
+      "title": "Fangs With Wings\nSwarms of biting midges \ndescend upon you with \nmalicious intent",
+      "text": ". Don’t scratch the bites, it makes them worse! Distracted - If you don’t have something to soothe the itch, start a new Ailment for [HIDE 2] and [POISON 1], with a Timer of 8. Munched - If you fail to create a remedy for this new Ailment, the itching becomes so unbearable that you say something very rude to your Familiar. How does that go down?"
+    },
+    {
+      "page": 157,
+      "card": "10",
+      "title": "Weaver\nWhile crawling through \na hollow log you spy a \nbeautiful spider sitting in its \nweb",
+      "text": ". It raises its front legs almost as if greeting you. What is most beautiful about this spider? Dance - You copy its little gestures and the spider seems appeased. Decrease Timers by 1. It follows you around until you Move On. You can permanently befriend it by giving it an INSECT Reagent Part. If you do, gain a Spider Companion (Page 70). Back Away - You don't speak spider and that thing has sharp teeth. It lowers its little legs sadly."
+    },
+    {
+      "page": 157,
+      "card": "9",
+      "title": "A Thousand Thousand Biters\nThey fall from above, \nwhining midges with a thirst \nfor blood",
+      "text": ". The treacherous mud of the bog churns beneath your paws as you try to escape! Run! - Draw two Cards, one for you and one for the midges. If your card is higher - You evade the midges and only lose 1 Foraging Point Caught - If your card was lower, you are covered in tiny swelling bites. You must create a remedy for [HIDE 2] and [POISON 1] to alleviate their itchy sting. Biting Mood - If you fail to soothe the itching before you next Move On, you're caught spouting bitter obscenities. Lose 1 Reputation. 157"
+    },
+    {
+      "page": 158,
+      "card": "10",
+      "title": "Midges!\nThe last surviving midges \ncircle you, eager for one \nlast drop of blood before \nwinter brings their end",
+      "text": ". Run! - Draw two Cards, one for you and one for the midges. If your card is: Higher - You evade the midges and only lose 1 Foraging Point. Lower - They leave you with itchy bites and chase you far. Lose 3 Foraging Points."
+    },
+    {
+      "page": 158,
+      "card": "M",
+      "title": "Duchy of Deer\nA particularly noble deer stops a short distance away \nand looks at you with condescension",
+      "text": ". They ask what you're doing in their lands and why they shouldn't chase you away Instant Trial - You plea your case to the judge, jury and executioner that is the Behemoth Deer before you. Draw two cards, one for yourself and one for the deer. If you are carrying a Crossbow or Weapon, draw an additional card for the Deer for each. If you have the highest card - they permit you to stay and search for Reagents. If the deer has the highest card - they chase you off, stamping the ground and threatening with their antlers. You do not gather anything for this Forage, and cannot Move through or Forage here again."
+    },
+    {
+      "page": 158,
+      "card": "J",
+      "title": "Storm Front\nDark grey clouds gather \noverhead and murmur \nominously",
+      "text": ". They threaten to split the bog with lightning and slash the peat with rain. Weather Report - Until you next Move On, compare each Encounter's drawn card to these suit-based outcomes: ♥ - The clouds stay quiet and whole. ♦ - Thunder rumbles overhead. Any beast in this event rushes away to hide. ♣ or ♠ - The clouds split and the rains flood in. Find somewhere high to wait it out and decrease Timers by 3. If you have a tent, you can shelter quickly; instead, decrease Timers by 1. Ignore the current event and stop comparing cards to the Weather Report."
+    },
+    {
+      "page": 158,
+      "card": "9",
+      "title": "Rusty Pick\nThe familiar yet unexpected \nsound of an Orebeater's pick \nechoes out across the bog",
+      "text": ". As you approach you see a precarious, soggy mine with some beasts loading their haul into carts. What is the name of this mine? What are they digging for? Bog Bargains - You can Barter here once. Skip Step 2 of Bartering. Pounder's Take - If you are looking for Iron Ore or Silver Ore and the Guild Reputation is Trusted, they will give you them for free. 158"
+    }
+  ],
+  "Forest": [
+    {
+      "page": 159,
+      "card": "10",
+      "title": "Heat Sink\nSemi-frozen bog snaps underpaw, \nplunging you into freezing cold bog \nwater",
+      "text": ". Another step, another crack. By the time you get off the ice your feet are numb with cold. How do you stay positive during such moments? Warm Up - You have to take a moment to heat up before you go trudging on. Decrease Timer by 1."
+    },
+    {
+      "page": 159,
+      "card": "9",
+      "title": "Chestnuts On  \nAn Open Fire\nA haze of campfire smoke and a dark, \nroasting earthy smell draw you to the \ncampfire of a frog and a slow worm",
+      "text": ". They're wrapped up under insulating beast-fur blankets, and are toasting snacks on a fire. What are these two doing out on a cold day like this? Campfire Chat - They seem to know the area and tell you where to find some Reagents. Gain 1 Foraging Point."
+    },
+    {
+      "page": 159,
+      "card": "J",
+      "title": "The Right Thing\nYou cross paths with a Branded \nbeast",
+      "text": ". They glance at you, half in terror, and try to cross some nearby ice so as to get out of your way. Three steps in, it cracks and they fall waist deep into frigid mud. What type of beast are they? Why were they trying to avoid you? Help! - If don't mind breaking Guild law, Journal about your strategy to get them out of the wet peat Decrease Timers by 2. Turn Away - Branded are, well, exiled from society for a reason. Best to keep a safe distance."
+    },
+    {
+      "page": 159,
+      "card": "M",
+      "title": "Winged Menace\nA massive heron swoops down \nat you giving you just enough \ntime to take cover",
+      "text": ". It laughs and taunts as it raises its wings to put you in shade. It seems like it might be a clawlicker or a bandit. What do they want? Bold - You can attempt to fight the heron off. Draw a card for you and two cards for it. You get an extra card if you are larger than a hedgehog. If your total is higher - You fend it off and send it packing! Gain 1 Reputation If your total is lower - It gives you a nasty peck before you escape. What scar do you carry from this encounter? Bargain - You can offer the heron a Trinket to leave you alone. What distinguishing marks did it have? Do you report this? 159"
+    },
+    {
+      "page": 160,
+      "card": "4",
+      "title": "Mushroom Pickers\nYou come across a pair \nof pickers arguing over \nwhether a mushroom \nis edible or not",
+      "text": ". You're pretty sure it's not medicinal... but is it dangerous? Junior - When asked your opinion, you shrug. The Junior picker nonchalantly stuffs it in their maw; draw a card: ♥ - It's a tasty snack; they share one with you, Gain a tasty Trinket. ♦, ♣ or ♣ - Oh, foul deceiver! Shortly after, the junior picker is violently sick. You learn from their mistake. Senior - You politely interrupt, and suggest taking the mushroom home to identify, without letting it contaminate their other pickings. The more senior picker nods along, sagely. Gain 1 Reputation."
+    },
+    {
+      "page": 160,
+      "card": "3",
+      "title": "The Collector\nYou come across an avid \nforager who is excited \nto show you their \ncollection",
+      "text": ". Collections Development Policy - You may swap a Reagent Part of your own for any Reagent Part that can be found in the Forest."
+    },
+    {
+      "page": 160,
+      "card": "2",
+      "title": "Fowl Language\nA rude bird lands on \na branch above you \nand makes fun of \nyou for some reason",
+      "text": ". What do they say? How do you react? Forest Foraging Encounters Watch the shadows. Many a beast scurries through these woodlands, and not all of them have the best intentions for their fellows! 160"
+    },
+    {
+      "page": 161,
+      "card": "7",
+      "title": "Petty  \nSquabbles\nAs you round a tree you come across \ntwo big beasts who are fighting",
+      "text": ". What are they arguing over? Do you try to stop them? If so, how? Bring Peace - Gain 1 Reputation but Decrease Timers by 3. Divert Away - Decrease Timers by 1."
+    },
+    {
+      "page": 161,
+      "card": "8",
+      "title": "Friend In Need\nWhile sniffing around \nsome mushrooms you \ncome across another \nPoulticier",
+      "text": ". They need another set of paws to help them with their own task - if you scratch their back, they’ll scratch yours. What is their name? Have you met them before? Where are they headed on their own Journey, and what is their goal? Help Your Guildmate - Draw a card and gain a Forest Reagent with Rarity equal to the card’s value. Decrease your Ailment Timer by 1. Keep to Yourself - Decrease Guild Reputation by 1. Journal about your fellow Poulticier’s patient."
+    },
+    {
+      "page": 161,
+      "card": "6",
+      "title": "Log Knocking\nA passing stag knocks over a rotting \nlog revealing a treasure trove of bugs",
+      "text": ". You eat bugs? - Gain all the Parts of a Beetle, Maggot or Wasp Reagent."
+    },
+    {
+      "page": 161,
+      "card": "5",
+      "title": "Dam Lotta Trouble\nSome trees have been \nfelled here by beavers \nbuilding a dam",
+      "text": ". How do they feel about their work? What gossip have the builders got to share? Beaver Flood - This location has been flooded with river water from a local dam. Mark on your map that this is a Beaver Dam, and that its Region has changed Loch. Dam Burst - The dam bursts after Winter, causing this Location to return to being a Forest Region. 161"
+    },
+    {
+      "page": 162,
+      "card": "M",
+      "title": "Bear's Necessities\nA hibernating bear \nhas awoken, and is \nravenously hungry",
+      "text": ". Its roar echoes in the distant trees. This place is no longer safe! What fearful whispers follow in this behemoths wake? What is this dreaded bear's name? Mark this Location as a Towering Behemoth Barrow (page 40). Whenever you forage in this or an adjacent location, Monarch results become 'Scurry!' Scurry! - The bear has picked up your scent! You must leave before it finds you. Decrease Timers by 2, and lose either 3 Foraging Points or 1 Reagent Part from your Bags. Appease - You can convince the bear to move on by giving it Reagent Parts that provide a cumulative [Fair 5]. You can do this when you Forage or Travel through this area, and doing so removes the Barrow from the map."
+    },
+    {
+      "page": 162,
+      "card": "9",
+      "title": "The Branded\nYou come across an exiled \nbeast who looks like they \nbarely survived the Winter",
+      "text": ". They ask you for help. Do you give it? What crime does their brand mark them as having committed? Compassion - If you help, start a new Lesser Ailment with this beast, neither gaining or losing Reputation or Trinkets; no-one can know you helped them. You need to complete it before you Overstay Your Welcome. Duty - Follow commonly agreed Guild Law and leave them be. Gain 1 Reputation. What do they say as you leave? How does that feel?"
+    },
+    {
+      "page": 162,
+      "card": "J",
+      "title": "Not Forgotten\nYour cross past a \nmemorial for a beast \nthat has gone Elsewhere",
+      "text": ". What is special about this spot? What memories does the memorial try to share?"
+    },
+    {
+      "page": 162,
+      "card": "10",
+      "title": "Alluring Odours\nThe scent and taste of \nsomething sweet hangs in the \nair",
+      "text": ". It enchants your senses. Follow Your Nose - Draw a card and decrease all Timers by 1. If your result was 7 or higher, gain a Reagent that can provide [Fair] and that can also be Foraged for in the Forest. If no such Reagent exists, invent a new one for your Almanack. 162"
+    },
+    {
+      "page": 163,
+      "card": "9",
+      "title": "A Convenient Deal\nWhile searching around the roots of a tree \nyou find the well-hidden stockroom of an \navid Forager",
+      "text": ". They happen to be home, and invite you in to browse their wares. Wholesale - You may Barter with this beast once. The desired Reagent Part's Rarity is decreased by 2."
+    },
+    {
+      "page": 163,
+      "card": "10",
+      "title": "Siesta\nThe sun washes \nover you, warm and \nsoothing",
+      "text": ". A crook of roots ahead looks so comfy; surely a little rest would make you faster overall? Push On - Increase Timers by 1, but lose 2 Foraging Points. Nap - Decrease Timers by 1, and draw a card. What or who do you dream about? ♥ or ♦ - You awake after a short while, energised to keep on with your tasks. Gain 5 Foraging Points. ♣ or ♠ - You sleep overly long, and awake musty-eyed and dizzy. Lose 1 Foraging Point."
+    },
+    {
+      "page": 163,
+      "card": "J",
+      "title": "Thief!\nAs you squint against the \nsunlight in search of a safe path \nto travel, you feel something \nshift in your Bags",
+      "text": ". Turning, you spot something - no, somebeast - dashing away! Give Chase - Decrease Timers by 1, and draw a card. ♥ or ♦ - You catch up to the thief! You retrieve your stolen property. Do they apologise, or give an excuse? ♣ or ♣ - You lose them in the roots and loam. Follow 'Lost Item'. Leave them - Whoever felt the need to steal from you must have been desperate. Increase Timers by 1, as you maintain focus on your task. Draw a card, and follow 'Lost Item'. Lost Item - Use the value of your card to count down the list of items in your Bags; discard the item you land on."
+    },
+    {
+      "page": 163,
+      "card": "M",
+      "title": "Stung On  \nAll Sides\nA young beast has managed \nto get stuck deep in a \nflourishing patch of nettles, \nand cries out for help",
+      "text": ". What were they doing near the nettles anyway? What kind of beast are they? Mouse, badger, or something in between? Helpful Giant - If you are larger than the young beast, you may simply lift them out, receive their thanks, and be on your way. You're able to clip some samples while you help; add any Part from Stinging Nettles (page ) to your Bags. A Giant Help - If you are smaller than the young beast, how do you help guide them free from the nettles? Gain 1 Reputation; this young beast tells everyone about you when they get home safe. 163"
+    },
+    {
+      "page": 164,
+      "card": "9",
+      "title": "If You Go Down To  \nThe Woods Today",
+      "text": "... You stumble upon a beast with a feast of bugs laid out before them, including some that make useful Reagents. Why is the beast picnicking out in the Forest today? What bug based dishes have they made? Guild Level is Established or lower - The beast refuses to give you the Insects, going so far as to quickly scoff them if you try to take them. Guild Level is Upstanding or higher - They recognise the look in your eyes, and forlornly offer you one of the dishes. If you were looking for an Insect Reagent Part, add it to your Bags."
+    },
+    {
+      "page": 164,
+      "card": "10",
+      "title": "An Unlikely Friend\nWhile searching through the leaf \nlitter you come across a bug that \nseems to instantly bond with you",
+      "text": ". No matter where you go or what you do, it follows you. What type of bug is it? Is there anything unusual about it? The More the Merrier - Gain a Companion (page 70)"
+    },
+    {
+      "page": 164,
+      "card": "J",
+      "title": "Competitive  \nSpirit\nA frantic squirrel is organising \na last minute nut hunt with a \ngroup of local beasts",
+      "text": ". The prize for the beast who finds the most nuts is a curious Trinket. Do you join in? What is the atmosphere in the hunt like? Nut Hunt - Draw a card for yourself and two cards for the other of the beasts. Whoever has the single highest value card finds the most nuts. If you win, gain 1 Trinket."
+    },
+    {
+      "page": 164,
+      "card": "M",
+      "title": "Musty!\nThe unmistakeable smell of \nmushrooms wafts through the \nforest",
+      "text": ". Does this excite or repulse you? Reduce the Rarity of any Mushroom Reagents by 4 until you next Move On. 164"
+    }
+  ],
+  "Loch": [
+    {
+      "page": 165,
+      "card": "10",
+      "title": "White Out\nSnow falls in thick glittering clumps",
+      "text": ". It won't be long until everything is buried. Set a Snow Timer, starting at 4. Once this Timer reaches 0, for the remainder of this Ailment all PLANT, EARTH, and BEAST Reagents have their Foraging Value increased to 13."
+    },
+    {
+      "page": 165,
+      "card": "9",
+      "title": "Blades of the  \nBoreal Dancer\nRazor sharp icicles hang from the \nbranches like swords waiting to drop",
+      "text": ". As you pass under, the wind causes some to drop! Dodge - Draw a card to get out of the way. ♥, ♦ or ♣ - you manage to dash, roll or hop out of harms way. ♠ - an icicle gives you a nasty cut. You need to treat it immediately! Unless you can immediately treat [WOUND 2], decrease all Timers by 1 for each Path to the nearest settlement; you find treatment from a local Stitcher."
+    },
+    {
+      "page": 165,
+      "card": "J",
+      "title": "Winter Feast\nYou spy an incredibly \ndecorated house up ahead",
+      "text": ". It looks like they've really gotten into the spirit of the season with lights, food, and what sounds like a party. What sort of decorations do they have? Do you knock? If so, decrease Timers by 1 and take one of these Actions Charity - You explain your current Ailment and ask if they have anything that could aid your patient. Draw a card. If you draw a ♥, they give you any Forest Reagent Part of your choice. Sing - You've heard it's tradition in these parts of the Woods to pay travelling singers. What song do you sing? Are you any good? Regardless gain a Trinket."
+    },
+    {
+      "page": 165,
+      "card": "M",
+      "title": "Fangs  \na'Hungering\nYou round a bend and come nose to \nnose with a starving branded exile",
+      "text": ". They lick their sharp teeth and growl at you. What kind of carnivorous beast are they? What crime does their brand claim they have committed? Flee - Draw two cards; one for you and one card for the exile. Whoever has the highest total wins. If you win - You escape unharmed. What will happen to the exile? If you lose - The exile manages to harm you, but in the process you give them the slip. Move to the nearest Settlement, and end your Winter's Journey; you're too hurt to continue until next Season. Kindness - If you have helped an exiled or branded beast before then your assailant knows of you, and stops their attack. What tales does the exile have of life, shunned from their community? 165"
+    },
+    {
+      "page": 166,
+      "card": "3",
+      "title": "Lost and Found\nSomething shiny and \ndistinctly beast-made \nfloats past you",
+      "text": ". It looks like it’s from a settlement nearby. What material is it made from? How do you think it came to be in the water? Gimme! - Add a Shiny Object to your Bags (Weight 11). If you hand it into a Settlement connected to this body of water, gain 2 Reputation and a Trinket. Leave It - If it is really that important, someone else will get it. Continue foraging. Gain 1 Foraging Point. ace Horrors From The Deep Something slithers through the water. Oh stars, what could it be? What monster lurks just underneath the water?! Draw a Card. ♥ or ♦ - A traveller swimming low and slow thuds into your vessel. What are they doing out on the water? How to they respond to bumping into you? ♣ or ♠ - PIKE!! A massive fanged fish will bite you into bloody clumps if you don't get moving! Reduce Timers and Foraging Points by a total of 5 as you backtrack through the water, and hide safely on land."
+    },
+    {
+      "page": 166,
+      "card": "2",
+      "title": "Bonepickin'\nA Fishfinder with a coracle \nfull of scuttle passes by",
+      "text": ". They stop, and offer some useful scraps from their haul. What prompts this kind act? Catch of the day - Gain a Small Fish Reagent Part (such as Scales, or Bones). Loch Foraging Encounters Water is the source of all life, and at the fringes of where it flows all manner of useful Reagents can be found. Just mind the locals... 166"
+    },
+    {
+      "page": 167,
+      "card": "7",
+      "title": "Fish Slap\nA massive, truly \nancient salmon lunges \nup from the watery \ndepths below, flipping \ninto the air",
+      "text": ". In the process its massive tail slaps you! If you are rowing a Coracle, it is punctured and starts to take on water! Your Coracle provides no benefits until you next Move On. If you are swimming, gain a [WOUND 2] that you need to treat before the end of your highest Timer. If you fail to treat it, Mark 3 Days on your Calendar. You have a concussion, and need time to recover."
+    },
+    {
+      "page": 167,
+      "card": "8",
+      "title": "Voyage To The Blackwater\nYou come across a group \nof Toad Knights floating a \ndeceased friend or family \nmember out into the water in \na ritual known as",
+      "text": "“going to the Blackwater”. What do the Toads have to say about their departed friend? What order of knights do these toads belong to, and which Log do they defend? Offer Condolences - You lend kind words to their funeral, and observe the procession. Reduce Timers by 1, and Gain 1 Reputation. Give them space - You circle wide around the procession, leaving them to their grief. Funeral Rites - If you have a Reagent with the [ELSEWHERE] Tag, you may give it to the Toads. Gain 1 Reputation, and an additional 1 for each Potency of the Reagent."
+    },
+    {
+      "page": 167,
+      "card": "4",
+      "title": "Stretch And Release\nYou spot a beast doing some \nstretches on a rock nearby",
+      "text": ". They see you and invite you to join them for a spot of meditation. Do you take them up on their offer? If so, what thoughts come and go as you meditate?"
+    },
+    {
+      "page": 167,
+      "card": "5",
+      "title": "Serenity\nThe water here is exceptionally \nclear",
+      "text": ": you can get a clear view of what’s below. Gaze - Reduce your Timers by 1, and gain 2 Foraging Points. Paddle - Continue Foraging."
+    },
+    {
+      "page": 167,
+      "card": "6",
+      "title": "Fogbank\nMist rolls in across the loch, \nmaking it near impossible to \nsee",
+      "text": ". You’ll have to wait it out. What do you do to pass the time? Waiting Game - Decrease Timers by 1. 167"
+    },
+    {
+      "page": 168,
+      "card": "9",
+      "title": "Froglets!\nThe water here is thick with frogspawn \nand caretaker frogs who would love \nto tell you about their little tadpoles-\nto-be",
+      "text": ". What is their favourite tadpole name? Natter - Decrease Timers by 1 but gain 3 Foraging Points. What local gossip do these caretakers spread?"
+    },
+    {
+      "page": 168,
+      "card": "10",
+      "title": "River Snatchers\nAs you search through \nthe cooling shallows, you \nfeel something brush \npast your bag, followed \nby rapid splashing - a \nthief!\nGet back here! - Draw \na card",
+      "text": ". Go down the list of your Bags using the card’s value. ♥ or ♦ - You are able to catch the thief, and retrieve your item. If it was a Reagent Part, it is soaked thoroughly through and you must discard it. ♣ or ♠ - The thief is too fast and loses you in the deeper waters."
+    },
+    {
+      "page": 168,
+      "card": "M",
+      "title": "Danger Ahead\nYou spot the tell-tale sign of \na pike in the water ahead",
+      "text": ". It's humongous body and vicious fangs send a shiver up your spine! Have you seen a pike before? Has it noticed you? NOPE - Lose 2 Foraging Points. You cannot Forage at this Location until you next Move On."
+    },
+    {
+      "page": 168,
+      "card": "J",
+      "title": "Flood\nThe melting snow and ice has raised \nthe water near here, flooding paths and \nburrows alike",
+      "text": ". Were any beasts badly affected by the flooding? How have the locals tried to adapt to this change? Paws In - Decrease Timers by 2, and gain 1 Reputation. Shrug and move on - Lose 1 Reputation 168"
+    },
+    {
+      "page": 169,
+      "card": "M",
+      "title": "Up To Something\nSome magpies are \nscraping around at the \nmuddy shores and depths \nhere, piling the various bits \nand bobs into a dirty cart",
+      "text": ". What interesting things have they found already? Why are they mudlarking here? Take Part - The magpies are happy for any help, and will let you keep anything useful they find that isn't Titan-made. Create 3 Trinkets that have been broken and washed up here. Choose one to keep, and decrease Timers by 1."
+    },
+    {
+      "page": 169,
+      "card": "9",
+      "title": "A Small Ailment\nA nervous parent asks if \nyou could take a look at \ntheir tadpoles",
+      "text": ". They're concerned about their wain's health. Tadpediatrician - Draw: ♥ or ♦ - the tadpoles are perfectly healthy. ♣ or ♠ - some of the tadpoles are sick. Sick Tadpoles - Create a Remedy for [TEMPERATURE 2] and [INFECTION 1] before the end of your highest Timer. Helping Paw - If you cure the sick tadpoles, gain 2 Reputation and 2 Trinkets."
+    },
+    {
+      "page": 169,
+      "card": "10",
+      "title": "Summertime Swim\nWarm sun, still water and a light breeze \nare a welcome treat",
+      "text": ". Beasts from all over have taken the chance to dip their paws into the water and play! What sort of games to these beasts like to play? Relax and Exercise! - Decrease Timers by 1, and meet a local beast. What do you learn about your new friend?"
+    },
+    {
+      "page": 169,
+      "card": "10",
+      "title": "The Boat That Rocks\nMuch to the annoyance of those \nwishing to relax, a few rodents are \nhaving a loud and raucous party on a \nsmall boat",
+      "text": ". Just how bad are they? What music do they play? Do they litter? Startled - You cannot find any Big Fish or Small Fish in this Location until you next Move On 169"
+    },
+    {
+      "page": 170,
+      "card": "J",
+      "title": "Brisk Beach Party\nBeasts flock to the water during what \nfeels like it could be the last warm day \nof the year",
+      "text": ". Rushed picnics are had at the lochside and boats are rowed out to desperately get one last day on the water. How do you take advantage of the good weather? What is the weirdest mix of activities you see a desperate beast performing? Boating barbecue? Paddleboard volleyball?"
+    },
+    {
+      "page": 170,
+      "card": "M",
+      "title": "Fabled Behemoth\nSomething massive passes \nby beneath you",
+      "text": ". Too large to be a pike. Too large to be anything that should live in these waters! What could it possibly be?! What rumours have you heard about loch monsters? Row - Draw a Card to get safely to shore and away from this monster. Whatever your result, you must leave the Location. ♥, ♦ or ♣ - You row back and catch just a glimpse of the monster. What did you see? ♠ - You row back quickly but in your haste, you drop one of your Reagents. Lose 1 Reagent. Face the Goliath - You can shoot your Crossbow at the monster. If you do, you do not need to leave this Location, and gain a Titan Reagent of your choice which floats up to the surface."
+    },
+    {
+      "page": 170,
+      "card": "10",
+      "title": "Showboat\nA massive vessel glides through \nthe water",
+      "text": ". Its swell sends you drastically off-course. What boat was it? Where was it headed? Adrift - Lose 3 Foraging Points; you've lost your bearings."
+    },
+    {
+      "page": 170,
+      "card": "9",
+      "title": "The Great Silence\nFog rolls in from the \nmountains and lays across \nthe water like a thick \nblanket, muting all sounds \nand leaving you terribly \ndisorientated",
+      "text": ". What folktales have you heard about fog on the water? Patience - Decrease the Timers by 3. Startle - Decrease your Foraging Points to 0 and Forage again in an adjacent non-Loch Location. This second Forage does not decrease your Timers. 170"
+    }
+  ],
+  "Meadow": [
+    {
+      "page": 171,
+      "card": "10",
+      "title": "Ice Fishing\nYou spot a hardy Fishfinder \nout on the ice",
+      "text": ". They wave you over and say you can use one of their empty stools that are perched around a fishing-hole. They don't say much, but the advice they give is invaluable. What special patches do they have on their fishing jacket? Go Fish - Decrease Timers by 1. Gain all the Parts of a Small Fish. Fish Some More - Decrease Timers by 1 and Draw a Card: ♥ or ♦ - Gain all parts from a Small Fish ♣ - Gain all parts from a Big Fish ♠ - You don't catch anything."
+    },
+    {
+      "page": 171,
+      "card": "M",
+      "title": "Lodge of Wonders\nYou come across a magnificent \nbeaver lodge out in the middle of \nthe freezing water",
+      "text": ". There is a little post with a rope going under the water that says \"pull for service/ trade”. Trade - You may Barter for a Reagent. During this Barter, skip step 2. Visit - The beaver invites you in from the cold weather and can give you advice on where to find what you're looking for. Decrease your Timers by 1. Until you Move, gain 2 Foraging Points after your complete any Encounter Help - If you have the time, the beaver asks for your assistance in fixing a few leaks. Decrease the Timer by 3 and gain 1 Trinket."
+    },
+    {
+      "page": 171,
+      "card": "J",
+      "title": "A Gentle  \nMoment\nAs you are \nforaging, you and \nyour familiar take \na moment to \nwatch the falling \nsnowflakes",
+      "text": ". What do you say to each other in this moment?"
+    },
+    {
+      "page": 171,
+      "card": "9",
+      "title": "Thin Ice\nMiraculously, ahead is the \nReagent you're looking for! \nHowever, a stretch of thin \nice separates it from you",
+      "text": ". Too risky - There have to be safer opportunities nearby. Gain 1 Foraging Point. Brave the ice - You can risk the freezing water and walk on the ice. Draw a card. If its value is: Equal to or lower than your Carry - you manage to cross the ice, gather a Reagent you're seeking immediately, and make it back to shore safely. Higher than your Carry - You take too long; the ice splits below you, and you plunge into the icy waters below. Reduce Timers by 2 as you spend time drying off and heating back up. 171"
+    },
+    {
+      "page": 172,
+      "card": "3",
+      "title": "Little Biters\nAs you hike through the \nbrush here, you shake \nloose a tick from a strand \nof grass",
+      "text": ". You can't quite shake the feeling of something crawling over you. Tick Check - Decrease Timers by 1 as you check yourself twice over. Risk It - Draw a Card. ♥ or ♦ - You were lucky; no ticks have sunk their nasty little teeth into you. ♣ or ♠ - You develop the Tick Bitten, Twice Shy Ailment (page 113) and must cure it before you Move On, or face the Consequences."
+    },
+    {
+      "page": 172,
+      "card": "4",
+      "title": "The Winged Hunter\nA dark shadow falls across the \nmeadow as an eagle passes overhead",
+      "text": ". Does it try to grab anyone? Take Shelter - Decrease Timers by 1 as you hide from the Behemoth. Creep Away - Draw a Card. If it is a ♥ - you escape unnoticed. If it is ♦, ♣ or ♠, the eagle spots you! Its talons rake across your back; Lose all Foraging Points and 1 Reagent. ace Soft Song Music carries across the meadow as another beast sings a song. What sort of melody and they singing? Are they any good? Why do you think they're singing?"
+    },
+    {
+      "page": 172,
+      "card": "2",
+      "title": "Cow Tools?\nYou trip over a broken \nfarm tool discarded \namongst the grass",
+      "text": ". What sort of tool or contraption was it? Why was it abandoned here? Meadow Foraging Encounters Farmer's fields pull precious grains and oats out of the mud, providing the basis for other skills. And yet, they aren't without their own dangers... 172"
+    },
+    {
+      "page": 173,
+      "card": "7",
+      "title": "Wild Chef\nA streak of smoke, a \ndelicious smell, and \nthe distant sounds of \nexcited munching are \nall signs that someone \nclose by is baking \nsomething incredible",
+      "text": ". What food-scent blows on the wind? Do you have a particular fondness for this food? Follow Your Stomach - Lose two Foraging Points. Draw a Meadow Social Encounter relevant to the season you are in. Complete it, and add Delicious Food (Weight 1) to your bags. It provides [FAIR 4]. The food spoils after you Mark 3 Days on your Calendar. Follow Your Heart - Lose 1 Foraging Point as you are distracted by the hunger."
+    },
+    {
+      "page": 173,
+      "card": "8",
+      "title": "Fowl Fare\nA friendly bird lands in front \nof you and strikes up a \nconversation",
+      "text": ". Airlift - If the guild’s Reputation is Trusted, they offer to give you a lift to your next foraging spot. Gain 4 Foraging Points. Taxi - If the guild’s Reputation is Upstanding or lower, they offer you a lift in exchange for a Trinket. Gain 4 Foraging Points if you take their offer."
+    },
+    {
+      "page": 173,
+      "card": "6",
+      "title": "Ant Heist!\nWhile searching around, \nyou find an ant colony with \nthousands of busy little \nworkers carrying Reagents",
+      "text": ". You could easily grab one, any more than that might anger the hive though. Snatch and Go - Draw a card and gain a PLANT or INSECT that can be Foraged in the Meadow with a Rarity equal to or lower than the card’s value. Going For Broke - You can give into greed, and grab again. Draw a another Card: If it is a ♥ - you gain another Reagent Part! If it is ♦, ♣ or ♠ the ants swarm you. Discard all of the Reagents from your Bags!"
+    },
+    {
+      "page": 173,
+      "card": "5",
+      "title": "Pest Control\nYou come across a \nfarmer's unique method to \nprevent insects, children, \nor behemoths stealing \ntheir crops",
+      "text": ". What is this unique method? Does it catch anyone it isn’t meant to? 173"
+    },
+    {
+      "page": 174,
+      "card": "M",
+      "title": "Sowing",
+      "text": "(Enhanced Edition) The farmers here have a very unusual way of spreading seeds around the fields. How do they manage it? Do they use a natural feature of their bodies, or a strange contraption? Is it effective? Or just eccentric?"
+    },
+    {
+      "page": 174,
+      "card": "J",
+      "title": "Grind Mentality\nIt's all hustle and bustle in \nthe meadow this time of year",
+      "text": ". Beasts set out to plant their fields and fix the damage from the winter prior. What are the locals planting? What was damaged by winter frosts? Farmer’s Demands - Get off their land and stop trampling seeds! Lose 2 Foraging Points. Hedgerow Wandering - Navigate around the fields; Reduce Timers by 1. Greased Paws - Pay 1 Trinket to pass through the farmland short cut, and Increase Timers by 2."
+    },
+    {
+      "page": 174,
+      "card": "10",
+      "title": "One Beast's Rubbish",
+      "text": "... You hear a cart rumbling past behind you and spot that it's full of Reagents that local farmers have decided are weeds. Roadside Negotiation - You try to convince the farmer to let you root through their weeds. Draw a card: ♥ or ♦ - The farmer agrees! Gain up to as many as you can Carry of a single Meadow Reagent Part that is in Season during Spring and has Rarity 6 or lower. ♣ or ♠ - The farmer disagrees! They have places to be and won't see reason."
+    },
+    {
+      "page": 174,
+      "card": "9",
+      "title": "Project Launch\nBeasts from all around \nare gathered to see \nthe unveiling of a local \nCraftpaw’s latest invention",
+      "text": ". What purpose does it serve? Does it even work? If not, what goes catastrophically wrong? Watch the Unveiling - Reduce Timers by 2. Add a Guild Rumour (No Weight) to your Bags. Bring it to any Settlement to gain 2 Guild Reputation. Keep Your Head Down - Continue with your foraging and leave the inventors to their chaos. 174"
+    },
+    {
+      "page": 175,
+      "card": "M",
+      "title": "Fire and Iron\nThe sound of clashing \nsteel rings out across the \nmeadow as you spy two \narmoured beasts fighting",
+      "text": ". Left to it, one will certainly kill the other. Can you tell why they are fighting? Is either combatant winning? Intervene - Draw a card if it is a: Monarch - you successfully stop the fight, for now. Gain 4 Reputation. What do you ask them? What cost does peace have? Not a Monarch - You stop the fight, but are caught in the crossfire. Gain 6 Reputation. You suffer a [WOUND 2]; if you have the ability to make a Remedy for it now, reduce Timers by 2. Otherwise, they set aside their differences and take you to a Stitcher to tend your wounds. Reduce timers by 8. Leave Them Be - Probably wisest to leave them to their feud."
+    },
+    {
+      "page": 175,
+      "card": "J",
+      "title": "Bee Kind  \nTo Yourself\nAs you're making your \nway past colourful \nmeadow flowers, you \nfind a dazed bee lying \non the ground",
+      "text": ". Do you help the dazzled bug? Sweet - If you have some Honey or another Fair Reagent, you can nurse the bee to health and gain a Honey Bee Companion (page 70). Rescue - If you don't have any Honey or Fair Reagent, you may carry the bee to safety and gain a Honeybee Companion (page 70) by Decreasing Timers by 4."
+    },
+    {
+      "page": 175,
+      "card": "9",
+      "title": "Misbehooving \n Behemoths\nA herd of highland cows have been \nplaying and stamping about in this \nmeadow",
+      "text": ". While not dangerous on their own, they are trampling or eating most of the flowers in the area. Trampled - Increase the Rarity of all Plant Reagents you Forage for here by 2."
+    },
+    {
+      "page": 175,
+      "card": "10",
+      "title": "Unyielding Heat\nThe sun hangs high in the sky, hot and heavy as \nthe wind refuses to blow and grant reprieve",
+      "text": ". Do you enjoy weather like this? If not, how do you try to keep cool? 175"
+    },
+    {
+      "page": 176,
+      "card": "J",
+      "title": "Trembling Titan  \nTechnology\nA worrying rumble \nvibrates through the \nsoft earth underpaw",
+      "text": "; something is bursting through the ground! What is this strange contraption? What purpose do you think it originally had? Run & Hide - You dive for cover, only to find another beast hiding from \"The Crow Scarer\". What legend do they tell you of the terrifying thing out there? Decrease Timers by 1, but you may choose the Knowledge action next time you encounter this event. Knowledge - It spears out of the earth, chitters, lets out a heart shaking 'BANG', and withdraws. Knowing what it is doesn't detract from its spooky aura. Continue with your foraging."
+    },
+    {
+      "page": 176,
+      "card": "10",
+      "title": "Heavy Fog\nAn early morning fog rolls \ndown a nearby mountain side, \nconfusing your sense of sight \nand smell till you're all turned \naround",
+      "text": ". Worse than that, there's something else in the fog... What ghost stories have you been told about meadow fog? Fog Turned - You do not gain Foraging Points this Encounter. Bump - You bump into something (or someone??) in the fog. Draw a card: ♥ or ♦ -- A friendly face, they help you find what you're looking for. Gain a Reagent from your list. ♣ or ♠ -- An unfortunate meeting. Paws snatch at your bag before disappearing into the mist; lose a Trinket."
+    },
+    {
+      "page": 176,
+      "card": "M",
+      "title": "Mycophiliacs\nA mob of mushroom pickers \nhave flooded to this meadow \nto look for the tasty treasures \ngrowing from the dying grass",
+      "text": ". Early Bird - If you start this encounter with more Days in your Calendar than you have Marked, gain a Mushroom Reagent of your choice. Picked Clean - If you start this encounter with the majority of Days in your Calendar Marked, increase the Rarity of mushroom Reagents to 10 while in this Location. Beseech - If the Guild Reputation is Upstanding, you may Barter once for Mushrooms. Instead of drawing a Social Encounter, Journal about a conversation with the pickers. Where are they from? Do they come to this spot every year?"
+    },
+    {
+      "page": 176,
+      "card": "9",
+      "title": "Sloppy Steps\nFurrows and tracks from overladen carts and \nfresh harvests have churned the rain-soaked \npath ahead into sticky mud",
+      "text": ". Fumble on - Decrease Timers by 1. Flap away - If you and/or your Familiar can fly, you easily dart through the air, avoiding the mud. 176"
+    }
+  ],
+  "Mountain": [
+    {
+      "page": 177,
+      "card": "9",
+      "title": "Sain De Claws\nYou come across a \nwood grouse with a \nfloppy green hat trying \nto sort out a pile of \npresents and a burst \nbag",
+      "text": ". The Grouse begs you for your help; three gifts are missing, and they haven't the time to replace them! Why are they hauling so many presents on such a cold, dreary afternoon? Locally Sourced - Draw 3 cards and place them to one side. During your Forage in this area, if you find a card that matches their value or suit, then you find a missing present! Cheerful Delivery - If you can return a missing presents, the Yuletide grouse gifts you a Trinket to unwrap at the end of the Season. If you return all three, the trinkets miraculously fit together into a Tool of your choice!"
+    },
+    {
+      "page": 177,
+      "card": "10",
+      "title": "A Worrying Ache\nSilent snow covers every inch \nof the meadow, hiding what \nfew hardy plants still survive",
+      "text": ". Its paw bitingly cold and its getting dark already. Chill - The seed of a cold sets in as you forage. Set a Cold Timer of 6; it only decreases while you Forage. Snotladen - If the Cold Timer reaches 0, you push yourself too hard and must sleep off a vicious, snotty cold. Mark 2 Days on your Calendar before you next Move On. Hot Toddy - If you have a Tent, you can set up a campsite to take refuge in as you Forage, with a pot of something warm to drink from. Decrease Timers by 1. If you draw this event again during the same Ailment, Journal about your Hot Toddy."
+    },
+    {
+      "page": 177,
+      "card": "M",
+      "title": "Life Saving Transplant\nHow fortunate! Some beasts \nhave been out and made \na snowbeast with Dense \nCharcoal for eyes and Animal \nSheddings for hair",
+      "text": ". What sort of beast does it resemble? How does it feel to take bits from someone's work? Take - You may add a piece of Dense Charcoal and Animal Sheddings (Fur) to your Bags. Transplant - You may replace the removed Charcoal or Sheddings with something similar of your own. Gain no Reputation (but you can feel less guilty)."
+    },
+    {
+      "page": 177,
+      "card": "J",
+      "title": "Social  \nOccasion\nYou come across some \nbeasts taking advantage \nof good weather on a \nshort winter’s day",
+      "text": ". Stop for a Chat - Reduce Timers by 1, and gain 2 Foraging Points. 177"
+    },
+    {
+      "page": 178,
+      "card": "2",
+      "title": "Winged Menace\nA massive eagle passes overhead, \nits shadow falling across you and \nsending instinctual fear coursing \nthrough you",
+      "text": ". Take cover! Hide - Where do you hide? How close did it come? Did it even notice you? Decrease Timers by 1."
+    },
+    {
+      "page": 178,
+      "card": "4",
+      "title": "Konami's Path\nUp, up, down, down, scramble, \nscurry, scramble, scurry, wiggle, \nclimb",
+      "text": ". Mountain hiking sure is a lot of work! Exhausted - You need to take a rest. Decrease Timers by 1. You may complete the 'Fellow Hiker' Action, or rest alone. Fellow Hiker - A hiking beast stops beside you and chats for a while as you catch your breath. Where are they headed, and why?"
+    },
+    {
+      "page": 178,
+      "card": "3",
+      "title": "A Pleasant Surprise\nAs you haul yourself over \na rocky ledge, it gives way \nbeneath you",
+      "text": ". Cursing at your bruised bottom, you dust yourself off. Luck - Choose an Earth Reagent, and draw a card. If its value is equal to or higher than the Reagent's Base Rarity, it is unearthed from behind the rocky ledge! Add it to your Bags. ACE A Sign To Nowhere A Titan made plaque stands here just off the path. Many beasts have put forward theories as to why its here but few can agree. Why do you think it's here? What do you think it says? Mountain Foraging Encounters Brown ridges encompass the Bristley Woods. Within their stony reaches live the Philosopher-Goats, and several lofty communities. 178"
+    },
+    {
+      "page": 179,
+      "card": "5",
+      "title": "When You Look Up ,  \nYou Will Find Me\nAt the crest of this particular \nhill, you find a paw-built \ncairn",
+      "text": ". Beasts have left some offerings to mark the passing of friends or perhaps family. Invent a Trinket or Reagent Part with the [ELSEWHERE] Tag to find on the cairn. Do you take it? If not, why not?"
+    },
+    {
+      "page": 179,
+      "card": "6",
+      "title": "The Height Of Wit\nYou pass a group of hikers \nhaving a rest",
+      "text": ". They jokingly tell you that its not far to the top, looking over their shoulders at the distant peak of the mountain you're standing on. Who are these beasts? What interesting tidbit do you remember from your chat with them?"
+    },
+    {
+      "page": 179,
+      "card": "7",
+      "title": "Flock Full Of Trouble\nThe hillside is suddenly \nthronging with sheep \nwho've come up from lower \nparts looking for food",
+      "text": ". What names do you hear bleated out through the crowd? How do you avoid being headbutted or stepped on? Having A Baad Time - Whenever you go to gather a Reagent while Foraging in this location, draw a card. If the new card is higher than the Reagent's Rarity or the card you drew to find the Reagent, a sheep eats it before you can get it."
+    },
+    {
+      "page": 179,
+      "card": "8",
+      "title": "Stick 'Em Up!\nYou're stopped by an \narmed beast with a \ndangerous look to \nthem",
+      "text": ". They demand your bag and threaten you with tooth and iron. What fearsome weapons do they wield? Play it Safe - You give them your satchel. Discard everything in your Bags, and lose all your Trinkets. Scrap - You try to fight them off. Draw a card for you and two cards for them. The highest single card wins. You can draw a second card if you have a Crossbow and Bolt. If you win the fight - you chase them off and can take their Weapon (Weight 1). It has the same function as a Crossbow (page 62), but only works against Beasts, not Behemoths. If you lose the fight - they kick, beat and bite you. While you shelter from their attacks, they snatch your Bags. Discard all of your Items (including Tools), and lose all your Trinkets. 179"
+    },
+    {
+      "page": 180,
+      "card": "M",
+      "title": "Ray Tracing\nThe clouds part, letting refreshingly warm \nbeams of sunlight through",
+      "text": ". The whole hillside glows emerald and gold, making it much easier to find hidden Reagents. Lit Up - Gain 1 Foraging Points each time your Forage until you next Move On."
+    },
+    {
+      "page": 180,
+      "card": "10",
+      "title": "Special Technique\nYou spy a duo of beasts \nweaving fine filters out of \nheather, and collecting spring \nwater in waxed satchels",
+      "text": ". They get protective as you approach, covering their work behind their backs. What excuses do they give for their strange actions? Secrets Of The Craft - If your Guild Reputation is Upstanding, these secretive beasts acknowledge the importance of your work, and offer to teach you a special PURIFY preparation method. PURIFY - When Creating A Remedy, you can [PURIFY] it, so long as you gathered the last Reagent in a Mountain Location. Doing this removes all [FOUL] from the final remedy. Shunned - If your Guild Reputation is Established or lower, the beasts hastily grab all their things and dive headlong into a nearby patch of gorse. You leave them to their bickering and yelps."
+    },
+    {
+      "page": 180,
+      "card": "J",
+      "title": "Protective Parents\nA young lamb has \nwandered over to you \nwhile you're foraging",
+      "text": ". How sweet! Before you can even introduce yourself, the rest of the flock charge at you to protect it! Scamper! - Run as fast as you can, Down the scree or Up steep slopes. Down the scree - You escape safe and sound, but cannot Forage in this location until you have Moved On. Up the slope - Out of breath (and out of sight), you're safe to keep foraging. Your aching limbs need a break though; decrease Timers by 2. On flitting wings - If you or your Familiar can fly, you dart out of reach of the mountain sheep. Continue Foraging."
+    },
+    {
+      "page": 180,
+      "card": "9",
+      "title": "Coursing River\nThe last of the mountain snow is melting, \nswelling a hillside stream into a raging river",
+      "text": ". Wait, watch out, don't step there! Swept Away - A violent flood sweeps down and carries you off down the mountain. Lose 3 Foraging Points or Decrease the Timer by 2. 180"
+    },
+    {
+      "page": 181,
+      "card": "J",
+      "title": "Moment of Clarity\nAs you reach the top of \nthe mountain you come \nacross a beast sitting in \na most unusual position \natop a rock",
+      "text": ". They say they are clearing their head, and invite you to join them. Take part - If you stop to meditate, Decrease Timers by 1. What thoughts cross your mind? How do you feel before, during, and after the meditation?"
+    },
+    {
+      "page": 181,
+      "card": "M",
+      "title": "Blazing Sun\nThe sun bears down on you \nundeterred by the weak \nbreeze while the shade is \nscant and scarce and offers \nlittle respite",
+      "text": ". Coldblooded Bliss - If you are a coldblooded beast, you actually find yourself more invigorated by the heat. Increase Timers by 2. Fur and Feathered Fools - The heat forces you to seek out water and shade. Decrease Timers by 2."
+    },
+    {
+      "page": 181,
+      "card": "10",
+      "title": "Refreshing Drink\nA considerate",
+      "text": "(or perhaps entrepreneurial) beast has rolled up a cart full of cool drinks to a popular rest stop on this side of the mountain, serving all the beasts who are making the trek today. Why do business in such a remote place? Snack Time - Give away one of your Reagents to Increase the Foraging Timer by 1 thanks to your renewed vigour."
+    },
+    {
+      "page": 181,
+      "card": "9",
+      "title": "Arena of the Mind\nThe thunder crack of \ngoats colliding echoes \ndown past you and as \nyou follow to see its \nsource you discover a \ntrio of goats around a \nnatural salt lick! These \ngoats are arguing over a \nphilosophical principle, \nand are",
+      "text": "(quite literally) butting heads over it. Debate the Goats - Decrease Timers by 1, and draw a Card. If it is a ♥, ♦, or ♣ - You invent a reasonable solution to their theoretical problem. Add Rock Salt to your Bags. If it is ♠, the goats are displeased with your theories! They stamp their hooves and scare you off; Lose 2 Foraging Points. Follow in their Hoofsteps - Eventually they tire of bashing, and start to wander the nearby mountainside for fresh ground to stomp around in. In their wake, they leave sheddings! Decrease Timers by 1, and gain 1 Behemoth Bits (Fur). 181"
+    },
+    {
+      "page": 182,
+      "card": "M",
+      "title": "Dreich\nThe clouds part and let their rains fall \nhard and cold, turning the ground to \nmush",
+      "text": ". Little streams gouge channels in the mud as they run down the mountain side. You are otherwise safe."
+    },
+    {
+      "page": 182,
+      "card": "10",
+      "title": "Howl\nDistant, a full moon comes \nto life as it hangs near the \nhorizon",
+      "text": ". Echoing across the hills you hear the unmistakable blood chilling sound of a wolf's howl; a single word: \"Feast!\" Stay low - You seek shelter in dew-soaked shrubs. The wolf doesn't spot you. Decrease Timers by 2. Blood to blood - You can turn and fight. Draw three cards; one for you and two for the wolf. The highest total value of all cards wins. If you are carrying a Crossbow and/or a Weapon, you may draw an additional card for yourself for each. If you win the fight - Describe how you injured the wolf enough to search for easier prey. Did you sustain any wounds? If you lose the fight - Your foolishness earns you a painful injury that will undoubtedly heal into a grim scar. You escape, but lower your Speed or Carry by 1."
+    },
+    {
+      "page": 182,
+      "card": "J",
+      "title": "Gather At  \nThe Tree\nEerie singing flows down \nfrom a gnarled old tree",
+      "text": ". You recognise cats and crows, caterwauling and throwing a party at the base of the tree's trunk. As you approach, you can smell sweet treats. The beasts invite you to join in. Why host the party here, at this particular gnarled tree? Tales from elsewhere - The beasts tell you fun, scary legends about this very mountain with some helpfully detailed directions. Gain 4 Foraging Points. What famous characters feature in the legend they tell?"
+    },
+    {
+      "page": 182,
+      "card": "9",
+      "title": "Softened  \nSensations\nA thick mist flows down the hillside from dew-\nladen peaks, making it near impossible to find your \nway! You'll have to rely on unconventional senses if \nyou want to navigate this part of the mountain",
+      "text": "... How does the landscape change when focusing on it with other senses? Sniff and listen - You do not gain any bonus Foraging Points from Tools during this Forage. 182"
+    }
+  ],
+  "Titan": [
+    {
+      "page": 183,
+      "card": "J",
+      "title": "Speed of Sound\nAs you hike, a terrible \nsneeze builds in your \nsnout",
+      "text": ". However, the snow around you looks too precarious to let loose even a whimper! Hold! - Draw a card: ♥ - You hold the sneeze! Continue on unimpeded. ♦, ♣ or ♠ -- You let out a let a thunderclap of a sneeze, and the snow rumbles down from tree branches and mountains slopes to engulf you. Decrease Timers by 2 as you dig yourself free."
+    },
+    {
+      "page": 183,
+      "card": "9",
+      "title": "Mountain Rescue\nA box full of waxed \npaper kites sits \nsafely beneath a \nrocky overhang",
+      "text": ". A little plaque says \"take one and fly it if ever you need rescue in these treacherous peaks. Kite - Add a Kite (Weight 1) to your Bags. You may fly it while travelling through Mountain Locations to immediately travel to the nearest Settlement. Doing so while Helping Local Beasts with an Ailment causes you to lose 3 Reputation."
+    },
+    {
+      "page": 183,
+      "card": "10",
+      "title": "Chilled To The Bone\nA fell wind blows across the \nmountain's face, chilling you to \nthe bone",
+      "text": ". Harsh Wind - Set a Timer of 3. Whenever you Forage in a Mountain location decrease this Timer by 1, until it reaches 0 or you Move On. Warm Up - If the timer reaches 0, you need to stop to make a quick fire. Decrease Timers by 3 as you gather wood and find shelter."
+    },
+    {
+      "page": 183,
+      "card": "M",
+      "title": "Mercy For  \nThe Mighty\nYou hear some low and rumbling \nwhimpering coming from a cave \nnearby",
+      "text": ". Inside, a haggard Bear Lairds groans, a putrid black- veined infection spreading from paw to elbow. They give you a pleading look. You can choose to start an Ailment with [INFECTION 3], [INFECTION 3], [PAIN 2] and Timer 8. Just in time - If you create a Remedy in time, news spreads among the Bear Lords of the Bristley Woods. If in the future you face a bear, replace negative outcomes with “Journal about your encounter with such a massive creature showing deference to you.” Too late - If the Timer reaches 0, you return to the Barrow to find the bear has passed Elsewhere. Do you perform passing rites for this beast? What can you find in its Barrow that could indicate who they were in life? If you so wish, you can pillage their Barrow of up to 10 Rarity's worth of Reagents of any Type. 183"
+    },
+    {
+      "page": 184,
+      "card": "3",
+      "title": "Gas Leak\nA horrible stinging haze hangs in the air",
+      "text": ". When you breathe it in, it makes your eyes burn and your lungs wheeze. You can't spend too long here. Where is the gas coming from? Rush - Draw a Card at the end of each Encounter in this Location, including this event, until you next Move On. If you draw a ♠, the stinging haze poisons you. Poisoned - Make a remedy that solves [Poison 2], or lose all Foraging Points. You cannot Forage at this Location again until you next Move On."
+    },
+    {
+      "page": 184,
+      "card": "2",
+      "title": "Password\nPart of this ruin is protected by a \nmysterious lock made of metal \nbuttons with embossed  \nTitan glyphs",
+      "text": ". Look Around - As you Forage, if you draw a J or M you may, instead of a Reagent, find something with the Titan Symbols written on it. If you do, you may Open The Door. Open The Door - You press the symbols and the lock opens, revealing what lies beyond. Depending on how you've described this Titan Ruin you can either: Gain a Titan Codex (Weight 1); you can trade the Knowers for 20 Trinkets at the end of this Journey. (You don’t have to find them, they'll find you). Establish a Clinic at this Location; choose a new Service to add to the Agenda, even if you don't qualify for it. Titan Foraging Encounters Those that dare scrounge here best beware. Toxins, burning cables, and metal claws await any fool hardy beast who wanders in. 184"
+    },
+    {
+      "page": 185,
+      "card": "4",
+      "title": "Final Resting Place\nAs you delve deep \ninto this ruin, you \naccidentally cause a wall \nto collapse, revealing \na whole new chamber",
+      "text": ". The inside smells of long dried dust, and the massive bones of a strange Behemoth that were interred inside. Wailing Curse - If you choose to enter this new chamber, draw a card. ♥ or ♦ - You scamper through into the eerily silent, dusty chamber. You feel at liberty to explore, and yet also like you're trespassing. ♣ or ♠ - As if you had startled a sleeping wolf, a ear shattering whine begins to fill the air. Dust shivers down from the ceiling. You a forced to flee, unless you have a Titan Thingamabob (which will silence the siren). If you make it into the chamber - amongst the long deceased behemoths you find a crumbling sack of tools far too big for you to use. However, the sack also contains a number of strange devices. Gain either a Cranky Contraption Companion, a Titan Thingamabob, or a Titan Reagent of value 8 or lower."
+    },
+    {
+      "page": 185,
+      "card": "5",
+      "title": "Malevolence  \nGrafted To Metal\nEverything is quiet, \nalmost too quiet",
+      "text": ". You turn just in time to see a strange Not-Cat watching you from elsewhere in the ruin. Its eye glow with slits of pulsing red, and its jaw is in a constant grin full of yellowing metal teeth. Your instincts scream that it means to eat you. Flee - Draw two Cards, one for you and one for the not-cat. If your card is: Higher - You manage to escape! How did you evade the clanking feline? Lower - It manages to hit you but backs off as if playing. Go to Confrontation. Confrontation - Draw another card, and add its value to your original. If your total is still lower - The Not-Cat's slaps force you into a space it can't reach. It's oddly echoing meows sound both familiar, and also like meaningless babble. Trapped - With the Not-Cat prowling around outside you can only patch up your wounds and wait for an opportunity. Draw a card. Decrease all Timers by its value. It takes that long for you to find an opportunity to escape. What was it like being trapped for so long? How do you manage to escape? 185"
+    },
+    {
+      "page": 186,
+      "card": "9",
+      "title": "False Idols\nYou come across what appears \nto be some sort of shrine to \nthe Titans",
+      "text": ". Some beasts have lit candles and left offerings in front of a picture of what you think might be a Titan. Why would anyone try to talk to the Titans? Shortcut - Pawprints in the dust show you a safer route through this portion of the ruin. Gain 2 Foraging Points."
+    },
+    {
+      "page": 186,
+      "card": "7",
+      "title": "What Remains\nYou find the remains of a beast",
+      "text": ". They've gone Elsewhere, leaving only their lonely dust-covered bones behind. How did they meet their end? Investigate - Draw a Card. If it is higher than 6, you find something among their things that tells you where they are from. If you take news of their demise to their home, gain 4 Reputation. Borrow - They won't be using their gear anymore. Gain a Tool for free. How do you feel about taking something that belongs to someone else? Memento - If you borrowed a Tool and take news of this beast's demise to their home, you can return the it for an additional 6 Reputation."
+    },
+    {
+      "page": 186,
+      "card": "6",
+      "title": "Lock And Key\nAs you explore this \npeculiar ruin, you \ncome across an \nintentional hollow",
+      "text": ". It's clearly titan-made, but for what purpose? Power! - If you have a Titan Thingamabob, you may put it in the hole and gain one of the following effects: Light - The ruin is lit up by a torch, hanging lights, or a mesmerising colourful display. Gain 3 Foraging Points after completing an Encounter in this location, until you next Move On. Cameras - A wall illuminates, showing you a vision of the future. You can redraw an Encounter card once until you next Move On. Action - Something moves in the ruin to reveal a Titan Reagent of your choice!"
+    },
+    {
+      "page": 186,
+      "card": "8",
+      "title": "Snap , Crackle, Pop!\nSomething in this ruin \nmakes a terrible and \ndangerous noise",
+      "text": ". What does the sound remind you of? Can you tell what is making the sound? Searching - Choose to be Careful or Quick. Careful - Decrease Timers by an additional 1 after each Encounter, as you check often for Titan traps. Quick - Move with reckless abandon. Draw a card after each Encounter: ♣ or ♠ - You touch something dangerous; pain courses through you! You must leave this Location and end the Forage as you tend your own wounds. 186"
+    }
+  ]
+}

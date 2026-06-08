@@ -1,0 +1,556 @@
+{
+  "Bog": [
+    {
+      "page": 74,
+      "card": "ace & 2",
+      "title": "Wisps\nYou trudge ahead in the small \ntwilight hours of dusk or \ndawn",
+      "text": ". The world is silent, only barely lit by hues of purple, orange and grey. Suddenly, a bright green flare in the distance catches your eye. And then another, and a third! Follow the trail - Something, or perhaps somebeast, is beckoning you deeper into the bog. If you follow the wisps, draw a card. ♥ - Each burst of ethereal colour leads you along a hidden shortcut. Add 1 Day to your calendar. When you turn back, the path is gone. ♦ - Spectral gasps echo throughout the silent bog; the voices of beasts howl from Elsewhere. The wisps lead you to a tool, grasped in the rotten paw of dead beast. Gain a Tool of your choice. ♣ or ♠ - Following the flames only leads you to a wet hollow in the earth that reeks of eggs. Mark 1 Day as you retrace your steps to the road."
+    },
+    {
+      "page": 74,
+      "card": "3 & 4",
+      "title": "From Rot \nComes Art\nA beast is organising rotting detritus and \nmosses into neat colourful piles by the \nside of the path",
+      "text": ". Do you ask them why? If so, what is their reason? Spare Material - You may Trade a Trinket to gain any Common or Rare Bog Reagent. Bog travel encounters The wetlands of the Bristley Woods are many, and scattered amongst the mountains and meadows. Within their lush peat depths lie treasures buried by beasts long since gone Elsewhere. 74"
+    },
+    {
+      "page": 75,
+      "card": "5 & 6",
+      "title": "Branch-Beaten\nSodden and rotten \ntrees have toppled \nunder pressure \nfrom terrible \nwinds",
+      "text": ". You'll need to pick your way through them to get past. The dead branches catch on every nook and cranny. How do you keep your spirits up? Draw a card. If its value is less than 5, a branch breaks underpaw, and you drop you into a dark hollow that is difficult to escape. Mark 1 Day. If its value is 5 - 9, continue your Journey. If its value is 10 or more, the hollow leads to a secluded, fertile glen. Gain an in-season Bog Reagent of your choice."
+    },
+    {
+      "page": 75,
+      "card": "7 & 8",
+      "title": "Climate Change\nThe weather takes \nan unexpected turn",
+      "text": ". A gust of hail in the middle of Summer, or burst of hot sun in Winter; whatever happens, you're left in great discomfort. How do you adapt?"
+    },
+    {
+      "page": 75,
+      "card": "9 & 10",
+      "title": "Friend In The Mists\nThe bog can be an eerie \nand miserable place",
+      "text": ". Just as your hackles are on edge, you bump into another Poulticepounder out collecting Reagents! They ask you how you're doing, what news you have, and if you need any help. Have you met before? What sort of Ailments are they an expert at treating? Helping Paw - They help on your next Forage. Gain twice as many Foraging Points per turn. Giving Back - You help out on their Forage. Mark a Day on your Calendar and earn 1 Trinket from their Patient."
+    },
+    {
+      "page": 75,
+      "card": "M",
+      "title": "Hardpacked\nThe last creeping frost of \nWinter still holds here as \nyou find a patch of bog \nhard and easily passable",
+      "text": ". Lucky Break - You can choose to travel along an additional 2 Paths. Do not complete a second Travel Encounter for you new destination."
+    },
+    {
+      "page": 75,
+      "card": "J",
+      "title": "Pottering  \nAbout\nYou come across a group of cheery \nCraftpaws holding a pottery class",
+      "text": ". Dozens of clay jugs and pots are resting on a large sheet as they cure beneath the warm sun. They ask if you'd like to join in. Join in the class - Mark 1 Day. Gain a Handmade Pot; gain +1 Carry until the end of this Journey. 75"
+    },
+    {
+      "page": 76,
+      "card": "M",
+      "title": "Busy Work\nCraftpaws and Poulticepounders are some of \nthe few beasts that find themselves drawn \nto the bogs of the Bristley Woods",
+      "text": ". This trio of craftpaws are happily soaking reeds for weaving and ask if you'd like to join them. Weave It Alone - You decide you don't have enough time, and so continue on. Sit And Soak - Mark 1 Day. Gain a reed-woven Trinket."
+    },
+    {
+      "page": 76,
+      "card": "J",
+      "title": "Mudlarking\nYou spy a frog burying \nthemselves beneath \nthe wet mud and using \na little reed to breathe \nout of",
+      "text": ". What strange behaviour. Why are they doing that? Do you talk to them? What do they say?"
+    },
+    {
+      "page": 76,
+      "card": "9 & 10",
+      "title": "That Sucks\nAfter wading through \nshallow water, you emerge \nto find a horrible nasty \nleech stuck onto you!\nHow do you get it off?\nSilver Lining - Gain a \nLeech Reagent",
+      "text": ". How do you store it?"
+    },
+    {
+      "page": 76,
+      "card": "9 & 10",
+      "title": "Pumped Up Cafe\nSome tiny beasts",
+      "text": "(mice, rats, voles, and such) have turned a large pumpkin into a temporary cafe; they're serving all manner of drinks and meals. Delicious! - The cooks are happy to trade a Box of Treats (Weight 2/3, [FAIR 4]) for 1 Trinket. You can trade for as many boxes as you like!"
+    },
+    {
+      "page": 76,
+      "card": "9 & 10",
+      "title": "Blood On The Ice\nAcross the moors you see \nevidence of a Behemoth's \npassing and smell fresh blood \nin the air",
+      "text": ". Amongst the frost, slush and mud, panic starts to rise in your chest. What sort of Behemoth would stalk the frozen bogs at this time of year? Abandon your things - You can move faster when unencumbered. Make a note of what you leave behind, and continue your Journey. You can reclaim these Items by returning to this Location on another Move. Take a Detour - Turning right around, you have to back track significantly until you can find a safer route. Mark 2 Days on your Calendar, and continue your Journey. 76"
+    }
+  ],
+  "Forest": [
+    {
+      "page": 77,
+      "card": "M",
+      "title": "On The Path\nCampfire smoke brings \nyou close to a group \nof well-armed and \nserious looking beasts",
+      "text": "; mercenaries from the Guild of Thickbloods. They're quietly going over a well-marked map, and one compares notes in a journal. \"No, the tracks went north. Your route makes no sense, we must go around this pond here...\" These beasts are tracking down a fugitive, most likely to bring them in for branding (or worse, execution). Who are they tracking? What crime are they accused of? Have you heard rumours about them on your travels? Minding Your Business - These Thickbloods are clearly absorbed in their business. Best the leave them be and continue your own Journey. Directions - Wait - that description sounds familiar... You've seen the beast they're tracking; you can choose to give help or hinder these Thickbloods on their mission: Help - You show on the map where you last saw the Thickbloods' target. Gain 1 Reputation. Hinder - You don't trust these beasts' intentions. You misdirect them. Lose 1 Reputation."
+    },
+    {
+      "page": 77,
+      "card": "J",
+      "title": "Chilled To The Core\nYou find a young beast in the nearby trees, chilled half \nblue and exhausted",
+      "text": ". Where have they come from, and why are they so lost? Stop and help - Mark 2 Days on the Calendar and Gain 3 Reputation. You take the time to guide them home. Move yourself to the nearest Settlement. Passing Warmth - Mark 1 Day on the Calendar and Gain 1 Reputation. You spend the afternoon building them a fire and brewing them hearty teas. They warm their body before heading off on their own."
+    },
+    {
+      "page": 77,
+      "card": "J",
+      "title": "Fungi Founder\nAs you squidge through \nrotten bark and peaty \nmuck you come across \na mushroom that you've \nnever seen before",
+      "text": ". You've found a new species which you get to name! Testing - It's your responsibility to see what it does. Eat the mushroom and Draw a Card: ♥ - It is a curative! Choose a [TAG] and add your Mushroom to the Reagent List with a Foraging Value of 10 and Potency 2. ♦ - It's delicious! You may trade the rest for a Trinket at any Settlement! ♣ or ♠ - It was poisonous. Your Speed is halved until you Mark 3 Days. 77"
+    },
+    {
+      "page": 78,
+      "card": "5 & 6",
+      "title": "Hot Tea\nSeveral beasts are \ngossiping at the side \nof the path",
+      "text": ". Eavesdrop - Add Gossip (No Weight) to your bags. When Bartering, you can trade this Gossip to automatically receive your chosen Reagent; however, the Guild loses 1 Reputation. ACE & 2 In Bloom Bless your whiskers, feathers and/or scales! You’ve found something growing at the side of the path! What was it growing in? Why hasn't anybeast noticed it? Greenpaw - Draw a card. Collect a Plant Reagent Part that can be found in the Forest with a Base Value equal to the card’s."
+    },
+    {
+      "page": 78,
+      "card": "7 & 8",
+      "title": "From Up On High\nBeasts crowd around a Titan \nobject just off the path",
+      "text": ". They say it fell out of a tree. Look around the space you are in and choose an object to inject into this scene. How does your Poulticepounder misunderstand its true purpose or function? The Gift of Knowledge - You can draw a Sketch (Weight ⅓) of this mysterious artefact, and add it to your bags. Trade it to the Craftpaws - When in a City, you can trade this Sketch to a Craftpaw representative in exchange for a Local reagent of any value. Trade it to the Knowers - During Downtime, at the end of your Journey, a mysterious magpie will find you. If you give this Sketch to them, they will reward you with 5 trinkets, or a Tool of your choice."
+    },
+    {
+      "page": 78,
+      "card": "3 & 4",
+      "title": "Rest Stop\nNot far into the trees \nyou spot a traveller's \ncampfire",
+      "text": ". They invite you to sit and share stories from the road. Where have they come from, and where are they going? What stories do they share with you? Forest travel encounters Thick boughs of pine, spruce, oak, silver birch and more hold up the immense canopy above. Meandering trails can lead travellers safely home... usually. 78"
+    },
+    {
+      "page": 79,
+      "card": "9 & 10",
+      "title": "Memories\nA pleasant wind blows \nthrough the trees \nmaking the forest feel \nalive for the first time \nin months",
+      "text": ". You feel your thoughts drift back, reflecting on your past. What moment do you recall?"
+    },
+    {
+      "page": 79,
+      "card": "M",
+      "title": "Parade\nYou stumble upon a group of \nbeasts clad in colourful clothes, \nsinging happy songs",
+      "text": ". What are they celebrating? Do you join in? What is the strangest part of their party?"
+    },
+    {
+      "page": 79,
+      "card": "M",
+      "title": "Go Ape\nA group of youngsters \nare up constructing \na dexterity course \nabove you amongst \nthe branches of the \ncanopy",
+      "text": ". Swings, ziplines, climbing holds, and more are hammered into place! They call down to you and ask if you want to help them build it. What part of the course do you make? What do the young beasts call it? Via Ferratta - Strangely its much faster to take the treetop course than it is to walk along the twisting forest paths. Do not Mark a Day on your calendar at the end of this Move."
+    },
+    {
+      "page": 79,
+      "card": "9 & 10",
+      "title": "Typical Summer\nThe weather takes \na turn for the worse \nforcing you into \nshelter for the night",
+      "text": ". Seek Shelter - Draw a card to see what shelter you can find. ♥ or ♦ - Somewhere safe, such as a friendly beast’s home, a cosy hollow, a warm burrow. ♣ or ♠ - Somewhere cold, wet, or frightening. Halve your speed for your next move."
+    },
+    {
+      "page": 79,
+      "card": "J",
+      "title": "Freshly Grilled\nThe smell of fish oil sizzling on hot \ncoals draws your attention to a \nsummer barbecue taking place in \nthe lee of a small stream a ways \ninto the nearby woods",
+      "text": ". What sort of dishes have folks brought to the party? If the Guild's Reputation is at least Known, they recognise you as a Poulticepounder, and invite you to join them. Add 2 to your next Timer. If the Guild's Reputation is Unknown, they nod cordially as you make your way past."
+    },
+    {
+      "page": 79,
+      "card": "J",
+      "title": "Danger Ahead\nFrightened beasts stop you, \nsaying not to go any further \ndown the path",
+      "text": ". A wasp nest has fallen, and the blighters are stinging anyone who goes near. Find another route - Re- plan your Move, avoiding the last two paths chosen. Brave the monsters - Drop a Reagent or Tool you are carrying as you rush past! 79"
+    },
+    {
+      "page": 80,
+      "card": "9 & 10",
+      "title": "Wayfriend\nAs you wander the woods, \na fellow traveller waves a \nmassive wing in greeting",
+      "text": ". An elderly capercaillie introduces themselves as Griph, and remarks on your interesting packs. What is Griph doing in the woods today? Is he delivering a package, gathering interesting goods for his travelling market stall, or something else? Friendly Natter - Griph shares a tall tale of what he's seen ahead on the road. As he talks, his large claws trod a path through the underbrush. Add 1 Day to your Calendar as he unwittingly beats a path for you. Friend for the road - When you next Move, Griph will follow you if you choose a Forest location. Ignore the negative effects of a Beast or Behemoth encounter; Griph always defends his friends!"
+    },
+    {
+      "page": 80,
+      "card": "J",
+      "title": "Turning Fortune\nAnnoyingly, the path ahead is muddy \nand unappealing",
+      "text": ". You slip from the road and end up covered in bruises, but as luck would have it, you discover a new shortcut. Mark 1 Day on the Calendar, or Lose a Reagent or Tool from your Bags. Connect this Location to another nearby Location with a Path."
+    },
+    {
+      "page": 80,
+      "card": "M",
+      "title": "Lost-And-Found\nSome poor beast has dropped a Trinket \nand it's been half buried in mud",
+      "text": ". Finder's, Keeper's! - Gain a Trinket. The Right Thing To Do - Leave it somewhere it can easily be found. Increase Guild Reputation by 1 80"
+    }
+  ],
+  "Loch": [
+    {
+      "page": 81,
+      "card": "9 & 10",
+      "title": "Fairwinders\nA beast migrating from the colder \nlands up north stops and asks you for \ndirections to the nearest City so they \ncan resupply",
+      "text": ". They are happy to chat about their home and travels. What amazing, far-away cities do they tell you about?"
+    },
+    {
+      "page": 81,
+      "card": "M",
+      "title": "Hunger Pains\nRavenous beasts slip \nout from behind trees, \nlooking for something \nto stave off the winter \nchill",
+      "text": ". Their mouths ask politely for aid, but their eyes betray a deep desperation. How has winter's scarcity affected these beasts? Roadside Tea - If you have a Reagent that can produce either [FAIR] or [STOMACH], you can brew these rag-tag beasts some hearty tea. Mark 1 Day on your Calendar. Grateful for your generosity, they tell others of your kindness. Gain 3 Reputation. Aid - You've nothing to spare, but they might trade at a nearby Settlement for some food. Give the beasts 1 Trinket and gain 1 Reputation Cold Shoulder - You have neither the stores nor the patience to give in to pressure from roadside beasts. Draw a card: ♥ or ♦ - Continue your Journey. ♣ - They spit at your feet as you leave, and spread nasty rumours about the guild. Lose 1 reputation. ♠ - Hunger pushes them to violence! Chased through the woods, you lose 3 Trinkets."
+    },
+    {
+      "page": 81,
+      "card": "J",
+      "title": "Piledriver\nMassive tracks in the slushy \nearth prove without a doubt \nthat a Behemoth has passed \nthrough here recently",
+      "text": ". Perhaps it still lurks in the woods nearby! Do you know what animal it is, and have you seen one of them before? Backtrack - Mark 1 Day on your Calendar as you detour away. Hurry Forwards - Draw a card: ♥ (or ♦ if you're carrying equal to or less than 4 Weight) - you manage to sneak safely past without being noticed. Phew! ♣ or ♠, (or ♦ if you are carrying more than 4 Weight) - The behemoth spots you, and gives chase! Discard at least 3 Weight of items from your Bags. 81"
+    },
+    {
+      "page": 82,
+      "card": "5 & 6",
+      "title": "Carpe Carp-ey\nA great big fish moves beneath \nyou, its glittering scales \nshimmering in the dancing light \nbeneath the water's surface",
+      "text": ". For a second, it touches the top of the water and you could maybe grab it! What sort of big fish is it? A salmon, trout, pike? Do you grab it or let it go? Grabby Paws - Draw a card for you and a card for the fish. If your card is Higher, gain all parts of a Big Fish Reagent. If your card is Lower, the fish drags you under the water and in the struggle, something falls out of your Bags. Lose an item from your Bags."
+    },
+    {
+      "page": 82,
+      "card": "3 & 4",
+      "title": "Muddy Waters\nThe tip of something brushes \nagainst you beneath the surface of \nthe water here",
+      "text": ". Draw a card to determine what lurks below: J or M - It’s a Titan wreck! What does it look like? What do you think the Titans used it for? Ace - 10 - It's some kind of natural formation such as a tangle or weeds or a sand bank. How do you think it formed in a place like this?"
+    },
+    {
+      "page": 82,
+      "card": "ace & 2",
+      "title": "Undercurrent\nThe movement of the water \nproves too powerful to resist",
+      "text": ". Currents drag you along until you wash up somewhere unexpected. Washed Away - Draw a card and move to the nearest Location in that direction. If that location is a Loch, Move there and repeat this process. ♥ - North ♦ - South ♣ - East ♠ - West Loch travel encounters Freshwater, fed by rivers which in turn are fed by rains. Teeming with fish, clams, and all manner of insects. Their dark, lightless depths hide strange wreckages. 82"
+    },
+    {
+      "page": 83,
+      "card": "M",
+      "title": "Cruise\nA crew of beasts pass you \naboard a truly beautiful \nboat",
+      "text": ". However, the vessel is really making waves!\" Who is the beast that captains this vessel? Choppy Waters - You can't help but be pulled along in their wake. Draw a Card: J or M - They're heading in the direction you want to go! Move along 1 path, or stay where you are. 2 - 10 - They're land bound - move one path toward the closest shore. Ace - They're heading directly for you... wait, look out! You capsize in the water; unless you have a Waxed Satchel, your bags are Soaked!"
+    },
+    {
+      "page": 83,
+      "card": "9 & 10",
+      "title": "Less Than Titanic\nYou spy a beast not \nsuited to the water \nclinging to a slowly \nsinking piece of \ndriftwood",
+      "text": ". How did the beast get there, and why did they need to cross the water? Rescue! - Mark 1 Day and change the end of your move to the nearest non-Loch Location. Gain 1 Reputation. Lessons should be learned - This beast needs to learn not to bite off (or swim into) more than they can chew."
+    },
+    {
+      "page": 83,
+      "card": "J",
+      "title": "Need For Speed\nA showboating water \nbird challenges you to \na race in front of their \nflock",
+      "text": ". Refuse - They mock you and splash water at you. Flick water on one of your Journal pages, or blur/ alter some of the words. Race - Draw two cards for the bird, and one for you. The highest value card wins. If you win - Gain 1 Trinket as a prize. If you lose - Gain 1 Reputation, for being a good sport."
+    },
+    {
+      "page": 83,
+      "card": "7 & 8",
+      "title": "Push and Pull\nA sudden swell of \nwater picks up and \ncarries you!\nDraw a card to see \nhow the water helps or \nhinders you",
+      "text": ". ♥ or ♦ - You are pulled along; travel an additional 2 Paths. ♣ or ♠ - You are pushed back; travel backwards 1 Path."
+    },
+    {
+      "page": 83,
+      "card": "9 & 10",
+      "title": "Log Floats\nA raft of logs tied together with \ncoarse rope floats lazily ahead, \nmanned by a crew of beavers",
+      "text": ". They use tall poles and their paddling tails to push it along. What do you think this lumber will be used for? Where have the trees come from, and what different species are they? 83"
+    },
+    {
+      "page": 84,
+      "card": "9 & 10",
+      "title": "Snarling Threats\nYour luck has run dry - \nthis waterway is choked \nwith Hornweed",
+      "text": ". This nasty nuisance makes it much harder to navigate, and it's just going to get worse if left alone. Cull - Mark 1 Day on your Calendar to remove as much of it as you can. Gain 2 Reputation. Leave It - Draw a card: ♥ or ♦ - A local beast deals with it! ♣ or ♠ - it grows rampant, all Reagents have +3 Rarity in this Location until Winter."
+    },
+    {
+      "page": 84,
+      "card": "J",
+      "title": "Pi-rats!\nA boat full of hollering \nbeasts with a skull and \nbones flag comes sailing \nup towards you",
+      "text": ". Their captain points a sword at you and demands to know your business, and if \"ye wish to be sunk to Nessie's Locker\" What is the Captain's name? What does their boat look like? Do the crew have a uniform? Parley - One of the crew is ill and they demand your help. Instead of Helping a Local Beast, you are now Helping a Local Pirate; if you would earn Reputation from this Ailment, instead gain Trinkets. If you fail to create a Remedy, you are Taken Prisoner. Ship-to-Ship Combat - If you are in a Coracle or adapted Wagon, you can try to fight the Pirates off. Draw a card for yourself (or two if you have a Crossbow) and two for the Pirates. The highest total wins. If you win - You escape to an adjacent Location unharmed. How did you escape? If you lose - You are Taken Prisoner! Taken Prisoner - Your Journey ends here. The pirates capture you and keep you prisoner for the remainder of the Season. What do you learn about them? How do you finally get away?"
+    },
+    {
+      "page": 84,
+      "card": "J",
+      "title": "Winged  \nMenace\nConfused and near death, \na big wasp has wandered \nout onto the water",
+      "text": ". It's taking all its strength just to stay afloat, poor thing. Do you risk saving it? A Second Chance - If you have a Coracle or adapted Wagon, you can scoop it aboard with no issue. Gain a Wasp Companion (page 70)."
+    },
+    {
+      "page": 84,
+      "card": "M",
+      "title": "Vicious Murk\nBlue-green algae blooms \nacross the surface of the \nwater here",
+      "text": ". It would be beautiful if it wasn't so poisonous. Change Course - This Location is off-limits until the end of the Season; it cannot be Moved through or Foraged in. Travel back 1 Path. 84"
+    }
+  ],
+  "Meadow": [
+    {
+      "page": 85,
+      "card": "9 & 10",
+      "title": "Figure Skating\nYou see the criss crossing marks of skates across \nan unbroken patch of ice",
+      "text": ". Looks like some beasts have been out playing in the short winter sun! Skate - A pair of friendly beasts lend you a set of ice skates. You can choose to travel along up to 2 extra Waterways as part of this Move."
+    },
+    {
+      "page": 85,
+      "card": "J",
+      "title": "Frostbitten\nBiting cold winds and icy \nwaters are beginning to \nget to you, draining your \nmorale and leaving you \nbitter",
+      "text": ". Cold Paws - Start the next Ailment with 0 Foraging Points; you gain half the usual Foraging Points, rounded down."
+    },
+    {
+      "page": 85,
+      "card": "M",
+      "title": "Hospitality , Eh?\nGeese from a faraway \nland are pouring hot \ndrinks for any chilly \nbeasts they see trying \nto cross the local lochs \nand rivers",
+      "text": ". Why are they doing this? What cold land are they from? What does their drink taste like? Warmth - Start your next Ailment with 4 Foraging Points."
+    },
+    {
+      "page": 85,
+      "card": "M",
+      "title": "Two-Faced\nA small boat with a \ncouple of soldiers pulls \nup and asks if you've \nseen a dangerous beast \nin these waters",
+      "text": ". They describe the last beast you met on a Forage or Travel. What did the apparently dangerous beast do? What city are these guards from? Spill The Beans - You tell them everything they need to know. Is that beast ever caught? If so, what happens to them? Keep Quiet - The guards aren't always right after all. The next time you meet that beast, you can try find out their supposed crime and whether they are innocent or not. Vigiliante - If you draw a Monarch for a Travel Encounter, you cross paths with this beast again. If you think they are guilty, you can try to bring them in. Draw one card for yourself (or two if you have a Crossbow or Weapon) and one for them. Highest card wins. If you win - Start a new Goal with the nearest City as your Destination. Gain 10 Reputation for bringing them in. Journal about why you felt the need to enforce justice. If you lose - They escape, never to be seen by you again. 85"
+    },
+    {
+      "page": 86,
+      "card": "5 & 6",
+      "title": "Brick By Brick\nThe sound of \nStonestackers hard \nat work echoes \nacross the meadow",
+      "text": ". As you get nearer you see what they’re halfway finished. What Titan ruin is their construction inspired by?"
+    },
+    {
+      "page": 86,
+      "card": "3 & 4",
+      "title": "Roadtreat\nA passing Doughfellow \noffers you some baked \ngoods for the road and \nrefuses any payment",
+      "text": ". How do they taste? What special ingredients were used to flavour them? Sugar Rush - When you next Forage, Locations up to two Paths away count as Adjacent."
+    },
+    {
+      "page": 86,
+      "card": "7 & 8",
+      "title": "Sorry , We've  \nMisplaced Your Order\nSomething falls out of a passing \nNoonmessenger’s satchel, and \nthey don’t seem to have noticed",
+      "text": ". What shape is the parcel, and how is it wrapped? Who is it addressed to, and who is it from? Call out to the Messenger - Gain 1 Reputation. Who is the messenger and how do they react? Deliver the Parcel - Add a 'Parcel' (Weight 1) to your Bags. Choose a Location 4 Paths away for its address. Gain 3 Trinkets if you go to that Location, delivering it. Keep the Parcel - Choose and Gain a Tool or Upgrade from the Almanac, and lose 1 Reputation. ACE & 2 Obstruction Little wagons laden with foods and goods are backed up along the path; it seems a tree has fallen and blocked the road ahead. Beavers have been called to gnaw the path clear, but it'll be a few hours yet before the road is clear again. How are the queuing beasts dealing with the wait? If you have a Wagon - Mark 1 Day on the Calendar as you are stuck in traffic. What other wagons and caravans are ahead and behind you? If you don’t have a Wagon - You easily slip through traffic. With a friendly boost from the beavers, you scramble over the trunk and are on your way. Meadow travel encounters Open skies, bright sunlight, and a wealth of wildflowers await you. Carefully carved out fields grow food for beast settlements. 86"
+    },
+    {
+      "page": 87,
+      "card": "9 & 10",
+      "title": "Highway Robbery\nA field mouse pup \narmed with a toy sword \nstops you and playfully \ndemands a tithe",
+      "text": ". Pay with your pockets - Lose 1 Trinket. How does the mouse pup react to their sudden bounty? Pay with your life - Mark 1 Day on your Calendar. Journal about a mock fight you have with the pup, and how one of you 'slays' the other. Pay with your (short) patience - Storming past the pup, you continue your journey. Lose 1 Reputation."
+    },
+    {
+      "page": 87,
+      "card": "M",
+      "title": "Hired Paws\nBeasts of all shapes \nand sizes are hard at \nwork planting seeds \nand readying the land",
+      "text": ". A farmer asks if you’d be willing to lend a paw. Have you any experience working in fields? Have you tried growing plants before? Farmpaw - Mark as many Days off your Calendar as you like, and gain a Trinket for each Day, paid all at once when you leave. New Cultivar - You can encourage the Farmers here to grow a non Region native plant, if you have a Part of it in your Bags. If you do this, discard the Part, and make a note of this on your Map. You can now Forage for this plant at this location."
+    },
+    {
+      "page": 87,
+      "card": "J",
+      "title": "Returning  \nSongbirds\nA family of birds who \nmigrated south for the \nwinter have stopped here \nto rest their wings",
+      "text": ". They are content to answer a few questions in exchange for news of your own. What do they tell you of distant southern shores? What do you ask and what news do you share? Bargain - You can trade for some Fairwind Spices (Tools, page 62) from these birds."
+    },
+    {
+      "page": 87,
+      "card": "J",
+      "title": "Animal  \nCrossing\nA friendly hivewarden greets \nyou as you approach their \nbumbling bees",
+      "text": ". They ask if you can wait so as not to spook their flock. How does this hivewarden distinguish their bees from other colonies? Wait - Mark 1 Day, but gain a Bees (Pollen). Spook Flock - Lose 1 Reputation as you scatter their bees in your haste."
+    },
+    {
+      "page": 87,
+      "card": "9 & 10",
+      "title": "Rooting  \nAround\nGigantic boars terrorise this pasture, tearing up \ncarefully planted fields and breaking burrows",
+      "text": ". Where do the locals hide when these dangerous behemoths cause trouble? It is unsafe to Forage in this Location until you next Move On. You can only Forage in Adjacent locations. 87"
+    },
+    {
+      "page": 88,
+      "card": "M",
+      "title": "Cowtown\nThe travelling \nmerchant town of \nBaile b",
+      "text": "ò has stopped in this meadow. The great highland cow that carries this pastoral settlement upon its saddle is grazing while rat merchants lower ropes and ladders down its sides for goods and guests. What sounds and smells are there in the little town? If you are too big to enter, how does the cow react to you? How do the merchants show you their wares? Visit - This Location temporarily counts as a Settlement. Your next patient is a citizen of Baile bò. You can request services here when Preparing to Leave, and Barter while resolving Ailment(s)."
+    },
+    {
+      "page": 88,
+      "card": "9 & 10",
+      "title": "Deluge\nRain beats down \nincessantly, soaking you \nthrough and turning the \ndirt to mud",
+      "text": ". Great puddles turn the once reliable path into mush. Find Shelter - Mark 1 Day on your Calendar as you wait out the rain Push on - If you are a non- aquatic creature, unused to cold and damp conditions, you must create a remedy to soothe a growing [TEMPERATURE 1] before your Move On. If you fail to create a remedy for yourself, mark 3 Days on your Calendar as you are bed-ridden with the most awful cold."
+    },
+    {
+      "page": 88,
+      "card": "M",
+      "title": "All Paws  \nAppreciated\nHarvest is in full swing and \ncrates of vegetables and \ngrains are piled high at the \nedge of the field",
+      "text": ". A farmer offers you a PLANT Reagent of your choice if you help bring in the last of their crops. Help with the harvest - Mark 1 Day on your Calendar and gain a Meadow Plant Reagent of any value."
+    },
+    {
+      "page": 88,
+      "card": "J",
+      "title": "Ghost Tales\nSeveral wagons and and individual travellers \nhave set up a camapsite ahead",
+      "text": ". As the night draws in, they sit around a large bonfire and tell hair-raising stories about the land Beyond Elsewhere. What do their dark beast fables speak of? What place in the Bristley Woods is supposed to be haunted by Beasts who cannot find a road Elsewhere? 88"
+    }
+  ],
+  "Mountain": [
+    {
+      "page": 89,
+      "card": "M",
+      "title": "Solitude\nSnow lies thick across the \nfields here, undisturbed by \npaw prints",
+      "text": ". An early sunset means you can see the stars. You are utterly alone in the open majesty of the Bristley Woods. What constellations can you see? Can you remember any of their names? Amateur Astronomy - The shape of stars stand out clearly to you, helping orientate your travel. Add 1 Day to your Calendar."
+    },
+    {
+      "page": 89,
+      "card": "9 & 10",
+      "title": "Alls Fair In  \nSnow And War\nSome beasts are playing \n'Behemoth of the Branch' on \na fallen log",
+      "text": ". The log sits on two stones, with fresh snow piled underneath. The snow is marked with the holes of fallen beasts. They ask if you want to join in! Do you think of yourself as a competitive beast? Challenge Accepted - Draw 1 card for yourself and 3 for the other beasts. If your card is: Highest - you win! The beasts give you a trophy and cheery pats on the back. This trophy counts as a trinket - what does it look like? Not Highest - you had fun but got knocked off. You land with a thud in the slushy snow."
+    },
+    {
+      "page": 89,
+      "card": "J",
+      "title": "Snow \nClan\nIt looks like someone has made a \nsnowbeast beside the path",
+      "text": ". What animal does it look like? What has the original artist used to decorate it? Build it a friend - Make your own snowbeast to keep it company. 89"
+    },
+    {
+      "page": 90,
+      "card": "7 & 8",
+      "title": "Break With A View\nThe journey is exhausting and you \nsoon find that you or your familiar \nneed to rest",
+      "text": ". Who calls for a rest stop first? Rest - Mark 1 Day. From your rest stop, you have a wide view over the Bristley Woods below. You can see many natural features from the mountainside. Which is your favourite?"
+    },
+    {
+      "page": 90,
+      "card": "ace & 2",
+      "title": "Climate Change\nThe weather takes an \nunexpected turn",
+      "text": ". A gust of hail in the middle of Summer, or burst of hot sun in Winter; whatever happens, you're left in great discomfort. How do you adapt?"
+    },
+    {
+      "page": 90,
+      "card": "3 & 4",
+      "title": "What Goes Up",
+      "text": "... As you descend a slope, you see another beast labouring up it. They look absolutely exhausted. Can you give any helpful advice for the trail?"
+    },
+    {
+      "page": 90,
+      "card": "5 & 6",
+      "title": "Magpie's Mark\nThere is an old Titan marker \nhere, it has symbols and \nTitan words upon it but only \nthe Magpies really know what \nthey mean now",
+      "text": ". What do you think this marker was for? Mountain travel encounters From the tops of each peak you can see four corners of the Bristley Woods, and the curving horizons containing an infinity of other lives. 90"
+    },
+    {
+      "page": 91,
+      "card": "9 & 10",
+      "title": "Pretty Prickles\nThick gorse bushes \nhave grown all over \nthe mountainside",
+      "text": ". You'll have to go through them somehow. Gorse has a very distinct smell when it flowers; do you like this sweet, coconuty aroma? Deep breath - you push through, trying your best to tough it out. Draw a card to see how you fare: ♥ - You push through unpricked. ♦ - As you move, your Bags were pulled open. Discard a Reagent. ♣ or ♠ - You get tangled and stuck. Mark 1 Day on your Calendar. How do you get out?"
+    },
+    {
+      "page": 91,
+      "card": "M",
+      "title": "Springmel t\nSome of the spring \nmelt flows by the path \nhere and is deliciously \nrefreshing",
+      "text": ". Drink Up - You may ignore the next 7 or 8 you draw while Travelling along the Mountain"
+    },
+    {
+      "page": 91,
+      "card": "J",
+      "title": "Knights Of  \nThe Round Table\nA group of rough-and-tumble \nbeasts approach from further \nup the path",
+      "text": ". They appear to be on some sort of adventure! What are their names? What is their quest? What be their favourite colours? Quest! - If you wish, you can abandon your old Journey and start a Quest. This special Journey takes place in the same season, is a distance of 24 Paths away in a random direction, and has an Urgency of Important (9 Days). The goal of this Quest is to put down a vicious and cruel Behemoth. Ailments drawn during this Journey relate to these Questing Beasts. Place a Behemoth Barrow at the destination of this Quest Journey. Fighting the Behemoth - If you arrive at the Barrow in time, Draw a Card, lowering its value by 2 for every Ailment you failed to resolve on your Quest. If the final value is equal to or greater than 7, the Questing Beasts slay the Behemoth! If its final value is lower than 7, the Behemoth is victorious. How do you escape? Too Late - If you are late, the Behemoth has gone to ground. The Questing Beasts thank you for your help, and continue on without you. At the end of this Journey, gain 1 Reputation for each Ailment you successfully resolved. If the Behemoth is slain, gain 10 Trinkets and a Tool of your choice from the creature's hoard. 91"
+    },
+    {
+      "page": 92,
+      "card": "9 & 10",
+      "title": "Yodelling  \nGorillas\nAround the next bend \nof this mountainside \npath, you hear jovial \nhumming",
+      "text": ". Expecting a choir of beasts to make such noise, you are briefly terrified to see a single Behemoth - a massive gorilla! Have you met Bakar before? This friendly gorilla travels the world, trying to understand the mysterious precursors, called Titans, whose civilisation ended as the Beasts' began. Stop for a Tale - Sitting in the warm shade of a rock, Bakar enthusiastically shows you his notebook. Inside are drawings of Titan structures. Mark 1 Day on your Calendar, and add 'Titan Tale' to your bags (No Weight). It can be discarded during Haggling to automatically get a Reagent Part. A Helpful Lift - You delicately ask if you could move past. Bashfully, he gathers his things, and asks where you're headed. Upon reply, he lifts you up a sheer cliff face - \"Here, little one\" his voice rumbles, \"a short cut; my way of apologising!\" Add 1 Day to your Calendar and continue your Journey."
+    },
+    {
+      "page": 92,
+      "card": "J",
+      "title": "Parched!\nWater, water, everywhere, \nbut not a drop to drink",
+      "text": ". The sun has dried up all the fresh water on this mountainside to gooey mud, and you can feel your spit turning to sticky froth. March - No choice but to keep going. When you start your next Ailment, reduce its Timer by 3 to represent your exhaustion. Replenish - You stop to search for something to quench your thirst; damp cave moss, berries on bushes - anything. Mark 1 Day."
+    },
+    {
+      "page": 92,
+      "card": "M",
+      "title": "Squeaky  \nWheels\nYou come across a Guildbeast \ntrying to fix their cart",
+      "text": ". They ask for your help if you can spare it and offer to reimburse you for your time. What guild are they from? What are they carrying? Fetch The Oil - You help repair the broken cart. Gain 1 Trinket, and Mark 1 Day Shrug - You leave the guildbeast to their fate. Lose 1 Reputation. 92"
+    }
+  ],
+  "Soar": [
+    {
+      "page": 93,
+      "card": "J",
+      "title": "Tobogganing\nYou come across a \nnervous beast holding \na sled and looking \ndown a nearby hillside",
+      "text": ". Their friends have left tempting tracks, but this beast is too scared to follow. Will you help? Sled - Travel to a nearby non-Mountain Location and Add 1 Day to your Calendar as you rush down the mountainside Long Walk - Mark 1 Day and travel to a nearby non-Mountain Location. Gain 1 Reputation for helping the nervous beast"
+    },
+    {
+      "page": 93,
+      "card": "M",
+      "title": "Treacherous Footing\nThick flurries of \nsnow blow over the \nmountainside, turning \nnarrow paths almost \ninvisible against steep \nwhite slopes",
+      "text": ". More snow falls endlessly down from soupy grey skies. Dig through - You can dig through. You need to spend extra time building warm shelters, whenever you take a break; Mark 1 Day on your Calendar. Frigid Gusts - If you can fly or soar, you can ride the wind. Snow saps the heat form your muscles. Lower your next Timer by 2."
+    },
+    {
+      "page": 93,
+      "card": "9 & 10",
+      "title": "Dastards Ahead\nAs you're passing a small \nhollow you overhear a \ngang of beasts plotting \nsomething foul for the \nnearest settlement",
+      "text": ". What do they plan, and when are they going to do it? Warning - If you can Move to the Settlement before you Mark 2 Days, you foil the bandit's plans. Gain 4 Reputation. How does it unfold? On Their Own - You don't have the time or ability to reach the Settlement. The next time you go to that Settlement it will bear the mark of these bandits. How has it changed?"
+    },
+    {
+      "page": 93,
+      "card": "J",
+      "title": "Red Sky  \nAt Night",
+      "text": "... All the beasts you meet mutter about a coming storm, citing all manner of folk rumours and sayings to back up their so-far-unfounded claims. You and your familiar are on the fence: What saying do you hear most? Is there any truth to it?"
+    },
+    {
+      "page": 93,
+      "card": "M",
+      "title": "Do You Nose  \nYour Herbs?\nYou cross paths with a \nlocal forager, smelling \nat a patch of sprouting \nherbs",
+      "text": ". They're hoping to use them in a dish they're cooking tonight, but aren't sure of the herb's flavours. How might this particular herb affect their recipe? 93"
+    },
+    {
+      "page": 94,
+      "card": "ace & 2",
+      "title": "Gale\nA sudden crosswind blows \nunderwing, shifting you \nfarther and farther from your \nintended goal",
+      "text": ". As frustrating as it is, you could follow this new aircurrent to its conclusion, or make an earlier landing. How does it feel to be thrown through the air, in control of your body but not where you're headed? Follow the Winds - Rotate you Flightpath 45° left or right. End your Soar at any Location along your Flightpath. Quick Descent - End your Soar at a Location up to halfway along you Flightpath."
+    },
+    {
+      "page": 94,
+      "card": "5 & 6",
+      "title": "Unbuckled\nWith every beat \nof your wings, \nyou can feel \nsomething rattling \nlooser and looser",
+      "text": ". With growing horror, you realise one of your bags aren't securely strapped down! Safe descent - With a protective whirl, you go to ground so that you can make sure all of your goods are safe. End your Soar at a Location up to halfway along your Flightpath. Too important to stop - Whatever is loose, you can't afford to delay. As you approach your destination, something slips loose. Draw a Card: ♥ or ♦ - Drop a Reagent ♣ - Drop a Tool ♠ - Drop your Bags. Make note of a Location near to your Flightpath. Whatever dropped, you can find it again by Foraging in that Location; it has a Rarity of 10."
+    },
+    {
+      "page": 94,
+      "card": "3 & 4",
+      "title": "Swift Journey\nA fast breeze carries you \nalong effortlessly, pushing you \ntowards your destination",
+      "text": ". Do not Mark a Day for this Move. Soar travel encounters Wide wings and sturdy gliders catch swirling updraughts. Not for the faint-hearted or inexperienced. 94"
+    },
+    {
+      "page": 95,
+      "card": "7 & 8",
+      "title": "Less Than  \nMajestic\nAs you coast on a \nconvenient updraught, \nyou spot a vigorously \nstruggling blur of \nred and brown \nfeathers below you",
+      "text": ". A capercaillie is trying his hardest to cross the gap between two mountains. Swoop in to help - You guide the large bird towards a nearby tree, where he can breathlessly perch and recollect himself. He introduces himself (or reintroduces if you've met him before) as Griph, Wanderer Extraordinaire. This elderly bird excitedly tells you about why he was crossing over from the mountain. End your Soar at a Location roughly halfway along your Flightpath. Gain 1 Reputation. Stay out of it - He got himself into this situation, and he only has himself to blame. As you ride the breeze, you look back and see a rug full of glittering specks topple off of the capercaille's back. End your Soar at your chosen destination. Griph's Services as a trader (page 58) are unavailable for the remainder of your Journey."
+    },
+    {
+      "page": 95,
+      "card": "9 & 10",
+      "title": "Talons\nUp where the air is cold \nand low-lying clouds \npenetrate even well \noiled garments with their \ndrenching spittle, you are \nfree from gravity's reign",
+      "text": ". A delightful spin through empty air alerts you to sudden danger. Sea Eagle! Hunger and poor hunting has driven this coastline Behemoth inland. Outmanoeuvre - Twisting and twirling, you stay inches out of reach from the sea eagles claws and beak. Can you keep up the aerial acrobatics? Draw from the deck. ♥ - Somehow, you tire the hungry eagle enough to catch an updraught and escape. You arrive safely at your chosen destination. ♦ - A crosswind spins you head over paws as the eagles talons clasp down. You escape, carried on the wind safely towards your target destination. Only upon landing do you realise one of your bags is missing. Discard a minimum of 1 weight worth of items. ♣ or ♠ - Just as you think you're clear of your pursuer, a white hot pain lances across your back. Arching in pain, the two of you spin down to the ground below. You wake a short time later, desperately hurt. End your Soar halfway along your flight path. You need to create a remedy for [WOUND 3] [INFECTION 2] [PAIN 2], with a Timer of 12. If you fail to create this remedy, you will die. 95"
+    },
+    {
+      "page": 96,
+      "card": "J",
+      "title": "Silent Observer\nAs you coast through the air, a dark grey speck \ngrows larger in your peripheral vision",
+      "text": ". You notice it's some kind of bird, hovering in the air with wings of steel that spin impossibly fast. It's not until you're passing it that you realise it might be some of kind of contraption - possibly of Titan make! What do you think this drone is doing here, miles above the ground? End your Soar at your chosen destination."
+    },
+    {
+      "page": 96,
+      "card": "M",
+      "title": "High Above It All\nSparing a glance towards the \nground to check your bearing, \nyou notice something unusual \nhappening",
+      "text": ". What does it feel like to look down on the world, massive cities and mountains reduced to small specks? Spiral down to see what's going on - Choose a Location that is near your Flightpath. Move to that Location, and draw a Travel Encounter; the events of that encounter are happening to a random traveller, instead of yourself. You can choose to: Intervene - Resolve the Encounter as normal Mind your business - You land far enough away to avoid getting involved; end your Soar safely at this Location. Ignore the distraction - You shift your eyes back towards the horizon. End your Soar at your chosen destination."
+    },
+    {
+      "page": 96,
+      "card": "J",
+      "title": "The Water Cycle\nBeams of sunlight drag lazy tendrils of mist up \ninto skies laden with low clouds",
+      "text": ". Each massive grey shape threatens to pour a shower down onto the thawing land below. End your Soar at your chosen destination. You are Soaked, unless you have a Waxed Satchel. 96"
+    }
+  ],
+  "Titan": [
+    {
+      "page": 97,
+      "card": "M",
+      "title": "Windwall\nA howling wind smashes \nagainst you, matching \nevery beat of your wings \nwith equal force",
+      "text": ". Pushing with all your might, your progress over the ground is hard won. Fight the wind - End your Soar at your chosen destination, but Mark 1 Day for the time lost fighting the elements. Follow the wind - rotate your Flightpath 180 degrees. End your Soar at a location up to twice as far as you originally intended to travel (up to the edge of the map)."
+    },
+    {
+      "page": 97,
+      "card": "J",
+      "title": "Glimpses Of  \nElsewhere\nAbove the forests and \nmountains, you have \nan unprecedented \nview of the encircling \nhorizon",
+      "text": ". Distant clouds are bruised with reds, purples, and gold tones from the setting sun. You ride on a crisp wind, your wings needing only occasional course correction. Who are you thinking of at this moment in time? Who do you think waits for you past where the sun sets? End your Soar at your chosen destination."
+    },
+    {
+      "page": 97,
+      "card": "M",
+      "title": "Hailstorm\nA cold front rolls \nacross the skies, and \nthe faint patter of rain \nyou're flying through \nquickly turns to a \ndriving hail",
+      "text": ". Chunks of ice hammer off of your wings, and sleet seeps shiveringly through your clothes and fur. End your Soar at your chosen destination. You are Soaked, unless you have a Waxed Satchel. You need to spend time warming up after your flight; reduce your next Timer by 2. 97"
+    },
+    {
+      "page": 98,
+      "card": "ace & 2",
+      "title": "Jitterbug\nAs you climb through the walls of this \nstrange Titan ruin you knock over a box \nrelease a violent terror! It chases after \nyou, gnashing its teeth until",
+      "text": "... it stops? Now that you're looking at it, it's cute, in a way. What insect does this tiny critter look like? What do you name it? What A Wind Up - Gain a Cranky Contraption Companion (page 70)"
+    },
+    {
+      "page": 98,
+      "card": "3 & 4",
+      "title": "Base Camp\nOutside of this ruin, you come \nacross a massive tent, big \nenough to house a hundred \nsmaller beasts",
+      "text": ". Poking around, you find the campsite is empty. A Certain Gorilla - When Foraging in this area, the first time you Draw a 5 or 9, swap the encounter for the Monarch's option instead."
+    },
+    {
+      "page": 98,
+      "card": "5 & 6",
+      "title": "Can It\nThe Titans, for some unknown \nreason, liked to store their food \naway in metal barrels",
+      "text": ". Perhaps it was their way of preparing for Winter. Whatever the reason, you find a mysteriously preserved (yet tasty) snack. What food is inside? What brand made this tin, and what does the packaging look like? Well Fed - Add 2 to your next Timer. Titan travel encounters These truly gargantuan ruins are abandoned for a reason. Set paw in these places with extreme caution. 98"
+    }
+  ]
+}

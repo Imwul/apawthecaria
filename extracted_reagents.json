@@ -1,0 +1,569 @@
+[
+  {
+    "name": "Horse Chestnuts",
+    "type": "plant",
+    "br": 4,
+    "raw_locs": "b f l g m tpsa w\nThis reagent causes almost as many injuries as it \ncures",
+    "preps": "⅓ Spiky Husks USED for [ELSEWHERE 1] 1 Perfect Conker USED in games for [JOY 2] ⅔ Chestnuts BOILED for [STOMACH 2] COOKED for [FAIR 2] 1 Beetles 4 132 1 Horse Chestnut 4 140 1 Orange Peel Fungus 3 144 2 Doused Bonfires 4 137 2 Marshgold 3 142 1 Fly Agaric 5 138 1 Tansies 5 148 1 White Willow 5 150 2 Behemoth Bits 8 133 2 Catnip 6 135 1 Bird Leavings 4 133 1 Dandelions 2 137 1 Oak 4 144 1 Orange Peel Fungus 3 144 1 Roses 8 146 2 Burdock 3 134 2 Butterfly 9 135 2 Horse Chestnut 4 140 2 Marigold 5 141 2 Marshgold 3 142 2 Pearls 8 144 2 Strawberries 4 148 2 Yellow Wort 4 151 1 Blackcurrant 5 134 1 Catnip 6 135 1 Thistles 3 149 1 Titansorrel 6 149 2 Big Fish 9 133 2 Fly Agaric 5 138 2 Honey Bees 5 140 1 Catnip 6 135 1 Clay 3 136 1 Iron Ore * 7 140 2 Lavender 5 141 2 Woundwort 7 151 1 Burdock 3 134 1 Yellow Wort 4 151 2 Frog Slime 5 138 2 Silver Ore * 11 147 2 Wasps 5 149 1 Garden Mint 6 139 1 Nettles 2 143 1 Goosegrass 5 139 1 Wild Violet 6 150 2 Hoarhound 6 139 2 Marigold 5 141 2 Ironslug 8 140 1 Cucumber 6 136 1 Goosegrass 5 139 2 Lavender 5 141 2 White Willow 5 150 1 Blackcurrant 5 134 1 Burdock 3 134 1 Nettles 2 143 1 Titansorrel 6 149 2 Frog Slime 5 138 2 Leech † 5 141 2 Rock Salt † 7 146 2 Yarrow 7 151 2 Behemoth Bits 8 133 2 Cucumber 6 136 2 Tansies † 5 148 2 Wasps 5 149 2 Wild Violet 6 150 1 Animal Sheddings 3 132 1 Brambles 4 134 1 Cucumber 6 136 1 Dandelions 2 137 1 Goosegrass 5 139 1 Haircap Moss 6 139 1 Small Fish 7 147 1 Strawberries 4 148 1 Yellow Wort 4 151 2 Beech 5 132 2 Beehive 5 132 2 Big Fish 9 133 2 Doused Bonfires 4 137 2 Hidelendings * 7 139 2 Leech 5 141 1 Animal Sheddings 3 132 1 Marshmallow 6 142 2 Beehive 5 132 2 Haircap Moss 6 139 2 Wild Violet 6 150 1 Burdock 3 134 1 Marshmallow 6 142 2 Thistles 3 149 1 Catnip 6 135 1 Cherry Tree 4 135 2 Forget-me-not * 6 138 2 Garden Mint 6 139 2 Marshgold 3 142 2 Wild Garlic 2 150 1 Cucumber 6 136 2 Beehive 5 132 2 Marigold 5 141 2 Roses 8 146 1 Catnip 6 135 1 Cherry Tree 4 135 1 Cucumber 6 136 2 River Mint 6 145 1 Birch Polypore 5 133 1 Rhubarb 2 145 1 Spiders 4 148 1 Yarrow 7 151 2 Beech 5 132 2 Beehive 5 132 2 Hidelendings * 7 139 2 Horsetail 4 140 2 Oak 4 144 2 Rock Salt † 7 146 1 Animal Sheddings 3 132 1 Brambles 4 134 1 Clay 3 136 1 Cucumber 6 136 1 Dandelions 2 137 1 Honey Bees 5 140 1 Miracle Loaf 11 142 2 Blackthorn 7 134 2 Chalk 4 135 2 Coarse Grit 4 136 2 Field Blewit 4 137 2 Garden Mint 6 139 2 Nettles 2 143 1 Bird Leavings 4 133 1 Chalk 4 135 1 Clay 3 136 2 Blackthorn 7 134 2 Doused Bonfires 4 137 2 Leech † 5 141 1 Bird Leavings 4 133 1 Marshmallow 6 142 2 Beetles 4 132 2 Coarse Grit 4 136 2 Doused Bonfires 4 137 2 Small Fish 7 147"
+  },
+  {
+    "name": "Animal Sheddings",
+    "type": "animal",
+    "br": 3,
+    "raw_locs": "bf lgmtpsaw\nAs the seasons change",
+    "preps": "⅔ Pellets CRUSHED for [STOMACH 1] ⅔ Hair BOILED and then USED for [HIDE 1] ⅓ Sweat BOILED and then APPLIED for"
+  },
+  {
+    "name": "Beech",
+    "type": "plant",
+    "br": 5,
+    "raw_locs": "bflgmtpsaw\nLegend claims the Birch was a parting gift from the Titans",
+    "preps": "⅓ Shells GROUND for [HIDE 2] ⅓ Nuts USED for [FAIR 1] COOKED for [FAIR 2] 1 Bark BREWED for [WOUND 2]"
+  },
+  {
+    "name": "Beehive",
+    "type": "insect",
+    "br": 5,
+    "raw_locs": "bf l gmtpsaw\nTo many brave sweettooths",
+    "preps": "⅓ Wax USED for [FEATHER 2] ⅓ Royal Jelly USED for [HIDE 2] and [BURN 2] ⅓ Honey ADDED for [WOUND 2] USED in consumed remedies"
+  },
+  {
+    "name": "Beetles",
+    "type": "insect",
+    "br": 4,
+    "raw_locs": "bf l gmtpsa w\nBeetle shells shimmer and shine in ways that unobservant \nor frightful beasts may not notice",
+    "preps": "⅓ Shells Crushed for [SCALE 2] USED for [ELSEWHERE 1]"
+  },
+  {
+    "name": "Behemoth Bits",
+    "type": "animal",
+    "br": 8,
+    "raw_locs": "bf l gmtpsaw\nWolves",
+    "preps": "⅓ Musk APPLIED for [INSTINCT 2] ⅔ Urine BOILED for [SENSES 2] 1 Fur APPLIED for [TEMPERATURE 3]"
+  },
+  {
+    "name": "Big Fish",
+    "type": "animal",
+    "br": 9,
+    "raw_locs": "b f l g m tpsaw\nFew things compare to the joy of catching a nice big fish",
+    "preps": "⅔ Skin BOILED for oil, which is APPLIED for 1 Meat COOKED for [MOOD 2] and [SENSES 3] ⅓ Scales CRUSHED for [SCALE 3]"
+  },
+  {
+    "name": "Birch Polypore",
+    "type": "plant",
+    "br": 5,
+    "raw_locs": "bf l g m tpsaw\nWide brown",
+    "preps": "⅓ Mushroom APPLIED for [HIDE 2] and [WOUND 1] as"
+  },
+  {
+    "name": "Bird Leavings",
+    "type": "animal",
+    "br": 4,
+    "raw_locs": "bf l gmtpsaw\nWhen you fly everywhere",
+    "preps": "⅓ Guano GROUND and then COOKED [POISON 1] ⅓ Egg Shell CRUSHED for [SCALE 1] ⅓ Feathers USED for [JOY 1]"
+  },
+  {
+    "name": "Blackcurrant",
+    "type": "plant",
+    "br": 5,
+    "raw_locs": "b f l gm tpsa w\nBeasts weave living branches of the Blackcurrant bush \nthrough their homes for stability",
+    "preps": "⅓ Berries USED raw for [FAIR 1] ⅓ Leaves BREWED for [INFECTION 1] 1 Roots CHEWED for [MOOD 1]"
+  },
+  {
+    "name": "Blackthorn",
+    "type": "plant",
+    "br": 7,
+    "raw_locs": "bf l g m tpsaw\nDespite being incredibly sour",
+    "preps": "1 Sloes USED in consumed remedies for [FOUL 2] COOKED for [FAIR 2] and [STOMACH 2] ⅓ Thorns GROUND and BREWED for [POISON 2]"
+  },
+  {
+    "name": "Brambles",
+    "type": "plant",
+    "br": 4,
+    "raw_locs": "b f l gm tpsaw\nBramble patches are often home to small birds",
+    "preps": "⅓ Berries CHEWED for [FAIR 2] COOKED for [FAIR 3] ⅔ Bark BOILED into an ointment for [HIDE 1] 1 Roots CHEWED and then BREWED for"
+  },
+  {
+    "name": "Burdock",
+    "type": "plant",
+    "br": 3,
+    "raw_locs": "b flg m tpsa w\nBurdock",
+    "preps": "1 Roots BREWED for [INFECTION 1] ⅔ Stems GROUND into a conditioner for [FUR 1], ⅓ Flowers DIGESTED into a bright paste for ⅓ Burrs USED to comb for [PARASITES 1], can"
+  },
+  {
+    "name": "Butterfly",
+    "type": "insect",
+    "br": 9,
+    "raw_locs": "bflgm t psa w\nYoung beasts love to chase these beautiful bugs",
+    "preps": "⅓ Living Butterfly APPLIED to forehead for"
+  },
+  {
+    "name": "Catnip",
+    "type": "plant",
+    "br": 6,
+    "raw_locs": "b f l g m t psa w\nThe greatest plant in the world",
+    "preps": "⅓ Roots CHEWED for [BREATH 1], ⅓ Flowers BREWED for [INSTINCT 2], [MOOD 1]"
+  },
+  {
+    "name": "Chalk",
+    "type": "earth",
+    "br": 4,
+    "raw_locs": "b f l g m t psaw\nTasteless and gritty",
+    "preps": "⅓ Chalk CRUSHED for [STOMACH 2] and [POISON 1]"
+  },
+  {
+    "name": "Cherry Trees",
+    "type": "plant",
+    "br": 4,
+    "raw_locs": "b f l g m t psaw\nA favourite among the beasts of the Bristley Woods",
+    "preps": "⅓ Cherries COOKED for [JOY 3] and [FAIR 4], ⅓ Bark CRUSHED for [BREATH 1] and"
+  },
+  {
+    "name": "Chillies",
+    "type": "plant",
+    "br": 6,
+    "raw_locs": "bf l g mtpsa w\nFor some",
+    "preps": "⅓ Membranes BOILED for [PAIN 1] ⅓ Seeds"
+  },
+  {
+    "name": "Clay",
+    "type": "earth",
+    "br": 3,
+    "raw_locs": "b f l g m t psaw\nFound where water meets soft earth",
+    "preps": "⅔ Clay USED for [NERVES 1] & [POISON 1] DIGESTED for [STOMACH 1]"
+  },
+  {
+    "name": "Coarse Grit",
+    "type": "earth",
+    "br": 4,
+    "raw_locs": "b f l g m t psaw\nMany birds eat grit to help break up their food",
+    "preps": "⅓ Grit CHEWED for [STOMACH 2]"
+  },
+  {
+    "name": "Concocted Calm",
+    "type": "titan",
+    "br": 8,
+    "raw_locs": "b f l g m tpsaw\nHomesick and nervous beasts find great comfort in a single \nspritz from this Titan Hissbox",
+    "preps": "⅔ Spritzer USED for [INSTINCT 3] and [MOOD 3]."
+  },
+  {
+    "name": "Crab Apples",
+    "type": "plant",
+    "br": 5,
+    "raw_locs": "bf l gm tps a w\nBitter and sour if not prepared appropriately",
+    "preps": "1 Fruit USED in consumed remedies for [FOUL 1] COOKED to add PRESERVED to COOKED in consumed remedies"
+  },
+  {
+    "name": "Cucumbers",
+    "type": "plant",
+    "br": 6,
+    "raw_locs": "b f lgmtpsa w\nA staple of salads and sandwiches",
+    "preps": "⅓ Flowers BREWED for [SENSES 2], [SLEEP 1], and ⅓ Marrow USED in consumed remedies for"
+  },
+  {
+    "name": "Dandelions",
+    "type": "plant",
+    "br": 2,
+    "raw_locs": "bf l gmtpsa w\nBeautiful sun",
+    "preps": "⅓ Flowers USED for [JOY 1] ⅓ Roots GROUND for [STOMACH 1] ⅓ Leaves USED in consumed remedies for [FAIR 1] ⅓ Stems BREWED for [HIDE 1]"
+  },
+  {
+    "name": "Doused Bonfires",
+    "type": "earth",
+    "br": 4,
+    "raw_locs": "b f l gm t psaw\nPoultice pounders waste nothing",
+    "preps": "⅓ Ash APPLIED as an exfoliant for [SCALES 2] BREWED into a soap for [HIDE 2] ⅓ Charcoal CRUSHED for [POISON 2] USED for [ELSEWHERE 2]"
+  },
+  {
+    "name": "False Deathcap",
+    "type": "plant",
+    "br": 7,
+    "raw_locs": "b f l g m tpsaw\nAs the saying goes",
+    "preps": "⅔ Flesh DIGESTED for [SENSES 3] and [FOUL 6]"
+  },
+  {
+    "name": "Field Blewit",
+    "type": "plant",
+    "br": 4,
+    "raw_locs": "b f l gmtpsaw\nA favourite among the superstitious as they often grow in so \ncalled",
+    "preps": "⅓ Cap COOKED for [STOMACH 2] and adds"
+  },
+  {
+    "name": "Fine Sand",
+    "type": "earth",
+    "br": 7,
+    "raw_locs": "b f l g m t psaw\nThe lizards of the Bristley Woods are always on a lookout for \nsomething that will make their moulting easier",
+    "preps": "⅔ Sand USED as a filter for drunk remedies;"
+  },
+  {
+    "name": "Firegizzards",
+    "type": "titan",
+    "br": 6,
+    "raw_locs": "b f l g m tpsaw\nPouches are filled with a strange liquid that burns like a soft \nfire when given a good whack",
+    "preps": "1 Gizzard USED for [TEMPERATURE 3]. Can be"
+  },
+  {
+    "name": "Fly Agaric",
+    "type": "plant",
+    "br": 5,
+    "raw_locs": "b f l g m tpsaw\nThe archetypal toadstool",
+    "preps": "⅓ Spores BREWED for [INSTINCT 1] and [MOOD 2] 1 Cap COOKED for [SLEEP 3]"
+  },
+  {
+    "name": "Forget-Me-Not",
+    "type": "plant",
+    "br": 6,
+    "raw_locs": "b f l g m tpsa w\nOften given in bouquets as a way to show friendship and \nlove",
+    "preps": "⅓ Flowers BREWED for [NERVES 3] ⅓ Nectar BREWED for [BREATH 2],"
+  },
+  {
+    "name": "can only be Foraged for in Summer Frog Slime",
+    "type": "animal",
+    "br": 5,
+    "raw_locs": "b f l g m t psaw\nFrogs secrete a naturally disease supressing slime",
+    "preps": "⅓ Slime BOILED for [INFECTION 2] and [PARASITE 2]"
+  },
+  {
+    "name": "Garden Mint",
+    "type": "plant",
+    "br": 6,
+    "raw_locs": "bf l g m tpsaw\nThe one and true original mint",
+    "preps": "⅓ Leaves CHEWED for [BREATH 2] and [PAIN 1] ⅓ Stems BREWED for [STOMACH 2]"
+  },
+  {
+    "name": "Glass Silk",
+    "type": "titan",
+    "br": 7,
+    "raw_locs": "b f l g m tpsaw\nStronger than a hemp rope ten times as thick",
+    "preps": "⅓ Thread USED for [HIDE 3] and [WOUND 3]"
+  },
+  {
+    "name": "Goosegrass",
+    "type": "plant",
+    "br": 5,
+    "raw_locs": "bf l g m t psa w\nMany young beasts like to throw these hairy weeds at each \nother and shout",
+    "preps": "⅓ Seeds GROUND and BREWED for [SLEEP 1] ⅓ Shoots BOILED for [HIDE 1] and [PAIN 1]"
+  },
+  {
+    "name": "Haircap Moss",
+    "type": "plant",
+    "br": 6,
+    "raw_locs": "bf l g m t psaw\nA potent cure for loose bladders",
+    "preps": "⅓ Barbed Strands BOILED for [FEATHER 2] and [HIDE 1]"
+  },
+  {
+    "name": "Hidelendings",
+    "type": "titan",
+    "br": 7,
+    "raw_locs": "b f l g m tpsaw\nSticky backed material the colour of a rat",
+    "preps": "⅓ Slivers USED for [HIDE 2] and [WOUND 2]."
+  },
+  {
+    "name": "Hoarhound",
+    "type": "plant",
+    "br": 6,
+    "raw_locs": "b f l gm tpsa w\nEasy to overlook but hard to miss its distinctive scent",
+    "preps": "⅔ Leafy Whorls COOKED for [PAIN 2] and [BREATH 3]"
+  },
+  {
+    "name": "Honeybees",
+    "type": "insect",
+    "br": 5,
+    "raw_locs": "bflgmtpsa w\nHoney bees can be found busily buzzing the whole woods over",
+    "preps": "⅓ Pollen ADDED for [STOMACH 1] and [MOOD 2]"
+  },
+  {
+    "name": "Horse Chestnuts",
+    "type": "plant",
+    "br": 4,
+    "raw_locs": "b f l g m tpsaw\nThis reagent causes almost as many injuries as it cures",
+    "preps": "⅓ Spiky Husks USED for [ELSEWHERE 1] 1 Perfect Conker USED in games for [JOY 2] ⅔ Chustnuts BOILED for [STOMACH 2] COOKED for [FAIR 2]"
+  },
+  {
+    "name": "Horsetails",
+    "type": "plant",
+    "br": 4,
+    "raw_locs": "b f l g m t psaw\nDo NOT try to gather an actual horse",
+    "preps": "⅓ Stems BOILED for [WOUND 2] and"
+  },
+  {
+    "name": "Iron Ore",
+    "type": "earth",
+    "br": 7,
+    "raw_locs": "b f l g mtpsaw\nTales passed from parent to cub are often the basis for the \nsoundest of remedies",
+    "preps": "⅓ Iron Pebbles BOILED in consumed remedies for"
+  },
+  {
+    "name": "Trinket Ironslug",
+    "type": "titan",
+    "br": 8,
+    "raw_locs": "b f l g m tpsaw\nThis lethargic slug can be squeezed for a surprisingly soft \nand fragrant white cream that soothes even the most \npainful of burns",
+    "preps": "⅓ Guts USED for [PAIN 2] and [BURN 3]"
+  },
+  {
+    "name": "Lavender",
+    "type": "plant",
+    "br": 5,
+    "raw_locs": "bf l g m t psa w\nSome poultice pounders believe that lavendar is all you \nneed for any ailment",
+    "preps": "⅓ Flowers"
+  },
+  {
+    "name": "Leech",
+    "type": "insect",
+    "br": 5,
+    "raw_locs": "b f l g m tpsa w\nPoulticepounders have known for generations the niche uses \nof a leech",
+    "preps": "⅔ Leech GROUND into paste"
+  },
+  {
+    "name": "Maggots",
+    "type": "insect",
+    "br": 7,
+    "raw_locs": "bf l g m t psa w\nThe deepest wounds necessitate the use of maggots to \nclear the dead flesh and promote healing",
+    "preps": "⅔ Larvae USED for [INFECTION 3] and [WOUND 3]"
+  },
+  {
+    "name": "Marigold",
+    "type": "plant",
+    "br": 5,
+    "raw_locs": "b f l g m t psa w\nThese yellow and orange blooms are a favourite of the Hive \nWardens and their bees for their sweet nectar",
+    "preps": "⅓ Nectar ADDED for [FAIR 1] ⅔ Petals USED for [JOY 2]"
+  },
+  {
+    "name": "Marshgold",
+    "type": "plant",
+    "br": 3,
+    "raw_locs": "bfl g m t ps a w\nOne of the prettiest bog flowers around",
+    "preps": "⅔ Flower USED for [ELSWHERE 2] ⅓ Petals BREWED for [JOY 2] and [BREATH 2]"
+  },
+  {
+    "name": "Marshmallow",
+    "type": "plant",
+    "br": 6,
+    "raw_locs": "b f l g m t psa w\nNot to be confused with the chewy",
+    "preps": "⅓ Flower BOILED for [FEATHER 1], [FUR 1] and ⅓ Root Sap COOKED for [STOMACH 3] and [FAIR 1]"
+  },
+  {
+    "name": "Meadow Waxcap",
+    "type": "plant",
+    "br": 4,
+    "raw_locs": "b f l g m tpsaw\nFound wherever sheep graze",
+    "preps": "⅓ Shells ADDED for [STOMACH 1] COOKED for [STOMACH 3] and [FAIR 2]"
+  },
+  {
+    "name": "Miracle Loaf",
+    "type": "titan",
+    "br": 11,
+    "raw_locs": "b f l g m tpsaw\nEdible cakes wrapped in silver leaf",
+    "preps": "⅓ Shells CRUSHED for [FEATHER 3] [FUR 3]"
+  },
+  {
+    "name": "Musk Scrapings",
+    "type": "titan",
+    "br": 10,
+    "raw_locs": "bf l g mtpsaw\nAll manner of smells in the most impractical of bottles",
+    "preps": "Shanelle #4 USED for [JOY 3]. Floral undertones. FILTHY USED for [BREATH 3]. Pungently minty. Marmalade USED for [SENSES 3]. Disgustingly bitter. Cabana Boi USED for [ELSEWHERE 3]. Sweet and Sappho USED for [MOOD 3] and [NERVES 3]."
+  },
+  {
+    "name": "Nettles",
+    "type": "plant",
+    "br": 2,
+    "raw_locs": "bflgmtpsaw\nAs common as the dirt between your toes",
+    "preps": "⅓ Leaves BREWED for [INFECTION 1] & [PAIN 1] ⅓ Stems CHEWED for [STOMACH 2]"
+  },
+  {
+    "name": "Nightshade",
+    "type": "plant",
+    "br": 6,
+    "raw_locs": "b f l gm t psa w\nIts berries are black as death",
+    "preps": "⅓ Berries GROUND and BREWED for [SENSES 3]"
+  },
+  {
+    "name": "Oak",
+    "type": "plant",
+    "br": 4,
+    "raw_locs": "bf l gmtpsaw\nMightiest of all the trees",
+    "preps": "⅓ Catkins USED for [JOY 1]. ⅓ Acorns GROUND and COOKED for [FAIR 2]. ⅔ Bark GROUND AND BOILED for [POISON 3] 1 Branch USED to bind broken bones for"
+  },
+  {
+    "name": "Orange Peel Fungus",
+    "type": "plant",
+    "br": 3,
+    "raw_locs": "b f l gmt psa w\nTraditionally served after a beast has gone Elsewhere",
+    "preps": "⅓ “Petals” USED for [JOY 1] or [ELSEWHERE 1]"
+  },
+  {
+    "name": "Pearls",
+    "type": "earth",
+    "br": 8,
+    "raw_locs": "b f l g m t psaw\nRare and beautiful",
+    "preps": "⅓ Pearl USED for [ELSEWHERE 3] or [JOY 2]"
+  },
+  {
+    "name": "Pox-Be-Gones",
+    "type": "titan",
+    "br": 10,
+    "raw_locs": "b f l g m tpsaw\nBitter and easy to get caught in the throat these little white \ncircles are great for dealing with all manner of sicknesses \nbut getting anybeast to swallow them is a trial in itself",
+    "preps": "⅓ Bitterbones CRUSHED for [INFECTION 3] and ⅔ Purgedew ADDED for [INFECTION 1] and"
+  },
+  {
+    "name": "Redsap",
+    "type": "titan",
+    "br": 8,
+    "raw_locs": "b f l g m tpsaw\nRumour has it that all the good tasting Redsap was drunk \ncenturies ago",
+    "preps": "1 Bottled Sap ADDED for [PAIN 3] [BREATH 3] but"
+  },
+  {
+    "name": "Rhubarb",
+    "type": "plant",
+    "br": 2,
+    "raw_locs": "bf l gm t psa w\nA horrifically astringent and bitter weed that plagues many \na mountain side",
+    "preps": "⅓ Stems CHEWED for [FOUL 2] COOKED for [FAIR 2] ⅓ Fibres CHEWED and washed for binding"
+  },
+  {
+    "name": "Ribwort",
+    "type": "plant",
+    "br": 5,
+    "raw_locs": "bf l g m tpsaw\nSometimes called Migrator",
+    "preps": "⅓ Seed pods CRUSHED for [FAIR 1] ⅓ Leaves"
+  },
+  {
+    "name": "Rivermint",
+    "type": "plant",
+    "br": 6,
+    "raw_locs": "b f l g m t psaw\nA delicate",
+    "preps": "⅓ Leaves GROUND and APPLIED for BREWED for [BREATH 2] ⅓ Stems CHEWED for [PAIN 1]"
+  },
+  {
+    "name": "Rock Salt",
+    "type": "earth",
+    "br": 7,
+    "raw_locs": "b f l g m t psaw\nTreasured and protected by Philosopher Goats",
+    "preps": "⅔ Salt USED for [INFECTION 2] and [WOUND"
+  },
+  {
+    "name": "Roses",
+    "type": "plant",
+    "br": 8,
+    "raw_locs": "bf l g m tpsa w\nWere it known by any other name",
+    "preps": "⅓ Petals USED for [JOY 1] ⅓ Rosehips"
+  },
+  {
+    "name": "Shells",
+    "type": "animal",
+    "br": 4,
+    "raw_locs": "b f l g m t psaw\nTheir smooth flat interiors make them prized by beasts who \nmix pigments",
+    "preps": "⅔ Shells When Bartering, swap this shell for the"
+  },
+  {
+    "name": "Silver Ore",
+    "type": "earth",
+    "br": 11,
+    "raw_locs": "b f l g m t psaw\nPrized for its flexible softness",
+    "preps": "⅓ Silver Shards GROUND and APPLIED under bandages"
+  },
+  {
+    "name": "Slugs",
+    "type": "insect",
+    "br": 3,
+    "raw_locs": "bflgmtpsa w\nA staple food in the Bristley Woods",
+    "preps": "⅔ Slugs COOKED for [FAIR 2]"
+  },
+  {
+    "name": "Small Fish",
+    "type": "animal",
+    "br": 7,
+    "raw_locs": "b f l g m t psaw\nIf you put your mind to it",
+    "preps": "⅓ Bones USED as a delicate 1 Meat COOKED in consumed ⅓ Scales BOILED for oil and then"
+  },
+  {
+    "name": "Sourchits",
+    "type": "titan",
+    "br": 10,
+    "raw_locs": "b f l g m tpsaw\nA moment",
+    "preps": "⅓ Pellets CRUSHED for [PAIN 3], but causes"
+  },
+  {
+    "name": "Spiders",
+    "type": "insect",
+    "br": 4,
+    "raw_locs": "bf l gmtpsa w\nBearing twice as many legs as the average beast",
+    "preps": "⅓ Captured Flies ADDED for [FAIR 1] ⅓ Websilk USED for [WOUND 1]"
+  },
+  {
+    "name": "Strawberries",
+    "type": "plant",
+    "br": 4,
+    "raw_locs": "bf l g m t psa w\nThe locations of particularly good strawberry patches are \nsecrets passed down from parent to pup",
+    "preps": "⅔ Berries USED for [FAIR 2] or COOKED for [FAIR 4] ⅓ Flowers BREWED or APPLIED for [JOY 2] ⅓ Leaves CRUSHED for [HIDE 1]"
+  },
+  {
+    "name": "Tansies",
+    "type": "plant",
+    "br": 5,
+    "raw_locs": "b flgm t psa w\nAn aromatic flower that favours the verges of regions",
+    "preps": "⅓ Leaves DIGESTED for [PARASITE 3] and ⅔ Stems BREWED for [INSTINCT 1]"
+  },
+  {
+    "name": "Thistles",
+    "type": "plant",
+    "br": 3,
+    "raw_locs": "bflgmtpsaw\nThe Titans had an affinity for these pretty prickly plants",
+    "preps": "⅓ Spike Head APPLIED for [FUR 2] ⅓ Nectar ADDED for [MOOD 1]"
+  },
+  {
+    "name": "Titansorrel",
+    "type": "plant",
+    "br": 6,
+    "raw_locs": "b f l gmtpsaw\nTangy and slightly bitter this sorrel makes a tasty addition to \nmany salads",
+    "preps": "⅓ Leaves ADDED for [MOOD 1] but adds [FOUL 1] ⅓ Roots COOKED and APPLIED for"
+  },
+  {
+    "name": "Toads",
+    "type": "animal",
+    "br": 7,
+    "raw_locs": "b f l g m tpsaw\nWhen stressed",
+    "preps": "⅓ Poison ADDED for [SENSES 1] and [FOUL 3]"
+  },
+  {
+    "name": "Wasps",
+    "type": "insect",
+    "br": 5,
+    "raw_locs": "bflgm tpsa w\nThe defensive cousin of the humble bumble",
+    "preps": "⅓ Venom USED for [SENSES 2]"
+  },
+  {
+    "name": "Waychalk",
+    "type": "titan",
+    "br": 10,
+    "raw_locs": "b f l g m tpsaw\nDense bricks of pure",
+    "preps": "⅓ Chalk USED for [ELSEWHERE 3]"
+  },
+  {
+    "name": "Whiskerburner",
+    "type": "titan",
+    "br": 9,
+    "raw_locs": "b f l g m tpsaw\nAll the brews from the Guild of Grainsoakers couldn",
+    "preps": "⅔ Burnjuice"
+  },
+  {
+    "name": "White Willow",
+    "type": "plant",
+    "br": 5,
+    "raw_locs": "b f l g m t psaw\nSome beasts consider these trees to be guardians of \nthe rivers and lochs",
+    "preps": "1 Bark CRUSHED for [INSTINCT 1] ⅔ Catkins BOILED for [PAIN 2]"
+  },
+  {
+    "name": "Can only be Foraged for in Summer Wild Garlic",
+    "type": "plant",
+    "br": 2,
+    "raw_locs": "b f l gm t ps a w\nThe fragrant stench of wild garlic turns some parts of the \nBristley Woods into a forager",
+    "preps": "⅔ Leaves CHEWED and USED for [FAIR 1] and ⅓ Stems CRUSHED for [BREATH 2]"
+  },
+  {
+    "name": "Wild Violet",
+    "type": "plant",
+    "br": 6,
+    "raw_locs": "bflgm t psa w\nThis attractive plant is used as a topical medicine for bug \nbites and as a way to fend off nippy parasites",
+    "preps": "⅓ Flowers DIGESTED for [PAIN 1] ⅓ Leaves CHEWED for [SENSES 2]"
+  }
+]

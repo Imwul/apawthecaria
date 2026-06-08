@@ -1,0 +1,407 @@
+[
+  {
+    "name": "Paw Rot",
+    "severity": "lesser",
+    "timer": 9,
+    "tags": "infection 1 & pain 1",
+    "description": "After walking one too many days on sodden soil, the webbing in-between this beast's feet are itchy and swollen. Something applied regularly every day for a few weeks should clear it up…",
+    "outcome": "Squeaky Clean: If the remedy is PRESERVED - with this long-lasting unguent, this infection can be treated reliably when it shows up again. Next time you come through this location, gain 1 trinket from a grateful patient.",
+    "consequence": "Trodden In: While a minor issue on its own, this beast is rather popular. Who else have they spread their Paw Rot to? The next time you visit this location, the only ailment you can try to resolve is Paw Rot. 1 1 2 3 4 5 6 100"
+  },
+  {
+    "name": "PAGE 104 ---\nAnxious Scratching",
+    "severity": "lesser",
+    "timer": 7,
+    "tags": "mood 2, fur, feather or scale 1",
+    "description": "A low and constant level of stress has worn down this beast; they’ve started to moult uncontrollably.",
+    "outcome": "",
+    "consequence": "Shed Outta Luck: The beast moults completely. What physical or social pressures do they face now?"
+  },
+  {
+    "name": "Bad Idea",
+    "severity": "severe",
+    "timer": 6,
+    "tags": "joy 2, pain 2, wound 2",
+    "description": "Invention is an important past-time to many beasts in the Bristley Woods but that doesn't mean that every idea is a good - or safe - one as this poor beast has just found out. They need medical attention and a pick-me-up. What was their invention, and how did it hurt them? Your cure cannot have any [FOUL]; this will only upset them more.",
+    "outcome": "Inspiration: If you solve this Ailment with Potency (3) Reagents; The inventor feels so refreshed that they offer to modify your existing equipment. Upgrade one of your Basic Tools, or decrease the Weight of a Tool by 1/3.",
+    "consequence": "Giving Up: Disheartened by the failure of their invention they lose their spark and give up on inventing altogether. What happens to the blueprints they abandon? Bite the hand that Cures Severe - i 12 Draw an ailment from the Lesser or Intermediates tables. To administer this Remedy you must first find your patient! Treat them like a Reagent with BR 8; they can be found in Current or Adjacent Locations. This beast is absolutely terrified of medicine and doctors of any kind. Their family and friends want you to treat them, but you'll have to find them first Outcome - At Least They're Home If you find the patient but fail to create a Remedy for them; Face the Consequences of your drawn Ailment, but do not lose Reputation. How does their ailment develop without the proper treatment it needs? Consequence - Laughing Stock \"You can't find herbs, let alone an actual animal!\" You are the butt of many jokes in the local area. 104 ---"
+  },
+  {
+    "name": "PAGE 105 ---\nBlocked Ears",
+    "severity": "intermediate",
+    "timer": 6,
+    "tags": "senses 2, temperature 2,  \ninfection 1",
+    "description": "Huh? What? You'll have to repeat that; this poor beast's ears have gummed up with rock hard wax after a sharp fever.",
+    "outcome": "",
+    "consequence": "A Silent End: Disorientated from the sudden loss of a sense, this poor beast is easy pickings for a predator. What got them in the end?"
+  },
+  {
+    "name": "Bloodthirst",
+    "severity": "severe",
+    "timer": 6,
+    "tags": "instinct 3, stomach 3, senses 3",
+    "description": "An terrible hunger has awoken in this beast. They've eaten something which has caused their thoughts to fog, and ancient instincts are telling them to hunt; every passing hour it becomes harder to resist.",
+    "outcome": "",
+    "consequence": "Violent Nature: Lost in the fog of their instincts, they hunt. Do they catch anyone? Does anyone stop them?"
+  },
+  {
+    "name": "Brand Care",
+    "severity": "intermediate",
+    "timer": 6,
+    "tags": "burn 2, infection 2, hide 1",
+    "description": "A beast has been branded by one of the guilds as a dangerous criminal, and ostracised from their home. The puffy circle of exposed and blistered skin has become infected.",
+    "outcome": "Compassion: If you try to treat this beast; Lose 2 Reputation for associating with outcast vermin. What is their story? Why were they branded? What trinkets do they pay you with from their hastily grabbed possessions? Outcome - Duty If you refuse to treat this beast; Gain 2 Reputation for upholding Guild law. The branded beast flees into the wilds while fever wracks their body. How do you feel about this?",
+    "consequence": "Unnoticed: Failing to treat this Ailment does not cause you to Overstay your Welcome."
+  },
+  {
+    "name": "Broken Beaks and \nThinning Fangs",
+    "severity": "severe",
+    "timer": 6,
+    "tags": "pain 3, pain 2, stomach 3",
+    "description": "A crash, a badly aimed peck, or a fight has caused this poor beast's beak or teeth to crack; they're in constant pain, and struggling to eat.",
+    "outcome": "Guild of Fangwrights: If you can find some Silver Shards, you can create a prosthetic, replacement tooth or crown for the patient. Doing so gets you an extra 3 Reputation.",
+    "consequence": "Compound Problems: The stress and lack of food causes this poor bird to fall foul of another ailment. Lose 3 Reputation. You may stick around to help by Marking 1 Day, and drawing another ailment; if you don't, they will perish. 105 ---"
+  },
+  {
+    "name": "PAGE 106 ---\nCrestfallen",
+    "severity": "lesser",
+    "timer": 7,
+    "tags": "feather 2, nerves 2 and instinct 2",
+    "description": "or [feather 2, joy 2 & a brightly coloured plant reagent] Not all birds are happy with the colour of their feathers; some seek bolder colours, or hope to disguise themselves from the keen eyes of predators.",
+    "outcome": "",
+    "consequence": "Your patient attempts to dye their own: feathers, and it goes horribly wrong. They blame you!"
+  },
+  {
+    "name": "Dullsweats",
+    "severity": "lesser",
+    "timer": 9,
+    "tags": "breath 1, senses 1, joy 1",
+    "description": "After too long spent burrowed under sweaty blankets away from the world. They want something to clear their nose, open their eyes, and lift their spirits.",
+    "outcome": "",
+    "consequence": "The window of opportunity has passed,: and depression once again draws this beast back into their dark lair. Who misses their absent friend?"
+  },
+  {
+    "name": "Fight Marks",
+    "severity": "dire",
+    "timer": 6,
+    "tags": "pain 2, wound 3, hide 3",
+    "description": "x2 Whether through pride, greed, fear or a combination of all three, two local beasts have fought and harmed each other greatly. Treat this as two Ailments with separate Timers. One of these beasts started the fight, but neither will admit who was involved. Journal about who these beasts are, and who you treat first.",
+    "outcome": "If you treat both patients and Forage a: [JOY 3] Reagent; as part of your care, you get both patients to open up. With your help, they talk through their argument. Are they able to come to a common understanding?",
+    "consequence": "Failing to treat a beast means they: will succumb to their wounds, passing Elsewhere and leaving their fight unresolved. If both beasts succumb, lose Reputation twice."
+  },
+  {
+    "name": "Firstfever",
+    "severity": "lesser",
+    "timer": 7,
+    "tags": "infection 1, hide 1, temperature 1",
+    "description": "A mild enough disease that many cubs and kits catch. Fighting it off grants immunity to many more dangerous fevers one could contract later in life. Many parents host 'fever partys', to promote herd immunity.",
+    "outcome": "",
+    "consequence": "Chickenscratch: Itchy red bumps plague these little cubs, and they won't stop wailing, no matter what you try. Journal about the parent's lost sleep."
+  },
+  {
+    "name": "Fond Farewell",
+    "severity": "lesser",
+    "timer": 8,
+    "tags": "elsewhere 1, joy 1",
+    "description": "Tragedy has struck and a much loved pet has journeyed on Elsewhere. This beast would greatly appreciate your help in sending their pet off properly.",
+    "outcome": "",
+    "consequence": "Fast Forgotten: With no ceremony to commemorate their friend’s passing, dark emotions take hold. How do they process the grief? 106"
+  },
+  {
+    "name": "s Twitch",
+    "severity": "intermediate",
+    "timer": 7,
+    "tags": "senses 2, mood 2, poison 2",
+    "description": "This foolish beast has eaten a strange mushroom. It has left them seeing things that aren't there, and jumping at shadows. Draw a card to see what sort of experience they're having: ♥ or ♦: A Good Trip: they stay put and out of trouble. ♣ or ♠: Bad Trip: add [WOUND 1] to this Ailment's requirements.",
+    "outcome": "",
+    "consequence": "They come down from their trip,: embarrassed and feeling changed. What profound wisdom or utter nonsense do they share?"
+  },
+  {
+    "name": "Forge    Clawed",
+    "severity": "lesser",
+    "timer": 8,
+    "tags": "burn 1, wound 1",
+    "description": "Whether working directly on hot metal or simply in the wrong place at the wrong time, this beast has been speckled with hot sparks. Small angry burns cover their pelt, and the hide underneath is exposed. A simple poultice should do the trick.",
+    "outcome": "",
+    "consequence": "Cold ... Hot Shoulder: The beast waves away your fussing and leaves their burns untended. In your absence they become infected. Now they weep with puss, and may even scar."
+  },
+  {
+    "name": "Foul Deceiver",
+    "severity": "dire",
+    "timer": 6,
+    "tags": "poison 3, stomach 3, pain3, senses 3",
+    "description": "An important member of the local community was given what they thought was a fair and tasty mushroom by an enthusiastic cub.",
+    "outcome": "",
+    "consequence": "Last Meal: If not cured in time, the patient succumbs to the poison. How does the community suffer or shrink without them?"
+  },
+  {
+    "name": "Groundhog  Syndrome",
+    "severity": "dire",
+    "timer": 12,
+    "tags": "sleep 3, mood 3, instincts 3",
+    "description": "x3 An unseasonal change in temperature triggered the natural urge of these beasts, causing them to begin hibernating prematurely, despite their better judgement. There are three patients in this Ailment that you must treat in order to quell the panic. This Ailment's Consequences change with the seasons.",
+    "outcome": "",
+    "consequence": "Spring or Summer: The panic spreads causing the nearest settlement to enter Hibernation early. You cannot Barter or do Social Events in this or the nearest Settlement until the end of the next Season; the waking beasts are too busy picking up the slack. Consequence - Autumn or Winter The beasts cannot rest and their stores will not last to Spring. Some beasts will starve. How do the others survive? You cannot Forage for Plant or Insect Reagents within 2 Paths of this Location until the end of the next Season. 107 ---"
+  },
+  {
+    "name": "PAGE 108 ---\nHerbivorous Tendencies",
+    "severity": "severe",
+    "timer": 8,
+    "tags": "instinct 3, nerves 3, senses 3",
+    "description": "A deep, traumatic survival-driven fear has been awoken in this beast, making it difficult for them to relax. Even the sight and smell of another beast sends them into fits of panic.",
+    "outcome": "",
+    "consequence": "A deep fear becomes hard-set in: this beast. They pack up and hide somewhere remote, far away from anyone else. If this is a Settlement, permanently remove one of its regional Services."
+  },
+  {
+    "name": "Hunted",
+    "severity": "dire",
+    "timer": 6,
+    "tags": "pain 3, wound 3, breath 2, hide 3",
+    "description": "Half chewed up by a Behemoth, this beast is exhausted from running for help. All of the exertion has done no favours for their injury. If you are Foraging in your Current Location, the Behemoth appears whenever you draw a ♠ card. They force you to abandon the event, Decrease the Timer by 1, and gain no Foraging Points.",
+    "outcome": "",
+    "consequence": "Cycle of Violence: They succumb to their wounds causing a beast who was dear to them to swear vengeance on the Behemoth. Permanently decrease the cost of Thickblood Services by 1."
+  },
+  {
+    "name": "Living With a  \nBlack Beast",
+    "severity": "dire",
+    "timer": 12,
+    "tags": "joy 3, nerves 3, mood 3, sleep 3",
+    "description": "This beast is struggling. They feel numb and fragile, and yet constantly scared. They've taken a brave step seeking you out, but desperately need your help.",
+    "outcome": "",
+    "consequence": "Stuck: You take too long, giving them ample time to close up again. They refuse your help and the help of those around them."
+  },
+  {
+    "name": "Lockjaw",
+    "severity": "dire",
+    "timer": 12,
+    "tags": "joy 3, nerves 3, mood 3, sleep 3",
+    "description": "Cut by a piece of Titan trash, this poor beast's jaws have seized shut and a fever has taken hold.",
+    "outcome": "",
+    "consequence": "Stuck: Without treatment, the fever passes to other beasts who care for them. The Guilds agree to seal off the nearby Ruins to prevent this from happening again. Remove the nearest Titan Ruin from the Map. 108 ---"
+  },
+  {
+    "name": "PAGE 109 ---\nLong Drop",
+    "severity": "dire",
+    "timer": 8,
+    "tags": "wound 3, pain 3, senses 3",
+    "description": "Looking up above you see an ordinary sight; a beast being ferried through the air by a Sea Eagle from Summit. But— Wait— Oh No! The beast slips from the eagle's grasp and plummets to the ground, somewhere in the distance.",
+    "outcome": "Unfound: If the patient is not found, what is done to find them when it is too late? How did they fall off?",
+    "consequence": "Grounded: Embarrased to have so failed a customer, Boldheart the Sea Eagle shies away from work. Permanently remove the Service 'Air Taxi'."
+  },
+  {
+    "name": "Mawfoam",
+    "severity": "dire",
+    "timer": 6,
+    "tags": "poison 3, senses 3, wound 2, and \neither instinct 2 or mood 2",
+    "description": "A violent disease once purged from these lands now rears its head once more. Afflicted beasts quickly become feral and aggressive. Be careful; the deadliest symptom, a fear of water, shows they are past the point of saving.",
+    "outcome": "Watch The Teeth!: If you create a remedy; the patient struggles and fights when you give them the cure. Draw a card. If it as ♠, they bite you in the process. You will need to make another Mawfoam cure.",
+    "consequence": "Quarantine: Rightly so, the Guilds agree to abandon this part of the Woods. Remove this Location from the Map. If it was a Settlement or City, Journal about the exodus of beasts to other parts of the Woods, and the emotional struggles that come with that."
+  },
+  {
+    "name": "Midge Munched",
+    "severity": "intermediate",
+    "timer": 7,
+    "tags": "hide 2, pain 1, poison 1",
+    "description": "This foolish beast took a nap in a bog with no protection against the clouds of midges that lurk in such places.",
+    "outcome": "",
+    "consequence": "Irate Rants: They scratch themselves up badly and end up too irate to approach. They'll be fine in a day or so; your Reputation will take a little longer to repair."
+  },
+  {
+    "name": "Migration Migraine",
+    "severity": "intermediate",
+    "timer": 9,
+    "tags": "instinct 3, mood 2, temperature 1",
+    "description": "A distant land calls, and this beast's instincts are telling them they need to go. No matter if they cannot go, or choose not to; they are suffering an increasing discomfort.",
+    "outcome": "",
+    "consequence": "They give in to the call and leave,: regardless of whatever was preventing them. How does this make things worse? 109 ---"
+  },
+  {
+    "name": "PAGE 110 ---\nMonthly Chore",
+    "severity": "lesser",
+    "timer": 6,
+    "tags": "scales 2, pain 1",
+    "description": "This lizard is rubbing up against every hard surface they can find to soothe the itching of their scales. It’s almost time for them to shed, but if they can’t find a way of soothing it soon they may rub the new skin underneath raw.",
+    "outcome": "",
+    "consequence": "Dandruff: There are flakes of dead skin everywhere, and the lizard is too sore to clean up. You can stay and help clean; Mark 1 Day, and lose no Reputation."
+  },
+  {
+    "name": "Nervefright",
+    "severity": "lesser",
+    "timer": 9,
+    "tags": "instinct 3, nerves 3, mood 3",
+    "description": "A close call with a Behemoth has left this poor beast frozen in fright. Their instincts won't let them move and they won't respond to anyone.",
+    "outcome": "",
+    "consequence": "Heart Attack: The stress is too much and their heart gives out. Who is the Behemoth who caused this? Use the rules on page 40 to mark their Barrow on the Map."
+  },
+  {
+    "name": "Night Shift",
+    "severity": "intermediate",
+    "timer": 6,
+    "tags": "sleep 3, mood 2",
+    "description": "This beast has been honing a special craft, culminating in their Magnum Opus. They can't work during their normal waking hours because of their roommates conflicting sleep schedules, and so have been going without sleep. They're delirious, and desperate to finish their project.",
+    "outcome": "Credits: What is their magnum opus? If you can cure them in time, they will make a dedication on their creation to you.",
+    "consequence": "Sleeping on the Job: They fall asleep while working on their special project, and ruin it completely."
+  },
+  {
+    "name": "Paw Rot",
+    "severity": "lesser",
+    "timer": 9,
+    "tags": "infection 1 & pain 1",
+    "description": "After walking one too many days on sodden soil, the webbing in-between this beast's feet are itchy and swollen. Something applied regularly every day for a few weeks should clear it up…",
+    "outcome": "Squeaky Clean: If the remedy is PRESERVED - with this long-lasting unguent, this infection can be treated reliably when it shows up again. Next time you come through this location, gain 1 trinket from a grateful patient.",
+    "consequence": "Trodden In: While a minor issue on its own, this beast is rather popular. Who else have they spread their Paw Rot to? The next time you visit this location, the only ailment you can try to resolve is Paw Rot. 110 ---"
+  },
+  {
+    "name": "PAGE 111 ---\nPinned by Pine",
+    "severity": "severe",
+    "timer": 12,
+    "tags": "wound 3, poison 3, hide 3",
+    "description": "Terrible luck! This beast has been caught beneath a falling tree, crushing part of them and turning the trapped blood toxic. You will need to be careful moving them but don't dilly dally neither!",
+    "outcome": "Knees Up: If you have a Steel Axe, or can find help at a local Settlement, you can free this patient from underneath the tree. Otherwise, whenever you would decrease this Ailment's Timer, decrease it by 1 more.",
+    "consequence": "Smushed: You were too late, the crushing weight of the tree was too much to bear, and the patient has gone Elsewhere. Who, if anybeast, will mourn them? Quagmire'"
+  },
+  {
+    "name": "s Scale",
+    "severity": "severe",
+    "timer": 9,
+    "tags": "scale 2, infection 2, poison 1",
+    "description": "Small scrapes and scratches to this reptile's scales have become infected. Left untreated, the infection will spread into their blood. If you fail to solve this Ailment before the Timer reaches 2, the [POISON 1] tag becomes [POISON 3].",
+    "outcome": "",
+    "consequence": "Dark Blood: The signs are clear as day. The infection has spread, and is now beyond your abilities. The grief from their family and friends makes it too awkward to stay in town. Who do they leave behind? Who will miss them? Even if you solved other Ailments, failing this Ailment causes you to Overstay your Welcome."
+  },
+  {
+    "name": "Safety Stench",
+    "severity": "lesser",
+    "timer": 10,
+    "tags": "senses 1 and nerves 1 or instinct 1",
+    "description": "A beast wants to ward off all unwanted company by making the entrance of their barrow stink of something frightening, like a giant behemoth.",
+    "outcome": "",
+    "consequence": "Bad Neighbours: The Titans had an apt phrase; ‘Hell is other people’. How does this irate beast lash out at passersby?"
+  },
+  {
+    "name": "Seasonshift",
+    "severity": "lesser",
+    "timer": 6,
+    "tags": "fur 3, instinct 3, senses 3",
+    "description": "For some unknown reason this beast's fur has started to change for the wrong season, growing thick in Summer and thin in Winter. For a thick coat, you may increase the Timer by 2 if you can cut the fur back.",
+    "outcome": "",
+    "consequence": "Your patient's discomfort manifests: as angry outbursts. Are other beasts understanding of their embarrassment and pain? 111"
+  },
+  {
+    "name": "s Snout",
+    "severity": "severe",
+    "timer": 9,
+    "tags": "breath 3, burn 3, pain 2",
+    "description": "Your arrival is greeted by gouts of hot flame and thick choking smoke. A house fire! Your patient has burned their throat and lungs from the smoke, leaving them in terrible pain. Fire brigade You can choose to decrease this Timer by 2 to help put out the fire; Gain 4 Reputation.",
+    "outcome": "",
+    "consequence": "Charred: Without a quick remedy, the damage is done. The beast will survive, but they'll never have their stamina back. How do they process this loss, and what adaptations do they make to their way of life?"
+  },
+  {
+    "name": "Soured Dough",
+    "severity": "intermediate",
+    "timer": 9,
+    "tags": "poison 1, stomach 1",
+    "description": "x4 Mistakes happen, but this one takes the cake. A bad batch of sourdough has given a pawful of beasts unbelievably bad cramps, and a condition the cubs are calling \"the spins\". Treat this scenario as four separate Ailments, with four separate Timers. Gain Trinkets and Reputation from each one you manage to cure.",
+    "outcome": "",
+    "consequence": "If you fail to cure anyone the: understandably annoyed beasts spread news of your failure all around. You earn 0 Trinkets for your next Remedy."
+  },
+  {
+    "name": "Stingshock",
+    "severity": "intermediate",
+    "timer": 4,
+    "tags": "poison 2, breath 2",
+    "description": "This poor beast is allergic to bees, wasps, and all manner of stinging things. Foul luck has found them pricked, and they've since started to swell up.",
+    "outcome": "Emergency Averted: If you make two doses of Remedy; The patient swears to always keep their spare cure on hand. Gain 3 Reputation.",
+    "consequence": "Beasts Abuzz: The patient's friends and family start a feud with the local Hivewardens, forcing them to relocate. All Bee and Hive Reagents are permanently Unavailable in this Location. 112 ---"
+  },
+  {
+    "name": "PAGE 113 ---\nSnail Ails",
+    "severity": "severe",
+    "timer": 6,
+    "tags": "parasite 3, breath 3, sleep 3",
+    "description": "Parasites are spread from infected snails and beasts' droppings. Many beasts squirm at the idea that these worms can burrow through to the heart.",
+    "outcome": "",
+    "consequence": "Another beast starts to show signs,: then another, until the nearest Settlement is forced to quarantine. You cannot visit this Settlement until next Season."
+  },
+  {
+    "name": "Sunstruck",
+    "severity": "lesser",
+    "timer": 8,
+    "tags": "sleep 1, senses 2 and  \nfeather or hide 1",
+    "description": "This hard-working Moonmessenger, normally nocturnal, has been flying extra messages during the day. They need a soothing tonic to help get their circadian rhythm back to normal.",
+    "outcome": "",
+    "consequence": "Yelp!: The messenger badmouths you to their other Guildmates. What 1-star review do they leave at a services board?"
+  },
+  {
+    "name": "The Runs",
+    "severity": "lesser",
+    "timer": 8,
+    "tags": "stomach 1, poison 1, parasite 1",
+    "description": "After wantonly drinking from random puddles, this patient can’t keep something from rushing right out the other end after eating. The beast’s partner wants something with a regrettable flavour to teach this puddle drinker a lesson.",
+    "outcome": "If [FOUL 1] or less; Your patient is cured: of their stomach troubles (but not their taste for earthy puddles). Receive trinkets, but suffer the",
+    "consequence": "But They're Convenient!: Puddle drinking was just the start. Poor hygiene and a disregard for dirt are in this beast’s future. Mark the nearest Settlement; you must resolve the Intermediate Ailment Woeful Waters when you next travel here."
+  },
+  {
+    "name": "Tickbitten, Twice Shy",
+    "severity": "lesser",
+    "timer": 8,
+    "tags": "parasite 1 and fur or feather 2",
+    "description": "These parasites aren’t so bad if you can catch them early. However, removing a Tick incorrectly can lead to all manner of diseases and infections. Always remember to do a check after pawing through long grass!",
+    "outcome": "",
+    "consequence": "The ticks have jumped ship, and are: now bothering any beast they can get their claws on. What gossip is spreading about your patient? Mark the nearest Settlement. When you next pass through, instead of drawing you must solve two cases of Tickbitten with concurrent timers. 113 ---"
+  },
+  {
+    "name": "PAGE 114 ---\nTitan Touched",
+    "severity": "dire",
+    "timer": 8,
+    "tags": "burn 3, nerves 3, pain 3, hide 3",
+    "description": "After brushing against something in a Titan ruin that sent pain coursing through them, this patient has been left with branching scars and burns across their body.",
+    "outcome": "Treasure Map: If you create a Remedy before the Timer reaches 0; The patient is conscious, and thankful of your efforts. They tell you where they were exploring. Add a Titan Ruin nearby on the Map, connected with two Paths to other Locations.",
+    "consequence": "Gold Rush: The pain is too much and the patient passes Elsewhere. What rumours of the Titan ruins spread in the wake of their death? Their danger only makes them more attractive to foolhardy beasts seeking a thrilling adventure. All Titan Reagents have +1 Rarity until the end of the next Season."
+  },
+  {
+    "name": "Trowel Troubles",
+    "severity": "intermediate",
+    "timer": 9,
+    "tags": "instinct 2, joy 2",
+    "description": "This beast has an addiction for digging holes and tunnels to the point that the ground beneath their home sags in places. They're hoping for a remedy that can retrain their urges.",
+    "outcome": "Light at the End of The Tunnel: If you use Potency (3) Reagents: This digging beast is able to retrain their habits into a measured passion; to prove their new self-control, they help dig a new reasonably sized path from this Location to another on the Map!",
+    "consequence": "Collapse: Left unchecked, they dig a network of tunnels that end up collapsing their home. Where do they go now?"
+  },
+  {
+    "name": "Waen Drops",
+    "severity": "lesser",
+    "timer": 9,
+    "tags": "pain 2, minimum fair 3",
+    "description": "This beast’s litter are all old enough to start teething in their big fangs, and they whine constantly about the ache. This tired parent wants something that will soothe their jaws a little, and distract the ankle-biters, if only for an hour or two.",
+    "outcome": "",
+    "consequence": "An infectious case of whining has: spread from the little beasts to their parents. They gossip about you at the market; what do they say? 114 ---"
+  },
+  {
+    "name": "PAGE 115 ---\nWake",
+    "severity": "dire",
+    "timer": 12,
+    "tags": "elsewhere 3 & 2, Joy 3 & 2, fair 4",
+    "description": "Recently, a much treasured member of the community has passed away. The community as a whole is your patient, and they need something that will help them collectively grieve and cherish the memories they had of their friend, now Elsewhere. If you Barter during this Ailment, Journal about what beasts say about this recently passed beast. Increase this Ailment's Timer by 1.",
+    "outcome": "Hero's Feast: If you COOKED something for this Remedy; Food is a universal in its power to bring folks together. Gain +2 Reputation for this Remedy, and Journal about a street party held in the Beast's memory.",
+    "consequence": "Pity Party: The Wake is more like a Snooze. This treasured community member is commiserated, but then soon forgotten. What legacy could they have left?"
+  },
+  {
+    "name": "Wingbreak",
+    "severity": "dire",
+    "timer": 6,
+    "tags": "feather 3, temperature 3, mood 2, \npain 2 and something to set a bone",
+    "description": "Mid-routine, this athletic winged beast crashed into their partner and plummeted out of the sky. They wing is broken, and strong tendons are pulling it further and further out of position. A speedy solution is needed! Setting the wing You can set the wing by using something long and sturdy, such as an Oak (Branch) or by donating a proper tool.",
+    "outcome": "",
+    "consequence": "Career Ending Mistake: The jagged bones are beyond painful, and now threaten the Beast's life. You have to amputate the wing; while this patient understands, they'll never forgive you - and neither will their fans. Increase the Rarity of all Reagent Parts when Bartering by 2, until the end of this Season."
+  },
+  {
+    "name": "Wormridden",
+    "severity": "intermediate",
+    "timer": 8,
+    "tags": "parasite 2, stomach 2",
+    "description": "A greedy little passenger has made its way into this patient and is starving them horribly. They beg for anything that'll get rid of it. Desperate Measures [FOUL] cancels out [FAIR], but does not give a penalty with this Ailment.",
+    "outcome": "",
+    "consequence": "Hungry Is The Beast: Desperately hungry, this beast digs their way into the local grainstore and eats until their hunger pains stop (which isn't for very long). 115"
+  }
+]
