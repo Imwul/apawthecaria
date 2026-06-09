@@ -2232,7 +2232,334 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
 }
 
 // =================================================================
-// 9. MAP VIEW COMPONENT
+// 9. MAP BACK HTML COMPONENT
+// =================================================================
+function MapBackHtml() {
+  return (
+    <div style={{
+      width: '100%',
+      minWidth: '950px',
+      maxWidth: '1200px',
+      padding: '2.5rem',
+      background: '#fcf8f2',
+      backgroundImage: 'radial-gradient(circle at 50% 50%, #fefcf9 0%, #f5eedf 100%)',
+      color: '#3c2f1f',
+      fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif",
+      borderRadius: '8px',
+      boxShadow: '0 8px 24px rgba(92, 75, 50, 0.1)',
+      border: '4px double #5c4033',
+      margin: '1rem auto',
+      boxSizing: 'border-box'
+    }}>
+      {/* Page Layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '3rem' }}>
+        
+        {/* Left Side: Units of Distance */}
+        <div style={{ borderRight: '2px dashed #dcd3c1', paddingRight: '2rem' }}>
+          <h2 style={{ 
+            fontFamily: "'Pretendard', sans-serif", 
+            fontWeight: 800, 
+            fontSize: '1.8rem', 
+            letterSpacing: '0.05em', 
+            color: '#5c4033',
+            borderBottom: '2.5px solid #5c4033', 
+            paddingBottom: '0.6rem',
+            margin: '0 0 1rem 0',
+            textTransform: 'uppercase',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <span>UNITS OF DISTANCE (이동 거리 단위)</span>
+            <span style={{ fontSize: '1.2rem' }}>❀</span>
+          </h2>
+          
+          <p style={{ fontSize: '0.95rem', fontStyle: 'italic', color: '#6b5c4b', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+            이 거리 단위는 등짐을 진 평균적인 야수(약제사)가 하루에 이동할 수 있는 거리를 나타냅니다:
+          </p>
+
+          {/* Unit Descriptions */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+            <div style={{ background: '#fffcf7', padding: '1rem', borderRadius: '8px', border: '1px solid #e5dec9', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+              <h3 style={{ margin: '0 0 0.4rem 0', fontSize: '1.1rem', color: '#8b5a2b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M12 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm-5.5 2c-.8 0-1.5-.7-1.5-1.5S5.7 9 6.5 9s1.5.7 1.5 1.5S7.3 12 6.5 12zm11 0c-.8 0-1.5-.7-1.5-1.5s.7-1.5 1.5-1.5 1.5.7 1.5 1.5-.7 1.5-1.5 1.5zm-8 7c-.6 0-1.2-.3-1.6-.8l-2.7-3.6c-.6-.8-.5-2 .3-2.6.8-.6 2-.5 2.6.3l1 .7c.4.3.9.3 1.3 0l1-.7c.6-.8 1.8-.9 2.6-.3.8.6.9 1.8.3 2.6l-2.7 3.6c-.4.5-1 .8-1.6.8z"/></svg>
+                <span>🐾 도보 (Paws)</span>
+              </h3>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: '#5c4033', lineHeight: '1.5' }}>
+                쥐, 비버, 그리고 더 작은 동물들의 보행 속도에 기초합니다. 숲과 육로를 통해 이동하는 기본적인 하루 이동 단위입니다.
+              </p>
+            </div>
+
+            <div style={{ background: '#fffcf7', padding: '1rem', borderRadius: '8px', border: '1px solid #e5dec9', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+              <h3 style={{ margin: '0 0 0.4rem 0', fontSize: '1.1rem', color: '#4a8ca8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><path d="M12 2v20M12 12L4 20M12 12l8 8"/></svg>
+                <span>🪶 날개 (Wings)</span>
+              </h3>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: '#5c4033', lineHeight: '1.5' }}>
+                박새나 딱새와 같이 민첩하고 작은 조류들의 비행 속도와 관련이 있습니다. 강이나 호수 등 거친 수로 지형을 무시하고 가볍게 넘나듭니다.
+              </p>
+            </div>
+
+            <div style={{ background: '#fffcf7', padding: '1rem', borderRadius: '8px', border: '1px solid #e5dec9', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+              <h3 style={{ margin: '0 0 0.4rem 0', fontSize: '1.1rem', color: '#9275a8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M12 2v20M12 12L3 21 M12 12l9 9 M12 17l-4 4 M12 17l4 4"/></svg>
+                <span>🦅 활공 (Soar)</span>
+              </h3>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: '#5c4033', lineHeight: '1.5' }}>
+                갈매기나 까마귀와 같이 날개가 넓은 큰 조류의 높은 비행 속도에 준합니다. 아주 먼 거리를 하루 만에 주파하지만 높은 고도에서의 고유 위험 조우가 발생합니다.
+              </p>
+            </div>
+          </div>
+
+          {/* Scale Ruler Comparison */}
+          <div style={{ marginTop: '2rem' }}>
+            <h4 style={{ margin: '0 0 0.8rem 0', fontSize: '1.1rem', color: '#5c4033', fontWeight: 'bold' }}>📏 거리 척도 자 비교 (Scale Comparison)</h4>
+            
+            {/* Visual ruler */}
+            <div style={{ border: '2px solid #5c4033', padding: '1.2rem 1rem', borderRadius: '8px', background: '#fffdfb', position: 'relative' }}>
+              
+              {/* Soar line */}
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 'bold', color: '#9275a8' }}>
+                  <span>🦅 1 Soar (활공)</span>
+                  <span>최대 거리 (약 5 Paws 상당)</span>
+                </div>
+                <div style={{ height: '24px', background: '#e8e2d5', borderRadius: '4px', position: 'relative', marginTop: '4px', display: 'flex', alignItems: 'center', padding: '0 8px' }}>
+                  <div style={{ width: '100%', height: '10px', background: '#9275a8', borderRadius: '2px' }} />
+                  <span style={{ position: 'absolute', right: '12px', fontSize: '0.75rem', color: '#fff', fontWeight: 'bold' }}>1일 소요 (대장정)</span>
+                </div>
+              </div>
+
+              {/* Wing line */}
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 'bold', color: '#4a8ca8' }}>
+                  <span>🪶 1 Wing (날개)</span>
+                  <span>중간 거리 (약 3 Paws 상당)</span>
+                </div>
+                <div style={{ height: '24px', background: '#e8e2d5', borderRadius: '4px', position: 'relative', marginTop: '4px', display: 'flex', alignItems: 'center' }}>
+                  <div style={{ width: '60%', height: '10px', background: '#4a8ca8', borderRadius: '2px', marginLeft: '8px' }} />
+                  <span style={{ position: 'absolute', left: '65%', fontSize: '0.75rem', color: '#4a8ca8', fontWeight: 'bold' }}>1일 소요 (수로 돌파)</span>
+                </div>
+              </div>
+
+              {/* Paw line */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 'bold', color: '#8b5a2b' }}>
+                  <span>🐾 1 Paw (도보)</span>
+                  <span>기본 거리</span>
+                </div>
+                <div style={{ height: '24px', background: '#e8e2d5', borderRadius: '4px', position: 'relative', marginTop: '4px', display: 'flex', alignItems: 'center' }}>
+                  <div style={{ width: '20%', height: '10px', background: '#8b5a2b', borderRadius: '2px', marginLeft: '8px' }} />
+                  <span style={{ position: 'absolute', left: '25%', fontSize: '0.75rem', color: '#8b5a2b', fontWeight: 'bold' }}>1일 소요 (도보 경로)</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side: Map Key */}
+        <div>
+          <h2 style={{ 
+            fontFamily: "'Pretendard', sans-serif", 
+            fontWeight: 800, 
+            fontSize: '1.8rem', 
+            letterSpacing: '0.05em', 
+            color: '#5c4033',
+            borderBottom: '2.5px solid #5c4033', 
+            paddingBottom: '0.6rem',
+            margin: '0 0 1rem 0',
+            textTransform: 'uppercase',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <span>MAP KEY (지도 범례)</span>
+            <span style={{ fontSize: '1.2rem' }}>☙</span>
+          </h2>
+
+          <div style={{ 
+            border: '2px solid #5c4033', 
+            borderRadius: '12px', 
+            padding: '1.5rem', 
+            background: '#fffdfb',
+            boxShadow: '0 4px 12px rgba(92,75,50,0.05)'
+          }}>
+            {/* Legend Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.2rem' }}>
+              
+              {/* Category: Location Types */}
+              <div style={{ gridColumn: '1 / -1', borderBottom: '1px solid #e5dec9', paddingBottom: '0.3rem', marginTop: '0.2rem' }}>
+                <strong style={{ fontSize: '0.9rem', color: '#8b5a2b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>📍 장소 형태 (Location Types)</strong>
+              </div>
+
+              {/* City */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <svg width="24" height="24" style={{ flexShrink: 0 }}>
+                  <rect x="2" y="2" width="20" height="20" fill="#fff" stroke="#3c2f1f" strokeWidth="2" rx="2"/>
+                  <polygon points="12,5 5,17 19,17" fill="none" stroke="#3c2f1f" strokeWidth="2"/>
+                </svg>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <strong style={{ fontSize: '0.9rem' }}>City (도시)</strong>
+                  <span style={{ fontSize: '0.75rem', color: '#6b5c4b' }}>치료소, 길드, 번화 상점</span>
+                </div>
+              </div>
+
+              {/* Settlement */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <svg width="24" height="24" style={{ flexShrink: 0 }}>
+                  <polygon points="12,2 2,21 22,21" fill="#fff" stroke="#3c2f1f" strokeWidth="2"/>
+                </svg>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <strong style={{ fontSize: '0.9rem' }}>Settlement (정착지)</strong>
+                  <span style={{ fontSize: '0.75rem', color: '#6b5c4b' }}>마을, 주민 거주지, 여각</span>
+                </div>
+              </div>
+
+              {/* Wilds */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <svg width="24" height="24" style={{ flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="9" fill="#fff" stroke="#3c2f1f" strokeWidth="2"/>
+                </svg>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <strong style={{ fontSize: '0.9rem' }}>Wilds (야생 구역)</strong>
+                  <span style={{ fontSize: '0.75rem', color: '#6b5c4b' }}>정착지 밖 채집 및 탐험지</span>
+                </div>
+              </div>
+
+              {/* Titan Ruins */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <svg width="24" height="24" style={{ flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="9" fill="#fff" stroke="#3c2f1f" strokeWidth="2"/>
+                  <text x="12" y="17" fontSize="13" fontWeight="bold" textAnchor="middle" fill="#3c2f1f" fontFamily="Pretendard">T</text>
+                </svg>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <strong style={{ fontSize: '0.9rem' }}>Titan Ruins (티탄 유적)</strong>
+                  <span style={{ fontSize: '0.75rem', color: '#6b5c4b' }}>고대 거인의 신비한 자생 흔적</span>
+                </div>
+              </div>
+
+              {/* Behemoth Barrow */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <svg width="24" height="24" style={{ flexShrink: 0 }}>
+                  <polygon points="2,4 22,4 12,21" fill="#fff" stroke="#8b5a2b" strokeWidth="2"/>
+                  <circle cx="12" cy="10" r="4" fill="none" stroke="#8b5a2b" strokeWidth="2"/>
+                </svg>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <strong style={{ fontSize: '0.9rem' }}>Behemoth Barrow (거수 고분)</strong>
+                  <span style={{ fontSize: '0.75rem', color: '#6b5c4b' }}>거수들의 고분군 및 위험 지대</span>
+                </div>
+              </div>
+
+              {/* Clinic */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <svg width="24" height="24" style={{ flexShrink: 0 }}>
+                  <rect x="2" y="2" width="20" height="20" fill="#fff" stroke="#c9524b" strokeWidth="2" rx="2"/>
+                  <circle cx="12" cy="12" r="5" fill="none" stroke="#c9524b" strokeWidth="2"/>
+                </svg>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <strong style={{ fontSize: '0.9rem' }}>Clinic (약제소)</strong>
+                  <span style={{ fontSize: '0.75rem', color: '#6b5c4b' }}>플레이어 약제사의 치료 본부</span>
+                </div>
+              </div>
+
+              {/* Category: Terrain & Features */}
+              <div style={{ gridColumn: '1 / -1', borderBottom: '1px solid #e5dec9', paddingBottom: '0.3rem', marginTop: '0.8rem' }}>
+                <strong style={{ fontSize: '0.9rem', color: '#4a8ca8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>🌲 지형 및 세부 속성 (Terrains)</strong>
+              </div>
+
+              {/* Bog */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <svg width="24" height="24" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="8" fill="#9275a8"/></svg>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <strong style={{ fontSize: '0.9rem' }}>Bog (늪지/습지)</strong>
+                  <span style={{ fontSize: '0.75rem', color: '#6b5c4b' }}>이끼류, 수생 버섯 자생</span>
+                </div>
+              </div>
+
+              {/* Forest */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <svg width="24" height="24" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="8" fill="#3d6c48"/></svg>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <strong style={{ fontSize: '0.9rem' }}>Forest (울창한 숲)</strong>
+                  <span style={{ fontSize: '0.75rem', color: '#6b5c4b' }}>나무껍질, 약초, 야생 열매</span>
+                </div>
+              </div>
+
+              {/* Loch */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <svg width="24" height="24" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="8" fill="#4a8ca8"/></svg>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <strong style={{ fontSize: '0.9rem' }}>Loch (호수/내해)</strong>
+                  <span style={{ fontSize: '0.75rem', color: '#6b5c4b' }}>수초, 연안 해조류 및 어패류</span>
+                </div>
+              </div>
+
+              {/* Meadow */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <svg width="24" height="24" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="8" fill="#e5c158"/></svg>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <strong style={{ fontSize: '0.9rem' }}>Meadow (초원/들판)</strong>
+                  <span style={{ fontSize: '0.75rem', color: '#6b5c4b' }}>들꽃, 씨앗, 양지 약초</span>
+                </div>
+              </div>
+
+              {/* Mountain */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <svg width="24" height="24" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="8" fill="#c9524b"/></svg>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <strong style={{ fontSize: '0.9rem' }}>Mountain (고산/바위)</strong>
+                  <span style={{ fontSize: '0.75rem', color: '#6b5c4b' }}>광물, 특이 지류, 고산초</span>
+                </div>
+              </div>
+
+              {/* Path */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <svg width="45" height="20" style={{ flexShrink: 0 }} viewBox="0 0 45 20">
+                  <path d="M 3,10 C 13,4 18,16 28,10 C 38,4 42,16 43,10" fill="none" stroke="#8b5a2b" strokeWidth="2.5" strokeDasharray="3,3"/>
+                </svg>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <strong style={{ fontSize: '0.9rem' }}>Path (연결 도로)</strong>
+                  <span style={{ fontSize: '0.75rem', color: '#6b5c4b' }}>정착지 간의 표준 이동 경로</span>
+                </div>
+              </div>
+
+              {/* Waterway */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', gridColumn: '2' }}>
+                <svg width="45" height="20" style={{ flexShrink: 0 }} viewBox="0 0 45 20">
+                  <path d="M 3,7 L 42,7 M 3,13 L 42,13" fill="none" stroke="#4a8ca8" strokeWidth="1.5"/>
+                  <path d="M 12,5 L 15,15 M 27,5 L 30,15" fill="none" stroke="#4a8ca8" strokeWidth="1.5"/>
+                </svg>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <strong style={{ fontSize: '0.9rem' }}>Waterway (수로)</strong>
+                  <span style={{ fontSize: '0.75rem', color: '#6b5c4b' }}>비행/강 운송용 빠른 수로 경로</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+      
+      <div style={{ 
+        marginTop: '2rem', 
+        borderTop: '2px solid #5c4033', 
+        paddingTop: '1rem', 
+        textAlign: 'center', 
+        fontSize: '0.85rem', 
+        color: '#6b5c4b',
+        fontStyle: 'italic'
+      }}>
+        * 지도의 각 정착지 명칭은 게임의 영문 원판 고유 명사를 따르므로, 원본 전면 지도(Map Front)에 표기된 이름을 대조하여 모험을 진행하시기 바랍니다.
+      </div>
+
+    </div>
+  );
+}
+
+// =================================================================
+// 10. MAP VIEW COMPONENT
 // =================================================================
 function MapView({ mapWidth, setMapWidth }: { mapWidth: number; setMapWidth: any }) {
   const [mapType, setMapType] = useState<'front' | 'back'>('front');
@@ -2321,17 +2648,21 @@ function MapView({ mapWidth, setMapWidth }: { mapWidth: number; setMapWidth: any
                 height: 'fit-content',
               }}
             >
-              <img 
-                src={mapType === 'front' ? "/Apawthecaria Map Front.jpg" : "/Apawthecaria Map Back.jpg"} 
-                alt={mapType === 'front' ? "Bristley Woods Map Front" : "Bristley Woods Map Back"} 
-                style={{ 
-                  display: 'block', 
-                  maxWidth: 'none', 
-                  height: 'auto', 
-                  width: `${mapWidth}px`,
-                  transition: 'width 0.2s ease-out'
-                }}
-              />
+              {mapType === 'front' ? (
+                <img 
+                  src="/Apawthecaria Map Front.jpg" 
+                  alt="Bristley Woods Map Front" 
+                  style={{ 
+                    display: 'block', 
+                    maxWidth: 'none', 
+                    height: 'auto', 
+                    width: `${mapWidth}px`,
+                    transition: 'width 0.2s ease-out'
+                  }}
+                />
+              ) : (
+                <MapBackHtml />
+              )}
             </div>
           </div>
         </div>
