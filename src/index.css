@@ -1,9 +1,10 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
 @import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Gowun+Batang:wght@400;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
 
 :root {
-  --font-base: 'Gowun Batang', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-fancy: 'Gaegu', 'Gowun Batang', cursive;
-  --font-script: 'Playfair Display', Georgia, serif;
+  --font-base: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-fancy: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-script: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   
   /* Cozy forest village palette */
   --bg-deep: #f5eedf; /* Warm soft cream oatmeal */
