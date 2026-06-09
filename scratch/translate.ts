@@ -79,7 +79,7 @@ const ailmentsMap: Record<string, { name: string; description: string; outcome: 
     name: "채집가의 경련 (Forager's Twitch)",
     description: "이 어리석은 야수가 이상한 버섯을 먹었습니다. 그 바람에 보이지 않는 것을 보게 되고 환각과 그림자에 깜짝깜짝 놀랍니다. 카드 한 장을 뽑아 그가 어떤 경험을 하고 있는지 확인하세요:\n♥ 또는 ♦: 좋은 환각 - 얌전히 제자리에 머물며 말썽을 피우지 않습니다.\n♣ 또는 ♠: 나쁜 환각 - 이 질병의 요구 사항에 [상처 1]을 추가합니다.",
     outcome: "성공 보상 장신구 획득",
-    consequence: "환각의 끝: 환각에서 깨어난 그들은 당황스럽고 변해버린 자신을 느낍니다. 그들이 나누는 심오한 지혜나 말도 안 되는 헛소리는 무엇인가요?"
+    consequence: "환각의 끝: 환각에서 깨어난 그들은 당황스럽고 변해버린 자신을 느깁니다. 그들이 나누는 심오한 지혜나 말도 안 되는 헛소리는 무엇인가요?"
   },
   "Forge Clawed": {
     name: "대장간 불꽃 부상 (Forge Clawed)",
@@ -107,7 +107,7 @@ const ailmentsMap: Record<string, { name: string; description: string; outcome: 
   },
   "Hunted": {
     name: "추격당한 부상",
-    description: "거대 야수에게 쫓기며 몸의 절반이 물어뜯긴 채, 이 야수는 숨을 헐떡이며 도움을 청하러 왔습니다. 과도한 도망길은 그의 상처를 악화시켰습니다. 현재 위치에서 채집을 시도할 때, ♠ 카드를 뽑으면 거대 야수가 나타납니다. 거대 야수가 당신이 이벤트를 포기하게 만들며, 타이머를 1시간 감소시키고 채집 포인트를 주지 않습니다.",
+    description: "거대 야수에게 쫓기며 몸의 절반이 물어뜯긴 채, 이 야수는 숨을 헐떡이며 도움을 청하러 왔습니다. 과도한 도망길은 그의 상처를 악화시켰습니다. 현재 위치에서 채집을 시도할 때, ♠ 카드를 뽑으면 거대 야수가 나타납니다. 거대 야수는 당신이 이벤트를 포기하게 만들며, 타이머를 1시간 감소시키고 채집 포인트를 주지 않습니다.",
     outcome: "성공 보상 장신구 획득",
     consequence: "복수의 굴레: 그가 상처를 이기지 못하고 숨을 거두자, 그의 소중한 동반자가 거대 야수에게 복수를 맹세합니다. 영구적으로 두꺼운 피(Thickblood) 서비스의 비용이 1 장신구 감소합니다."
   },
@@ -274,67 +274,67 @@ const reagentsPrepsMap: Record<string, { name: string; locs: string; preps: stri
   "Horse Chestnuts": {
     name: "마로니에/말밤",
     locs: "b f l g m tpsa w\n이 영약재는 치료 효과 못지않게 많은 상처를 내기도 합니다. 종종 떨어지는 밤송이에 머리를 맞곤 하죠.",
-    preps: "1/3 가시 껍질: [저편 1]로 조제\n1 완벽한 밤톨: 놀이용 [기쁨 2]로 사용\n2/3 말밤 알맹이: 끓여서 [위장 2], 요리해서 [양호 2]에 사용"
+    preps: "1/3 가시 껍질: [ELSEWHERE 1]로 조제\n1 완벽한 밤톨: 놀이용 [JOY 2]로 사용\n2/3 말밤 알맹이: 끓여서 [STOMACH 2], 요리해서 [FAIR 2]에 사용"
   },
   "Animal Sheddings": {
     name: "동물의 부산물",
     locs: "bf lgmtpsaw\n계절이 변할 때마다 숲의 동물들이 남기는 흔적들입니다.",
-    preps: "2/3 똥 환약: 빻아서 [위장 1]에 사용\n2/3 모피/털: 끓여서 [가죽 1]에 사용\n1/3 땀: 끓여서 [가죽 1]에 발라 사용"
+    preps: "2/3 똥 환약: 빻아서 [STOMACH 1]에 사용\n2/3 모피/털: 끓여서 [HIDE 1]에 사용\n1/3 땀: 끓여서 [HIDE 1]에 발라 사용"
   },
   "Beech": {
     name: "너도밤나무",
     locs: "bflgmtpsaw\n전설에 따르면 자작나무는 티탄들이 떠나며 남긴 작별 선물이라고 합니다.",
-    preps: "1/3 겉껍질: 갈아서 [가죽 2]에 사용\n1/3 열매: [양호 1]로 사용, 요리하여 [양호 2]로 사용\n1 나무껍질: 달여서 [상처 2]로 조제"
+    preps: "1/3 겉껍질: 갈아서 [HIDE 2]에 사용\n1/3 열매: [FAIR 1]로 사용, 요리하여 [FAIR 2]로 사용\n1 나무껍질: 달여서 [WOUND 2]로 조제"
   },
   "Beehive": {
     name: "벌집",
     locs: "bf l gmtpsaw\n용감하게 단것을 찾는 야수들이 늘 탐내는 벌들의 둥지입니다.",
-    preps: "1/3 밀랍: [깃털 2]에 사용\n1/3 로열 젤리: [가죽 2] 및 [화상 2]에 사용\n1/3 꿀: [상처 2]에 첨가, 복용 치료제에 사용"
+    preps: "1/3 밀랍: [FEATHER 2]에 사용\n1/3 로열 젤리: [HIDE 2] 및 [BURN 2]에 사용\n1/3 꿀: [WOUND 2]에 첨가, 복용 치료제에 사용"
   },
   "Beetles": {
     name: "딱정벌레",
     locs: "bf l gmtpsa w\n딱정벌레의 껍질은 겁 많은 야수들이 알아채지 못하는 영롱한 빛을 띱니다.",
-    preps: "1/3 겉껍질: 빻아서 [비늘 2]에 사용, [저편 1]로 조제"
+    preps: "1/3 겉껍질: 빻아서 [SCALE 2]에 사용, [ELSEWHERE 1]로 조제"
   },
   "Behemoth Bits": {
     name: "거대 야수 부속물",
     locs: "bf l gmtpsaw\n숲의 거대 야수들에게서 조심스럽게 채취한 희귀한 부속물들입니다.",
-    preps: "1/3 사향: [본능 2]에 바름\n2/3 소변: 끓여서 [감각 2]에 사용\n1 가죽 털: [체온 3]에 바름"
+    preps: "1/3 사향: [INSTINCT 2]에 바름\n2/3 소변: 끓여서 [SENSES 2]에 사용\n1 가죽 털: [TEMPERATURE 3]에 바름"
   },
   "Big Fish": {
     name: "큰 물고기",
     locs: "b f l g m tpsaw\n맑은 호수나 강에서 갓 건져 올린 크고 묵직한 물고기입니다.",
-    preps: "2/3 껍질: 기름을 내기 위해 끓인 뒤 발라서 사용\n1 살코기: 요리하여 [기분 2] 및 [감각 3]에 사용\n1/3 비늘: 빻아서 [비늘 3]에 사용"
+    preps: "2/3 껍질: 기름을 내기 위해 끓인 뒤 발라서 사용\n1 살코기: 요리하여 [MOOD 2] 및 [SENSES 3]에 사용\n1/3 비늘: 빻아서 [SCALE 3]에 사용"
   },
   "Birch Polypore": {
     name: "자작나무 버섯",
     locs: "bf l g m tpsaw\n자작나무 둥치에 넓게 자라나는 갈색 버섯입니다.",
-    preps: "1/3 버섯: [가죽 2] 및 [상처 1]에 발라 사용"
+    preps: "1/3 버섯: [HIDE 2] 및 [WOUND 1]에 발라 사용"
   },
   "Bird Leavings": {
     name: "새 배설물/배사",
     locs: "bf l gmtpsaw\n하늘을 날아다니는 깃털 달린 동물들이 떨어뜨리고 간 둥지 잔해물입니다.",
-    preps: "1/3 구아노: 갈아서 요리해 [독 1]에 사용\n1/3 알껍질: 빻아서 [비늘 1]에 사용\n1/3 깃털: [기쁨 1]에 사용"
+    preps: "1/3 구아노: 갈아서 요리해 [POISON 1]에 사용\n1/3 알껍질: 빻아서 [SCALE 1]에 사용\n1/3 깃털: [JOY 1]에 사용"
   },
   "Blackcurrant": {
     name: "블랙커런트",
     locs: "b f l gm tpsa w\n야수들은 집의 안정을 위해 블랙커런트 나뭇가지를 엮어 벽에 걸어둡니다.",
-    preps: "1/3 열매: 생으로 [양호 1]에 사용\n1/3 잎사귀: 달여서 [감염 1]에 사용\n1 뿌리: 씹어서 [기분 1]에 사용"
+    preps: "1/3 열매: 생으로 [FAIR 1]에 사용\n1/3 잎사귀: 달여서 [INFECTION 1]에 사용\n1 뿌리: 씹어서 [MOOD 1]에 사용"
   },
   "Blackthorn": {
     name: "야생 자두/슬로나무",
     locs: "bf l g m tpsaw\n열매가 아주 시지만 요리하면 훌륭한 잼이 됩니다.",
-    preps: "1 슬로 열매: 복용 치료제에 넣어 [악취 2]에 사용, 요리하여 [양호 2] 및 [위장 2]에 사용\n1/3 가시: 갈아서 달인 뒤 [독 2]에 사용"
+    preps: "1 슬로 열매: 복용 치료제에 넣어 [FOUL 2]에 사용, 요리하여 [FAIR 2] 및 [STOMACH 2]에 사용\n1/3 가시: 갈아서 달인 뒤 [POISON 2]에 사용"
   },
   "Brambles": {
     name: "가시덤불 나뭇가지",
     locs: "b f l gm tpsaw\n가시덤불 지대는 종종 작은 새들의 안전한 보금자리가 됩니다.",
-    preps: "1/3 열매: 씹어서 [양호 2]에 사용, 요리하여 [양호 3]에 사용\n2/3 껍질: 끓여서 연고를 만든 뒤 [가죽 1]에 사용\n1 뿌리: 씹어서 달인 후 사용"
+    preps: "1/3 열매: 씹어서 [FAIR 2]에 사용, 요리하여 [FAIR 3]에 사용\n2/3 껍질: 끓여서 연고를 만든 뒤 [HIDE 1]에 사용\n1 뿌리: 씹어서 달인 후 사용"
   },
   "Burdock": {
     name: "우엉",
     locs: "b flg m tpsa w\n밭두렁이나 길가에서 흔히 볼 수 있는 생명력 강한 풀입니다.",
-    preps: "1 뿌리: 달여서 [감염 1]에 사용\n2/3 줄기: 갈아서 [털 1] 결 고르는 데 사용\n1/3 꽃: 소화시켜 밝은 페이스트로 만들어 사용\n1/3 씨꼬투리: 빗처럼 쓸어 [기생충 1]에 사용"
+    preps: "1 뿌리: 달여서 [INFECTION 1]에 사용\n2/3 줄기: 갈아서 [FUR 1] 결 고르는 데 사용\n1/3 꽃: 소화시켜 밝은 페이스트로 만들어 사용\n1/3 씨꼬투리: 빗처럼 쓸어 [PARASITES 1]에 사용"
   },
   "Butterfly": {
     name: "나비",
@@ -344,247 +344,247 @@ const reagentsPrepsMap: Record<string, { name: string; locs: string; preps: stri
   "Catnip": {
     name: "개박하",
     locs: "b f l g m t psa w\n고양이과 야수뿐 아니라 숲의 모든 야수를 나른하고 즐겁게 만드는 최고의 약초입니다.",
-    preps: "1/3 뿌리: 씹어서 [호흡 1]에 사용\n1/3 꽃: 달여서 [본능 2] 및 [기분 1]에 사용"
+    preps: "1/3 뿌리: 씹어서 [BREATH 1]에 사용\n1/3 꽃: 달여서 [INSTINCT 2] 및 [MOOD 1]에 사용"
   },
   "Chalk": {
     name: "분필/석회석",
     locs: "b f l g m t psaw\n아무런 맛도 없지만 빻으면 미세한 가루가 되는 흙 원소입니다.",
-    preps: "1/3 석회 가루: 빻아서 [위장 2] 및 [독 1]에 사용"
+    preps: "1/3 석회 가루: 빻아서 [STOMACH 2] 및 [POISON 1]에 사용"
   },
   "Cherry Trees": {
     name: "벚나무/체리",
     locs: "b f l g m t psaw\n브리슬리 숲의 야수들이 아주 좋아하는 달콤한 열매가 열리는 나무입니다.",
-    preps: "1/3 버찌: 요리하여 [기쁨 3] 및 [양호 4]에 사용\n1/3 껍질: 빻아서 [호흡 1]에 사용"
+    preps: "1/3 버찌: 요리하여 [JOY 3] 및 [FAIR 4]에 사용\n1/3 껍질: 빻아서 [BREATH 1]에 사용"
   },
   "Chillies": {
     name: "고추/매운고추",
     locs: "bf l g mtpsa w\n어떤 야수들에게는 혀가 타들어 갈 것 같지만 훌륭한 각성 유발 약재가 됩니다.",
-    preps: "1/3 속껍질: 끓여서 [통증 1]에 사용\n1/3 씨앗: 빻아서 사용"
+    preps: "1/3 속껍질: 끓여서 [PAIN 1]에 사용\n1/3 씨앗: 빻아서 사용"
   },
   "Clay": {
     name: "진흙/찰흙",
     locs: "b f l g m t psaw\n물과 부드러운 흙이 만나는 하천가에서 채취하는 흙 원소입니다.",
-    preps: "2/3 진흙: [신경 1] 및 [독 1]에 사용, 소화시켜 [위장 1]에 사용"
+    preps: "2/3 진흙: [NERVES 1] 및 [POISON 1]에 사용, 소화시켜 [STOMACH 1]에 사용"
   },
   "Coarse Grit": {
     name: "굵은 모래/사석",
     locs: "b f l g m t psaw\n많은 조류 야수들은 소화를 돕기 위해 굵은 모래를 삼키곤 합니다.",
-    preps: "1/3 모래알: 씹어서 [위장 2]에 사용"
+    preps: "1/3 모래알: 씹어서 [STOMACH 2]에 사용"
   },
   "Concocted Calm": {
     name: "조제된 평정약 (Titan Hissbox)",
     locs: "b f l g m tpsaw\n향수병이나 향정신적 긴장을 호소하는 야수들에게 특효약인 티탄의 잔해 도구입니다.",
-    preps: "2/3 분무액: [본능 3] 및 [기분 3]에 분사하여 사용"
+    preps: "2/3 분무액: [INSTINCT 3] 및 [MOOD 3]에 분사하여 사용"
   },
   "Crab Apples": {
     name: "야생 사과/고욤사과",
     locs: "bf l gm tps a w\n제대로 조리하지 않으면 입안이 텁텁하고 신맛이 강한 야생 과일입니다.",
-    preps: "1 과육: 복용 치료제에 넣어 [악취 1]에 사용, 요리하여 보존(PRESERVED) 속성을 부여해 복용 치료제에 사용"
+    preps: "1 과육: 복용 치료제에 넣어 [FOUL 1]에 사용, 요리하여 보존(PRESERVED) 속성을 부여해 복용 치료제에 사용"
   },
   "Cucumbers": {
     name: "오이",
     locs: "b f lgmtpsa w\n샐러드와 샌드위치의 필수적인 수분 보충 야채입니다.",
-    preps: "1/3 꽃: 달여서 [감각 2], [수면 1]에 사용\n1/3 오이 속살: 복용 치료제에 넣어 사용"
+    preps: "1/3 꽃: 달여서 [SENSES 2], [SLEEP 1]에 사용\n1/3 오이 속살: 복용 치료제에 넣어 사용"
   },
   "Dandelions": {
     name: "민들레",
     locs: "bf l gmtpsa w\n초원을 황금빛으로 물들이는 아름다운 풀꽃입니다.",
-    preps: "1/3 꽃: [기쁨 1]에 사용\n1/3 뿌리: 갈아서 [위장 1]에 사용\n1/3 잎: 복용 치료제에 넣어 [양호 1]에 사용\n1/3 줄기: 달여서 [가죽 1]에 사용"
+    preps: "1/3 꽃: [JOY 1]에 사용\n1/3 뿌리: 갈아서 [STOMACH 1]에 사용\n1/3 잎: 복용 치료제에 넣어 [FAIR 1]에 사용\n1/3 줄기: 달여서 [HIDE 1]에 사용"
   },
   "Doused Bonfires": {
     name: "꺼진 모닥불 재/숯",
     locs: "b f l gm t psaw\n약초 연고를 빻는 약제사들은 모닥불 잔해도 결코 낭비하지 않습니다.",
-    preps: "1/3 재: 비늘 각질 제거를 위한 [비늘 2]에 바르거나, 비누로 끓여 [가죽 2]에 사용\n1/3 숯: 빻아서 [독 2] 및 [저편 2]에 사용"
+    preps: "1/3 재: 비늘 각질 제거를 위한 [SCALE 2]에 바르거나, 비누로 끓여 [HIDE 2]에 사용\n1/3 숯: 빻아서 [POISON 2] 및 [ELSEWHERE 2]에 사용"
   },
   "False Deathcap": {
     name: "광대버섯아재비",
     locs: "b f l g m tpsaw\n조심해서 다루지 않으면 치명적인 중독 증상을 보이는 독버섯입니다.",
-    preps: "2/3 버섯 속살: 소화시켜 [감각 3] 및 [악취 6]에 사용"
+    preps: "2/3 버섯 속살: 소화시켜 [SENSES 3] 및 [FOUL 6]에 사용"
   },
   "Field Blewit": {
     name: "민자 자주방망이버섯",
     locs: "b f l gmtpsaw\n민간 전설에 신비로운 힘이 깃들어 있다고 전해지는 자주색 버섯입니다.",
-    preps: "1/3 버섯 갓: 요리해서 [위장 2]에 사용"
+    preps: "1/3 버섯 갓: 요리해서 [STOMACH 2]에 사용"
   },
   "Fine Sand": {
     name: "고운 모래",
-    locs: "b f l g m t psaw\n숲의 파충류 야수들은 허물을 벗을 때 도움을 줄 수 있는 고운 모래를 늘 찾아 헤맙니다.",
+    locs: "b f l g m t psaw\n숲의 파충류 야수들은 허물을 벗을 때 도움을 줄 수 있는 고운 모래를 늘 찾아 헤맵니다.",
     preps: "2/3 고운 모래: 마시는 약의 필터로 사용하여 조제"
   },
   "Firegizzards": {
     name: "불꽃 주머니 (Titan Firegizzard)",
     locs: "b f l g m tpsaw\n힘차게 두드리면 은은한 불처럼 타오르는 신비한 티탄의 주머니입니다.",
-    preps: "1 붉은 액체 주머니: [체온 3]에 사용"
+    preps: "1 붉은 액체 주머니: [TEMPERATURE 3]에 사용"
   },
   "Fly Agaric": {
     name: "광대버섯",
     locs: "b f l g m tpsaw\n붉은 갓에 흰 점이 콕콕 박힌 전형적인 판타지 버섯입니다.",
-    preps: "1/3 포자: 달여서 [본능 1] 및 [기분 2]에 사용\n1 버섯 갓: 요리하여 [수면 3]에 사용"
+    preps: "1/3 포자: 달여서 [INSTINCT 1] 및 [MOOD 2]에 사용\n1 버섯 갓: 요리하여 [SLEEP 3]에 사용"
   },
   "Forget-Me-Not": {
     name: "물망초",
     locs: "b f l g m tpsa w\n우정과 사랑을 전할 때 꽃다발로 가장 많이 선물하는 작고 푸른 꽃입니다.",
-    preps: "1/3 꽃: 달여서 [신경 3]에 사용\n1/3 꿀샘: 달여서 [호흡 2]에 사용"
+    preps: "1/3 꽃: 달여서 [NERVES 3]에 사용\n1/3 꿀샘: 달여서 [BREATH 2]에 사용"
   },
   "can only be Foraged for in Summer Frog Slime": {
     name: "개구리 점액",
     locs: "b f l g m t psaw\n여름철 개구리의 피부에서 분비되는 천연의 질병 억제 점액질입니다.",
-    preps: "1/3 점액: 끓여서 [감염 2] 및 [기생충 2]에 사용"
+    preps: "1/3 점액: 끓여서 [INFECTION 2] 및 [PARASITE 2]에 사용"
   },
   "Garden Mint": {
     name: "박하/민트",
     locs: "bf l g m tpsaw\n머리를 맑게 해주는 상쾌한 정원 허브의 대명사입니다.",
-    preps: "1/3 잎사귀: 씹어서 [호흡 2] 및 [통증 1]에 사용\n1/3 줄기: 달여서 [위장 2]에 사용"
+    preps: "1/3 잎사귀: 씹어서 [BREATH 2] 및 [PAIN 1]에 사용\n1/3 줄기: 달여서 [STOMACH 2]에 사용"
   },
   "Glass Silk": {
     name: "유리 섬유 (Titan Glass Silk)",
     locs: "b f l g m tpsaw\n삼밧줄보다 열 배는 더 질긴 고대 티탄들의 광택 섬유 실입니다.",
-    preps: "1/3 유리 실타래: [가죽 3] 및 [상처 3]에 실로 엮어 사용"
+    preps: "1/3 유리 실타래: [HIDE 3] 및 [WOUND 3]에 실로 엮어 사용"
   },
   "Goosegrass": {
     name: "갈퀴덩굴",
     locs: "bf l g m t psa w\n어린 동물들이 털옷에 던지며 노는 거칠거칠한 잡초입니다.",
-    preps: "1/3 씨앗: 갈아서 달인 뒤 [수면 1]에 사용\n1/3 어린줄기: 끓여서 [가죽 1] 및 [통증 1]에 사용"
+    preps: "1/3 씨앗: 갈아서 달인 뒤 [SLEEP 1]에 사용\n1/3 어린줄기: 끓여서 [HIDE 1] 및 [PAIN 1]에 사용"
   },
   "Haircap Moss": {
     name: "솔이끼",
     locs: "bf l g m t psaw\n축축한 바위 그늘에 자라며 방광염에 효과가 좋은 이끼류입니다.",
-    preps: "1/3 솔이끼 잎: 끓여서 [깃털 2] 및 [가죽 1]에 사용"
+    preps: "1/3 솔이끼 잎: 끓여서 [FEATHER 2] 및 [HIDE 1]에 사용"
   },
   "Hidelendings": {
     name: "인조 가죽 밴드 (Titan Hidelendings)",
     locs: "b f l g m tpsaw\n쥐 가죽 색깔을 띤 접착식 티탄의 인조 피부 보호재입니다.",
-    preps: "1/3 가죽 조각: [가죽 2] 및 [상처 2]에 부착해 사용"
+    preps: "1/3 가죽 조각: [HIDE 2] 및 [WOUND 2]에 부착해 사용"
   },
   "Hoarhound": {
     name: "쓴풀/호하운드",
     locs: "b f l gm tpsa w\n쉽게 지나치기 쉽지만 아주 독특하고 쓴 향을 풍기는 약초입니다.",
-    preps: "2/3 잎사귀 뭉치: 요리하여 [통증 2] 및 [호흡 3]에 사용"
+    preps: "2/3 잎사귀 뭉치: 요리하여 [PAIN 2] 및 [BREATH 3]에 사용"
   },
   "Honeybees": {
     name: "꿀벌",
     locs: "bflgmtpsa w\n숲속 곳곳을 바쁘게 잉잉거리며 날아다니는 작은 곤충입니다.",
-    preps: "1/3 꽃가루: [위장 1] 및 [기분 2]에 첨가하여 사용"
+    preps: "1/3 꽃가루: [STOMACH 1] 및 [MOOD 2]에 첨가하여 사용"
   },
   "Horsetails": {
     name: "쇠뜨기/개뜨기",
     locs: "b f l g m t psaw\n실제 말의 꼬리가 아니라 마디가 져 자라나는 약용 양치식물입니다.",
-    preps: "1/3 줄기: 끓여서 [상처 2] 및 [깃털 3] 혹은 [털 3]에 사용"
+    preps: "1/3 줄기: 끓여서 [WOUND 2] 및 [FEATHER 3] 혹은 [FUR 3]에 사용"
   },
   "Iron Ore": {
     name: "철광석/철 자갈",
     locs: "b f l g mtpsaw\n부모에게서 자식에게로 전해져 내려오는 치료 전설에 자주 등장하는 단단한 돌입니다.",
-    preps: "1/3 철 자갈: 마시는 치료제에 넣어 끓인 뒤 [신경 1] 및 [위장 3]에 사용. 광부들에게 명성이나 장신구로 교환 가능합니다."
+    preps: "1/3 철 자갈: 마시는 치료제에 넣어 끓인 뒤 [NERVES 1] 및 [STOMACH 3]에 사용. 광부들에게 명성이나 장신구로 교환 가능합니다."
   },
   "Trinket Ironslug": {
     name: "철 민달팽이 (Titan Ironslug)",
     locs: "b f l g m tpsaw\n이 달팽이를 꾹 쥐어짜면 화상 상처를 즉시 달래주는 부드럽고 향기로운 흰 연고 크림이 나옵니다.",
-    preps: "1/3 점액 내장: [통증 2] 및 [화상 3]에 연고로 사용"
+    preps: "1/3 점액 내장: [PAIN 2] 및 [BURN 3]에 연고로 사용"
   },
   "Lavender": {
     name: "라벤더",
     locs: "bf l g m t psa w\n일부 연고 약제사들은 라벤더 하나만 있으면 숲의 모든 병을 고칠 수 있다고 굳게 믿습니다.",
-    preps: "1/3 라벤더 꽃: 달여서 [신경 2] 및 [수면 2]에 사용"
+    preps: "1/3 라벤더 꽃: 달여서 [NERVES 2] 및 [SLEEP 2]에 사용"
   },
   "Leech": {
     name: "거머리",
     locs: "b f l g m tpsa w\n연고 조제사들은 오래전부터 상처의 나쁜 피를 뽑아내는 거머리의 신비한 가치를 잘 알고 있었습니다.",
-    preps: "2/3 거머리: 빻아서 페이스트로 만들어 [상처 2] 및 [기생충 2]에 사용"
+    preps: "2/3 거머리: 빻아서 페이스트로 만들어 [WOUND 2] 및 [PARASITE 2]에 사용"
   },
   "Maggots": {
     name: "구더기",
     locs: "bf l g m t psa w\n피부가 깊게 썩어 들어가는 끔찍한 상처에는 죽은 살을 먹어치우는 구더기를 쓰는 것이 최선입니다.",
-    preps: "2/3 유충: [감염 3] 및 [상처 3]에 얹어 상처를 소독하는 데 사용"
+    preps: "2/3 유충: [INFECTION 3] 및 [WOUND 3]에 얹어 상처를 소독하는 데 사용"
   },
   "Marigold": {
     name: "금잔화/메리골드",
     locs: "b f l g m t psa w\n벌집 관리인들과 꿀벌들이 단 꿀을 모으기 위해 가장 즐겨 찾는 주황색 꽃입니다.",
-    preps: "1/3 꽃꿀: [양호 1]에 첨가하여 사용\n2/3 꽃잎: [기쁨 2]로 조제"
+    preps: "1/3 꽃꿀: [FAIR 1]에 첨가하여 사용\n2/3 꽃잎: [JOY 2]로 조제"
   },
   "Marshgold": {
     name: "동의나물/늪금잔화",
     locs: "bfl g m t ps a w\n습지와 늪지대를 밝혀주는 가장 화사하고 아름다운 야생화 중 하나입니다.",
-    preps: "2/3 꽃잎: [저편 2]에 사용\n1/3 꽃잎: 달여서 [기쁨 2] 및 [호흡 2]에 사용"
+    preps: "2/3 꽃잎: [ELSEWHERE 2]에 사용\n1/3 꽃잎: 달여서 [JOY 2] 및 [BREATH 2]에 사용"
   },
   "Marshmallow": {
     name: "마시멜로 풀 (양아욱)",
     locs: "b f l g m t psa w\n캠프파이어 때 구워 먹는 말랑말랑한 과자와 혼동해서는 안 되는 허브 식물입니다.",
-    preps: "1/3 꽃잎: 끓여서 [깃털 1], [털 1]에 사용\n1/3 뿌리 수액: 요리해서 [위장 3] 및 [양호 1]에 사용"
+    preps: "1/3 꽃잎: 끓여서 [FEATHER 1], [FUR 1]에 사용\n1/3 뿌리 수액: 요리해서 [STOMACH 3] 및 [FAIR 1]에 사용"
   },
   "Meadow Waxcap": {
     name: "꽃버섯/초원 왁스캡",
     locs: "b f l g m tpsaw\n양들이 풀을 뜯는 목초지 그늘에서 흔히 자라나는 버섯입니다.",
-    preps: "1/3 버섯: [위장 1]에 첨가, 요리해서 [위장 3] 및 [양호 2]에 사용"
+    preps: "1/3 버섯: [STOMACH 1]에 첨가, 요리해서 [STOMACH 3] 및 [FAIR 2]에 사용"
   },
   "Miracle Loaf": {
     name: "기적의 빵 (Titan Miracle Loaf)",
     locs: "b f l g m tpsaw\n은박지 같은 금속 막에 감싸인 영양 가득한 티탄의 비상식량 조각입니다.",
-    preps: "1/3 부스러기: 빻아서 [깃털 3] 및 [털 3]에 사용"
+    preps: "1/3 부스러기: 빻아서 [FEATHER 3] 및 [FUR 3]에 사용"
   },
   "Musk Scrapings": {
     name: "사향 병 (Titan Musk Scrapings)",
     locs: "bf l g mtpsaw\n아주 신비롭고 이상한 온갖 냄새들이 가득 담겨 있는 실린더 형태의 티탄 용기입니다.",
-    preps: "향수 원액: [기쁨 3], [호흡 3], [감각 3], [저편 3], [기분 3] 및 [신경 3]에 다양하게 스프레이하여 사용"
+    preps: "향수 원액: [JOY 3], [BREATH 3], [SENSES 3], [ELSEWHERE 3], [MOOD 3] 및 [NERVES 3]에 다양하게 스프레이하여 사용"
   },
   "Nettles": {
     name: "쐐기풀",
     locs: "bflgmtpsaw\n숲속 발가락 사이에 밟히는 흙먼지처럼 어디서든 흔히 볼 수 있는 풀입니다.",
-    preps: "1/3 쐐기 잎: 달여서 [감염 1] 및 [통증 1]에 사용\n1/3 줄기: 씹어서 [위장 2]에 사용"
+    preps: "1/3 쐐기 잎: 달여서 [INFECTION 1] 및 [PAIN 1]에 사용\n1/3 줄기: 씹어서 [STOMACH 2]에 사용"
   },
   "Nightshade": {
     name: "까마중/벨라도나",
     locs: "b f l gm t psa w\n죽음의 어둠처럼 검게 익어가는 매우 치명적인 독을 품은 검은 열매입니다.",
-    preps: "1/3 검은 열매: 갈아서 달인 뒤 [감각 3]에 독성 마취제로 사용"
+    preps: "1/3 검은 열매: 갈아서 달인 뒤 [SENSES 3]에 독성 마취제로 사용"
   },
   "Oak": {
     name: "참나무/오크나무",
     locs: "bf l gmtpsaw\n브리슬리 숲에서 가장 거대하고 위엄 있게 우뚝 솟아오른 고목입니다.",
-    preps: "1/3 미선나무 꽃: [기쁨 1]에 사용\n1/3 도토리: 갈아 요리해 [양호 2]에 사용\n2/3 나무껍질: 갈아서 끓인 후 [독 3]에 사용\n1 튼튼한 나뭇가지: 골절된 뼈를 고정하는 데 사용"
+    preps: "1/3 미선나무 꽃: [JOY 1]에 사용\n1/3 도토리: 갈아 요리해 [FAIR 2]에 사용\n2/3 나무껍질: 갈아서 끓인 후 [POISON 3]에 사용\n1 튼튼한 나뭇가지: 골절된 뼈를 고정하는 데 사용"
   },
   "Orange Peel Fungus": {
     name: "귤껍질버섯",
     locs: "b f l gmt psa w\n야수들이 다른 야수를 저편으로 보낸 추모제 의식 때 전통적으로 올리던 오렌지빛 버섯입니다.",
-    preps: "1/3 버섯 꽃잎: [기쁨 1] 혹은 [저편 1]로 사용"
+    preps: "1/3 버섯 꽃잎: [JOY 1] 혹은 [ELSEWHERE 1]로 사용"
   },
   "Pearls": {
     name: "진주",
     locs: "b f l g m t psaw\n맑은 강조개 안에서 간혹 발견되는 영롱하고 매우 아름다운 지구 원소입니다.",
-    preps: "1/3 조개 진주: [저편 3] 혹은 [기쁨 2]로 사용"
+    preps: "1/3 조개 진주: [ELSEWHERE 3] 혹은 [JOY 2]로 사용"
   },
   "Pox-Be-Gones": {
     name: "질병 퇴치제 알약 (Titan Pox-Be-Gones)",
     locs: "b f l g m tpsaw\n맛이 매우 쓰고 삼키기 힘들지만 온갖 염증과 감염을 즉시 날려버리는 티탄의 작은 백색 하드 알약입니다.",
-    preps: "1/3 알약 가루: 빻아서 [감염 3]에 사용\n2/3 알약 즙: [감염 1]에 첨가해 사용"
+    preps: "1/3 알약 가루: 빻아서 [INFECTION 3]에 사용\n2/3 알약 즙: [INFECTION 1]에 첨가해 사용"
   },
   "Redsap": {
     name: "적색 나무 수액 (Titan Redsap)",
     locs: "b f l g m tpsaw\n수 세기 전에 살던 조상 야수들이 가장 즐겨 마셨다던 진하고 달콤한 붉은 나무 수액 액체입니다.",
-    preps: "1 병입 수액: [통증 3] 및 [호흡 3] 완화를 위해 첨가해 사용"
+    preps: "1 병입 수액: [PAIN 3] 및 [BREATH 3] 완화를 위해 첨가해 사용"
   },
   "Rhubarb": {
     name: "루바브/당작약",
     locs: "bf l gm t psa w\n산비탈을 따라 군락을 지어 자라며 씹으면 극도로 쓰고 신맛이 강한 풀입니다.",
-    preps: "1/3 줄기: 씹어서 [악취 2]에 사용, 요리하여 [양호 2]에 사용\n1/3 질긴 줄기 섬유: 씹어서 붕대 고정 줄로 묶는 데 사용"
+    preps: "1/3 줄기: 씹어서 [FOUL 2]에 사용, 요리하여 [FAIR 2]에 사용\n1/3 질긴 줄기 섬유: 씹어서 붕대 고정 줄로 묶는 데 사용"
   },
   "Ribwort": {
     name: "창질경이/리브워트",
     locs: "bf l g m tpsaw\n야수들 사이에서 종종 나그네의 풀이라고도 불리는 생명력이 끈질긴 약초입니다.",
-    preps: "1/3 씨꼬투리: 빻아서 [양호 1]에 사용\n1/3 잎사귀: 즙을 내어 연고로 사용"
+    preps: "1/3 씨꼬투리: 빻아서 [FAIR 1]에 사용\n1/3 잎사귀: 즙을 내어 연고로 사용"
   },
   "Rivermint": {
     name: "강가박하",
     locs: "b f l g m t psaw\n물안개가 피어나는 서늘한 하천변에서 돋아나는 향긋하고 여린 박하 풀입니다.",
-    preps: "1/3 잎: 갈아서 상처에 바르거나 [호흡 2]를 위해 달여서 사용\n1/3 줄기: 씹어서 [통증 1]에 사용"
+    preps: "1/3 잎: 갈아서 상처에 바르거나 [BREATH 2]를 위해 달여서 사용\n1/3 줄기: 씹어서 [PAIN 1]에 사용"
   },
   "Rock Salt": {
     name: "암염",
     locs: "b f l g m t psaw\n높은 산맥에 사는 현자 염소들이 소중하게 보관하고 지키는 결정 소금입니다.",
-    preps: "2/3 소금 결정: [감염 2] 및 [상처 2] 소독용으로 사용"
+    preps: "2/3 소금 결정: [INFECTION 2] 및 [WOUND 2] 소독용으로 사용"
   },
   "Roses": {
     name: "장미",
     locs: "bf l g m tpsa w\n어떤 다른 이름으로 불려도 그 향기는 여전히 달콤할 붉은 꽃송이입니다.",
-    preps: "1/3 장미 꽃잎: [기쁨 1]에 사용\n1/3 들장미 열매: 빻아서 사용"
+    preps: "1/3 장미 꽃잎: [JOY 1]에 사용\n1/3 들장미 열매: 빻아서 사용"
   },
   "Shells": {
     name: "강조개 껍데기",
@@ -594,12 +594,12 @@ const reagentsPrepsMap: Record<string, { name: string; locs: string; preps: stri
   "Silver Ore": {
     name: "은광석/은 조각",
     locs: "b f l g m t psaw\n부드럽고 가공하기 쉬워 뼈 고정 스플린트나 의치 보철물에 최고로 꼽히는 광물입니다.",
-    preps: "1/3 은 조각: 갈아서 붕대 안쪽에 얹어 [상처 2] 소독 및 뼈 지지용으로 사용"
+    preps: "1/3 은 조각: 갈아서 붕대 안쪽에 얹어 [WOUND 2] 소독 및 뼈 지지용으로 사용"
   },
   "Slugs": {
     name: "민달팽이",
     locs: "bflgmtpsa w\n브리슬리 숲의 야수들이 기력이 떨어졌을 때 단백질을 보충하기 위해 삼키는 주식입니다.",
-    preps: "2/3 민달팽이: 요리하여 [양호 2]에 단백질 보충식으로 사용"
+    preps: "2/3 민달팽이: 요리하여 [FAIR 2]에 단백질 보충식으로 사용"
   },
   "Small Fish": {
     name: "작은 물고기",
@@ -609,47 +609,47 @@ const reagentsPrepsMap: Record<string, { name: string; locs: string; preps: stri
   "Sourchits": {
     name: "신맛 사탕 (Titan Sourchits)",
     locs: "b f l g m tpsaw\n입안에 넣자마자 눈물이 찔끔 날 정도로 신맛이 나는 침 분비용 티탄의 가공 캔디입니다.",
-    preps: "1/3 알약 사탕: 빻아서 [통증 3] 완화에 마취 보조로 사용"
+    preps: "1/3 알약 사탕: 빻아서 [PAIN 3] 완화에 마취 보조로 사용"
   },
   "Spiders": {
     name: "거미/거미줄",
     locs: "bf l gmtpsa w\n여덟 개의 다리로 나뭇가지 사이에 정교한 집을 짓는 숲의 사냥꾼 곤충입니다.",
-    preps: "1/3 거미줄: 상처를 지혈하고 붙잡는 [상처 1] 붕대로 사용"
+    preps: "1/3 거미줄: 상처를 지혈하고 붙잡는 [WOUND 1] 붕대로 사용"
   },
   "Strawberries": {
     name: "야생 딸기",
     locs: "bf l g m t psa w\n맛이 좋은 딸기가 자라나는 덩굴의 위치는 부모가 자식에게만 몰래 가르쳐주는 가문 비밀입니다.",
-    preps: "2/3 딸기 열매: [양호 2]로 조제, 요리하여 [양호 4]로 조제\n1/3 딸기꽃: 달이거나 발라서 [기쁨 2]에 사용\n1/3 잎사귀: 빻아서 [가죽 1]에 사용"
+    preps: "2/3 딸기 열매: [FAIR 2]로 조제, 요리하여 [FAIR 4]로 조제\n1/3 딸기꽃: 달이거나 발라서 [JOY 2]에 사용\n1/3 잎사귀: 빻아서 [HIDE 1]에 사용"
   },
   "Tansies": {
     name: "쑥국화/탄지 꽃",
     locs: "b flgm t psa w\n지역의 경계선이나 길가 모퉁이에서 주로 자라며 톡 쏘는 향이 나는 노란 꽃입니다.",
-    preps: "1/3 쓴 잎: 소화시켜 뱃속 [기생충 3] 구충에 사용\n2/3 줄기: 달여서 [본능 1]에 사용"
+    preps: "1/3 쓴 잎: 소화시켜 뱃속 [PARASITE 3] 구충에 사용\n2/3 줄기: 달여서 [INSTINCT 1]에 사용"
   },
   "Thistles": {
     name: "엉겅퀴",
     locs: "bflgmtpsaw\n고대 티탄들이 이 보랏빛의 가시 돋친 아름다운 식물을 아주 좋아했다고 전해집니다.",
-    preps: "1/3 엉겅퀴 가시 머리: 발라서 [털 2]에 사용\n1/3 엉겅퀴 꿀: [기분 1]에 첨가하여 사용"
+    preps: "1/3 엉겅퀴 가시 머리: 발라서 [FUR 2]에 사용\n1/3 엉겅퀴 꿀: [MOOD 1]에 첨가하여 사용"
   },
   "Titansorrel": {
     name: "티탄 수영 (Titan Sorrel)",
     locs: "b f l gmtpsaw\n샐러드에 넣으면 톡 쏘는 신맛과 쓴맛이 어우러져 입맛을 돋우는 붉은 잎 풀입니다.",
-    preps: "1/3 잎: [기분 1]에 첨가(단, [악취 1]도 함께 부가)\n1/3 뿌리: 요리하여 상처에 연고로 부착 사용"
+    preps: "1/3 잎: [MOOD 1]에 첨가(단, [FOUL 1]도 함께 부가)\n1/3 뿌리: 요리하여 상처에 연고로 부착 사용"
   },
   "Toads": {
     name: "두꺼비",
     locs: "b f l g m tpsaw\n스트레스를 받으면 피부에서 찐득한 분비물을 내뿜는 양서류 동물입니다.",
-    preps: "1/3 피부 독성 점액: [감각 1]에 소량 첨가(단, [악취 3]이 다량 유발됨)"
+    preps: "1/3 피부 독성 점액: [SENSES 1]에 소량 첨가(단, [FOUL 3]이 다량 유발됨)"
   },
   "Wasps": {
     name: "말벌",
     locs: "bflgm tpsa w\n꿀벌보다 몸집이 크고 공격적이며 꿀을 만들지 않는 독충입니다.",
-    preps: "1/3 말벌 침 독: 신경 자극용 [감각 2]에 소량 사용"
+    preps: "1/3 말벌 침 독: 신경 자극용 [SENSES 2]에 소량 사용"
   },
   "Waychalk": {
     name: "길잡이 백분 벽돌 (Titan Waychalk)",
     locs: "b f l g m tpsaw\n티탄들이 영역을 표시할 때 쓰던 묵직하고 거대한 흰색 석고 분필 벽돌입니다.",
-    preps: "1/3 석고 조각: 조제용 [저편 3]에 사용"
+    preps: "1/3 석고 조각: 조제용 [ELSEWHERE 3]에 사용"
   },
   "Whiskerburner": {
     name: "수염 태우개 술 (Titan Whiskerburner)",
@@ -659,17 +659,17 @@ const reagentsPrepsMap: Record<string, { name: string; locs: string; preps: stri
   "White Willow": {
     name: "흰버드나무",
     locs: "b f l g m t psaw\n숲의 야수들은 이 버드나무를 강과 호수를 보살피는 물의 수호신으로 여깁니다.",
-    preps: "1 껍질: 빻아서 해열용 [본능 1]에 사용\n2/3 버들개지: 끓여서 [통증 2]에 통증 완화 연고로 사용"
+    preps: "1 껍질: 빻아서 해열용 [INSTINCT 1]에 사용\n2/3 버들개지: 끓여서 [PAIN 2]에 통증 완화 연고로 사용"
   },
   "Can only be Foraged for in Summer Wild Garlic": {
     name: "야생 마늘/명이풀",
     locs: "b f l gm t ps a w\n마늘 특유의 짙은 향이 사방에 퍼져 한여름 채집가들의 코를 즐겁게 만드는 풀입니다.",
-    preps: "2/3 잎사귀: 씹어서 [양호 1]에 부착해 사용\n1/3 줄기: 빻아서 [호흡 2]에 사용"
+    preps: "2/3 잎사귀: 씹어서 [FAIR 1]에 부착해 사용\n1/3 줄기: 빻아서 [BREATH 2]에 사용"
   },
   "Wild Violet": {
     name: "야생 제비꽃",
     locs: "bflgm t psa w\n벌레에 물린 부위에 바르면 부기를 가라앉히고 가려움을 달래주는 아름다운 보랏빛 꽃입니다.",
-    preps: "1/3 제비꽃 잎: 소화시켜 [통증 1]에 사용\n1/3 잎사귀: 씹어서 [감각 2]에 사용"
+    preps: "1/3 제비꽃 잎: 소화시켜 [PAIN 1]에 사용\n1/3 잎사귀: 씹어서 [SENSES 2]에 사용"
   }
 };
 
@@ -699,17 +699,50 @@ const translatedAilments = GAME_DATA.ailments.map(ail => {
 
   const trans = key ? ailmentsMap[key] : null;
 
+  // Enforce English tags by replacing any leftover Korean mappings in ailments tags
+  const cleanEnglishTags = (str: string) => {
+    if (!str) return str;
+    return str
+      .toLowerCase()
+      .replace(/통증/g, 'pain')
+      .replace(/상처/g, 'wound')
+      .replace(/감염/g, 'infection')
+      .replace(/기생충/g, 'parasite')
+      .replace(/감각/g, 'senses')
+      .replace(/수면/g, 'sleep')
+      .replace(/호흡/g, 'breath')
+      .replace(/화상/g, 'burn')
+      .replace(/털/g, 'fur')
+      .replace(/깃털/g, 'feather')
+      .replace(/가죽/g, 'hide')
+      .replace(/비늘/g, 'scale')
+      .replace(/독/g, 'poison')
+      .replace(/위장/g, 'stomach')
+      .replace(/체온/g, 'temperature')
+      .replace(/기쁨/g, 'joy')
+      .replace(/기분/g, 'mood')
+      .replace(/본능/g, 'instinct')
+      .replace(/저편/g, 'elsewhere')
+      .replace(/신경/g, 'nerves');
+  };
+
   if (trans) {
+    const cleanKoreanName = trans.name.replace(/\s*\([^)]+\)/g, '').trim();
+    const englishName = key || rawNameClean;
     return {
       ...ail,
-      name: trans.name, // Will be output cleanly as Korean name
+      name: `${cleanKoreanName} (${englishName})`,
+      tags: cleanEnglishTags(ail.tags), // Keep tags in clean English
       description: trans.description,
       outcome: trans.outcome,
       consequence: trans.consequence
     };
   } else {
     console.log('No translation found for ailment:', ail.rawName);
-    return ail;
+    return {
+      ...ail,
+      tags: cleanEnglishTags(ail.tags)
+    };
   }
 });
 
