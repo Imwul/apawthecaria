@@ -2235,6 +2235,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
 // 9. MAP VIEW COMPONENT
 // =================================================================
 function MapView({ mapWidth, setMapWidth }: { mapWidth: number; setMapWidth: any }) {
+  const [mapType, setMapType] = useState<'front' | 'back'>('front');
   const handleZoomOut = () => setMapWidth((w: number) => Math.max(800, w - 200));
   const handleZoomIn = () => setMapWidth((w: number) => Math.min(3000, w + 200));
   const handleReset = () => setMapWidth(1600);
@@ -2242,7 +2243,41 @@ function MapView({ mapWidth, setMapWidth }: { mapWidth: number; setMapWidth: any
   return (
     <div>
       <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
-        <span>🗺️ Bristley Woods 지도</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
+          <span>🗺️ Bristley Woods 지도</span>
+          <div style={{ display: 'inline-flex', gap: '2px', background: '#eae1d4', padding: '3px', borderRadius: '6px', border: '1px solid var(--border-cozy)' }}>
+            <button 
+              onClick={() => setMapType('front')}
+              style={{
+                padding: '0.2rem 0.6rem',
+                fontSize: '0.8rem',
+                borderRadius: '4px',
+                border: 'none',
+                background: mapType === 'front' ? 'var(--primary)' : 'transparent',
+                color: mapType === 'front' ? '#fff' : 'var(--text-muted)',
+                fontWeight: mapType === 'front' ? 'bold' : 'normal',
+                cursor: 'pointer'
+              }}
+            >
+              지도 전면
+            </button>
+            <button 
+              onClick={() => setMapType('back')}
+              style={{
+                padding: '0.2rem 0.6rem',
+                fontSize: '0.8rem',
+                borderRadius: '4px',
+                border: 'none',
+                background: mapType === 'back' ? 'var(--primary)' : 'transparent',
+                color: mapType === 'back' ? '#fff' : 'var(--text-muted)',
+                fontWeight: mapType === 'back' ? 'bold' : 'normal',
+                cursor: 'pointer'
+              }}
+            >
+              지도 후면 (범례/축척)
+            </button>
+          </div>
+        </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>지도 너비 조절:</span>
           <input 
@@ -2287,8 +2322,8 @@ function MapView({ mapWidth, setMapWidth }: { mapWidth: number; setMapWidth: any
               }}
             >
               <img 
-                src="/Apawthecaria Map Back.jpg" 
-                alt="Bristley Woods Map" 
+                src={mapType === 'front' ? "/Apawthecaria Map Front.jpg" : "/Apawthecaria Map Back.jpg"} 
+                alt={mapType === 'front' ? "Bristley Woods Map Front" : "Bristley Woods Map Back"} 
                 style={{ 
                   display: 'block', 
                   maxWidth: 'none', 
