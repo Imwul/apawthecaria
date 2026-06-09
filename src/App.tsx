@@ -2246,7 +2246,7 @@ function MapView() {
         <div style={{ background: '#fcf8f2', border: '2px solid #5c4033', borderRadius: '8px', padding: '1rem', boxShadow: '0 4px 12px rgba(92, 75, 50, 0.05)' }}>
           {/* Zoom Controls */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <span style={{ fontWeight: 'bold', fontSize: '1rem', color: '#5c4033' }}>Bristley Woods 지도</span>
+            <span style={{ fontWeight: 'bold', fontSize: '1rem', color: '#5c4033' }}>Bristley Woods 지도 후면</span>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <button onClick={handleZoomOut} style={{ padding: '0.2rem 0.5rem', background: '#e8e2d5', border: '1px solid #5c4033', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}>축소</button>
               <input 
@@ -2273,8 +2273,8 @@ function MapView() {
             background: '#eae1d4'
           }}>
             <img 
-              src="/Apawthecaria Map Front.jpg" 
-              alt="Bristley Woods Map Front" 
+              src="/Apawthecaria Map Back.jpg" 
+              alt="Bristley Woods Map Back" 
               style={{ 
                 display: 'block', 
                 maxWidth: 'none', 
