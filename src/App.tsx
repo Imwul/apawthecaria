@@ -253,11 +253,6 @@ export default function App() {
         img.src = `/cards/${suit}-${val}.svg`;
       });
     });
-    // Preload maps
-    const mapFront = new Image();
-    mapFront.src = "/Apawthecaria Map Front.jpg";
-    const mapBack = new Image();
-    mapBack.src = "/Apawthecaria Map Back.jpg";
   }, []);
   
   // Custom dialogs & edit variables
@@ -266,9 +261,6 @@ export default function App() {
   const [searchAilment, setSearchAilment] = useState("");
   const [reagentFilter, setReagentFilter] = useState("");
   const [ailmentFilter, setAilmentFilter] = useState("");
-
-  // Map image width state
-  const [mapWidth, setMapWidth] = useState(1600);
 
   // Listen to Auth State
   useEffect(() => {
@@ -554,7 +546,7 @@ export default function App() {
               setFilter={setAilmentFilter}
             />
           )}
-          {activeTab === 'map' && <MapView mapWidth={mapWidth} setMapWidth={setMapWidth} />}
+          {activeTab === 'map' && <MapView />}
           {activeTab === 'rulebook' && <RulebookView page={rulebookPage} setPage={setRulebookPage} />}
           {activeTab === 'journals' && <JournalsView state={state} updateState={updateState} />}
         </main>
@@ -2561,198 +2553,10 @@ function MapBackHtml() {
 // =================================================================
 // 10. MAP VIEW COMPONENT
 // =================================================================
-function MapView({ mapWidth, setMapWidth }: { mapWidth: number; setMapWidth: any }) {
-  const [mapType, setMapType] = useState<'front' | 'back'>('front');
-  const handleZoomOut = () => setMapWidth((w: number) => Math.max(800, w - 200));
-  const handleZoomIn = () => setMapWidth((w: number) => Math.min(3000, w + 200));
-  const handleReset = () => setMapWidth(1600);
-
+function MapView() {
   return (
-    <div>
-      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
-          <span>🗺️ Bristley Woods 지도</span>
-          <div style={{ display: 'inline-flex', gap: '2px', background: '#eae1d4', padding: '3px', borderRadius: '6px', border: '1px solid var(--border-cozy)' }}>
-            <button 
-              onClick={() => setMapType('front')}
-              style={{
-                padding: '0.2rem 0.6rem',
-                fontSize: '0.8rem',
-                borderRadius: '4px',
-                border: 'none',
-                background: mapType === 'front' ? 'var(--primary)' : 'transparent',
-                color: mapType === 'front' ? '#fff' : 'var(--text-muted)',
-                fontWeight: mapType === 'front' ? 'bold' : 'normal',
-                cursor: 'pointer'
-              }}
-            >
-              지도 전면
-            </button>
-            <button 
-              onClick={() => setMapType('back')}
-              style={{
-                padding: '0.2rem 0.6rem',
-                fontSize: '0.8rem',
-                borderRadius: '4px',
-                border: 'none',
-                background: mapType === 'back' ? 'var(--primary)' : 'transparent',
-                color: mapType === 'back' ? '#fff' : 'var(--text-muted)',
-                fontWeight: mapType === 'back' ? 'bold' : 'normal',
-                cursor: 'pointer'
-              }}
-            >
-              지도 후면 (범례/축척)
-            </button>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>지도 너비 조절:</span>
-          <input 
-            type="range" 
-            min="800" 
-            max="3000" 
-            step="100"
-            value={mapWidth} 
-            onChange={e => setMapWidth(parseInt(e.target.value))}
-            style={{ width: '130px', height: '24px', padding: 0 }}
-          />
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', minWidth: '50px', textAlign: 'right' }}>{mapWidth}px</span>
-          <button onClick={handleZoomOut} style={{ padding: '0.3rem', background: '#eee', borderRadius: '4px', width: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '30px' }}>-</button>
-          <button onClick={handleZoomIn} style={{ padding: '0.3rem', background: '#eee', borderRadius: '4px', width: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '30px' }}>+</button>
-          <button onClick={handleReset} style={{ padding: '0.3rem 0.6rem', background: '#eee', borderRadius: '4px', height: '30px', fontSize: '0.85rem' }}>초기화</button>
-        </div>
-      </h2>
-
-      <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-        {/* Left column: Main Map Viewer */}
-        <div style={{ flex: '1 1 65%', minWidth: '320px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
-            마우스 드래그나 스크롤로 지도를 탐색해보세요. 우측의 거리 축척과 기호 범례를 보며 경로를 설정합니다.
-          </p>
-
-          <div 
-            style={{ 
-              border: '2px solid var(--border-cozy)', 
-              borderRadius: '12px', 
-              height: '650px', 
-              overflow: 'auto', 
-              background: '#eae6df', 
-              position: 'relative',
-              boxShadow: 'inset 0 4px 10px rgba(0,0,0,0.05)'
-            }}
-          >
-            {/* Scrollable Map */}
-            <div 
-              style={{
-                width: 'fit-content',
-                height: 'fit-content',
-              }}
-            >
-              {mapType === 'front' ? (
-                <img 
-                  src="/Apawthecaria Map Front.jpg" 
-                  alt="Bristley Woods Map Front" 
-                  style={{ 
-                    display: 'block', 
-                    maxWidth: 'none', 
-                    height: 'auto', 
-                    width: `${mapWidth}px`,
-                    transition: 'width 0.2s ease-out'
-                  }}
-                />
-              ) : (
-                <MapBackHtml />
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right column: Custom HTML Map Key & Scale Card */}
-        <div style={{ flex: '1 1 30%', minWidth: '280px', maxWidth: '380px' }}>
-          <div className="cute-card" style={{ padding: '1rem', background: '#fff', border: '2.5px solid var(--border-cozy)', borderRadius: '12px' }}>
-            <h3 style={{ borderBottom: '1.5px dashed var(--glass-border)', paddingBottom: '0.4rem', marginBottom: '0.8rem', color: 'var(--primary)', fontSize: '1.1rem', fontFamily: 'var(--font-fancy)' }}>
-              🧭 이동 거리 및 축척 자
-            </h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.85rem', marginBottom: '1.2rem', padding: '0.6rem', background: '#faf8f4', borderRadius: '8px', border: '1px solid #e5dec9' }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: 'var(--text-bright)' }}>
-                  <span>🐾 도보 (Paws)</span>
-                  <span>1경로 = 1일</span>
-                </div>
-                <div style={{ height: '8px', background: '#e0d8c3', borderRadius: '4px', marginTop: '4px', position: 'relative', overflow: 'hidden' }}>
-                  <div style={{ width: '100%', height: '100%', background: 'var(--secondary)', position: 'absolute', top: 0, left: 0 }} />
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>일반적인 도보 경로 탐험에 사용되는 기본 축척입니다.</div>
-              </div>
-
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: 'var(--text-bright)' }}>
-                  <span>🪶 날개 (Wings)</span>
-                  <span>1경로 = 1일 (지형 무시)</span>
-                </div>
-                <div style={{ height: '8px', background: '#e0d8c3', borderRadius: '4px', marginTop: '4px', position: 'relative' }}>
-                  <div style={{ width: '100%', height: '100%', background: '#4a8ca8', borderRadius: '4px', borderStyle: 'dashed', borderWidth: '0 0 8px 0' }} />
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>강이나 호수 등 수로를 가로질러 비행할 수 있습니다.</div>
-              </div>
-
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: 'var(--text-bright)' }}>
-                  <span>🦅 비행 (Soar)</span>
-                  <span>먼 거리 이동 = 1일</span>
-                </div>
-                <div style={{ height: '8px', background: '#e0d8c3', borderRadius: '4px', marginTop: '4px', position: 'relative' }}>
-                  <div style={{ width: '100%', height: '100%', background: '#9275a8', borderRadius: '4px' }} />
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>하늘 높이 날아 빠르게 이동하지만 Soar 전용 조우가 일어납니다.</div>
-              </div>
-            </div>
-
-            <h3 style={{ borderBottom: '1.5px dashed var(--glass-border)', paddingBottom: '0.4rem', marginBottom: '0.6rem', color: 'var(--primary)', fontSize: '1.1rem', fontFamily: 'var(--font-fancy)' }}>
-              🗺️ 지도 범례
-            </h3>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', fontSize: '0.8rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#c9524b', borderRadius: '2px' }} />
-                <strong>도시</strong>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#3d6c48', borderRadius: '50%' }} />
-                <strong>마을</strong>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span style={{ fontSize: '1rem' }}>🌲</span>
-                <strong>야생</strong>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span style={{ fontSize: '1rem' }}>🏛️</span>
-                <strong>티탄 유적</strong>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span style={{ fontSize: '1rem' }}>🪦</span>
-                <strong>야수 고분군</strong>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span style={{ fontSize: '1rem' }}>🏥</span>
-                <strong>약제소</strong>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span style={{ fontSize: '1.1rem', color: '#4a8ca8' }}>〰️</span>
-                <strong>수로</strong>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span style={{ fontSize: '1.1rem', color: '#8b5a2b' }}>🛤️</span>
-                <strong>연결 경로</strong>
-              </div>
-            </div>
-            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.8rem', borderTop: '1px dashed #eee', paddingTop: '0.5rem', textAlign: 'center', lineHeight: '1.3' }}>
-              지도의 모든 지명은 영문 표기가 고유명사이므로 지도의 원본 텍스트를 참조하세요.
-            </p>
-          </div>
-        </div>
-      </div>
+    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      <MapBackHtml />
     </div>
   );
 }
