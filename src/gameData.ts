@@ -101,7 +101,7 @@ export const GAME_DATA = {
 
   ailments: [
   {
-    "name": "발썩음병",
+    "name": "발썩음 병",
     "rawName": "Paw Rot",
     "severity": "lesser",
     "timer": 9,
@@ -221,8 +221,8 @@ export const GAME_DATA = {
     "consequence": "Fast Forgotten: With no ceremony to commemorate their friend’s passing, dark emotions take hold. How do they process the grief? 106"
   },
   {
-    "name": "s Twitch",
-    "rawName": "s Twitch",
+    "name": "채집가의 경련 (Forager's Twitch)",
+    "rawName": "Forager's Twitch",
     "severity": "intermediate",
     "timer": 7,
     "tags": "감각 2, mood 2, poison 2",
@@ -371,7 +371,7 @@ export const GAME_DATA = {
     "consequence": "Sleeping on the Job: They fall asleep while working on their special project, and ruin it completely."
   },
   {
-    "name": "발썩음병",
+    "name": "발썩음 병",
     "rawName": "Paw Rot",
     "severity": "lesser",
     "timer": 9,
@@ -388,11 +388,11 @@ export const GAME_DATA = {
     "tags": "wound 3, poison 3, 가죽 3",
     "description": "Terrible luck! This beast has been caught beneath a falling tree, crushing part of them and turning the trapped blood toxic. You will need to be careful moving them but don't dilly dally neither!",
     "outcome": "Knees Up: If you have a Steel Axe, or can find help at a local Settlement, you can free this patient from underneath the tree. Otherwise, whenever you would decrease this Ailment's Timer, decrease it by 1 more.",
-    "consequence": "Smushed: You were too late, the crushing weight of the tree was too much to bear, and the patient has gone Elsewhere. Who, if anybeast, will mourn them? Quagmire'"
+    "consequence": "Smushed: You were too late, the crushing weight of the tree was too much to bear, and the patient has gone Elsewhere. Who, if anybeast, will mourn them?"
   },
   {
-    "name": "s Scale",
-    "rawName": "s Scale",
+    "name": "콰그마이어의 비늘 (Quagmire's Scale)",
+    "rawName": "Quagmire's Scale",
     "severity": "severe",
     "timer": 9,
     "tags": "비늘 2, infection 2, poison 1",
@@ -421,8 +421,8 @@ export const GAME_DATA = {
     "consequence": "Your patient's discomfort manifests: as angry outbursts. Are other beasts understanding of their embarrassment and pain? 111"
   },
   {
-    "name": "s Snout",
-    "rawName": "s Snout",
+    "name": "매연 코 (Smokesnout)",
+    "rawName": "Smokesnout",
     "severity": "severe",
     "timer": 9,
     "tags": "breath 3, burn 3, 통증 2",

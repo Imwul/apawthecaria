@@ -3,7 +3,7 @@ import { db, isFirebaseConfigured, auth, googleProvider } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
 import { GAME_DATA } from "./gameData";
-import RULEBOOK_KO from "./rulebook_ko.json";
+
 
 // =================================================================
 // 1. SYNC & STORAGE SYSTEM
@@ -235,7 +235,7 @@ const getCardSvgUrl = (suit: string, value: number | string) => {
 export default function App() {
   const [state, setState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'play' | 'bio' | 'reagents' | 'ailments' | 'map' | 'rulebook' | 'journals'>('play');
+  const [activeTab, setActiveTab] = useState<'play' | 'bio' | 'reagents' | 'ailments' | 'map' | 'journals'>('play');
   const [user, setUser] = useState<User | null>(null);
   const [activeTravelEncounter, setActiveTravelEncounter] = useState<any | null>(null);
   const [activeForageEncounter, setActiveForageEncounter] = useState<any | null>(null);
@@ -256,7 +256,6 @@ export default function App() {
   }, []);
   
   // Custom dialogs & edit variables
-  const [rulebookPage, setRulebookPage] = useState<number>(5);
   const [searchReagent, setSearchReagent] = useState("");
   const [searchAilment, setSearchAilment] = useState("");
   const [reagentFilter, setReagentFilter] = useState("");
@@ -430,7 +429,6 @@ export default function App() {
                 { id: 'reagents', label: '🌿 영약재 도감', sub: '약초 및 준비법' },
                 { id: 'ailments', label: '🤒 질병 도감', sub: '증상 및 처방전' },
                 { id: 'map', label: '🗺️ Bristley Woods 지도', sub: '전체 지도 보기' },
-                { id: 'rulebook', label: '📖 한국어 룰북', sub: '페이지 뷰어' },
                 { id: 'journals', label: '📝 약제사 일지', sub: '저널 백업 및 기록' }
               ].map(t => (
                 <button
@@ -547,7 +545,6 @@ export default function App() {
             />
           )}
           {activeTab === 'map' && <MapView />}
-          {activeTab === 'rulebook' && <RulebookView page={rulebookPage} setPage={setRulebookPage} />}
           {activeTab === 'journals' && <JournalsView state={state} updateState={updateState} />}
         </main>
       </div>
@@ -2023,7 +2020,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
   return (
     <div>
       <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>🌿 영약재 도감</h2>
-      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+      <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)' }}>
         각 영약재 부위는 특정한 조제법(빻기, 끓이기, 바르기 등)을 통과해 질병 증상을 치료할 수 있는 고유 약효를 냅니다.
       </p>
 
@@ -2063,19 +2060,19 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', maxHeight: '500px', overflowY: 'auto', padding: '0.5rem' }}>
         {filtered.map((r, i) => (
           <div key={i} className="cute-card" style={{ background: '#fafafa' }}>
-            <h4 style={{ margin: 0, color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h4 style={{ margin: 0, color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1.1rem', fontWeight: 'bold' }}>
               <span>{r.name}</span>
-              <span style={{ fontSize: '0.8rem', background: '#eee', padding: '0.1rem 0.4rem', borderRadius: '4px', color: '#555' }}>
+              <span style={{ fontSize: '0.85rem', background: '#eee', padding: '0.2rem 0.5rem', borderRadius: '4px', color: '#555' }}>
                 기본 희귀도 (BR): {r.br}
               </span>
             </h4>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '2px' }}>
+            <div style={{ fontSize: '0.88rem', color: 'var(--text-dim)', marginTop: '4px' }}>
               분류: {r.type} | 지역/계절코드: {r.locs}
             </div>
             
-            <div style={{ marginTop: '0.6rem', fontSize: '0.85rem', background: '#fff', padding: '0.6rem', borderRadius: '6px', border: '1px solid #eee' }}>
+            <div style={{ marginTop: '0.6rem', fontSize: '0.92rem', background: '#fff', padding: '0.8rem', borderRadius: '6px', border: '1px solid #eee' }}>
               <strong>📋 부위별 조제 성분:</strong>
-              <div style={{ marginTop: '0.3rem', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>{r.preps}</div>
+              <div style={{ marginTop: '0.3rem', whiteSpace: 'pre-wrap', lineHeight: '1.5', color: '#333' }}>{r.preps}</div>
             </div>
 
             {state.journeyActive && (
@@ -2113,8 +2110,11 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
 // 8. AILMENTS VIEW COMPONENT
 // =================================================================
 function AilmentsView({ state, updateState, search, setSearch, filter, setFilter }: { state: GameState; updateState: any; search: string; setSearch: any; filter: string; setFilter: any }) {
+  const cleanAilmentName = (n: string) => n.replace(/^PAGE\s*\d+\s*(---|--|-)\s*/i, '');
+
   const filtered = GAME_DATA.ailments.filter(a => {
-    const matchesSearch = a.name.toLowerCase().includes(search.toLowerCase()) || a.rawName.toLowerCase().includes(search.toLowerCase());
+    const cleaned = cleanAilmentName(a.name);
+    const matchesSearch = cleaned.toLowerCase().includes(search.toLowerCase()) || a.rawName.toLowerCase().includes(search.toLowerCase());
     const matchesFilter = !filter || a.tags.toLowerCase().includes(filter.toLowerCase());
     return matchesSearch && matchesFilter;
   });
@@ -2122,7 +2122,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
   return (
     <div>
       <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>🤒 질병 도감</h2>
-      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+      <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)' }}>
         약제사는 주민 야수들의 다양한 병증을 식별할 수 있습니다. 환자를 약제소에 등록할 때 이름을 도감에서 찾아 적용해 주세요.
       </p>
 
@@ -2159,65 +2159,68 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
         </select>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '500px', overflowY: 'auto', padding: '0.5rem' }}>
-        {filtered.map((a, i) => (
-          <div key={i} className="cute-card" style={{ background: '#fafafa' }}>
-            <h4 style={{ margin: 0, color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>{a.name}</span>
-              <span style={{ fontSize: '0.8rem', background: 'var(--primary-light)', padding: '0.2rem 0.5rem', borderRadius: '10px', color: 'var(--primary)', fontWeight: 'bold' }}>
-                등급: {a.severity.toUpperCase()} | 시간: {a.timer}시간
-              </span>
-            </h4>
-            <div style={{ marginTop: '0.4rem', fontSize: '0.85rem' }}>
-              <strong>💊 요구 약효 태그:</strong> <span style={{ color: '#ff6b6b', fontWeight: 'bold' }}>{a.tags}</span>
-            </div>
-            
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', background: '#fff', padding: '0.6rem', borderRadius: '6px', margin: '0.6rem 0', lineHeight: '1.5' }}>
-              {a.description}
-            </p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.8rem', background: '#fff', padding: '0.6rem', borderRadius: '6px' }}>
-              <div>
-                <strong style={{ color: 'var(--primary)' }}>💡 성공 시 특별 결과 (Outcome):</strong>
-                <div style={{ marginTop: '2px', color: 'var(--text-muted)' }}>{a.outcome || '성공 보상 장신구 획득'}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxHeight: '500px', overflowY: 'auto', padding: '0.5rem' }}>
+        {filtered.map((a, i) => {
+          const cleanedName = cleanAilmentName(a.name);
+          return (
+            <div key={i} className="cute-card" style={{ background: '#fafafa', padding: '1.2rem', borderRadius: '12px' }}>
+              <h4 style={{ margin: 0, color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1.1rem', fontWeight: 'bold' }}>
+                <span>{cleanedName}</span>
+                <span style={{ fontSize: '0.85rem', background: 'var(--primary-light)', padding: '0.2rem 0.5rem', borderRadius: '10px', color: 'var(--primary)', fontWeight: 'bold' }}>
+                  등급: {a.severity.toUpperCase()} | 시간: {a.timer}시간
+                </span>
+              </h4>
+              <div style={{ marginTop: '0.4rem', fontSize: '0.95rem' }}>
+                <strong>💊 요구 약효 태그:</strong> <span style={{ color: '#ff6b6b', fontWeight: 'bold' }}>{a.tags}</span>
               </div>
-              <div>
-                <strong style={{ color: 'var(--accent-red)' }}>💥 실패 시 후과 (Consequence):</strong>
-                <div style={{ marginTop: '2px', color: 'var(--text-muted)' }}>{a.consequence}</div>
-              </div>
-            </div>
+              
+              <p style={{ fontSize: '0.95rem', color: '#333', background: '#fff', padding: '0.8rem', borderRadius: '6px', margin: '0.6rem 0', lineHeight: '1.6' }}>
+                {a.description}
+              </p>
 
-            {state.journeyActive && !state.activeAilment && (
-              <button 
-                onClick={() => {
-                  updateState(s => {
-                    const startTimer = a.timer + (s.bio.familiarBenefit.includes("따뜻한 약제사") ? 2 : 0);
-                    return {
-                      ...s,
-                      activeAilment: {
-                        id: 'ail_' + Date.now(),
-                        name: a.name,
-                        severity: a.severity,
-                        timer: startTimer,
-                        maxTimer: startTimer,
-                        tags: a.tags,
-                        description: a.description,
-                        outcome: a.outcome,
-                        consequence: a.consequence,
-                        foragingPoints: s.bio.familiarBenefit.includes("예리한 관찰자") ? 2 : 0,
-                        reagentsGathered: []
-                      }
-                    };
-                  });
-                  alert(`${a.name} 환자를 임상에 추가해 타이머를 기동했습니다.`);
-                }}
-                style={{ width: '100%', padding: '0.4rem', marginTop: '0.6rem', background: 'var(--accent-purple)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 'bold' }}
-              >
-                🏥 이 환자를 현재 약제소에 진단/등록
-              </button>
-            )}
-          </div>
-        ))}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.9rem', background: '#fff', padding: '0.8rem', borderRadius: '6px' }}>
+                <div>
+                  <strong style={{ color: 'var(--primary)' }}>💡 성공 시 특별 결과 (Outcome):</strong>
+                  <div style={{ marginTop: '4px', color: '#444', fontSize: '0.88rem', lineHeight: '1.5' }}>{a.outcome || '성공 보상 장신구 획득'}</div>
+                </div>
+                <div>
+                  <strong style={{ color: 'var(--accent-red)' }}>💥 실패 시 후과 (Consequence):</strong>
+                  <div style={{ marginTop: '4px', color: '#444', fontSize: '0.88rem', lineHeight: '1.5' }}>{a.consequence}</div>
+                </div>
+              </div>
+
+              {state.journeyActive && !state.activeAilment && (
+                <button 
+                  onClick={() => {
+                    updateState(s => {
+                      const startTimer = a.timer + (s.bio.familiarBenefit.includes("따뜻한 약제사") ? 2 : 0);
+                      return {
+                        ...s,
+                        activeAilment: {
+                          id: 'ail_' + Date.now(),
+                          name: cleanedName,
+                          severity: a.severity,
+                          timer: startTimer,
+                          maxTimer: startTimer,
+                          tags: a.tags,
+                          description: a.description,
+                          outcome: a.outcome,
+                          consequence: a.consequence,
+                          foragingPoints: s.bio.familiarBenefit.includes("예리한 관찰자") ? 2 : 0,
+                          reagentsGathered: []
+                        }
+                      };
+                    });
+                    alert(`${cleanedName} 환자를 임상에 추가해 타이머를 기동했습니다.`);
+                  }}
+                  style={{ width: '100%', padding: '0.5rem', marginTop: '0.6rem', background: 'var(--accent-purple)', color: '#fff', borderRadius: '6px', fontSize: '0.9rem', fontWeight: 'bold' }}
+                >
+                  🏥 이 환자를 현재 약제소에 진단/등록
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -2552,47 +2555,7 @@ function MapView() {
   );
 }
 
-// =================================================================
-// 10. RULEBOOK VIEW COMPONENT
-// =================================================================
-function RulebookView({ page, setPage }: { page: number; setPage: any }) {
-  // Seek the page
-  const pageObj = RULEBOOK_KO.find(p => p.page === page) || { page, text: "해당 페이지 정보가 없습니다." };
 
-  const handlePrev = () => setPage(Math.max(1, page - 1));
-  const handleNext = () => setPage(Math.min(220, page + 1));
-
-  return (
-    <div>
-      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>📖 아포테카리아 룰북 뷰어 (Page {page} / 220)</span>
-        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-          <button onClick={handlePrev} disabled={page === 1} style={{ padding: '0.3rem 0.6rem', background: '#eee', borderRadius: '4px', opacity: page === 1 ? 0.5 : 1 }}>이전</button>
-          
-          <select 
-            value={page} 
-            onChange={e => setPage(parseInt(e.target.value))}
-            style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.9rem' }}
-          >
-            {Array.from({ length: 220 }, (_, i) => i + 1).map(p => (
-              <option key={p} value={p}>Page {p}</option>
-            ))}
-          </select>
-
-          <button onClick={handleNext} disabled={page === 220} style={{ padding: '0.3rem 0.6rem', background: '#eee', borderRadius: '4px', opacity: page === 220 ? 0.5 : 1 }}>다음</button>
-        </div>
-      </h2>
-
-      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-        룰북의 내용을 한 페이지씩 원어 추출 및 한국어로 맞춤 요약/번역하였습니다. 5페이지부터 코어 규칙 설명이 나옵니다.
-      </p>
-
-      <div style={{ marginTop: '1.5rem', background: '#faf6ee', padding: '2rem', borderRadius: '14px', border: '1.5px dashed var(--glass-border)', minHeight: '300px', whiteSpace: 'pre-wrap', fontSize: '1.05rem', lineHeight: '1.8', color: 'var(--text-bright)', boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.03)' }}>
-        {pageObj.text}
-      </div>
-    </div>
-  );
-}
 
 // =================================================================
 // 11. JOURNALS VIEW COMPONENT
