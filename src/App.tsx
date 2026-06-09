@@ -201,7 +201,7 @@ const formatDateTime = (ts: number) => {
 };
 
 const getCardSvgUrl = (suit: string, value: number | string) => {
-  let suitPart = "";
+  let suitPart: string;
   const s = String(suit).toUpperCase();
   if (s.includes("HEART") || s.includes("♥")) suitPart = "HEART";
   else if (s.includes("DIAMOND") || s.includes("♦")) suitPart = "DIAMOND";
@@ -219,7 +219,7 @@ const getCardSvgUrl = (suit: string, value: number | string) => {
     else valNum = 1;
   }
 
-  let valPart = "";
+  let valPart: string;
   if (valNum === 1) valPart = "1";
   else if (valNum === 11) valPart = "11-JACK";
   else if (valNum === 12) valPart = "12-QUEEN";
