@@ -712,15 +712,15 @@ function PlayView({ state, updateState, currentWeight, activeTravelEncounter, se
 
       if (nextTimer === 0) {
         // Trigger Consequence
-        alert(`💥 시간이 다 되었습니다! 환자의 질병이 악화되어 후과를 받습니다: \n${s.activeAilment.consequence}`);
+        alert(`💥 시간이 다 되었습니다! 환자의 질병이 악화되어 실패 결과를 받습니다: \n${s.activeAilment.consequence}`);
         // Deduct reputation based on severity
         const loss = s.activeAilment.severity === 'dire' ? 4 : s.activeAilment.severity === 'severe' ? 3 : s.activeAilment.severity === 'intermediate' ? 2 : 1;
         newRep = Math.max(0, s.reputation - loss);
         
         journals.unshift({
           id: 'conseq_' + Date.now(),
-          title: `💥 치료 실패 후과: ${s.activeAilment.name}`,
-          text: `환자 치료를 완수하지 못하고 시간이 마감되었습니다.\n\n[후과(Consequence)]\n${s.activeAilment.consequence}\n\n길드 명성 점수가 ${loss}점 깎입니다.`,
+          title: `💥 치료 실패 결과: ${s.activeAilment.name}`,
+          text: `환자 치료를 완수하지 못하고 시간이 마감되었습니다.\n\n[치료 실패 결과(Consequence)]\n${s.activeAilment.consequence}\n\n길드 명성 점수가 ${loss}점 깎입니다.`,
           timestamp: Date.now()
         });
 
@@ -2184,7 +2184,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
                   <div style={{ marginTop: '4px', color: '#444', fontSize: '0.88rem', lineHeight: '1.5' }}>{a.outcome || '성공 보상 장신구 획득'}</div>
                 </div>
                 <div>
-                  <strong style={{ color: 'var(--accent-red)' }}>💥 실패 시 후과 (Consequence):</strong>
+                  <strong style={{ color: 'var(--accent-red)' }}>💥 실패 시 결과 (Consequence):</strong>
                   <div style={{ marginTop: '4px', color: '#444', fontSize: '0.88rem', lineHeight: '1.5' }}>{a.consequence}</div>
                 </div>
               </div>
