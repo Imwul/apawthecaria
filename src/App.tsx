@@ -146,11 +146,11 @@ const INITIAL_BIO: ApothecaryBio = {
 };
 
 const INITIAL_BAG: BagItem[] = [
-  { id: "tool_knife", name: "벨트 칼 (Belt Knife)", weight: 1/3, type: "tool" },
-  { id: "tool_mortar", name: "나무 절구와 공이 (Mortar & Pestle) [GRIND/CRUSH]", weight: 1/3, type: "tool" },
-  { id: "tool_kettle", name: "낡은 캠프 주전자 (Camp Kettle) [BOIL/BREW]", weight: 1/3, type: "tool" },
-  { id: "tool_jaws", name: "이빨 (Jaws) [CHEW/DIGEST]", weight: 0, type: "tool" },
-  { id: "tool_paws", name: "앞발/발톱 (Paws/Claws) [ADD/APPLY]", weight: 0, type: "tool" }
+  { id: "tool_knife", name: "벨트 칼", weight: 1/3, type: "tool" },
+  { id: "tool_mortar", name: "나무 절구와 공이 [GRIND/CRUSH]", weight: 1/3, type: "tool" },
+  { id: "tool_kettle", name: "낡은 캠프 주전자 [BOIL/BREW]", weight: 1/3, type: "tool" },
+  { id: "tool_jaws", name: "이빨 [CHEW/DIGEST]", weight: 0, type: "tool" },
+  { id: "tool_paws", name: "앞발/발톱 [ADD/APPLY]", weight: 0, type: "tool" }
 ];
 
 const INITIAL_STATE: GameState = {
@@ -190,10 +190,10 @@ const formatWeight = (w: number) => {
 };
 
 const getReputationRank = (rep: number) => {
-  if (rep >= 35) return { rank: "신뢰받음 (Trusted)", color: "#5c9c6f" };
-  if (rep >= 25) return { rank: "명망 높음 (Upstanding)", color: "#6ba6c9" };
-  if (rep >= 15) return { rank: "인지도 있음 (Established)", color: "#e59a73" };
-  return { rank: "미등록 (Unknown)", color: "#9b9487" };
+  if (rep >= 35) return { rank: "신뢰받음", color: "#5c9c6f" };
+  if (rep >= 25) return { rank: "명망 높음", color: "#6ba6c9" };
+  if (rep >= 15) return { rank: "인지도 있음", color: "#e59a73" };
+  return { rank: "미등록", color: "#9b9487" };
 };
 
 const formatDateTime = (ts: number) => {
@@ -267,9 +267,8 @@ export default function App() {
   const [reagentFilter, setReagentFilter] = useState("");
   const [ailmentFilter, setAilmentFilter] = useState("");
 
-  // Map image zoom state
-  const [mapScale, setMapScale] = useState(1);
-  const [mapType, setMapType] = useState<'front' | 'back'>('front');
+  // Map image width state
+  const [mapWidth, setMapWidth] = useState(1600);
 
   // Listen to Auth State
   useEffect(() => {
@@ -363,7 +362,7 @@ export default function App() {
   };
 
   const handleReset = () => {
-    if (window.confirm("⚠️ 경고: 정말 모든 진행상황과 연대기를 초기화하고 새로운 아포테카리로 시작하시겠습니까? (저널 일지 기록도 함께 삭제됩니다.)")) {
+    if (window.confirm("⚠️ 경고: 정말 모든 진행상황과 연대기를 초기화하고 새로운 약제사로 시작하시겠습니까? (저널 일지 기록도 함께 삭제됩니다.)")) {
       updateState(() => INITIAL_STATE);
       setActiveTab('play');
     }
@@ -438,7 +437,7 @@ export default function App() {
                 { id: 'bio', label: '🐹 약제사 시트', sub: '프로필 및 배낭' },
                 { id: 'reagents', label: '🌿 영약재 도감', sub: '약초 및 준비법' },
                 { id: 'ailments', label: '🤒 질병 도감', sub: '증상 및 처방전' },
-                { id: 'map', label: '🗺️ 가시나무 숲', sub: '전체 지도 보기' },
+                { id: 'map', label: '🗺️ Bristley Woods 지도', sub: '전체 지도 보기' },
                 { id: 'rulebook', label: '📖 한국어 룰북', sub: '페이지 뷰어' },
                 { id: 'journals', label: '📝 약제사 일지', sub: '저널 백업 및 기록' }
               ].map(t => (
@@ -467,7 +466,7 @@ export default function App() {
                 <div><strong>이름:</strong> {state.bio.name}</div>
                 <div><strong>종족:</strong> {state.bio.descriptor} ({state.bio.examples})</div>
                 <div><strong>이동 스타일:</strong> {state.bio.travelStyle}</div>
-                <div><strong>속도(Speed):</strong> {state.bio.speed} | <strong>명성(Reputation):</strong> {state.reputation}</div>
+                 <div><strong>속도:</strong> {state.bio.speed} | <strong>길드 명성:</strong> {state.reputation}</div>
                 
                 {state.bio.familiarName && (
                   <div style={{ borderTop: '1px dashed var(--glass-border)', marginTop: '0.4rem', paddingTop: '0.4rem' }}>
@@ -555,7 +554,7 @@ export default function App() {
               setFilter={setAilmentFilter}
             />
           )}
-          {activeTab === 'map' && <MapView mapScale={mapScale} setMapScale={setMapScale} mapType={mapType} setMapType={setMapType} />}
+          {activeTab === 'map' && <MapView mapWidth={mapWidth} setMapWidth={setMapWidth} />}
           {activeTab === 'rulebook' && <RulebookView page={rulebookPage} setPage={setRulebookPage} />}
           {activeTab === 'journals' && <JournalsView state={state} updateState={updateState} />}
         </main>
@@ -757,7 +756,7 @@ function PlayView({ state, updateState, currentWeight, activeTravelEncounter, se
 
     // Goal and Distance Draw
     const suits = ['♥', '♦', '♣', '♠'];
-    const suitNames: { [key: string]: string } = { '♥': '북쪽 (North)', '♦': '남쪽 (South)', '♣': '동쪽 (East)', '♠': '서쪽 (West)' };
+    const suitNames: { [key: string]: string } = { '♥': '북쪽', '♦': '남쪽', '♣': '동쪽', '♠': '서쪽' };
     const randomSuit = suits[Math.floor(Math.random() * suits.length)];
     const cardVal = Math.floor(Math.random() * 13) + 1; // 1 to 13
     
@@ -765,13 +764,13 @@ function PlayView({ state, updateState, currentWeight, activeTravelEncounter, se
     let maxDays = 12;
 
     if (cardVal <= 6) {
-      distLabel = "가까운 거리 (Near) — 12일 경로 이하";
+      distLabel = "가까운 거리 — 12일 경로 이하";
       maxDays = state.reputation >= 35 ? 3 : state.reputation >= 25 ? 6 : state.reputation >= 15 ? 9 : 12;
     } else if (cardVal <= 9) {
-      distLabel = "먼 거리 (Far) — 13~24일 경로";
+      distLabel = "먼 거리 — 13~24일 경로";
       maxDays = state.reputation >= 35 ? 6 : state.reputation >= 25 ? 9 : state.reputation >= 15 ? 12 : 15;
     } else {
-      distLabel = "지평선 너머 (Over the Horizon) — 24일 이상 대도시";
+      distLabel = "지평선 너머 — 24일 이상 대도시";
       maxDays = state.reputation >= 35 ? 9 : state.reputation >= 25 ? 12 : state.reputation >= 15 ? 15 : 20;
     }
 
@@ -904,7 +903,7 @@ function PlayView({ state, updateState, currentWeight, activeTravelEncounter, se
       return;
     }
 
-    const startTimer = dbAil.timer + (state.bio.familiarBenefit.includes("따뜻한 치유사") ? 2 : 0);
+    const startTimer = dbAil.timer + (state.bio.familiarBenefit.includes("따뜻한 약제사") ? 2 : 0);
 
     updateState(s => ({
       ...s,
@@ -1269,9 +1268,9 @@ function PlayView({ state, updateState, currentWeight, activeTravelEncounter, se
       {/* 1. If journey is NOT active */}
       {!state.journeyActive && (
         <div className="cute-card" style={{ background: '#fff9ef', border: '1.5px solid var(--secondary)' }}>
-          <h2 style={{ color: 'var(--secondary)' }}>🧭 새로운 여정 떠나기 (New Journey)</h2>
+          <h2 style={{ color: 'var(--secondary)' }}>🧭 새로운 여정 떠나기</h2>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-            브리슬리 우즈(가시나무 숲)의 지도를 열고 어디로 가야할 지, 이번 여행의 목표는 무엇일지 의도를 설정합니다.
+            Bristley Woods 지도를 열고 어디로 가야할 지, 이번 여행의 목표는 무엇일지 의도를 설정합니다.
           </p>
           
           <form onSubmit={handleStartJourney} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
@@ -1682,61 +1681,325 @@ function BioView({ state, updateState, currentWeight }: { state: GameState; upda
   };
 
   return (
-    <div>
-      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>👤 약제사 캐릭터 시트</h2>
+    <div className="parchment-panel cute-border" style={{ padding: '1.8rem', background: '#fffdf9' }}>
       
+      {/* 1. Header with custom fonts */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2.5px solid var(--border-cozy)', paddingBottom: '0.8rem', marginBottom: '1.5rem' }}>
+        <h2 style={{ fontSize: '1.8rem', margin: 0, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)' }}>📜 약제사 기록 시트</h2>
+        {!editing && (
+          <button onClick={() => setEditing(true)} style={{ padding: '0.5rem 1rem', background: 'var(--primary)', color: '#fff', borderRadius: '6px', fontSize: '0.9rem', border: 'none', boxShadow: 'var(--shadow-sm)' }}>
+            🔧 프로필 편집
+          </button>
+        )}
+      </div>
+
       {!editing ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginTop: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           
-          {/* Bio display */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-            <h3>📋 캐릭터 인적사항</h3>
-            <div><strong>이름:</strong> {state.bio.name || '미등록'}</div>
-            <div><strong>종족:</strong> {state.bio.descriptor} ({state.bio.examples})</div>
-            <div><strong>약제사 출발 동기:</strong> <br /><span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{state.bio.originName} - {state.bio.originDesc}</span></div>
-            <div><strong>사역마/메신저:</strong> {state.bio.familiarName || '없음'}</div>
-            <div><strong>사역마 관계:</strong> {state.bio.familiarRelation}</div>
-            <div><strong>사역마 조력 효과:</strong> <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{state.bio.familiarBenefit}</span></div>
-            <button onClick={() => setEditing(true)} style={{ padding: '0.5rem 1rem', background: 'var(--primary-light)', color: 'var(--primary)', border: '1px solid var(--primary)', borderRadius: '6px', marginTop: '1rem', width: 'fit-content' }}>
-              🔧 프로필 수정하기
-            </button>
+          {/* Top Row: PoulticePounder Profile & Familiar Box */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            
+            {/* PoulticePounder (약제사) */}
+            <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff', position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
+                <span style={{ fontSize: '1.8rem' }}>🦡</span>
+                <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>약제사 정보</h3>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
+                <div><strong>약제사 이름:</strong> {state.bio.name || '미등록'}</div>
+                <div><strong>종족 구분:</strong> {state.bio.descriptor} ({state.bio.examples})</div>
+                <div><strong>이동 스타일:</strong> {state.bio.travelStyle}</div>
+                <div><strong>출발 동기:</strong> <span style={{ color: 'var(--text-muted)' }}>{state.bio.originName}</span></div>
+                <div style={{ display: 'flex', gap: '1.5rem', borderTop: '1px dashed #e5dec9', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
+                  <div><strong>이동 속도:</strong> {state.bio.speed}</div>
+                  <div><strong>가방 소지 한도:</strong> {state.bio.carry}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Familiar (사역마) */}
+            <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff', position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
+                <span style={{ fontSize: '1.8rem' }}>🐿️</span>
+                <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>사역마 친구</h3>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
+                <div><strong>사역마 이름:</strong> {state.bio.familiarName || '이름 없음'}</div>
+                <div><strong>길드 관계:</strong> {state.bio.familiarRelation}</div>
+                <div><strong>조력 능력:</strong> <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{state.bio.familiarBenefit}</span></div>
+              </div>
+            </div>
           </div>
 
-          {/* Bags & Weight */}
-          <div>
-            <h3>🎒 배낭 보관함 ({formatWeight(currentWeight)} / {state.bio.carry} Weight)</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '250px', overflowY: 'auto', background: '#faf8f4', padding: '0.8rem', borderRadius: '10px', border: '1.5px solid var(--glass-border)' }}>
-              {state.bag.map(item => (
-                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.9rem', padding: '0.3rem 0.5rem', background: '#fff', borderRadius: '6px', border: '1px solid #eee' }}>
-                  <span>{item.name} <span style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>(무게: {formatWeight(item.weight)})</span></span>
-                  {!item.id.startsWith("tool_") && (
-                    <button onClick={() => handleRemoveBagItem(item.id)} style={{ background: 'transparent', color: 'var(--accent-red)', border: 'none', cursor: 'pointer' }}>❌ 버리기</button>
-                  )}
+          {/* Middle Row: Bags Table & Journey Calendar */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '1.5rem' }}>
+            
+            {/* Bags (배낭 보관함) */}
+            <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>🎒 배낭 수집물</h3>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  무게: <span style={{ color: currentWeight > state.bio.carry ? 'var(--accent-red)' : 'var(--primary)', fontWeight: 'bold' }}>{formatWeight(currentWeight)}</span> / {state.bio.carry}
+                </span>
+              </div>
+              
+              <div style={{ overflowX: 'auto', maxHeight: '240px', overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1.5px solid var(--border-cozy)', color: 'var(--text-muted)' }}>
+                      <th style={{ padding: '0.4rem 0.5rem' }}>수집 물품명</th>
+                      <th style={{ padding: '0.4rem 0.5rem', width: '80px' }}>분류</th>
+                      <th style={{ padding: '0.4rem 0.5rem', width: '70px' }}>무게</th>
+                      <th style={{ padding: '0.4rem 0.5rem', width: '40px' }}>삭제</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {state.bag.map(item => (
+                      <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '0.5rem', fontWeight: 'bold', color: 'var(--text-bright)' }}>{item.name}</td>
+                        <td style={{ padding: '0.5rem', color: 'var(--text-muted)' }}>{item.id.startsWith("tool_") ? '도구' : '약초/기타'}</td>
+                        <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>{formatWeight(item.weight)}</td>
+                        <td style={{ padding: '0.5rem' }}>
+                          {!item.id.startsWith("tool_") ? (
+                            <button onClick={() => handleRemoveBagItem(item.id)} style={{ background: 'transparent', color: 'var(--accent-red)', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}>❌</button>
+                          ) : (
+                            <span style={{ color: 'var(--text-dim)' }}>-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {state.bag.length === 0 && (
+                      <tr>
+                        <td colSpan={4} style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-dim)', fontStyle: 'italic' }}>배낭이 비어 있습니다.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <form onSubmit={handleAddBagItem} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.4rem', marginTop: '0.8rem', borderTop: '1px dashed #eee', paddingTop: '0.8rem' }}>
+                <input 
+                  type="text" 
+                  placeholder="아이템 이름 수동 기입..." 
+                  value={newBagItemName}
+                  onChange={e => setNewBagItemName(e.target.value)}
+                  style={{ height: '36px', fontSize: '0.85rem' }}
+                />
+                <select value={newBagItemWeight} onChange={e => setNewBagItemWeight(parseFloat(e.target.value))} style={{ height: '36px', fontSize: '0.85rem' }}>
+                  <option value={0.3333333333333333}>무게 1/3</option>
+                  <option value={0.6666666666666666}>무게 2/3</option>
+                  <option value={1.0}>무게 1.0</option>
+                  <option value={0.0}>무게 0</option>
+                </select>
+                <button type="submit" style={{ background: 'var(--primary)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem', height: '36px' }}>🎒 추가</button>
+              </form>
+            </div>
+
+            {/* Journey & Calendar */}
+            <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <h3 style={{ margin: 0, borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem', fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>🧭 여정 계획</h3>
+                {state.journeyActive ? (
+                  <div style={{ fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <div><strong>목적지:</strong> {state.journeyDestination}</div>
+                    <div><strong>목표:</strong> {state.journeyGoalTitle}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: '#faf6ee', padding: '0.5rem', borderRadius: '6px', border: '1px solid #e5dec9' }}>
+                      {state.journeyGoalDesc}
+                    </div>
+                    <div><strong>방향/방위:</strong> {state.journeyDirection}</div>
+                    <div><strong>거리 형태:</strong> {state.journeyDistance}</div>
+                  </div>
+                ) : (
+                  <div style={{ fontStyle: 'italic', color: 'var(--text-dim)', fontSize: '0.85rem', textAlign: 'center', padding: '1rem 0' }}>
+                    활성화된 여정이 없습니다.
+                  </div>
+                )}
+              </div>
+
+              {/* Calendar stamp grid */}
+              <div style={{ borderTop: '1.5px dashed var(--border-cozy)', paddingTop: '0.8rem', marginTop: '0.8rem' }}>
+                <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', color: 'var(--secondary)', fontFamily: 'var(--font-fancy)' }}>📅 일정 소모 기록</h4>
+                {state.journeyActive ? (
+                  <div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
+                      {Array.from({ length: state.calendarMaxDays }).map((_, idx) => {
+                        const isPassed = idx < state.calendarDays;
+                        return (
+                          <button 
+                            key={idx}
+                            onClick={() => {
+                              if (isPassed) {
+                                updateState((s: any) => ({ ...s, calendarDays: idx }));
+                              } else {
+                                updateState((s: any) => ({ ...s, calendarDays: idx + 1 }));
+                              }
+                            }}
+                            style={{
+                              aspectRatio: '1',
+                              border: '1.5px solid var(--border-cozy)',
+                              borderRadius: '4px',
+                              background: isPassed ? 'var(--secondary-light)' : '#fff',
+                              color: 'var(--secondary)',
+                              fontWeight: 'bold',
+                              fontSize: '0.9rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              boxShadow: isPassed ? 'none' : '0 2px 4px rgba(0,0,0,0.05)'
+                            }}
+                          >
+                            {isPassed ? '印' : idx + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem', textAlign: 'center' }}>
+                      하루 소모 시 각 칸을 눌러 도장(印)을 찍으세요. ({state.calendarDays} / {state.calendarMaxDays}일 경과)
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontStyle: 'italic', color: 'var(--text-dim)', fontSize: '0.85rem', textAlign: 'center' }}>
+                    여정 출발 후 달력 도장판이 나타납니다.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Row: Companions, Guild, Trinkets */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            
+            {/* Companions & Trinkets */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              
+              {/* Companions (동반자) */}
+              <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
+                  <span style={{ fontSize: '1.8rem' }}>🪲</span>
+                  <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>동반자 곤충</h3>
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                  아직 고용된 곤충 동반자가 없습니다. 도시의 길드 편의소에서 입양하여 여행의 조력자로 삼으세요.
+                </div>
+              </div>
+
+              {/* Trinkets (장신구) */}
+              <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>🪙 물꼬 장신구</h3>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>보유: {state.trinkets.length}개</span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
+                  {state.trinkets.map((t, idx) => (
+                    <span key={idx} style={{ padding: '0.3rem 0.6rem', background: '#fff9ef', border: '1.5px solid var(--secondary)', color: 'var(--secondary-hover)', borderRadius: '20px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      🪙 {t}
+                      <button 
+                        onClick={() => {
+                          if (confirm("이 장신구를 물꼬 거래나 조력에 소모하시겠습니까?")) {
+                            updateState((s: any) => {
+                              const next = [...s.trinkets];
+                              next.splice(idx, 1);
+                              return { ...s, trinkets: next };
+                            });
+                          }
+                        }} 
+                        style={{ background: 'transparent', border: 'none', color: 'var(--accent-red)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}
+                      >
+                        ✖
+                      </button>
+                    </span>
+                  ))}
+                  {state.trinkets.length === 0 && <span style={{ fontStyle: 'italic', color: 'var(--text-dim)', fontSize: '0.85rem' }}>보유한 장신구가 없습니다.</span>}
+                </div>
+                <form onSubmit={handleAddTrinket} style={{ display: 'flex', gap: '0.4rem' }}>
+                  <input 
+                    type="text" 
+                    placeholder="장신구 직접 기입..." 
+                    value={newTrinket}
+                    onChange={e => setNewTrinket(e.target.value)}
+                    style={{ flex: 1, height: '36px', fontSize: '0.85rem' }}
+                  />
+                  <button type="submit" style={{ padding: '0 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem', height: '36px' }}>추가</button>
+                </form>
+              </div>
+            </div>
+
+            {/* The Guild (약제사 치유 길드) */}
+            <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <h3 style={{ margin: 0, borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem', fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>🛡️ 치유 길드 명성</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#faf6ee', padding: '0.8rem', borderRadius: '8px', border: '1px solid #e5dec9', marginBottom: '1rem' }}>
+                  <div><strong>길드 명성 수치:</strong></div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>{state.reputation}</div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.9rem' }}>
+                  {[
+                    { label: '미등록 (0+)', minRep: 0 },
+                    { label: '인지도 있음 (15+)', minRep: 15 },
+                    { label: '명망 높음 (25+)', minRep: 25 },
+                    { label: '신뢰받음 (35+)', minRep: 35 }
+                  ].map(level => {
+                    const isActive = state.reputation >= level.minRep;
+                    return (
+                      <div key={level.label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: isActive ? 'var(--text-bright)' : 'var(--text-dim)', fontWeight: isActive ? 'bold' : 'normal' }}>
+                        <div style={{ width: '18px', height: '18px', border: '2.2px solid var(--border-cozy)', borderRadius: '4px', background: isActive ? 'var(--primary)' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '10px' }}>
+                          {isActive && '✓'}
+                        </div>
+                        <span>{level.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '10px 0 0 0', borderTop: '1px dashed #eee', paddingTop: '0.8rem', lineHeight: '1.4' }}>
+                성공적으로 약제 처방을 마칠 때마다 명성이 올라갑니다. 높은 길드 단계에서는 새로운 마차 확장 칸과 업그레이드가 개방됩니다.
+              </p>
+            </div>
+          </div>
+
+          {/* Stamped Icons: Preparation Methods */}
+          <div style={{ borderTop: '2.5px solid var(--border-cozy)', paddingTop: '1.2rem', marginTop: '0.5rem' }}>
+            <h3 style={{ fontSize: '1.3rem', color: 'var(--primary)', textAlign: 'center', marginBottom: '1rem', fontFamily: 'var(--font-fancy)' }}>🔬 약제 조제 기법 도장</h3>
+            <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
+              {[
+                { label: '빻기/갈기', sub: '빻기, p.12' },
+                { label: '끓이기', sub: '끓이기, p.12' },
+                { label: '씹기/소화', sub: '씹기, p.12' },
+                { label: '바르기/부착', sub: '바르기, p.12' },
+                { label: '이중탕', sub: '이중탕, p.66' },
+                { label: '두드리기', sub: '두드리기, p.68' },
+                { label: '촉매작용', sub: '촉매작용, p.83' },
+                { label: '증류하기', sub: '증류, p.82' },
+                { label: '보존하기', sub: '보존, p.82' },
+                { label: '요리하기', sub: '요리, p.62' },
+                { label: '정화하기', sub: '정화, p.??' }
+              ].map((stamp, idx) => (
+                <div 
+                  key={idx} 
+                  className="stamped-icon"
+                  style={{ 
+                    transform: `rotate(${((idx % 3) - 1) * 5}deg)`,
+                    borderColor: idx < 5 ? 'var(--primary)' : 'var(--secondary)',
+                    color: idx < 5 ? 'var(--primary)' : 'var(--secondary)',
+                    background: idx < 5 ? '#f3faf5' : '#faf5f0',
+                    width: '64px',
+                    height: '64px',
+                    fontSize: '0.7rem'
+                  }}
+                >
+                  <span style={{ fontWeight: 'bold' }}>{stamp.label}</span>
+                  <span style={{ fontSize: '0.5rem', opacity: 0.8, marginTop: '1px' }}>{stamp.sub}</span>
                 </div>
               ))}
             </div>
-
-            {/* Add Custom item to bag */}
-            <form onSubmit={handleAddBagItem} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.4rem', marginTop: '0.8rem' }}>
-              <input 
-                type="text" 
-                placeholder="가방에 넣을 물품/영약재 수동 추가..." 
-                value={newBagItemName}
-                onChange={e => setNewBagItemName(e.target.value)}
-              />
-              <select value={newBagItemWeight} onChange={e => setNewBagItemWeight(parseFloat(e.target.value))}>
-                <option value={0.3333333333333333}>무게 1/3</option>
-                <option value={0.6666666666666666}>무게 2/3</option>
-                <option value={1.0}>무게 1.0</option>
-                <option value={0.0}>무게 없음 (0)</option>
-              </select>
-              <button type="submit" style={{ background: 'var(--primary)', color: '#fff', borderRadius: '6px' }}>🎒 넣기</button>
-            </form>
           </div>
+
         </div>
       ) : (
-        <form onSubmit={handleSaveBio} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem', maxWidth: '500px' }}>
-          <h3>🔧 프로필 편집</h3>
+        <form onSubmit={handleSaveBio} className="cute-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '1rem', maxWidth: '500px', background: '#fff' }}>
+          <h3 style={{ borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', fontFamily: 'var(--font-fancy)', color: 'var(--secondary)', fontSize: '1.4rem' }}>🔧 약제사 프로필 수정</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             <label><strong>약제사 이름:</strong></label>
             <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="약제사 동물의 이름을 지어주세요" />
@@ -1746,53 +2009,11 @@ function BioView({ state, updateState, currentWeight }: { state: GameState; upda
             <input type="text" value={familiarName} onChange={e => setFamiliarName(e.target.value)} placeholder="사역마 친구의 이름을 지어주세요" />
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-            <button type="submit" style={{ padding: '0.6rem 1.2rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold' }}>저장</button>
-            <button type="button" onClick={() => setEditing(false)} style={{ padding: '0.6rem 1.2rem', background: '#ccc', color: '#333', borderRadius: '8px' }}>취소</button>
+            <button type="submit" style={{ padding: '0.6rem 1.2rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.95rem' }}>저장</button>
+            <button type="button" onClick={() => setEditing(false)} style={{ padding: '0.6rem 1.2rem', background: '#ccc', color: '#333', borderRadius: '8px', fontSize: '0.95rem' }}>취소</button>
           </div>
         </form>
       )}
-
-      {/* Trinkets section */}
-      <div style={{ marginTop: '2.5rem', borderTop: '1.5px solid var(--glass-border)', paddingTop: '1.5rem' }}>
-        <h3>🪙 획득한 장신구 목록 (Trinkets - 물꼬 화폐)</h3>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          가시나무 숲에는 표준 화폐가 없습니다. 대신 장신구나 소문, 우정으로 거래합니다. 치료 완치 시 획득합니다.
-        </p>
-        
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-          {state.trinkets.map((t, idx) => (
-            <span key={idx} style={{ padding: '0.4rem 0.8rem', background: '#fff9ef', border: '1px solid var(--secondary)', color: 'var(--secondary-hover)', borderRadius: '20px', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-              🪙 {t}
-              <button 
-                onClick={() => {
-                  if (confirm("이 장신구를 소모합니까?")) {
-                    updateState(s => {
-                      const next = [...s.trinkets];
-                      next.splice(idx, 1);
-                      return { ...s, trinkets: next };
-                    });
-                  }
-                }} 
-                style={{ background: 'transparent', border: 'none', color: 'var(--accent-red)', cursor: 'pointer', fontSize: '0.75rem' }}
-              >
-                ✖
-              </button>
-            </span>
-          ))}
-          {state.trinkets.length === 0 && <span style={{ fontStyle: 'italic', color: 'var(--text-dim)' }}>보유한 장신구가 없습니다.</span>}
-        </div>
-
-        <form onSubmit={handleAddTrinket} style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', maxWidth: '400px' }}>
-          <input 
-            type="text" 
-            placeholder="장신구 아이템 획득 수동 입력..." 
-            value={newTrinket}
-            onChange={e => setNewTrinket(e.target.value)}
-            style={{ flex: 1 }}
-          />
-          <button type="submit" style={{ padding: '0.5rem 1rem', background: 'var(--secondary)', color: '#fff', borderRadius: '6px' }}>🪙 추가</button>
-        </form>
-      </div>
     </div>
   );
 }
@@ -1809,9 +2030,9 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
 
   return (
     <div>
-      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>🌿 영약재 도감 (Reagents Almanack)</h2>
+      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>🌿 영약재 도감</h2>
       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-        각 영약재 부위는 특정한 조제법(빻기, 끓이기, 바르기 등)을 통과해 질병 증상을 Soothe(치료)할 수 있는 고유 약효를 냅니다.
+        각 영약재 부위는 특정한 조제법(빻기, 끓이기, 바르기 등)을 통과해 질병 증상을 치료할 수 있는 고유 약효를 냅니다.
       </p>
 
       {/* Search and Filters */}
@@ -1825,25 +2046,25 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
         />
         <select value={filter} onChange={e => setFilter(e.target.value)}>
           <option value="">전체 치료 효과</option>
-          <option value="pain">통증 (Pain)</option>
-          <option value="wound">상처 (Wound)</option>
-          <option value="infection">감염 (Infection)</option>
-          <option value="parasite">기생충 (Parasite)</option>
-          <option value="senses">감각 (Senses)</option>
-          <option value="sleep">수면 (Sleep)</option>
-          <option value="breath">호흡 (Breath)</option>
-          <option value="burn">화상 (Burn)</option>
-          <option value="fur">털 (Fur)</option>
-          <option value="feather">깃털 (Feather)</option>
-          <option value="hide">가죽 (Hide)</option>
-          <option value="scale">비늘 (Scale)</option>
-          <option value="poison">독 (Poison)</option>
-          <option value="stomach">위장 (Stomach)</option>
-          <option value="temperature">체온 (Temperature)</option>
-          <option value="joy">기쁨 (Joy)</option>
-          <option value="mood">기분 (Mood)</option>
-          <option value="instinct">본능 (Instinct)</option>
-          <option value="elsewhere">저편 (Elsewhere)</option>
+          <option value="pain">통증</option>
+          <option value="wound">상처</option>
+          <option value="infection">감염</option>
+          <option value="parasite">기생충</option>
+          <option value="senses">감각</option>
+          <option value="sleep">수면</option>
+          <option value="breath">호흡</option>
+          <option value="burn">화상</option>
+          <option value="fur">털</option>
+          <option value="feather">깃털</option>
+          <option value="hide">가죽</option>
+          <option value="scale">비늘</option>
+          <option value="poison">독</option>
+          <option value="stomach">위장</option>
+          <option value="temperature">체온</option>
+          <option value="joy">기쁨</option>
+          <option value="mood">기분</option>
+          <option value="instinct">본능</option>
+          <option value="elsewhere">저편</option>
         </select>
       </div>
 
@@ -1908,7 +2129,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
 
   return (
     <div>
-      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>🤒 질병 도감 (Ailments Book)</h2>
+      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>🤒 질병 도감</h2>
       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
         약제사는 주민 야수들의 다양한 병증을 식별할 수 있습니다. 환자를 약제소에 등록할 때 이름을 도감에서 찾아 적용해 주세요.
       </p>
@@ -1924,25 +2145,25 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
         />
         <select value={filter} onChange={e => setFilter(e.target.value)}>
           <option value="">전체 치료 효과</option>
-          <option value="pain">통증 (Pain)</option>
-          <option value="wound">상처 (Wound)</option>
-          <option value="infection">감염 (Infection)</option>
-          <option value="parasite">기생충 (Parasite)</option>
-          <option value="senses">감각 (Senses)</option>
-          <option value="sleep">수면 (Sleep)</option>
-          <option value="breath">호흡 (Breath)</option>
-          <option value="burn">화상 (Burn)</option>
-          <option value="fur">털 (Fur)</option>
-          <option value="feather">깃털 (Feather)</option>
-          <option value="hide">가죽 (Hide)</option>
-          <option value="scale">비늘 (Scale)</option>
-          <option value="poison">독 (Poison)</option>
-          <option value="stomach">위장 (Stomach)</option>
-          <option value="temperature">체온 (Temperature)</option>
-          <option value="joy">기쁨 (Joy)</option>
-          <option value="mood">기분 (Mood)</option>
-          <option value="instinct">본능 (Instinct)</option>
-          <option value="elsewhere">저편 (Elsewhere)</option>
+          <option value="pain">통증</option>
+          <option value="wound">상처</option>
+          <option value="infection">감염</option>
+          <option value="parasite">기생충</option>
+          <option value="senses">감각</option>
+          <option value="sleep">수면</option>
+          <option value="breath">호흡</option>
+          <option value="burn">화상</option>
+          <option value="fur">털</option>
+          <option value="feather">깃털</option>
+          <option value="hide">가죽</option>
+          <option value="scale">비늘</option>
+          <option value="poison">독</option>
+          <option value="stomach">위장</option>
+          <option value="temperature">체온</option>
+          <option value="joy">기쁨</option>
+          <option value="mood">기분</option>
+          <option value="instinct">본능</option>
+          <option value="elsewhere">저편</option>
         </select>
       </div>
 
@@ -1978,7 +2199,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
               <button 
                 onClick={() => {
                   updateState(s => {
-                    const startTimer = a.timer + (s.bio.familiarBenefit.includes("따뜻한 치유사") ? 2 : 0);
+                    const startTimer = a.timer + (s.bio.familiarBenefit.includes("따뜻한 약제사") ? 2 : 0);
                     return {
                       ...s,
                       activeAilment: {
@@ -2013,41 +2234,157 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
 // =================================================================
 // 9. MAP VIEW COMPONENT
 // =================================================================
-function MapView({ mapScale, setMapScale, mapType, setMapType }: { mapScale: number; setMapScale: any; mapType: 'front' | 'back'; setMapType: any }) {
-  // Panning using scroll container
+function MapView({ mapWidth, setMapWidth }: { mapWidth: number; setMapWidth: any }) {
+  const handleZoomOut = () => setMapWidth((w: number) => Math.max(800, w - 200));
+  const handleZoomIn = () => setMapWidth((w: number) => Math.min(3000, w + 200));
+  const handleReset = () => setMapWidth(1600);
+
   return (
     <div>
-      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>🗺️ 브리슬리 우즈 지도 (Map Front / Back)</span>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={() => setMapType('front')} style={{ padding: '0.3rem 0.6rem', background: mapType === 'front' ? 'var(--primary)' : '#eee', color: mapType === 'front' ? '#fff' : '#333', borderRadius: '4px', fontSize: '0.85rem' }}>전면부 지도 (Front)</button>
-          <button onClick={() => setMapType('back')} style={{ padding: '0.3rem 0.6rem', background: mapType === 'back' ? 'var(--primary)' : '#eee', color: mapType === 'back' ? '#fff' : '#333', borderRadius: '4px', fontSize: '0.85rem' }}>후면부 지도 (Back)</button>
-          <button onClick={() => setMapScale(Math.max(0.5, mapScale - 0.2))} style={{ padding: '0.3rem', background: '#eee', borderRadius: '4px', width: '30px' }}>-</button>
-          <button onClick={() => setMapScale(Math.min(3, mapScale + 0.2))} style={{ padding: '0.3rem', background: '#eee', borderRadius: '4px', width: '30px' }}>+</button>
-          <button onClick={() => setMapScale(1)} style={{ padding: '0.3rem 0.6rem', background: '#eee', borderRadius: '4px' }}>초기화</button>
+      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
+        <span>🗺️ Bristley Woods 지도</span>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>지도 너비 조절:</span>
+          <input 
+            type="range" 
+            min="800" 
+            max="3000" 
+            step="100"
+            value={mapWidth} 
+            onChange={e => setMapWidth(parseInt(e.target.value))}
+            style={{ width: '130px', height: '24px', padding: 0 }}
+          />
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', minWidth: '50px', textAlign: 'right' }}>{mapWidth}px</span>
+          <button onClick={handleZoomOut} style={{ padding: '0.3rem', background: '#eee', borderRadius: '4px', width: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '30px' }}>-</button>
+          <button onClick={handleZoomIn} style={{ padding: '0.3rem', background: '#eee', borderRadius: '4px', width: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '30px' }}>+</button>
+          <button onClick={handleReset} style={{ padding: '0.3rem 0.6rem', background: '#eee', borderRadius: '4px', height: '30px', fontSize: '0.85rem' }}>초기화</button>
         </div>
       </h2>
 
-      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
-        마우스를 올리거나 터치하여 스크롤해 보세요. 경로와 지형을 보며 속도에 맞춰 이동합니다.
-      </p>
+      <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginTop: '1rem' }}>
+        {/* Left column: Main Map Viewer */}
+        <div style={{ flex: '1 1 65%', minWidth: '320px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+            마우스 드래그나 스크롤로 지도를 탐색해보세요. 우측의 거리 축척과 기호 범례를 보며 경로를 설정합니다.
+          </p>
 
-      <div style={{ border: '2px solid var(--glass-border)', borderRadius: '12px', height: '500px', overflow: 'auto', background: '#eee', position: 'relative' }}>
-        <div 
-          style={{
-            transform: `scale(${mapScale})`,
-            transformOrigin: 'top left',
-            width: 'fit-content',
-            height: 'fit-content',
-            transition: 'transform 0.1s ease'
-          }}
-        >
-          {/* Map Back HQ / Back / Front image loading */}
-          <img 
-            src={mapType === 'front' ? "/Apawthecaria Map Front.jpg" : "/Apawthecaria Map Back.jpg"} 
-            alt="Apawthecaria Map" 
-            style={{ display: 'block', maxWidth: 'none', height: 'auto', width: '1200px' }}
-          />
+          <div 
+            style={{ 
+              border: '2px solid var(--border-cozy)', 
+              borderRadius: '12px', 
+              height: '650px', 
+              overflow: 'auto', 
+              background: '#eae6df', 
+              position: 'relative',
+              boxShadow: 'inset 0 4px 10px rgba(0,0,0,0.05)'
+            }}
+          >
+            {/* Scrollable Map */}
+            <div 
+              style={{
+                width: 'fit-content',
+                height: 'fit-content',
+              }}
+            >
+              <img 
+                src="/Apawthecaria Map Back.jpg" 
+                alt="Bristley Woods Map" 
+                style={{ 
+                  display: 'block', 
+                  maxWidth: 'none', 
+                  height: 'auto', 
+                  width: `${mapWidth}px`,
+                  transition: 'width 0.2s ease-out'
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Right column: Custom HTML Map Key & Scale Card */}
+        <div style={{ flex: '1 1 30%', minWidth: '280px', maxWidth: '380px' }}>
+          <div className="cute-card" style={{ padding: '1rem', background: '#fff', border: '2.5px solid var(--border-cozy)', borderRadius: '12px' }}>
+            <h3 style={{ borderBottom: '1.5px dashed var(--glass-border)', paddingBottom: '0.4rem', marginBottom: '0.8rem', color: 'var(--primary)', fontSize: '1.1rem', fontFamily: 'var(--font-fancy)' }}>
+              🧭 이동 거리 및 축척 자
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.85rem', marginBottom: '1.2rem', padding: '0.6rem', background: '#faf8f4', borderRadius: '8px', border: '1px solid #e5dec9' }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: 'var(--text-bright)' }}>
+                  <span>🐾 도보 (Paws)</span>
+                  <span>1경로 = 1일</span>
+                </div>
+                <div style={{ height: '8px', background: '#e0d8c3', borderRadius: '4px', marginTop: '4px', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ width: '100%', height: '100%', background: 'var(--secondary)', position: 'absolute', top: 0, left: 0 }} />
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>일반적인 도보 경로 탐험에 사용되는 기본 축척입니다.</div>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: 'var(--text-bright)' }}>
+                  <span>🪶 날개 (Wings)</span>
+                  <span>1경로 = 1일 (지형 무시)</span>
+                </div>
+                <div style={{ height: '8px', background: '#e0d8c3', borderRadius: '4px', marginTop: '4px', position: 'relative' }}>
+                  <div style={{ width: '100%', height: '100%', background: '#4a8ca8', borderRadius: '4px', borderStyle: 'dashed', borderWidth: '0 0 8px 0' }} />
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>강이나 호수 등 수로를 가로질러 비행할 수 있습니다.</div>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: 'var(--text-bright)' }}>
+                  <span>🦅 비행 (Soar)</span>
+                  <span>먼 거리 이동 = 1일</span>
+                </div>
+                <div style={{ height: '8px', background: '#e0d8c3', borderRadius: '4px', marginTop: '4px', position: 'relative' }}>
+                  <div style={{ width: '100%', height: '100%', background: '#9275a8', borderRadius: '4px' }} />
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>하늘 높이 날아 빠르게 이동하지만 Soar 전용 조우가 일어납니다.</div>
+              </div>
+            </div>
+
+            <h3 style={{ borderBottom: '1.5px dashed var(--glass-border)', paddingBottom: '0.4rem', marginBottom: '0.6rem', color: 'var(--primary)', fontSize: '1.1rem', fontFamily: 'var(--font-fancy)' }}>
+              🗺️ 지도 범례
+            </h3>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', fontSize: '0.8rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#c9524b', borderRadius: '2px' }} />
+                <strong>도시</strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#3d6c48', borderRadius: '50%' }} />
+                <strong>마을</strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ fontSize: '1rem' }}>🌲</span>
+                <strong>야생</strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ fontSize: '1rem' }}>🏛️</span>
+                <strong>티탄 유적</strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ fontSize: '1rem' }}>🪦</span>
+                <strong>야수 고분군</strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ fontSize: '1rem' }}>🏥</span>
+                <strong>약제소</strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ fontSize: '1.1rem', color: '#4a8ca8' }}>〰️</span>
+                <strong>수로</strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ fontSize: '1.1rem', color: '#8b5a2b' }}>🛤️</span>
+                <strong>연결 경로</strong>
+              </div>
+            </div>
+            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.8rem', borderTop: '1px dashed #eee', paddingTop: '0.5rem', textAlign: 'center', lineHeight: '1.3' }}>
+              지도의 모든 지명은 영문 표기가 고유명사이므로 지도의 원본 텍스트를 참조하세요.
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -2170,11 +2507,11 @@ function JournalsView({ state, updateState }: { state: GameState; updateState: a
   return (
     <div>
       <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>📝 약제사 연대기 일지 (Journals & Saves)</span>
+        <span>📝 약제사 연대기 일지</span>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button onClick={handleExportData} style={{ padding: '0.4rem 0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem' }}>💾 내 데이터 백업하기</button>
           <label style={{ padding: '0.4rem 0.8rem', background: '#eee', color: '#333', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer' }}>
-            📥 데이터 가져오기 (Import)
+            📥 데이터 불러오기
             <input type="file" accept=".json" onChange={handleImportData} style={{ display: 'none' }} />
           </label>
         </div>

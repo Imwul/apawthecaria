@@ -29,83 +29,83 @@ export interface Encounter {
 export const GAME_DATA = {
   bioChoices: {
     descriptors: [
-      { card: "A", name: "수생 동물 (Aquatic)", examples: "비버, 딱새, 도롱뇽, 개구리" },
-      { card: "2", name: "노래하는 조류 (Melodic)", examples: "되새, 박새, 제비, 어치" },
-      { card: "3", name: "땅파는 포유류 (Burrowing)", examples: "오소리, 토끼, 고슴도치, 두더지" },
-      { card: "4", name: "장난꾸러기 조류/포유류 (Playful)", examples: "까마귀, 종다리, 칼새, 수달" },
-      { card: "5", name: "털 많은 포유류 (Befurred)", examples: "청서, 땃쥐, 멧밭쥐" },
-      { card: "6", name: "비늘 있는 파충류 (Bescaled)", examples: "장님뱀, 살모사" },
-      { card: "7", name: "발톱이 있는 맹수/조류 (Clawed)", examples: "삵, 황조롱이, 족제비" },
-      { card: "8", name: "햇볕을 즐기는 동물 (Sun-loving)", examples: "담비, 도마뱀, 갈매기, 비둘기" },
-      { card: "9", name: "별빛에 춤추는 야행성 (Star-dancing)", examples: "박쥐, 여우, 쥐, 쏙독새" },
-      { card: "10", name: "진흙에 사는 조류/양서류 (Mud-dwelling)", examples: "뜸부기, 두꺼비, 도롱뇽" },
-      { card: "J", name: "눈에 띄지 않는 동물 (Unnoticed)", examples: "바위종다리, 금눈쇠부엉이, 들쥐" },
-      { card: "M", name: "위엄 있는 조류/포유류 (Majestic)", examples: "맷닭, 소나무담비" }
+      { card: "A", name: "수생 동물", examples: "비버, 딱새, 도롱뇽, 개구리" },
+      { card: "2", name: "노래하는 조류", examples: "되새, 박새, 제비, 어치" },
+      { card: "3", name: "땅파는 포유류", examples: "오소리, 토끼, 고슴도치, 두더지" },
+      { card: "4", name: "장난꾸러기 조류/포유류", examples: "까마귀, 종다리, 칼새, 수달" },
+      { card: "5", name: "털 많은 포유류", examples: "청서, 땃쥐, 멧밭쥐" },
+      { card: "6", name: "비늘 있는 파충류", examples: "장님뱀, 살모사" },
+      { card: "7", name: "발톱이 있는 맹수/조류", examples: "삵, 황조롱이, 족제비" },
+      { card: "8", name: "햇볕을 즐기는 동물", examples: "담비, 도마뱀, 갈매기, 비둘기" },
+      { card: "9", name: "별빛에 춤추는 야행성", examples: "박쥐, 여우, 쥐, 쏙독새" },
+      { card: "10", name: "진흙에 사는 조류/양서류", examples: "뜸부기, 두꺼비, 도롱뇽" },
+      { card: "J", name: "눈에 띄지 않는 동물", examples: "바위종다리, 금눈쇠부엉이, 들쥐" },
+      { card: "M", name: "위엄 있는 조류/포유류", examples: "맷닭, 소나무담비" }
     ],
     travelStyles: [
-      { suit: "♥", name: "천천히 꾸준하게 (Slow and Steady)", speed: 2, carry: 5, desc: "느긋하게 풍경을 감상하며 느리지만 튼튼하게 이동합니다." },
-      { suit: "♦ / ♣", name: "방랑하며 든든하게 (Rambling and Ready)", speed: 3, carry: 4, desc: "산과 호수를 가볍게 넘나들며 하이킹할 준비가 되어 있습니다." },
-      { suit: "♠", name: "빠르고 대담하게 (Fast and Heady)", speed: 4, carry: 3, desc: "덤불을 뚫고 숲을 가로질러 위험을 개의치 않고 달려갑니다." },
-      { suit: "선택", name: "가볍고 신속하게 (Swift and Soaring)", speed: 5, carry: 2, desc: "날개를 활짝 펴고 기류를 타며 소리 없이 활공합니다. (비행 가능)" }
+      { suit: "♥", name: "천천히 꾸준하게", speed: 2, carry: 5, desc: "느긋하게 풍경을 감상하며 느리지만 튼튼하게 이동합니다." },
+      { suit: "♦ / ♣", name: "방랑하며 든든하게", speed: 3, carry: 4, desc: "산과 호수를 가볍게 넘나들며 하이킹할 준비가 되어 있습니다." },
+      { suit: "♠", name: "빠르고 대담하게", speed: 4, carry: 3, desc: "덤불을 뚫고 숲을 가로질러 위험을 개의치 않고 달려갑니다." },
+      { suit: "선택", name: "가볍고 신속하게", speed: 5, carry: 2, desc: "날개를 활짝 펴고 기류를 타며 소리 없이 활공합니다. (비행 가능)" }
     ],
     origins: [
-      { suit: "♥", name: "지나가는 아포테카리의 영감", desc: "이 길을 스쳐간 노련한 아포테카리가 남긴 인상적인 의술의 영향을 받았습니다." },
-      { suit: "♦", name: "늙은 아포테카리의 보조원 모집", desc: "나이 든 아포테카리를 도와 숲속의 영약재를 찾는 보조원으로 의술을 배웠습니다." },
+      { suit: "♥", name: "지나가는 약제사의 영감", desc: "이 길을 스쳐간 노련한 약제사가 남긴 인상적인 의술의 영향을 받았습니다." },
+      { suit: "♦", name: "늙은 약제사의 조수 모집", desc: "나이 든 약제사를 도와 숲속의 영약재를 찾는 조수로 의술을 배웠습니다." },
       { suit: "♣", name: "격렬한 부상 치료 경험", desc: "야수와의 마주침에서 입은 끔찍한 부상을 치료받으며 약초의 위대함을 알게 되었습니다." },
-      { suit: "♠", name: "사고 후의 치료 서비스", desc: "큰 사고를 겪고 치유사의 도움을 받으면서 아포테카리의 길을 걷기로 결심했습니다." }
+      { suit: "♠", name: "사고 후의 치료 서비스", desc: "큰 사고를 겪고 약제사의 도움을 받으면서 약제사의 길을 걷기로 결심했습니다." }
     ],
     familiars: [
-      { card: "A", name: "덤불 마스터 (Brushwise)", desc: "식물 영약재의 희귀도(Rarity) -2" },
-      { card: "2", name: "따뜻한 치유사 (Helpful)", desc: "모든 질병 치료 시작 타이머(Timer) +2시간" },
-      { card: "3", name: "용감한 동반자 (Brave)", desc: "거대 야수(Behemoth)와의 위험 조우를 긍정적으로 해결하고 영약재를 획득" },
-      { card: "4", name: "말동무 (Chatty)", desc: "물꼬(Barter) 거래 시, 원하는 영약재의 기본 희귀도 -2" },
-      { card: "5", name: "빈틈없는 계산기 (Shrewd)", desc: "치료제를 장신구(Trinket)로 교환할 때 장신구 +1 획득" },
-      { card: "6", name: "힘센 일꾼 (Vigorous)", desc: "소지량(Carry) +2 (수레가 있을 경우 +4)" },
-      { card: "7", name: "자원 기획가 (Resourceful)", desc: "희귀도 7 이하 영약재 하나를 지정하여 지역과 상관없이 채집 가능" },
-      { card: "8", name: "베테랑 길잡이 (Seasoned)", desc: "여정 조우 드로우 시 2장을 뽑아 원하는 카드를 선택" },
-      { card: "9", name: "예리한 관찰자 (Perceptive)", desc: "질병 치료 시작 시 채집 포인트(Foraging Points) +2 획득" },
-      { card: "10", name: "자유로운 영혼 (Independent)", desc: "환자 치료마다 1회, 인접한 위치에서 위험 없이 채집을 보냄" },
-      { card: "J", name: "유적/고분 마스터 (Titanwise)", desc: "티탄 영약재의 희귀도 -2, 티탄 유적 및 고분에서 드로우 2장 중 선택" },
-      { card: "M", name: "엉뚱한 조수 (Ingenuitive)", desc: "기본 도구 중 하나의 기능을 조수가 직접 수행해 줍니다." }
+      { card: "A", name: "덤불 마스터", desc: "식물 영약재의 희귀도 -2" },
+      { card: "2", name: "따뜻한 약제사", desc: "모든 질병 치료 시작 타이머 +2시간" },
+      { card: "3", name: "용감한 동반자", desc: "거대 야수와의 위험 조우를 긍정적으로 해결하고 영약재를 획득" },
+      { card: "4", name: "말동무", desc: "물꼬 거래 시, 원하는 영약재의 기본 희귀도 -2" },
+      { card: "5", name: "빈틈없는 계산기", desc: "치료제를 장신구로 교환할 때 장신구 +1 획득" },
+      { card: "6", name: "힘센 일꾼", desc: "소지량 +2 (수레가 있을 경우 +4)" },
+      { card: "7", name: "자원 기획가", desc: "희귀도 7 이하 영약재 하나를 지정하여 지역과 상관없이 채집 가능" },
+      { card: "8", name: "베테랑 길잡이", desc: "여정 조우 드로우 시 2장을 뽑아 원하는 카드를 선택" },
+      { card: "9", name: "예리한 관찰자", desc: "질병 치료 시작 시 채집 포인트 +2 획득" },
+      { card: "10", name: "자유로운 영혼", desc: "환자 치료마다 1회, 인접한 위치에서 위험 없이 채집을 보냄" },
+      { card: "J", name: "유적/고분 마스터", desc: "티탄 영약재의 희귀도 -2, 티탄 유적 및 고분에서 드로우 2장 중 선택" },
+      { card: "M", name: "엉뚱한 조수", desc: "기본 도구 중 하나의 기능을 조수가 직접 수행해 줍니다." }
     ],
     relationships: [
-      { card: "A", name: "우연한 만남 (Chanced Upon)", desc: "최근까지 서로 몰랐으나, 지금은 급속도로 친해졌습니다." },
-      { card: "2", name: "깊은 유대 (Companion)", desc: "서로 사랑하며 함께 있을 때 더 힘을 냅니다." },
-      { card: "3", name: "공동 작당 (Collaborators)", desc: "공동의 프로젝트나 큰 야망을 함께 달성하고자 뭉쳤습니다." },
-      { card: "4", name: "스승과 제자 (Mentor)", desc: "고집스러운 면도 있지만 지혜로운 조언이 늘 힘이 됩니다." },
-      { card: "5", name: "상처 보듬기 (Supportive)", desc: "비슷한 상처나 무서운 과거로부터 함께 도망치는 중입니다." },
-      { card: "6", name: "매력적인 파트너 (Wildcard)", desc: "종잡을 수 없는 면이 나를 매료시키고 서로 흥미로워합니다." },
-      { card: "7", name: "가장 오래된 친구 (Oldest Friend)", desc: "어릴 적부터 함께 자라 서로의 부끄러운 비밀을 모두 압니다." },
-      { card: "8", name: "피의 맹세 (Blood-bound)", desc: "다시는 입밖에 내지 않기로 약속한 어두운 비밀을 공유합니다." },
-      { card: "9", name: "형제자매 (Sibling)", desc: "가끔은 답답하고 부딪히지만 가족이나 다름없습니다." },
-      { card: "10", name: "과거의 연인 (Rekindled)", desc: "이전에 깊은 아픔을 겪고 다시 만난 애틋한 관계입니다." },
-      { card: "J", name: "마음속에만 남은 이 (Elsewhere)", desc: "이미 세상을 떠났거나 만날 수 없지만 마음속에서 속삭입니다." },
-      { card: "M", name: "부모 같은 관계 (Parental)", desc: "나를 거둬 기르고 둥지를 떠난 뒤에도 늘 과보호로 감싸 안습니다." }
+      { card: "A", name: "우연한 만남", desc: "최근까지 서로 몰랐으나, 지금은 급속도로 친해졌습니다." },
+      { card: "2", name: "깊은 유대", desc: "서로 사랑하며 함께 있을 때 더 힘을 냅니다." },
+      { card: "3", name: "공동 작당", desc: "공동의 프로젝트나 큰 야망을 함께 달성하고자 뭉쳤습니다." },
+      { card: "4", name: "스승과 제자", desc: "고집스러운 면도 있지만 지혜로운 조언이 늘 힘이 됩니다." },
+      { card: "5", name: "상처 보듬기", desc: "비슷한 상처나 무서운 과거로부터 함께 도망치는 중입니다." },
+      { card: "6", name: "매력적인 파트너", desc: "종잡을 수 없는 면이 나를 매료시키고 서로 흥미로워합니다." },
+      { card: "7", name: "가장 오래된 친구", desc: "어릴 적부터 함께 자라 서로의 부끄러운 비밀을 모두 압니다." },
+      { card: "8", name: "피의 맹세", desc: "다시는 입밖에 내지 않기로 약속한 어두운 비밀을 공유합니다." },
+      { card: "9", name: "형제자매", desc: "가끔은 답답하고 부딪히지만 가족이나 다름없습니다." },
+      { card: "10", name: "과거의 연인", desc: "이전에 깊은 아픔을 겪고 다시 만난 애틋한 관계입니다." },
+      { card: "J", name: "마음속에만 남은 이", desc: "이미 세상을 떠났거나 만날 수 없지만 마음속에서 속삭입니다." },
+      { card: "M", name: "부모 같은 관계", desc: "나를 거둬 기르고 둥지를 떠난 뒤에도 늘 과보호로 감싸 안습니다." }
     ]
   },
   
   goals: [
-    { card: "A", title: "자아 성찰 (Self Discovery)", desc: "나에게 일어난 변화를 되돌아보기 위해 여행합니다.", goalText: "여정 중 만난 생물/야수와의 조우 3번 기록하기" },
-    { card: "2", title: "관계 회복 (Partnership)", desc: "여행을 통해 소원해진 사역마와의 소통을 다시 늘립니다.", goalText: "사역마에 대한 저널 기록 3번 이상 남기기" },
-    { card: "3", title: "길드의 책임 (Responsibility)", desc: "길드 선배들의 업적을 기리고 명성을 크게 쌓습니다.", goalText: "길드 명성(Reputation) +5 이상을 가진 채로 여정 마치기" },
-    { card: "4", title: "자연 환경 조사 (Survey)", desc: "동료들의 요청으로 특정 기후 및 지역의 약초 성장을 관찰합니다.", goalText: "같은 종류의 지역(Region) 위치 3곳에서 저널 작성하기" },
-    { card: "5", title: "긴급 치료 (Injury)", desc: "먼 곳에서 심한 병마를 앓고 있는 다른 야수를 도우러 떠납니다.", goalText: "가치가 3인 [상처(WOUND), 감염(INFECTION), 수면(SLEEP)] 영약재를 챙겨 목적지에 도착하기" },
-    { card: "6", title: "신선한 영감 (Inspiration)", desc: "지루하고 늙어가는 고향에 새로운 생기를 불어넣기 위해 여러 약초를 수집합니다.", goalText: "각 지역(6대 지역)에서 식물 영약재를 하나씩 채집하기" },
-    { card: "7", title: "의학 연구 자료 (Knowledge)", desc: "사지나 부리, 비늘의 구조적 질병을 조사해 동료 치유사에게 보냅니다.", goalText: "[비늘(SCALE), 깃털(FEATHER), 털(FUR)] 관련 질병 3개 이상 완치하기" },
-    { card: "8", title: "호송 및 정의 (Justice)", desc: "죄를 지어 길드에서 쫓겨난 범죄 동물을 안전한 도시로 호송합니다.", goalText: "수송 증거물(Evidence, 무게 1/3)을 챙겨 안전하게 목적지에 도착하기" },
-    { card: "9", title: "영약 보충 (Restock)", desc: "은퇴한 길드 조력자의 요청으로 개인 비축용 약재를 모아 갑니다.", goalText: "동일한 약효 태그를 가진 영약재 3개를 챙겨 목적지에 도착하기" },
-    { card: "10", title: "마음의 정리 (Closure)", desc: "해결되지 못한 오랜 갈등을 매듭짓기 위한 여정을 떠납니다.", goalText: "개인적인 갈등을 저널에 3번 이상 기록하며 여행하기" },
-    { card: "J", title: "마지막 작별 (Finality)", desc: "세상을 떠날 준비를 하는 오랜 친구에게 마지막 인사를 건네기 위해 떠납니다.", goalText: "최소 [저편/사망(ELSEWHERE) 2] 가치를 가진 영약재를 목적지에 전달하기" },
-    { card: "M", title: "방랑벽 (Wanderlust)", desc: "온 사방에 거센 바람이 불어 야생의 길을 모험하고 싶은 열망에 가득 찼습니다.", goalText: "수렁(Bog), 숲(Forest), 호수(Loch), 초원(Meadow), 산맥(Mountain)에서 각각 저널을 한 번 이상 남기기" }
+    { card: "A", title: "자아 성찰", desc: "나에게 일어난 변화를 되돌아보기 위해 여행합니다.", goalText: "여정 중 만난 생물/야수와의 조우 3번 기록하기" },
+    { card: "2", title: "관계 회복", desc: "여행을 통해 소원해진 사역마와의 소통을 다시 늘립니다.", goalText: "사역마에 대한 저널 기록 3번 이상 남기기" },
+    { card: "3", title: "길드의 책임", desc: "길드 선배들의 업적을 기리고 명성을 크게 쌓습니다.", goalText: "길드 명성 +5 이상을 가진 채로 여정 마치기" },
+    { card: "4", title: "자연 환경 조사", desc: "동료들의 요청으로 특정 기후 및 지역의 약초 성장을 관찰합니다.", goalText: "같은 종류의 지역 위치 3곳에서 저널 작성하기" },
+    { card: "5", title: "긴급 치료", desc: "먼 곳에서 심한 병마를 앓고 있는 다른 야수를 도우러 떠납니다.", goalText: "가치가 3인 [상처, 감염, 수면] 영약재를 챙겨 목적지에 도착하기" },
+    { card: "6", title: "신선한 영감", desc: "지루하고 늙어가는 고향에 새로운 생기를 불어넣기 위해 여러 약초를 수집합니다.", goalText: "각 지역(6대 지역)에서 식물 영약재를 하나씩 채집하기" },
+    { card: "7", title: "의학 연구 자료", desc: "사지나 부리, 비늘의 구조적 질병을 조사해 동료 약제사에게 보냅니다.", goalText: "[비늘, 깃털, 털] 관련 질병 3개 이상 완치하기" },
+    { card: "8", title: "호송 및 정의", desc: "죄를 지어 길드에서 쫓겨난 범죄 동물을 안전한 도시로 호송합니다.", goalText: "수송 증거물(Evidence, 무게 1/3)을 챙겨 안전하게 목적지에 도착하기" },
+    { card: "9", title: "영약 보충", desc: "은퇴한 길드 조력자의 요청으로 개인 비축용 약재를 모아 갑니다.", goalText: "동일한 약효 태그를 가진 영약재 3개를 챙겨 목적지에 도착하기" },
+    { card: "10", title: "마음의 정리", desc: "해결되지 못한 오랜 갈등을 매듭짓기 위한 여정을 떠납니다.", goalText: "개인적인 갈등을 저널에 3번 이상 기록하며 여행하기" },
+    { card: "J", title: "마지막 작별", desc: "세상을 떠날 준비를 하는 오랜 친구에게 마지막 인사를 건네기 위해 떠납니다.", goalText: "최소 [저편/사망 2] 가치를 가진 영약재를 목적지에 전달하기" },
+    { card: "M", title: "방랑벽", desc: "온 사방에 거센 바람이 불어 야생의 길을 모험하고 싶은 열망에 가득 찼습니다.", goalText: "수렁, 숲, 호수, 초원, 산맥에서 각각 저널을 한 번 이상 남기기" }
   ],
 
   ailments: [
   {
-    "name": "발썩음병 (Paw Rot)",
+    "name": "발썩음병",
     "rawName": "Paw Rot",
     "severity": "lesser",
     "timer": 9,
-    "tags": "infection 1 & 통증 (Pain) 1",
+    "tags": "infection 1 & 통증 1",
     "description": "After walking one too many days on sodden soil, the webbing in-between this beast's feet are itchy and swollen. Something applied regularly every day for a few weeks should clear it up…",
     "outcome": "Squeaky Clean: If the remedy is PRESERVED - with this long-lasting unguent, this infection can be treated reliably when it shows up again. Next time you come through this location, gain 1 trinket from a grateful patient.",
     "consequence": "Trodden In: While a minor issue on its own, this beast is rather popular. Who else have they spread their Paw Rot to? The next time you visit this location, the only ailment you can try to resolve is Paw Rot. 1 1 2 3 4 5 6 100"
@@ -115,19 +115,19 @@ export const GAME_DATA = {
     "rawName": "PAGE 104 --- Anxious Scratching",
     "severity": "lesser",
     "timer": 7,
-    "tags": "mood 2, fur, feather or 비늘 (Scale) 1",
+    "tags": "mood 2, fur, feather or 비늘 1",
     "description": "A low and constant level of stress has worn down this beast; they’ve started to moult uncontrollably.",
     "outcome": "",
     "consequence": "Shed Outta Luck: The beast moults completely. What physical or social pressures do they face now?"
   },
   {
-    "name": "잘못된 아이디어 (Bad Idea)",
+    "name": "잘못된 아이디어",
     "rawName": "Bad Idea",
     "severity": "severe",
     "timer": 6,
-    "tags": "joy 2, 통증 (Pain) 2, wound 2",
+    "tags": "joy 2, 통증 2, wound 2",
     "description": "Invention is an important past-time to many beasts in the Bristley Woods but that doesn't mean that every idea is a good - or safe - one as this poor beast has just found out. They need medical attention and a pick-me-up. What was their invention, and how did it hurt them? Your cure cannot have any [FOUL]; this will only upset them more.",
-    "outcome": "Inspiration: If you solve this Ailment with Potency (3) Reagents; The inventor feels so refreshed that they offer to modify your existing equipment. Upgrade one of your Basic Tools, or decrease the Weight of a Tool by 1/3.",
+    "outcome": "Inspiration: If you solve this Ailment with Potency Reagents; The inventor feels so refreshed that they offer to modify your existing equipment. Upgrade one of your Basic Tools, or decrease the Weight of a Tool by 1/3.",
     "consequence": "Giving Up: Disheartened by the failure of their invention they lose their spark and give up on inventing altogether. What happens to the blueprints they abandon? Bite the hand that Cures Severe - i 12 Draw an ailment from the Lesser or Intermediates tables. To administer this Remedy you must first find your patient! Treat them like a Reagent with BR 8; they can be found in Current or Adjacent Locations. This beast is absolutely terrified of medicine and doctors of any kind. Their family and friends want you to treat them, but you'll have to find them first Outcome - At Least They're Home If you find the patient but fail to create a Remedy for them; Face the Consequences of your drawn Ailment, but do not lose Reputation. How does their ailment develop without the proper treatment it needs? Consequence - Laughing Stock \"You can't find herbs, let alone an actual animal!\" You are the butt of many jokes in the local area. 104 ---"
   },
   {
@@ -135,37 +135,37 @@ export const GAME_DATA = {
     "rawName": "PAGE 105 --- Blocked Ears",
     "severity": "intermediate",
     "timer": 6,
-    "tags": "감각 (Senses) 2, temperature 2,  \ninfection 1",
+    "tags": "감각 2, temperature 2,  \ninfection 1",
     "description": "Huh? What? You'll have to repeat that; this poor beast's ears have gummed up with rock hard wax after a sharp fever.",
     "outcome": "",
     "consequence": "A Silent End: Disorientated from the sudden loss of a sense, this poor beast is easy pickings for a predator. What got them in the end?"
   },
   {
-    "name": "흡혈 본능 (Bloodthirst)",
+    "name": "흡혈 본능",
     "rawName": "Bloodthirst",
     "severity": "severe",
     "timer": 6,
-    "tags": "본능 (Instinct) 3, stomach 3, 감각 (Senses) 3",
+    "tags": "본능 3, stomach 3, 감각 3",
     "description": "An terrible hunger has awoken in this beast. They've eaten something which has caused their thoughts to fog, and ancient instincts are telling them to hunt; every passing hour it becomes harder to resist.",
     "outcome": "",
     "consequence": "Violent Nature: Lost in the fog of their instincts, they hunt. Do they catch anyone? Does anyone stop them?"
   },
   {
-    "name": "낙인 치료 (Brand Care)",
+    "name": "낙인 치료",
     "rawName": "Brand Care",
     "severity": "intermediate",
     "timer": 6,
-    "tags": "burn 2, infection 2, 가죽 (Hide) 1",
+    "tags": "burn 2, infection 2, 가죽 1",
     "description": "A beast has been branded by one of the guilds as a dangerous criminal, and ostracised from their home. The puffy circle of exposed and blistered skin has become infected.",
     "outcome": "Compassion: If you try to treat this beast; Lose 2 Reputation for associating with outcast vermin. What is their story? Why were they branded? What trinkets do they pay you with from their hastily grabbed possessions? Outcome - Duty If you refuse to treat this beast; Gain 2 Reputation for upholding Guild law. The branded beast flees into the wilds while fever wracks their body. How do you feel about this?",
     "consequence": "Unnoticed: Failing to treat this Ailment does not cause you to Overstay your Welcome."
   },
   {
-    "name": "깨진 부리와 약해진 송곳니 (Broken Beaks and Thinning Fangs)",
+    "name": "깨진 부리와 약해진 송곳니",
     "rawName": "Broken Beaks and Thinning Fangs",
     "severity": "severe",
     "timer": 6,
-    "tags": "통증 (Pain) 3, 통증 (Pain) 2, stomach 3",
+    "tags": "통증 3, 통증 2, stomach 3",
     "description": "A crash, a badly aimed peck, or a fight has caused this poor beast's beak or teeth to crack; they're in constant pain, and struggling to eat.",
     "outcome": "Guild of Fangwrights: If you can find some Silver Shards, you can create a prosthetic, replacement tooth or crown for the patient. Doing so gets you an extra 3 Reputation.",
     "consequence": "Compound Problems: The stress and lack of food causes this poor bird to fall foul of another ailment. Lose 3 Reputation. You may stick around to help by Marking 1 Day, and drawing another ailment; if you don't, they will perish. 105 ---"
@@ -175,43 +175,43 @@ export const GAME_DATA = {
     "rawName": "PAGE 106 --- Crestfallen",
     "severity": "lesser",
     "timer": 7,
-    "tags": "feather 2, nerves 2 and 본능 (Instinct) 2",
+    "tags": "feather 2, nerves 2 and 본능 2",
     "description": "or [feather 2, joy 2 & a brightly coloured plant reagent] Not all birds are happy with the colour of their feathers; some seek bolder colours, or hope to disguise themselves from the keen eyes of predators.",
     "outcome": "",
     "consequence": "Your patient attempts to dye their own: feathers, and it goes horribly wrong. They blame you!"
   },
   {
-    "name": "미열 식은땀 (Dullsweats)",
+    "name": "미열 식은땀",
     "rawName": "Dullsweats",
     "severity": "lesser",
     "timer": 9,
-    "tags": "breath 1, 감각 (Senses) 1, joy 1",
+    "tags": "breath 1, 감각 1, joy 1",
     "description": "After too long spent burrowed under sweaty blankets away from the world. They want something to clear their nose, open their eyes, and lift their spirits.",
     "outcome": "",
     "consequence": "The window of opportunity has passed,: and depression once again draws this beast back into their dark lair. Who misses their absent friend?"
   },
   {
-    "name": "전투 상처 (Fight Marks)",
+    "name": "전투 상처",
     "rawName": "Fight Marks",
     "severity": "dire",
     "timer": 6,
-    "tags": "통증 (Pain) 2, wound 3, 가죽 (Hide) 3",
+    "tags": "통증 2, wound 3, 가죽 3",
     "description": "x2 Whether through pride, greed, fear or a combination of all three, two local beasts have fought and harmed each other greatly. Treat this as two Ailments with separate Timers. One of these beasts started the fight, but neither will admit who was involved. Journal about who these beasts are, and who you treat first.",
     "outcome": "If you treat both patients and Forage a: [JOY 3] Reagent; as part of your care, you get both patients to open up. With your help, they talk through their argument. Are they able to come to a common understanding?",
     "consequence": "Failing to treat a beast means they: will succumb to their wounds, passing Elsewhere and leaving their fight unresolved. If both beasts succumb, lose Reputation twice."
   },
   {
-    "name": "첫 열병 (Firstfever)",
+    "name": "첫 열병",
     "rawName": "Firstfever",
     "severity": "lesser",
     "timer": 7,
-    "tags": "infection 1, 가죽 (Hide) 1, temperature 1",
+    "tags": "infection 1, 가죽 1, temperature 1",
     "description": "A mild enough disease that many cubs and kits catch. Fighting it off grants immunity to many more dangerous fevers one could contract later in life. Many parents host 'fever partys', to promote herd immunity.",
     "outcome": "",
     "consequence": "Chickenscratch: Itchy red bumps plague these little cubs, and they won't stop wailing, no matter what you try. Journal about the parent's lost sleep."
   },
   {
-    "name": "다정한 작별 (Fond Farewell)",
+    "name": "다정한 작별",
     "rawName": "Fond Farewell",
     "severity": "lesser",
     "timer": 8,
@@ -225,13 +225,13 @@ export const GAME_DATA = {
     "rawName": "s Twitch",
     "severity": "intermediate",
     "timer": 7,
-    "tags": "감각 (Senses) 2, mood 2, poison 2",
+    "tags": "감각 2, mood 2, poison 2",
     "description": "This foolish beast has eaten a strange mushroom. It has left them seeing things that aren't there, and jumping at shadows. Draw a card to see what sort of experience they're having: ♥ or ♦: A Good Trip: they stay put and out of trouble. ♣ or ♠: Bad Trip: add [WOUND 1] to this Ailment's requirements.",
     "outcome": "",
     "consequence": "They come down from their trip,: embarrassed and feeling changed. What profound wisdom or utter nonsense do they share?"
   },
   {
-    "name": "불에 데인 발톱 (Forge Clawed)",
+    "name": "불에 데인 발톱",
     "rawName": "Forge Clawed",
     "severity": "lesser",
     "timer": 8,
@@ -241,21 +241,21 @@ export const GAME_DATA = {
     "consequence": "Cold ... Hot Shoulder: The beast waves away your fussing and leaves their burns untended. In your absence they become infected. Now they weep with puss, and may even scar."
   },
   {
-    "name": "독 버섯 중독 (Foul Deceiver)",
+    "name": "독 버섯 중독",
     "rawName": "Foul Deceiver",
     "severity": "dire",
     "timer": 6,
-    "tags": "poison 3, stomach 3, pain3, 감각 (Senses) 3",
+    "tags": "poison 3, stomach 3, pain3, 감각 3",
     "description": "An important member of the local community was given what they thought was a fair and tasty mushroom by an enthusiastic cub.",
     "outcome": "",
     "consequence": "Last Meal: If not cured in time, the patient succumbs to the poison. How does the community suffer or shrink without them?"
   },
   {
-    "name": "혼수상태 (Groundhog Syndrome)",
+    "name": "혼수상태",
     "rawName": "Groundhog Syndrome",
     "severity": "dire",
     "timer": 12,
-    "tags": "수면 (Sleep) 3, mood 3, instincts 3",
+    "tags": "수면 3, mood 3, instincts 3",
     "description": "x3 An unseasonal change in temperature triggered the natural urge of these beasts, causing them to begin hibernating prematurely, despite their better judgement. There are three patients in this Ailment that you must treat in order to quell the panic. This Ailment's Consequences change with the seasons.",
     "outcome": "",
     "consequence": "Spring or Summer: The panic spreads causing the nearest settlement to enter Hibernation early. You cannot Barter or do Social Events in this or the nearest Settlement until the end of the next Season; the waking beasts are too busy picking up the slack. Consequence - Autumn or Winter The beasts cannot rest and their stores will not last to Spring. Some beasts will starve. How do the others survive? You cannot Forage for Plant or Insect Reagents within 2 Paths of this Location until the end of the next Season. 107 ---"
@@ -265,37 +265,37 @@ export const GAME_DATA = {
     "rawName": "PAGE 108 --- Herbivorous Tendencies",
     "severity": "severe",
     "timer": 8,
-    "tags": "본능 (Instinct) 3, nerves 3, 감각 (Senses) 3",
+    "tags": "본능 3, nerves 3, 감각 3",
     "description": "A deep, traumatic survival-driven fear has been awoken in this beast, making it difficult for them to relax. Even the sight and smell of another beast sends them into fits of panic.",
     "outcome": "",
     "consequence": "A deep fear becomes hard-set in: this beast. They pack up and hide somewhere remote, far away from anyone else. If this is a Settlement, permanently remove one of its regional Services."
   },
   {
-    "name": "사냥 대상이 됨 (Hunted)",
+    "name": "사냥 대상이 됨",
     "rawName": "Hunted",
     "severity": "dire",
     "timer": 6,
-    "tags": "통증 (Pain) 3, wound 3, breath 2, 가죽 (Hide) 3",
+    "tags": "통증 3, wound 3, breath 2, 가죽 3",
     "description": "Half chewed up by a Behemoth, this beast is exhausted from running for help. All of the exertion has done no favours for their injury. If you are Foraging in your Current Location, the Behemoth appears whenever you draw a ♠ card. They force you to abandon the event, Decrease the Timer by 1, and gain no Foraging Points.",
     "outcome": "",
     "consequence": "Cycle of Violence: They succumb to their wounds causing a beast who was dear to them to swear vengeance on the Behemoth. Permanently decrease the cost of Thickblood Services by 1."
   },
   {
-    "name": "마음의 어둠/흑수 증후군 (Living With a Black Beast)",
+    "name": "마음의 어둠/흑수 증후군",
     "rawName": "Living With a Black Beast",
     "severity": "dire",
     "timer": 12,
-    "tags": "joy 3, nerves 3, mood 3, 수면 (Sleep) 3",
+    "tags": "joy 3, nerves 3, mood 3, 수면 3",
     "description": "This beast is struggling. They feel numb and fragile, and yet constantly scared. They've taken a brave step seeking you out, but desperately need your help.",
     "outcome": "",
     "consequence": "Stuck: You take too long, giving them ample time to close up again. They refuse your help and the help of those around them."
   },
   {
-    "name": "파상풍 (Lockjaw)",
+    "name": "파상풍",
     "rawName": "Lockjaw",
     "severity": "dire",
     "timer": 12,
-    "tags": "joy 3, nerves 3, mood 3, 수면 (Sleep) 3",
+    "tags": "joy 3, nerves 3, mood 3, 수면 3",
     "description": "Cut by a piece of Titan trash, this poor beast's jaws have seized shut and a fever has taken hold.",
     "outcome": "",
     "consequence": "Stuck: Without treatment, the fever passes to other beasts who care for them. The Guilds agree to seal off the nearby Ruins to prevent this from happening again. Remove the nearest Titan Ruin from the Map. 108 ---"
@@ -305,37 +305,37 @@ export const GAME_DATA = {
     "rawName": "PAGE 109 --- Long Drop",
     "severity": "dire",
     "timer": 8,
-    "tags": "wound 3, 통증 (Pain) 3, 감각 (Senses) 3",
+    "tags": "wound 3, 통증 3, 감각 3",
     "description": "Looking up above you see an ordinary sight; a beast being ferried through the air by a Sea Eagle from Summit. But— Wait— Oh No! The beast slips from the eagle's grasp and plummets to the ground, somewhere in the distance.",
     "outcome": "Unfound: If the patient is not found, what is done to find them when it is too late? How did they fall off?",
     "consequence": "Grounded: Embarrased to have so failed a customer, Boldheart the Sea Eagle shies away from work. Permanently remove the Service 'Air Taxi'."
   },
   {
-    "name": "거품 침 (Mawfoam)",
+    "name": "거품 침",
     "rawName": "Mawfoam",
     "severity": "dire",
     "timer": 6,
-    "tags": "poison 3, 감각 (Senses) 3, wound 2, and \neither 본능 (Instinct) 2 or mood 2",
+    "tags": "poison 3, 감각 3, wound 2, and \neither 본능 2 or mood 2",
     "description": "A violent disease once purged from these lands now rears its head once more. Afflicted beasts quickly become feral and aggressive. Be careful; the deadliest symptom, a fear of water, shows they are past the point of saving.",
     "outcome": "Watch The Teeth!: If you create a remedy; the patient struggles and fights when you give them the cure. Draw a card. If it as ♠, they bite you in the process. You will need to make another Mawfoam cure.",
     "consequence": "Quarantine: Rightly so, the Guilds agree to abandon this part of the Woods. Remove this Location from the Map. If it was a Settlement or City, Journal about the exodus of beasts to other parts of the Woods, and the emotional struggles that come with that."
   },
   {
-    "name": "모기/해충 물림 (Midge Munched)",
+    "name": "모기/해충 물림",
     "rawName": "Midge Munched",
     "severity": "intermediate",
     "timer": 7,
-    "tags": "가죽 (Hide) 2, 통증 (Pain) 1, poison 1",
+    "tags": "가죽 2, 통증 1, poison 1",
     "description": "This foolish beast took a nap in a bog with no protection against the clouds of midges that lurk in such places.",
     "outcome": "",
     "consequence": "Irate Rants: They scratch themselves up badly and end up too irate to approach. They'll be fine in a day or so; your Reputation will take a little longer to repair."
   },
   {
-    "name": "이동기 두통 (Migration Migraine)",
+    "name": "이동기 두통",
     "rawName": "Migration Migraine",
     "severity": "intermediate",
     "timer": 9,
-    "tags": "본능 (Instinct) 3, mood 2, temperature 1",
+    "tags": "본능 3, mood 2, temperature 1",
     "description": "A distant land calls, and this beast's instincts are telling them they need to go. No matter if they cannot go, or choose not to; they are suffering an increasing discomfort.",
     "outcome": "",
     "consequence": "They give in to the call and leave,: regardless of whatever was preventing them. How does this make things worse? 109 ---"
@@ -345,37 +345,37 @@ export const GAME_DATA = {
     "rawName": "PAGE 110 --- Monthly Chore",
     "severity": "lesser",
     "timer": 6,
-    "tags": "비늘 (Scale) 2, 통증 (Pain) 1",
+    "tags": "비늘 2, 통증 1",
     "description": "This lizard is rubbing up against every hard surface they can find to soothe the itching of their scales. It’s almost time for them to shed, but if they can’t find a way of soothing it soon they may rub the new skin underneath raw.",
     "outcome": "",
     "consequence": "Dandruff: There are flakes of dead skin everywhere, and the lizard is too sore to clean up. You can stay and help clean; Mark 1 Day, and lose no Reputation."
   },
   {
-    "name": "공포증 (Nervefright)",
+    "name": "공포증",
     "rawName": "Nervefright",
     "severity": "lesser",
     "timer": 9,
-    "tags": "본능 (Instinct) 3, nerves 3, mood 3",
+    "tags": "본능 3, nerves 3, mood 3",
     "description": "A close call with a Behemoth has left this poor beast frozen in fright. Their instincts won't let them move and they won't respond to anyone.",
     "outcome": "",
     "consequence": "Heart Attack: The stress is too much and their heart gives out. Who is the Behemoth who caused this? Use the rules on page 40 to mark their Barrow on the Map."
   },
   {
-    "name": "수면 장애 (Night Shift)",
+    "name": "수면 장애",
     "rawName": "Night Shift",
     "severity": "intermediate",
     "timer": 6,
-    "tags": "수면 (Sleep) 3, mood 2",
+    "tags": "수면 3, mood 2",
     "description": "This beast has been honing a special craft, culminating in their Magnum Opus. They can't work during their normal waking hours because of their roommates conflicting sleep schedules, and so have been going without sleep. They're delirious, and desperate to finish their project.",
     "outcome": "Credits: What is their magnum opus? If you can cure them in time, they will make a dedication on their creation to you.",
     "consequence": "Sleeping on the Job: They fall asleep while working on their special project, and ruin it completely."
   },
   {
-    "name": "발썩음병 (Paw Rot)",
+    "name": "발썩음병",
     "rawName": "Paw Rot",
     "severity": "lesser",
     "timer": 9,
-    "tags": "infection 1 & 통증 (Pain) 1",
+    "tags": "infection 1 & 통증 1",
     "description": "After walking one too many days on sodden soil, the webbing in-between this beast's feet are itchy and swollen. Something applied regularly every day for a few weeks should clear it up…",
     "outcome": "Squeaky Clean: If the remedy is PRESERVED - with this long-lasting unguent, this infection can be treated reliably when it shows up again. Next time you come through this location, gain 1 trinket from a grateful patient.",
     "consequence": "Trodden In: While a minor issue on its own, this beast is rather popular. Who else have they spread their Paw Rot to? The next time you visit this location, the only ailment you can try to resolve is Paw Rot. 110 ---"
@@ -385,7 +385,7 @@ export const GAME_DATA = {
     "rawName": "PAGE 111 --- Pinned by Pine",
     "severity": "severe",
     "timer": 12,
-    "tags": "wound 3, poison 3, 가죽 (Hide) 3",
+    "tags": "wound 3, poison 3, 가죽 3",
     "description": "Terrible luck! This beast has been caught beneath a falling tree, crushing part of them and turning the trapped blood toxic. You will need to be careful moving them but don't dilly dally neither!",
     "outcome": "Knees Up: If you have a Steel Axe, or can find help at a local Settlement, you can free this patient from underneath the tree. Otherwise, whenever you would decrease this Ailment's Timer, decrease it by 1 more.",
     "consequence": "Smushed: You were too late, the crushing weight of the tree was too much to bear, and the patient has gone Elsewhere. Who, if anybeast, will mourn them? Quagmire'"
@@ -395,27 +395,27 @@ export const GAME_DATA = {
     "rawName": "s Scale",
     "severity": "severe",
     "timer": 9,
-    "tags": "비늘 (Scale) 2, infection 2, poison 1",
+    "tags": "비늘 2, infection 2, poison 1",
     "description": "Small scrapes and scratches to this reptile's scales have become infected. Left untreated, the infection will spread into their blood. If you fail to solve this Ailment before the Timer reaches 2, the [POISON 1] tag becomes [POISON 3].",
     "outcome": "",
     "consequence": "Dark Blood: The signs are clear as day. The infection has spread, and is now beyond your abilities. The grief from their family and friends makes it too awkward to stay in town. Who do they leave behind? Who will miss them? Even if you solved other Ailments, failing this Ailment causes you to Overstay your Welcome."
   },
   {
-    "name": "과도한 체취 (Safety Stench)",
+    "name": "과도한 체취",
     "rawName": "Safety Stench",
     "severity": "lesser",
     "timer": 10,
-    "tags": "감각 (Senses) 1 and nerves 1 or 본능 (Instinct) 1",
+    "tags": "감각 1 and nerves 1 or 본능 1",
     "description": "A beast wants to ward off all unwanted company by making the entrance of their barrow stink of something frightening, like a giant behemoth.",
     "outcome": "",
     "consequence": "Bad Neighbours: The Titans had an apt phrase; ‘Hell is other people’. How does this irate beast lash out at passersby?"
   },
   {
-    "name": "환절기 몸살 (Seasonshift)",
+    "name": "환절기 몸살",
     "rawName": "Seasonshift",
     "severity": "lesser",
     "timer": 6,
-    "tags": "fur 3, 본능 (Instinct) 3, 감각 (Senses) 3",
+    "tags": "fur 3, 본능 3, 감각 3",
     "description": "For some unknown reason this beast's fur has started to change for the wrong season, growing thick in Summer and thin in Winter. For a thick coat, you may increase the Timer by 2 if you can cut the fur back.",
     "outcome": "",
     "consequence": "Your patient's discomfort manifests: as angry outbursts. Are other beasts understanding of their embarrassment and pain? 111"
@@ -425,13 +425,13 @@ export const GAME_DATA = {
     "rawName": "s Snout",
     "severity": "severe",
     "timer": 9,
-    "tags": "breath 3, burn 3, 통증 (Pain) 2",
+    "tags": "breath 3, burn 3, 통증 2",
     "description": "Your arrival is greeted by gouts of hot flame and thick choking smoke. A house fire! Your patient has burned their throat and lungs from the smoke, leaving them in terrible pain. Fire brigade You can choose to decrease this Timer by 2 to help put out the fire; Gain 4 Reputation.",
     "outcome": "",
     "consequence": "Charred: Without a quick remedy, the damage is done. The beast will survive, but they'll never have their stamina back. How do they process this loss, and what adaptations do they make to their way of life?"
   },
   {
-    "name": "상한 빵 식중독 (Soured Dough)",
+    "name": "상한 빵 식중독",
     "rawName": "Soured Dough",
     "severity": "intermediate",
     "timer": 9,
@@ -441,7 +441,7 @@ export const GAME_DATA = {
     "consequence": "If you fail to cure anyone the: understandably annoyed beasts spread news of your failure all around. You earn 0 Trinkets for your next Remedy."
   },
   {
-    "name": "벌침 쇼크 (Stingshock)",
+    "name": "벌침 쇼크",
     "rawName": "Stingshock",
     "severity": "intermediate",
     "timer": 4,
@@ -455,29 +455,29 @@ export const GAME_DATA = {
     "rawName": "PAGE 113 --- Snail Ails",
     "severity": "severe",
     "timer": 6,
-    "tags": "parasite 3, breath 3, 수면 (Sleep) 3",
+    "tags": "parasite 3, breath 3, 수면 3",
     "description": "Parasites are spread from infected snails and beasts' droppings. Many beasts squirm at the idea that these worms can burrow through to the heart.",
     "outcome": "",
     "consequence": "Another beast starts to show signs,: then another, until the nearest Settlement is forced to quarantine. You cannot visit this Settlement until next Season."
   },
   {
-    "name": "일사병 (Sunstruck)",
+    "name": "일사병",
     "rawName": "Sunstruck",
     "severity": "lesser",
     "timer": 8,
-    "tags": "수면 (Sleep) 1, 감각 (Senses) 2 and  \nfeather or 가죽 (Hide) 1",
+    "tags": "수면 1, 감각 2 and  \nfeather or 가죽 1",
     "description": "This hard-working Moonmessenger, normally nocturnal, has been flying extra messages during the day. They need a soothing tonic to help get their circadian rhythm back to normal.",
     "outcome": "",
     "consequence": "Yelp!: The messenger badmouths you to their other Guildmates. What 1-star review do they leave at a services board?"
   },
   {
-    "name": "설사병 (The Runs)",
+    "name": "설사병",
     "rawName": "The Runs",
     "severity": "lesser",
     "timer": 8,
     "tags": "stomach 1, poison 1, parasite 1",
     "description": "After wantonly drinking from random puddles, this patient can’t keep something from rushing right out the other end after eating. The beast’s partner wants something with a regrettable flavour to teach this puddle drinker a lesson.",
-    "outcome": "If [FOUL 1] or less; Your patient is cured: of their stomach troubles (but not their taste for earthy puddles). Receive trinkets, but suffer the",
+    "outcome": "If [FOUL 1] or less; Your patient is cured: of their stomach troubles. Receive trinkets, but suffer the",
     "consequence": "But They're Convenient!: Puddle drinking was just the start. Poor hygiene and a disregard for dirt are in this beast’s future. Mark the nearest Settlement; you must resolve the Intermediate Ailment Woeful Waters when you next travel here."
   },
   {
@@ -495,27 +495,27 @@ export const GAME_DATA = {
     "rawName": "PAGE 114 --- Titan Touched",
     "severity": "dire",
     "timer": 8,
-    "tags": "burn 3, nerves 3, 통증 (Pain) 3, 가죽 (Hide) 3",
+    "tags": "burn 3, nerves 3, 통증 3, 가죽 3",
     "description": "After brushing against something in a Titan ruin that sent pain coursing through them, this patient has been left with branching scars and burns across their body.",
     "outcome": "Treasure Map: If you create a Remedy before the Timer reaches 0; The patient is conscious, and thankful of your efforts. They tell you where they were exploring. Add a Titan Ruin nearby on the Map, connected with two Paths to other Locations.",
     "consequence": "Gold Rush: The pain is too much and the patient passes Elsewhere. What rumours of the Titan ruins spread in the wake of their death? Their danger only makes them more attractive to foolhardy beasts seeking a thrilling adventure. All Titan Reagents have +1 Rarity until the end of the next Season."
   },
   {
-    "name": "관절통 (Trowel Troubles)",
+    "name": "관절통",
     "rawName": "Trowel Troubles",
     "severity": "intermediate",
     "timer": 9,
-    "tags": "본능 (Instinct) 2, joy 2",
+    "tags": "본능 2, joy 2",
     "description": "This beast has an addiction for digging holes and tunnels to the point that the ground beneath their home sags in places. They're hoping for a remedy that can retrain their urges.",
-    "outcome": "Light at the End of The Tunnel: If you use Potency (3) Reagents: This digging beast is able to retrain their habits into a measured passion; to prove their new self-control, they help dig a new reasonably sized path from this Location to another on the Map!",
+    "outcome": "Light at the End of The Tunnel: If you use Potency Reagents: This digging beast is able to retrain their habits into a measured passion; to prove their new self-control, they help dig a new reasonably sized path from this Location to another on the Map!",
     "consequence": "Collapse: Left unchecked, they dig a network of tunnels that end up collapsing their home. Where do they go now?"
   },
   {
-    "name": "통풍 (Waen Drops)",
+    "name": "통풍",
     "rawName": "Waen Drops",
     "severity": "lesser",
     "timer": 9,
-    "tags": "통증 (Pain) 2, minimum fair 3",
+    "tags": "통증 2, minimum fair 3",
     "description": "This beast’s litter are all old enough to start teething in their big fangs, and they whine constantly about the ache. This tired parent wants something that will soothe their jaws a little, and distract the ankle-biters, if only for an hour or two.",
     "outcome": "",
     "consequence": "An infectious case of whining has: spread from the little beasts to their parents. They gossip about you at the market; what do they say? 114 ---"
@@ -531,29 +531,29 @@ export const GAME_DATA = {
     "consequence": "Pity Party: The Wake is more like a Snooze. This treasured community member is commiserated, but then soon forgotten. What legacy could they have left?"
   },
   {
-    "name": "날개 골절 (Wingbreak)",
+    "name": "날개 골절",
     "rawName": "Wingbreak",
     "severity": "dire",
     "timer": 6,
-    "tags": "feather 3, temperature 3, mood 2, \n통증 (Pain) 2 and something to set a bone",
-    "description": "Mid-routine, this athletic winged beast crashed into their partner and plummeted out of the sky. They wing is broken, and strong tendons are pulling it further and further out of position. A speedy solution is needed! Setting the wing You can set the wing by using something long and sturdy, such as an Oak (Branch) or by donating a proper tool.",
+    "tags": "feather 3, temperature 3, mood 2, \n통증 2 and something to set a bone",
+    "description": "Mid-routine, this athletic winged beast crashed into their partner and plummeted out of the sky. They wing is broken, and strong tendons are pulling it further and further out of position. A speedy solution is needed! Setting the wing You can set the wing by using something long and sturdy, such as an Oak or by donating a proper tool.",
     "outcome": "",
     "consequence": "Career Ending Mistake: The jagged bones are beyond painful, and now threaten the Beast's life. You have to amputate the wing; while this patient understands, they'll never forgive you - and neither will their fans. Increase the Rarity of all Reagent Parts when Bartering by 2, until the end of this Season."
   },
   {
-    "name": "배 속의 회충 (Wormridden)",
+    "name": "배 속의 회충",
     "rawName": "Wormridden",
     "severity": "intermediate",
     "timer": 8,
     "tags": "parasite 2, stomach 2",
     "description": "A greedy little passenger has made its way into this patient and is starving them horribly. They beg for anything that'll get rid of it. Desperate Measures [FOUL] cancels out [FAIR], but does not give a penalty with this Ailment.",
     "outcome": "",
-    "consequence": "Hungry Is The Beast: Desperately hungry, this beast digs their way into the local grainstore and eats until their hunger pains stop (which isn't for very long). 115"
+    "consequence": "Hungry Is The Beast: Desperately hungry, this beast digs their way into the local grainstore and eats until their hunger pains stop. 115"
   }
 ],
   reagents: [
   {
-    "name": "마로니에/말밤 (Horse Chestnuts)",
+    "name": "마로니에/말밤",
     "rawName": "Horse Chestnuts",
     "type": "plant",
     "br": 4,
@@ -561,7 +561,7 @@ export const GAME_DATA = {
     "preps": "⅓ Spiky Husks USED for [ELSEWHERE 1] 1 Perfect Conker USED in games for [JOY 2] ⅔ Chestnuts BOILED for [STOMACH 2] COOKED for [FAIR 2] 1 Beetles 4 132 1 Horse Chestnut 4 140 1 Orange Peel Fungus 3 144 2 Doused Bonfires 4 137 2 Marshgold 3 142 1 Fly Agaric 5 138 1 Tansies 5 148 1 White Willow 5 150 2 Behemoth Bits 8 133 2 Catnip 6 135 1 Bird Leavings 4 133 1 Dandelions 2 137 1 Oak 4 144 1 Orange Peel Fungus 3 144 1 Roses 8 146 2 Burdock 3 134 2 Butterfly 9 135 2 Horse Chestnut 4 140 2 Marigold 5 141 2 Marshgold 3 142 2 Pearls 8 144 2 Strawberries 4 148 2 Yellow Wort 4 151 1 Blackcurrant 5 134 1 Catnip 6 135 1 Thistles 3 149 1 Titansorrel 6 149 2 Big Fish 9 133 2 Fly Agaric 5 138 2 Honey Bees 5 140 1 Catnip 6 135 1 Clay 3 136 1 Iron Ore * 7 140 2 Lavender 5 141 2 Woundwort 7 151 1 Burdock 3 134 1 Yellow Wort 4 151 2 Frog Slime 5 138 2 Silver Ore * 11 147 2 Wasps 5 149 1 Garden Mint 6 139 1 Nettles 2 143 1 Goosegrass 5 139 1 Wild Violet 6 150 2 Hoarhound 6 139 2 Marigold 5 141 2 Ironslug 8 140 1 Cucumber 6 136 1 Goosegrass 5 139 2 Lavender 5 141 2 White Willow 5 150 1 Blackcurrant 5 134 1 Burdock 3 134 1 Nettles 2 143 1 Titansorrel 6 149 2 Frog Slime 5 138 2 Leech † 5 141 2 Rock Salt † 7 146 2 Yarrow 7 151 2 Behemoth Bits 8 133 2 Cucumber 6 136 2 Tansies † 5 148 2 Wasps 5 149 2 Wild Violet 6 150 1 Animal Sheddings 3 132 1 Brambles 4 134 1 Cucumber 6 136 1 Dandelions 2 137 1 Goosegrass 5 139 1 Haircap Moss 6 139 1 Small Fish 7 147 1 Strawberries 4 148 1 Yellow Wort 4 151 2 Beech 5 132 2 Beehive 5 132 2 Big Fish 9 133 2 Doused Bonfires 4 137 2 Hidelendings * 7 139 2 Leech 5 141 1 Animal Sheddings 3 132 1 Marshmallow 6 142 2 Beehive 5 132 2 Haircap Moss 6 139 2 Wild Violet 6 150 1 Burdock 3 134 1 Marshmallow 6 142 2 Thistles 3 149 1 Catnip 6 135 1 Cherry Tree 4 135 2 Forget-me-not * 6 138 2 Garden Mint 6 139 2 Marshgold 3 142 2 Wild Garlic 2 150 1 Cucumber 6 136 2 Beehive 5 132 2 Marigold 5 141 2 Roses 8 146 1 Catnip 6 135 1 Cherry Tree 4 135 1 Cucumber 6 136 2 River Mint 6 145 1 Birch Polypore 5 133 1 Rhubarb 2 145 1 Spiders 4 148 1 Yarrow 7 151 2 Beech 5 132 2 Beehive 5 132 2 Hidelendings * 7 139 2 Horsetail 4 140 2 Oak 4 144 2 Rock Salt † 7 146 1 Animal Sheddings 3 132 1 Brambles 4 134 1 Clay 3 136 1 Cucumber 6 136 1 Dandelions 2 137 1 Honey Bees 5 140 1 Miracle Loaf 11 142 2 Blackthorn 7 134 2 Chalk 4 135 2 Coarse Grit 4 136 2 Field Blewit 4 137 2 Garden Mint 6 139 2 Nettles 2 143 1 Bird Leavings 4 133 1 Chalk 4 135 1 Clay 3 136 2 Blackthorn 7 134 2 Doused Bonfires 4 137 2 Leech † 5 141 1 Bird Leavings 4 133 1 Marshmallow 6 142 2 Beetles 4 132 2 Coarse Grit 4 136 2 Doused Bonfires 4 137 2 Small Fish 7 147"
   },
   {
-    "name": "동물의 부산물 (Animal Sheddings)",
+    "name": "동물의 부산물",
     "rawName": "Animal Sheddings",
     "type": "animal",
     "br": 3,
@@ -569,7 +569,7 @@ export const GAME_DATA = {
     "preps": "⅔ Pellets CRUSHED for [STOMACH 1] ⅔ Hair BOILED and then USED for [HIDE 1] ⅓ Sweat BOILED and then APPLIED for"
   },
   {
-    "name": "너도밤나무 (Beech)",
+    "name": "너도밤나무",
     "rawName": "Beech",
     "type": "plant",
     "br": 5,
@@ -577,7 +577,7 @@ export const GAME_DATA = {
     "preps": "⅓ Shells GROUND for [HIDE 2] ⅓ Nuts USED for [FAIR 1] COOKED for [FAIR 2] 1 Bark BREWED for [WOUND 2]"
   },
   {
-    "name": "벌집 (Beehive)",
+    "name": "벌집",
     "rawName": "Beehive",
     "type": "insect",
     "br": 5,
@@ -585,7 +585,7 @@ export const GAME_DATA = {
     "preps": "⅓ Wax USED for [FEATHER 2] ⅓ Royal Jelly USED for [HIDE 2] and [BURN 2] ⅓ Honey ADDED for [WOUND 2] USED in consumed remedies"
   },
   {
-    "name": "딱정벌레 (Beetles)",
+    "name": "딱정벌레",
     "rawName": "Beetles",
     "type": "insect",
     "br": 4,
@@ -593,7 +593,7 @@ export const GAME_DATA = {
     "preps": "⅓ Shells Crushed for [SCALE 2] USED for [ELSEWHERE 1]"
   },
   {
-    "name": "거대 야수 부속물 (Behemoth Bits)",
+    "name": "거대 야수 부속물",
     "rawName": "Behemoth Bits",
     "type": "animal",
     "br": 8,
@@ -601,7 +601,7 @@ export const GAME_DATA = {
     "preps": "⅓ Musk APPLIED for [INSTINCT 2] ⅔ Urine BOILED for [SENSES 2] 1 Fur APPLIED for [TEMPERATURE 3]"
   },
   {
-    "name": "큰 물고기 (Big Fish)",
+    "name": "큰 물고기",
     "rawName": "Big Fish",
     "type": "animal",
     "br": 9,
@@ -609,7 +609,7 @@ export const GAME_DATA = {
     "preps": "⅔ Skin BOILED for oil, which is APPLIED for 1 Meat COOKED for [MOOD 2] and [SENSES 3] ⅓ Scales CRUSHED for [SCALE 3]"
   },
   {
-    "name": "자작나무 버섯 (Birch Polypore)",
+    "name": "자작나무 버섯",
     "rawName": "Birch Polypore",
     "type": "plant",
     "br": 5,
@@ -617,7 +617,7 @@ export const GAME_DATA = {
     "preps": "⅓ Mushroom APPLIED for [HIDE 2] and [WOUND 1] as"
   },
   {
-    "name": "새 배설물/배사 (Bird Leavings)",
+    "name": "새 배설물/배사",
     "rawName": "Bird Leavings",
     "type": "animal",
     "br": 4,
@@ -625,7 +625,7 @@ export const GAME_DATA = {
     "preps": "⅓ Guano GROUND and then COOKED [POISON 1] ⅓ Egg Shell CRUSHED for [SCALE 1] ⅓ Feathers USED for [JOY 1]"
   },
   {
-    "name": "블랙커런트 (Blackcurrant)",
+    "name": "블랙커런트",
     "rawName": "Blackcurrant",
     "type": "plant",
     "br": 5,
@@ -633,7 +633,7 @@ export const GAME_DATA = {
     "preps": "⅓ Berries USED raw for [FAIR 1] ⅓ Leaves BREWED for [INFECTION 1] 1 Roots CHEWED for [MOOD 1]"
   },
   {
-    "name": "야생 자두 (Blackthorn)",
+    "name": "야생 자두",
     "rawName": "Blackthorn",
     "type": "plant",
     "br": 7,
@@ -641,7 +641,7 @@ export const GAME_DATA = {
     "preps": "1 Sloes USED in consumed remedies for [FOUL 2] COOKED for [FAIR 2] and [STOMACH 2] ⅓ Thorns GROUND and BREWED for [POISON 2]"
   },
   {
-    "name": "가시덤불 (Brambles)",
+    "name": "가시덤불",
     "rawName": "Brambles",
     "type": "plant",
     "br": 4,
@@ -649,7 +649,7 @@ export const GAME_DATA = {
     "preps": "⅓ Berries CHEWED for [FAIR 2] COOKED for [FAIR 3] ⅔ Bark BOILED into an ointment for [HIDE 1] 1 Roots CHEWED and then BREWED for"
   },
   {
-    "name": "우엉 (Burdock)",
+    "name": "우엉",
     "rawName": "Burdock",
     "type": "plant",
     "br": 3,
@@ -657,7 +657,7 @@ export const GAME_DATA = {
     "preps": "1 Roots BREWED for [INFECTION 1] ⅔ Stems GROUND into a conditioner for [FUR 1], ⅓ Flowers DIGESTED into a bright paste for ⅓ Burrs USED to comb for [PARASITES 1], can"
   },
   {
-    "name": "나비 (Butterfly)",
+    "name": "나비",
     "rawName": "Butterfly",
     "type": "insect",
     "br": 9,
@@ -665,7 +665,7 @@ export const GAME_DATA = {
     "preps": "⅓ Living Butterfly APPLIED to forehead for"
   },
   {
-    "name": "개박하 (Catnip)",
+    "name": "개박하",
     "rawName": "Catnip",
     "type": "plant",
     "br": 6,
@@ -673,7 +673,7 @@ export const GAME_DATA = {
     "preps": "⅓ Roots CHEWED for [BREATH 1], ⅓ Flowers BREWED for [INSTINCT 2], [MOOD 1]"
   },
   {
-    "name": "분필/석회 (Chalk)",
+    "name": "분필/석회",
     "rawName": "Chalk",
     "type": "earth",
     "br": 4,
@@ -681,7 +681,7 @@ export const GAME_DATA = {
     "preps": "⅓ Chalk CRUSHED for [STOMACH 2] and [POISON 1]"
   },
   {
-    "name": "벚나무 (Cherry Trees)",
+    "name": "벚나무",
     "rawName": "Cherry Trees",
     "type": "plant",
     "br": 4,
@@ -689,7 +689,7 @@ export const GAME_DATA = {
     "preps": "⅓ Cherries COOKED for [JOY 3] and [FAIR 4], ⅓ Bark CRUSHED for [BREATH 1] and"
   },
   {
-    "name": "고추 (Chillies)",
+    "name": "고추",
     "rawName": "Chillies",
     "type": "plant",
     "br": 6,
@@ -697,7 +697,7 @@ export const GAME_DATA = {
     "preps": "⅓ Membranes BOILED for [PAIN 1] ⅓ Seeds"
   },
   {
-    "name": "점토 (Clay)",
+    "name": "점토",
     "rawName": "Clay",
     "type": "earth",
     "br": 3,
@@ -705,7 +705,7 @@ export const GAME_DATA = {
     "preps": "⅔ Clay USED for [NERVES 1] & [POISON 1] DIGESTED for [STOMACH 1]"
   },
   {
-    "name": "굵은 모래 (Coarse Grit)",
+    "name": "굵은 모래",
     "rawName": "Coarse Grit",
     "type": "earth",
     "br": 4,
@@ -713,7 +713,7 @@ export const GAME_DATA = {
     "preps": "⅓ Grit CHEWED for [STOMACH 2]"
   },
   {
-    "name": "약초 안정제 (Concocted Calm)",
+    "name": "약초 안정제",
     "rawName": "Concocted Calm",
     "type": "titan",
     "br": 8,
@@ -721,7 +721,7 @@ export const GAME_DATA = {
     "preps": "⅔ Spritzer USED for [INSTINCT 3] and [MOOD 3]."
   },
   {
-    "name": "야생 사과 (Crab Apples)",
+    "name": "야생 사과",
     "rawName": "Crab Apples",
     "type": "plant",
     "br": 5,
@@ -729,7 +729,7 @@ export const GAME_DATA = {
     "preps": "1 Fruit USED in consumed remedies for [FOUL 1] COOKED to add PRESERVED to COOKED in consumed remedies"
   },
   {
-    "name": "오이 (Cucumbers)",
+    "name": "오이",
     "rawName": "Cucumbers",
     "type": "plant",
     "br": 6,
@@ -737,7 +737,7 @@ export const GAME_DATA = {
     "preps": "⅓ Flowers BREWED for [SENSES 2], [SLEEP 1], and ⅓ Marrow USED in consumed remedies for"
   },
   {
-    "name": "민들레 (Dandelions)",
+    "name": "민들레",
     "rawName": "Dandelions",
     "type": "plant",
     "br": 2,
@@ -745,7 +745,7 @@ export const GAME_DATA = {
     "preps": "⅓ Flowers USED for [JOY 1] ⅓ Roots GROUND for [STOMACH 1] ⅓ Leaves USED in consumed remedies for [FAIR 1] ⅓ Stems BREWED for [HIDE 1]"
   },
   {
-    "name": "꺼진 모닥불 재 (Doused Bonfires)",
+    "name": "꺼진 모닥불 재",
     "rawName": "Doused Bonfires",
     "type": "earth",
     "br": 4,
@@ -753,7 +753,7 @@ export const GAME_DATA = {
     "preps": "⅓ Ash APPLIED as an exfoliant for [SCALES 2] BREWED into a soap for [HIDE 2] ⅓ Charcoal CRUSHED for [POISON 2] USED for [ELSEWHERE 2]"
   },
   {
-    "name": "광대버섯 (False Deathcap)",
+    "name": "광대버섯",
     "rawName": "False Deathcap",
     "type": "plant",
     "br": 7,
@@ -761,7 +761,7 @@ export const GAME_DATA = {
     "preps": "⅔ Flesh DIGESTED for [SENSES 3] and [FOUL 6]"
   },
   {
-    "name": "민자주방망이버섯 (Field Blewit)",
+    "name": "민자주방망이버섯",
     "rawName": "Field Blewit",
     "type": "plant",
     "br": 4,
@@ -769,7 +769,7 @@ export const GAME_DATA = {
     "preps": "⅓ Cap COOKED for [STOMACH 2] and adds"
   },
   {
-    "name": "고운 모래 (Fine Sand)",
+    "name": "고운 모래",
     "rawName": "Fine Sand",
     "type": "earth",
     "br": 7,
@@ -777,7 +777,7 @@ export const GAME_DATA = {
     "preps": "⅔ Sand USED as a filter for drunk remedies;"
   },
   {
-    "name": "모래주머니 (Firegizzards)",
+    "name": "모래주머니",
     "rawName": "Firegizzards",
     "type": "titan",
     "br": 6,
@@ -785,7 +785,7 @@ export const GAME_DATA = {
     "preps": "1 Gizzard USED for [TEMPERATURE 3]. Can be"
   },
   {
-    "name": "광대버섯 (Fly Agaric)",
+    "name": "광대버섯",
     "rawName": "Fly Agaric",
     "type": "plant",
     "br": 5,
@@ -793,7 +793,7 @@ export const GAME_DATA = {
     "preps": "⅓ Spores BREWED for [INSTINCT 1] and [MOOD 2] 1 Cap COOKED for [SLEEP 3]"
   },
   {
-    "name": "물망초 (Forget-Me-Not)",
+    "name": "물망초",
     "rawName": "Forget-Me-Not",
     "type": "plant",
     "br": 6,
@@ -809,7 +809,7 @@ export const GAME_DATA = {
     "preps": "⅓ Slime BOILED for [INFECTION 2] and [PARASITE 2]"
   },
   {
-    "name": "정원 민트 (Garden Mint)",
+    "name": "정원 민트",
     "rawName": "Garden Mint",
     "type": "plant",
     "br": 6,
@@ -817,7 +817,7 @@ export const GAME_DATA = {
     "preps": "⅓ Leaves CHEWED for [BREATH 2] and [PAIN 1] ⅓ Stems BREWED for [STOMACH 2]"
   },
   {
-    "name": "유리 실크 (Glass Silk)",
+    "name": "유리 실크",
     "rawName": "Glass Silk",
     "type": "titan",
     "br": 7,
@@ -825,7 +825,7 @@ export const GAME_DATA = {
     "preps": "⅓ Thread USED for [HIDE 3] and [WOUND 3]"
   },
   {
-    "name": "갈퀴덩굴 (Goosegrass)",
+    "name": "갈퀴덩굴",
     "rawName": "Goosegrass",
     "type": "plant",
     "br": 5,
@@ -833,7 +833,7 @@ export const GAME_DATA = {
     "preps": "⅓ Seeds GROUND and BREWED for [SLEEP 1] ⅓ Shoots BOILED for [HIDE 1] and [PAIN 1]"
   },
   {
-    "name": "솔이끼 (Haircap Moss)",
+    "name": "솔이끼",
     "rawName": "Haircap Moss",
     "type": "plant",
     "br": 6,
@@ -841,7 +841,7 @@ export const GAME_DATA = {
     "preps": "⅓ Barbed Strands BOILED for [FEATHER 2] and [HIDE 1]"
   },
   {
-    "name": "가죽 붕대 (Hidelendings)",
+    "name": "가죽 붕대",
     "rawName": "Hidelendings",
     "type": "titan",
     "br": 7,
@@ -849,7 +849,7 @@ export const GAME_DATA = {
     "preps": "⅓ Slivers USED for [HIDE 2] and [WOUND 2]."
   },
   {
-    "name": "쓴풀/호하운드 (Hoarhound)",
+    "name": "쓴풀/호하운드",
     "rawName": "Hoarhound",
     "type": "plant",
     "br": 6,
@@ -857,7 +857,7 @@ export const GAME_DATA = {
     "preps": "⅔ Leafy Whorls COOKED for [PAIN 2] and [BREATH 3]"
   },
   {
-    "name": "꿀벌 (Honeybees)",
+    "name": "꿀벌",
     "rawName": "Honeybees",
     "type": "insect",
     "br": 5,
@@ -865,7 +865,7 @@ export const GAME_DATA = {
     "preps": "⅓ Pollen ADDED for [STOMACH 1] and [MOOD 2]"
   },
   {
-    "name": "마로니에/말밤 (Horse Chestnuts)",
+    "name": "마로니에/말밤",
     "rawName": "Horse Chestnuts",
     "type": "plant",
     "br": 4,
@@ -873,7 +873,7 @@ export const GAME_DATA = {
     "preps": "⅓ Spiky Husks USED for [ELSEWHERE 1] 1 Perfect Conker USED in games for [JOY 2] ⅔ Chustnuts BOILED for [STOMACH 2] COOKED for [FAIR 2]"
   },
   {
-    "name": "쇠뜨기 (Horsetails)",
+    "name": "쇠뜨기",
     "rawName": "Horsetails",
     "type": "plant",
     "br": 4,
@@ -881,7 +881,7 @@ export const GAME_DATA = {
     "preps": "⅓ Stems BOILED for [WOUND 2] and"
   },
   {
-    "name": "철광석 (Iron Ore)",
+    "name": "철광석",
     "rawName": "Iron Ore",
     "type": "earth",
     "br": 7,
@@ -897,7 +897,7 @@ export const GAME_DATA = {
     "preps": "⅓ Guts USED for [PAIN 2] and [BURN 3]"
   },
   {
-    "name": "라벤더 (Lavender)",
+    "name": "라벤더",
     "rawName": "Lavender",
     "type": "plant",
     "br": 5,
@@ -905,7 +905,7 @@ export const GAME_DATA = {
     "preps": "⅓ Flowers"
   },
   {
-    "name": "거머리 (Leech)",
+    "name": "거머리",
     "rawName": "Leech",
     "type": "insect",
     "br": 5,
@@ -913,7 +913,7 @@ export const GAME_DATA = {
     "preps": "⅔ Leech GROUND into paste"
   },
   {
-    "name": "구더기 (Maggots)",
+    "name": "구더기",
     "rawName": "Maggots",
     "type": "insect",
     "br": 7,
@@ -921,7 +921,7 @@ export const GAME_DATA = {
     "preps": "⅔ Larvae USED for [INFECTION 3] and [WOUND 3]"
   },
   {
-    "name": "금잔화 (Marigold)",
+    "name": "금잔화",
     "rawName": "Marigold",
     "type": "plant",
     "br": 5,
@@ -929,7 +929,7 @@ export const GAME_DATA = {
     "preps": "⅓ Nectar ADDED for [FAIR 1] ⅔ Petals USED for [JOY 2]"
   },
   {
-    "name": "동의나물 (Marshgold)",
+    "name": "동의나물",
     "rawName": "Marshgold",
     "type": "plant",
     "br": 3,
@@ -937,7 +937,7 @@ export const GAME_DATA = {
     "preps": "⅔ Flower USED for [ELSWHERE 2] ⅓ Petals BREWED for [JOY 2] and [BREATH 2]"
   },
   {
-    "name": "마시멜로 (Marshmallow)",
+    "name": "마시멜로",
     "rawName": "Marshmallow",
     "type": "plant",
     "br": 6,
@@ -945,7 +945,7 @@ export const GAME_DATA = {
     "preps": "⅓ Flower BOILED for [FEATHER 1], [FUR 1] and ⅓ Root Sap COOKED for [STOMACH 3] and [FAIR 1]"
   },
   {
-    "name": "꽃버섯 (Meadow Waxcap)",
+    "name": "꽃버섯",
     "rawName": "Meadow Waxcap",
     "type": "plant",
     "br": 4,
@@ -953,7 +953,7 @@ export const GAME_DATA = {
     "preps": "⅓ Shells ADDED for [STOMACH 1] COOKED for [STOMACH 3] and [FAIR 2]"
   },
   {
-    "name": "기적의 빵 (Miracle Loaf)",
+    "name": "기적의 빵",
     "rawName": "Miracle Loaf",
     "type": "titan",
     "br": 11,
@@ -961,7 +961,7 @@ export const GAME_DATA = {
     "preps": "⅓ Shells CRUSHED for [FEATHER 3] [FUR 3]"
   },
   {
-    "name": "사향 분비물 (Musk Scrapings)",
+    "name": "사향 분비물",
     "rawName": "Musk Scrapings",
     "type": "titan",
     "br": 10,
@@ -969,7 +969,7 @@ export const GAME_DATA = {
     "preps": "Shanelle #4 USED for [JOY 3]. Floral undertones. FILTHY USED for [BREATH 3]. Pungently minty. Marmalade USED for [SENSES 3]. Disgustingly bitter. Cabana Boi USED for [ELSEWHERE 3]. Sweet and Sappho USED for [MOOD 3] and [NERVES 3]."
   },
   {
-    "name": "쐐기풀 (Nettles)",
+    "name": "쐐기풀",
     "rawName": "Nettles",
     "type": "plant",
     "br": 2,
@@ -977,7 +977,7 @@ export const GAME_DATA = {
     "preps": "⅓ Leaves BREWED for [INFECTION 1] & [PAIN 1] ⅓ Stems CHEWED for [STOMACH 2]"
   },
   {
-    "name": "까마중 (Nightshade)",
+    "name": "까마중",
     "rawName": "Nightshade",
     "type": "plant",
     "br": 6,
@@ -985,7 +985,7 @@ export const GAME_DATA = {
     "preps": "⅓ Berries GROUND and BREWED for [SENSES 3]"
   },
   {
-    "name": "참나무 (Oak)",
+    "name": "참나무",
     "rawName": "Oak",
     "type": "plant",
     "br": 4,
@@ -993,7 +993,7 @@ export const GAME_DATA = {
     "preps": "⅓ Catkins USED for [JOY 1]. ⅓ Acorns GROUND and COOKED for [FAIR 2]. ⅔ Bark GROUND AND BOILED for [POISON 3] 1 Branch USED to bind broken bones for"
   },
   {
-    "name": "오렌지껍질버섯 (Orange Peel Fungus)",
+    "name": "오렌지껍질버섯",
     "rawName": "Orange Peel Fungus",
     "type": "plant",
     "br": 3,
@@ -1001,7 +1001,7 @@ export const GAME_DATA = {
     "preps": "⅓ “Petals” USED for [JOY 1] or [ELSEWHERE 1]"
   },
   {
-    "name": "진주 (Pearls)",
+    "name": "진주",
     "rawName": "Pearls",
     "type": "earth",
     "br": 8,
@@ -1009,7 +1009,7 @@ export const GAME_DATA = {
     "preps": "⅓ Pearl USED for [ELSEWHERE 3] or [JOY 2]"
   },
   {
-    "name": "만병통치 알약 (Pox-Be-Gones)",
+    "name": "만병통치 알약",
     "rawName": "Pox-Be-Gones",
     "type": "titan",
     "br": 10,
@@ -1017,7 +1017,7 @@ export const GAME_DATA = {
     "preps": "⅓ Bitterbones CRUSHED for [INFECTION 3] and ⅔ Purgedew ADDED for [INFECTION 1] and"
   },
   {
-    "name": "빨간 수액 (Redsap)",
+    "name": "빨간 수액",
     "rawName": "Redsap",
     "type": "titan",
     "br": 8,
@@ -1025,7 +1025,7 @@ export const GAME_DATA = {
     "preps": "1 Bottled Sap ADDED for [PAIN 3] [BREATH 3] but"
   },
   {
-    "name": "루바브 (Rhubarb)",
+    "name": "루바브",
     "rawName": "Rhubarb",
     "type": "plant",
     "br": 2,
@@ -1033,7 +1033,7 @@ export const GAME_DATA = {
     "preps": "⅓ Stems CHEWED for [FOUL 2] COOKED for [FAIR 2] ⅓ Fibres CHEWED and washed for binding"
   },
   {
-    "name": "창질경이 (Ribwort)",
+    "name": "창질경이",
     "rawName": "Ribwort",
     "type": "plant",
     "br": 5,
@@ -1041,7 +1041,7 @@ export const GAME_DATA = {
     "preps": "⅓ Seed pods CRUSHED for [FAIR 1] ⅓ Leaves"
   },
   {
-    "name": "강민트 (Rivermint)",
+    "name": "강민트",
     "rawName": "Rivermint",
     "type": "plant",
     "br": 6,
@@ -1049,7 +1049,7 @@ export const GAME_DATA = {
     "preps": "⅓ Leaves GROUND and APPLIED for BREWED for [BREATH 2] ⅓ Stems CHEWED for [PAIN 1]"
   },
   {
-    "name": "암염 (Rock Salt)",
+    "name": "암염",
     "rawName": "Rock Salt",
     "type": "earth",
     "br": 7,
@@ -1057,7 +1057,7 @@ export const GAME_DATA = {
     "preps": "⅔ Salt USED for [INFECTION 2] and [WOUND"
   },
   {
-    "name": "장미 (Roses)",
+    "name": "장미",
     "rawName": "Roses",
     "type": "plant",
     "br": 8,
@@ -1065,7 +1065,7 @@ export const GAME_DATA = {
     "preps": "⅓ Petals USED for [JOY 1] ⅓ Rosehips"
   },
   {
-    "name": "조개껍데기 (Shells)",
+    "name": "조개껍데기",
     "rawName": "Shells",
     "type": "animal",
     "br": 4,
@@ -1073,7 +1073,7 @@ export const GAME_DATA = {
     "preps": "⅔ Shells When Bartering, swap this shell for the"
   },
   {
-    "name": "은광석 (Silver Ore)",
+    "name": "은광석",
     "rawName": "Silver Ore",
     "type": "earth",
     "br": 11,
@@ -1081,7 +1081,7 @@ export const GAME_DATA = {
     "preps": "⅓ Silver Shards GROUND and APPLIED under bandages"
   },
   {
-    "name": "민달팽이 (Slugs)",
+    "name": "민달팽이",
     "rawName": "Slugs",
     "type": "insect",
     "br": 3,
@@ -1089,7 +1089,7 @@ export const GAME_DATA = {
     "preps": "⅔ Slugs COOKED for [FAIR 2]"
   },
   {
-    "name": "작은 물고기 (Small Fish)",
+    "name": "작은 물고기",
     "rawName": "Small Fish",
     "type": "animal",
     "br": 7,
@@ -1097,7 +1097,7 @@ export const GAME_DATA = {
     "preps": "⅓ Bones USED as a delicate 1 Meat COOKED in consumed ⅓ Scales BOILED for oil and then"
   },
   {
-    "name": "신 알약 (Sourchits)",
+    "name": "신 알약",
     "rawName": "Sourchits",
     "type": "titan",
     "br": 10,
@@ -1105,7 +1105,7 @@ export const GAME_DATA = {
     "preps": "⅓ Pellets CRUSHED for [PAIN 3], but causes"
   },
   {
-    "name": "거미 (Spiders)",
+    "name": "거미",
     "rawName": "Spiders",
     "type": "insect",
     "br": 4,
@@ -1113,7 +1113,7 @@ export const GAME_DATA = {
     "preps": "⅓ Captured Flies ADDED for [FAIR 1] ⅓ Websilk USED for [WOUND 1]"
   },
   {
-    "name": "딸기 (Strawberries)",
+    "name": "딸기",
     "rawName": "Strawberries",
     "type": "plant",
     "br": 4,
@@ -1121,7 +1121,7 @@ export const GAME_DATA = {
     "preps": "⅔ Berries USED for [FAIR 2] or COOKED for [FAIR 4] ⅓ Flowers BREWED or APPLIED for [JOY 2] ⅓ Leaves CRUSHED for [HIDE 1]"
   },
   {
-    "name": "쑥국화 (Tansies)",
+    "name": "쑥국화",
     "rawName": "Tansies",
     "type": "plant",
     "br": 5,
@@ -1129,7 +1129,7 @@ export const GAME_DATA = {
     "preps": "⅓ Leaves DIGESTED for [PARASITE 3] and ⅔ Stems BREWED for [INSTINCT 1]"
   },
   {
-    "name": "엉겅퀴 (Thistles)",
+    "name": "엉겅퀴",
     "rawName": "Thistles",
     "type": "plant",
     "br": 3,
@@ -1137,7 +1137,7 @@ export const GAME_DATA = {
     "preps": "⅓ Spike Head APPLIED for [FUR 2] ⅓ Nectar ADDED for [MOOD 1]"
   },
   {
-    "name": "거대 수영 (Titansorrel)",
+    "name": "거대 수영",
     "rawName": "Titansorrel",
     "type": "plant",
     "br": 6,
@@ -1145,7 +1145,7 @@ export const GAME_DATA = {
     "preps": "⅓ Leaves ADDED for [MOOD 1] but adds [FOUL 1] ⅓ Roots COOKED and APPLIED for"
   },
   {
-    "name": "두꺼비 (Toads)",
+    "name": "두꺼비",
     "rawName": "Toads",
     "type": "animal",
     "br": 7,
@@ -1153,7 +1153,7 @@ export const GAME_DATA = {
     "preps": "⅓ Poison ADDED for [SENSES 1] and [FOUL 3]"
   },
   {
-    "name": "말벌 (Wasps)",
+    "name": "말벌",
     "rawName": "Wasps",
     "type": "insect",
     "br": 5,
@@ -1161,7 +1161,7 @@ export const GAME_DATA = {
     "preps": "⅓ Venom USED for [SENSES 2]"
   },
   {
-    "name": "이정표 석회 (Waychalk)",
+    "name": "이정표 석회",
     "rawName": "Waychalk",
     "type": "titan",
     "br": 10,
@@ -1169,7 +1169,7 @@ export const GAME_DATA = {
     "preps": "⅓ Chalk USED for [ELSEWHERE 3]"
   },
   {
-    "name": "수염 타는 액체 (Whiskerburner)",
+    "name": "수염 타는 액체",
     "rawName": "Whiskerburner",
     "type": "titan",
     "br": 9,
@@ -1177,7 +1177,7 @@ export const GAME_DATA = {
     "preps": "⅔ Burnjuice"
   },
   {
-    "name": "흰버드나무 (White Willow)",
+    "name": "흰버드나무",
     "rawName": "White Willow",
     "type": "plant",
     "br": 5,
@@ -1193,7 +1193,7 @@ export const GAME_DATA = {
     "preps": "⅔ Leaves CHEWED and USED for [FAIR 1] and ⅓ Stems CRUSHED for [BREATH 2]"
   },
   {
-    "name": "제비꽃 (Wild Violet)",
+    "name": "제비꽃",
     "rawName": "Wild Violet",
     "type": "plant",
     "br": 6,
@@ -1299,7 +1299,7 @@ export const GAME_DATA = {
       "page": 78,
       "card": "5 & 6",
       "title": "Hot Tea\nSeveral beasts are \ngossiping at the side \nof the path",
-      "text": ". Eavesdrop - Add Gossip (No Weight) to your bags. When Bartering, you can trade this Gossip to automatically receive your chosen Reagent; however, the Guild loses 1 Reputation. ACE & 2 In Bloom Bless your whiskers, feathers and/or scales! You’ve found something growing at the side of the path! What was it growing in? Why hasn't anybeast noticed it? Greenpaw - Draw a card. Collect a Plant Reagent Part that can be found in the Forest with a Base Value equal to the card’s."
+      "text": ". Eavesdrop - Add Gossip to your bags. When Bartering, you can trade this Gossip to automatically receive your chosen Reagent; however, the Guild loses 1 Reputation. ACE & 2 In Bloom Bless your whiskers, feathers and/or scales! You’ve found something growing at the side of the path! What was it growing in? Why hasn't anybeast noticed it? Greenpaw - Draw a card. Collect a Plant Reagent Part that can be found in the Forest with a Base Value equal to the card’s."
     },
     {
       "page": 78,
@@ -1415,7 +1415,7 @@ export const GAME_DATA = {
       "page": 83,
       "card": "9 & 10",
       "title": "Less Than Titanic\nYou spy a beast not \nsuited to the water \nclinging to a slowly \nsinking piece of \ndriftwood",
-      "text": ". How did the beast get there, and why did they need to cross the water? Rescue! - Mark 1 Day and change the end of your move to the nearest non-Loch Location. Gain 1 Reputation. Lessons should be learned - This beast needs to learn not to bite off (or swim into) more than they can chew."
+      "text": ". How did the beast get there, and why did they need to cross the water? Rescue! - Mark 1 Day and change the end of your move to the nearest non-Loch Location. Gain 1 Reputation. Lessons should be learned - This beast needs to learn not to bite off more than they can chew."
     },
     {
       "page": 83,
@@ -1445,13 +1445,13 @@ export const GAME_DATA = {
       "page": 84,
       "card": "J",
       "title": "Pi-rats!\nA boat full of hollering \nbeasts with a skull and \nbones flag comes sailing \nup towards you",
-      "text": ". Their captain points a sword at you and demands to know your business, and if \"ye wish to be sunk to Nessie's Locker\" What is the Captain's name? What does their boat look like? Do the crew have a uniform? Parley - One of the crew is ill and they demand your help. Instead of Helping a Local Beast, you are now Helping a Local Pirate; if you would earn Reputation from this Ailment, instead gain Trinkets. If you fail to create a Remedy, you are Taken Prisoner. Ship-to-Ship Combat - If you are in a Coracle or adapted Wagon, you can try to fight the Pirates off. Draw a card for yourself (or two if you have a Crossbow) and two for the Pirates. The highest total wins. If you win - You escape to an adjacent Location unharmed. How did you escape? If you lose - You are Taken Prisoner! Taken Prisoner - Your Journey ends here. The pirates capture you and keep you prisoner for the remainder of the Season. What do you learn about them? How do you finally get away?"
+      "text": ". Their captain points a sword at you and demands to know your business, and if \"ye wish to be sunk to Nessie's Locker\" What is the Captain's name? What does their boat look like? Do the crew have a uniform? Parley - One of the crew is ill and they demand your help. Instead of Helping a Local Beast, you are now Helping a Local Pirate; if you would earn Reputation from this Ailment, instead gain Trinkets. If you fail to create a Remedy, you are Taken Prisoner. Ship-to-Ship Combat - If you are in a Coracle or adapted Wagon, you can try to fight the Pirates off. Draw a card for yourself and two for the Pirates. The highest total wins. If you win - You escape to an adjacent Location unharmed. How did you escape? If you lose - You are Taken Prisoner! Taken Prisoner - Your Journey ends here. The pirates capture you and keep you prisoner for the remainder of the Season. What do you learn about them? How do you finally get away?"
     },
     {
       "page": 84,
       "card": "J",
       "title": "Winged  \nMenace\nConfused and near death, \na big wasp has wandered \nout onto the water",
-      "text": ". It's taking all its strength just to stay afloat, poor thing. Do you risk saving it? A Second Chance - If you have a Coracle or adapted Wagon, you can scoop it aboard with no issue. Gain a Wasp Companion (page 70)."
+      "text": ". It's taking all its strength just to stay afloat, poor thing. Do you risk saving it? A Second Chance - If you have a Coracle or adapted Wagon, you can scoop it aboard with no issue. Gain a Wasp Companion."
     },
     {
       "page": 84,
@@ -1483,7 +1483,7 @@ export const GAME_DATA = {
       "page": 85,
       "card": "M",
       "title": "Two-Faced\nA small boat with a \ncouple of soldiers pulls \nup and asks if you've \nseen a dangerous beast \nin these waters",
-      "text": ". They describe the last beast you met on a Forage or Travel. What did the apparently dangerous beast do? What city are these guards from? Spill The Beans - You tell them everything they need to know. Is that beast ever caught? If so, what happens to them? Keep Quiet - The guards aren't always right after all. The next time you meet that beast, you can try find out their supposed crime and whether they are innocent or not. Vigiliante - If you draw a Monarch for a Travel Encounter, you cross paths with this beast again. If you think they are guilty, you can try to bring them in. Draw one card for yourself (or two if you have a Crossbow or Weapon) and one for them. Highest card wins. If you win - Start a new Goal with the nearest City as your Destination. Gain 10 Reputation for bringing them in. Journal about why you felt the need to enforce justice. If you lose - They escape, never to be seen by you again. 85"
+      "text": ". They describe the last beast you met on a Forage or Travel. What did the apparently dangerous beast do? What city are these guards from? Spill The Beans - You tell them everything they need to know. Is that beast ever caught? If so, what happens to them? Keep Quiet - The guards aren't always right after all. The next time you meet that beast, you can try find out their supposed crime and whether they are innocent or not. Vigiliante - If you draw a Monarch for a Travel Encounter, you cross paths with this beast again. If you think they are guilty, you can try to bring them in. Draw one card for yourself and one for them. Highest card wins. If you win - Start a new Goal with the nearest City as your Destination. Gain 10 Reputation for bringing them in. Journal about why you felt the need to enforce justice. If you lose - They escape, never to be seen by you again. 85"
     },
     {
       "page": 86,
@@ -1501,13 +1501,13 @@ export const GAME_DATA = {
       "page": 86,
       "card": "7 & 8",
       "title": "Sorry , We've  \nMisplaced Your Order\nSomething falls out of a passing \nNoonmessenger’s satchel, and \nthey don’t seem to have noticed",
-      "text": ". What shape is the parcel, and how is it wrapped? Who is it addressed to, and who is it from? Call out to the Messenger - Gain 1 Reputation. Who is the messenger and how do they react? Deliver the Parcel - Add a 'Parcel' (Weight 1) to your Bags. Choose a Location 4 Paths away for its address. Gain 3 Trinkets if you go to that Location, delivering it. Keep the Parcel - Choose and Gain a Tool or Upgrade from the Almanac, and lose 1 Reputation. ACE & 2 Obstruction Little wagons laden with foods and goods are backed up along the path; it seems a tree has fallen and blocked the road ahead. Beavers have been called to gnaw the path clear, but it'll be a few hours yet before the road is clear again. How are the queuing beasts dealing with the wait? If you have a Wagon - Mark 1 Day on the Calendar as you are stuck in traffic. What other wagons and caravans are ahead and behind you? If you don’t have a Wagon - You easily slip through traffic. With a friendly boost from the beavers, you scramble over the trunk and are on your way. Meadow travel encounters Open skies, bright sunlight, and a wealth of wildflowers await you. Carefully carved out fields grow food for beast settlements. 86"
+      "text": ". What shape is the parcel, and how is it wrapped? Who is it addressed to, and who is it from? Call out to the Messenger - Gain 1 Reputation. Who is the messenger and how do they react? Deliver the Parcel - Add a 'Parcel' to your Bags. Choose a Location 4 Paths away for its address. Gain 3 Trinkets if you go to that Location, delivering it. Keep the Parcel - Choose and Gain a Tool or Upgrade from the Almanac, and lose 1 Reputation. ACE & 2 Obstruction Little wagons laden with foods and goods are backed up along the path; it seems a tree has fallen and blocked the road ahead. Beavers have been called to gnaw the path clear, but it'll be a few hours yet before the road is clear again. How are the queuing beasts dealing with the wait? If you have a Wagon - Mark 1 Day on the Calendar as you are stuck in traffic. What other wagons and caravans are ahead and behind you? If you don’t have a Wagon - You easily slip through traffic. With a friendly boost from the beavers, you scramble over the trunk and are on your way. Meadow travel encounters Open skies, bright sunlight, and a wealth of wildflowers await you. Carefully carved out fields grow food for beast settlements. 86"
     },
     {
       "page": 87,
       "card": "9 & 10",
       "title": "Highway Robbery\nA field mouse pup \narmed with a toy sword \nstops you and playfully \ndemands a tithe",
-      "text": ". Pay with your pockets - Lose 1 Trinket. How does the mouse pup react to their sudden bounty? Pay with your life - Mark 1 Day on your Calendar. Journal about a mock fight you have with the pup, and how one of you 'slays' the other. Pay with your (short) patience - Storming past the pup, you continue your journey. Lose 1 Reputation."
+      "text": ". Pay with your pockets - Lose 1 Trinket. How does the mouse pup react to their sudden bounty? Pay with your life - Mark 1 Day on your Calendar. Journal about a mock fight you have with the pup, and how one of you 'slays' the other. Pay with your patience - Storming past the pup, you continue your journey. Lose 1 Reputation."
     },
     {
       "page": 87,
@@ -1525,7 +1525,7 @@ export const GAME_DATA = {
       "page": 87,
       "card": "J",
       "title": "Animal  \nCrossing\nA friendly hivewarden greets \nyou as you approach their \nbumbling bees",
-      "text": ". They ask if you can wait so as not to spook their flock. How does this hivewarden distinguish their bees from other colonies? Wait - Mark 1 Day, but gain a Bees (Pollen). Spook Flock - Lose 1 Reputation as you scatter their bees in your haste."
+      "text": ". They ask if you can wait so as not to spook their flock. How does this hivewarden distinguish their bees from other colonies? Wait - Mark 1 Day, but gain a Bees. Spook Flock - Lose 1 Reputation as you scatter their bees in your haste."
     },
     {
       "page": 87,
@@ -1537,7 +1537,7 @@ export const GAME_DATA = {
       "page": 88,
       "card": "M",
       "title": "Cowtown\nThe travelling \nmerchant town of \nBaile b",
-      "text": "ò has stopped in this meadow. The great highland cow that carries this pastoral settlement upon its saddle is grazing while rat merchants lower ropes and ladders down its sides for goods and guests. What sounds and smells are there in the little town? If you are too big to enter, how does the cow react to you? How do the merchants show you their wares? Visit - This Location temporarily counts as a Settlement. Your next patient is a citizen of Baile bò. You can request services here when Preparing to Leave, and Barter while resolving Ailment(s)."
+      "text": "ò has stopped in this meadow. The great highland cow that carries this pastoral settlement upon its saddle is grazing while rat merchants lower ropes and ladders down its sides for goods and guests. What sounds and smells are there in the little town? If you are too big to enter, how does the cow react to you? How do the merchants show you their wares? Visit - This Location temporarily counts as a Settlement. Your next patient is a citizen of Baile bò. You can request services here when Preparing to Leave, and Barter while resolving Ailment."
     },
     {
       "page": 88,
@@ -1617,13 +1617,13 @@ export const GAME_DATA = {
       "page": 91,
       "card": "J",
       "title": "Knights Of  \nThe Round Table\nA group of rough-and-tumble \nbeasts approach from further \nup the path",
-      "text": ". They appear to be on some sort of adventure! What are their names? What is their quest? What be their favourite colours? Quest! - If you wish, you can abandon your old Journey and start a Quest. This special Journey takes place in the same season, is a distance of 24 Paths away in a random direction, and has an Urgency of Important (9 Days). The goal of this Quest is to put down a vicious and cruel Behemoth. Ailments drawn during this Journey relate to these Questing Beasts. Place a Behemoth Barrow at the destination of this Quest Journey. Fighting the Behemoth - If you arrive at the Barrow in time, Draw a Card, lowering its value by 2 for every Ailment you failed to resolve on your Quest. If the final value is equal to or greater than 7, the Questing Beasts slay the Behemoth! If its final value is lower than 7, the Behemoth is victorious. How do you escape? Too Late - If you are late, the Behemoth has gone to ground. The Questing Beasts thank you for your help, and continue on without you. At the end of this Journey, gain 1 Reputation for each Ailment you successfully resolved. If the Behemoth is slain, gain 10 Trinkets and a Tool of your choice from the creature's hoard. 91"
+      "text": ". They appear to be on some sort of adventure! What are their names? What is their quest? What be their favourite colours? Quest! - If you wish, you can abandon your old Journey and start a Quest. This special Journey takes place in the same season, is a distance of 24 Paths away in a random direction, and has an Urgency of Important. The goal of this Quest is to put down a vicious and cruel Behemoth. Ailments drawn during this Journey relate to these Questing Beasts. Place a Behemoth Barrow at the destination of this Quest Journey. Fighting the Behemoth - If you arrive at the Barrow in time, Draw a Card, lowering its value by 2 for every Ailment you failed to resolve on your Quest. If the final value is equal to or greater than 7, the Questing Beasts slay the Behemoth! If its final value is lower than 7, the Behemoth is victorious. How do you escape? Too Late - If you are late, the Behemoth has gone to ground. The Questing Beasts thank you for your help, and continue on without you. At the end of this Journey, gain 1 Reputation for each Ailment you successfully resolved. If the Behemoth is slain, gain 10 Trinkets and a Tool of your choice from the creature's hoard. 91"
     },
     {
       "page": 92,
       "card": "9 & 10",
       "title": "Yodelling  \nGorillas\nAround the next bend \nof this mountainside \npath, you hear jovial \nhumming",
-      "text": ". Expecting a choir of beasts to make such noise, you are briefly terrified to see a single Behemoth - a massive gorilla! Have you met Bakar before? This friendly gorilla travels the world, trying to understand the mysterious precursors, called Titans, whose civilisation ended as the Beasts' began. Stop for a Tale - Sitting in the warm shade of a rock, Bakar enthusiastically shows you his notebook. Inside are drawings of Titan structures. Mark 1 Day on your Calendar, and add 'Titan Tale' to your bags (No Weight). It can be discarded during Haggling to automatically get a Reagent Part. A Helpful Lift - You delicately ask if you could move past. Bashfully, he gathers his things, and asks where you're headed. Upon reply, he lifts you up a sheer cliff face - \"Here, little one\" his voice rumbles, \"a short cut; my way of apologising!\" Add 1 Day to your Calendar and continue your Journey."
+      "text": ". Expecting a choir of beasts to make such noise, you are briefly terrified to see a single Behemoth - a massive gorilla! Have you met Bakar before? This friendly gorilla travels the world, trying to understand the mysterious precursors, called Titans, whose civilisation ended as the Beasts' began. Stop for a Tale - Sitting in the warm shade of a rock, Bakar enthusiastically shows you his notebook. Inside are drawings of Titan structures. Mark 1 Day on your Calendar, and add 'Titan Tale' to your bags. It can be discarded during Haggling to automatically get a Reagent Part. A Helpful Lift - You delicately ask if you could move past. Bashfully, he gathers his things, and asks where you're headed. Upon reply, he lifts you up a sheer cliff face - \"Here, little one\" his voice rumbles, \"a short cut; my way of apologising!\" Add 1 Day to your Calendar and continue your Journey."
     },
     {
       "page": 92,
@@ -1691,7 +1691,7 @@ export const GAME_DATA = {
       "page": 95,
       "card": "7 & 8",
       "title": "Less Than  \nMajestic\nAs you coast on a \nconvenient updraught, \nyou spot a vigorously \nstruggling blur of \nred and brown \nfeathers below you",
-      "text": ". A capercaillie is trying his hardest to cross the gap between two mountains. Swoop in to help - You guide the large bird towards a nearby tree, where he can breathlessly perch and recollect himself. He introduces himself (or reintroduces if you've met him before) as Griph, Wanderer Extraordinaire. This elderly bird excitedly tells you about why he was crossing over from the mountain. End your Soar at a Location roughly halfway along your Flightpath. Gain 1 Reputation. Stay out of it - He got himself into this situation, and he only has himself to blame. As you ride the breeze, you look back and see a rug full of glittering specks topple off of the capercaille's back. End your Soar at your chosen destination. Griph's Services as a trader (page 58) are unavailable for the remainder of your Journey."
+      "text": ". A capercaillie is trying his hardest to cross the gap between two mountains. Swoop in to help - You guide the large bird towards a nearby tree, where he can breathlessly perch and recollect himself. He introduces himself as Griph, Wanderer Extraordinaire. This elderly bird excitedly tells you about why he was crossing over from the mountain. End your Soar at a Location roughly halfway along your Flightpath. Gain 1 Reputation. Stay out of it - He got himself into this situation, and he only has himself to blame. As you ride the breeze, you look back and see a rug full of glittering specks topple off of the capercaille's back. End your Soar at your chosen destination. Griph's Services as a trader are unavailable for the remainder of your Journey."
     },
     {
       "page": 95,
@@ -1723,7 +1723,7 @@ export const GAME_DATA = {
       "page": 97,
       "card": "M",
       "title": "Windwall\nA howling wind smashes \nagainst you, matching \nevery beat of your wings \nwith equal force",
-      "text": ". Pushing with all your might, your progress over the ground is hard won. Fight the wind - End your Soar at your chosen destination, but Mark 1 Day for the time lost fighting the elements. Follow the wind - rotate your Flightpath 180 degrees. End your Soar at a location up to twice as far as you originally intended to travel (up to the edge of the map)."
+      "text": ". Pushing with all your might, your progress over the ground is hard won. Fight the wind - End your Soar at your chosen destination, but Mark 1 Day for the time lost fighting the elements. Follow the wind - rotate your Flightpath 180 degrees. End your Soar at a location up to twice as far as you originally intended to travel."
     },
     {
       "page": 97,
@@ -1741,7 +1741,7 @@ export const GAME_DATA = {
       "page": 98,
       "card": "ace & 2",
       "title": "Jitterbug\nAs you climb through the walls of this \nstrange Titan ruin you knock over a box \nrelease a violent terror! It chases after \nyou, gnashing its teeth until",
-      "text": "... it stops? Now that you're looking at it, it's cute, in a way. What insect does this tiny critter look like? What do you name it? What A Wind Up - Gain a Cranky Contraption Companion (page 70)"
+      "text": "... it stops? Now that you're looking at it, it's cute, in a way. What insect does this tiny critter look like? What do you name it? What A Wind Up - Gain a Cranky Contraption Companion"
     },
     {
       "page": 98,
@@ -1753,7 +1753,7 @@ export const GAME_DATA = {
       "page": 98,
       "card": "5 & 6",
       "title": "Can It\nThe Titans, for some unknown \nreason, liked to store their food \naway in metal barrels",
-      "text": ". Perhaps it was their way of preparing for Winter. Whatever the reason, you find a mysteriously preserved (yet tasty) snack. What food is inside? What brand made this tin, and what does the packaging look like? Well Fed - Add 2 to your next Timer. Titan travel encounters These truly gargantuan ruins are abandoned for a reason. Set paw in these places with extreme caution. 98"
+      "text": ". Perhaps it was their way of preparing for Winter. Whatever the reason, you find a mysteriously preserved snack. What food is inside? What brand made this tin, and what does the packaging look like? Well Fed - Add 2 to your next Timer. Titan travel encounters These truly gargantuan ruins are abandoned for a reason. Set paw in these places with extreme caution. 98"
     }
   ]
 },
@@ -1769,7 +1769,7 @@ export const GAME_DATA = {
       "page": 154,
       "card": "2",
       "title": "Ancient Salvage\nYou see a gleaming speck \nof metal sticking out of \nthe peat just up ahead",
-      "text": ". It looks worse for wear but may be worth something to someone. Dig! - You can try to dig out the shining speck. Decrease Timers by 1 and draw a card. If the card’s value is: Equal to or greater than 10 - You manage to pull the item out. Add a Titan Thingamabob (page 65) to your Bags. Less then 10 - Your digging only further buries the object in mud. Eventually, it sinks out of sight and you give up. Bog Foraging Encounters Masses of biting midges, stinking mud and stalking herons separate you from the verdant reagents you need for your patients. 154"
+      "text": ". It looks worse for wear but may be worth something to someone. Dig! - You can try to dig out the shining speck. Decrease Timers by 1 and draw a card. If the card’s value is: Equal to or greater than 10 - You manage to pull the item out. Add a Titan Thingamabob to your Bags. Less then 10 - Your digging only further buries the object in mud. Eventually, it sinks out of sight and you give up. Bog Foraging Encounters Masses of biting midges, stinking mud and stalking herons separate you from the verdant reagents you need for your patients. 154"
     },
     {
       "page": 155,
@@ -1811,7 +1811,7 @@ export const GAME_DATA = {
       "page": 156,
       "card": "J",
       "title": "Fluttering Fancy\nAn unusual butterfly flutters past, its colourful \nwings catching the light and seeming to almost \nshimmer",
-      "text": ". What unusual colours does it have on its wings? Befriend It - Use a PLANT Reagent to gain a Butterfly Companion (page 70). Follow It - Draw a card. Gain a Plant Reagent Part with Base Rarity equal to or lower it's value."
+      "text": ". What unusual colours does it have on its wings? Befriend It - Use a PLANT Reagent to gain a Butterfly Companion. Follow It - Draw a card. Gain a Plant Reagent Part with Base Rarity equal to or lower it's value."
     },
     {
       "page": 156,
@@ -1823,7 +1823,7 @@ export const GAME_DATA = {
       "page": 156,
       "card": "9",
       "title": "Guild of One\nYou meet an eccentric beast \nwith an unusual contraption",
-      "text": "; bellows, hollow tubes, and a massive copper helmet with a glass window. They call themselves a Peatdiver and say they are hunting for treasures beneath the bog. Why haven't they been able to convince anyone to join their boggy expeditions? Assistant - Somebeast needs to pump the bellows of the breathing apparatus so the diver can explore the suffocating muds. You can volunteer; decrease Timers by 2 but gain a Trinket! New Connections - Whether you help or ignore, this fledgling Guild of One won't forget you. Gain 1 Reputation (as they name drop you to their friends). 156"
+      "text": "; bellows, hollow tubes, and a massive copper helmet with a glass window. They call themselves a Peatdiver and say they are hunting for treasures beneath the bog. Why haven't they been able to convince anyone to join their boggy expeditions? Assistant - Somebeast needs to pump the bellows of the breathing apparatus so the diver can explore the suffocating muds. You can volunteer; decrease Timers by 2 but gain a Trinket! New Connections - Whether you help or ignore, this fledgling Guild of One won't forget you. Gain 1 Reputation. 156"
     },
     {
       "page": 157,
@@ -1841,7 +1841,7 @@ export const GAME_DATA = {
       "page": 157,
       "card": "10",
       "title": "Weaver\nWhile crawling through \na hollow log you spy a \nbeautiful spider sitting in its \nweb",
-      "text": ". It raises its front legs almost as if greeting you. What is most beautiful about this spider? Dance - You copy its little gestures and the spider seems appeased. Decrease Timers by 1. It follows you around until you Move On. You can permanently befriend it by giving it an INSECT Reagent Part. If you do, gain a Spider Companion (Page 70). Back Away - You don't speak spider and that thing has sharp teeth. It lowers its little legs sadly."
+      "text": ". It raises its front legs almost as if greeting you. What is most beautiful about this spider? Dance - You copy its little gestures and the spider seems appeased. Decrease Timers by 1. It follows you around until you Move On. You can permanently befriend it by giving it an INSECT Reagent Part. If you do, gain a Spider Companion. Back Away - You don't speak spider and that thing has sharp teeth. It lowers its little legs sadly."
     },
     {
       "page": 157,
@@ -1945,7 +1945,7 @@ export const GAME_DATA = {
       "page": 162,
       "card": "M",
       "title": "Bear's Necessities\nA hibernating bear \nhas awoken, and is \nravenously hungry",
-      "text": ". Its roar echoes in the distant trees. This place is no longer safe! What fearful whispers follow in this behemoths wake? What is this dreaded bear's name? Mark this Location as a Towering Behemoth Barrow (page 40). Whenever you forage in this or an adjacent location, Monarch results become 'Scurry!' Scurry! - The bear has picked up your scent! You must leave before it finds you. Decrease Timers by 2, and lose either 3 Foraging Points or 1 Reagent Part from your Bags. Appease - You can convince the bear to move on by giving it Reagent Parts that provide a cumulative [Fair 5]. You can do this when you Forage or Travel through this area, and doing so removes the Barrow from the map."
+      "text": ". Its roar echoes in the distant trees. This place is no longer safe! What fearful whispers follow in this behemoths wake? What is this dreaded bear's name? Mark this Location as a Towering Behemoth Barrow. Whenever you forage in this or an adjacent location, Monarch results become 'Scurry!' Scurry! - The bear has picked up your scent! You must leave before it finds you. Decrease Timers by 2, and lose either 3 Foraging Points or 1 Reagent Part from your Bags. Appease - You can convince the bear to move on by giving it Reagent Parts that provide a cumulative [Fair 5]. You can do this when you Forage or Travel through this area, and doing so removes the Barrow from the map."
     },
     {
       "page": 162,
@@ -1987,7 +1987,7 @@ export const GAME_DATA = {
       "page": 163,
       "card": "M",
       "title": "Stung On  \nAll Sides\nA young beast has managed \nto get stuck deep in a \nflourishing patch of nettles, \nand cries out for help",
-      "text": ". What were they doing near the nettles anyway? What kind of beast are they? Mouse, badger, or something in between? Helpful Giant - If you are larger than the young beast, you may simply lift them out, receive their thanks, and be on your way. You're able to clip some samples while you help; add any Part from Stinging Nettles (page ) to your Bags. A Giant Help - If you are smaller than the young beast, how do you help guide them free from the nettles? Gain 1 Reputation; this young beast tells everyone about you when they get home safe. 163"
+      "text": ". What were they doing near the nettles anyway? What kind of beast are they? Mouse, badger, or something in between? Helpful Giant - If you are larger than the young beast, you may simply lift them out, receive their thanks, and be on your way. You're able to clip some samples while you help; add any Part from Stinging Nettles to your Bags. A Giant Help - If you are smaller than the young beast, how do you help guide them free from the nettles? Gain 1 Reputation; this young beast tells everyone about you when they get home safe. 163"
     },
     {
       "page": 164,
@@ -1999,7 +1999,7 @@ export const GAME_DATA = {
       "page": 164,
       "card": "10",
       "title": "An Unlikely Friend\nWhile searching through the leaf \nlitter you come across a bug that \nseems to instantly bond with you",
-      "text": ". No matter where you go or what you do, it follows you. What type of bug is it? Is there anything unusual about it? The More the Merrier - Gain a Companion (page 70)"
+      "text": ". No matter where you go or what you do, it follows you. What type of bug is it? Is there anything unusual about it? The More the Merrier - Gain a Companion"
     },
     {
       "page": 164,
@@ -2043,7 +2043,7 @@ export const GAME_DATA = {
       "page": 166,
       "card": "3",
       "title": "Lost and Found\nSomething shiny and \ndistinctly beast-made \nfloats past you",
-      "text": ". It looks like it’s from a settlement nearby. What material is it made from? How do you think it came to be in the water? Gimme! - Add a Shiny Object to your Bags (Weight 11). If you hand it into a Settlement connected to this body of water, gain 2 Reputation and a Trinket. Leave It - If it is really that important, someone else will get it. Continue foraging. Gain 1 Foraging Point. ace Horrors From The Deep Something slithers through the water. Oh stars, what could it be? What monster lurks just underneath the water?! Draw a Card. ♥ or ♦ - A traveller swimming low and slow thuds into your vessel. What are they doing out on the water? How to they respond to bumping into you? ♣ or ♠ - PIKE!! A massive fanged fish will bite you into bloody clumps if you don't get moving! Reduce Timers and Foraging Points by a total of 5 as you backtrack through the water, and hide safely on land."
+      "text": ". It looks like it’s from a settlement nearby. What material is it made from? How do you think it came to be in the water? Gimme! - Add a Shiny Object to your Bags. If you hand it into a Settlement connected to this body of water, gain 2 Reputation and a Trinket. Leave It - If it is really that important, someone else will get it. Continue foraging. Gain 1 Foraging Point. ace Horrors From The Deep Something slithers through the water. Oh stars, what could it be? What monster lurks just underneath the water?! Draw a Card. ♥ or ♦ - A traveller swimming low and slow thuds into your vessel. What are they doing out on the water? How to they respond to bumping into you? ♣ or ♠ - PIKE!! A massive fanged fish will bite you into bloody clumps if you don't get moving! Reduce Timers and Foraging Points by a total of 5 as you backtrack through the water, and hide safely on land."
     },
     {
       "page": 166,
@@ -2183,7 +2183,7 @@ export const GAME_DATA = {
       "page": 172,
       "card": "3",
       "title": "Little Biters\nAs you hike through the \nbrush here, you shake \nloose a tick from a strand \nof grass",
-      "text": ". You can't quite shake the feeling of something crawling over you. Tick Check - Decrease Timers by 1 as you check yourself twice over. Risk It - Draw a Card. ♥ or ♦ - You were lucky; no ticks have sunk their nasty little teeth into you. ♣ or ♠ - You develop the Tick Bitten, Twice Shy Ailment (page 113) and must cure it before you Move On, or face the Consequences."
+      "text": ". You can't quite shake the feeling of something crawling over you. Tick Check - Decrease Timers by 1 as you check yourself twice over. Risk It - Draw a Card. ♥ or ♦ - You were lucky; no ticks have sunk their nasty little teeth into you. ♣ or ♠ - You develop the Tick Bitten, Twice Shy Ailment and must cure it before you Move On, or face the Consequences."
     },
     {
       "page": 172,
@@ -2201,7 +2201,7 @@ export const GAME_DATA = {
       "page": 173,
       "card": "7",
       "title": "Wild Chef\nA streak of smoke, a \ndelicious smell, and \nthe distant sounds of \nexcited munching are \nall signs that someone \nclose by is baking \nsomething incredible",
-      "text": ". What food-scent blows on the wind? Do you have a particular fondness for this food? Follow Your Stomach - Lose two Foraging Points. Draw a Meadow Social Encounter relevant to the season you are in. Complete it, and add Delicious Food (Weight 1) to your bags. It provides [FAIR 4]. The food spoils after you Mark 3 Days on your Calendar. Follow Your Heart - Lose 1 Foraging Point as you are distracted by the hunger."
+      "text": ". What food-scent blows on the wind? Do you have a particular fondness for this food? Follow Your Stomach - Lose two Foraging Points. Draw a Meadow Social Encounter relevant to the season you are in. Complete it, and add Delicious Food to your bags. It provides [FAIR 4]. The food spoils after you Mark 3 Days on your Calendar. Follow Your Heart - Lose 1 Foraging Point as you are distracted by the hunger."
     },
     {
       "page": 173,
@@ -2225,7 +2225,7 @@ export const GAME_DATA = {
       "page": 174,
       "card": "M",
       "title": "Sowing",
-      "text": "(Enhanced Edition) The farmers here have a very unusual way of spreading seeds around the fields. How do they manage it? Do they use a natural feature of their bodies, or a strange contraption? Is it effective? Or just eccentric?"
+      "text": " The farmers here have a very unusual way of spreading seeds around the fields. How do they manage it? Do they use a natural feature of their bodies, or a strange contraption? Is it effective? Or just eccentric?"
     },
     {
       "page": 174,
@@ -2243,7 +2243,7 @@ export const GAME_DATA = {
       "page": 174,
       "card": "9",
       "title": "Project Launch\nBeasts from all around \nare gathered to see \nthe unveiling of a local \nCraftpaw’s latest invention",
-      "text": ". What purpose does it serve? Does it even work? If not, what goes catastrophically wrong? Watch the Unveiling - Reduce Timers by 2. Add a Guild Rumour (No Weight) to your Bags. Bring it to any Settlement to gain 2 Guild Reputation. Keep Your Head Down - Continue with your foraging and leave the inventors to their chaos. 174"
+      "text": ". What purpose does it serve? Does it even work? If not, what goes catastrophically wrong? Watch the Unveiling - Reduce Timers by 2. Add a Guild Rumour to your Bags. Bring it to any Settlement to gain 2 Guild Reputation. Keep Your Head Down - Continue with your foraging and leave the inventors to their chaos. 174"
     },
     {
       "page": 175,
@@ -2255,7 +2255,7 @@ export const GAME_DATA = {
       "page": 175,
       "card": "J",
       "title": "Bee Kind  \nTo Yourself\nAs you're making your \nway past colourful \nmeadow flowers, you \nfind a dazed bee lying \non the ground",
-      "text": ". Do you help the dazzled bug? Sweet - If you have some Honey or another Fair Reagent, you can nurse the bee to health and gain a Honey Bee Companion (page 70). Rescue - If you don't have any Honey or Fair Reagent, you may carry the bee to safety and gain a Honeybee Companion (page 70) by Decreasing Timers by 4."
+      "text": ". Do you help the dazzled bug? Sweet - If you have some Honey or another Fair Reagent, you can nurse the bee to health and gain a Honey Bee Companion. Rescue - If you don't have any Honey or Fair Reagent, you may carry the bee to safety and gain a Honeybee Companion by Decreasing Timers by 4."
     },
     {
       "page": 175,
@@ -2311,7 +2311,7 @@ export const GAME_DATA = {
       "page": 177,
       "card": "M",
       "title": "Life Saving Transplant\nHow fortunate! Some beasts \nhave been out and made \na snowbeast with Dense \nCharcoal for eyes and Animal \nSheddings for hair",
-      "text": ". What sort of beast does it resemble? How does it feel to take bits from someone's work? Take - You may add a piece of Dense Charcoal and Animal Sheddings (Fur) to your Bags. Transplant - You may replace the removed Charcoal or Sheddings with something similar of your own. Gain no Reputation (but you can feel less guilty)."
+      "text": ". What sort of beast does it resemble? How does it feel to take bits from someone's work? Take - You may add a piece of Dense Charcoal and Animal Sheddings to your Bags. Transplant - You may replace the removed Charcoal or Sheddings with something similar of your own. Gain no Reputation."
     },
     {
       "page": 177,
@@ -2359,7 +2359,7 @@ export const GAME_DATA = {
       "page": 179,
       "card": "8",
       "title": "Stick 'Em Up!\nYou're stopped by an \narmed beast with a \ndangerous look to \nthem",
-      "text": ". They demand your bag and threaten you with tooth and iron. What fearsome weapons do they wield? Play it Safe - You give them your satchel. Discard everything in your Bags, and lose all your Trinkets. Scrap - You try to fight them off. Draw a card for you and two cards for them. The highest single card wins. You can draw a second card if you have a Crossbow and Bolt. If you win the fight - you chase them off and can take their Weapon (Weight 1). It has the same function as a Crossbow (page 62), but only works against Beasts, not Behemoths. If you lose the fight - they kick, beat and bite you. While you shelter from their attacks, they snatch your Bags. Discard all of your Items (including Tools), and lose all your Trinkets. 179"
+      "text": ". They demand your bag and threaten you with tooth and iron. What fearsome weapons do they wield? Play it Safe - You give them your satchel. Discard everything in your Bags, and lose all your Trinkets. Scrap - You try to fight them off. Draw a card for you and two cards for them. The highest single card wins. You can draw a second card if you have a Crossbow and Bolt. If you win the fight - you chase them off and can take their Weapon. It has the same function as a Crossbow, but only works against Beasts, not Behemoths. If you lose the fight - they kick, beat and bite you. While you shelter from their attacks, they snatch your Bags. Discard all of your Items, and lose all your Trinkets. 179"
     },
     {
       "page": 180,
@@ -2377,7 +2377,7 @@ export const GAME_DATA = {
       "page": 180,
       "card": "J",
       "title": "Protective Parents\nA young lamb has \nwandered over to you \nwhile you're foraging",
-      "text": ". How sweet! Before you can even introduce yourself, the rest of the flock charge at you to protect it! Scamper! - Run as fast as you can, Down the scree or Up steep slopes. Down the scree - You escape safe and sound, but cannot Forage in this location until you have Moved On. Up the slope - Out of breath (and out of sight), you're safe to keep foraging. Your aching limbs need a break though; decrease Timers by 2. On flitting wings - If you or your Familiar can fly, you dart out of reach of the mountain sheep. Continue Foraging."
+      "text": ". How sweet! Before you can even introduce yourself, the rest of the flock charge at you to protect it! Scamper! - Run as fast as you can, Down the scree or Up steep slopes. Down the scree - You escape safe and sound, but cannot Forage in this location until you have Moved On. Up the slope - Out of breath, you're safe to keep foraging. Your aching limbs need a break though; decrease Timers by 2. On flitting wings - If you or your Familiar can fly, you dart out of reach of the mountain sheep. Continue Foraging."
     },
     {
       "page": 180,
@@ -2401,13 +2401,13 @@ export const GAME_DATA = {
       "page": 181,
       "card": "10",
       "title": "Refreshing Drink\nA considerate",
-      "text": "(or perhaps entrepreneurial) beast has rolled up a cart full of cool drinks to a popular rest stop on this side of the mountain, serving all the beasts who are making the trek today. Why do business in such a remote place? Snack Time - Give away one of your Reagents to Increase the Foraging Timer by 1 thanks to your renewed vigour."
+      "text": " beast has rolled up a cart full of cool drinks to a popular rest stop on this side of the mountain, serving all the beasts who are making the trek today. Why do business in such a remote place? Snack Time - Give away one of your Reagents to Increase the Foraging Timer by 1 thanks to your renewed vigour."
     },
     {
       "page": 181,
       "card": "9",
       "title": "Arena of the Mind\nThe thunder crack of \ngoats colliding echoes \ndown past you and as \nyou follow to see its \nsource you discover a \ntrio of goats around a \nnatural salt lick! These \ngoats are arguing over a \nphilosophical principle, \nand are",
-      "text": "(quite literally) butting heads over it. Debate the Goats - Decrease Timers by 1, and draw a Card. If it is a ♥, ♦, or ♣ - You invent a reasonable solution to their theoretical problem. Add Rock Salt to your Bags. If it is ♠, the goats are displeased with your theories! They stamp their hooves and scare you off; Lose 2 Foraging Points. Follow in their Hoofsteps - Eventually they tire of bashing, and start to wander the nearby mountainside for fresh ground to stomp around in. In their wake, they leave sheddings! Decrease Timers by 1, and gain 1 Behemoth Bits (Fur). 181"
+      "text": " butting heads over it. Debate the Goats - Decrease Timers by 1, and draw a Card. If it is a ♥, ♦, or ♣ - You invent a reasonable solution to their theoretical problem. Add Rock Salt to your Bags. If it is ♠, the goats are displeased with your theories! They stamp their hooves and scare you off; Lose 2 Foraging Points. Follow in their Hoofsteps - Eventually they tire of bashing, and start to wander the nearby mountainside for fresh ground to stomp around in. In their wake, they leave sheddings! Decrease Timers by 1, and gain 1 Behemoth Bits. 181"
     },
     {
       "page": 182,
@@ -2445,7 +2445,7 @@ export const GAME_DATA = {
       "page": 183,
       "card": "9",
       "title": "Mountain Rescue\nA box full of waxed \npaper kites sits \nsafely beneath a \nrocky overhang",
-      "text": ". A little plaque says \"take one and fly it if ever you need rescue in these treacherous peaks. Kite - Add a Kite (Weight 1) to your Bags. You may fly it while travelling through Mountain Locations to immediately travel to the nearest Settlement. Doing so while Helping Local Beasts with an Ailment causes you to lose 3 Reputation."
+      "text": ". A little plaque says \"take one and fly it if ever you need rescue in these treacherous peaks. Kite - Add a Kite to your Bags. You may fly it while travelling through Mountain Locations to immediately travel to the nearest Settlement. Doing so while Helping Local Beasts with an Ailment causes you to lose 3 Reputation."
     },
     {
       "page": 183,
@@ -2469,13 +2469,13 @@ export const GAME_DATA = {
       "page": 184,
       "card": "2",
       "title": "Password\nPart of this ruin is protected by a \nmysterious lock made of metal \nbuttons with embossed  \nTitan glyphs",
-      "text": ". Look Around - As you Forage, if you draw a J or M you may, instead of a Reagent, find something with the Titan Symbols written on it. If you do, you may Open The Door. Open The Door - You press the symbols and the lock opens, revealing what lies beyond. Depending on how you've described this Titan Ruin you can either: Gain a Titan Codex (Weight 1); you can trade the Knowers for 20 Trinkets at the end of this Journey. (You don’t have to find them, they'll find you). Establish a Clinic at this Location; choose a new Service to add to the Agenda, even if you don't qualify for it. Titan Foraging Encounters Those that dare scrounge here best beware. Toxins, burning cables, and metal claws await any fool hardy beast who wanders in. 184"
+      "text": ". Look Around - As you Forage, if you draw a J or M you may, instead of a Reagent, find something with the Titan Symbols written on it. If you do, you may Open The Door. Open The Door - You press the symbols and the lock opens, revealing what lies beyond. Depending on how you've described this Titan Ruin you can either: Gain a Titan Codex; you can trade the Knowers for 20 Trinkets at the end of this Journey. (You don’t have to find them, they'll find you). Establish a Clinic at this Location; choose a new Service to add to the Agenda, even if you don't qualify for it. Titan Foraging Encounters Those that dare scrounge here best beware. Toxins, burning cables, and metal claws await any fool hardy beast who wanders in. 184"
     },
     {
       "page": 185,
       "card": "4",
       "title": "Final Resting Place\nAs you delve deep \ninto this ruin, you \naccidentally cause a wall \nto collapse, revealing \na whole new chamber",
-      "text": ". The inside smells of long dried dust, and the massive bones of a strange Behemoth that were interred inside. Wailing Curse - If you choose to enter this new chamber, draw a card. ♥ or ♦ - You scamper through into the eerily silent, dusty chamber. You feel at liberty to explore, and yet also like you're trespassing. ♣ or ♠ - As if you had startled a sleeping wolf, a ear shattering whine begins to fill the air. Dust shivers down from the ceiling. You a forced to flee, unless you have a Titan Thingamabob (which will silence the siren). If you make it into the chamber - amongst the long deceased behemoths you find a crumbling sack of tools far too big for you to use. However, the sack also contains a number of strange devices. Gain either a Cranky Contraption Companion, a Titan Thingamabob, or a Titan Reagent of value 8 or lower."
+      "text": ". The inside smells of long dried dust, and the massive bones of a strange Behemoth that were interred inside. Wailing Curse - If you choose to enter this new chamber, draw a card. ♥ or ♦ - You scamper through into the eerily silent, dusty chamber. You feel at liberty to explore, and yet also like you're trespassing. ♣ or ♠ - As if you had startled a sleeping wolf, a ear shattering whine begins to fill the air. Dust shivers down from the ceiling. You a forced to flee, unless you have a Titan Thingamabob. If you make it into the chamber - amongst the long deceased behemoths you find a crumbling sack of tools far too big for you to use. However, the sack also contains a number of strange devices. Gain either a Cranky Contraption Companion, a Titan Thingamabob, or a Titan Reagent of value 8 or lower."
     },
     {
       "page": 185,
@@ -2545,7 +2545,7 @@ export const GAME_DATA = {
       "page": 192,
       "suit": "♠",
       "title": "Training",
-      "text": "\"Come here — you can do it! Follow my voice... there we go... now, through the hoop! Yes, YES! Wait, No!\" You cross paths with a young Hivewarden, in the middle of coaxing a Damselfly to perform a new trick. Wonderful bugs! The hivewarden sees your fleeting interest in the scene, and takes the opportunity to rattle off a number of exciting facts about what wonderful bugs Damselflies are. What do you think of this Hivewarden's enthusiasm? Hatchling. \"Here, it's not so hard. Try holding this one — oh! I think they like you!\" The hivewarden ecclesiastically hands you a delicate Damselfly. It buzzes lazily around your head. If you wish, gain a Damselfly Companion. It has the same function as a Butterfly or a Cricket Companion (page 70)"
+      "text": "\"Come here — you can do it! Follow my voice... there we go... now, through the hoop! Yes, YES! Wait, No!\" You cross paths with a young Hivewarden, in the middle of coaxing a Damselfly to perform a new trick. Wonderful bugs! The hivewarden sees your fleeting interest in the scene, and takes the opportunity to rattle off a number of exciting facts about what wonderful bugs Damselflies are. What do you think of this Hivewarden's enthusiasm? Hatchling. \"Here, it's not so hard. Try holding this one — oh! I think they like you!\" The hivewarden ecclesiastically hands you a delicate Damselfly. It buzzes lazily around your head. If you wish, gain a Damselfly Companion. It has the same function as a Butterfly or a Cricket Companion"
     },
     {
       "page": 192,
@@ -2595,13 +2595,13 @@ export const GAME_DATA = {
       "page": 194,
       "suit": "♦",
       "title": "Bridges\nTrees naturally grow so that the \ntips of their branches just touch \ntheir neighbours",
-      "text": ". Forest beasts take advantage of this, connecting different trees together with rope bridges, easily expanding as their population demands. Swinging - A young beast is laughing and hooting as they rock the bridge to and fro. How do you feel about crossing this shifting bridge? Does anyone react to the youngster? New Paths - A recent storm caused the bridge ahead to snap, its two halves now clattering against their respective tree boughs. How often do bridges break in this settlement? How do the locals feel about it? Forest Settlements are threaded through native tree branches, keeping locals off of the ground and away from dangerous behemoths. The beasts that live in these ‘hometrees’ forage for food, gathering berries and mushrooms from the forest floor and nuts and cones from the woods’ trees. Dried goods (like fish and grains) are kept in convenient hollows. Houses made of woven branches and insulated with dry moss are dotted along treetop roads, which are made of multiple branches woven together, connected by rope bridges. Forests 194"
+      "text": ". Forest beasts take advantage of this, connecting different trees together with rope bridges, easily expanding as their population demands. Swinging - A young beast is laughing and hooting as they rock the bridge to and fro. How do you feel about crossing this shifting bridge? Does anyone react to the youngster? New Paths - A recent storm caused the bridge ahead to snap, its two halves now clattering against their respective tree boughs. How often do bridges break in this settlement? How do the locals feel about it? Forest Settlements are threaded through native tree branches, keeping locals off of the ground and away from dangerous behemoths. The beasts that live in these ‘hometrees’ forage for food, gathering berries and mushrooms from the forest floor and nuts and cones from the woods’ trees. Dried goods are kept in convenient hollows. Houses made of woven branches and insulated with dry moss are dotted along treetop roads, which are made of multiple branches woven together, connected by rope bridges. Forests 194"
     },
     {
       "page": 195,
       "suit": "♦",
       "title": "Market\nFairwind birds from all over the world \nstop to sell their international wares at \nthe Peddlebough",
-      "text": ". Wooden streets circle from forest floor up to canopy tops. Irresistible Bargain - A keen merchant steps out of their stall, exclaiming that you have just the thing they were hoping the find. You can choose to swap one of your non-basic Tools for any other from the Tools list (page 62). Delightful Indulgence - Journal about a new food or luxury you experience. Impulse Purchase - You're tempted by all manner of strange and foreign plant cuttings on display. You can buy a 'Foreign Reagent' for 2 Trinkets (Weight ⅔) It provides [TAG 2]. You decide its Type, Tag, and Preparation Method(s). Journal about this Reagent’s origin."
+      "text": ". Wooden streets circle from forest floor up to canopy tops. Irresistible Bargain - A keen merchant steps out of their stall, exclaiming that you have just the thing they were hoping the find. You can choose to swap one of your non-basic Tools for any other from the Tools list. Delightful Indulgence - Journal about a new food or luxury you experience. Impulse Purchase - You're tempted by all manner of strange and foreign plant cuttings on display. You can buy a 'Foreign Reagent' for 2 Trinkets (Weight ⅔) It provides [TAG 2]. You decide its Type, Tag, and Preparation Method. Journal about this Reagent’s origin."
     },
     {
       "page": 195,
@@ -2625,7 +2625,7 @@ export const GAME_DATA = {
       "page": 196,
       "suit": "♣",
       "title": "Betting Match\nA popular pastime in the woods is to \nrace these tiny bugs, betting on which \ncan crawl the furthest or finish their \ncocoon the fastest",
-      "text": ". An Opportunity - A lone caterpillar cocoon hangs precariously on a nearby branch, where wind or rain would easily dash them away. A Snack! Chomp down on the convenient treat. Increase your Speed by 1 for your next move. A Friend! Add a ‘Cocoon’ (Weight ⅓) to your Bags. After you have travelled 10 Paths, or ended a Journey, it hatches into a Butterfly Companion (page 70). Place a Bet - Nearby, a race is about to finish. There's time for you to place a bet on one of four caterpillars as they close the gaps on their cocoons. Choose a Suit (e.g ♥) and place a bet of 1, 2 or 4 Trinkets. Draw from the Deck, placing the first of each suit drawn into 1st, 2nd, 3rd and 4th place. If your chosen Suit came 1st, double your bet; 2nd, make your bet back; 3rd or 4th, lose your bet."
+      "text": ". An Opportunity - A lone caterpillar cocoon hangs precariously on a nearby branch, where wind or rain would easily dash them away. A Snack! Chomp down on the convenient treat. Increase your Speed by 1 for your next move. A Friend! Add a ‘Cocoon’ (Weight ⅓) to your Bags. After you have travelled 10 Paths, or ended a Journey, it hatches into a Butterfly Companion. Place a Bet - Nearby, a race is about to finish. There's time for you to place a bet on one of four caterpillars as they close the gaps on their cocoons. Choose a Suit (e.g ♥) and place a bet of 1, 2 or 4 Trinkets. Draw from the Deck, placing the first of each suit drawn into 1st, 2nd, 3rd and 4th place. If your chosen Suit came 1st, double your bet; 2nd, make your bet back; 3rd or 4th, lose your bet."
     },
     {
       "page": 196,
@@ -2645,13 +2645,13 @@ export const GAME_DATA = {
       "page": 197,
       "suit": "♣",
       "title": "Sauna\nDuring the winter, beasts set \nup temporary saunas on the \nforest floor",
-      "text": ". Their large domed structures fits all sizes, and snow is thrown on the open log fire to create a warm humid interior. Hauling the Winter Log - A tree is felled, stripped, and burned slowly all winter to heat the sauna. Its ashes are collected for soaps, exfoliants, and as a rich fertiliser. Journal about helping the local beasts haul more of the winter log into the Sauna. Add a Burned Wood (Ash) Reagent to your Bags. Easing Aching Muscles - Sit a spell in the steamy sauna, and perform some much needed stretching. Who else is sitting in the sauna with you?"
+      "text": ". Their large domed structures fits all sizes, and snow is thrown on the open log fire to create a warm humid interior. Hauling the Winter Log - A tree is felled, stripped, and burned slowly all winter to heat the sauna. Its ashes are collected for soaps, exfoliants, and as a rich fertiliser. Journal about helping the local beasts haul more of the winter log into the Sauna. Add a Burned Wood Reagent to your Bags. Easing Aching Muscles - Sit a spell in the steamy sauna, and perform some much needed stretching. Who else is sitting in the sauna with you?"
     },
     {
       "page": 197,
       "suit": "♠",
       "title": "Tall Tales\nA lack of foliage causes most \nforest beasts to stay close to \nhome during the winter",
-      "text": ". They play a tree-wide game called 'Tall Tale' where one beast starts a story at the base of their settlement's tree, and it is retold (and often changed) up the tree. When it reaches the top, it is shouted for the whole settlement to hear. Seeding a Story - Journal about a story you start at the base of this tree, or one you are told and then pass to someone else. Sharing the News - Journal about being the last to hear the story, and what it was like to shout it from the top of this settlement."
+      "text": ". They play a tree-wide game called 'Tall Tale' where one beast starts a story at the base of their settlement's tree, and it is retold up the tree. When it reaches the top, it is shouted for the whole settlement to hear. Seeding a Story - Journal about a story you start at the base of this tree, or one you are told and then pass to someone else. Sharing the News - Journal about being the last to hear the story, and what it was like to shout it from the top of this settlement."
     },
     {
       "page": 197,
@@ -2675,13 +2675,13 @@ export const GAME_DATA = {
       "page": 199,
       "suit": "♥",
       "title": "Boatmakers\nHammering, sawing, the taste of fresh \nsap on the air and the smell of cut \nwood",
-      "text": "; these senses overwhelm any beast moving through the dockyard. Beaver Builders - Teeth gnaw and carve logs of wood into prows, masts and every other shape of ship you could imagine. They're easily absorbed in their work, commissioned as often by Guilds as by individual land-bound beasts. What ship do you see being designed? Canteen - Hard working beasts work up a ferocious appetite, and the Canteen (built into an overturned Titan bucket) serves greasy, belly filling food. If you join the fast-moving queue, you can show your Poulticepounder Guild crest and get a bowl full of food. What do you eat? How does it taste? Gain 2 Carry from the hearty food until the end of your Next Move."
+      "text": "; these senses overwhelm any beast moving through the dockyard. Beaver Builders - Teeth gnaw and carve logs of wood into prows, masts and every other shape of ship you could imagine. They're easily absorbed in their work, commissioned as often by Guilds as by individual land-bound beasts. What ship do you see being designed? Canteen - Hard working beasts work up a ferocious appetite, and the Canteen serves greasy, belly filling food. If you join the fast-moving queue, you can show your Poulticepounder Guild crest and get a bowl full of food. What do you eat? How does it taste? Gain 2 Carry from the hearty food until the end of your Next Move."
     },
     {
       "page": 199,
       "suit": "♦",
       "title": "Nursery\nUp bank and away from the docks are \nthe Pots",
-      "text": "; large clay-walled buildings with open roofs. Farmers tend to a nursery of trees - pines, oaks, willows, and other species too. Regrowth - When they're big enough, the Guild of Loggnawers collect the sapplings and plant them out in the land they've cleared. How many beavers does it take to move a single sapling? Mother 'o Fruits - Towering over the Pots is a single, massive apple tree. Wait, no its a pear tree. Hang on... its all sorts of trees! Branches from different species have been grafted onto a single host, so that the tree bears fruit all year long. What fruit is in season right now? Apples, pears, peaches, cherries? Add 'Fruit' (Weight 1) to your Bags. It can be USED/COOKED for [FAIR 2/3]. Far to the north of the Bristley Woods sits Loch Katrine, a languid mirror to the stars. A crew of Beavers dug a river to lower lying bodies of water, and established Newdam. This tiny settlement flourishes with trade from the northern heart of the woods, and is famous for its shipyards and waterside wooden lodges. NewDam 199"
+      "text": "; large clay-walled buildings with open roofs. Farmers tend to a nursery of trees - pines, oaks, willows, and other species too. Regrowth - When they're big enough, the Guild of Loggnawers collect the sapplings and plant them out in the land they've cleared. How many beavers does it take to move a single sapling? Mother 'o Fruits - Towering over the Pots is a single, massive apple tree. Wait, no its a pear tree. Hang on... its all sorts of trees! Branches from different species have been grafted onto a single host, so that the tree bears fruit all year long. What fruit is in season right now? Apples, pears, peaches, cherries? Add 'Fruit' to your Bags. It can be USED/COOKED for [FAIR 2/3]. Far to the north of the Bristley Woods sits Loch Katrine, a languid mirror to the stars. A crew of Beavers dug a river to lower lying bodies of water, and established Newdam. This tiny settlement flourishes with trade from the northern heart of the woods, and is famous for its shipyards and waterside wooden lodges. NewDam 199"
     },
     {
       "page": 201,
@@ -2731,7 +2731,7 @@ export const GAME_DATA = {
       "page": 203,
       "suit": "♠",
       "title": "Oak Smoker\nThe rich smell of burning oak and drying \nfish briefly overwhelms your senses",
-      "text": ". On the shore not far away, several smoking chests (each with a fish spit inside) are attended to by a dozing local. What fish do the locals catch here? Do you see anything they use to flavour it, such as rock salt or special herbs?"
+      "text": ". On the shore not far away, several smoking chests are attended to by a dozing local. What fish do the locals catch here? Do you see anything they use to flavour it, such as rock salt or special herbs?"
     },
     {
       "page": 203,
@@ -2755,7 +2755,7 @@ export const GAME_DATA = {
       "page": 204,
       "suit": "♦",
       "title": "Monuments\nMeadow settlements rarely shift \nover time, tied as they are to natural \nsheltering structures",
-      "text": ". This means many small monuments (most now half forgotten) dot the highs and lows of each town. Work in progress - Ahead, a beast in the middle of making a monument. You can weave a Trinket of your own into the monument; if you do so, gain 1 Reputation. A curious marking - As you wander this settlement, you half trip over an old (but nonetheless intentional) marking. What is the marking made of? What do you think its original purpose was - to commemorate memories, to celebrate life? Or something more mundane? Open rolling hills of wild grasses peppered with mossy stones and thistly flowers dot the Bristley Woods, and to the untrained eye they can appear to be completely uninhabited. These Settlements use natural features as shelter from the elements; they’re built into sturdy gorse bushes, or in hillside barrows reinforced by the roots of old, gnarled trees. Anything exterior can be quickly packed down and hauled to safety, away from fast approaching predators and Behemoths. Meadows 204"
+      "text": ". This means many small monuments dot the highs and lows of each town. Work in progress - Ahead, a beast in the middle of making a monument. You can weave a Trinket of your own into the monument; if you do so, gain 1 Reputation. A curious marking - As you wander this settlement, you half trip over an old marking. What is the marking made of? What do you think its original purpose was - to commemorate memories, to celebrate life? Or something more mundane? Open rolling hills of wild grasses peppered with mossy stones and thistly flowers dot the Bristley Woods, and to the untrained eye they can appear to be completely uninhabited. These Settlements use natural features as shelter from the elements; they’re built into sturdy gorse bushes, or in hillside barrows reinforced by the roots of old, gnarled trees. Anything exterior can be quickly packed down and hauled to safety, away from fast approaching predators and Behemoths. Meadows 204"
     },
     {
       "page": 205,
@@ -2779,13 +2779,13 @@ export const GAME_DATA = {
       "page": 206,
       "suit": "♣",
       "title": "Bees!\nYou come across a hivewarden \ndesperately trying to separate their \nbees as they buzz and huddle and \nsting one another",
-      "text": ". The hivewarden explains that two queens were born, causing a leadership challenge! Protect the Queen - The Hivewarden asks if you can take the Queen to a different meadow and let her go. If you agree, gain a Queen Bee (it counts as a Companion). The Queen Bee can be re-homed in a Wild Meadow, Bog or Forest. Release The Queen - When you re-home a Queen Bee, it starts a new hive. Mark the hive's Location on your Map. You and other Poulticepounders may automatically gather Hive (Honey) and Hive (Wax) Reagent Parts in this Location when Foraging. Wish them luck - Sometimes its bee-st not to get involved in the business of other guilds. Lose 1 Reputation."
+      "text": ". The hivewarden explains that two queens were born, causing a leadership challenge! Protect the Queen - The Hivewarden asks if you can take the Queen to a different meadow and let her go. If you agree, gain a Queen Bee. The Queen Bee can be re-homed in a Wild Meadow, Bog or Forest. Release The Queen - When you re-home a Queen Bee, it starts a new hive. Mark the hive's Location on your Map. You and other Poulticepounders may automatically gather Hive and Hive Reagent Parts in this Location when Foraging. Wish them luck - Sometimes its bee-st not to get involved in the business of other guilds. Lose 1 Reputation."
     },
     {
       "page": 206,
       "suit": "♠",
       "title": "Emergency Care\nA cream coloured tent spotted with \nroad-dust and more than pawful of \nsturdy patches has been erected \ndefiantly in a communal space of this \nsettlement",
-      "text": ". The gentle silhouettes of beasts undergoing treatment can be seen inside. Stitcher's Care - The Guild of Stitchers are somewhat cousins to your own Guild. Where you produce poultices, holistic care, and herbal remedies, their goal is to study the bodies of beasts and document their inner workings for use in surgery. How do you feel about the Stitchers? What do you think their place is in beasts' healthcare? Supply and Demand - A stitcher packs a smoking pipe near an open tent flap, clearly exhausted. Spotting you (and your guildcrest), they initiate a friendly (if very work-focused) conversation, talking about the types of patients they've treated. What sort of problems are their patients facing?"
+      "text": ". The gentle silhouettes of beasts undergoing treatment can be seen inside. Stitcher's Care - The Guild of Stitchers are somewhat cousins to your own Guild. Where you produce poultices, holistic care, and herbal remedies, their goal is to study the bodies of beasts and document their inner workings for use in surgery. How do you feel about the Stitchers? What do you think their place is in beasts' healthcare? Supply and Demand - A stitcher packs a smoking pipe near an open tent flap, clearly exhausted. Spotting you, they initiate a friendly conversation, talking about the types of patients they've treated. What sort of problems are their patients facing?"
     },
     {
       "page": 206,
@@ -2823,7 +2823,7 @@ export const GAME_DATA = {
       "page": 208,
       "suit": "♥",
       "title": "Shift Change\nThe mountains are places \nof scarcity, in comparison to \nthe lush forests and bountiful \nmeadows of the woods \nbelow",
-      "text": ". The beasts here are industrious and hard working, and almost every hour of the day a new shift of Guildbeasts is either coming or going from a collaborative task. As you walk the cobbled streets, what Guild do you see going about their business? You have the opportunity to hire a Guild Service (page 58), and all Guild Services have a 1 Trinket discount."
+      "text": ". The beasts here are industrious and hard working, and almost every hour of the day a new shift of Guildbeasts is either coming or going from a collaborative task. As you walk the cobbled streets, what Guild do you see going about their business? You have the opportunity to hire a Guild Service, and all Guild Services have a 1 Trinket discount."
     },
     {
       "page": 208,
@@ -2835,13 +2835,13 @@ export const GAME_DATA = {
       "page": 209,
       "suit": "♥",
       "title": "Linen\nDuring the day, workers from the Guild \nof Flaxflayers can be heard beating \ncoarse fibres, and spinning it into \nballs of linen twine of different sizes \nand widths",
-      "text": ". Inside Spoolkeep, looms operated by teams of mice weave dyed threads into intricate patterns. Stress Relief - Frustrated beasts can take their anger out on a tough stretches of flax. Slapping at the fibres with rods of birch twigs can be both therapeutic and physically exerting. Do you vent some frustrations? Offcuts - Apprentice Flaxflayers often make a great many mistakes; lumpy flax, poorly spun thread, and patchy fabric. These goods are sold at a discount by a chatty pair of elderly mice, close to Spoolkeep's main gates. Do you have a natter with the mice? What gossip have they got to share from their knitting group? If you wish, you can trade 5 Trinkets for a Lumpy Blanket; it has the same properties as a Knitted Blanket (page 64), but is a bit uglier."
+      "text": ". Inside Spoolkeep, looms operated by teams of mice weave dyed threads into intricate patterns. Stress Relief - Frustrated beasts can take their anger out on a tough stretches of flax. Slapping at the fibres with rods of birch twigs can be both therapeutic and physically exerting. Do you vent some frustrations? Offcuts - Apprentice Flaxflayers often make a great many mistakes; lumpy flax, poorly spun thread, and patchy fabric. These goods are sold at a discount by a chatty pair of elderly mice, close to Spoolkeep's main gates. Do you have a natter with the mice? What gossip have they got to share from their knitting group? If you wish, you can trade 5 Trinkets for a Lumpy Blanket; it has the same properties as a Knitted Blanket, but is a bit uglier."
     },
     {
       "page": 209,
       "suit": "♦",
       "title": "Thinkers\nFar to the north of Spoolkeep where \nonly eagles would dare to soar live tribes \nof Goats",
-      "text": ". These Philosopher-Behemoths debate the laws of the world, meeting at stone circles to bray their arguments. Bleated Wisdom - You pass a massive, freshly-shorn goat in the middle of a massage from a team of rats. What advice might the goat share? Woolworks - Colleges of goats regularly descend from the mountain tops to Spoolkeep. In exchange for shearing and cleaning them, citybeasts have a rich supply of oily wool for their own crafts. If you lend a paw washing the trimmings, you can add Behemoth Bits (Shed Fur) to your Bags. In a word, Spoolkeep is an industrious city. Its four districts are divided by ancient Titan walls, a source of continual inspiration for the Guild of Stonestackers. Stone pillars and wooden scaffolds support houses on many different levels, with cranked lifts and staircases chaotically built throughout. In the brick huts outside Spoolkeep’s walls live the farmers and threshers, harvesting flax and spinning it into linen thread for extravagant weaving. Spoolkeep 209"
+      "text": ". These Philosopher-Behemoths debate the laws of the world, meeting at stone circles to bray their arguments. Bleated Wisdom - You pass a massive, freshly-shorn goat in the middle of a massage from a team of rats. What advice might the goat share? Woolworks - Colleges of goats regularly descend from the mountain tops to Spoolkeep. In exchange for shearing and cleaning them, citybeasts have a rich supply of oily wool for their own crafts. If you lend a paw washing the trimmings, you can add Behemoth Bits to your Bags. In a word, Spoolkeep is an industrious city. Its four districts are divided by ancient Titan walls, a source of continual inspiration for the Guild of Stonestackers. Stone pillars and wooden scaffolds support houses on many different levels, with cranked lifts and staircases chaotically built throughout. In the brick huts outside Spoolkeep’s walls live the farmers and threshers, harvesting flax and spinning it into linen thread for extravagant weaving. Spoolkeep 209"
     },
     {
       "page": 210,
@@ -2853,7 +2853,7 @@ export const GAME_DATA = {
       "page": 210,
       "suit": "♣",
       "title": "Grinding Ore\nA low growling rumble grips the \nearth and stone beneath you",
-      "text": ". A group of Orebeaters use a massive stone wheel to grind chunks of iron ore into finer rubble. Keen eyed apprentices picks out the rusty-red coloured ore, collecting it into a woven pan. Talents of all sizes - Most beasts imagine the Founding Badgers, who started the Guild many years ago underneath the old roots of Odoak. Nowadays all sorts of beasts work the mined metals, under different sub-orders; copperclaws, silversnouts, pewterpaws, and more. What sorts of beasts do you notice amongst the orebeaters today? How do they use their natural talents to enhance their trade? Storied Swap - Iron pellets are a fine, if niche, medicinal reagent. Approaching the beasts, the master orebeater is willing to give you a few of their precious pellets in exchange for a lesson about their value to the apprentices. If you teach the students a new fact about Iron, you can add Iron (Pellets) to your Bags."
+      "text": ". A group of Orebeaters use a massive stone wheel to grind chunks of iron ore into finer rubble. Keen eyed apprentices picks out the rusty-red coloured ore, collecting it into a woven pan. Talents of all sizes - Most beasts imagine the Founding Badgers, who started the Guild many years ago underneath the old roots of Odoak. Nowadays all sorts of beasts work the mined metals, under different sub-orders; copperclaws, silversnouts, pewterpaws, and more. What sorts of beasts do you notice amongst the orebeaters today? How do they use their natural talents to enhance their trade? Storied Swap - Iron pellets are a fine, if niche, medicinal reagent. Approaching the beasts, the master orebeater is willing to give you a few of their precious pellets in exchange for a lesson about their value to the apprentices. If you teach the students a new fact about Iron, you can add Iron to your Bags."
     },
     {
       "page": 210,
@@ -2903,7 +2903,7 @@ export const GAME_DATA = {
       "page": 213,
       "suit": "♦",
       "title": "Done-deal\nThe silhouette of a",
-      "text": "(possibly familiar) capercaillie looms over two smaller wallaby Hivewardens. They're chatting amicably, exchanging metal gears for jars of thick dark-red honey. A Fresh Face - If you haven't met Griph before, he introduces himself as a travelling merchant and job-doer. His goggles are steamed with condensation. A Reintroduction - If you have met Griph before, the scatterbrained Capercaillie reintroduces himself all the same. Halfway through, he remembers exactly who you are! What stories from the road do you two swap? How did Griph find his way to Glasswall, and where has he come from?"
+      "text": " capercaillie looms over two smaller wallaby Hivewardens. They're chatting amicably, exchanging metal gears for jars of thick dark-red honey. A Fresh Face - If you haven't met Griph before, he introduces himself as a travelling merchant and job-doer. His goggles are steamed with condensation. A Reintroduction - If you have met Griph before, the scatterbrained Capercaillie reintroduces himself all the same. Halfway through, he remembers exactly who you are! What stories from the road do you two swap? How did Griph find his way to Glasswall, and where has he come from?"
     },
     {
       "page": 213,
