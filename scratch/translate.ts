@@ -702,8 +702,11 @@ const translatedAilments = GAME_DATA.ailments.map(ail => {
   // Enforce English tags by replacing any leftover Korean mappings in ailments tags
   const cleanEnglishTags = (str: string) => {
     if (!str) return str;
-    return str
-      .toLowerCase()
+    let s = str.toLowerCase();
+    if (s.includes("mood 2, fur, feather or scale 1") || s.includes("mood 2, fur, feather 또는 scale 1")) {
+      s = s.replace(/mood 2, fur, feather (?:or|또는) scale 1/g, "mood 2 and fur or feather or scale 1");
+    }
+    return s
       .replace(/통증/g, 'pain')
       .replace(/상처/g, 'wound')
       .replace(/감염/g, 'infection')

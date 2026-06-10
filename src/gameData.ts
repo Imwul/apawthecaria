@@ -359,7 +359,7 @@ export const GAME_DATA = {
       "rawName": "PAGE 104 --- Anxious Scratching",
       "severity": "lesser",
       "timer": 7,
-      "tags": "MOOD 2, FUR, FEATHER 또는 SCALE 1",
+      "tags": "MOOD 2 및 FUR 또는 FEATHER 또는 SCALE 1",
       "description": "지속적이고 가벼운 스트레스로 인해 이 야수는 지쳐버렸습니다. 털이나 깃털이 걷잡을 수 없이 빠지기 시작했습니다.",
       "outcome": "성공 보상 장신구 획득",
       "consequence": "털 없는 신세: 야수가 완전히 털갈이를 해버립니다. 이제 그들은 어떤 신체적, 사회적 압박에 직면하게 될까요?"
@@ -779,7 +779,7 @@ export const GAME_DATA = {
       "rawName": "Wingbreak",
       "severity": "dire",
       "timer": 6,
-      "tags": "FEATHER 3, TEMPERATURE 3, MOOD 2, \nPAIN 2 및 부목용 약재 (SOMETHING TO SET A BONE)",
+      "tags": "FEATHER 3, TEMPERATURE 3, MOOD 2, \nPAIN 2 및 부목용 약재 (부목용 약재 (SOMETHING TO SET A BONE))",
       "description": "강풍을 뚫고 날아가려다 나뭇가지에 부딪혀 한쪽 날개 뼈가 뚝 부러졌습니다. 날개를 축 늘어뜨린 채 극심한 통증을 호소하고 있습니다.",
       "outcome": "깃털 스플린트: 부러진 날개를 튼튼한 너도밤나무 판자와 밀랍 줄로 아름답고 견고하게 고정해 줍니다. 환자가 감동하여 다음 비행 조우 시 난이도가 감소합니다.",
       "consequence": "평생 불구: 뼈가 비뚤어지게 붙어 다시는 하늘을 날 수 없게 됩니다. 비행 능력을 잃어 슬퍼하는 새의 고독에 대해 기록하세요."

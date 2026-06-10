@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { db, isFirebaseConfigured, auth, googleProvider } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
@@ -282,6 +282,44 @@ const getTagStyle = (tagName: string) => {
   return tagColorMap.DEFAULT;
 };
 
+const renderSingleTagBadge = (tagContent: string) => {
+  const numMatch = tagContent.trim().match(/^([\s\S]+?)\s*(\d+)$/);
+  let tagName = tagContent.trim();
+  let tagNum = '';
+  if (numMatch) {
+    tagName = numMatch[1].trim();
+    tagNum = numMatch[2];
+  }
+  
+  const cleanKey = tagName.toLowerCase();
+  const translated = tagTranslationMap[cleanKey] || tagTranslationMap[tagName] || tagName.toUpperCase();
+  const finalTagText = tagNum ? `${translated} ${tagNum}` : translated;
+  
+  const style = getTagStyle(finalTagText);
+  return (
+    <span 
+      style={{ 
+        padding: '0.2rem 0.6rem', 
+        borderRadius: '8px', 
+        background: style.bg, 
+        color: style.text, 
+        border: `1.5px solid ${style.border}`,
+        fontSize: '0.78rem', 
+        fontWeight: 700,
+        display: 'inline-flex',
+        alignItems: 'center',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+        letterSpacing: '0.03em',
+        textTransform: 'uppercase',
+        fontFamily: "'Pretendard', -apple-system, sans-serif",
+        whiteSpace: 'nowrap'
+      }}
+    >
+      {finalTagText}
+    </span>
+  );
+};
+
 const parseAndRenderTags = (tagsStr: string) => {
   if (!tagsStr) return null;
   
@@ -290,85 +328,47 @@ const parseAndRenderTags = (tagsStr: string) => {
     .replace(/\s+/g, ' ')
     .trim();
   
-  const pattern = /((?:something to set a bone|a brightly coloured plant reagent|minimum fair|pain|wound|infection|parasite|senses|sleep|breath|burn|fur|feather|hide|scale|poison|stomach|temperature|joy|mood|instinct|elsewhere|nerves|통증|상처|감염|기생충|감각|수면|호흡|화상|털|깃털|가죽|비늘|독|위장|체온|기쁨|기분|본능|저편|신경|fair)\s*\d*)|(and\s+either|and|or|&|및|또는)/gi;
+  // Split by commas, '및', 'and', or '&'
+  const parts = prepared.split(/,|\s+및\s+|\s+and\s+|&/gi).map(p => p.trim()).filter(Boolean);
   
-  const tokens: { type: 'tag' | 'text', content: string }[] = [];
-  let match;
-  
-  while ((match = pattern.exec(prepared)) !== null) {
-    if (match[1]) {
-      const tagContent = match[1].trim();
-      const numMatch = tagContent.match(/^([\s\S]+?)\s*(\d+)$/);
-      let tagName = tagContent;
-      let tagNum = '';
-      if (numMatch) {
-        tagName = numMatch[1].trim();
-        tagNum = numMatch[2];
-      }
-      
-      const cleanKey = tagName.toLowerCase();
-      const translated = tagTranslationMap[cleanKey] || tagTranslationMap[tagName] || tagName.toUpperCase();
-      const finalTagText = tagNum ? `${translated} ${tagNum}` : translated;
-      
-      tokens.push({ type: 'tag', content: finalTagText });
-    } else if (match[2]) {
-      const conj = match[2].trim().toLowerCase();
-      let label = '및';
-      if (conj === 'or' || conj === '또는') {
-        label = '또는';
-      }
-      tokens.push({ type: 'text', content: label });
-    }
-  }
-  
-  if (tokens.length === 0) {
-    const parts = tagsStr.split(/[,&\s]+/).filter(Boolean);
-    parts.forEach(p => {
-      const numMatch = p.match(/^([\s\S]+?)(\d+)$/);
-      let tagName = p;
-      let tagNum = '';
-      if (numMatch) {
-        tagName = numMatch[1];
-        tagNum = numMatch[2];
-      }
-      const cleanKey = tagName.toLowerCase();
-      const translated = tagTranslationMap[cleanKey] || tagTranslationMap[tagName] || tagName.toUpperCase();
-      tokens.push({ type: 'tag', content: tagNum ? `${translated} ${tagNum}` : translated });
-    });
-  }
-
   return (
     <div style={{ display: 'inline-flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
-      {tokens.map((t, idx) => {
-        if (t.type === 'tag') {
-          const style = getTagStyle(t.content);
+      {parts.map((part, idx) => {
+        const isOrChoice = part.includes('또는') || /\bor\b/i.test(part);
+        
+        if (isOrChoice) {
+          const options = part.split(/\s+또는\s+|\s+or\s+/i).map(o => o.trim()).filter(Boolean);
           return (
-            <span 
+            <div 
               key={idx} 
               style={{ 
-                padding: '0.2rem 0.6rem', 
-                borderRadius: '8px', 
-                background: style.bg, 
-                color: style.text, 
-                border: `1.5px solid ${style.border}`,
-                fontSize: '0.78rem', 
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                letterSpacing: '0.03em',
-                textTransform: 'uppercase',
-                fontFamily: "'Pretendard', -apple-system, sans-serif"
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '0.4rem', 
+                padding: '0.25rem 0.5rem', 
+                border: '1.5px dashed var(--border-cozy)', 
+                borderRadius: '10px', 
+                background: '#fcfaf6',
+                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)'
               }}
             >
-              {t.content}
-            </span>
+              {options.map((opt, optIdx) => (
+                <Fragment key={optIdx}>
+                  {optIdx > 0 && (
+                    <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-muted)', fontFamily: 'var(--font-fancy)' }}>
+                      또는
+                    </span>
+                  )}
+                  {renderSingleTagBadge(opt)}
+                </Fragment>
+              ))}
+            </div>
           );
         } else {
           return (
-            <span key={idx} style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600, margin: '0 0.1rem' }}>
-              {t.content}
-            </span>
+            <Fragment key={idx}>
+              {renderSingleTagBadge(part)}
+            </Fragment>
           );
         }
       })}
@@ -2622,6 +2622,38 @@ function MapView() {
   const handleZoomIn = () => setMapWidth((w: number) => Math.min(3000, w + 200));
   const handleReset = () => setMapWidth(1600);
 
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [startY, setStartY] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [scrollTop, setScrollTop] = useState(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!mapContainerRef.current) return;
+    setIsDragging(true);
+    // Page coordinate offset calculation
+    setStartX(e.pageX - mapContainerRef.current.offsetLeft);
+    setStartY(e.pageY - mapContainerRef.current.offsetTop);
+    setScrollLeft(mapContainerRef.current.scrollLeft);
+    setScrollTop(mapContainerRef.current.scrollTop);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !mapContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - mapContainerRef.current.offsetLeft;
+    const y = e.pageY - mapContainerRef.current.offsetTop;
+    const walkX = (x - startX) * 1.5; // Drag speed multiplier
+    const walkY = (y - startY) * 1.5;
+    mapContainerRef.current.scrollLeft = scrollLeft - walkX;
+    mapContainerRef.current.scrollTop = scrollTop - walkY;
+  };
+
+  const handleMouseUpOrLeave = () => {
+    setIsDragging(false);
+  };
+
   return (
     <div style={{
       width: '100%',
@@ -2655,23 +2687,34 @@ function MapView() {
           </div>
           
           {/* Scrollable Map Container */}
-          <div style={{
-            overflow: 'auto',
-            width: '100%',
-            maxHeight: '650px',
-            border: '1px solid #dcd3c1',
-            borderRadius: '6px',
-            background: '#eae1d4'
-          }}>
+          <div 
+            ref={mapContainerRef}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUpOrLeave}
+            onMouseLeave={handleMouseUpOrLeave}
+            style={{
+              overflow: 'auto',
+              width: '100%',
+              maxHeight: '650px',
+              border: '1px solid #dcd3c1',
+              borderRadius: '6px',
+              background: '#eae1d4',
+              cursor: isDragging ? 'grabbing' : 'grab',
+              userSelect: 'none'
+            }}
+          >
             <img 
               src="/Apawthecaria Map Back.jpg" 
               alt="Bristley Woods Map Back" 
+              onDragStart={e => e.preventDefault()}
               style={{ 
                 display: 'block', 
                 maxWidth: 'none', 
                 height: 'auto', 
                 width: `${mapWidth}px`,
-                transition: 'width 0.2s ease-out'
+                transition: isDragging ? 'none' : 'width 0.2s ease-out',
+                pointerEvents: 'none'
               }}
             />
           </div>
