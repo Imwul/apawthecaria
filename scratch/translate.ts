@@ -723,7 +723,15 @@ const translatedAilments = GAME_DATA.ailments.map(ail => {
       .replace(/기분/g, 'mood')
       .replace(/본능/g, 'instinct')
       .replace(/저편/g, 'elsewhere')
-      .replace(/신경/g, 'nerves');
+      .replace(/신경/g, 'nerves')
+      .replace(/something to set a bone/g, '부목용 약재 (something to set a bone)')
+      .replace(/a brightly coloured plant reagent/g, '밝은 색상의 식물 영약재 (a brightly coloured plant reagent)')
+      .replace(/\band\s+either\b/g, '') // remove "and either" to leave "A or B" -> "A 또는 B"
+      .replace(/\bor\b/g, '또는')
+      .replace(/\band\b/g, '및')
+      .replace(/&/g, '및')
+      .replace(/([a-zA-Z]+)(\d+)/g, '$1 $2') // ensure space between word and number
+      .toUpperCase();
   };
 
   if (trans) {
@@ -747,30 +755,79 @@ const translatedAilments = GAME_DATA.ailments.map(ail => {
 });
 
 const translatedReagents = GAME_DATA.reagents.map(reag => {
+  const regMap: { [key: string]: string } = {
+    'b': 'Bog', 'f': 'Forest', 'l': 'Loch', 'g': 'Meadow', 'm': 'Mountain', 't': 'Titan'
+  };
+  const seasonMap: { [key: string]: string } = {
+    'p': 'Spring', 's': 'Summer', 'a': 'Autumn', 'w': 'Winter'
+  };
+
   const trans = reagentsPrepsMap[reag.rawName];
+  let finalName = reag.name;
+  let finalLocs = reag.locs || "";
+  let finalPreps = reag.preps;
+
+  // If the source data already has separate description or is restructured, handle gracefully
+  if (reag.description && finalLocs === "") {
+    // fallback if already run
+    const mockCodeLine = (reag.regions || []).map(r => {
+      return Object.keys(regMap).find(k => regMap[k] === r) || "";
+    }).join('') + 
+    (reag.seasons || []).map(s => {
+      return Object.keys(seasonMap).find(k => seasonMap[k] === s) || "";
+    }).join('');
+    finalLocs = mockCodeLine + '\n' + reag.description;
+  }
 
   if (trans) {
-    return {
-      ...reag,
-      name: trans.name,
-      locs: reag.locs.split('\n')[0] + '\n' + trans.locs.split('\n')[1],
-      preps: trans.preps
-    };
+    finalName = trans.name;
+    finalLocs = finalLocs.split('\n')[0] + '\n' + trans.locs.split('\n')[1];
+    finalPreps = trans.preps;
   } else {
     // try fallback mapping for naming anomalies
     let altKey = Object.keys(reagentsPrepsMap).find(k => k.includes(reag.rawName) || reag.rawName.includes(k));
     const altTrans = altKey ? reagentsPrepsMap[altKey] : null;
     if (altTrans) {
-      return {
-        ...reag,
-        name: altTrans.name,
-        locs: reag.locs.split('\n')[0] + '\n' + altTrans.locs.split('\n')[1],
-        preps: altTrans.preps
-      };
+      finalName = altTrans.name;
+      finalLocs = finalLocs.split('\n')[0] + '\n' + altTrans.locs.split('\n')[1];
+      finalPreps = altTrans.preps;
+    } else {
+      console.log('No translation found for reagent:', reag.rawName);
     }
-    console.log('No translation found for reagent:', reag.rawName);
-    return reag;
   }
+
+  // Parse locs into regions, seasons, description
+  const lines = finalLocs.split('\n');
+  const codeLine = lines[0] || "";
+  const description = lines.slice(1).join('\n') || "";
+
+  const regions: string[] = [];
+  const seasons: string[] = [];
+  
+  const cleanCode = codeLine.replace(/\s+/g, '').toLowerCase();
+  for (const char of cleanCode) {
+    if (regMap[char]) regions.push(regMap[char]);
+    else if (seasonMap[char]) seasons.push(seasonMap[char]);
+  }
+
+  const cleanPrepFraction = (str: string) => {
+    if (!str) return str;
+    return str
+      .replace(/^1\/3\s+/gm, '🟢⚪⚪ ')
+      .replace(/^2\/3\s+/gm, '🟢🟢⚪ ')
+      .replace(/^1\s+/gm, '🟢🟢🟢 ');
+  };
+
+  return {
+    name: finalName,
+    rawName: reag.rawName,
+    type: reag.type.toUpperCase(),
+    br: reag.br,
+    regions,
+    seasons,
+    description,
+    preps: cleanPrepFraction(finalPreps)
+  };
 });
 
 // 4. WRITE UPDATED FILE
@@ -795,9 +852,11 @@ const tsContent = `export interface Ailment {
 export interface Reagent {
   name: string;
   rawName: string;
-  type: 'plant' | 'animal' | 'insect' | 'earth' | 'titan';
+  type: 'PLANT' | 'ANIMAL' | 'INSECT' | 'EARTH' | 'TITAN';
   br: number;
-  locs: string;
+  regions: string[];
+  seasons: string[];
+  description: string;
   preps: string;
 }
 

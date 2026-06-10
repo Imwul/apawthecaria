@@ -230,6 +230,334 @@ const getCardSvgUrl = (suit: string, value: number | string) => {
 };
 
 // =================================================================
+// 3.5. COZY TAG & PORTION RENDERING SYSTEM
+// =================================================================
+const tagTranslationMap: { [key: string]: string } = {
+  '통증': 'PAIN', '상처': 'WOUND', '감염': 'INFECTION', '기생충': 'PARASITE', '감각': 'SENSES',
+  '수면': 'SLEEP', '호흡': 'BREATH', '화상': 'BURN', '털': 'FUR', '깃털': 'FEATHER',
+  '가죽': 'HIDE', '비늘': 'SCALE', '독': 'POISON', '위장': 'STOMACH', '체온': 'TEMPERATURE',
+  '기쁨': 'JOY', '기분': 'MOOD', '본능': 'INSTINCT', '저편': 'ELSEWHERE', '신경': 'NERVES',
+  
+  'pain': 'PAIN', 'wound': 'WOUND', 'infection': 'INFECTION', 'parasite': 'PARASITE', 'senses': 'SENSES',
+  'sleep': 'SLEEP', 'breath': 'BREATH', 'burn': 'BURN', 'fur': 'FUR', 'feather': 'FEATHER',
+  'hide': 'HIDE', 'scale': 'SCALE', 'poison': 'POISON', 'stomach': 'STOMACH', 'temperature': 'TEMPERATURE',
+  'joy': 'JOY', 'mood': 'MOOD', 'instinct': 'INSTINCT', 'elsewhere': 'ELSEWHERE', 'nerves': 'NERVES',
+  'minimum fair': 'MINIMUM FAIR', 'fair': 'FAIR',
+  'something to set a bone': 'SOMETHING TO SET A BONE',
+  'a brightly coloured plant reagent': 'A BRIGHTLY COLOURED PLANT REAGENT'
+};
+
+const tagColorMap: { [key: string]: { bg: string, text: string, border: string } } = {
+  'PAIN': { bg: '#fff0f0', text: '#d94141', border: '#fcc8c8' },
+  'WOUND': { bg: '#fff5f0', text: '#e05a36', border: '#ffd2c4' },
+  'INFECTION': { bg: '#f2f9f3', text: '#3d824d', border: '#cce6d2' },
+  'PARASITE': { bg: '#fbf5eb', text: '#8b5a2b', border: '#e8dbcd' },
+  'SENSES': { bg: '#f5f0ff', text: '#7d4bb5', border: '#e3d2fd' },
+  'SLEEP': { bg: '#f0f4ff', text: '#406ac4', border: '#d0ddfc' },
+  'BREATH': { bg: '#f0f9ff', text: '#207bb5', border: '#cce9fc' },
+  'BURN': { bg: '#fffdf0', text: '#cca010', border: '#fcf2c4' },
+  'FUR': { bg: '#faf6f0', text: '#806850', border: '#e6dec8' },
+  'FEATHER': { bg: '#f0fbfb', text: '#1ea0a0', border: '#cceeee' },
+  'HIDE': { bg: '#fbf6f2', text: '#8f5c38', border: '#ebd8cc' },
+  'SCALE': { bg: '#f0fbf7', text: '#1a9e78', border: '#ccf0e4' },
+  'POISON': { bg: '#fdf0ff', text: '#b33cb3', border: '#fcd0fc' },
+  'STOMACH': { bg: '#fafdf0', text: '#76941b', border: '#edf7cc' },
+  'TEMPERATURE': { bg: '#fff5f5', text: '#d94141', border: '#fcc8c8' },
+  'JOY': { bg: '#fff9e6', text: '#d19200', border: '#ffeebf' },
+  'MOOD': { bg: '#fdf6f7', text: '#bf435c', border: '#f7d2d8' },
+  'INSTINCT': { bg: '#f7f6f5', text: '#5c544d', border: '#ded9d5' },
+  'ELSEWHERE': { bg: '#f0fdf4', text: '#2b8a4a', border: '#ccf5d9' },
+  'NERVES': { bg: '#f9f6ff', text: '#6930c3', border: '#dec9ff' },
+  
+  'DEFAULT': { bg: '#f5f5f5', text: '#555555', border: '#dddddd' }
+};
+
+const getTagStyle = (tagName: string) => {
+  const clean = tagName.toUpperCase().trim();
+  for (const key of Object.keys(tagColorMap)) {
+    if (clean.includes(key)) {
+      return tagColorMap[key];
+    }
+  }
+  return tagColorMap.DEFAULT;
+};
+
+const parseAndRenderTags = (tagsStr: string) => {
+  if (!tagsStr) return null;
+  
+  let prepared = tagsStr
+    .replace(/([a-zA-Z가-힣]+)\s+(\d+)\s*(?:&|및|and)\s*(\d+)/g, '$1 $2 and $1 $3')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  const pattern = /((?:something to set a bone|a brightly coloured plant reagent|minimum fair|pain|wound|infection|parasite|senses|sleep|breath|burn|fur|feather|hide|scale|poison|stomach|temperature|joy|mood|instinct|elsewhere|nerves|통증|상처|감염|기생충|감각|수면|호흡|화상|털|깃털|가죽|비늘|독|위장|체온|기쁨|기분|본능|저편|신경|fair)\s*\d*)|(and\s+either|and|or|&|및|또는)/gi;
+  
+  const tokens: { type: 'tag' | 'text', content: string }[] = [];
+  let match;
+  
+  while ((match = pattern.exec(prepared)) !== null) {
+    if (match[1]) {
+      const tagContent = match[1].trim();
+      const numMatch = tagContent.match(/^([\s\S]+?)\s*(\d+)$/);
+      let tagName = tagContent;
+      let tagNum = '';
+      if (numMatch) {
+        tagName = numMatch[1].trim();
+        tagNum = numMatch[2];
+      }
+      
+      const cleanKey = tagName.toLowerCase();
+      const translated = tagTranslationMap[cleanKey] || tagTranslationMap[tagName] || tagName.toUpperCase();
+      const finalTagText = tagNum ? `${translated} ${tagNum}` : translated;
+      
+      tokens.push({ type: 'tag', content: finalTagText });
+    } else if (match[2]) {
+      const conj = match[2].trim().toLowerCase();
+      let label = '및';
+      if (conj === 'or' || conj === '또는') {
+        label = '또는';
+      }
+      tokens.push({ type: 'text', content: label });
+    }
+  }
+  
+  if (tokens.length === 0) {
+    const parts = tagsStr.split(/[,&\s]+/).filter(Boolean);
+    parts.forEach(p => {
+      const numMatch = p.match(/^([\s\S]+?)(\d+)$/);
+      let tagName = p;
+      let tagNum = '';
+      if (numMatch) {
+        tagName = numMatch[1];
+        tagNum = numMatch[2];
+      }
+      const cleanKey = tagName.toLowerCase();
+      const translated = tagTranslationMap[cleanKey] || tagTranslationMap[tagName] || tagName.toUpperCase();
+      tokens.push({ type: 'tag', content: tagNum ? `${translated} ${tagNum}` : translated });
+    });
+  }
+
+  return (
+    <div style={{ display: 'inline-flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+      {tokens.map((t, idx) => {
+        if (t.type === 'tag') {
+          const style = getTagStyle(t.content);
+          return (
+            <span 
+              key={idx} 
+              style={{ 
+                padding: '0.2rem 0.6rem', 
+                borderRadius: '8px', 
+                background: style.bg, 
+                color: style.text, 
+                border: `1.5px solid ${style.border}`,
+                fontSize: '0.78rem', 
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                letterSpacing: '0.03em',
+                textTransform: 'uppercase',
+                fontFamily: "'Pretendard', -apple-system, sans-serif"
+              }}
+            >
+              {t.content}
+            </span>
+          );
+        } else {
+          return (
+            <span key={idx} style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600, margin: '0 0.1rem' }}>
+              {t.content}
+            </span>
+          );
+        }
+      })}
+    </div>
+  );
+};
+
+const parsePrepsLine = (line: string) => {
+  const match = line.trim().match(/^(\d\/\d|\d)([\s\S]*)$/);
+  if (match) {
+    return {
+      portion: match[1],
+      content: match[2].trim()
+    };
+  }
+  return { portion: "", content: line };
+};
+
+const PortionIndicator = ({ value }: { value: string }) => {
+  let filled = 0;
+  
+  if (value === '1/3') {
+    filled = 1;
+  } else if (value === '2/3') {
+    filled = 2;
+  } else if (value === '1' || value === '1/1' || value === '3/3') {
+    filled = 3;
+  } else if (value === '1/2') {
+    filled = 1.5;
+  } else {
+    const match = value.match(/(\d+)\/(\d+)/);
+    if (match) {
+      const num = parseInt(match[1]);
+      const den = parseInt(match[2]);
+      if (den === 3) {
+        filled = num;
+      } else {
+        filled = (num / den) * 3;
+      }
+    } else {
+      const num = parseFloat(value);
+      if (!isNaN(num)) {
+        filled = num * 3;
+      }
+    }
+  }
+  
+  filled = Math.min(3, Math.max(0, filled));
+  
+  return (
+    <span style={{ display: 'inline-flex', gap: '3px', marginRight: '6px', transform: 'translateY(3px)' }}>
+      {[1, 2, 3].map((i) => {
+        const isFilled = filled >= i;
+        const isHalf = !isFilled && (filled + 0.5 >= i);
+        return (
+          <span 
+            key={i} 
+            style={{ 
+              width: '10px', 
+              height: '10px', 
+              borderRadius: '2px', 
+              background: isFilled ? 'var(--primary)' : isHalf ? 'linear-gradient(90deg, var(--primary) 50%, #e0e0e0 50%)' : '#e0e0e0',
+              border: '1px solid rgba(0,0,0,0.08)',
+              display: 'inline-block' 
+            }} 
+            title={`${value} 분량`}
+          />
+        );
+      })}
+    </span>
+  );
+};
+
+const renderPreps = (prepsStr: string) => {
+  if (!prepsStr) return null;
+  
+  const lines = prepsStr.split('\n').filter(Boolean);
+  
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.4rem' }}>
+      {lines.map((line, idx) => {
+        const { portion, content } = parsePrepsLine(line);
+        
+        const parts: React.ReactNode[] = [];
+        const tagRegex = /\[([^\]]+)\]/g;
+        let lastIndex = 0;
+        let match;
+        
+        while ((match = tagRegex.exec(content)) !== null) {
+          if (match.index > lastIndex) {
+            parts.push(content.substring(lastIndex, match.index));
+          }
+          
+          const tagText = match[1];
+          const numMatch = tagText.match(/^([\s\S]+?)\s*(\d+)$/);
+          let tagName = tagText;
+          let tagNum = '';
+          if (numMatch) {
+            tagName = numMatch[1].trim();
+            tagNum = numMatch[2];
+          }
+          
+          const cleanKey = tagName.toLowerCase();
+          const translated = tagTranslationMap[cleanKey] || tagTranslationMap[tagName] || tagName.toUpperCase();
+          const finalTagText = tagNum ? `${translated} ${tagNum}` : translated;
+          const style = getTagStyle(finalTagText);
+          
+          parts.push(
+            <span 
+              key={match.index}
+              style={{ 
+                padding: '0.15rem 0.45rem', 
+                borderRadius: '6px', 
+                background: style.bg, 
+                color: style.text, 
+                border: `1.2px solid ${style.border}`,
+                fontSize: '0.74rem', 
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                margin: '0 0.2rem',
+                letterSpacing: '0.02em',
+                textTransform: 'uppercase',
+                transform: 'translateY(-1px)',
+                fontFamily: "'Pretendard', -apple-system, sans-serif"
+              }}
+            >
+              {finalTagText}
+            </span>
+          );
+          
+          lastIndex = tagRegex.lastIndex;
+        }
+        
+        if (lastIndex < content.length) {
+          parts.push(content.substring(lastIndex));
+        }
+        
+        return (
+          <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem', fontSize: '0.88rem', color: '#444', lineHeight: '1.5' }}>
+            {portion && <PortionIndicator value={portion} />}
+            <div style={{ flex: 1 }}>{parts.length > 0 ? parts : content}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const parseLocs = (locsStr: string) => {
+  if (!locsStr) return { regions: [], seasons: [], desc: "" };
+  
+  const lines = locsStr.split('\n');
+  const codeLine = lines[0] || "";
+  const desc = lines.slice(1).join('\n') || "";
+  
+  const regions: string[] = [];
+  const seasons: string[] = [];
+  
+  const regMap: { [key: string]: string } = {
+    'b': '늪지',
+    'f': '숲',
+    'l': '호수',
+    'g': '초원',
+    'm': '산맥',
+    't': '티탄유적'
+  };
+  
+  const seasonMap: { [key: string]: string } = {
+    'p': '봄',
+    's': '여름',
+    'a': '가을',
+    'w': '겨울'
+  };
+  
+  const cleanCode = codeLine.replace(/\s+/g, '').toLowerCase();
+  
+  for (const char of cleanCode) {
+    if (regMap[char]) {
+      regions.push(regMap[char]);
+    } else if (seasonMap[char]) {
+      seasons.push(seasonMap[char]);
+    }
+  }
+  
+  return { regions, seasons, desc };
+};
+
+// =================================================================
 // 4. MAIN APP COMPONENT
 // =================================================================
 export default function App() {
@@ -259,6 +587,7 @@ export default function App() {
   const [searchReagent, setSearchReagent] = useState("");
   const [searchAilment, setSearchAilment] = useState("");
   const [reagentFilter, setReagentFilter] = useState("");
+  const [reagentTypeFilter, setReagentTypeFilter] = useState("");
   const [ailmentFilter, setAilmentFilter] = useState("");
 
   // Listen to Auth State
@@ -511,7 +840,7 @@ export default function App() {
         {/* =================================================================
             MAIN CONTENT VIEWS
            ================================================================= */}
-        <main className="glass-panel" style={{ padding: '1.8rem', background: '#fff' }}>
+        <main className="glass-panel main-content-panel">
           {activeTab === 'play' && (
             <PlayView 
               state={state} 
@@ -532,6 +861,8 @@ export default function App() {
               setSearch={setSearchReagent}
               filter={reagentFilter}
               setFilter={setReagentFilter}
+              typeFilter={reagentTypeFilter}
+              setTypeFilter={setReagentTypeFilter}
             />
           )}
           {activeTab === 'ailments' && (
@@ -959,10 +1290,7 @@ function PlayView({ state, updateState, currentWeight, activeTravelEncounter, se
 
     // Search reagents native to the current region
     const localReagents = GAME_DATA.reagents.filter(r => {
-      // Locs string matches current region initials (e.g. b: Bog, f: Forest, l: Loch, g: Meadow, m: Mountain, t: Titan)
-      const regMap: { [key: string]: string } = { "Bog": "b", "Forest": "f", "Loch": "l", "Meadow": "g", "Mountain": "m", "Titan": "t" };
-      const regChar = regMap[state.currentRegion] || "";
-      return r.locs.includes(regChar);
+      return r.regions.includes(state.currentRegion);
     });
 
     // Pick a list of reagents found
@@ -971,15 +1299,13 @@ function PlayView({ state, updateState, currentWeight, activeTravelEncounter, se
       // Rarity is calculated
       // Common if in season, Rare if out of season
       // Check if season matches
-      const seasonMap: { [key: string]: string } = { "Spring": "p", "Summer": "s", "Autumn": "a", "Winter": "w" };
-      const seasonChar = seasonMap[state.currentSeason] || "";
-      const isInSeason = r.locs.includes(seasonChar);
+      const isInSeason = r.seasons.includes(state.currentSeason);
       
       let finalRarity = r.br + (isInSeason ? 0 : 3);
-      if (state.bio.familiarBenefit.includes("덤불 마스터") && r.type === 'plant') {
+      if (state.bio.familiarBenefit.includes("덤불 마스터") && r.type === 'PLANT') {
         finalRarity = Math.max(1, finalRarity - 2);
       }
-      if (state.bio.familiarBenefit.includes("유적/고분 마스터") && r.type === 'titan') {
+      if (state.bio.familiarBenefit.includes("유적/고분 마스터") && r.type === 'TITAN') {
         finalRarity = Math.max(1, finalRarity - 2);
       }
 
@@ -1037,9 +1363,7 @@ function PlayView({ state, updateState, currentWeight, activeTravelEncounter, se
       return;
     }
 
-    const seasonMap: { [key: string]: string } = { "Spring": "p", "Summer": "s", "Autumn": "a", "Winter": "w" };
-    const seasonChar = seasonMap[state.currentSeason] || "";
-    const isInSeason = r.locs.includes(seasonChar);
+    const isInSeason = r.seasons.includes(state.currentSeason);
 
     let finalRarity = r.br + (isInSeason ? -1 : 2);
     // Guild Reputation impact
@@ -1298,7 +1622,7 @@ function PlayView({ state, updateState, currentWeight, activeTravelEncounter, se
                 🏁 여정 도착지 도달 (마감)
               </button>
             </h2>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem', fontSize: '0.95rem' }}>
+            <div className="grid-2col" style={{ marginTop: '1rem', fontSize: '0.95rem', gap: '1.5rem' }}>
               <div>
                 <strong>📍 목적지:</strong> {state.journeyDestination} ({state.journeyDistance}) <br />
                 <strong>🧭 방향:</strong> {state.journeyDirection} <br />
@@ -1333,7 +1657,7 @@ function PlayView({ state, updateState, currentWeight, activeTravelEncounter, se
             </div>
 
             {/* Travel Form */}
-            <form onSubmit={handleTravelMove} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '0.5rem', borderTop: '1px dashed var(--glass-border)', paddingTop: '1rem' }}>
+            <form onSubmit={handleTravelMove} className="grid-travel-form" style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '1rem' }}>
               <input 
                 name="locName" 
                 type="text" 
@@ -1434,7 +1758,7 @@ function PlayView({ state, updateState, currentWeight, activeTravelEncounter, se
               </div>
             ) : (
               <div style={{ marginTop: '1rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '1rem' }}>
+                <div className="grid-patient-stats" style={{ borderBottom: '1px dashed var(--glass-border)', paddingBottom: '1rem' }}>
                   <div>
                     <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-bright)' }}>{state.activeAilment.name}</div>
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginTop: '2px' }}>등급: {state.activeAilment.severity.toUpperCase()}</div>
@@ -1445,12 +1769,8 @@ function PlayView({ state, updateState, currentWeight, activeTravelEncounter, se
                   <div>
                     <div style={{ fontSize: '0.9rem' }}>
                       💊 <strong>필요 약효 성분:</strong>
-                      <div style={{ display: 'flex', gap: '0.2rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
-                        {state.activeAilment.tags.split(/[,&]+/).map((t, i) => (
-                          <span key={i} style={{ padding: '0.2rem 0.5rem', borderRadius: '4px', background: '#ffebeb', color: '#ff6b6b', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                            {t.trim()}
-                          </span>
-                        ))}
+                      <div style={{ marginTop: '0.4rem' }}>
+                        {parseAndRenderTags(state.activeAilment.tags)}
                       </div>
                     </div>
                     <div style={{ marginTop: '0.8rem', fontSize: '0.85rem' }}>
@@ -1543,7 +1863,7 @@ function PlayView({ state, updateState, currentWeight, activeTravelEncounter, se
                     가방 속 영약재들을 도구를 사용하여 가공한 뒤 환자의 증상을 치료해 치료제를 만듭니다.
                   </p>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="grid-2col" style={{ gap: '1.0rem' }}>
                     {/* Reagents selection */}
                     <div style={{ background: '#fafafa', padding: '0.8rem', borderRadius: '8px', border: '1px solid #ddd', maxHeight: '180px', overflowY: 'auto' }}>
                       <strong style={{ fontSize: '0.85rem' }}>🎒 가방 내 영약재 선택:</strong>
@@ -1686,7 +2006,7 @@ function BioView({ state, updateState, currentWeight }: { state: GameState; upda
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           
           {/* Top Row: PoulticePounder Profile & Familiar Box */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+          <div className="grid-2col">
             
             {/* PoulticePounder (약제사) */}
             <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff', position: 'relative' }}>
@@ -1721,7 +2041,7 @@ function BioView({ state, updateState, currentWeight }: { state: GameState; upda
           </div>
 
           {/* Middle Row: Bags Table & Journey Calendar */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '1.5rem' }}>
+          <div className="grid-bio-middle">
             
             {/* Bags (배낭 보관함) */}
             <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff' }}>
@@ -1766,7 +2086,7 @@ function BioView({ state, updateState, currentWeight }: { state: GameState; upda
                 </table>
               </div>
 
-              <form onSubmit={handleAddBagItem} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '0.4rem', marginTop: '0.8rem', borderTop: '1px dashed #eee', paddingTop: '0.8rem' }}>
+              <form onSubmit={handleAddBagItem} className="grid-bag-add-form" style={{ marginTop: '0.8rem', borderTop: '1px dashed #eee', paddingTop: '0.8rem' }}>
                 <input 
                   type="text" 
                   placeholder="아이템 이름 수동 기입..." 
@@ -1857,7 +2177,7 @@ function BioView({ state, updateState, currentWeight }: { state: GameState; upda
           </div>
 
           {/* Bottom Row: Companions, Guild, Trinkets */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+          <div className="grid-2col">
             
             {/* Companions & Trinkets */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -2010,11 +2330,12 @@ function BioView({ state, updateState, currentWeight }: { state: GameState; upda
 // =================================================================
 // 7. REAGENTS VIEW COMPONENT
 // =================================================================
-function ReagentsView({ state, updateState, search, setSearch, filter, setFilter }: { state: GameState; updateState: any; search: string; setSearch: any; filter: string; setFilter: any }) {
+function ReagentsView({ state, updateState, search, setSearch, filter, setFilter, typeFilter, setTypeFilter }: { state: GameState; updateState: any; search: string; setSearch: any; filter: string; setFilter: any; typeFilter: string; setTypeFilter: any }) {
   const filtered = GAME_DATA.reagents.filter(r => {
     const matchesSearch = r.name.toLowerCase().includes(search.toLowerCase()) || r.rawName.toLowerCase().includes(search.toLowerCase());
     const matchesFilter = !filter || r.preps.toLowerCase().includes(filter.toLowerCase());
-    return matchesSearch && matchesFilter;
+    const matchesType = !typeFilter || r.type === typeFilter;
+    return matchesSearch && matchesFilter && matchesType;
   });
 
   return (
@@ -2033,6 +2354,14 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
           onChange={e => setSearch(e.target.value)}
           style={{ flex: 1 }}
         />
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+          <option value="">전체 분류 (ALL)</option>
+          <option value="PLANT">PLANT</option>
+          <option value="ANIMAL">ANIMAL</option>
+          <option value="INSECT">INSECT</option>
+          <option value="EARTH">EARTH</option>
+          <option value="TITAN">TITAN</option>
+        </select>
         <select value={filter} onChange={e => setFilter(e.target.value)}>
           <option value="">전체 치료 효과</option>
           <option value="pain">통증</option>
@@ -2057,7 +2386,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
         </select>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', maxHeight: '500px', overflowY: 'auto', padding: '0.5rem' }}>
+      <div className="grid-reagents" style={{ maxHeight: '500px', overflowY: 'auto', padding: '0.5rem' }}>
         {filtered.map((r, i) => (
           <div key={i} className="cute-card" style={{ background: '#fafafa' }}>
             <h4 style={{ margin: 0, color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1.1rem', fontWeight: 'bold' }}>
@@ -2066,13 +2395,71 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
                 기본 희귀도 (BR): {r.br}
               </span>
             </h4>
-            <div style={{ fontSize: '0.88rem', color: 'var(--text-dim)', marginTop: '4px' }}>
-              분류: {r.type} | 지역/계절코드: {r.locs}
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem', fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 'bold', color: 'var(--text-muted)' }}>분류:</span>
+                <span style={{ fontSize: '0.78rem', fontWeight: 'bold', background: '#eef2f7', color: '#3182ce', padding: '0.1rem 0.4rem', borderRadius: '4px', textTransform: 'uppercase' }}>
+                  {r.type.toUpperCase()}
+                </span>
+                
+                {r.regions && r.regions.length > 0 && (
+                  <>
+                    <span style={{ color: 'var(--text-dim)' }}>|</span>
+                    <span style={{ fontWeight: 'bold', color: 'var(--text-muted)' }}>자생지:</span>
+                    <div style={{ display: 'flex', gap: '0.2rem' }}>
+                      {r.regions.map((reg, idx) => {
+                        const koReg: { [key: string]: string } = {
+                          'Bog': '늪지', 'Forest': '숲', 'Loch': '호수', 'Meadow': '초원', 'Mountain': '산맥', 'Titan': '티탄유적'
+                        };
+                        return (
+                          <span key={idx} style={{ fontSize: '0.78rem', background: 'var(--primary-light)', color: 'var(--primary)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 'bold' }}>
+                            {koReg[reg] || reg}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+                
+                {r.seasons && r.seasons.length > 0 && (
+                  <>
+                    <span style={{ color: 'var(--text-dim)' }}>|</span>
+                    <span style={{ fontWeight: 'bold', color: 'var(--text-muted)' }}>채집 계절:</span>
+                    <div style={{ display: 'flex', gap: '0.2rem' }}>
+                      {r.seasons.map((seas, idx) => {
+                        const koSeas: { [key: string]: string } = {
+                          'Spring': '봄', 'Summer': '여름', 'Autumn': '가을', 'Winter': '겨울'
+                        };
+                        const seasLabel = koSeas[seas] || seas;
+                        let bg = '#fff5f5';
+                        let co = '#e53e3e';
+                        if (seasLabel === '봄') { bg = '#f0fff4'; co = '#38a169'; }
+                        if (seasLabel === '여름') { bg = '#ebf8ff'; co = '#3182ce'; }
+                        if (seasLabel === '가을') { bg = '#fffaf0'; co = '#dd6b20'; }
+                        if (seasLabel === '겨울') { bg = '#f7fafc'; co = '#4a5568'; }
+                        return (
+                          <span key={idx} style={{ fontSize: '0.78rem', background: bg, color: co, padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 'bold' }}>
+                            {seasLabel}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+              {r.description && (
+                <p style={{ margin: '0.3rem 0 0 0', color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.88rem', lineHeight: '1.4' }}>
+                  {r.description}
+                </p>
+              )}
             </div>
             
             <div style={{ marginTop: '0.6rem', fontSize: '0.92rem', background: '#fff', padding: '0.8rem', borderRadius: '6px', border: '1px solid #eee' }}>
               <strong>📋 부위별 조제 성분:</strong>
-              <div style={{ marginTop: '0.3rem', whiteSpace: 'pre-wrap', lineHeight: '1.5', color: '#333' }}>{r.preps}</div>
+              <div style={{ marginTop: '0.3rem', lineHeight: '1.5', color: '#333' }}>
+                {renderPreps(r.preps)}
+              </div>
             </div>
 
             {state.journeyActive && (
@@ -2170,8 +2557,8 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
                   등급: {a.severity.toUpperCase()} | 시간: {a.timer}시간
                 </span>
               </h4>
-              <div style={{ marginTop: '0.4rem', fontSize: '0.95rem' }}>
-                <strong>💊 요구 약효 태그:</strong> <span style={{ color: '#ff6b6b', fontWeight: 'bold' }}>{a.tags}</span>
+              <div style={{ marginTop: '0.4rem', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <strong>💊 요구 약효 태그:</strong> {parseAndRenderTags(a.tags)}
               </div>
               
               <p style={{ fontSize: '0.95rem', color: '#333', background: '#fff', padding: '0.8rem', borderRadius: '6px', margin: '0.6rem 0', lineHeight: '1.6' }}>
@@ -2243,7 +2630,7 @@ function MapView() {
       boxSizing: 'border-box'
     }}>
       {/* Page Layout: Two Column */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '1.5rem', alignItems: 'start' }}>
+      <div className="grid-map-view">
         
         {/* Left Side: Map Viewer */}
         <div style={{ background: '#fcf8f2', border: '2px solid #5c4033', borderRadius: '8px', padding: '1rem', boxShadow: '0 4px 12px rgba(92, 75, 50, 0.05)' }}>
