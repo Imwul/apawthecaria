@@ -2633,7 +2633,7 @@ function MapView() {
       <div className="grid-map-view">
         
         {/* Left Side: Map Viewer */}
-        <div style={{ background: '#fcf8f2', border: '2px solid #5c4033', borderRadius: '8px', padding: '1rem', boxShadow: '0 4px 12px rgba(92, 75, 50, 0.05)' }}>
+        <div style={{ minWidth: 0, width: '100%', boxSizing: 'border-box', background: '#fcf8f2', border: '2px solid #5c4033', borderRadius: '8px', padding: '1rem', boxShadow: '0 4px 12px rgba(92, 75, 50, 0.05)' }}>
           {/* Zoom Controls */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <span style={{ fontWeight: 'bold', fontSize: '1rem', color: '#5c4033' }}>Bristley Woods 지도 후면</span>
@@ -2657,6 +2657,7 @@ function MapView() {
           {/* Scrollable Map Container */}
           <div style={{
             overflow: 'auto',
+            width: '100%',
             maxHeight: '650px',
             border: '1px solid #dcd3c1',
             borderRadius: '6px',

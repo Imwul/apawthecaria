@@ -1,10 +1,9 @@
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
-@import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Gowun+Batang:wght@400;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Gowun+Batang:wght@400;700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
 
 :root {
   --font-base: 'Gowun Batang', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-fancy: 'Gaegu', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-script: 'Gaegu', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-fancy: 'Gowun Dodum', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-script: 'Gowun Dodum', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   
   /* Cozy forest village palette */
   --bg-deep: #f5eedf; /* Warm soft cream oatmeal */
@@ -277,6 +276,7 @@ button:active {
   padding: 1.8rem;
   background: #fff;
   transition: padding 0.2s ease;
+  min-width: 0; /* Allow the content panel to shrink in grid */
 }
 @media (max-width: 1200px) {
   .main-content-panel {
@@ -287,90 +287,90 @@ button:active {
 /* Generic 2-column responsive layout */
 .grid-2col {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1.5rem;
 }
 @media (max-width: 1200px) {
   .grid-2col {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 /* Bio view middle layout (Bag next to Calendar) */
 .grid-bio-middle {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
   gap: 1.5rem;
 }
 @media (max-width: 1200px) {
   .grid-bio-middle {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 /* Map view layout (Map next to Key sidebar) */
 .grid-map-view {
   display: grid;
-  grid-template-columns: 1fr 380px;
+  grid-template-columns: minmax(0, 1fr) 380px;
   gap: 1.5rem;
   align-items: start;
 }
 @media (max-width: 1280px) {
   .grid-map-view {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 /* Reagents View database grid */
 .grid-reagents {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1rem;
 }
 @media (max-width: 1200px) {
   .grid-reagents {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 /* Play View travel move form layout */
 .grid-travel-form {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.5rem;
 }
 @media (max-width: 1200px) {
   .grid-travel-form {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 @media (max-width: 600px) {
   .grid-travel-form {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 /* Play View active patient stats layout */
 .grid-patient-stats {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: 1.5rem;
 }
 @media (max-width: 1200px) {
   .grid-patient-stats {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 /* Bio View add-to-bag form layout */
 .grid-bag-add-form {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.4rem;
 }
 @media (max-width: 1200px) {
   .grid-bag-add-form {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
