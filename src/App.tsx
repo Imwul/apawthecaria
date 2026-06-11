@@ -201,6 +201,18 @@ interface TravelScrapbookEntry {
   timestamp: number;
 }
 
+interface TrinketMemoryRecord {
+  id: string;
+  sourceId: string;
+  name: string;
+  count: number;
+  source: string;
+  story: string;
+  locationName: string;
+  timestamp: number;
+  spent: boolean;
+}
+
 interface PursuedByBehemoth {
   headStart: number;
 }
@@ -304,6 +316,7 @@ interface GameState {
   pendingPatientArchive?: PendingPatientArchive | null;
   worldAlmanac?: WorldAlmanacEntry[];
   travelScrapbook?: TravelScrapbookEntry[];
+  trinketArchive?: TrinketMemoryRecord[];
   familiarTrust?: number;
   familiarMemories?: string[];
   legacyRestUsedThisLocation?: boolean;
@@ -401,6 +414,7 @@ const INITIAL_STATE: GameState = {
   pendingPatientArchive: null,
   worldAlmanac: [],
   travelScrapbook: [],
+  trinketArchive: [],
   familiarTrust: 0,
   familiarMemories: [],
   legacyRestUsedThisLocation: false
@@ -499,6 +513,41 @@ const addCasebookRecord = (
 ) => {
   if (entries.some(e => e.sourceId === record.sourceId)) return entries;
   return [{ id: memoryKey('case', record.sourceId), ...record }, ...entries];
+};
+
+const normalizeTrinketRecord = (record: any): TrinketMemoryRecord => ({
+  id: record.id || memoryKey('trinket', record.sourceId || record.name || String(record.timestamp || Date.now())),
+  sourceId: record.sourceId || record.id || `legacy_trinket_${record.name || 'unknown'}_${record.timestamp || Date.now()}`,
+  name: record.name || 'Unnamed trinket',
+  count: Math.max(1, Number(record.count || 1)),
+  source: record.source || 'Trinket collection',
+  story: record.story || record.notes || 'A small object kept from the road.',
+  locationName: record.locationName || '',
+  timestamp: record.timestamp || Date.now(),
+  spent: !!record.spent
+});
+
+const addTrinketMemory = (
+  entries: TrinketMemoryRecord[],
+  record: Omit<TrinketMemoryRecord, 'id'>
+) => {
+  if (entries.some(e => e.sourceId === record.sourceId)) return entries;
+  return [{ id: memoryKey('trinket', record.sourceId), ...record }, ...entries];
+};
+
+const trinketArchiveFromCurrent = (s: any): TrinketMemoryRecord[] => {
+  const trinkets = Array.isArray(s.trinkets) ? s.trinkets : [];
+  return trinkets.map((name: string, idx: number) => normalizeTrinketRecord({
+    sourceId: memoryKey('starting_trinket', String(idx), name),
+    name,
+    count: 1,
+    source: idx === 0 ? 'Starting keepsake' : 'Carried trinket',
+    story: idx === 0
+      ? 'A first keepsake tucked into the bag before the long road through Bristley Woods.'
+      : 'A carried trinket preserved from an older save.',
+    locationName: s.currentLocationName || '',
+    timestamp: Date.now() - idx
+  }));
 };
 
 const normalizeCaseRecord = (record: any): PatientCaseRecord => ({
@@ -613,6 +662,7 @@ const syncWorldMemory = (state: GameState): GameState => {
   let patientCasebook = [...(state.patientCasebook || [])];
   let worldAlmanac = [...(state.worldAlmanac || [])];
   let travelScrapbook = [...(state.travelScrapbook || [])];
+  let trinketArchive = [...(state.trinketArchive || [])];
   const now = Date.now();
 
   worldAlmanac = upsertAlmanac(worldAlmanac, {
@@ -765,11 +815,30 @@ const syncWorldMemory = (state: GameState): GameState => {
     });
   });
 
+  (state.trinkets || []).forEach((name, idx) => {
+    const cleanName = cleanMemoryName(name);
+    const existingCount = trinketArchive.filter(record => record.name === cleanName).reduce((sum, record) => sum + record.count, 0);
+    const currentCount = (state.trinkets || []).filter(t => cleanMemoryName(t) === cleanName).length;
+    if (idx === (state.trinkets || []).findIndex(t => cleanMemoryName(t) === cleanName) && currentCount > existingCount) {
+      trinketArchive = addTrinketMemory(trinketArchive, {
+        sourceId: memoryKey('trinket_auto', cleanName, String(now)),
+        name: cleanName,
+        count: currentCount - existingCount,
+        source: 'Current collection',
+        story: 'A trinket currently kept in the travelling bag, preserved in the cabinet so its story is not lost when it is later spent.',
+        locationName: state.currentLocationName,
+        timestamp: now,
+        spent: false
+      });
+    }
+  });
+
   return {
     ...state,
     patientCasebook,
     worldAlmanac,
-    travelScrapbook
+    travelScrapbook,
+    trinketArchive
   };
 };
 
@@ -1181,6 +1250,9 @@ const migrateState = (s: any): GameState => {
     pendingPatientArchive: s.pendingPatientArchive || null,
     worldAlmanac: s.worldAlmanac || [],
     travelScrapbook: s.travelScrapbook || [],
+    trinketArchive: (s.trinketArchive && s.trinketArchive.length > 0)
+      ? s.trinketArchive.map(normalizeTrinketRecord)
+      : trinketArchiveFromCurrent(s),
     familiarTrust: s.familiarTrust || 0,
     familiarMemories: s.familiarMemories || [],
     legacyRestUsedThisLocation: s.legacyRestUsedThisLocation || false
@@ -1574,7 +1646,7 @@ const COMPANIONS_DB = [
 export default function App() {
   const [state, setState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'play' | 'bio' | 'reagents' | 'ailments' | 'patientArchive' | 'map' | 'journals'>('play');
+  const [activeTab, setActiveTab] = useState<'play' | 'bio' | 'reagents' | 'ailments' | 'patientArchive' | 'livingArchive' | 'map' | 'journals'>('play');
   const [user, setUser] = useState<User | null>(null);
   const [activeTravelEncounter, setActiveTravelEncounter] = useState<any | null>(null);
   const [activeForageEncounter, setActiveForageEncounter] = useState<any | null>(null);
@@ -1904,18 +1976,21 @@ export default function App() {
       const nextTrust = Math.min(100, (s.familiarTrust || 0) + 5);
       const nextDays = s.calendarDays + 1;
       const nextCumulative = s.cumulativeDays + 1;
+      const timestamp = Date.now();
+      const memory = `${formatDateTime(timestamp)} / ${s.currentLocationName}: 하루를 함께 보내며 친밀도 ${(s.familiarTrust || 0)}%에서 ${nextTrust}%로 깊어졌다.`;
 
       return {
         ...s,
         familiarTrust: nextTrust,
+        familiarMemories: [memory, ...(s.familiarMemories || [])],
         calendarDays: nextDays,
         cumulativeDays: nextCumulative,
         journals: [
           {
-            id: 'familiar_bond_' + Date.now(),
+            id: 'familiar_bond_' + timestamp,
             title: `🐾 사역마 교감: 시간 보내기`,
             text: `하루 동안 사역마와 숲속을 산책하고 털을 빗겨주며 따뜻한 교감을 나눴습니다.\n- 친밀도(Trust): ${(s.familiarTrust || 0)}% → ${nextTrust}%\n- 달력 일정 +1일 소모`,
-            timestamp: Date.now()
+            timestamp
           },
           ...s.journals
         ]
@@ -1937,17 +2012,20 @@ export default function App() {
     updateState(s => {
       const nextBag = s.bag.filter(item => item.id !== reagentItemId);
       const nextTrust = Math.min(100, (s.familiarTrust || 0) + 15);
+      const timestamp = Date.now();
+      const memory = `${formatDateTime(timestamp)} / ${s.currentLocationName}: ${foundItem.name}을(를) 나눠 먹고 친밀도 ${(s.familiarTrust || 0)}%에서 ${nextTrust}%로 올랐다.`;
 
       return {
         ...s,
         bag: nextBag,
         familiarTrust: nextTrust,
+        familiarMemories: [memory, ...(s.familiarMemories || [])],
         journals: [
           {
-            id: 'familiar_feed_' + Date.now(),
+            id: 'familiar_feed_' + timestamp,
             title: `🐾 사역마 교감: 맛있는 약재 간식`,
             text: `가방에서 맛있는 약재 [${foundItem.name}]을(를) 꺼내 사역마에게 간식으로 챙겨주었습니다. 사역마가 기쁘게 받아먹으며 꼬리를 흔들었습니다.\n- 친밀도(Trust): ${(s.familiarTrust || 0)}% → ${nextTrust}%\n- 약재 소비: ${foundItem.name}`,
-            timestamp: Date.now()
+            timestamp
           },
           ...s.journals
         ]
@@ -2077,6 +2155,7 @@ export default function App() {
                 { id: 'reagents', label: 'Apothecary Notes', sub: 'Reagents & Methods' },
                 { id: 'ailments', label: 'Case Files', sub: 'Ailments & Remedies' },
                 { id: 'patientArchive', label: 'Patient Archive', sub: 'Remembered Beasts' },
+                { id: 'livingArchive', label: 'Living Archive', sub: 'Specimens & Stories' },
                 { id: 'map', label: 'Folded Map', sub: 'Bristley Woods' },
                 { id: 'journals', label: 'Field Journal', sub: 'Chronicles & Records' }
               ].map(t => (
@@ -2208,6 +2287,7 @@ export default function App() {
             />
           )}
           {activeTab === 'patientArchive' && <PatientArchiveView state={state} />}
+          {activeTab === 'livingArchive' && <LivingArchiveView state={state} />}
           {activeTab === 'map' && <MapView />}
           {activeTab === 'journals' && <JournalsView state={state} updateState={updateState} />}
         </main>
@@ -4571,11 +4651,24 @@ function PlayView({
       const cureTimestamp = Date.now();
       const cureSourceId = 'cure_' + cureTimestamp;
       const cureNotes = `${s.currentLocationName}에서 환자 치료를 성공적으로 마쳤습니다!\\n- 소모 시간: 조제 ${timeSpent}시간 (남은 시간: ${nextTimer}시간)\\n- 심각도: ${severity} (난이도 레벨 ${sevLevel})\\n- Fair ${fairPts}점, Foul ${foulPts}점 (상쇄 후 보정 ${fairFoulAdjustment >= 0 ? '+' : ''}${fairFoulAdjustment})\\n- 장신구 공식: ${sevLevel} ${fairFoulAdjustment >= 0 ? '+' : ''}${fairFoulAdjustment} = ${trinketCalc} → 획득 ${actualTrinkets}개\\n${isGifting ? '- 💝 Gifting: 장신구 대신 평판 +2 선택' : ''}\\n- 길드 명성 +${actualRep}점`;
+      const trinketArchive = actualTrinkets > 0
+        ? addTrinketMemory(s.trinketArchive || [], {
+          sourceId: `${cureSourceId}_trinkets`,
+          name: '치료 보상 장신구 (Trinket)',
+          count: actualTrinkets,
+          source: `Patient reward: ${s.activeAilment!.name}`,
+          story: `${s.currentLocationName}에서 ${s.activeAilment!.name} 환자를 도운 뒤 받은 작은 답례들.`,
+          locationName: s.currentLocationName,
+          timestamp: cureTimestamp,
+          spent: false
+        })
+        : (s.trinketArchive || []);
 
       return {
         ...s,
         bag: nextBag,
         trinkets: nextTrinkets,
+        trinketArchive,
         reputation: nextRep,
         activeAilment: updatedAilment,
         discoveredRecipes: nextDiscoveredRecipes,
@@ -7718,9 +7811,21 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
   const handleAddTrinket = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTrinket.trim()) return;
+    const timestamp = Date.now();
+    const trinketName = newTrinket.trim();
     updateState(s => ({
       ...s,
-      trinkets: [...s.trinkets, newTrinket.trim()]
+      trinkets: [...s.trinkets, trinketName],
+      trinketArchive: addTrinketMemory(s.trinketArchive || [], {
+        sourceId: memoryKey('manual_trinket', trinketName, String(timestamp)),
+        name: trinketName,
+        count: 1,
+        source: 'Handwritten trinket note',
+        story: `Added to the trinket cabinet at ${s.currentLocationName}.`,
+        locationName: s.currentLocationName,
+        timestamp,
+        spent: false
+      })
     }));
     setNewTrinket("");
   };
@@ -8212,8 +8317,17 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                           if (confirm("이 장신구를 물꼬 거래나 조력에 소모하시겠습니까?")) {
                             updateState((s: any) => {
                               const next = [...s.trinkets];
+                              const spentName = next[idx];
                               next.splice(idx, 1);
-                              return { ...s, trinkets: next };
+                              let marked = false;
+                              const trinketArchive = (s.trinketArchive || []).map((record: TrinketMemoryRecord) => {
+                                if (!marked && !record.spent && record.name === spentName) {
+                                  marked = true;
+                                  return { ...record, spent: true, story: `${record.story}\nSpent from the pouch at ${s.currentLocationName}.` };
+                                }
+                                return record;
+                              });
+                              return { ...s, trinkets: next, trinketArchive };
                             });
                           }
                         }}
@@ -9088,7 +9202,174 @@ function MapView() {
 
 
 // =================================================================
-// 11. PATIENT ARCHIVE VIEW COMPONENT
+// 11. LIVING ARCHIVE VIEW COMPONENT
+// =================================================================
+function LivingArchiveView({ state }: { state: GameState }) {
+  const patients = [...(state.patientCasebook || [])].sort((a, b) => b.timestamp - a.timestamp);
+  const herbarium = (state.worldAlmanac || [])
+    .filter(entry => entry.category === 'reagent')
+    .sort((a, b) => b.lastSeen - a.lastSeen);
+  const journeyEntries = [
+    ...(state.journeyChronicles || []).map(c => ({
+      id: c.id,
+      title: c.title,
+      text: c.text,
+      stamp: c.date
+    })),
+    ...(state.travelScrapbook || [])
+      .filter(entry => entry.kind === 'journey')
+      .slice(0, 8)
+      .map(entry => ({
+        id: entry.id,
+        title: entry.title,
+        text: entry.text,
+        stamp: `${entry.locationName || 'On the road'} / ${formatDateTime(entry.timestamp)}`
+      }))
+  ];
+  const trinkets = [...(state.trinketArchive || [])].sort((a, b) => b.timestamp - a.timestamp);
+  const routeStops = [...new Set([...(state.visitedLocations || []), state.currentLocationName].filter(Boolean))];
+
+  return (
+    <div>
+      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center' }}>
+        <span>Living Archive</span>
+        <span className="document-kicker">naturalist field journal</span>
+      </h2>
+      <p style={{ fontSize: '0.92rem', color: 'var(--text-muted)', marginTop: 0 }}>
+        A desk of permanent records: patients helped, specimens noticed, familiar memories, travelled roads, and trinkets whose stories outlast their use.
+      </p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '0.8rem', marginBottom: '1rem' }}>
+        {[
+          { label: 'Case Files', value: patients.length, note: 'beasts remembered' },
+          { label: 'Herbarium', value: herbarium.length, note: 'reagents and specimens' },
+          { label: 'Routes', value: routeStops.length, note: 'places visited' },
+          { label: 'Trinket Cabinet', value: trinkets.reduce((sum, t) => sum + t.count, 0), note: 'keepsakes recorded' }
+        ].map(item => (
+          <div key={item.label} className="cute-card" style={{ background: '#fffefa', padding: '0.9rem', border: '1.4px solid var(--border-cozy)' }}>
+            <div className="document-kicker">{item.label}</div>
+            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-bright)', lineHeight: 1 }}>{item.value}</div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{item.note}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', gap: '1rem', alignItems: 'start' }}>
+        <section className="cute-card" style={{ background: '#fffefa' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+            <h3 style={{ margin: 0, color: 'var(--primary)' }}>Patient Case Shelf</h3>
+            <span className="document-kicker">{patients.filter(p => p.outcome === 'success').length} helped</span>
+          </div>
+          <div style={{ display: 'grid', gap: '0.7rem' }}>
+            {patients.slice(0, 5).map(record => (
+              <article key={record.id} style={{ border: '1px solid var(--glass-border)', background: '#fbfaf4', padding: '0.75rem', borderRadius: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem' }}>
+                  <strong>{record.patientName || 'Anonymous patient'}{record.species ? ` / ${record.species}` : ''}</strong>
+                  <span className="journal-stamp" style={{ color: record.outcome === 'failure' ? '#8a6f65' : 'var(--primary)', borderColor: record.outcome === 'failure' ? '#8a6f65' : 'var(--primary)' }}>
+                    {record.outcome === 'failure' ? 'unresolved' : 'helped'}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                  {record.ailmentName} / {record.locationName || 'unknown place'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}
+                </div>
+                {(record.finalArchiveNote || record.initialRememberedNote) && (
+                  <div style={{ fontSize: '0.84rem', marginTop: '0.45rem', whiteSpace: 'pre-wrap' }}>
+                    {record.finalArchiveNote || record.initialRememberedNote}
+                  </div>
+                )}
+              </article>
+            ))}
+            {patients.length === 0 && <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No patients have reached the archive yet.</div>}
+          </div>
+        </section>
+
+        <section className="cute-card" style={{ background: '#fffefa' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+            <h3 style={{ margin: 0, color: 'var(--primary)' }}>Familiar Chronicle</h3>
+            <span className="document-kicker">{state.familiarTrust || 0}% trust</span>
+          </div>
+          <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+            {state.bio.familiarName || 'Unnamed familiar'} / {state.bio.familiarRelation || 'relationship unrecorded'}
+          </div>
+          <div style={{ display: 'grid', gap: '0.5rem' }}>
+            {(state.familiarMemories || []).slice(0, 5).map((memory, idx) => (
+              <div key={`${memory}_${idx}`} style={{ borderLeft: '3px solid var(--primary)', padding: '0.45rem 0.6rem', background: '#fbfaf4', fontSize: '0.84rem', whiteSpace: 'pre-wrap' }}>
+                {memory}
+              </div>
+            ))}
+            {(!state.familiarMemories || state.familiarMemories.length === 0) && (
+              <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Spend time with or feed your familiar to build a visible relationship chronicle.</div>
+            )}
+          </div>
+        </section>
+
+        <section className="cute-card" style={{ background: '#fffefa' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+            <h3 style={{ margin: 0, color: 'var(--primary)' }}>Specimen Herbarium</h3>
+            <span className="document-kicker">{herbarium.length} entries</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
+            {herbarium.slice(0, 10).map(entry => (
+              <div key={entry.id} style={{ border: '1px solid var(--glass-border)', background: '#fbfaf4', padding: '0.65rem', borderRadius: '4px' }}>
+                <strong style={{ color: 'var(--text-bright)' }}>{entry.name}</strong>
+                <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{entry.region || 'region unpinned'} / sightings {entry.sightings}</div>
+                <div style={{ fontSize: '0.8rem', marginTop: '0.35rem' }}>{entry.notes}</div>
+              </div>
+            ))}
+            {herbarium.length === 0 && <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Gather or carry reagents to seed the herbarium.</div>}
+          </div>
+        </section>
+
+        <section className="cute-card" style={{ background: '#fffefa' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+            <h3 style={{ margin: 0, color: 'var(--primary)' }}>Route Map Notes</h3>
+            <span className="document-kicker">{routeStops.length} stops</span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
+            {routeStops.map(stop => (
+              <span key={stop} style={{ border: '1px solid var(--glass-border)', background: '#fbfaf4', padding: '0.3rem 0.55rem', borderRadius: '4px', fontSize: '0.78rem' }}>{stop}</span>
+            ))}
+          </div>
+          <div style={{ display: 'grid', gap: '0.55rem' }}>
+            {journeyEntries.slice(0, 4).map(entry => (
+              <article key={entry.id} style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '0.5rem' }}>
+                <strong>{entry.title}</strong>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{entry.stamp}</div>
+                <div style={{ fontSize: '0.82rem', marginTop: '0.25rem', whiteSpace: 'pre-wrap' }}>{entry.text}</div>
+              </article>
+            ))}
+            {journeyEntries.length === 0 && <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Complete journeys or write travel logs to fill this map margin.</div>}
+          </div>
+        </section>
+
+        <section className="cute-card" style={{ background: '#fffefa', gridColumn: '1 / -1' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+            <h3 style={{ margin: 0, color: 'var(--primary)' }}>Trinket Cabinet</h3>
+            <span className="document-kicker">{trinkets.length} remembered rewards</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.7rem' }}>
+            {trinkets.map(record => (
+              <article key={record.id} style={{ border: '1px solid var(--glass-border)', background: record.spent ? '#f2eee9' : '#fbfaf4', padding: '0.75rem', borderRadius: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem' }}>
+                  <strong>{record.name}{record.count > 1 ? ` x${record.count}` : ''}</strong>
+                  {record.spent && <span className="document-kicker">spent</span>}
+                </div>
+                <div style={{ fontSize: '0.77rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{record.source} / {record.locationName || 'place unrecorded'}</div>
+                <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.84rem', marginTop: '0.4rem' }}>{record.story}</div>
+              </article>
+            ))}
+            {trinkets.length === 0 && <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Add or earn trinkets to begin the cabinet.</div>}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+
+
+// =================================================================
+// 12. PATIENT ARCHIVE VIEW COMPONENT
 // =================================================================
 function PatientArchiveView({ state }: { state: GameState }) {
   const records = [...(state.patientCasebook || [])].sort((a, b) => b.timestamp - a.timestamp);
