@@ -127,6 +127,48 @@ interface ActiveDelve {
   requiredReagents?: string[];
 }
 
+interface PatientCaseRecord {
+  id: string;
+  sourceId: string;
+  patientName: string;
+  ailmentName: string;
+  severity: string;
+  tags: string;
+  locationName: string;
+  region: string;
+  outcome: 'success' | 'failure';
+  remedy: string[];
+  notes: string;
+  timestamp: number;
+}
+
+type AlmanacCategory = 'settlement' | 'clinic' | 'reagent' | 'creature' | 'landmark' | 'notable';
+
+interface WorldAlmanacEntry {
+  id: string;
+  category: AlmanacCategory;
+  name: string;
+  locationName: string;
+  region: string;
+  source: string;
+  notes: string;
+  firstSeen: number;
+  lastSeen: number;
+  sightings: number;
+}
+
+type ScrapbookKind = 'journey' | 'discovery' | 'patient' | 'remedy';
+
+interface TravelScrapbookEntry {
+  id: string;
+  sourceId: string;
+  kind: ScrapbookKind;
+  title: string;
+  text: string;
+  locationName: string;
+  timestamp: number;
+}
+
 interface PursuedByBehemoth {
   headStart: number;
 }
@@ -226,6 +268,9 @@ interface GameState {
   legacyApothecaries?: { name: string; ageOfRetirement: number; clinicsBuilt: number; legacyScore: number }[];
   discoveredRecipes?: Record<string, string[][]>;
   journeyChronicles?: { id: string; title: string; text: string; date: string }[];
+  patientCasebook?: PatientCaseRecord[];
+  worldAlmanac?: WorldAlmanacEntry[];
+  travelScrapbook?: TravelScrapbookEntry[];
   familiarTrust?: number;
   familiarMemories?: string[];
   legacyRestUsedThisLocation?: boolean;
@@ -319,6 +364,9 @@ const INITIAL_STATE: GameState = {
   legacyApothecaries: [],
   discoveredRecipes: {},
   journeyChronicles: [],
+  patientCasebook: [],
+  worldAlmanac: [],
+  travelScrapbook: [],
   familiarTrust: 0,
   familiarMemories: [],
   legacyRestUsedThisLocation: false
@@ -346,6 +394,266 @@ const getReputationRank = (rep: number) => {
 
 const formatDateTime = (ts: number) => {
   return new Date(ts).toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' });
+};
+
+const memoryKey = (...parts: string[]) =>
+  parts.join('_').toLowerCase().replace(/[^a-z0-9가-힣]+/gi, '_').replace(/^_+|_+$/g, '');
+
+const cleanMemoryName = (name: string) =>
+  name.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
+
+const locationCategoryFor = (type?: string): AlmanacCategory => {
+  if (type === 'City' || type === 'Settlement') return 'settlement';
+  if (type === 'Ruin' || type === 'Barrow') return 'landmark';
+  return 'notable';
+};
+
+const upsertAlmanac = (
+  entries: WorldAlmanacEntry[],
+  entry: Omit<WorldAlmanacEntry, 'id' | 'firstSeen' | 'lastSeen' | 'sightings'> & { timestamp?: number }
+) => {
+  const name = cleanMemoryName(entry.name);
+  if (!name) return entries;
+  const idx = entries.findIndex(e =>
+    e.category === entry.category &&
+    e.name.toLowerCase() === name.toLowerCase() &&
+    (e.locationName || '').toLowerCase() === (entry.locationName || '').toLowerCase()
+  );
+  const stamp = entry.timestamp || Date.now();
+
+  if (idx >= 0) {
+    const next = [...entries];
+    next[idx] = {
+      ...next[idx],
+      region: next[idx].region || entry.region,
+      source: entry.source || next[idx].source,
+      notes: entry.notes || next[idx].notes,
+      lastSeen: Math.max(next[idx].lastSeen || stamp, stamp),
+      sightings: next[idx].sightings || 1
+    };
+    return next;
+  }
+
+  return [
+    {
+      id: memoryKey('alm', entry.category, name, entry.locationName || entry.region || 'unknown'),
+      category: entry.category,
+      name,
+      locationName: entry.locationName || '',
+      region: entry.region || '',
+      source: entry.source,
+      notes: entry.notes,
+      firstSeen: stamp,
+      lastSeen: stamp,
+      sightings: 1
+    },
+    ...entries
+  ];
+};
+
+const addScrapbookEntry = (
+  entries: TravelScrapbookEntry[],
+  entry: Omit<TravelScrapbookEntry, 'id'>
+) => {
+  if (entries.some(e => e.sourceId === entry.sourceId)) return entries;
+  return [{ id: memoryKey('scrap', entry.sourceId), ...entry }, ...entries];
+};
+
+const addCasebookRecord = (
+  entries: PatientCaseRecord[],
+  record: Omit<PatientCaseRecord, 'id'>
+) => {
+  if (entries.some(e => e.sourceId === record.sourceId)) return entries;
+  return [{ id: memoryKey('case', record.sourceId), ...record }, ...entries];
+};
+
+const classifyJournalForScrapbook = (journal: { id: string; title: string; text: string; timestamp: number }): ScrapbookKind | null => {
+  if (journal.id.startsWith('start_') || journal.id.startsWith('travel_') || journal.id.startsWith('death_travel_')) return 'journey';
+  if (journal.id.startsWith('forage_') || journal.id.startsWith('barter_finish_') || journal.id.startsWith('brave_enc_')) return 'discovery';
+  if (journal.id.startsWith('cure_') || journal.id.startsWith('cure_fail_')) return 'patient';
+  return null;
+};
+
+const syncWorldMemory = (state: GameState): GameState => {
+  let patientCasebook = [...(state.patientCasebook || [])];
+  let worldAlmanac = [...(state.worldAlmanac || [])];
+  let travelScrapbook = [...(state.travelScrapbook || [])];
+  const now = Date.now();
+
+  worldAlmanac = upsertAlmanac(worldAlmanac, {
+    category: locationCategoryFor(state.currentLocationType),
+    name: state.currentLocationName,
+    locationName: state.currentLocationName,
+    region: state.currentRegion,
+    source: 'Current location',
+    notes: `${state.currentLocationType} in ${state.currentRegion}`,
+    timestamp: now
+  });
+
+  if (state.journeyActive && state.journeyDestination) {
+    worldAlmanac = upsertAlmanac(worldAlmanac, {
+      category: 'settlement',
+      name: state.journeyDestination,
+      locationName: state.journeyDestination,
+      region: '',
+      source: 'Journey destination',
+      notes: `Destination for current travel log: ${state.journeyGoalTitle || 'open journey'}`,
+      timestamp: now
+    });
+  }
+
+  (state.visitedLocations || []).forEach(locationName => {
+    worldAlmanac = upsertAlmanac(worldAlmanac, {
+      category: locationName === state.currentLocationName ? locationCategoryFor(state.currentLocationType) : 'notable',
+      name: locationName,
+      locationName,
+      region: locationName === state.currentLocationName ? state.currentRegion : '',
+      source: 'Visited location',
+      notes: 'Recorded from travel history.',
+      timestamp: now
+    });
+  });
+
+  (state.clinics || []).forEach(clinic => {
+    worldAlmanac = upsertAlmanac(worldAlmanac, {
+      category: 'clinic',
+      name: `${clinic.locationName} clinic`,
+      locationName: clinic.locationName,
+      region: clinic.region,
+      source: 'Clinic network',
+      notes: `Guild service: ${clinic.agendaService.toUpperCase()}`,
+      timestamp: now
+    });
+  });
+
+  (state.barrows || []).forEach(barrow => {
+    worldAlmanac = upsertAlmanac(worldAlmanac, {
+      category: 'landmark',
+      name: barrow.locationName || barrow.name,
+      locationName: barrow.locationName,
+      region: barrow.region,
+      source: 'Barrow rumour',
+      notes: `${barrow.behemothClass} behemoth barrow, ${barrow.direction}, ${barrow.distance}`,
+      timestamp: now
+    });
+    worldAlmanac = upsertAlmanac(worldAlmanac, {
+      category: 'creature',
+      name: barrow.name,
+      locationName: barrow.locationName,
+      region: barrow.region,
+      source: 'Barrow rumour',
+      notes: `${barrow.behemothClass} behemoth`,
+      timestamp: now
+    });
+  });
+
+  (state.companions || []).forEach(companion => {
+    worldAlmanac = upsertAlmanac(worldAlmanac, {
+      category: 'creature',
+      name: companion.koreanName || companion.name,
+      locationName: companion.adoptedLocation,
+      region: '',
+      source: 'Companion record',
+      notes: `${companion.name} joined the travelling apothecary.`,
+      timestamp: now
+    });
+  });
+
+  state.bag.filter(item => item.type === 'reagent').forEach(item => {
+    worldAlmanac = upsertAlmanac(worldAlmanac, {
+      category: 'reagent',
+      name: cleanMemoryName(item.name),
+      locationName: state.currentLocationName,
+      region: state.currentRegion,
+      source: 'Apothecary bag',
+      notes: item.preps || 'Reagent carried in the bag.',
+      timestamp: now
+    });
+  });
+
+  Object.values(state.discoveredRecipes || {}).flat().flat().forEach(reagentName => {
+    worldAlmanac = upsertAlmanac(worldAlmanac, {
+      category: 'reagent',
+      name: reagentName,
+      locationName: '',
+      region: '',
+      source: 'Known remedy',
+      notes: 'Remembered from a discovered remedy combination.',
+      timestamp: now
+    });
+  });
+
+  (state.journals || []).forEach(journal => {
+    const kind = classifyJournalForScrapbook(journal);
+    if (kind) {
+      travelScrapbook = addScrapbookEntry(travelScrapbook, {
+        sourceId: journal.id,
+        kind,
+        title: journal.title,
+        text: journal.text,
+        locationName: state.currentLocationName,
+        timestamp: journal.timestamp
+      });
+    }
+
+    if ((journal.id.startsWith('cure_') || journal.id.startsWith('cure_fail_')) && !patientCasebook.some(c => c.sourceId === journal.id)) {
+      const ailmentName = journal.title.replace(/^.*?:\s*/, '').replace(/\s*\([^)]*\)\s*$/, '').trim() || 'Unknown ailment';
+      const severityMatch = journal.text.match(/심각도:\s*([^\n(]+)/);
+      patientCasebook = addCasebookRecord(patientCasebook, {
+        sourceId: journal.id,
+        patientName: 'Unnamed patient',
+        ailmentName,
+        severity: severityMatch?.[1]?.trim() || 'unknown',
+        tags: '',
+        locationName: state.currentLocationName,
+        region: state.currentRegion,
+        outcome: journal.id.startsWith('cure_fail_') ? 'failure' : 'success',
+        remedy: [],
+        notes: journal.text,
+        timestamp: journal.timestamp
+      });
+    }
+
+    if (journal.id.startsWith('cure_') && !journal.id.startsWith('cure_fail_')) {
+      travelScrapbook = addScrapbookEntry(travelScrapbook, {
+        sourceId: `${journal.id}_remedy`,
+        kind: 'remedy',
+        title: journal.title.replace('완치 성공', 'Remedy note'),
+        text: journal.text,
+        locationName: state.currentLocationName,
+        timestamp: journal.timestamp
+      });
+    }
+  });
+
+  (state.journeyChronicles || []).forEach(chronicle => {
+    travelScrapbook = addScrapbookEntry(travelScrapbook, {
+      sourceId: chronicle.id,
+      kind: 'journey',
+      title: chronicle.title,
+      text: chronicle.text,
+      locationName: state.journeyDestination || state.currentLocationName,
+      timestamp: Date.parse(chronicle.date) || now
+    });
+  });
+
+  (state.calendarHistory || []).forEach((line, idx) => {
+    travelScrapbook = addScrapbookEntry(travelScrapbook, {
+      sourceId: memoryKey('calendar', String(idx), line),
+      kind: 'journey',
+      title: line.startsWith('여정 시작') ? 'Journey departure note' : `Travel log ${idx + 1}`,
+      text: line,
+      locationName: state.currentLocationName,
+      timestamp: now - idx
+    });
+  });
+
+  return {
+    ...state,
+    patientCasebook,
+    worldAlmanac,
+    travelScrapbook
+  };
 };
 
 const getCardSvgUrl = (suit: string, value: number | string) => {
@@ -710,7 +1018,7 @@ const parseLocs = (locsStr: string) => {
 // =================================================================
 const migrateState = (s: any): GameState => {
   if (!s) return INITIAL_STATE;
-  return {
+  return syncWorldMemory({
     ...INITIAL_STATE,
     ...s,
     bio: {
@@ -750,10 +1058,13 @@ const migrateState = (s: any): GameState => {
     legacyApothecaries: s.legacyApothecaries || [],
     discoveredRecipes: s.discoveredRecipes || {},
     journeyChronicles: s.journeyChronicles || [],
+    patientCasebook: s.patientCasebook || [],
+    worldAlmanac: s.worldAlmanac || [],
+    travelScrapbook: s.travelScrapbook || [],
     familiarTrust: s.familiarTrust || 0,
     familiarMemories: s.familiarMemories || [],
     legacyRestUsedThisLocation: s.legacyRestUsedThisLocation || false
-  };
+  });
 };
 
 // Tool existence check helper (takes Ingenuitive familiar benefit into account)
@@ -1241,7 +1552,7 @@ export default function App() {
       if (loaded) {
         setState(migrateState(loaded));
       } else {
-        setState(INITIAL_STATE);
+        setState(syncWorldMemory(INITIAL_STATE));
       }
       setLoading(false);
     };
@@ -1253,6 +1564,7 @@ export default function App() {
     setState(prev => {
       if (!prev) return prev;
       let next = updater(prev);
+      next = syncWorldMemory(next);
 
       store.set('apawthecaria_rpg_state', next);
       return next;
@@ -1375,7 +1687,10 @@ export default function App() {
         legacyClinics: [...(s.legacyClinics || []), ...archivedClinics],
         legacyApothecaries: [...(s.legacyApothecaries || []), retiredRecord],
         discoveredRecipes: s.discoveredRecipes || {},
-        journeyChronicles: s.journeyChronicles || []
+        journeyChronicles: s.journeyChronicles || [],
+        patientCasebook: s.patientCasebook || [],
+        worldAlmanac: s.worldAlmanac || [],
+        travelScrapbook: s.travelScrapbook || []
       };
 
       if (inheritanceOption === 'sickle') {
@@ -1539,9 +1854,9 @@ export default function App() {
         await signOut(auth);
         const loaded = await store.load('apawthecaria_rpg_state', null);
         if (loaded) {
-          setState(loaded);
+          setState(migrateState(loaded));
         } else {
-          setState(INITIAL_STATE);
+          setState(syncWorldMemory(INITIAL_STATE));
         }
       } catch (e: any) {
         console.error("Sign-out error:", e);
@@ -1551,7 +1866,7 @@ export default function App() {
 
   const handleReset = () => {
     if (window.confirm("⚠️ 경고: 정말 모든 진행상황과 연대기를 초기화하고 새로운 약제사로 시작하시겠습니까? (저널 일지 기록도 함께 삭제됩니다.)")) {
-      updateState(() => INITIAL_STATE);
+      updateState(() => syncWorldMemory(INITIAL_STATE));
       setActiveTab('play');
     }
   };
@@ -2358,7 +2673,7 @@ function PlayView({
         newRep = Math.max(0, s.reputation - loss);
 
         journals.unshift({
-          id: 'conseq_' + Date.now(),
+          id: 'cure_fail_timer_' + Date.now(),
           title: `💥 치료 실패 결과: ${s.activeAilment.name}`,
           text: `환자 치료를 완수하지 못하고 시간이 마감되었습니다.\n\n[치료 실패 결과(Consequence)]\n${s.activeAilment.consequence}\n\n길드 명성 점수가 ${loss}점 깎입니다.`,
           timestamp: Date.now()
@@ -4084,6 +4399,9 @@ function PlayView({
       if (!exists) {
         nextDiscoveredRecipes[ailmentNameKey].push(reagentNames);
       }
+      const cureTimestamp = Date.now();
+      const cureSourceId = 'cure_' + cureTimestamp;
+      const cureNotes = `${s.currentLocationName}에서 환자 치료를 성공적으로 마쳤습니다!\\n- 소모 시간: 조제 ${timeSpent}시간 (남은 시간: ${nextTimer}시간)\\n- 심각도: ${severity} (난이도 레벨 ${sevLevel})\\n- Fair ${fairPts}점, Foul ${foulPts}점 (상쇄 후 보정 ${fairFoulAdjustment >= 0 ? '+' : ''}${fairFoulAdjustment})\\n- 장신구 공식: ${sevLevel} ${fairFoulAdjustment >= 0 ? '+' : ''}${fairFoulAdjustment} = ${trinketCalc} → 획득 ${actualTrinkets}개\\n${isGifting ? '- 💝 Gifting: 장신구 대신 평판 +2 선택' : ''}\\n- 길드 명성 +${actualRep}점`;
 
       return {
         ...s,
@@ -4096,12 +4414,25 @@ function PlayView({
         scroungingTimer: nextTimer,
         curedAilmentInThisWilds: isWilds,
         journeyGoalCounter: nextGoalCounter,
+        patientCasebook: addCasebookRecord(s.patientCasebook || [], {
+          sourceId: cureSourceId,
+          patientName: 'Unnamed patient',
+          ailmentName: s.activeAilment!.name,
+          severity,
+          tags: s.activeAilment!.tags,
+          locationName: s.currentLocationName,
+          region: s.currentRegion,
+          outcome: 'success',
+          remedy: reagentNames,
+          notes: cureNotes,
+          timestamp: cureTimestamp
+        }),
         journals: [
           {
-            id: 'cure_' + Date.now(),
+            id: cureSourceId,
             title: `🎉 완치 성공: ${s.activeAilment!.name}`,
-            text: `${s.currentLocationName}에서 환자 치료를 성공적으로 마쳤습니다!\\n- 소모 시간: 조제 ${timeSpent}시간 (남은 시간: ${nextTimer}시간)\\n- 심각도: ${severity} (난이도 레벨 ${sevLevel})\\n- Fair ${fairPts}점, Foul ${foulPts}점 (상쇄 후 보정 ${fairFoulAdjustment >= 0 ? '+' : ''}${fairFoulAdjustment})\\n- 장신구 공식: ${sevLevel} ${fairFoulAdjustment >= 0 ? '+' : ''}${fairFoulAdjustment} = ${trinketCalc} → 획득 ${actualTrinkets}개\\n${isGifting ? '- 💝 Gifting: 장신구 대신 평판 +2 선택' : ''}\\n- 길드 명성 +${actualRep}점`,
-            timestamp: Date.now()
+            text: cureNotes,
+            timestamp: cureTimestamp
           },
           ...s.journals
         ]
@@ -8520,7 +8851,23 @@ function MapView() {
 function JournalsView({ state, updateState }: { state: GameState; updateState: any }) {
   const [newTitle, setNewTitle] = useState("");
   const [newText, setNewText] = useState("");
-  const [subTab, setSubTab] = useState<'journals' | 'chronicles' | 'legacy'>('journals');
+  const [subTab, setSubTab] = useState<'casebook' | 'almanac' | 'scrapbook' | 'journals' | 'chronicles' | 'legacy'>('casebook');
+
+  const almanacLabels: Record<AlmanacCategory, string> = {
+    settlement: 'Settlements',
+    clinic: 'Clinics',
+    reagent: 'Reagents',
+    creature: 'Creatures',
+    landmark: 'Landmarks',
+    notable: 'Notable Places'
+  };
+
+  const scrapbookLabels: Record<ScrapbookKind, string> = {
+    journey: 'Journey',
+    discovery: 'Discovery',
+    patient: 'Patient',
+    remedy: 'Remedy'
+  };
 
   const handleAddJournal = (e: React.FormEvent) => {
     e.preventDefault();
@@ -8630,26 +8977,119 @@ function JournalsView({ state, updateState }: { state: GameState; updateState: a
       </h2>
 
       {/* Sub tabs navigation */}
-      <div style={{ display: 'flex', gap: '0.5rem', margin: '1rem 0' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', margin: '1rem 0', flexWrap: 'wrap' }}>
+        <button
+          onClick={() => setSubTab('casebook')}
+          style={{ padding: '0.5rem 1rem', background: subTab === 'casebook' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'casebook' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
+        >
+          Patient Casebook ({(state.patientCasebook || []).length})
+        </button>
+        <button
+          onClick={() => setSubTab('almanac')}
+          style={{ padding: '0.5rem 1rem', background: subTab === 'almanac' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'almanac' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
+        >
+          World Almanac ({(state.worldAlmanac || []).length})
+        </button>
+        <button
+          onClick={() => setSubTab('scrapbook')}
+          style={{ padding: '0.5rem 1rem', background: subTab === 'scrapbook' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'scrapbook' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
+        >
+          Travel Scrapbook ({(state.travelScrapbook || []).length})
+        </button>
         <button
           onClick={() => setSubTab('journals')}
-          style={{ padding: '0.5rem 1rem', background: subTab === 'journals' ? 'var(--primary)' : '#f1f5f9', color: subTab === 'journals' ? '#fff' : '#475569', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
+          style={{ padding: '0.5rem 1rem', background: subTab === 'journals' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'journals' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
         >
           📝 개인 저널 일지 ({state.journals.length})
         </button>
         <button
           onClick={() => setSubTab('chronicles')}
-          style={{ padding: '0.5rem 1rem', background: subTab === 'chronicles' ? 'var(--primary)' : '#f1f5f9', color: subTab === 'chronicles' ? '#fff' : '#475569', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
+          style={{ padding: '0.5rem 1rem', background: subTab === 'chronicles' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'chronicles' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
         >
           📖 방랑 연대기 ({(state.journeyChronicles || []).length})
         </button>
         <button
           onClick={() => setSubTab('legacy')}
-          style={{ padding: '0.5rem 1rem', background: subTab === 'legacy' ? 'var(--primary)' : '#f1f5f9', color: subTab === 'legacy' ? '#fff' : '#475569', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
+          style={{ padding: '0.5rem 1rem', background: subTab === 'legacy' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'legacy' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
         >
           🏛️ 은퇴의 전당 및 약제소 망
         </button>
       </div>
+
+      {subTab === 'casebook' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+          {(state.patientCasebook || []).map(record => (
+            <div key={record.id} className="cute-card" style={{ background: '#fffefa', border: '1.4px solid var(--border-cozy)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.45rem', marginBottom: '0.7rem' }}>
+                <h4 style={{ margin: 0, color: 'var(--text-bright)' }}>{record.ailmentName}</h4>
+                <span className="journal-stamp" style={{ color: record.outcome === 'success' ? 'var(--primary)' : 'var(--accent-red)', borderColor: record.outcome === 'success' ? 'var(--primary)' : 'var(--accent-red)' }}>
+                  {record.outcome}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.84rem', color: 'var(--text-muted)', display: 'grid', gap: '0.25rem' }}>
+                <div><strong>Patient:</strong> {record.patientName}</div>
+                <div><strong>Severity:</strong> {record.severity}</div>
+                {record.tags && <div><strong>Tags:</strong> {record.tags}</div>}
+                <div><strong>Place:</strong> {record.locationName || 'Unknown'} {record.region ? `(${record.region})` : ''}</div>
+                {record.remedy.length > 0 && <div><strong>Remedy:</strong> {record.remedy.join(', ')}</div>}
+                <div style={{ marginTop: '0.4rem', whiteSpace: 'pre-wrap', color: 'var(--text-bright)' }}>{record.notes}</div>
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '0.4rem' }}>{formatDateTime(record.timestamp)}</div>
+              </div>
+            </div>
+          ))}
+          {(!state.patientCasebook || state.patientCasebook.length === 0) && (
+            <div className="cute-card" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              아직 치료 완료된 환자 기록이 없습니다. 환자를 치료하거나 실패 결과가 발생하면 자동으로 영구 케이스가 남습니다.
+            </div>
+          )}
+        </div>
+      )}
+
+      {subTab === 'almanac' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {(['settlement', 'clinic', 'reagent', 'creature', 'landmark', 'notable'] as AlmanacCategory[]).map(category => {
+            const entries = (state.worldAlmanac || []).filter(entry => entry.category === category);
+            if (entries.length === 0) return null;
+            return (
+              <section key={category} className="cute-card" style={{ background: '#fffefa' }}>
+                <h3 style={{ margin: '0 0 0.8rem 0', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.4rem' }}>{almanacLabels[category]}</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                  {entries.map(entry => (
+                    <div key={entry.id} style={{ border: '1px solid var(--glass-border)', background: '#fbfaf4', padding: '0.75rem', borderRadius: '4px' }}>
+                      <div style={{ fontWeight: 700, color: 'var(--text-bright)' }}>{entry.name}</div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{entry.locationName || 'No fixed place'} {entry.region ? `- ${entry.region}` : ''}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-bright)', marginTop: '0.35rem' }}>{entry.notes}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '0.35rem' }}>{entry.source} / sightings {entry.sightings}</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
+
+      {subTab === 'scrapbook' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {(state.travelScrapbook || []).map(entry => (
+            <div key={entry.id} className="cute-card" style={{ background: '#fffefa' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.45rem', marginBottom: '0.7rem', gap: '0.8rem' }}>
+                <h4 style={{ margin: 0, color: 'var(--text-bright)' }}>{entry.title}</h4>
+                <span className="document-kicker">{scrapbookLabels[entry.kind]}</span>
+              </div>
+              <p style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem', lineHeight: 1.7, margin: 0 }}>{entry.text}</p>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '0.6rem' }}>
+                {entry.locationName || 'On the road'} / {formatDateTime(entry.timestamp)}
+              </div>
+            </div>
+          ))}
+          {(!state.travelScrapbook || state.travelScrapbook.length === 0) && (
+            <div className="cute-card" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              여정, 발견, 환자, 처방 기록이 생기면 자동으로 스크랩북에 붙습니다.
+            </div>
+          )}
+        </div>
+      )}
 
       {subTab === 'journals' && (
         <>
