@@ -74,6 +74,7 @@ interface BagItem {
   qty?: number;
   tags?: string;
   preps?: string;
+  inBandolier?: boolean;
 }
 
 interface ApothecaryBio {
@@ -88,6 +89,7 @@ interface ApothecaryBio {
   familiarName: string;
   familiarBenefit: string;
   familiarRelation: string;
+  canFly?: boolean;
 }
 
 interface ActiveAilment {
@@ -227,6 +229,7 @@ interface GameState {
   familiarTrust?: number;
   familiarMemories?: string[];
   legacyRestUsedThisLocation?: boolean;
+  canFlyOverride?: boolean;
 }
 
 const INITIAL_BIO: ApothecaryBio = {
@@ -240,7 +243,8 @@ const INITIAL_BIO: ApothecaryBio = {
   originDesc: "큰 사고를 당하고 치유를 받으면서 약제사의 길을 걷기로 결심했습니다.",
   familiarName: "",
   familiarBenefit: "따뜻한 약제사 (모든 질병 치료 시작 타이머 +2시간)",
-  familiarRelation: "깊은 동반자 (서로 아끼고 의지함)"
+  familiarRelation: "깊은 동반자 (서로 아끼고 의지함)",
+  canFly: false
 };
 
 const INITIAL_BAG: BagItem[] = [
@@ -709,6 +713,11 @@ const migrateState = (s: any): GameState => {
   return {
     ...INITIAL_STATE,
     ...s,
+    bio: {
+      ...INITIAL_BIO,
+      ...(s.bio || {})
+    },
+    canFlyOverride: s.canFlyOverride !== undefined ? s.canFlyOverride : false,
     wagonExpansions: {
       ...INITIAL_WAGON,
       ...(s.wagonExpansions || {})
@@ -984,6 +993,12 @@ const checkReagentGatherForGoal = (s: GameState, reagentName: string) => {
   return { nextGoalCounter, nextChecklist };
 };
 
+const isEligibleForBandolier = (item: BagItem): boolean => {
+  if (item.type !== 'reagent') return false;
+  const dbReag = GAME_DATA.reagents.find(r => r.name === item.name || r.rawName === item.name);
+  return dbReag ? (dbReag.type === 'PLANT' || dbReag.type === 'INSECT') : false;
+};
+
 // Helper for max carry capacity
 const getMaxCarry = (s: GameState): number => {
   let base = s.bio.carry;
@@ -1237,7 +1252,8 @@ export default function App() {
   const updateState = (updater: (prev: GameState) => GameState) => {
     setState(prev => {
       if (!prev) return prev;
-      const next = updater(prev);
+      let next = updater(prev);
+
       store.set('apawthecaria_rpg_state', next);
       return next;
     });
@@ -1551,7 +1567,21 @@ export default function App() {
   }
 
   // Calculate current weight
-  const currentWeight = state.bag.reduce((acc, item) => acc + (item.weight * (item.qty || 1)), 0);
+  // Calculate current weight (taking Greenpaw Bandolier weight saving into account)
+  const hasBandolier = hasTool(state, 'tool_bandolier') || hasTool(state, 'Greenpaw Bandolier');
+  let bandolierContentsWeight = 0;
+  let baseWeight = 0;
+  state.bag.forEach(item => {
+    const itemTotalWeight = item.weight * (item.qty || 1);
+    if (hasBandolier && item.inBandolier && isEligibleForBandolier(item)) {
+      bandolierContentsWeight += itemTotalWeight;
+    } else {
+      baseWeight += itemTotalWeight;
+    }
+  });
+  const currentWeight = hasBandolier
+    ? baseWeight + Math.max(0, bandolierContentsWeight - 5)
+    : baseWeight + bandolierContentsWeight;
   const maxCarry = getMaxCarry(state);
   const travelSpeed = getTravelSpeed(state, currentWeight);
   const isOverEncumbered = currentWeight > maxCarry;
@@ -2509,6 +2539,13 @@ function PlayView({
   };
 
   const handleWorkingOnYourself = (choice: 'speed' | 'carry' | 'style', styleVal?: string) => {
+    if (choice === 'style' && styleVal === '가볍고 신속하게') {
+      if (!(state.bio.canFly || state.canFlyOverride)) {
+        alert("🦅 비행 능력(Can Fly) 또는 하우스 룰이 비행 제약 무시 상태여야 '가볍고 신속하게' 이동 스타일을 선택할 수 있습니다!");
+        return;
+      }
+    }
+
     updateState(s => {
       let nextBio = { ...s.bio };
       let logText = "";
@@ -2520,6 +2557,11 @@ function PlayView({
         logText = "체력 훈련과 짐 싸기 연구를 통해 가방 용량을 1만큼 증가시켰습니다 (+1 Carry).";
       } else if (choice === 'style' && styleVal) {
         nextBio.travelStyle = styleVal;
+        const styleData = GAME_DATA.bioChoices.travelStyles.find(st => st.name === styleVal);
+        if (styleData) {
+          nextBio.speed = styleData.speed;
+          nextBio.carry = styleData.carry;
+        }
         logText = `이동 스타일을 "${styleVal}"로 새롭게 변경했습니다.`;
       }
       return {
@@ -7048,25 +7090,62 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
   const [familiarBenefitEdit, setFamiliarBenefitEdit] = useState(state.bio.familiarBenefit);
   const [resourcefulReagentEdit, setResourcefulReagentEdit] = useState(state.resourcefulReagent || "");
   const [ingenuitiveToolEdit, setIngenuitiveToolEdit] = useState(state.ingenuitiveTool || "");
+  const [canFly, setCanFly] = useState(!!state.bio.canFly);
+  const [canFlyOverride, setCanFlyOverride] = useState(!!state.canFlyOverride);
+
+  // Sync state if state changes from outside
+  useEffect(() => {
+    setName(state.bio.name);
+    setFamiliarName(state.bio.familiarName);
+    setFamiliarBenefitEdit(state.bio.familiarBenefit);
+    setResourcefulReagentEdit(state.resourcefulReagent || "");
+    setIngenuitiveToolEdit(state.ingenuitiveTool || "");
+    setCanFly(!!state.bio.canFly);
+    setCanFlyOverride(!!state.canFlyOverride);
+  }, [state]);
 
   const [newTrinket, setNewTrinket] = useState("");
   const [newBagItemName, setNewBagItemName] = useState("");
   const [newBagItemWeight, setNewBagItemWeight] = useState<number>(1/3);
+  const [patienceOverride, setPatienceOverride] = useState(false);
 
   const handleSaveBio = (e: React.FormEvent) => {
     e.preventDefault();
     const selectedFamiliar = FAMILIAR_BENEFITS.find(f => f.name === familiarBenefitEdit) || FAMILIAR_BENEFITS[0];
-    updateState((s: GameState) => ({
-      ...s,
-      bio: {
-        ...s.bio,
-        name,
-        familiarName,
-        familiarBenefit: familiarBenefitEdit
-      },
-      resourcefulReagent: selectedFamiliar.mechanic === 'resourceful' ? resourcefulReagentEdit : "",
-      ingenuitiveTool: selectedFamiliar.mechanic === 'ingenuitive' ? ingenuitiveToolEdit : ""
-    }));
+    
+    if (!canFly && !canFlyOverride && state.bio.travelStyle === '가볍고 신속하게') {
+      alert("⚠️ 경고: 비행 능력(Can Fly) 혹은 하우스 룰이 비행 제약 무시 상태가 아닙니다. 비행 이동 스타일 '가볍고 신속하게'를 유지할 수 없어 기본 이동 스타일('천천히 꾸준하게')로 강제 전환됩니다.");
+      updateState((s: GameState) => ({
+        ...s,
+        bio: {
+          ...s.bio,
+          name,
+          familiarName,
+          familiarBenefit: familiarBenefitEdit,
+          canFly: false,
+          travelStyle: '천천히 꾸준하게',
+          speed: 2,
+          carry: 5
+        },
+        canFlyOverride: false,
+        resourcefulReagent: selectedFamiliar.mechanic === 'resourceful' ? resourcefulReagentEdit : "",
+        ingenuitiveTool: selectedFamiliar.mechanic === 'ingenuitive' ? ingenuitiveToolEdit : ""
+      }));
+    } else {
+      updateState((s: GameState) => ({
+        ...s,
+        bio: {
+          ...s.bio,
+          name,
+          familiarName,
+          familiarBenefit: familiarBenefitEdit,
+          canFly
+        },
+        canFlyOverride,
+        resourcefulReagent: selectedFamiliar.mechanic === 'resourceful' ? resourcefulReagentEdit : "",
+        ingenuitiveTool: selectedFamiliar.mechanic === 'ingenuitive' ? ingenuitiveToolEdit : ""
+      }));
+    }
     setEditing(false);
     alert(`캐릭터 프로필이 저장되었습니다.\n사역마 혜택: ${familiarBenefitEdit}`);
   };
@@ -7109,6 +7188,18 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
     }
   };
 
+  const handleToggleBandolier = (itemId: string) => {
+    updateState(s => {
+      const nextBag = s.bag.map(item => {
+        if (item.id === itemId) {
+          return { ...item, inBandolier: !item.inBandolier };
+        }
+        return item;
+      });
+      return { ...s, bag: nextBag };
+    });
+  };
+
   return (
     <div className="parchment-panel cute-border" style={{ padding: '1.8rem', background: '#fffdf9' }}>
 
@@ -7147,6 +7238,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                 <div><strong>약제사 이름:</strong> {state.bio.name || '미등록'}</div>
                 <div><strong>종족 구분:</strong> {state.bio.descriptor} ({state.bio.examples})</div>
                 <div><strong>이동 스타일:</strong> {state.bio.travelStyle}</div>
+                <div><strong>비행 능력 (Can Fly):</strong> {state.bio.canFly ? '가능 🦅' : '불가능 ❌'} {state.canFlyOverride && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>(하우스 룰 허용됨)</span>}</div>
                 <div><strong>출발 동기:</strong> <span style={{ color: 'var(--text-muted)' }}>{state.bio.originName}</span></div>
                 <div style={{ display: 'flex', gap: '1.5rem', borderTop: '1px dashed #e5dec9', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
                   <div><strong>이동 속도:</strong> {getTravelSpeed(state, currentWeight)} (기본: {state.bio.speed})</div>
@@ -7187,46 +7279,146 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
 
             {/* Bags (배낭 보관함) */}
             <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
-                <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>🎒 배낭 수집물</h3>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  무게: <span style={{ color: currentWeight > getMaxCarry(state) ? 'var(--accent-red)' : 'var(--primary)', fontWeight: 'bold' }}>{formatWeight(currentWeight)}</span> / {getMaxCarry(state)}
-                </span>
-              </div>
+              {(() => {
+                const hasBandolier = hasTool(state, 'tool_bandolier') || hasTool(state, 'Greenpaw Bandolier');
+                
+                let bandolierLoad = 0;
+                state.bag.forEach(item => {
+                  if (hasBandolier && item.inBandolier && isEligibleForBandolier(item)) {
+                    bandolierLoad += item.weight * (item.qty || 1);
+                  }
+                });
 
-              <div style={{ overflowX: 'auto', maxHeight: '240px', overflowY: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1.5px solid var(--border-cozy)', color: 'var(--text-muted)' }}>
-                      <th style={{ padding: '0.4rem 0.5rem' }}>수집 물품명</th>
-                      <th style={{ padding: '0.4rem 0.5rem', width: '80px' }}>분류</th>
-                      <th style={{ padding: '0.4rem 0.5rem', width: '70px' }}>무게</th>
-                      <th style={{ padding: '0.4rem 0.5rem', width: '40px' }}>삭제</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {state.bag.map(item => (
-                      <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
-                        <td style={{ padding: '0.5rem', fontWeight: 'bold', color: 'var(--text-bright)' }}>{item.name}</td>
-                        <td style={{ padding: '0.5rem', color: 'var(--text-muted)' }}>{item.id.startsWith("tool_") ? '도구' : '약초/기타'}</td>
-                        <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>{formatWeight(item.weight)}</td>
-                        <td style={{ padding: '0.5rem' }}>
-                          {!item.id.startsWith("tool_") ? (
-                            <button onClick={() => handleRemoveBagItem(item.id)} style={{ background: 'transparent', color: 'var(--accent-red)', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}>❌</button>
-                          ) : (
-                            <span style={{ color: 'var(--text-dim)' }}>-</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                    {state.bag.length === 0 && (
-                      <tr>
-                        <td colSpan={4} style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-dim)', fontStyle: 'italic' }}>배낭이 비어 있습니다.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                const toolItems = state.bag.filter(item => item.id.startsWith("tool_") || item.type === 'tool');
+                const reagentItems = state.bag.filter(item => !item.id.startsWith("tool_") && item.type !== 'tool');
+
+                return (
+                  <>
+                    <div style={{ display: 'flex', flexDirection: 'column', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.6rem', marginBottom: '0.8rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>🎒 배낭 수집물</h3>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                          총 무게: <span style={{ color: currentWeight > getMaxCarry(state) ? 'var(--accent-red)' : 'var(--primary)', fontWeight: 'bold' }}>{formatWeight(currentWeight)}</span> / {getMaxCarry(state)}
+                        </span>
+                      </div>
+                      {hasBandolier && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                          <span>🎽 반도리어 수납 무게: <span style={{ color: bandolierLoad > 5 ? 'var(--accent-red)' : 'var(--primary)', fontWeight: 'bold' }}>{formatWeight(bandolierLoad)}</span> / 5</span>
+                          {bandolierLoad > 5 && <span style={{ color: 'var(--accent-red)', fontWeight: 'bold' }}>(용량 초과! ⚠️)</span>}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Table A: Tools & Equipment */}
+                    <div style={{ marginBottom: '1.2rem' }}>
+                      <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.95rem', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>🛠️ 도구 및 장비 (Tools & Equipment)</h4>
+                      <div style={{ overflowX: 'auto', maxHeight: '150px', overflowY: 'auto', border: '1px solid #f0f0f0', borderRadius: '8px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1.5px solid var(--border-cozy)', color: 'var(--text-muted)', background: '#fafafa' }}>
+                              <th style={{ padding: '0.4rem 0.5rem' }}>도구명</th>
+                              <th style={{ padding: '0.4rem 0.5rem', width: '80px' }}>무게</th>
+                              <th style={{ padding: '0.4rem 0.5rem', width: '50px' }}>삭제</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {toolItems.map(item => (
+                              <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
+                                <td style={{ padding: '0.4rem 0.5rem', fontWeight: 'bold', color: 'var(--text-bright)' }}>{item.name}</td>
+                                <td style={{ padding: '0.4rem 0.5rem' }}>{formatWeight(item.weight)}</td>
+                                <td style={{ padding: '0.4rem 0.5rem' }}>
+                                  {!item.id.startsWith("tool_") ? (
+                                    <button onClick={() => handleRemoveBagItem(item.id)} style={{ background: 'transparent', color: 'var(--accent-red)', border: 'none', cursor: 'pointer', fontSize: '0.8rem', padding: 0 }}>❌</button>
+                                  ) : (
+                                    <span style={{ color: 'var(--text-dim)' }}>-</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                            {toolItems.length === 0 && (
+                              <tr>
+                                <td colSpan={3} style={{ padding: '0.8rem', textAlign: 'center', color: 'var(--text-dim)', fontStyle: 'italic' }}>도구가 없습니다.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Table B: Reagents & Items */}
+                    <div>
+                      <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.95rem', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>🌿 영약재 및 수집물 (Reagents & Collected Parts)</h4>
+                      <div style={{ overflowX: 'auto', maxHeight: '200px', overflowY: 'auto', border: '1px solid #f0f0f0', borderRadius: '8px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1.5px solid var(--border-cozy)', color: 'var(--text-muted)', background: '#fafafa' }}>
+                              <th style={{ padding: '0.4rem 0.5rem' }}>영약재명</th>
+                              <th style={{ padding: '0.4rem 0.5rem', width: '80px' }}>무게</th>
+                              {hasBandolier && <th style={{ padding: '0.4rem 0.5rem', width: '100px' }}>반도리어</th>}
+                              <th style={{ padding: '0.4rem 0.5rem', width: '50px' }}>삭제</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {reagentItems.map(item => {
+                              const eligible = isEligibleForBandolier(item);
+                              const inBando = item.inBandolier && eligible;
+                              return (
+                                <tr key={item.id} style={{ borderBottom: '1px solid #eee', background: inBando ? '#f3faf5' : 'transparent' }}>
+                                  <td style={{ padding: '0.4rem 0.5rem', fontWeight: 'bold', color: 'var(--text-bright)' }}>
+                                    {item.name}
+                                    {inBando && <span style={{ color: '#16a34a', fontSize: '0.7rem', marginLeft: '0.3rem', fontWeight: 'bold', background: '#dcfce7', padding: '0.05rem 0.3rem', borderRadius: '4px' }}>🎽 반도리어</span>}
+                                  </td>
+                                  <td style={{ padding: '0.4rem 0.5rem' }}>
+                                    {inBando ? (
+                                      <span style={{ textDecoration: 'line-through', color: 'var(--text-dim)' }}>
+                                        {formatWeight(item.weight)}
+                                      </span>
+                                    ) : (
+                                      formatWeight(item.weight)
+                                    )}
+                                  </td>
+                                  {hasBandolier && (
+                                    <td style={{ padding: '0.4rem 0.5rem' }}>
+                                      {eligible ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleToggleBandolier(item.id)}
+                                          style={{
+                                            background: inBando ? '#fee2e2' : '#dcfce7',
+                                            color: inBando ? '#dc2626' : '#16a34a',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            padding: '0.15rem 0.4rem',
+                                            fontSize: '0.72rem',
+                                            cursor: 'pointer',
+                                            fontWeight: 'bold'
+                                          }}
+                                        >
+                                          {inBando ? "🎒 배낭으로" : "🎽 수납"}
+                                        </button>
+                                      ) : (
+                                        <span style={{ color: 'var(--text-dim)' }}>-</span>
+                                      )}
+                                    </td>
+                                  )}
+                                  <td style={{ padding: '0.4rem 0.5rem' }}>
+                                    <button onClick={() => handleRemoveBagItem(item.id)} style={{ background: 'transparent', color: 'var(--accent-red)', border: 'none', cursor: 'pointer', fontSize: '0.8rem', padding: 0 }}>❌</button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {reagentItems.length === 0 && (
+                              <tr>
+                                <td colSpan={hasBandolier ? 4 : 3} style={{ padding: '0.8rem', textAlign: 'center', color: 'var(--text-dim)', fontStyle: 'italic' }}>영약재가 없습니다.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
 
               <form onSubmit={handleAddBagItem} className="grid-bag-add-form" style={{ marginTop: '0.8rem', borderTop: '1px dashed #eee', paddingTop: '0.8rem' }}>
                 <input
@@ -7315,6 +7507,90 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                   </div>
                 )}
               </div>
+
+              {/* Patience Tracker (인내심 기록) */}
+              <div style={{ borderTop: '1.5px dashed var(--border-cozy)', paddingTop: '0.8rem', marginTop: '0.8rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--secondary)', fontFamily: 'var(--font-fancy)' }}>⏱️ 환자 인내심 기록 (Patience Tracker)</h4>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={patienceOverride}
+                      onChange={e => setPatienceOverride(e.target.checked)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    수동 편집 허용
+                  </label>
+                </div>
+                {state.activeAilment ? (
+                  <div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '0.5rem' }}>
+                      {(() => {
+                        const maxTimer = state.activeAilment.maxTimer;
+                        const timer = state.activeAilment.timer;
+                        const spent = maxTimer - timer;
+                        return Array.from({ length: maxTimer }).map((_, idx) => {
+                          const isChecked = idx < spent;
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              disabled={!patienceOverride}
+                              onClick={() => {
+                                if (!patienceOverride) return;
+                                let nextSpent;
+                                if (isChecked) {
+                                  nextSpent = idx;
+                                } else {
+                                  nextSpent = idx + 1;
+                                }
+                                const nextTimer = Math.max(0, maxTimer - nextSpent);
+                                updateState((s: GameState) => {
+                                  if (!s.activeAilment) return s;
+                                  return {
+                                    ...s,
+                                    activeAilment: {
+                                      ...s.activeAilment,
+                                      timer: nextTimer
+                                    }
+                                  };
+                                });
+                              }}
+                              style={{
+                                width: '22px',
+                                height: '22px',
+                                borderRadius: '50%',
+                                border: '2px solid var(--primary)',
+                                background: isChecked ? 'var(--primary)' : 'transparent',
+                                cursor: patienceOverride ? 'pointer' : 'default',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: isChecked ? '#fff' : 'transparent',
+                                fontWeight: 'bold',
+                                fontSize: '0.75rem',
+                                padding: 0,
+                                transition: 'all 0.2s'
+                              }}
+                              title={isChecked ? `소모 시간: ${idx + 1}시간` : `남은 시간: ${idx + 1}시간`}
+                            >
+                              {isChecked ? "✓" : (idx + 1)}
+                            </button>
+                          );
+                        });
+                      })()}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
+                      <span>남은 치료 시간: {state.activeAilment.timer} / {state.activeAilment.maxTimer} 시간 (Timer Hours)</span>
+                      {state.activeAilment.timer === 0 && <span style={{ color: 'var(--accent-red)', fontWeight: 'bold' }}>⚠️ 시간 초과!</span>}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontStyle: 'italic', color: 'var(--text-dim)', fontSize: '0.85rem', textAlign: 'center' }}>
+                    돌보고 있는 환자가 없습니다.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -7330,9 +7606,30 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                   <span style={{ fontSize: '1.8rem' }}>🪲</span>
                   <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>동반자 곤충</h3>
                 </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                  아직 고용된 곤충 동반자가 없습니다. 도시의 길드 편의소에서 입양하여 여행의 조력자로 삼으세요.
-                </div>
+                {state.companions && state.companions.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                    {state.companions.map(comp => {
+                      const dbComp = COMPANIONS_DB.find(c => c.id === comp.name);
+                      return (
+                        <div key={comp.id} style={{ padding: '0.6rem', background: '#fcfaf6', borderRadius: '8px', border: '1px solid var(--border-cozy)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--primary)' }}>
+                            <span>🪲 {comp.koreanName || comp.name}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>위치: {comp.adoptedLocation}</span>
+                          </div>
+                          {dbComp && (
+                            <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.3rem', lineHeight: '1.4' }}>
+                              {dbComp.desc}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                    아직 고용된 곤충 동반자가 없습니다. 도시의 길드 편의소에서 입양하여 여행의 조력자로 삼으세요.
+                  </div>
+                )}
               </div>
 
               {/* Trinkets (장신구) */}
@@ -7515,6 +7812,37 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
               </div>
             )}
           </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', borderTop: '1px dashed #eee', paddingTop: '0.8rem' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.95rem' }}>
+              <input
+                type="checkbox"
+                checked={canFly}
+                onChange={e => setCanFly(e.target.checked)}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <strong>🦅 비행 능력 보유 (Can Fly)</strong>
+            </label>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '26px' }}>
+              조류나 박쥐 등 선천적인 날개를 가진 종족일 경우 체크합니다.
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.95rem' }}>
+              <input
+                type="checkbox"
+                checked={canFlyOverride}
+                onChange={e => setCanFlyOverride(e.target.checked)}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <strong>하우스 룰: 비행 제약 무시 (Override Flight Constraints)</strong>
+            </label>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '26px' }}>
+              선천적인 비행 능력이 없더라도 '가볍고 신속하게' 이동 스타일을 허용합니다.
+            </span>
+          </div>
+
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
             <button type="submit" style={{ padding: '0.6rem 1.2rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.95rem' }}>저장</button>
             <button type="button" onClick={() => setEditing(false)} style={{ padding: '0.6rem 1.2rem', background: '#ccc', color: '#333', borderRadius: '8px', fontSize: '0.95rem' }}>취소</button>
