@@ -1559,9 +1559,9 @@ export default function App() {
   if (loading || !state) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '1.2rem', background: 'var(--bg-gradient)', color: 'var(--text-bright)' }}>
-        <div style={{ fontSize: '3.5rem', animation: 'cute-bounce 2s infinite ease-in-out' }}>🌿</div>
-        <h2 style={{ letterSpacing: '0.05em', color: 'var(--primary)' }}>아포테카리아 (Apawthecaria)</h2>
-        <p style={{ color: 'var(--text-muted)' }}>풀티스파운더 약초 가방을 싸는 중...</p>
+        <div className="stamped-icon" style={{ width: '76px', height: '76px', fontSize: '0.82rem', animation: 'cute-bounce 2s infinite ease-in-out' }}>APO</div>
+        <h2 style={{ letterSpacing: 0, color: 'var(--text-bright)' }}>Apawthecaria Field Journal</h2>
+        <p style={{ color: 'var(--text-muted)' }}>여행 약제사의 기록장을 여는 중...</p>
       </div>
     );
   }
@@ -1589,15 +1589,15 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-gradient)' }}>
       {/* Header Banner */}
-      <header style={{ borderBottom: '1.5px solid var(--glass-border)', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backdropFilter: 'blur(8px)', position: 'sticky', top: 0, zIndex: 100, background: 'rgba(244, 238, 225, 0.92)' }}>
+      <header style={{ borderBottom: '1.5px solid var(--border-cozy)', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100, background: '#fbfaf4' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-          <span style={{ fontSize: '1.8rem' }}>🌿</span>
+          <span className="stamped-icon" style={{ width: '42px', height: '42px', fontSize: '0.65rem', transform: 'rotate(-4deg)' }}>APO</span>
           <div>
             <h1 className="cute-title" style={{ margin: 0, fontSize: '1.4rem', cursor: 'pointer' }} onClick={() => setActiveTab('play')}>
-              아포테카리아 (Apawthecaria)
+              Apawthecaria Field Journal
             </h1>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
-              {state.bio.name ? `${state.bio.name}의 약제 방랑 일지` : '수의 약제사 저널 기록장'}
+              {state.bio.name ? `${state.bio.name}의 여행 약제사 기록` : 'guild papers, field notes, maps, and medical cases'}
             </div>
           </div>
         </div>
@@ -1609,7 +1609,7 @@ export default function App() {
                 {user.photoURL ? (
                   <img src={user.photoURL} alt="profile" style={{ width: '22px', height: '22px', borderRadius: '50%' }} />
                 ) : (
-                  <span style={{ fontSize: '1rem' }}>🐹</span>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>ID</span>
                 )}
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary)' }}>{user.displayName || '약제사'}</span>
                 <button onClick={handleSignOut} style={{ padding: '0.2rem 0.4rem', border: 'none', background: 'transparent', color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}>
@@ -1618,12 +1618,12 @@ export default function App() {
               </div>
             ) : (
               <button onClick={handleSignIn} style={{ padding: '0.4rem 0.8rem', border: '1.5px solid var(--primary)', borderRadius: '20px', background: 'transparent', color: 'var(--primary)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontWeight: 'bold' }}>
-                🔑 Google 로그인 동기화
+                Google 기록 동기화
               </button>
             )
           )}
           <button onClick={handleReset} style={{ padding: '0.4rem 0.8rem', border: '1.5px solid var(--accent-red)', borderRadius: '20px', background: 'transparent', color: 'var(--accent-red)', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer' }}>
-            새 약제사 캐릭터 시작 (초기화)
+            새 기록지 시작
           </button>
         </div>
       </header>
@@ -1637,12 +1637,12 @@ export default function App() {
           <div className="glass-panel cute-border" style={{ padding: '0.8rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
               {[
-                { id: 'play', label: '🎮 약제 여정', sub: '진행 및 활동' },
-                { id: 'bio', label: '🐹 약제사 시트', sub: '프로필 및 배낭' },
-                { id: 'reagents', label: '🌿 영약재 도감', sub: '약초 및 준비법' },
-                { id: 'ailments', label: '🤒 질병 도감', sub: '증상 및 처방전' },
-                { id: 'map', label: '🗺️ Bristley Woods 지도', sub: '전체 지도 보기' },
-                { id: 'journals', label: '📝 약제사 일지', sub: '저널 백업 및 기록' }
+                { id: 'play', label: 'Travel Log', sub: 'Journey & Calendar' },
+                { id: 'bio', label: 'Poulticepounder', sub: 'Profile & Bags' },
+                { id: 'reagents', label: 'Apothecary Notes', sub: 'Reagents & Methods' },
+                { id: 'ailments', label: 'Case Files', sub: 'Ailments & Remedies' },
+                { id: 'map', label: 'Folded Map', sub: 'Bristley Woods' },
+                { id: 'journals', label: 'Field Journal', sub: 'Chronicles & Records' }
               ].map(t => (
                 <button
                   key={t.id}
@@ -1657,10 +1657,10 @@ export default function App() {
           </div>
 
           {/* Quick Profile Summary */}
-          <div className="glass-panel" style={{ padding: '1.2rem', background: '#fff' }}>
+          <div className="glass-panel" style={{ padding: '1.2rem', background: '#fffefa' }}>
             <h3 style={{ borderBottom: '1.5px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.8rem', color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>🐹 캐릭터 요약</span>
-              <span style={{ fontSize: '0.8rem', padding: '0.1rem 0.5rem', borderRadius: '10px', background: getReputationRank(state.reputation).color, color: '#fff' }}>
+              <span>Poulticepounder Record</span>
+              <span className="journal-stamp" style={{ color: getReputationRank(state.reputation).color, borderColor: getReputationRank(state.reputation).color }}>
                 {getReputationRank(state.reputation).rank}
               </span>
             </h3>
@@ -1695,14 +1695,14 @@ export default function App() {
           </div>
 
           {/* Current Journey Calendar */}
-          <div className="glass-panel" style={{ padding: '1.2rem', textAlign: 'center', background: '#fff' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>📅 여정 일정 및 목적지</span>
+          <div className="glass-panel journey-record" style={{ padding: '1.2rem', textAlign: 'left', background: '#fffefa' }}>
+            <span className="document-kicker">Journey / Calendar</span>
             {state.journeyActive ? (
               <div style={{ marginTop: '0.5rem' }}>
                 <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary)' }}>{state.journeyDestination}</div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>방향: {state.journeyDirection} | 거리: {state.journeyDistance}</div>
 
-                <div style={{ marginTop: '0.8rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem' }}>
+                <div className="calendar-counter" style={{ marginTop: '0.8rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem' }}>
                   <div style={{ fontSize: '1.6rem', fontWeight: 'bold' }}>{state.calendarDays}</div>
                   <div style={{ fontSize: '1rem', color: 'var(--text-dim)' }}>/</div>
                   <div style={{ fontSize: '1.2rem', color: 'var(--text-muted)' }}>{state.calendarMaxDays} 일</div>
@@ -4685,15 +4685,15 @@ function PlayView({
       {!state.journeyActive && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
-          {/* Downtime Banner */}
-          <div className="cute-card" style={{ background: '#fffdf9', border: '2.5px solid var(--secondary)', borderRadius: '12px', padding: '1.5rem', boxShadow: 'var(--shadow-md)' }}>
+          {/* Downtime record */}
+          <div className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem', boxShadow: 'var(--shadow-md)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.6rem', marginBottom: '0.8rem' }}>
-              <span style={{ fontSize: '2rem' }}>🏕️</span>
+              <span className="journal-stamp">Rest</span>
               <div>
-                <h2 style={{ margin: 0, fontSize: '1.4rem', color: 'var(--secondary)', fontFamily: 'var(--font-fancy)' }}>휴식기 대시보드 (Downtime Activities)</h2>
+                <h2 style={{ margin: 0, fontSize: '1.4rem', color: 'var(--secondary)', fontFamily: 'var(--font-fancy)' }}>휴식기 기록 (Downtime Ledger)</h2>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
                   현재 위치: <strong style={{ color: 'var(--primary)' }}>{state.currentLocationName}</strong>
-                  ({state.currentLocationType === 'City' ? '🏙️ 도시' : state.currentLocationType === 'Settlement' ? '🏡 정착지' : '🌲 야생'}) |
+                  ({state.currentLocationType === 'City' ? '도시' : state.currentLocationType === 'Settlement' ? '정착지' : '야생'}) |
                   계절: <strong style={{ color: 'var(--secondary)' }}>{state.currentSeason === 'Spring' ? '봄 (Spring)' : state.currentSeason === 'Summer' ? '여름 (Summer)' : state.currentSeason === 'Autumn' ? '가을 (Autumn)' : '겨울 (Winter)'}</strong>
                 </div>
               </div>
@@ -4710,28 +4710,28 @@ function PlayView({
               onClick={() => setDowntimeTab('activities')}
               style={{ padding: '0.6rem 1rem', fontSize: '0.9rem', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
             >
-              🎯 휴식기 활동
+              휴식기 활동
             </button>
             <button
               className={`nav-tab-btn ${downtimeTab === 'shop' ? 'active' : ''}`}
               onClick={() => setDowntimeTab('shop')}
               style={{ padding: '0.6rem 1rem', fontSize: '0.9rem', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
             >
-              🛒 도구 & 마차 개조
+              도구 & 마차 개조
             </button>
             <button
               className={`nav-tab-btn ${downtimeTab === 'companions' ? 'active' : ''}`}
               onClick={() => setDowntimeTab('companions')}
               style={{ padding: '0.6rem 1rem', fontSize: '0.9rem', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
             >
-              🐞 동반자 영입 ({state.companions?.length || 0})
+              동반자 영입 ({state.companions?.length || 0})
             </button>
             <button
               className={`nav-tab-btn ${downtimeTab === 'start' ? 'active' : ''}`}
               onClick={() => setDowntimeTab('start')}
               style={{ padding: '0.6rem 1rem', fontSize: '0.9rem', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
             >
-              🧭 새 여정 출발
+              새 여정 출발
             </button>
           </div>
 
@@ -5865,15 +5865,15 @@ function PlayView({
 
           {/* 4. Start journey form */}
           {downtimeTab === 'start' && (
-            <div className="cute-card" style={{ background: '#fff9ef', border: '1.5px solid var(--secondary)', borderRadius: '12px', padding: '1.5rem' }}>
-              <h2 style={{ color: 'var(--secondary)', margin: '0 0 0.4rem 0', fontFamily: 'var(--font-fancy)' }}>🧭 새로운 여정 떠나기</h2>
+            <div className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem' }}>
+              <h2 style={{ color: 'var(--secondary)', margin: '0 0 0.4rem 0', fontFamily: 'var(--font-fancy)' }}>새로운 여정 떠나기</h2>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 1.2rem 0' }}>
                 Bristley Woods 지도를 열고 어디로 가야할 지, 이번 여행의 목적지는 어디일지 의도를 설정합니다.
               </p>
 
               <form onSubmit={handleStartJourney} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>📍 도착 목표 정착지/도시 명칭:</label>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>도착 목표 정착지/도시 명칭:</label>
                   <input
                     type="text"
                     placeholder="예: Odoak (숲 도시), Glasswall (산맥 도시)"
@@ -5887,7 +5887,7 @@ function PlayView({
                   type="submit"
                   style={{ padding: '0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '8px', fontSize: '1rem', fontWeight: 'bold', border: 'none', cursor: 'pointer', boxShadow: 'var(--shadow-md)' }}
                 >
-                  🎲 목적지 카드 드로우 및 여행 출발!
+                  목적지 카드 드로우 및 여행 출발
                 </button>
               </form>
             </div>
@@ -5896,29 +5896,29 @@ function PlayView({
         </div>
       )}
 
-      {/* 2. Active Journey Dashboard */}
+      {/* 2. Active Journey Record */}
       {state.journeyActive && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
           {/* Active stats panel */}
-          <div className="cute-card" style={{ background: 'var(--primary-light)', borderColor: 'var(--primary)' }}>
+          <div className="cute-card journey-record" style={{ background: '#fffefa', borderColor: 'var(--primary)' }}>
             <h2 style={{ color: 'var(--primary)', margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>🏃‍♂️ 활성화된 방랑 여정</span>
+              <span>활성화된 방랑 여정 기록</span>
               <button
                 onClick={handleEndJourney}
                 style={{ padding: '0.4rem 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '20px', fontSize: '0.85rem' }}
               >
-                🏁 여정 도착지 도달 (마감)
+                여정 도착지 도달 (마감)
               </button>
             </h2>
             <div className="grid-2col" style={{ marginTop: '1rem', fontSize: '0.95rem', gap: '1.5rem' }}>
               <div>
-                <strong>📍 목적지:</strong> {state.journeyDestination} ({state.journeyDistance}) <br />
-                <strong>🧭 방향:</strong> {state.journeyDirection} <br />
-                <strong>📅 현재 누적 경과일:</strong> {state.calendarDays} / {state.calendarMaxDays} 일
+                <strong>목적지:</strong> {state.journeyDestination} ({state.journeyDistance}) <br />
+                <strong>방향:</strong> {state.journeyDirection} <br />
+                <strong>현재 누적 경과일:</strong> {state.calendarDays} / {state.calendarMaxDays} 일
               </div>
               <div style={{ background: '#ffffff', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                <strong>🎯 여정 수행 목표: {state.journeyGoalTitle}</strong>
+                <strong>여정 수행 목표: {state.journeyGoalTitle}</strong>
                 <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{state.journeyGoalDesc}</p>
                 <div style={{ marginTop: '0.4rem', fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--primary)' }}>수행 과제: {state.journeyGoalProgress}</div>
               </div>
@@ -5927,7 +5927,7 @@ function PlayView({
             {/* 여정 목표 세부 진행 상태 및 조절기 */}
             <div style={{ marginTop: '1rem', background: '#f8fafc', padding: '0.8rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
               <div style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text)', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>🎯 목표 진행 세부 사항 (자동/수동 추적)</span>
+                <span>목표 진행 세부 사항 (자동/수동 추적)</span>
                 <span style={{ fontSize: '0.8rem', color: checkJourneyGoalSatisfaction(state) ? '#16a34a' : '#ea580c', fontWeight: 'bold' }}>
                   {checkJourneyGoalSatisfaction(state) ? '✅ 조건 충족됨' : '⚠️ 미달성 상태'}
                 </span>
