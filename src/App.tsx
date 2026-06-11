@@ -104,6 +104,11 @@ interface ActiveAilment {
   consequence: string;
   foragingPoints: number;
   reagentsGathered: string[];
+  patientName?: string;
+  species?: string;
+  initialRememberedNote?: string;
+  startedAtDay?: number;
+  journeyTitle?: string;
 }
 
 interface Barrow {
@@ -131,13 +136,40 @@ interface PatientCaseRecord {
   id: string;
   sourceId: string;
   patientName: string;
+  species: string;
   ailmentName: string;
   severity: string;
   tags: string;
   locationName: string;
   region: string;
+  season: string;
+  journeyTitle: string;
+  resolvedAtDay: number;
   outcome: 'success' | 'failure';
   remedy: string[];
+  consequence: string;
+  initialRememberedNote: string;
+  finalArchiveNote: string;
+  notes: string;
+  timestamp: number;
+}
+
+interface PendingPatientArchive {
+  sourceId: string;
+  patientName: string;
+  species: string;
+  ailmentName: string;
+  severity: string;
+  tags: string;
+  locationName: string;
+  region: string;
+  season: string;
+  journeyTitle: string;
+  resolvedAtDay: number;
+  outcome: 'success' | 'failure';
+  remedy: string[];
+  consequence: string;
+  initialRememberedNote: string;
   notes: string;
   timestamp: number;
 }
@@ -269,6 +301,7 @@ interface GameState {
   discoveredRecipes?: Record<string, string[][]>;
   journeyChronicles?: { id: string; title: string; text: string; date: string }[];
   patientCasebook?: PatientCaseRecord[];
+  pendingPatientArchive?: PendingPatientArchive | null;
   worldAlmanac?: WorldAlmanacEntry[];
   travelScrapbook?: TravelScrapbookEntry[];
   familiarTrust?: number;
@@ -365,6 +398,7 @@ const INITIAL_STATE: GameState = {
   discoveredRecipes: {},
   journeyChronicles: [],
   patientCasebook: [],
+  pendingPatientArchive: null,
   worldAlmanac: [],
   travelScrapbook: [],
   familiarTrust: 0,
@@ -466,6 +500,107 @@ const addCasebookRecord = (
   if (entries.some(e => e.sourceId === record.sourceId)) return entries;
   return [{ id: memoryKey('case', record.sourceId), ...record }, ...entries];
 };
+
+const normalizeCaseRecord = (record: any): PatientCaseRecord => ({
+  id: record.id || memoryKey('case', record.sourceId || String(record.timestamp || Date.now())),
+  sourceId: record.sourceId || record.id || `legacy_case_${record.timestamp || Date.now()}`,
+  patientName: record.patientName || '',
+  species: record.species || '',
+  ailmentName: record.ailmentName || 'Unknown ailment',
+  severity: record.severity || 'unknown',
+  tags: record.tags || '',
+  locationName: record.locationName || '',
+  region: record.region || '',
+  season: record.season || '',
+  journeyTitle: record.journeyTitle || '',
+  resolvedAtDay: record.resolvedAtDay || 0,
+  outcome: record.outcome === 'failure' ? 'failure' : 'success',
+  remedy: Array.isArray(record.remedy) ? record.remedy : [],
+  consequence: record.consequence || '',
+  initialRememberedNote: record.initialRememberedNote || '',
+  finalArchiveNote: record.finalArchiveNote || record.notes || '',
+  notes: record.notes || '',
+  timestamp: record.timestamp || Date.now()
+});
+
+const legacyCaseRecordsFromJournals = (s: any): PatientCaseRecord[] => {
+  const journals = Array.isArray(s.journals) ? s.journals : [];
+  return journals
+    .filter((journal: any) => journal.id?.startsWith('cure_') || journal.id?.startsWith('cure_fail_'))
+    .map((journal: any) => {
+      const ailmentName = journal.title?.replace(/^.*?:\s*/, '').replace(/\s*\([^)]*\)\s*$/, '').trim() || 'Unknown ailment';
+      const severityMatch = journal.text?.match(/심각도:\s*([^\n(]+)/);
+      return normalizeCaseRecord({
+        sourceId: journal.id,
+        patientName: '',
+        ailmentName,
+        severity: severityMatch?.[1]?.trim() || 'unknown',
+        locationName: s.currentLocationName || '',
+        region: s.currentRegion || '',
+        season: s.currentSeason || '',
+        journeyTitle: s.journeyGoalTitle || '',
+        resolvedAtDay: s.cumulativeDays || s.calendarDays || 0,
+        outcome: journal.id?.startsWith('cure_fail_') ? 'failure' : 'success',
+        consequence: journal.id?.startsWith('cure_fail_') ? journal.text || '' : '',
+        notes: journal.text || '',
+        finalArchiveNote: journal.text || '',
+        timestamp: journal.timestamp || Date.now()
+      });
+    });
+};
+
+const createPendingPatientArchive = (
+  s: GameState,
+  sourceId: string,
+  outcome: 'success' | 'failure',
+  notes: string,
+  remedy: string[] = [],
+  consequence: string = '',
+  timestamp: number = Date.now()
+): PendingPatientArchive | null => {
+  if (!s.activeAilment) return null;
+  return {
+    sourceId,
+    patientName: s.activeAilment.patientName || '',
+    species: s.activeAilment.species || '',
+    ailmentName: s.activeAilment.name,
+    severity: s.activeAilment.severity,
+    tags: s.activeAilment.tags,
+    locationName: s.currentLocationName,
+    region: s.currentRegion,
+    season: s.currentSeason,
+    journeyTitle: s.journeyGoalTitle || s.journeyDestination || '',
+    resolvedAtDay: s.cumulativeDays || s.calendarDays || 0,
+    outcome,
+    remedy,
+    consequence,
+    initialRememberedNote: s.activeAilment.initialRememberedNote || '',
+    notes,
+    timestamp
+  };
+};
+
+const finalizePendingPatientArchive = (pending: PendingPatientArchive, finalArchiveNote: string): PatientCaseRecord => ({
+  id: memoryKey('case', pending.sourceId),
+  sourceId: pending.sourceId,
+  patientName: pending.patientName || '',
+  species: pending.species || '',
+  ailmentName: pending.ailmentName,
+  severity: pending.severity,
+  tags: pending.tags,
+  locationName: pending.locationName,
+  region: pending.region,
+  season: pending.season,
+  journeyTitle: pending.journeyTitle,
+  resolvedAtDay: pending.resolvedAtDay,
+  outcome: pending.outcome,
+  remedy: pending.remedy,
+  consequence: pending.consequence,
+  initialRememberedNote: pending.initialRememberedNote,
+  finalArchiveNote,
+  notes: pending.notes,
+  timestamp: pending.timestamp
+});
 
 const classifyJournalForScrapbook = (journal: { id: string; title: string; text: string; timestamp: number }): ScrapbookKind | null => {
   if (journal.id.startsWith('start_') || journal.id.startsWith('travel_') || journal.id.startsWith('death_travel_')) return 'journey';
@@ -592,24 +727,6 @@ const syncWorldMemory = (state: GameState): GameState => {
         title: journal.title,
         text: journal.text,
         locationName: state.currentLocationName,
-        timestamp: journal.timestamp
-      });
-    }
-
-    if ((journal.id.startsWith('cure_') || journal.id.startsWith('cure_fail_')) && !patientCasebook.some(c => c.sourceId === journal.id)) {
-      const ailmentName = journal.title.replace(/^.*?:\s*/, '').replace(/\s*\([^)]*\)\s*$/, '').trim() || 'Unknown ailment';
-      const severityMatch = journal.text.match(/심각도:\s*([^\n(]+)/);
-      patientCasebook = addCasebookRecord(patientCasebook, {
-        sourceId: journal.id,
-        patientName: 'Unnamed patient',
-        ailmentName,
-        severity: severityMatch?.[1]?.trim() || 'unknown',
-        tags: '',
-        locationName: state.currentLocationName,
-        region: state.currentRegion,
-        outcome: journal.id.startsWith('cure_fail_') ? 'failure' : 'success',
-        remedy: [],
-        notes: journal.text,
         timestamp: journal.timestamp
       });
     }
@@ -1058,7 +1175,10 @@ const migrateState = (s: any): GameState => {
     legacyApothecaries: s.legacyApothecaries || [],
     discoveredRecipes: s.discoveredRecipes || {},
     journeyChronicles: s.journeyChronicles || [],
-    patientCasebook: s.patientCasebook || [],
+    patientCasebook: (s.patientCasebook && s.patientCasebook.length > 0)
+      ? s.patientCasebook.map(normalizeCaseRecord)
+      : legacyCaseRecordsFromJournals(s),
+    pendingPatientArchive: s.pendingPatientArchive || null,
     worldAlmanac: s.worldAlmanac || [],
     travelScrapbook: s.travelScrapbook || [],
     familiarTrust: s.familiarTrust || 0,
@@ -1454,7 +1574,7 @@ const COMPANIONS_DB = [
 export default function App() {
   const [state, setState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'play' | 'bio' | 'reagents' | 'ailments' | 'map' | 'journals'>('play');
+  const [activeTab, setActiveTab] = useState<'play' | 'bio' | 'reagents' | 'ailments' | 'patientArchive' | 'map' | 'journals'>('play');
   const [user, setUser] = useState<User | null>(null);
   const [activeTravelEncounter, setActiveTravelEncounter] = useState<any | null>(null);
   const [activeForageEncounter, setActiveForageEncounter] = useState<any | null>(null);
@@ -1956,6 +2076,7 @@ export default function App() {
                 { id: 'bio', label: 'Poulticepounder', sub: 'Profile & Bags' },
                 { id: 'reagents', label: 'Apothecary Notes', sub: 'Reagents & Methods' },
                 { id: 'ailments', label: 'Case Files', sub: 'Ailments & Remedies' },
+                { id: 'patientArchive', label: 'Patient Archive', sub: 'Remembered Beasts' },
                 { id: 'map', label: 'Folded Map', sub: 'Bristley Woods' },
                 { id: 'journals', label: 'Field Journal', sub: 'Chronicles & Records' }
               ].map(t => (
@@ -2086,6 +2207,7 @@ export default function App() {
               setFilter={setAilmentFilter}
             />
           )}
+          {activeTab === 'patientArchive' && <PatientArchiveView state={state} />}
           {activeTab === 'map' && <MapView />}
           {activeTab === 'journals' && <JournalsView state={state} updateState={updateState} />}
         </main>
@@ -2574,6 +2696,10 @@ function PlayView({
   const [destType, setDestType] = useState("Wilds");
 
   const [newAilmentName, setNewAilmentName] = useState("");
+  const [patientNameDraft, setPatientNameDraft] = useState("");
+  const [patientSpeciesDraft, setPatientSpeciesDraft] = useState("");
+  const [patientInitialNoteDraft, setPatientInitialNoteDraft] = useState("");
+  const [finalArchiveNoteDraft, setFinalArchiveNoteDraft] = useState("");
 
   // Concoction State
   const [selectedBagItems, setSelectedBagItems] = useState<string[]>([]);
@@ -2615,6 +2741,22 @@ function PlayView({
   const [scroungeReagentRegion, setScroungeReagentRegion] = useState("Forest");
   const [selectedAgendaService, setSelectedAgendaService] = useState("pantry");
   const [independentAdjRegion, setIndependentAdjRegion] = useState("Forest");
+
+  useEffect(() => {
+    setFinalArchiveNoteDraft(state.pendingPatientArchive?.initialRememberedNote || '');
+  }, [state.pendingPatientArchive?.sourceId]);
+
+  const handleFinalizePatientArchive = () => {
+    const pending = state.pendingPatientArchive;
+    if (!pending) return;
+    const record = finalizePendingPatientArchive(pending, finalArchiveNoteDraft);
+    updateState((s: GameState) => ({
+      ...s,
+      patientCasebook: addCasebookRecord(s.patientCasebook || [], record),
+      pendingPatientArchive: null
+    }));
+    setFinalArchiveNoteDraft("");
+  };
 
   const [localSeason, setLocalSeason] = useState(state.currentSeason);
   const [replenishReagentIndex, setReplenishReagentIndex] = useState(0);
@@ -2671,15 +2813,26 @@ function PlayView({
         // Deduct reputation based on severity
         const loss = s.activeAilment.severity === 'dire' ? 4 : s.activeAilment.severity === 'severe' ? 3 : s.activeAilment.severity === 'intermediate' ? 2 : 1;
         newRep = Math.max(0, s.reputation - loss);
+        const timestamp = Date.now();
+        const sourceId = 'cure_fail_timer_' + timestamp;
+        const notes = `환자 치료를 완수하지 못하고 시간이 마감되었습니다.\n\n[치료 실패 결과(Consequence)]\n${s.activeAilment.consequence}\n\n길드 명성 점수가 ${loss}점 깎입니다.`;
 
         journals.unshift({
-          id: 'cure_fail_timer_' + Date.now(),
+          id: sourceId,
           title: `💥 치료 실패 결과: ${s.activeAilment.name}`,
-          text: `환자 치료를 완수하지 못하고 시간이 마감되었습니다.\n\n[치료 실패 결과(Consequence)]\n${s.activeAilment.consequence}\n\n길드 명성 점수가 ${loss}점 깎입니다.`,
-          timestamp: Date.now()
+          text: notes,
+          timestamp
         });
 
+        const pendingArchive = createPendingPatientArchive(s, sourceId, 'failure', notes, [], s.activeAilment.consequence, timestamp);
         nextAilment = null as any;
+        return {
+          ...s,
+          reputation: newRep,
+          activeAilment: null,
+          pendingPatientArchive: pendingArchive,
+          journals
+        };
       }
 
       return {
@@ -3458,7 +3611,12 @@ function PlayView({
         outcome: dbAil.outcome,
         consequence: dbAil.consequence,
         foragingPoints: ((familiarMechanic === 'perceptive' || state.bio.familiarBenefit.includes("예리한 관찰자")) ? 2 : 0),
-        reagentsGathered: []
+        reagentsGathered: [],
+        patientName: patientNameDraft.trim(),
+        species: patientSpeciesDraft.trim(),
+        initialRememberedNote: patientInitialNoteDraft.trim(),
+        startedAtDay: s.cumulativeDays || s.calendarDays || 0,
+        journeyTitle: s.journeyGoalTitle || s.journeyDestination || ''
       },
       journals: [
         {
@@ -3472,6 +3630,9 @@ function PlayView({
     }));
 
     setNewAilmentName("");
+    setPatientNameDraft("");
+    setPatientSpeciesDraft("");
+    setPatientInitialNoteDraft("");
   };
 
   const executeForageDraw = (drawnSuit: string, cardVal: number) => {
@@ -4287,17 +4448,21 @@ function PlayView({
       updateState(s => {
         const nextBag = s.bag.filter(item => !selectedBagItems.includes(item.id));
         const nextRep = Math.max(0, s.reputation - loss);
+        const timestamp = Date.now();
+        const sourceId = 'cure_fail_' + timestamp;
+        const notes = `조제 시간 경과로 치료 기한 내 완료하지 못했습니다.\\n- 치료 실패 결과(Consequence): ${s.activeAilment!.consequence}\\n- 길드 평판 -${loss}점`;
         return {
           ...s,
           bag: nextBag,
           reputation: nextRep,
           activeAilment: null,
+          pendingPatientArchive: createPendingPatientArchive(s, sourceId, 'failure', notes, selectedReagents.map(r => r.name.split(' (')[0]), s.activeAilment!.consequence, timestamp),
           journals: [
             {
-              id: 'cure_fail_' + Date.now(),
+              id: sourceId,
               title: `💥 치료 실패: ${s.activeAilment!.name} (시간 초과)`,
-              text: `조제 시간 경과로 치료 기한 내 완료하지 못했습니다.\\n- 치료 실패 결과(Consequence): ${s.activeAilment!.consequence}\\n- 길드 평판 -${loss}점`,
-              timestamp: Date.now()
+              text: notes,
+              timestamp
             },
             ...s.journals
           ]
@@ -4316,17 +4481,21 @@ function PlayView({
       updateState(s => {
         const nextBag = s.bag.filter(item => !selectedBagItems.includes(item.id));
         const nextRep = Math.max(0, s.reputation - loss);
+        const timestamp = Date.now();
+        const sourceId = 'cure_fail_incomplete_' + timestamp;
+        const notes = `요구 조건 미달의 불완전 치료제를 조제하여 치료에 실패했습니다.\\n- 미충족 요구사항: ${missingRequirements.join(', ')}\\n- 치료 실패 결과(Consequence): ${s.activeAilment!.consequence}\\n- 길드 평판 -${loss}점`;
         return {
           ...s,
           bag: nextBag,
           reputation: nextRep,
           activeAilment: null,
+          pendingPatientArchive: createPendingPatientArchive(s, sourceId, 'failure', notes, selectedReagents.map(r => r.name.split(' (')[0]), s.activeAilment!.consequence, timestamp),
           journals: [
             {
-              id: 'cure_fail_incomplete_' + Date.now(),
+              id: sourceId,
               title: `💥 치료 실패: ${s.activeAilment!.name} (불완전 치료제)`,
-              text: `요구 조건 미달의 불완전 치료제를 조제하여 치료에 실패했습니다.\\n- 미충족 요구사항: ${missingRequirements.join(', ')}\\n- 치료 실패 결과(Consequence): ${s.activeAilment!.consequence}\\n- 길드 평판 -${loss}점`,
-              timestamp: Date.now()
+              text: notes,
+              timestamp
             },
             ...s.journals
           ]
@@ -4414,19 +4583,7 @@ function PlayView({
         scroungingTimer: nextTimer,
         curedAilmentInThisWilds: isWilds,
         journeyGoalCounter: nextGoalCounter,
-        patientCasebook: addCasebookRecord(s.patientCasebook || [], {
-          sourceId: cureSourceId,
-          patientName: 'Unnamed patient',
-          ailmentName: s.activeAilment!.name,
-          severity,
-          tags: s.activeAilment!.tags,
-          locationName: s.currentLocationName,
-          region: s.currentRegion,
-          outcome: 'success',
-          remedy: reagentNames,
-          notes: cureNotes,
-          timestamp: cureTimestamp
-        }),
+        pendingPatientArchive: createPendingPatientArchive(s, cureSourceId, 'success', cureNotes, reagentNames, '', cureTimestamp),
         journals: [
           {
             id: cureSourceId,
@@ -5011,6 +5168,55 @@ function PlayView({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {state.pendingPatientArchive && (
+        <div style={{ position: 'fixed', right: '1.2rem', bottom: '1.2rem', zIndex: 1100, width: 'min(420px, calc(100vw - 2.4rem))' }}>
+          <div className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--border-cozy)', boxShadow: '0 8px 24px rgba(36,32,24,0.16)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.45rem', marginBottom: '0.7rem' }}>
+              <div>
+                <div className="document-kicker">Close Field Case File</div>
+                <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1rem' }}>{state.pendingPatientArchive.ailmentName}</h3>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  {(state.pendingPatientArchive.patientName || 'Anonymous patient')}
+                  {state.pendingPatientArchive.species ? ` / ${state.pendingPatientArchive.species}` : ''}
+                </div>
+              </div>
+              <span className="journal-stamp" style={{ color: state.pendingPatientArchive.outcome === 'success' ? 'var(--primary)' : '#8a6f65', borderColor: state.pendingPatientArchive.outcome === 'success' ? 'var(--primary)' : '#8a6f65' }}>
+                {state.pendingPatientArchive.outcome}
+              </span>
+            </div>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
+              Final note for the archive
+            </label>
+            <textarea
+              rows={4}
+              value={finalArchiveNoteDraft}
+              onChange={e => setFinalArchiveNoteDraft(e.target.value)}
+              placeholder="Leave unchanged, edit, or clear this closing note."
+              style={{ width: '100%', resize: 'vertical', fontSize: '0.9rem' }}
+            />
+            {state.pendingPatientArchive.consequence && (
+              <div style={{ marginTop: '0.55rem', padding: '0.55rem', background: '#f2eee9', border: '1px solid #d7cbc1', borderRadius: '4px', color: '#6c5a4f', fontSize: '0.8rem' }}>
+                <strong>Consequence:</strong> {state.pendingPatientArchive.consequence}
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.8rem' }}>
+              <button
+                onClick={() => setFinalArchiveNoteDraft(state.pendingPatientArchive?.initialRememberedNote || '')}
+                style={{ padding: '0.45rem 0.7rem', border: '1px solid var(--glass-border)', background: '#f7f6ef', color: 'var(--text-muted)', borderRadius: '4px', fontSize: '0.8rem' }}
+              >
+                원래 메모로
+              </button>
+              <button
+                onClick={handleFinalizePatientArchive}
+                className="btn-cozy-primary"
+                style={{ padding: '0.45rem 0.9rem', fontSize: '0.82rem' }}
+              >
+                케이스 파일 닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 1. If journey is NOT active */}
       {!state.journeyActive && (
@@ -7055,16 +7261,36 @@ function PlayView({
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                   현재 돌보는 환자가 없습니다. 정착지나 야생에서 만난 환자의 질병을 도감에서 검색해 진단하세요.
                 </p>
-                <form onSubmit={handleDiagnoseAilment} style={{ display: 'flex', gap: '0.5rem', marginTop: '0.8rem' }}>
-                  <input
-                    type="text"
-                    placeholder="질병 이름 입력 (예: 발썩음병, 귀 막힘증...)"
-                    value={newAilmentName}
-                    onChange={e => setNewAilmentName(e.target.value)}
-                    style={{ flex: 1 }}
+                <form onSubmit={handleDiagnoseAilment} style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', marginTop: '0.8rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 0.8fr)', gap: '0.5rem' }}>
+                    <input
+                      type="text"
+                      placeholder="질병 이름 입력 (예: 발썩음병, 귀 막힘증...)"
+                      value={newAilmentName}
+                      onChange={e => setNewAilmentName(e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      placeholder="환자 이름 (선택)"
+                      value={patientNameDraft}
+                      onChange={e => setPatientNameDraft(e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      placeholder="종 / 생김새 (선택)"
+                      value={patientSpeciesDraft}
+                      onChange={e => setPatientSpeciesDraft(e.target.value)}
+                    />
+                  </div>
+                  <textarea
+                    rows={2}
+                    placeholder="첫 인상 메모 (선택): 예를 들어 처음 만났을 때의 모습, 걱정하던 동반자, 기억하고 싶은 작은 단서"
+                    value={patientInitialNoteDraft}
+                    onChange={e => setPatientInitialNoteDraft(e.target.value)}
+                    style={{ resize: 'vertical' }}
                   />
-                  <button type="submit" style={{ padding: '0.6rem 1rem', background: 'var(--accent-purple)', color: '#fff', borderRadius: '8px', fontWeight: 'bold' }}>
-                    🏥 진단 및 타이머 작동
+                  <button type="submit" style={{ padding: '0.6rem 1rem', background: 'var(--accent-purple)', color: '#fff', borderRadius: '8px', fontWeight: 'bold', alignSelf: 'flex-start' }}>
+                    진단 및 타이머 작동
                   </button>
                 </form>
               </div>
@@ -7074,6 +7300,14 @@ function PlayView({
                   <div>
                     <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-bright)' }}>{state.activeAilment.name}</div>
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginTop: '2px' }}>등급: {state.activeAilment.severity.toUpperCase()}</div>
+                    {(state.activeAilment.patientName || state.activeAilment.species || state.activeAilment.initialRememberedNote) && (
+                      <div style={{ marginTop: '0.5rem', padding: '0.65rem', border: '1px dashed var(--glass-border)', background: '#fffefa', borderRadius: '4px', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+                        <div><strong>환자:</strong> {state.activeAilment.patientName || 'Anonymous patient'} {state.activeAilment.species ? ` / ${state.activeAilment.species}` : ''}</div>
+                        {state.activeAilment.initialRememberedNote && (
+                          <div style={{ marginTop: '0.35rem', whiteSpace: 'pre-wrap' }}>{state.activeAilment.initialRememberedNote}</div>
+                        )}
+                      </div>
+                    )}
                     <p style={{ fontSize: '0.9rem', lineHeight: '1.6', background: '#fcfaf6', padding: '0.8rem', borderRadius: '8px', marginTop: '0.5rem' }}>
                       {state.activeAilment.description}
                     </p>
@@ -8436,6 +8670,9 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
               {state.journeyActive && !state.activeAilment && (
                 <button
                   onClick={() => {
+                    const patientName = window.prompt("환자 이름 (선택):", "") || "";
+                    const species = window.prompt("종 / 생김새 (선택):", "") || "";
+                    const initialRememberedNote = window.prompt("첫 인상 메모 (선택):", "") || "";
                     updateState(s => {
                       const startTimer = a.timer + (s.bio.familiarBenefit.includes("따뜻한 약제사") ? 2 : 0);
                       return {
@@ -8451,7 +8688,12 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
                           outcome: a.outcome,
                           consequence: a.consequence,
                           foragingPoints: s.bio.familiarBenefit.includes("예리한 관찰자") ? 2 : 0,
-                          reagentsGathered: []
+                          reagentsGathered: [],
+                          patientName: patientName.trim(),
+                          species: species.trim(),
+                          initialRememberedNote: initialRememberedNote.trim(),
+                          startedAtDay: s.cumulativeDays || s.calendarDays || 0,
+                          journeyTitle: s.journeyGoalTitle || s.journeyDestination || ''
                         }
                       };
                     });
@@ -8846,6 +9088,94 @@ function MapView() {
 
 
 // =================================================================
+// 11. PATIENT ARCHIVE VIEW COMPONENT
+// =================================================================
+function PatientArchiveView({ state }: { state: GameState }) {
+  const records = [...(state.patientCasebook || [])].sort((a, b) => b.timestamp - a.timestamp);
+  const successCount = records.filter(r => r.outcome === 'success').length;
+  const failureCount = records.filter(r => r.outcome === 'failure').length;
+
+  return (
+    <div>
+      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+        <span>Patient Archive</span>
+        <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+          {records.length} case files / {successCount} helped / {failureCount} unresolved
+        </span>
+      </h2>
+      <p style={{ fontSize: '0.92rem', color: 'var(--text-muted)', marginTop: 0 }}>
+        A field archive of beasts met on the road, the care they received, and the traces they left in the apothecary's memory.
+      </p>
+
+      {records.length === 0 ? (
+        <div className="cute-card" style={{ background: '#fffefa', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+          No field case files yet. When a patient is cured or a case ends badly, the archive will ask for a brief closing note and preserve the case here.
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+          {records.map(record => {
+            const isFailure = record.outcome === 'failure';
+            return (
+              <article key={record.id} className="cute-card" style={{ background: '#fffefa', border: `1.5px solid ${isFailure ? '#b9aca3' : 'var(--border-cozy)'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+                  <div>
+                    <div className="document-kicker">{record.locationName || 'Bristley Woods'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}</div>
+                    <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1.08rem', color: 'var(--text-bright)' }}>{record.patientName || 'Anonymous patient'}</h3>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{record.species || 'Species unrecorded'}</div>
+                  </div>
+                  <span className="journal-stamp" style={{ color: isFailure ? '#8a6f65' : 'var(--primary)', borderColor: isFailure ? '#8a6f65' : 'var(--primary)' }}>
+                    {isFailure ? 'unresolved' : 'helped'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gap: '0.35rem', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+                  <div><strong>Ailment:</strong> {record.ailmentName}</div>
+                  <div><strong>Severity:</strong> {record.severity}</div>
+                  {record.tags && <div><strong>Tags:</strong> {record.tags}</div>}
+                  {record.journeyTitle && <div><strong>Journey:</strong> {record.journeyTitle}</div>}
+                  {record.remedy.length > 0 && <div><strong>Remedy:</strong> {record.remedy.join(', ')}</div>}
+                </div>
+
+                {record.initialRememberedNote && (
+                  <div style={{ marginTop: '0.75rem', padding: '0.65rem', border: '1px dashed var(--glass-border)', background: '#fbfaf4', borderRadius: '4px' }}>
+                    <div className="document-kicker">First impression</div>
+                    <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.86rem' }}>{record.initialRememberedNote}</div>
+                  </div>
+                )}
+
+                {record.finalArchiveNote && (
+                  <div style={{ marginTop: '0.75rem', padding: '0.65rem', border: '1px solid var(--glass-border)', background: '#fbfaf4', borderRadius: '4px' }}>
+                    <div className="document-kicker">Remembered note</div>
+                    <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.88rem', color: 'var(--text-bright)' }}>{record.finalArchiveNote}</div>
+                  </div>
+                )}
+
+                {record.notes && (
+                  <div style={{ marginTop: '0.75rem', padding: '0.65rem', border: '1px dashed var(--glass-border)', background: '#fbfaf4', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                    <div className="document-kicker">Treatment outcome</div>
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{record.notes}</div>
+                  </div>
+                )}
+
+                {isFailure && record.consequence && (
+                  <div style={{ marginTop: '0.75rem', padding: '0.65rem', border: '1px solid #d7cbc1', background: '#f2eee9', borderRadius: '4px', color: '#6c5a4f', fontSize: '0.84rem' }}>
+                    <strong>Consequence:</strong> {record.consequence}
+                  </div>
+                )}
+
+                <div style={{ marginTop: '0.75rem', fontSize: '0.74rem', color: 'var(--text-dim)' }}>
+                  {record.season || 'Season unrecorded'} / {formatDateTime(record.timestamp)}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =================================================================
 // 11. JOURNALS VIEW COMPONENT
 // =================================================================
 function JournalsView({ state, updateState }: { state: GameState; updateState: any }) {
@@ -8951,7 +9281,7 @@ function JournalsView({ state, updateState }: { state: GameState; updateState: a
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (parsed.bio && parsed.bag) {
-          updateState(() => parsed);
+          updateState(() => migrateState(parsed));
           alert("세이브 파일을 성공적으로 가져왔습니다!");
         } else {
           alert("유효하지 않은 아포테카리아 세이브 파일입니다.");
@@ -9027,7 +9357,7 @@ function JournalsView({ state, updateState }: { state: GameState; updateState: a
                 </span>
               </div>
               <div style={{ fontSize: '0.84rem', color: 'var(--text-muted)', display: 'grid', gap: '0.25rem' }}>
-                <div><strong>Patient:</strong> {record.patientName}</div>
+                <div><strong>Patient:</strong> {record.patientName || 'Anonymous patient'}</div>
                 <div><strong>Severity:</strong> {record.severity}</div>
                 {record.tags && <div><strong>Tags:</strong> {record.tags}</div>}
                 <div><strong>Place:</strong> {record.locationName || 'Unknown'} {record.region ? `(${record.region})` : ''}</div>
