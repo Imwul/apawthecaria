@@ -1,0 +1,1050 @@
+[
+  {
+    "pdf_page": 126,
+    "reagent_name": "The Bristley Woods are full of curatives you can grind, chew",
+    "regions": [],
+    "seasons": [],
+    "line_text": "and brew into Remedies for different Ailments."
+  },
+  {
+    "pdf_page": 126,
+    "reagent_name": "Horse Chestnuts",
+    "regions": [
+      "Meadow"
+    ],
+    "seasons": [
+      "Autumn",
+      "Winter"
+    ],
+    "line_text": "br 4 b flgm t psaw"
+  },
+  {
+    "pdf_page": 132,
+    "reagent_name": "Animal Sheddings",
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow"
+    ],
+    "seasons": [
+      "Spring",
+      "Autumn"
+    ],
+    "line_text": "br 3 bflgmtpsaw"
+  },
+  {
+    "pdf_page": 132,
+    "reagent_name": "Beech",
+    "regions": [
+      "Forest",
+      "Loch",
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Winter"
+    ],
+    "line_text": "br 5 bflgmtpsaw"
+  },
+  {
+    "pdf_page": 132,
+    "reagent_name": "Beech",
+    "regions": [],
+    "seasons": [],
+    "line_text": "its protective arching branches."
+  },
+  {
+    "pdf_page": 132,
+    "reagent_name": "Beehive",
+    "regions": [
+      "Meadow"
+    ],
+    "seasons": [
+      "Autumn",
+      "Winter"
+    ],
+    "line_text": "br 5 bflgmtpsaw"
+  },
+  {
+    "pdf_page": 132,
+    "reagent_name": "Beehive",
+    "regions": [],
+    "seasons": [],
+    "line_text": "To many brave sweettooths, the wax filled fortresses of the "
+  },
+  {
+    "pdf_page": 132,
+    "reagent_name": "Beetles",
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow",
+      "Titan"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn"
+    ],
+    "line_text": "br 4 bflgmtpsaw"
+  },
+  {
+    "pdf_page": 133,
+    "reagent_name": "Behemoth Bits",
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow",
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn"
+    ],
+    "line_text": "br 8 bflgmtpsaw"
+  },
+  {
+    "pdf_page": 133,
+    "reagent_name": "Big Fish",
+    "regions": [
+      "Loch"
+    ],
+    "seasons": [
+      "Spring",
+      "Autumn"
+    ],
+    "line_text": "br 9 bflg m t psaw"
+  },
+  {
+    "pdf_page": 133,
+    "reagent_name": "Birch Polypore",
+    "regions": [
+      "Forest"
+    ],
+    "seasons": [
+      "Spring",
+      "Winter"
+    ],
+    "line_text": "br 5 bflgmtpsaw"
+  },
+  {
+    "pdf_page": 133,
+    "reagent_name": "Birch Polypore",
+    "regions": [],
+    "seasons": [],
+    "line_text": "Wide brown-and-white shelves split out of Birch trees; the "
+  },
+  {
+    "pdf_page": 133,
+    "reagent_name": "Bird Leavings",
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow",
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer"
+    ],
+    "line_text": "br 4 bflgmtpsaw"
+  },
+  {
+    "pdf_page": 134,
+    "reagent_name": "Blackcurrant",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 5"
+  },
+  {
+    "pdf_page": 134,
+    "reagent_name": "Blackcurrant",
+    "regions": [],
+    "seasons": [],
+    "line_text": "Beasts weave living branches of the Blackcurrant bush "
+  },
+  {
+    "pdf_page": 134,
+    "reagent_name": "Blackthorn",
+    "regions": [
+      "Mountain"
+    ],
+    "seasons": [
+      "Autumn",
+      "Winter"
+    ],
+    "line_text": "br 7 bfl gm t psaw"
+  },
+  {
+    "pdf_page": 134,
+    "reagent_name": "Brambles",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 4"
+  },
+  {
+    "pdf_page": 134,
+    "reagent_name": "Burdock",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 3"
+  },
+  {
+    "pdf_page": 134,
+    "reagent_name": "Burdock",
+    "regions": [],
+    "seasons": [],
+    "line_text": "DIGESTED into a bright paste for  "
+  },
+  {
+    "pdf_page": 134,
+    "reagent_name": "Burdock",
+    "regions": [],
+    "seasons": [],
+    "line_text": "brambles"
+  },
+  {
+    "pdf_page": 135,
+    "reagent_name": "Butterfly",
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn"
+    ],
+    "line_text": "br 9 bflgm t psaw"
+  },
+  {
+    "pdf_page": 135,
+    "reagent_name": "Catnip",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 6"
+  },
+  {
+    "pdf_page": 135,
+    "reagent_name": "Chalk",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 4"
+  },
+  {
+    "pdf_page": 135,
+    "reagent_name": "Cherry Trees",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 4"
+  },
+  {
+    "pdf_page": 135,
+    "reagent_name": "Chillies",
+    "regions": [
+      "Mountain"
+    ],
+    "seasons": [
+      "Summer"
+    ],
+    "line_text": "br 6 bfl gmtpsaw"
+  },
+  {
+    "pdf_page": 135,
+    "reagent_name": "Chillies",
+    "regions": [],
+    "seasons": [],
+    "line_text": "Membranes"
+  },
+  {
+    "pdf_page": 136,
+    "reagent_name": "Clay",
+    "regions": [
+      "Bog",
+      "Loch"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "line_text": "br 3 bflgm t psaw"
+  },
+  {
+    "pdf_page": 136,
+    "reagent_name": "Coarse Grit",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 4"
+  },
+  {
+    "pdf_page": 136,
+    "reagent_name": "Coarse Grit",
+    "regions": [],
+    "seasons": [],
+    "line_text": "Many birds eat grit to help break up their food, this has led "
+  },
+  {
+    "pdf_page": 136,
+    "reagent_name": "Concocted Calm",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 8"
+  },
+  {
+    "pdf_page": 136,
+    "reagent_name": "Crab Apples",
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow"
+    ],
+    "seasons": [
+      "Spring"
+    ],
+    "line_text": "br 5 bflgm t psa w"
+  },
+  {
+    "pdf_page": 136,
+    "reagent_name": "Cucumbers",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 6"
+  },
+  {
+    "pdf_page": 137,
+    "reagent_name": "Dandelions",
+    "regions": [
+      "Bog",
+      "Meadow",
+      "Mountain",
+      "Titan"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer"
+    ],
+    "line_text": "br 2 bflgmtpsaw"
+  },
+  {
+    "pdf_page": 137,
+    "reagent_name": "Dandelions",
+    "regions": [],
+    "seasons": [],
+    "line_text": "Beautiful sun-bright flowers in the Spring, carriers of wishes "
+  },
+  {
+    "pdf_page": 137,
+    "reagent_name": "Doused Bonfires",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 4"
+  },
+  {
+    "pdf_page": 137,
+    "reagent_name": "False Deathcap",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 7"
+  },
+  {
+    "pdf_page": 137,
+    "reagent_name": "False Deathcap",
+    "regions": [],
+    "seasons": [],
+    "line_text": "Some beasts eat it purely for bragging rights."
+  },
+  {
+    "pdf_page": 137,
+    "reagent_name": "Field Blewit",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 4"
+  },
+  {
+    "pdf_page": 138,
+    "reagent_name": "Fine Sand",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 7"
+  },
+  {
+    "pdf_page": 138,
+    "reagent_name": "Firegizzards",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 6"
+  },
+  {
+    "pdf_page": 138,
+    "reagent_name": "Fly Agaric",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 5"
+  },
+  {
+    "pdf_page": 138,
+    "reagent_name": "Forget-Me-Not",
+    "regions": [
+      "Loch"
+    ],
+    "seasons": [
+      "Summer"
+    ],
+    "line_text": "br 6 bflg m t psaw"
+  },
+  {
+    "pdf_page": 138,
+    "reagent_name": "Frog Slime",
+    "regions": [
+      "Loch"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn"
+    ],
+    "line_text": "br 5 bflg m t psaw"
+  },
+  {
+    "pdf_page": 139,
+    "reagent_name": "Garden Mint",
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow"
+    ],
+    "seasons": [
+      "Summer",
+      "Autumn"
+    ],
+    "line_text": "br 6 bflgm t psaw"
+  },
+  {
+    "pdf_page": 139,
+    "reagent_name": "Garden Mint",
+    "regions": [],
+    "seasons": [],
+    "line_text": "can be smelt on every breeze."
+  },
+  {
+    "pdf_page": 139,
+    "reagent_name": "Glass Silk",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 7"
+  },
+  {
+    "pdf_page": 139,
+    "reagent_name": "Goosegrass",
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow"
+    ],
+    "seasons": [
+      "Spring"
+    ],
+    "line_text": "br 5 bflgm t psaw"
+  },
+  {
+    "pdf_page": 139,
+    "reagent_name": "Haircap Moss",
+    "regions": [
+      "Bog",
+      "Forest",
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "line_text": "br 6 bfl gm t psaw"
+  },
+  {
+    "pdf_page": 139,
+    "reagent_name": "Hidelendings",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 7"
+  },
+  {
+    "pdf_page": 139,
+    "reagent_name": "Hoarhound",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 6"
+  },
+  {
+    "pdf_page": 140,
+    "reagent_name": "Honeybees",
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn"
+    ],
+    "line_text": "br 5 bflgmtpsaw"
+  },
+  {
+    "pdf_page": 140,
+    "reagent_name": "Horse Chestnuts",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 4"
+  },
+  {
+    "pdf_page": 140,
+    "reagent_name": "Horsetails",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 4"
+  },
+  {
+    "pdf_page": 140,
+    "reagent_name": "Iron Ore",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 7"
+  },
+  {
+    "pdf_page": 140,
+    "reagent_name": "Ironslug",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 8"
+  },
+  {
+    "pdf_page": 141,
+    "reagent_name": "Lavender",
+    "regions": [
+      "Bog"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer"
+    ],
+    "line_text": "br 5 bflgm t psaw"
+  },
+  {
+    "pdf_page": 141,
+    "reagent_name": "Leech",
+    "regions": [
+      "Loch"
+    ],
+    "seasons": [
+      "Summer",
+      "Autumn"
+    ],
+    "line_text": "br 5 bflg m t psaw"
+  },
+  {
+    "pdf_page": 141,
+    "reagent_name": "Maggots",
+    "regions": [
+      "Bog",
+      "Forest"
+    ],
+    "seasons": [
+      "Summer"
+    ],
+    "line_text": "br 7 bflgm t psaw"
+  },
+  {
+    "pdf_page": 141,
+    "reagent_name": "Marigold",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 5"
+  },
+  {
+    "pdf_page": 142,
+    "reagent_name": "Marshgold",
+    "regions": [
+      "Bog",
+      "Loch"
+    ],
+    "seasons": [
+      "Spring"
+    ],
+    "line_text": "br 3 bflg m t psa w"
+  },
+  {
+    "pdf_page": 142,
+    "reagent_name": "Marshmallow",
+    "regions": [
+      "Bog",
+      "Meadow"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn"
+    ],
+    "line_text": "br 6 bf lgm t psaw"
+  },
+  {
+    "pdf_page": 142,
+    "reagent_name": "Meadow Waxcap",
+    "regions": [
+      "Bog",
+      "Meadow"
+    ],
+    "seasons": [
+      "Autumn",
+      "Winter"
+    ],
+    "line_text": "br 4 bf lgmtpsaw"
+  },
+  {
+    "pdf_page": 142,
+    "reagent_name": "Miracle Loaf",
+    "regions": [
+      "Titan"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "line_text": "br 11 b f l g mtpsaw"
+  },
+  {
+    "pdf_page": 143,
+    "reagent_name": "Musk Scrapings",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 10"
+  },
+  {
+    "pdf_page": 143,
+    "reagent_name": "Musk Scrapings",
+    "regions": [],
+    "seasons": [],
+    "line_text": "Lavender and... broccoli? "
+  },
+  {
+    "pdf_page": 143,
+    "reagent_name": "Nettles",
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow",
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "line_text": "br 2 bflgmtpsaw"
+  },
+  {
+    "pdf_page": 143,
+    "reagent_name": "Nightshade",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 6"
+  },
+  {
+    "pdf_page": 144,
+    "reagent_name": "Oak",
+    "regions": [
+      "Forest",
+      "Meadow",
+      "Titan"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "line_text": "br 4 bflgmtpsaw"
+  },
+  {
+    "pdf_page": 144,
+    "reagent_name": "Oak",
+    "regions": [],
+    "seasons": [],
+    "line_text": "USED to bind broken bones for "
+  },
+  {
+    "pdf_page": 144,
+    "reagent_name": "Orange Peel Fungus",
+    "regions": [
+      "Meadow",
+      "Mountain"
+    ],
+    "seasons": [
+      "Summer",
+      "Autumn"
+    ],
+    "line_text": "br 3 bf lgmt p saw"
+  },
+  {
+    "pdf_page": 144,
+    "reagent_name": "Pearls",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 8"
+  },
+  {
+    "pdf_page": 144,
+    "reagent_name": "Pox-Be-Gones",
+    "regions": [
+      "Titan"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "line_text": "br 10 b f l g mtpsaw"
+  },
+  {
+    "pdf_page": 145,
+    "reagent_name": "Redsap",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 8"
+  },
+  {
+    "pdf_page": 145,
+    "reagent_name": "Rhubarb",
+    "regions": [
+      "Meadow",
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer"
+    ],
+    "line_text": "br 2 bflgm t psaw"
+  },
+  {
+    "pdf_page": 145,
+    "reagent_name": "Rhubarb",
+    "regions": [],
+    "seasons": [],
+    "line_text": "Fibres"
+  },
+  {
+    "pdf_page": 145,
+    "reagent_name": "Ribwort",
+    "regions": [
+      "Bog",
+      "Meadow"
+    ],
+    "seasons": [
+      "Summer",
+      "Autumn"
+    ],
+    "line_text": "br 5 bflgm t psaw"
+  },
+  {
+    "pdf_page": 145,
+    "reagent_name": "Rivermint",
+    "regions": [
+      "Bog",
+      "Loch"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer"
+    ],
+    "line_text": "br 6 bflg m t psaw"
+  },
+  {
+    "pdf_page": 146,
+    "reagent_name": "Rock Salt",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 7"
+  },
+  {
+    "pdf_page": 146,
+    "reagent_name": "Roses",
+    "regions": [
+      "Meadow"
+    ],
+    "seasons": [
+      "Autumn"
+    ],
+    "line_text": "br 8 bflgm t psaw"
+  },
+  {
+    "pdf_page": 146,
+    "reagent_name": "Roses",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 4"
+  },
+  {
+    "pdf_page": 147,
+    "reagent_name": "Silver Ore",
+    "regions": [
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "line_text": "br 11 b flgm t psaw"
+  },
+  {
+    "pdf_page": 147,
+    "reagent_name": "Slugs",
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow",
+      "Titan"
+    ],
+    "seasons": [
+      "Summer",
+      "Autumn"
+    ],
+    "line_text": "br 3 bflgmtpsaw"
+  },
+  {
+    "pdf_page": 147,
+    "reagent_name": "Small Fish",
+    "regions": [
+      "Bog",
+      "Loch"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn"
+    ],
+    "line_text": "br 7 bflg m t psaw"
+  },
+  {
+    "pdf_page": 147,
+    "reagent_name": "Sourchits",
+    "regions": [
+      "Titan"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "line_text": "br 10 b f l g mtpsaw"
+  },
+  {
+    "pdf_page": 147,
+    "reagent_name": "Sourchits",
+    "regions": [],
+    "seasons": [],
+    "line_text": "and bring on a deep lethargy."
+  },
+  {
+    "pdf_page": 148,
+    "reagent_name": "Spiders",
+    "regions": [
+      "Meadow",
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn"
+    ],
+    "line_text": "br 4 bflgmtpsaw"
+  },
+  {
+    "pdf_page": 148,
+    "reagent_name": "Strawberries",
+    "regions": [
+      "Meadow"
+    ],
+    "seasons": [
+      "Autumn"
+    ],
+    "line_text": "br 4 bflgm t psaw"
+  },
+  {
+    "pdf_page": 148,
+    "reagent_name": "Tansies",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 5"
+  },
+  {
+    "pdf_page": 149,
+    "reagent_name": "Thistles",
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow",
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "line_text": "br 3 bflgmtpsaw"
+  },
+  {
+    "pdf_page": 149,
+    "reagent_name": "Titansorrel",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 6"
+  },
+  {
+    "pdf_page": 149,
+    "reagent_name": "Toads",
+    "regions": [
+      "Bog",
+      "Loch"
+    ],
+    "seasons": [
+      "Summer",
+      "Autumn"
+    ],
+    "line_text": "br 7 bflg m t psaw"
+  },
+  {
+    "pdf_page": 149,
+    "reagent_name": "Wasps",
+    "regions": [
+      "Bog",
+      "Forest",
+      "Loch"
+    ],
+    "seasons": [
+      "Summer",
+      "Autumn"
+    ],
+    "line_text": "br 5 bflgm t psaw"
+  },
+  {
+    "pdf_page": 149,
+    "reagent_name": "Waychalk",
+    "regions": [
+      "Titan"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "line_text": "br 10 b f l g mtpsaw"
+  },
+  {
+    "pdf_page": 149,
+    "reagent_name": "Waychalk",
+    "regions": [],
+    "seasons": [],
+    "line_text": "Dense bricks of pure-black coal; extremely absorbant. "
+  },
+  {
+    "pdf_page": 150,
+    "reagent_name": "Whiskerburner",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 9"
+  },
+  {
+    "pdf_page": 150,
+    "reagent_name": "Whiskerburner",
+    "regions": [],
+    "seasons": [],
+    "line_text": "All the brews from the Guild of Grainsoakers couldn't hold a "
+  },
+  {
+    "pdf_page": 150,
+    "reagent_name": "White Willow",
+    "regions": [
+      "Bog",
+      "Loch"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "line_text": "br 5 bflg m t psaw"
+  },
+  {
+    "pdf_page": 150,
+    "reagent_name": "Wild Garlic",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 2"
+  },
+  {
+    "pdf_page": 150,
+    "reagent_name": "Wild Violet",
+    "regions": [
+      "Loch",
+      "Meadow"
+    ],
+    "seasons": [
+      "Spring"
+    ],
+    "line_text": "br 6 bflgm t psaw"
+  },
+  {
+    "pdf_page": 151,
+    "reagent_name": "Woundwort",
+    "regions": [],
+    "seasons": [],
+    "line_text": "br 7"
+  },
+  {
+    "pdf_page": 151,
+    "reagent_name": "Yarrow",
+    "regions": [
+      "Bog",
+      "Loch"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn"
+    ],
+    "line_text": "br 7 bflg m t psaw"
+  },
+  {
+    "pdf_page": 151,
+    "reagent_name": "Yellow Wort",
+    "regions": [
+      "Mountain"
+    ],
+    "seasons": [
+      "Summer"
+    ],
+    "line_text": "br 4 bflgmtpsaw"
+  },
+  {
+    "pdf_page": 151,
+    "reagent_name": "Yellow Wort",
+    "regions": [],
+    "seasons": [],
+    "line_text": "Its bold colour brings joy to those that see it, earning it the "
+  }
+]

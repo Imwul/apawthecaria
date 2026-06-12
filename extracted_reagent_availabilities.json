@@ -1,0 +1,700 @@
+{
+  "Horse Chestnuts": {
+    "regions": [
+      "Meadow"
+    ],
+    "seasons": [
+      "Autumn",
+      "Winter"
+    ],
+    "page": 126
+  },
+  "Animal Sheddings": {
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow"
+    ],
+    "seasons": [
+      "Spring",
+      "Autumn"
+    ],
+    "page": 132
+  },
+  "Beech": {
+    "regions": [
+      "Forest",
+      "Loch",
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Winter"
+    ],
+    "page": 132
+  },
+  "Beehive": {
+    "regions": [
+      "Meadow"
+    ],
+    "seasons": [
+      "Autumn",
+      "Winter"
+    ],
+    "page": 132
+  },
+  "Beetles": {
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow",
+      "Titan"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn"
+    ],
+    "page": 132
+  },
+  "Behemoth Bits": {
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow",
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn"
+    ],
+    "page": 133
+  },
+  "Big Fish": {
+    "regions": [
+      "Loch"
+    ],
+    "seasons": [
+      "Spring",
+      "Autumn"
+    ],
+    "page": 133
+  },
+  "Birch Polypore": {
+    "regions": [
+      "Forest"
+    ],
+    "seasons": [
+      "Spring",
+      "Winter"
+    ],
+    "page": 133
+  },
+  "Bird Leavings": {
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow",
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer"
+    ],
+    "page": 133
+  },
+  "Blackcurrant": {
+    "regions": [],
+    "seasons": [],
+    "page": 134
+  },
+  "Blackthorn": {
+    "regions": [
+      "Mountain"
+    ],
+    "seasons": [
+      "Autumn",
+      "Winter"
+    ],
+    "page": 134
+  },
+  "Brambles": {
+    "regions": [],
+    "seasons": [],
+    "page": 134
+  },
+  "Burdock": {
+    "regions": [],
+    "seasons": [],
+    "page": 134
+  },
+  "Butterfly": {
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn"
+    ],
+    "page": 135
+  },
+  "Catnip": {
+    "regions": [],
+    "seasons": [],
+    "page": 135
+  },
+  "Chalk": {
+    "regions": [],
+    "seasons": [],
+    "page": 135
+  },
+  "Cherry Trees": {
+    "regions": [],
+    "seasons": [],
+    "page": 135
+  },
+  "Chillies": {
+    "regions": [
+      "Mountain"
+    ],
+    "seasons": [
+      "Summer"
+    ],
+    "page": 135
+  },
+  "Clay": {
+    "regions": [
+      "Bog",
+      "Loch"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "page": 136
+  },
+  "Coarse Grit": {
+    "regions": [],
+    "seasons": [],
+    "page": 136
+  },
+  "Concocted Calm": {
+    "regions": [],
+    "seasons": [],
+    "page": 136
+  },
+  "Crab Apples": {
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow"
+    ],
+    "seasons": [
+      "Spring"
+    ],
+    "page": 136
+  },
+  "Cucumbers": {
+    "regions": [],
+    "seasons": [],
+    "page": 136
+  },
+  "Dandelions": {
+    "regions": [
+      "Bog",
+      "Meadow",
+      "Mountain",
+      "Titan"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer"
+    ],
+    "page": 137
+  },
+  "Doused Bonfires": {
+    "regions": [],
+    "seasons": [],
+    "page": 137
+  },
+  "False Deathcap": {
+    "regions": [],
+    "seasons": [],
+    "page": 137
+  },
+  "Field Blewit": {
+    "regions": [],
+    "seasons": [],
+    "page": 137
+  },
+  "Fine Sand": {
+    "regions": [],
+    "seasons": [],
+    "page": 138
+  },
+  "Firegizzards": {
+    "regions": [],
+    "seasons": [],
+    "page": 138
+  },
+  "Fly Agaric": {
+    "regions": [],
+    "seasons": [],
+    "page": 138
+  },
+  "Forget-Me-Not": {
+    "regions": [
+      "Loch"
+    ],
+    "seasons": [
+      "Summer"
+    ],
+    "page": 138
+  },
+  "Garden Mint": {
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow"
+    ],
+    "seasons": [
+      "Summer",
+      "Autumn"
+    ],
+    "page": 139
+  },
+  "Glass Silk": {
+    "regions": [],
+    "seasons": [],
+    "page": 139
+  },
+  "Goosegrass": {
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow"
+    ],
+    "seasons": [
+      "Spring"
+    ],
+    "page": 139
+  },
+  "Haircap Moss": {
+    "regions": [
+      "Bog",
+      "Forest",
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "page": 139
+  },
+  "Hidelendings": {
+    "regions": [],
+    "seasons": [],
+    "page": 139
+  },
+  "Hoarhound": {
+    "regions": [],
+    "seasons": [],
+    "page": 139
+  },
+  "Honeybees": {
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn"
+    ],
+    "page": 140
+  },
+  "Horsetails": {
+    "regions": [],
+    "seasons": [],
+    "page": 140
+  },
+  "Iron Ore": {
+    "regions": [],
+    "seasons": [],
+    "page": 140
+  },
+  "Lavender": {
+    "regions": [
+      "Bog"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer"
+    ],
+    "page": 141
+  },
+  "Leech": {
+    "regions": [
+      "Loch"
+    ],
+    "seasons": [
+      "Summer",
+      "Autumn"
+    ],
+    "page": 141
+  },
+  "Maggots": {
+    "regions": [
+      "Bog",
+      "Forest"
+    ],
+    "seasons": [
+      "Summer"
+    ],
+    "page": 141
+  },
+  "Marigold": {
+    "regions": [],
+    "seasons": [],
+    "page": 141
+  },
+  "Marshgold": {
+    "regions": [
+      "Bog",
+      "Loch"
+    ],
+    "seasons": [
+      "Spring"
+    ],
+    "page": 142
+  },
+  "Marshmallow": {
+    "regions": [
+      "Bog",
+      "Meadow"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn"
+    ],
+    "page": 142
+  },
+  "Meadow Waxcap": {
+    "regions": [
+      "Bog",
+      "Meadow"
+    ],
+    "seasons": [
+      "Autumn",
+      "Winter"
+    ],
+    "page": 142
+  },
+  "Miracle Loaf": {
+    "regions": [
+      "Titan"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "page": 142
+  },
+  "Musk Scrapings": {
+    "regions": [],
+    "seasons": [],
+    "page": 143
+  },
+  "Nettles": {
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow",
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "page": 143
+  },
+  "Nightshade": {
+    "regions": [],
+    "seasons": [],
+    "page": 143
+  },
+  "Oak": {
+    "regions": [
+      "Forest",
+      "Meadow",
+      "Titan"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "page": 144
+  },
+  "Orange Peel Fungus": {
+    "regions": [
+      "Meadow",
+      "Mountain"
+    ],
+    "seasons": [
+      "Summer",
+      "Autumn"
+    ],
+    "page": 144
+  },
+  "Pearls": {
+    "regions": [],
+    "seasons": [],
+    "page": 144
+  },
+  "Pox-Be-Gones": {
+    "regions": [
+      "Titan"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "page": 144
+  },
+  "Redsap": {
+    "regions": [],
+    "seasons": [],
+    "page": 145
+  },
+  "Rhubarb": {
+    "regions": [
+      "Meadow",
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer"
+    ],
+    "page": 145
+  },
+  "Ribwort": {
+    "regions": [
+      "Bog",
+      "Meadow"
+    ],
+    "seasons": [
+      "Summer",
+      "Autumn"
+    ],
+    "page": 145
+  },
+  "Rivermint": {
+    "regions": [
+      "Bog",
+      "Loch"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer"
+    ],
+    "page": 145
+  },
+  "Rock Salt": {
+    "regions": [],
+    "seasons": [],
+    "page": 146
+  },
+  "Roses": {
+    "regions": [
+      "Meadow"
+    ],
+    "seasons": [
+      "Autumn"
+    ],
+    "page": 146
+  },
+  "Shells": {
+    "regions": [
+      "Meadow"
+    ],
+    "seasons": [
+      "Autumn",
+      "Winter"
+    ],
+    "page": 132
+  },
+  "Silver Ore": {
+    "regions": [
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "page": 147
+  },
+  "Slugs": {
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow",
+      "Titan"
+    ],
+    "seasons": [
+      "Summer",
+      "Autumn"
+    ],
+    "page": 147
+  },
+  "Small Fish": {
+    "regions": [
+      "Bog",
+      "Loch"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn"
+    ],
+    "page": 147
+  },
+  "Sourchits": {
+    "regions": [
+      "Titan"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "page": 147
+  },
+  "Spiders": {
+    "regions": [
+      "Meadow",
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn"
+    ],
+    "page": 148
+  },
+  "Strawberries": {
+    "regions": [
+      "Meadow"
+    ],
+    "seasons": [
+      "Autumn"
+    ],
+    "page": 148
+  },
+  "Tansies": {
+    "regions": [],
+    "seasons": [],
+    "page": 148
+  },
+  "Thistles": {
+    "regions": [
+      "Bog",
+      "Forest",
+      "Meadow",
+      "Mountain"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "page": 149
+  },
+  "Titansorrel": {
+    "regions": [],
+    "seasons": [],
+    "page": 149
+  },
+  "Toads": {
+    "regions": [
+      "Loch"
+    ],
+    "seasons": [
+      "Summer"
+    ],
+    "page": 138
+  },
+  "Wasps": {
+    "regions": [
+      "Bog",
+      "Forest",
+      "Loch"
+    ],
+    "seasons": [
+      "Summer",
+      "Autumn"
+    ],
+    "page": 149
+  },
+  "Waychalk": {
+    "regions": [
+      "Titan"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "page": 149
+  },
+  "Whiskerburner": {
+    "regions": [],
+    "seasons": [],
+    "page": 150
+  },
+  "White Willow": {
+    "regions": [
+      "Bog",
+      "Loch"
+    ],
+    "seasons": [
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter"
+    ],
+    "page": 150
+  },
+  "Wild Violet": {
+    "regions": [
+      "Loch",
+      "Meadow"
+    ],
+    "seasons": [
+      "Spring"
+    ],
+    "page": 150
+  }
+}

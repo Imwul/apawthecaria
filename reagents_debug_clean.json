@@ -1,0 +1,12 @@
+[{
+      "name": "마로니에/말밤",
+      "rawName": "Horse Chestnuts",
+      "type": "PLANT",
+      "br": 4,
+      "regions": [
+        "Bog",
+        "Forest",
+        "Loch",
+        "Meadow",
+        "Mountain",
+        "Titan"]
