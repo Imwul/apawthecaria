@@ -5651,19 +5651,7 @@ function PlayView({
             calendarDays: 2,
             calendarMaxDays: 12,
             calendarHistory: ['여정 시작: Newdam로 출발!'],
-            activeAilment: {
-              id: 'ailment_test',
-              name: 'Paw Rot',
-              severity: 'Lesser',
-              timer: 5,
-              maxTimer: 10,
-              tags: '[WOUND 1 & FEVER 1]',
-              description: 'Sore paw with infection.',
-              outcome: '',
-              consequence: '',
-              foragingPoints: 0,
-              reagentsGathered: []
-            },
+            activeAilment: null,
             pursuedByBehemoth: {
               headStart: 3
             },
@@ -5684,7 +5672,7 @@ function PlayView({
               }
             ],
             discoveredRecipes: {
-              'Paw Rot': [
+              'Anxious Scratching': [
                 ['Oak Leaves', 'Birch Bark']
               ]
             },
@@ -5713,7 +5701,73 @@ function PlayView({
                 timestamp: Date.now()
               }
             ],
-            trinketArchive: [],
+            trinketArchive: [
+              {
+                id: 'trinket_smoke_test_1',
+                sourceId: 'cure_smoke_test_1_trinkets',
+                name: '말린 엉겅퀴 씨앗 주머니 (Pouch of Dried Thistle)',
+                count: 1,
+                source: 'Patient: Pip (Field Mouse)',
+                story: '치료의 답례로 건네받은 작은 천 주머니. 흔들면 바스락거리는 마른 씨앗 소리가 납니다.\n\n— Starting Oak Road에서 Pip의 Anxious Scratching을 낫게 돕고 남겨진 조각입니다.',
+                locationName: 'Starting Oak Road',
+                timestamp: Date.now() - 3600000 * 2,
+                spent: false,
+                patientCaseId: 'case_smoke_test_1'
+              }
+            ],
+            patientCasebook: [
+              {
+                id: 'case_smoke_test_1',
+                sourceId: 'cure_smoke_test_1',
+                patientName: 'Pip',
+                species: 'Field Mouse',
+                ailmentName: 'Anxious Scratching',
+                severity: 'lesser',
+                tags: 'MOOD 2, FUR',
+                locationName: 'Starting Oak Road',
+                region: 'Forest',
+                season: 'Spring',
+                journeyTitle: 'Spring Restoration',
+                resolvedAtDay: 2,
+                outcome: 'success',
+                remedy: ['Oak Leaves', 'Birch Bark'],
+                consequence: '',
+                initialRememberedNote: 'Found Pip shivering behind a gorse bush on Oak Road.',
+                finalArchiveNote: 'Gave Pip a warm tea brewed with Birch Bark. Pip recovered quickly and gave me a dried press thistle seed pouch.',
+                notes: '',
+                timestamp: Date.now() - 3600000 * 2,
+                isBookmarked: true
+              },
+              {
+                id: 'case_smoke_test_2',
+                sourceId: 'cure_smoke_test_2',
+                patientName: 'Barnaby',
+                species: 'Elderly Badger',
+                ailmentName: 'Anxious Scratching',
+                severity: 'severe',
+                tags: 'MOOD 2 및 FUR 또는 SCALE 1',
+                locationName: 'Bristley Woods',
+                region: 'Forest',
+                season: 'Spring',
+                journeyTitle: 'Spring Restoration',
+                resolvedAtDay: 4,
+                outcome: 'failure',
+                remedy: [],
+                consequence: 'The poor badger fully moulted under extreme stress and went into hiding in the deep woods.',
+                initialRememberedNote: 'Met Barnaby near the old oak roots.',
+                finalArchiveNote: 'Could not brew the remedy in time. Barnaby retreated into the den in distress.',
+                notes: 'Barnaby fully moulted and went into hiding.',
+                timestamp: Date.now() - 3600000,
+                isBookmarked: false
+              }
+            ],
+            lostPatientLegacy: {
+              name: 'Barnaby',
+              species: 'Elderly Badger',
+              ailmentName: 'Anxious Scratching',
+              day: 4,
+              consequence: 'The poor badger fully moulted under extreme stress and went into hiding in the deep woods.'
+            },
             visitedLocations: ['Starting Oak Road']
           };
           localStorage.setItem('apawthecaria_rpg_state', JSON.stringify(customState));
