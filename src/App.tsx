@@ -153,6 +153,7 @@ interface PatientCaseRecord {
   finalArchiveNote: string;
   notes: string;
   timestamp: number;
+  isBookmarked?: boolean;
 }
 
 interface PendingPatientArchive {
@@ -173,6 +174,7 @@ interface PendingPatientArchive {
   initialRememberedNote: string;
   notes: string;
   timestamp: number;
+  isBookmarked?: boolean;
 }
 
 interface ForageFind {
@@ -219,6 +221,7 @@ interface TrinketMemoryRecord {
   locationName: string;
   timestamp: number;
   spent: boolean;
+  patientCaseId?: string;
 }
 
 interface PursuedByBehemoth {
@@ -330,6 +333,7 @@ interface GameState {
   familiarMemories?: string[];
   legacyRestUsedThisLocation?: boolean;
   canFlyOverride?: boolean;
+  lostPatientLegacy?: { name: string; species: string; ailmentName: string; day: number; consequence: string } | null;
 }
 
 const INITIAL_BIO: ApothecaryBio = {
@@ -427,7 +431,8 @@ const INITIAL_STATE: GameState = {
   trinketArchive: [],
   familiarTrust: 0,
   familiarMemories: [],
-  legacyRestUsedThisLocation: false
+  legacyRestUsedThisLocation: false,
+  lostPatientLegacy: null
 };
 
 // =================================================================
@@ -549,7 +554,8 @@ const normalizeTrinketRecord = (record: any): TrinketMemoryRecord => ({
   story: record.story || record.notes || 'A small object kept from the road.',
   locationName: record.locationName || '',
   timestamp: record.timestamp || Date.now(),
-  spent: !!record.spent
+  spent: !!record.spent,
+  patientCaseId: record.patientCaseId || ''
 });
 
 const addTrinketMemory = (
@@ -594,7 +600,8 @@ const normalizeCaseRecord = (record: any): PatientCaseRecord => ({
   initialRememberedNote: record.initialRememberedNote || '',
   finalArchiveNote: record.finalArchiveNote || record.notes || '',
   notes: record.notes || '',
-  timestamp: record.timestamp || Date.now()
+  timestamp: record.timestamp || Date.now(),
+  isBookmarked: !!record.isBookmarked
 });
 
 const legacyCaseRecordsFromJournals = (s: any): PatientCaseRecord[] => {
@@ -673,7 +680,8 @@ const finalizePendingPatientArchive = (pending: PendingPatientArchive, finalArch
   initialRememberedNote: pending.initialRememberedNote,
   finalArchiveNote,
   notes: pending.notes,
-  timestamp: pending.timestamp
+  timestamp: pending.timestamp,
+  isBookmarked: !!pending.isBookmarked
 });
 
 const classifyJournalForScrapbook = (journal: { id: string; title: string; text: string; timestamp: number }): ScrapbookKind | null => {
@@ -1348,7 +1356,8 @@ const migrateState = (s: any): GameState => {
       : trinketArchiveFromCurrent(s),
     familiarTrust: s.familiarTrust || 0,
     familiarMemories: s.familiarMemories || [],
-    legacyRestUsedThisLocation: s.legacyRestUsedThisLocation || false
+    legacyRestUsedThisLocation: s.legacyRestUsedThisLocation || false,
+    lostPatientLegacy: s.lostPatientLegacy || null
   });
 };
 
@@ -1768,6 +1777,7 @@ export default function App() {
   const [state, setState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'play' | 'bio' | 'reagents' | 'ailments' | 'patientArchive' | 'livingArchive' | 'map' | 'journals'>('play');
+  const [highlightedPatientId, setHighlightedPatientId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [activeTravelEncounter, setActiveTravelEncounter] = useState<any | null>(null);
   const [activeForageEncounter, setActiveForageEncounter] = useState<any | null>(null);
@@ -2524,10 +2534,30 @@ export default function App() {
               setFilter={setAilmentFilter}
             />
           )}
-          {activeTab === 'patientArchive' && <PatientArchiveView state={state} />}
-          {activeTab === 'livingArchive' && <LivingArchiveView state={state} />}
+          {activeTab === 'patientArchive' && (
+            <PatientArchiveView
+              state={state}
+              updateState={updateState}
+              highlightedPatientId={highlightedPatientId}
+              setHighlightedPatientId={setHighlightedPatientId}
+            />
+          )}
+          {activeTab === 'livingArchive' && (
+            <LivingArchiveView
+              state={state}
+              setActiveTab={setActiveTab}
+              setHighlightedPatientId={setHighlightedPatientId}
+            />
+          )}
           {activeTab === 'map' && <MapView />}
-          {activeTab === 'journals' && <JournalsView state={state} updateState={updateState} />}
+          {activeTab === 'journals' && (
+            <JournalsView
+              state={state}
+              updateState={updateState}
+              highlightedPatientId={highlightedPatientId}
+              setHighlightedPatientId={setHighlightedPatientId}
+            />
+          )}
         </main>
       </div>
 
@@ -3086,6 +3116,7 @@ function PlayView({
   const [patientSpeciesDraft, setPatientSpeciesDraft] = useState("");
   const [patientInitialNoteDraft, setPatientInitialNoteDraft] = useState("");
   const [finalArchiveNoteDraft, setFinalArchiveNoteDraft] = useState("");
+  const [isBookmarkedDraft, setIsBookmarkedDraft] = useState(false);
 
   // Concoction State
   const [selectedBagItems, setSelectedBagItems] = useState<string[]>([]);
@@ -3130,18 +3161,23 @@ function PlayView({
 
   useEffect(() => {
     setFinalArchiveNoteDraft(state.pendingPatientArchive?.initialRememberedNote || '');
+    setIsBookmarkedDraft(false);
   }, [state.pendingPatientArchive?.sourceId]);
 
   const handleFinalizePatientArchive = () => {
     const pending = state.pendingPatientArchive;
     if (!pending) return;
-    const record = finalizePendingPatientArchive(pending, finalArchiveNoteDraft);
+    const record = finalizePendingPatientArchive({
+      ...pending,
+      isBookmarked: isBookmarkedDraft
+    }, finalArchiveNoteDraft);
     updateState((s: GameState) => ({
       ...s,
       patientCasebook: addCasebookRecord(s.patientCasebook || [], record),
       pendingPatientArchive: null
     }));
     setFinalArchiveNoteDraft("");
+    setIsBookmarkedDraft(false);
   };
 
   const [localSeason, setLocalSeason] = useState(state.currentSeason);
@@ -3217,7 +3253,14 @@ function PlayView({
           reputation: newRep,
           activeAilment: null,
           pendingPatientArchive: pendingArchive,
-          journals
+          journals,
+          lostPatientLegacy: {
+            name: s.activeAilment!.patientName || 'Anonymous patient',
+            species: s.activeAilment!.species || 'Unknown species',
+            ailmentName: s.activeAilment!.name,
+            day: s.cumulativeDays || s.calendarDays || 0,
+            consequence: s.activeAilment!.consequence
+          }
         };
       }
 
@@ -4810,7 +4853,14 @@ function PlayView({
               timestamp
             },
             ...s.journals
-          ]
+          ],
+          lostPatientLegacy: {
+            name: s.activeAilment!.patientName || 'Anonymous patient',
+            species: s.activeAilment!.species || 'Unknown species',
+            ailmentName: s.activeAilment!.name,
+            day: s.cumulativeDays || s.calendarDays || 0,
+            consequence: s.activeAilment!.consequence
+          }
         };
       });
       setSelectedBagItems([]);
@@ -4843,7 +4893,14 @@ function PlayView({
               timestamp
             },
             ...s.journals
-          ]
+          ],
+          lostPatientLegacy: {
+            name: s.activeAilment!.patientName || 'Anonymous patient',
+            species: s.activeAilment!.species || 'Unknown species',
+            ailmentName: s.activeAilment!.name,
+            day: s.cumulativeDays || s.calendarDays || 0,
+            consequence: s.activeAilment!.consequence
+          }
         };
       });
       setSelectedBagItems([]);
@@ -4925,7 +4982,8 @@ function PlayView({
           story: `${s.currentLocationName}에서 ${s.activeAilment!.name} 환자를 도운 뒤 받은 작은 답례들.`,
           locationName: s.currentLocationName,
           timestamp: cureTimestamp,
-          spent: false
+          spent: false,
+          patientCaseId: memoryKey('case', cureSourceId)
         })
         : (s.trinketArchive || []);
 
@@ -5678,6 +5736,14 @@ function PlayView({
               placeholder="Leave unchanged, edit, or clear this closing note."
               style={{ width: '100%', resize: 'vertical', fontSize: '0.9rem' }}
             />
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', marginTop: '0.5rem', cursor: 'pointer', color: 'var(--text-bright)', fontWeight: 'bold' }}>
+              <input
+                type="checkbox"
+                checked={isBookmarkedDraft}
+                onChange={e => setIsBookmarkedDraft(e.target.checked)}
+              />
+              <span>⭐ 이 환자를 마음에 담아두기 (Keep in Heart / Bookmark)</span>
+            </label>
             {state.pendingPatientArchive.consequence && (
               <div style={{ marginTop: '0.55rem', padding: '0.55rem', background: '#f2eee9', border: '1px solid #d7cbc1', borderRadius: '4px', color: '#6c5a4f', fontSize: '0.8rem' }}>
                 <strong>Consequence:</strong> {state.pendingPatientArchive.consequence}
@@ -7742,6 +7808,38 @@ function PlayView({
               </div>
             ) : !state.activeAilment ? (
               <div style={{ marginTop: '1rem' }}>
+                {state.lostPatientLegacy && (
+                  <div className="cute-card" style={{ border: '1.5px solid var(--accent-red)', background: '#fff9f8', padding: '1.2rem', marginBottom: '1.2rem', position: 'relative' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        <div className="document-kicker" style={{ color: 'var(--accent-red)', borderColor: 'var(--accent-red)', marginBottom: '0.4rem' }}>🪦 The Empty Bed / 빈 침상</div>
+                        <h4 style={{ margin: '0.2rem 0 0.3rem 0', fontSize: '1.1rem', color: 'var(--text-bright)' }}>
+                          {state.lostPatientLegacy.name} {state.lostPatientLegacy.species ? `/ ${state.lostPatientLegacy.species}` : ''}
+                        </h4>
+                        <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', margin: '0 0 0.6rem 0' }}>
+                          They could not be saved from <strong>{state.lostPatientLegacy.ailmentName}</strong>. Their departure leaves a quiet stillness in the clinic.
+                        </p>
+                        {state.lostPatientLegacy.consequence && (
+                          <div style={{ padding: '0.65rem', background: '#fffefa', border: '1px dashed rgba(155, 63, 54, 0.4)', borderRadius: '4px', fontSize: '0.84rem', color: 'var(--text-bright)' }}>
+                            <strong>Consequence:</strong> {state.lostPatientLegacy.consequence}
+                          </div>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '1.8rem', opacity: 0.8, marginLeft: '0.8rem' }}>🕯️</span>
+                    </div>
+                    <div style={{ marginTop: '0.8rem', display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => {
+                          updateState(s => ({ ...s, lostPatientLegacy: null }));
+                        }}
+                        className="btn-cozy-secondary"
+                        style={{ padding: '0.45rem 0.8rem', fontSize: '0.8rem', background: '#fff' }}
+                      >
+                        Clear the Bed & Clean the Linens (침상 정리하기)
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                   현재 돌보는 환자가 없습니다. 정착지나 야생에서 만난 환자의 질병을 도감에서 검색해 진단하세요.
                 </p>
@@ -9592,7 +9690,7 @@ function MapView() {
 // =================================================================
 // 11. LIVING ARCHIVE VIEW COMPONENT
 // =================================================================
-function LivingArchiveView({ state }: { state: GameState }) {
+function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { state: GameState; setActiveTab?: any; setHighlightedPatientId?: any }) {
   const patients = [...(state.patientCasebook || [])].sort((a, b) => b.timestamp - a.timestamp);
   const herbarium = (state.worldAlmanac || [])
     .filter(entry => entry.category === 'reagent')
@@ -9847,6 +9945,22 @@ function LivingArchiveView({ state }: { state: GameState }) {
                 </div>
                 <div style={{ fontSize: '0.77rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{record.source} / {record.locationName || 'place unrecorded'}</div>
                 <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.84rem', marginTop: '0.4rem' }}>{record.story}</div>
+                {record.patientCaseId && (
+                  <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => {
+                        if (setActiveTab && setHighlightedPatientId) {
+                          setHighlightedPatientId(record.patientCaseId);
+                          setActiveTab('patientArchive');
+                        }
+                      }}
+                      className="btn-cozy-secondary"
+                      style={{ padding: '0.2rem 0.5rem', fontSize: '0.74rem', border: '1px solid var(--glass-border)', background: '#fff', cursor: 'pointer' }}
+                    >
+                      🔍 Revisit Giver / 선물해 준 환자 찾아보기
+                    </button>
+                  </div>
+                )}
               </article>
             ))}
             {trinkets.length === 0 && <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Add or earn trinkets to begin the cabinet.</div>}
@@ -9862,10 +9976,42 @@ function LivingArchiveView({ state }: { state: GameState }) {
 // =================================================================
 // 12. PATIENT ARCHIVE VIEW COMPONENT
 // =================================================================
-function PatientArchiveView({ state }: { state: GameState }) {
+function PatientArchiveView({
+  state,
+  updateState,
+  highlightedPatientId,
+  setHighlightedPatientId
+}: {
+  state: GameState;
+  updateState: any;
+  highlightedPatientId: string | null;
+  setHighlightedPatientId: any;
+}) {
   const records = [...(state.patientCasebook || [])].sort((a, b) => b.timestamp - a.timestamp);
   const successCount = records.filter(r => r.outcome === 'success').length;
   const failureCount = records.filter(r => r.outcome === 'failure').length;
+
+  useEffect(() => {
+    if (highlightedPatientId) {
+      const el = document.getElementById(highlightedPatientId);
+      if (el) {
+        // Wait a small moment for tabs to settle
+        const timer = setTimeout(() => {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [highlightedPatientId]);
+
+  const handleToggleBookmark = (recordId: string) => {
+    updateState((s: GameState) => ({
+      ...s,
+      patientCasebook: (s.patientCasebook || []).map(r =>
+        r.id === recordId ? { ...r, isBookmarked: !r.isBookmarked } : r
+      )
+    }));
+  };
 
   return (
     <div>
@@ -9887,12 +10033,36 @@ function PatientArchiveView({ state }: { state: GameState }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
           {records.map(record => {
             const isFailure = record.outcome === 'failure';
+            const isHighlighted = record.id === highlightedPatientId;
+
             return (
-              <article key={record.id} className="cute-card" style={{ background: '#fffefa', border: `1.5px solid ${isFailure ? '#b9aca3' : 'var(--border-cozy)'}` }}>
+              <article
+                key={record.id}
+                id={record.id}
+                className="cute-card"
+                style={{
+                  background: isHighlighted ? '#fffef2' : '#fffefa',
+                  border: isHighlighted
+                    ? '2px solid #d97706'
+                    : `1.5px solid ${isFailure ? '#b9aca3' : 'var(--border-cozy)'}`,
+                  boxShadow: isHighlighted ? '0 0 14px rgba(217, 119, 6, 0.4)' : 'var(--shadow-sm)',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                {/* Visual Header: Date & Helped Status */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
                   <div>
                     <div className="document-kicker">{record.locationName || 'Bristley Woods'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}</div>
-                    <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1.08rem', color: 'var(--text-bright)' }}>{record.patientName || 'Anonymous patient'}</h3>
+                    <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1.08rem', color: 'var(--text-bright)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <span>{record.patientName || 'Anonymous patient'}</span>
+                      <button
+                        onClick={() => handleToggleBookmark(record.id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.15rem', padding: 0, display: 'inline-flex', alignItems: 'center', color: record.isBookmarked ? '#d97706' : 'var(--text-dim)' }}
+                        title={record.isBookmarked ? '마음에 깊이 담아둔 환자 (Bookmarked)' : '마음에 담아두기 (Bookmark)'}
+                      >
+                        {record.isBookmarked ? '★' : '☆'}
+                      </button>
+                    </h3>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{record.species || 'Species unrecorded'}</div>
                   </div>
                   <span className="journal-stamp" style={{ color: isFailure ? '#8a6f65' : 'var(--primary)', borderColor: isFailure ? '#8a6f65' : 'var(--primary)' }}>
@@ -9900,43 +10070,69 @@ function PatientArchiveView({ state }: { state: GameState }) {
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gap: '0.35rem', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
-                  <div><strong>Ailment:</strong> {record.ailmentName}</div>
-                  <div><strong>Severity:</strong> {record.severity}</div>
-                  {record.tags && <div><strong>Tags:</strong> {record.tags}</div>}
-                  {record.journeyTitle && <div><strong>Journey:</strong> {record.journeyTitle}</div>}
-                  {record.remedy.length > 0 && <div><strong>Remedy:</strong> {record.remedy.join(', ')}</div>}
+                {/* Visual Highlight Banner if clicked from Trinket cabinet */}
+                {isHighlighted && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '4px', padding: '0.35rem 0.55rem', marginBottom: '0.75rem', fontSize: '0.76rem', color: '#b45309' }}>
+                    <span>💝 이 장신구를 건네준 환자입니다.</span>
+                    <button
+                      onClick={() => setHighlightedPatientId(null)}
+                      style={{ background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer', color: '#b45309', padding: 0, fontWeight: 'bold' }}
+                    >
+                      Dismiss / 닫기
+                    </button>
+                  </div>
+                )}
+
+                {/* EMOTIONAL FOCUS: Remembered Life Notes */}
+                <div style={{ display: 'grid', gap: '0.6rem' }}>
+                  {record.initialRememberedNote && (
+                    <div style={{ padding: '0.65rem', border: '1px dashed var(--glass-border)', background: '#fbfaf4', borderRadius: '4px' }}>
+                      <div className="document-kicker">First impression</div>
+                      <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.86rem', color: 'var(--text-muted)' }}>{record.initialRememberedNote}</div>
+                    </div>
+                  )}
+
+                  {record.finalArchiveNote && (
+                    <div style={{ padding: '0.65rem', border: '1px solid var(--glass-border)', background: '#fbfaf4', borderRadius: '4px' }}>
+                      <div className="document-kicker">Remembered note</div>
+                      <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.88rem', color: 'var(--text-bright)' }}>{record.finalArchiveNote}</div>
+                    </div>
+                  )}
+
+                  {record.notes && record.notes !== record.finalArchiveNote && (
+                    <div style={{ padding: '0.65rem', border: '1px dashed var(--glass-border)', background: '#fbfaf4', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                      <div className="document-kicker">Treatment outcome</div>
+                      <div style={{ whiteSpace: 'pre-wrap' }}>{record.notes}</div>
+                    </div>
+                  )}
+
+                  {isFailure && record.consequence && (
+                    <div style={{ padding: '0.65rem', border: '1px solid #d7cbc1', background: '#f2eee9', borderRadius: '4px', color: '#6c5a4f', fontSize: '0.84rem' }}>
+                      <strong>Consequence:</strong> {record.consequence}
+                    </div>
+                  )}
                 </div>
 
-                {record.initialRememberedNote && (
-                  <div style={{ marginTop: '0.75rem', padding: '0.65rem', border: '1px dashed var(--glass-border)', background: '#fbfaf4', borderRadius: '4px' }}>
-                    <div className="document-kicker">First impression</div>
-                    <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.86rem' }}>{record.initialRememberedNote}</div>
+                {/* COLLAPSIBLE DETAILS: Technical / Apothecary report */}
+                <details className="medical-drawer" style={{ marginTop: '0.8rem', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.5rem' }}>
+                  <summary style={{ cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)', outline: 'none' }}>
+                    🩺 View Medical Report / 상세 의무 기록 보기
+                  </summary>
+                  <div style={{ padding: '0.5rem', background: '#fcfbf7', border: '1px solid var(--glass-border)', borderRadius: '4px', marginTop: '0.4rem', fontSize: '0.82rem', display: 'grid', gap: '0.35rem' }}>
+                    <div><strong>Ailment / 질병명:</strong> {record.ailmentName}</div>
+                    <div><strong>Severity / 심각도:</strong> <span style={{ textTransform: 'uppercase' }}>{record.severity}</span></div>
+                    {record.tags && <div><strong>Symptom Tags / 필요 약효:</strong> {record.tags}</div>}
+                    {record.journeyTitle && <div><strong>Journey / 여정명:</strong> {record.journeyTitle}</div>}
+                    {record.remedy && record.remedy.length > 0 && (
+                      <div><strong>Remedy Composition / 조제 성분:</strong> {record.remedy.join(', ')}</div>
+                    )}
                   </div>
-                )}
+                </details>
 
-                {record.finalArchiveNote && (
-                  <div style={{ marginTop: '0.75rem', padding: '0.65rem', border: '1px solid var(--glass-border)', background: '#fbfaf4', borderRadius: '4px' }}>
-                    <div className="document-kicker">Remembered note</div>
-                    <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.88rem', color: 'var(--text-bright)' }}>{record.finalArchiveNote}</div>
-                  </div>
-                )}
-
-                {record.notes && (
-                  <div style={{ marginTop: '0.75rem', padding: '0.65rem', border: '1px dashed var(--glass-border)', background: '#fbfaf4', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                    <div className="document-kicker">Treatment outcome</div>
-                    <div style={{ whiteSpace: 'pre-wrap' }}>{record.notes}</div>
-                  </div>
-                )}
-
-                {isFailure && record.consequence && (
-                  <div style={{ marginTop: '0.75rem', padding: '0.65rem', border: '1px solid #d7cbc1', background: '#f2eee9', borderRadius: '4px', color: '#6c5a4f', fontSize: '0.84rem' }}>
-                    <strong>Consequence:</strong> {record.consequence}
-                  </div>
-                )}
-
-                <div style={{ marginTop: '0.75rem', fontSize: '0.74rem', color: 'var(--text-dim)' }}>
-                  {record.season || 'Season unrecorded'} / {formatDateTime(record.timestamp)}
+                {/* Footer stamp info */}
+                <div style={{ marginTop: '0.75rem', fontSize: '0.74rem', color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>{record.season || 'Season unrecorded'}</span>
+                  <span>{formatDateTime(record.timestamp)}</span>
                 </div>
               </article>
             );
@@ -9950,10 +10146,32 @@ function PatientArchiveView({ state }: { state: GameState }) {
 // =================================================================
 // 11. JOURNALS VIEW COMPONENT
 // =================================================================
-function JournalsView({ state, updateState }: { state: GameState; updateState: any }) {
+function JournalsView({
+  state,
+  updateState,
+  highlightedPatientId,
+  setHighlightedPatientId
+}: {
+  state: GameState;
+  updateState: any;
+  highlightedPatientId?: string | null;
+  setHighlightedPatientId?: any;
+}) {
   const [newTitle, setNewTitle] = useState("");
   const [newText, setNewText] = useState("");
   const [subTab, setSubTab] = useState<'casebook' | 'almanac' | 'scrapbook' | 'journals' | 'chronicles' | 'legacy'>('casebook');
+
+  useEffect(() => {
+    if (highlightedPatientId && subTab === 'casebook') {
+      const el = document.getElementById('journals_case_' + highlightedPatientId);
+      if (el) {
+        const timer = setTimeout(() => {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [highlightedPatientId, subTab]);
 
   const almanacLabels: Record<AlmanacCategory, string> = {
     settlement: 'Settlements',
@@ -10119,28 +10337,121 @@ function JournalsView({ state, updateState }: { state: GameState; updateState: a
       </div>
 
       {subTab === 'casebook' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
-          {(state.patientCasebook || []).map(record => (
-            <div key={record.id} className="cute-card" style={{ background: '#fffefa', border: '1.4px solid var(--border-cozy)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.45rem', marginBottom: '0.7rem' }}>
-                <h4 style={{ margin: 0, color: 'var(--text-bright)' }}>{record.ailmentName}</h4>
-                <span className="journal-stamp" style={{ color: record.outcome === 'success' ? 'var(--primary)' : 'var(--accent-red)', borderColor: record.outcome === 'success' ? 'var(--primary)' : 'var(--accent-red)' }}>
-                  {record.outcome}
-                </span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+          {(state.patientCasebook || []).map(record => {
+            const isFailure = record.outcome === 'failure';
+            const isHighlighted = record.id === highlightedPatientId;
+
+            return (
+              <div
+                key={record.id}
+                id={'journals_case_' + record.id}
+                className="cute-card"
+                style={{
+                  background: isHighlighted ? '#fffef2' : '#fffefa',
+                  border: isHighlighted
+                    ? '2px solid #d97706'
+                    : `1.5px solid ${isFailure ? '#b9aca3' : 'var(--border-cozy)'}`,
+                  boxShadow: isHighlighted ? '0 0 14px rgba(217, 119, 6, 0.4)' : 'var(--shadow-sm)',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                {/* Visual Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+                  <div>
+                    <div className="document-kicker">{record.locationName || 'Bristley Woods'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}</div>
+                    <h4 style={{ margin: '0.2rem 0 0 0', fontSize: '1.08rem', color: 'var(--text-bright)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <span>{record.patientName || 'Anonymous patient'}</span>
+                      <button
+                        onClick={() => {
+                          updateState((s: GameState) => ({
+                            ...s,
+                            patientCasebook: (s.patientCasebook || []).map(r =>
+                              r.id === record.id ? { ...r, isBookmarked: !r.isBookmarked } : r
+                            )
+                          }));
+                        }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.15rem', padding: 0, display: 'inline-flex', alignItems: 'center', color: record.isBookmarked ? '#d97706' : 'var(--text-dim)' }}
+                        title={record.isBookmarked ? '마음에 깊이 담아둔 환자 (Bookmarked)' : '마음에 담아두기 (Bookmark)'}
+                      >
+                        {record.isBookmarked ? '★' : '☆'}
+                      </button>
+                    </h4>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{record.species || 'Species unrecorded'}</div>
+                  </div>
+                  <span className="journal-stamp" style={{ color: isFailure ? 'var(--accent-red)' : 'var(--primary)', borderColor: isFailure ? 'var(--accent-red)' : 'var(--primary)' }}>
+                    {record.outcome}
+                  </span>
+                </div>
+
+                {/* Highlight Banner */}
+                {isHighlighted && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '4px', padding: '0.35rem 0.55rem', marginBottom: '0.75rem', fontSize: '0.76rem', color: '#b45309' }}>
+                    <span>💝 이 장신구를 건네준 환자입니다.</span>
+                    <button
+                      onClick={() => setHighlightedPatientId && setHighlightedPatientId(null)}
+                      style={{ background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer', color: '#b45309', padding: 0, fontWeight: 'bold' }}
+                    >
+                      Dismiss / 닫기
+                    </button>
+                  </div>
+                )}
+
+                {/* EMOTIONAL FOCUS */}
+                <div style={{ display: 'grid', gap: '0.6rem' }}>
+                  {record.initialRememberedNote && (
+                    <div style={{ padding: '0.5rem', border: '1px dashed var(--glass-border)', background: '#fbfaf4', borderRadius: '4px' }}>
+                      <div className="document-kicker">First impression</div>
+                      <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{record.initialRememberedNote}</div>
+                    </div>
+                  )}
+
+                  {record.finalArchiveNote && (
+                    <div style={{ padding: '0.5rem', border: '1px solid var(--glass-border)', background: '#fbfaf4', borderRadius: '4px' }}>
+                      <div className="document-kicker">Remembered note</div>
+                      <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.84rem', color: 'var(--text-bright)' }}>{record.finalArchiveNote}</div>
+                    </div>
+                  )}
+
+                  {record.notes && record.notes !== record.finalArchiveNote && (
+                    <div style={{ padding: '0.5rem', border: '1px dashed var(--glass-border)', background: '#fbfaf4', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                      <div className="document-kicker">Treatment outcome</div>
+                      <div style={{ whiteSpace: 'pre-wrap' }}>{record.notes}</div>
+                    </div>
+                  )}
+
+                  {isFailure && record.consequence && (
+                    <div style={{ padding: '0.5rem', border: '1px solid #d7cbc1', background: '#f2eee9', borderRadius: '4px', color: '#6c5a4f', fontSize: '0.82rem' }}>
+                      <strong>Consequence:</strong> {record.consequence}
+                    </div>
+                  )}
+                </div>
+
+                {/* Collapsible Details */}
+                <details className="medical-drawer" style={{ marginTop: '0.8rem', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.5rem' }}>
+                  <summary style={{ cursor: 'pointer', fontSize: '0.78rem', fontWeight: 'bold', color: 'var(--primary)', outline: 'none' }}>
+                    🩺 View Medical Report / 상세 의무 기록 보기
+                  </summary>
+                  <div style={{ padding: '0.4rem', background: '#fcfbf7', border: '1px solid var(--glass-border)', borderRadius: '4px', marginTop: '0.4rem', fontSize: '0.8rem', display: 'grid', gap: '0.25rem' }}>
+                    <div><strong>Ailment:</strong> {record.ailmentName}</div>
+                    <div><strong>Severity:</strong> <span style={{ textTransform: 'uppercase' }}>{record.severity}</span></div>
+                    {record.tags && <div><strong>Symptom Tags:</strong> {record.tags}</div>}
+                    {record.journeyTitle && <div><strong>Journey:</strong> {record.journeyTitle}</div>}
+                    {record.remedy && record.remedy.length > 0 && (
+                      <div><strong>Remedy:</strong> {record.remedy.join(', ')}</div>
+                    )}
+                  </div>
+                </details>
+
+                <div style={{ marginTop: '0.75rem', fontSize: '0.74rem', color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>{record.season || 'Season unrecorded'}</span>
+                  <span>{formatDateTime(record.timestamp)}</span>
+                </div>
               </div>
-              <div style={{ fontSize: '0.84rem', color: 'var(--text-muted)', display: 'grid', gap: '0.25rem' }}>
-                <div><strong>Patient:</strong> {record.patientName || 'Anonymous patient'}</div>
-                <div><strong>Severity:</strong> {record.severity}</div>
-                {record.tags && <div><strong>Tags:</strong> {record.tags}</div>}
-                <div><strong>Place:</strong> {record.locationName || 'Unknown'} {record.region ? `(${record.region})` : ''}</div>
-                {record.remedy.length > 0 && <div><strong>Remedy:</strong> {record.remedy.join(', ')}</div>}
-                <div style={{ marginTop: '0.4rem', whiteSpace: 'pre-wrap', color: 'var(--text-bright)' }}>{record.notes}</div>
-                <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '0.4rem' }}>{formatDateTime(record.timestamp)}</div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
           {(!state.patientCasebook || state.patientCasebook.length === 0) && (
-            <div className="cute-card" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+            <div className="cute-card" style={{ color: 'var(--text-muted)', fontStyle: 'italic', gridColumn: '1 / -1' }}>
               아직 치료 완료된 환자 기록이 없습니다. 환자를 치료하거나 실패 결과가 발생하면 자동으로 영구 케이스가 남습니다.
             </div>
           )}
