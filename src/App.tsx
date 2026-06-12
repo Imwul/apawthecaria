@@ -174,6 +174,12 @@ interface PendingPatientArchive {
   timestamp: number;
 }
 
+interface ForageFind {
+  name: string;
+  rarity: number;
+  fpAvailable?: boolean;
+}
+
 type AlmanacCategory = 'settlement' | 'clinic' | 'reagent' | 'creature' | 'landmark' | 'notable';
 
 interface WorldAlmanacEntry {
@@ -261,6 +267,7 @@ interface GameState {
 
   // Journey details
   journeyActive: boolean;
+  journeyOrigin?: string;
   journeyDestination: string;
   journeyDistance: string;
   journeyDirection: string;
@@ -369,6 +376,7 @@ const INITIAL_STATE: GameState = {
   bag: INITIAL_BAG,
   trinkets: ["기념품 (Memento)"],
   journeyActive: false,
+  journeyOrigin: "",
   journeyDestination: "",
   journeyDistance: "",
   journeyDirection: "",
@@ -1239,6 +1247,7 @@ const migrateState = (s: any): GameState => {
     journeyGoalCounter: s.journeyGoalCounter || 0,
     journeyGoalChecklist: s.journeyGoalChecklist || [],
     journeyStartReputation: s.journeyStartReputation !== undefined ? s.journeyStartReputation : (s.reputation || 5),
+    journeyOrigin: s.journeyOrigin || "",
     activeBarter: s.activeBarter || null,
     legacyClinics: s.legacyClinics || [],
     legacyApothecaries: s.legacyApothecaries || [],
@@ -1334,6 +1343,36 @@ const parseAilmentRequirements = (tagsStr: string): AilmentRequirement[] => {
   });
 };
 
+const normalizeEffectTag = (tag: string) => tag.toUpperCase()
+  .replace('INSTINCTS', 'INSTINCT')
+  .replace('PARASITES', 'PARASITE')
+  .replace('SCALES', 'SCALE')
+  .replace('MINIMUM_FAIR', 'MINIMUM FAIR');
+
+const reagentEffectText = (item: BagItem) => {
+  const explicit = `${item.name || ''} ${item.tags || ''}`;
+  if (/\[[A-Z_ ]+\s+\d+\]/i.test(explicit)) return explicit;
+  return `${explicit} ${item.preps || ''}`;
+};
+
+const splitReagentPreparations = (preps: string) => {
+  let parts = (preps || '').split('\n').map(p => p.trim()).filter(p => p.length > 0);
+  if (parts.length <= 1) {
+    parts = (preps || '').split(/(?=⅓|⅔|1\s|🟢)/).map(p => p.trim()).filter(p => p.length > 0);
+  }
+  return parts.length > 0 ? parts : ['unprepared specimen'];
+};
+
+const createPreparedReagentItem = (r: any, partText: string, idPrefix: string): BagItem => ({
+  id: `${idPrefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+  name: `${r.name} (${partText.trim()})`,
+  weight: 1/3,
+  type: 'reagent',
+  qty: 1,
+  tags: partText.trim(),
+  preps: r.preps
+});
+
 const validateConcoction = (
   ailment: ActiveAilment | null,
   selectedReagents: BagItem[],
@@ -1350,14 +1389,12 @@ const validateConcoction = (
   let totalFoul = 0;
 
   selectedReagents.forEach(item => {
-    if (!item.name) return;
+    if (!item.name && !item.preps) return;
     const regex = /\[([A-Z_]+)\s+(\d+)\]/g;
     let match;
-    while ((match = regex.exec(item.name)) !== null) {
-      const tag = match[1].toUpperCase()
-        .replace('INSTINCTS', 'INSTINCT')
-        .replace('PARASITES', 'PARASITE')
-        .replace('SCALES', 'SCALE');
+    const effectText = reagentEffectText(item);
+    while ((match = regex.exec(effectText)) !== null) {
+      const tag = normalizeEffectTag(match[1]);
       const val = parseInt(match[2]);
 
       providedEffects[tag] = (providedEffects[tag] || 0) + val;
@@ -1379,7 +1416,7 @@ const validateConcoction = (
     if (req.isSpecialBone) {
       // Check if selectedReagents or whole bag has a bone setter tool/reagent
       const hasBoneSetter = [...selectedReagents, ...bag].some(item => {
-        const nameLower = item.name.toLowerCase();
+        const nameLower = reagentEffectText(item).toLowerCase();
         return nameLower.includes('oak') || nameLower.includes('가지') || nameLower.includes('splint') || nameLower.includes('부목') || nameLower.includes('bandage') || nameLower.includes('붕대');
       });
       if (!hasBoneSetter) {
@@ -1797,16 +1834,8 @@ export default function App() {
       let journalText = `[사교 조우: ${socialEncounter.title}]\n소감: ${journalNote || '협상에 실패했다.'}\n\n- 거래 희귀도: ${finalRarity}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (실패)`;
 
       if (isSuccess) {
-        const itemId = 'item_' + Date.now();
-        const firstPart = r.preps.split(']')[0] ? r.preps.split(']')[0] + ']' : 'Reagent Part';
-        const newBagItem: BagItem = {
-          id: itemId,
-          name: `${r.name} (Part: ${firstPart})`,
-          weight: 1/3,
-          type: 'reagent',
-          qty: 1,
-          preps: r.preps
-        };
+        const firstPart = splitReagentPreparations(r.preps)[0];
+        const newBagItem = createPreparedReagentItem(r, firstPart, 'barter_reag');
         nextBag = [...s.bag, newBagItem];
 
         if (paidTrinketsCount > 0 || paidReputationCount > 0) {
@@ -2099,6 +2128,131 @@ export default function App() {
   const travelSpeed = getTravelSpeed(state, currentWeight);
   const isOverEncumbered = currentWeight > maxCarry;
 
+  const addPreparedReagentToInventory = (reagentName: string, sourceLabel: string, onAdded?: () => void) => {
+    const r = GAME_DATA.reagents.find(item => item.name === reagentName || item.name.toLowerCase().includes(reagentName.toLowerCase()) || item.rawName.toLowerCase().includes(reagentName.toLowerCase()));
+    if (!r) {
+      alert("영약재 이름을 도감에서 찾을 수 없습니다.");
+      return;
+    }
+    const parts = splitReagentPreparations(r.preps);
+    const chosenPart = prompt(`가방에 넣을 ${r.name} 부위를 선택하세요:\n${parts.map((p, i) => `${i + 1}. ${p.trim()}`).join('\n')}`);
+    if (!chosenPart) return;
+    const partIdx = Math.max(0, (parseInt(chosenPart) || 1) - 1);
+    const partText = parts[partIdx] || parts[0];
+    const timestamp = Date.now();
+
+    updateState(s => {
+      const newItem = createPreparedReagentItem(r, partText, sourceLabel);
+      const { nextGoalCounter, nextChecklist } = checkReagentGatherForGoal(s, r.name);
+      return {
+        ...s,
+        bag: [...s.bag, newItem],
+        journeyGoalCounter: nextGoalCounter,
+        journeyGoalChecklist: nextChecklist,
+        journals: [
+          {
+            id: `${sourceLabel}_${timestamp}`,
+            title: `🌿 영약재 획득: ${r.name}`,
+            text: `${r.name} (${partText.trim()})을(를) 가방에 넣었습니다.`,
+            timestamp
+          },
+          ...s.journals
+        ]
+      };
+    });
+    onAdded?.();
+  };
+
+  const handleAddForageFindToBag = (find: ForageFind, idx: number) => {
+    addPreparedReagentToInventory(find.name, 'forage_find', () => {
+      setActiveForageEncounter((prev: any) => {
+        if (!prev) return prev;
+        const nextFinds = [...(prev.foundReagents || [])];
+        nextFinds.splice(idx, 1);
+        return { ...prev, foundReagents: nextFinds };
+      });
+    });
+  };
+
+  const applyEncounterStateEffect = (effect: 'gainFP' | 'loseFP' | 'gainTime' | 'loseTime' | 'gainReagent' | 'loseReagent' | 'gainTrinket' | 'loseTrinket' | 'startPursuit') => {
+    const amountInput = ['gainFP', 'loseFP', 'gainTime', 'loseTime', 'gainTrinket', 'loseTrinket', 'startPursuit'].includes(effect)
+      ? prompt("적용할 수치를 입력하세요:", effect === 'startPursuit' ? "6" : "1")
+      : null;
+    const amount = Math.max(0, parseInt(amountInput || "0") || 0);
+    const timestamp = Date.now();
+
+    if (effect === 'gainReagent') {
+      const reagentName = prompt("획득할 영약재 이름:", "");
+      if (reagentName) addPreparedReagentToInventory(reagentName, 'encounter_reagent');
+      return;
+    }
+
+    updateState(s => {
+      let nextAilment = s.activeAilment;
+      let nextBag = [...s.bag];
+      let nextTrinkets = [...s.trinkets];
+      let nextPursued = s.pursuedByBehemoth;
+      let note = "";
+
+      if ((effect === 'gainFP' || effect === 'loseFP' || effect === 'gainTime' || effect === 'loseTime') && !nextAilment) {
+        alert("현재 치료 중인 환자가 없어 이 효과를 적용할 수 없습니다.");
+        return s;
+      }
+
+      if (effect === 'gainFP' && nextAilment) {
+        nextAilment = { ...nextAilment, foragingPoints: nextAilment.foragingPoints + amount };
+        note = `조우 효과: FP +${amount}`;
+      } else if (effect === 'loseFP' && nextAilment) {
+        nextAilment = { ...nextAilment, foragingPoints: Math.max(0, nextAilment.foragingPoints - amount) };
+        note = `조우 효과: FP -${amount}`;
+      } else if (effect === 'gainTime' && nextAilment) {
+        nextAilment = { ...nextAilment, timer: nextAilment.timer + amount, maxTimer: Math.max(nextAilment.maxTimer, nextAilment.timer + amount) };
+        note = `조우 효과: 치료 시간 +${amount}`;
+      } else if (effect === 'loseTime' && nextAilment) {
+        nextAilment = { ...nextAilment, timer: Math.max(0, nextAilment.timer - amount) };
+        note = `조우 효과: 치료 시간 -${amount}`;
+      } else if (effect === 'loseReagent') {
+        const reagents = nextBag.filter(item => item.type === 'reagent');
+        if (reagents.length === 0) {
+          alert("잃을 영약재가 가방에 없습니다.");
+          return s;
+        }
+        const choice = prompt(`잃을 영약재 번호를 선택하세요:\n${reagents.map((item, i) => `${i + 1}. ${item.name}`).join('\n')}`, "1");
+        const target = reagents[Math.max(0, (parseInt(choice || "1") || 1) - 1)] || reagents[0];
+        let removed = false;
+        nextBag = nextBag.filter(item => {
+          if (!removed && item.id === target.id) {
+            removed = true;
+            return false;
+          }
+          return true;
+        });
+        note = `조우 효과: 영약재 ${target.name} 상실`;
+      } else if (effect === 'gainTrinket') {
+        nextTrinkets = [...nextTrinkets, ...Array(amount).fill('조우 보상 장신구 (Trinket)')];
+        note = `조우 효과: 장신구 +${amount}`;
+      } else if (effect === 'loseTrinket') {
+        nextTrinkets = nextTrinkets.slice(Math.min(amount, nextTrinkets.length));
+        note = `조우 효과: 장신구 -${Math.min(amount, s.trinkets.length)}`;
+      } else if (effect === 'startPursuit') {
+        nextPursued = { headStart: amount || 6 };
+        note = `조우 효과: 거수 추격 시작 (선행거리 ${amount || 6})`;
+      }
+
+      return {
+        ...s,
+        activeAilment: nextAilment,
+        bag: nextBag,
+        trinkets: nextTrinkets,
+        pursuedByBehemoth: nextPursued,
+        journals: note ? [
+          { id: `encounter_effect_${timestamp}`, title: '조우 상태 효과 적용', text: note, timestamp },
+          ...s.journals
+        ] : s.journals
+      };
+    });
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-gradient)' }}>
       {/* Header Banner */}
@@ -2315,6 +2469,32 @@ export default function App() {
               {activeTravelEncounter.text}
             </p>
 
+            <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#fbfaf4', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
+              <div className="document-kicker" style={{ marginBottom: '0.45rem' }}>Structured encounter effects</div>
+              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                {[
+                  ['gainFP', 'Gain FP'],
+                  ['loseFP', 'Lose FP'],
+                  ['gainTime', 'Gain Time'],
+                  ['loseTime', 'Lose Time'],
+                  ['gainReagent', 'Gain Reagent'],
+                  ['loseReagent', 'Lose Reagent'],
+                  ['gainTrinket', 'Gain Trinket'],
+                  ['loseTrinket', 'Lose Trinket'],
+                  ['startPursuit', 'Start Pursuit']
+                ].map(([effect, label]) => (
+                  <button
+                    key={effect}
+                    type="button"
+                    onClick={() => applyEncounterStateEffect(effect as any)}
+                    style={{ padding: '0.35rem 0.55rem', fontSize: '0.76rem', border: '1px solid var(--glass-border)', background: '#fffefa', color: 'var(--text-muted)', borderRadius: '4px' }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.5rem' }}>
               <button
                 onClick={() => {
@@ -2338,7 +2518,7 @@ export default function App() {
                 }}
                 style={{ flex: 1, padding: '0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold' }}
               >
-                저널 기록 및 조우 해결
+                Journal Only / 조우 해결
               </button>
               <button onClick={() => setActiveTravelEncounter(null)} style={{ padding: '0.8rem 1.2rem', background: '#eee', color: '#555', borderRadius: '8px' }}>닫기</button>
             </div>
@@ -2369,12 +2549,26 @@ export default function App() {
             </p>
 
             <div style={{ marginTop: '1rem', background: '#f0f9f4', padding: '1rem', borderRadius: '10px', borderLeft: '4.5px solid var(--secondary)' }}>
-              <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--secondary)', fontSize: '0.95rem' }}>🌿 발견한 영약재 결과</h4>
+              <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--secondary)', fontSize: '0.95rem' }}>🌿 Resolve Forage Finds</h4>
               {activeForageEncounter.foundReagents.length > 0 ? (
-                <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  {activeForageEncounter.foundReagents.map((r: string, idx: number) => (
-                    <li key={idx} style={{ color: '#2b5e3d', fontWeight: 'bold' }}>{r}</li>
-                  ))}
+                <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                  {activeForageEncounter.foundReagents.map((find: ForageFind | string, idx: number) => {
+                    const normalizedFind: ForageFind = typeof find === 'string'
+                      ? { name: find.replace(/\s*\(.*/, ''), rarity: 0 }
+                      : find;
+                    return (
+                      <li key={`${normalizedFind.name}_${idx}`} style={{ color: '#2b5e3d', fontWeight: 'bold' }}>
+                        <span>{normalizedFind.name} {normalizedFind.rarity ? `(희귀도: ${normalizedFind.rarity}${normalizedFind.fpAvailable ? ', FP 가능' : ''})` : ''}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleAddForageFindToBag(normalizedFind, idx)}
+                          style={{ marginLeft: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.75rem', background: 'var(--secondary)', color: '#fff', borderRadius: '4px', border: 'none' }}
+                        >
+                          부위 선택 후 가방에 추가
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <div style={{ fontSize: '0.85rem', color: '#666', fontStyle: 'italic' }}>
@@ -2383,13 +2577,41 @@ export default function App() {
               )}
             </div>
 
+            <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#fbfaf4', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
+              <div className="document-kicker" style={{ marginBottom: '0.45rem' }}>Structured encounter effects</div>
+              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                {[
+                  ['gainFP', 'Gain FP'],
+                  ['loseFP', 'Lose FP'],
+                  ['gainTime', 'Gain Time'],
+                  ['loseTime', 'Lose Time'],
+                  ['gainReagent', 'Gain Reagent'],
+                  ['loseReagent', 'Lose Reagent'],
+                  ['gainTrinket', 'Gain Trinket'],
+                  ['loseTrinket', 'Lose Trinket'],
+                  ['startPursuit', 'Start Pursuit']
+                ].map(([effect, label]) => (
+                  <button
+                    key={effect}
+                    type="button"
+                    onClick={() => applyEncounterStateEffect(effect as any)}
+                    style={{ padding: '0.35rem 0.55rem', fontSize: '0.76rem', border: '1px solid var(--glass-border)', background: '#fffefa', color: 'var(--text-muted)', borderRadius: '4px' }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.5rem' }}>
               <button
                 onClick={() => {
                   const note = prompt("채집 조우와 발견한 약초에 대한 저널 기록 소감 (선택):");
                   if (note !== null) {
                     updateState(s => {
-                      const listStr = activeForageEncounter.foundReagents.length > 0 ? activeForageEncounter.foundReagents.join(', ') : '없음 (+1 채집포인트)';
+                      const listStr = activeForageEncounter.foundReagents.length > 0
+                        ? activeForageEncounter.foundReagents.map((find: ForageFind | string) => typeof find === 'string' ? find : `${find.name} (희귀도: ${find.rarity}${find.fpAvailable ? ', FP 가능' : ''})`).join(', ')
+                        : '없음 (+1 채집포인트)';
                       return {
                         ...s,
                         journals: [
@@ -2408,7 +2630,7 @@ export default function App() {
                 }}
                 style={{ flex: 1, padding: '0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold' }}
               >
-                저널 기록 및 조우 해결
+                Journal Only / 조우 해결
               </button>
               <button onClick={() => setActiveForageEncounter(null)} style={{ padding: '0.8rem 1.2rem', background: '#eee', color: '#555', borderRadius: '8px' }}>닫기</button>
             </div>
@@ -3055,17 +3277,13 @@ function PlayView({
     );
     const selected = matchingReagents[replenishReagentIndex];
     if (!selected) return;
+    const replenishParts = splitReagentPreparations(selected.preps);
+    const replenishChoice = prompt(`보충할 ${selected.name} 부위를 선택하세요:\n${replenishParts.map((p, i) => `${i + 1}. ${p.trim()}`).join('\n')}`);
+    if (!replenishChoice) return;
+    const replenishPart = replenishParts[Math.max(0, (parseInt(replenishChoice) || 1) - 1)] || replenishParts[0];
 
     updateState(s => {
-      const newItem: BagItem = {
-        id: 'replenished_' + Date.now(),
-        name: selected.name,
-        weight: 1/3,
-        type: 'reagent',
-        qty: 1,
-        tags: "",
-        preps: selected.preps
-      };
+      const newItem = createPreparedReagentItem(selected, replenishPart, 'replenished');
       return {
         ...s,
         bag: [...s.bag, newItem],
@@ -3073,7 +3291,7 @@ function PlayView({
           {
             id: 'replenish_' + Date.now(),
             title: `🧺 휴식기 재고 보충: ${selected.name}`,
-            text: `${s.currentLocationName} 주변을 한적하게 거닐며 ${selected.name} 약재를 채집해 가방을 보충했습니다.\n- 일지 기록: ${replenishNote.trim() || '평화롭게 숲을 거닐며 약초들을 보충했다.'}`,
+            text: `${s.currentLocationName} 주변을 한적하게 거닐며 ${selected.name} (${replenishPart.trim()}) 약재를 채집해 가방을 보충했습니다.\n- 일지 기록: ${replenishNote.trim() || '평화롭게 숲을 거닐며 약초들을 보충했다.'}`,
             timestamp: Date.now()
           },
           ...s.journals
@@ -3345,6 +3563,7 @@ function PlayView({
       return {
         ...s,
         journeyActive: true,
+        journeyOrigin: s.currentLocationName,
         journeyDestination: destName,
         journeyDistance: distLabel,
         journeyDirection: suitNames[randomSuit] || randomSuit,
@@ -3362,7 +3581,7 @@ function PlayView({
           {
             id: 'start_' + Date.now(),
             title: `새 여정 시작: ${destName}`,
-            text: `${destName}로 출발합니다.\n목표: ${goalObj.title} - ${goalObj.desc}\n해결 일정: ${maxDays}일\n방향: ${suitNames[randomSuit]}`,
+            text: `${s.currentLocationName}에서 ${destName}로 출발합니다.\n목표: ${goalObj.title} - ${goalObj.desc}\n해결 일정: ${maxDays}일\n방향: ${suitNames[randomSuit]}`,
             timestamp: Date.now()
           },
           ...s.journals
@@ -3745,14 +3964,14 @@ function PlayView({
     });
 
     // Pick a list of reagents found
-    const foundReagents: string[] = [];
+    const foundReagents: ForageFind[] = [];
     const currentFP = state.activeAilment?.foragingPoints || 0;
     localReagents.forEach(r => {
       const finalRarity = calculateForageRarity(state, r);
       if (cardVal >= finalRarity) {
-        foundReagents.push(`${r.name} (희귀도: ${finalRarity})`);
+        foundReagents.push({ name: r.name, rarity: finalRarity });
       } else if (currentFP >= finalRarity) {
-        foundReagents.push(`${r.name} (희귀도: ${finalRarity}, FP 자동 획득 가능)`);
+        foundReagents.push({ name: r.name, rarity: finalRarity, fpAvailable: true });
       }
     });
 
@@ -3837,14 +4056,14 @@ function PlayView({
 
     // Search reagents native to selected adjacent region
     const localReagents = GAME_DATA.reagents.filter(r => r.regions.includes(adjRegion));
-    const foundReagents: string[] = [];
+    const foundReagents: ForageFind[] = [];
     const currentFP = state.activeAilment?.foragingPoints || 0;
     localReagents.forEach(r => {
       const finalRarity = calculateForageRarity(state, r, adjRegion);
       if (cardVal >= finalRarity) {
-        foundReagents.push(`${r.name} (희귀도: ${finalRarity})`);
+        foundReagents.push({ name: r.name, rarity: finalRarity });
       } else if (currentFP >= finalRarity) {
-        foundReagents.push(`${r.name} (희귀도: ${finalRarity}, FP 자동 획득 가능)`);
+        foundReagents.push({ name: r.name, rarity: finalRarity, fpAvailable: true });
       }
     });
 
@@ -3905,18 +4124,15 @@ function PlayView({
       alert(`FP가 부족합니다. (필요 FP: ${cost}, 현재 FP: ${currentFP})`);
       return;
     }
+    const parts = splitReagentPreparations(r.preps);
+    const chosenPart = prompt(`FP로 획득할 ${r.name} 부위를 선택하세요:\n${parts.map((p, i) => `${i + 1}. ${p.trim()}`).join('\n')}`);
+    if (!chosenPart) return;
+    const partText = parts[Math.max(0, (parseInt(chosenPart) || 1) - 1)] || parts[0];
 
     updateState((s: GameState) => {
       if (!s.activeAilment) return s;
       const nextPoints = s.activeAilment.foragingPoints - cost;
-      const newItem: BagItem = {
-        id: 'foraged_fp_' + Date.now(),
-        name: r.name,
-        weight: 1/3,
-        type: 'reagent',
-        qty: 1,
-        preps: r.preps
-      };
+      const newItem = createPreparedReagentItem(r, partText, 'foraged_fp');
       return {
         ...s,
         bag: [...s.bag, newItem],
@@ -3929,8 +4145,8 @@ function PlayView({
             id: 'fp_acquire_' + Date.now(),
             title: `🌿 FP 자동 획득: ${r.name}`,
             text: autoByStoredFP
-              ? `누적 채집 포인트(FP)가 희귀도 ${finalRarity} 이상이므로 FP를 소모하지 않고 ${r.name}을(를) 획득했습니다.`
-              : `마지막 채집 카드 ${lastDraw}와 희귀도 ${finalRarity}의 차이인 FP ${cost}점을 소비하여 ${r.name}을(를) 획득했습니다.`,
+              ? `누적 채집 포인트(FP)가 희귀도 ${finalRarity} 이상이므로 FP를 소모하지 않고 ${r.name} (${partText.trim()})을(를) 획득했습니다.`
+              : `마지막 채집 카드 ${lastDraw}와 희귀도 ${finalRarity}의 차이인 FP ${cost}점을 소비하여 ${r.name} (${partText.trim()})을(를) 획득했습니다.`,
             timestamp: Date.now()
           },
           ...s.journals
@@ -3977,12 +4193,12 @@ function PlayView({
     }
 
     const localReagents = GAME_DATA.reagents.filter(r => r.regions.includes(regionName));
-    const foundReagents: string[] = [];
+    const foundReagents: ForageFind[] = [];
 
     localReagents.forEach(r => {
       const finalRarity = calculateForageRarity(state, r, regionName);
       if (cardVal >= finalRarity) {
-        foundReagents.push(`${r.name} (희귀도: ${finalRarity})`);
+        foundReagents.push({ name: r.name, rarity: finalRarity });
       }
     });
 
@@ -4012,7 +4228,7 @@ function PlayView({
           {
             id: 'scrounge_forage_' + Date.now(),
             title: `🔍 여분 채집: ${selectedFEnc.title}`,
-            text: `치료 후 남은 타이머 시간 동안 채집 진행.\n지역: ${regionName} (드로우: ${cardVal} ${suitLabels[drawnSuit]})\n소모 시간: ${cost}시간 (남은 시간: ${newTimer}시간)\n발견 약재: ${foundReagents.join(', ') || '없음'}`,
+            text: `치료 후 남은 타이머 시간 동안 채집 진행.\n지역: ${regionName} (드로우: ${cardVal} ${suitLabels[drawnSuit]})\n소모 시간: ${cost}시간 (남은 시간: ${newTimer}시간)\n발견 약재: ${foundReagents.map(f => f.name).join(', ') || '없음'}`,
             timestamp: Date.now()
           },
           ...s.journals
@@ -4045,7 +4261,7 @@ function PlayView({
     const r = GAME_DATA.reagents.find(item => item.name === reagentName);
     if (!r) return;
 
-    const parts = r.preps.split(/(?=⅓|⅔|1\s)/);
+    const parts = splitReagentPreparations(r.preps);
     const chosenPart = prompt(`원하는 영약재 부위를 번호로 선택하세요:\n${parts.map((p, i) => `${i+1}. ${p.trim()}`).join('\n')}`);
     if (!chosenPart) return;
     const partIdx = parseInt(chosenPart) - 1;
@@ -4054,15 +4270,7 @@ function PlayView({
     updateState((s: GameState) => {
       const newTimer = Math.max(0, (s.scroungingTimer || 0) - cost);
       const isFinished = newTimer <= 0;
-      const itemId = 'scrounge_reag_' + Date.now();
-      const newItem: BagItem = {
-        id: itemId,
-        name: `${r.name} (${partText.trim()})`,
-        weight: 1/3,
-        type: 'reagent',
-        qty: 1,
-        preps: r.preps
-      };
+      const newItem = createPreparedReagentItem(r, partText, 'scrounge_reag');
       return {
         ...s,
         bag: [...s.bag, newItem],
@@ -4222,22 +4430,14 @@ function PlayView({
     const r = GAME_DATA.reagents.find(item => item.name === state.gardenPlant);
     if (!r) return;
 
-    const parts = r.preps.split(/(?=⅓|⅔|1\s)/);
+    const parts = splitReagentPreparations(r.preps);
     const chosenPart = prompt(`정원에서 수확할 영약재 부위를 번호로 선택하세요:\n${parts.map((p, i) => `${i+1}. ${p.trim()}`).join('\n')}`);
     if (!chosenPart) return;
     const partIdx = parseInt(chosenPart) - 1;
     const partText = parts[partIdx] || parts[0];
 
     updateState((s: GameState) => {
-      const itemId = 'garden_harvest_' + Date.now();
-      const newItem: BagItem = {
-        id: itemId,
-        name: `${r.name} (${partText.trim()})`,
-        weight: 1/3,
-        type: 'reagent',
-        qty: 1,
-        preps: r.preps
-      };
+      const newItem = createPreparedReagentItem(r, partText, 'garden_harvest');
       return {
         ...s,
         bag: [...s.bag, newItem],
@@ -4283,22 +4483,14 @@ function PlayView({
     const r = GAME_DATA.reagents.find(item => item.name === state.soddenLogInsect);
     if (!r) return;
 
-    const parts = r.preps.split(/(?=⅓|⅔|1\s)/);
+    const parts = splitReagentPreparations(r.preps);
     const chosenPart = prompt(`통나무에서 채취할 곤충 부위를 번호로 선택하세요:\n${parts.map((p, i) => `${i+1}. ${p.trim()}`).join('\n')}`);
     if (!chosenPart) return;
     const partIdx = parseInt(chosenPart) - 1;
     const partText = parts[partIdx] || parts[0];
 
     updateState((s: GameState) => {
-      const itemId = 'sodden_harvest_' + Date.now();
-      const newItem: BagItem = {
-        id: itemId,
-        name: `${r.name} (${partText.trim()})`,
-        weight: 1/3,
-        type: 'reagent',
-        qty: 1,
-        preps: r.preps
-      };
+      const newItem = createPreparedReagentItem(r, partText, 'sodden_harvest');
 
       // Also reduces current ailment timer by 1
       let nextAilment = s.activeAilment;
@@ -4466,10 +4658,7 @@ function PlayView({
     }
 
     // Split preps by newlines or green circles or fractions
-    let parts = r.preps.split('\n').map(p => p.trim()).filter(p => p.length > 0);
-    if (parts.length <= 1) {
-      parts = r.preps.split(/(?=⅓|⅔|1\s|🟢)/).map(p => p.trim()).filter(p => p.length > 0);
-    }
+    const parts = splitReagentPreparations(r.preps);
     const chosenPart = prompt(`원하는 영약재 부위를 번호로 선택하세요:\n${parts.map((p, i) => `${i+1}. ${p.trim()}`).join('\n')}`);
 
     if (!chosenPart) return;
@@ -4477,15 +4666,7 @@ function PlayView({
     const partText = parts[partIdx] || parts[0];
 
     updateState(s => {
-      const itemId = 'reag_' + Date.now();
-      const newItem: BagItem = {
-        id: itemId,
-        name: `${r.name} (${partText.trim()})`,
-        weight: 1/3,
-        type: 'reagent',
-        qty: 1,
-        preps: r.preps
-      };
+      const newItem: BagItem = createPreparedReagentItem(r, partText, 'reag');
 
       const { nextGoalCounter, nextChecklist } = checkReagentGatherForGoal(s, r.name);
 
@@ -4710,7 +4891,8 @@ function PlayView({
       const goalTextResult = isGoalSatisfied ? '목표 달성 성공! 🎉 (명성 +5)' : '목표 달성 실패 ⚠️ (명성 -3)';
 
       const seasonText = state.currentSeason === 'Spring' ? '봄' : state.currentSeason === 'Summer' ? '여름' : state.currentSeason === 'Autumn' ? '가을' : '겨울';
-      const defaultMemoirText = `${seasonText}의 분위기 속에, [${state.currentLocationName}]을(를) 출발하여 험난한 Bristley Woods를 횡단했습니다. 총 ${state.calendarDays}일간의 방랑을 거쳐 마침내 [${state.journeyDestination}]에 도달했습니다.\n\n여정 동안 세웠던 목표 [${state.journeyGoalTitle}]은(는) ${isGoalSatisfied ? '안전하게 완수' : '안타깝게 미완수'}로 마무리되었으며, 길드 평판은 ${repChange >= 0 ? '+' : ''}${repChange}점 변동되었습니다.`;
+      const originName = state.journeyOrigin || state.calendarHistory[0]?.replace(/^여정 시작:\s*/, '').replace(/로 출발.*$/, '') || '출발지 미상';
+      const defaultMemoirText = `${seasonText}의 분위기 속에, [${originName}]에서 [${state.journeyDestination}]까지 험난한 Bristley Woods를 횡단했습니다. 총 ${state.calendarDays}일간의 방랑 끝에 목적지에 도달했습니다.\n\n여정 동안 세웠던 목표 [${state.journeyGoalTitle}]은(는) ${isGoalSatisfied ? '안전하게 완수' : '안타깝게 미완수'}로 마무리되었으며, 길드 평판은 ${repChange >= 0 ? '+' : ''}${repChange}점 변동되었습니다.`;
 
       const playerNotes = prompt(`✍️ 여정을 마치며 남길 연대기(Memoir) 일기를 기록하세요:`, defaultMemoirText);
       const finalMemoir = playerNotes || defaultMemoirText;
@@ -4730,6 +4912,7 @@ function PlayView({
         return {
           ...s,
           journeyActive: false,
+          journeyOrigin: "",
           pursuedByBehemoth: null, // Reaching journey end clears the chase
           calendarDays: 0,
           reputation: nextRep,
@@ -4739,7 +4922,7 @@ function PlayView({
             {
               id: 'end_' + Date.now(),
               title: `🏁 여정 마감: ${s.journeyDestination} (${isGoalSatisfied ? '성공' : '실패'})`,
-              text: `${s.journeyDestination}로의 모험을 끝마쳤습니다.\n- 총 이동 일수: ${s.calendarDays}일 (제한기한: ${s.calendarMaxDays}일 - ${ontimeText})\n- 달성 여정 목표: ${s.journeyGoalTitle}\n- 목표 판정: ${goalTextResult}\n- 길드 평판 변경: ${repChange >= 0 ? '+' : ''}${repChange}점 (최종 평판: ${nextRep}점)`,
+              text: `${s.journeyOrigin || originName}에서 ${s.journeyDestination}까지의 모험을 끝마쳤습니다.\n- 총 이동 일수: ${s.calendarDays}일 (제한기한: ${s.calendarMaxDays}일 - ${ontimeText})\n- 달성 여정 목표: ${s.journeyGoalTitle}\n- 목표 판정: ${goalTextResult}\n- 길드 평판 변경: ${repChange >= 0 ? '+' : ''}${repChange}점 (최종 평판: ${nextRep}점)`,
               timestamp: Date.now()
             },
             ...s.journals
@@ -8670,15 +8853,12 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
             {state.journeyActive && (
               <button
                 onClick={() => {
+                  const parts = splitReagentPreparations(r.preps);
+                  const chosenPart = window.prompt(`가방에 넣을 ${r.name} 부위를 선택하세요:\n${parts.map((p, i) => `${i + 1}. ${p.trim()}`).join('\n')}`);
+                  if (!chosenPart) return;
+                  const partText = parts[Math.max(0, (parseInt(chosenPart) || 1) - 1)] || parts[0];
                   updateState(s => {
-                    const item: BagItem = {
-                      id: 'user_reag_' + Date.now(),
-                      name: `${r.name} (수동 채집)`,
-                      weight: 1/3,
-                      type: 'reagent',
-                      qty: 1,
-                      preps: r.preps
-                    };
+                    const item = createPreparedReagentItem(r, partText, 'user_reag');
                     return {
                       ...s,
                       bag: [...s.bag, item]
