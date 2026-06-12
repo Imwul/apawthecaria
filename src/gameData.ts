@@ -779,7 +779,7 @@ export const GAME_DATA = {
       "rawName": "Wingbreak",
       "severity": "dire",
       "timer": 6,
-      "tags": "FEATHER 3, TEMPERATURE 3, MOOD 2, \nPAIN 2 및 부목용 약재 (부목용 약재 (SOMETHING TO SET A BONE))",
+      "tags": "FEATHER 3, TEMPERATURE 3, MOOD 2, \nPAIN 2 및 부목용 약재 (부목용 약재 (부목용 약재 (부목용 약재 (SOMETHING TO SET A BONE))))",
       "description": "강풍을 뚫고 날아가려다 나뭇가지에 부딪혀 한쪽 날개 뼈가 뚝 부러졌습니다. 날개를 축 늘어뜨린 채 극심한 통증을 호소하고 있습니다.",
       "outcome": "깃털 스플린트: 부러진 날개를 튼튼한 너도밤나무 판자와 밀랍 줄로 아름답고 견고하게 고정해 줍니다. 환자가 감동하여 다음 비행 조우 시 난이도가 감소합니다.",
       "consequence": "평생 불구: 뼈가 비뚤어지게 붙어 다시는 하늘을 날 수 없게 됩니다. 비행 능력을 잃어 슬퍼하는 새의 고독에 대해 기록하세요."
@@ -802,16 +802,9 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 4,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
         "Autumn",
         "Winter"
       ],
@@ -826,16 +819,11 @@ export const GAME_DATA = {
       "regions": [
         "Bog",
         "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
         "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "계절이 변할 때마다 숲의 동물들이 남기는 흔적들입니다.",
       "preps": "🟢🟢⚪ 똥 환약: 빻아서 [STOMACH 1]에 사용\n🟢🟢⚪ 모피/털: 끓여서 [HIDE 1]에 사용\n🟢⚪⚪ 땀: 끓여서 [HIDE 1]에 발라 사용"
@@ -846,17 +834,12 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 5,
       "regions": [
-        "Bog",
         "Forest",
         "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
         "Spring",
-        "Summer",
-        "Autumn",
         "Winter"
       ],
       "description": "전설에 따르면 자작나무는 티탄들이 떠나며 남긴 작별 선물이라고 합니다.",
@@ -868,16 +851,9 @@ export const GAME_DATA = {
       "type": "INSECT",
       "br": 5,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
         "Autumn",
         "Winter"
       ],
@@ -892,16 +868,13 @@ export const GAME_DATA = {
       "regions": [
         "Bog",
         "Forest",
-        "Loch",
         "Meadow",
-        "Mountain",
         "Titan"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "딱정벌레의 껍질은 겁 많은 야수들이 알아채지 못하는 영롱한 빛을 띱니다.",
       "preps": "🟢⚪⚪ 겉껍질: 빻아서 [SCALE 2]에 사용, [ELSEWHERE 1]로 조제"
@@ -914,16 +887,13 @@ export const GAME_DATA = {
       "regions": [
         "Bog",
         "Forest",
-        "Loch",
         "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "숲의 거대 야수들에게서 조심스럽게 채취한 희귀한 부속물들입니다.",
       "preps": "🟢⚪⚪ 사향: [INSTINCT 2]에 바름\n🟢🟢⚪ 소변: 끓여서 [SENSES 2]에 사용\n🟢🟢🟢 가죽 털: [TEMPERATURE 3]에 바름"
@@ -934,18 +904,11 @@ export const GAME_DATA = {
       "type": "ANIMAL",
       "br": 9,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Loch"
       ],
       "seasons": [
         "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "맑은 호수나 강에서 갓 건져 올린 크고 묵직한 물고기입니다.",
       "preps": "🟢🟢⚪ 껍질: 기름을 내기 위해 끓인 뒤 발라서 사용\n🟢🟢🟢 살코기: 요리하여 [MOOD 2] 및 [SENSES 3]에 사용\n🟢⚪⚪ 비늘: 빻아서 [SCALE 3]에 사용"
@@ -956,17 +919,10 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 5,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Forest"
       ],
       "seasons": [
         "Spring",
-        "Summer",
-        "Autumn",
         "Winter"
       ],
       "description": "자작나무 둥치에 넓게 자라나는 갈색 버섯입니다.",
@@ -980,16 +936,12 @@ export const GAME_DATA = {
       "regions": [
         "Bog",
         "Forest",
-        "Loch",
         "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
         "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Summer"
       ],
       "description": "하늘을 날아다니는 깃털 달린 동물들이 떨어뜨리고 간 둥지 잔해물입니다.",
       "preps": "🟢⚪⚪ 구아노: 갈아서 요리해 [POISON 1]에 사용\n🟢⚪⚪ 알껍질: 빻아서 [SCALE 1]에 사용\n🟢⚪⚪ 깃털: [JOY 1]에 사용"
@@ -1000,18 +952,12 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 5,
       "regions": [
-        "Bog",
         "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
         "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Summer"
       ],
       "description": "야수들은 집의 안정을 위해 블랙커런트 나뭇가지를 엮어 벽에 걸어둡니다.",
       "preps": "🟢⚪⚪ 열매: 생으로 [FAIR 1]에 사용\n🟢⚪⚪ 잎사귀: 달여서 [INFECTION 1]에 사용\n🟢🟢🟢 뿌리: 씹어서 [MOOD 1]에 사용"
@@ -1022,16 +968,9 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 7,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
         "Autumn",
         "Winter"
       ],
@@ -1044,18 +983,11 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 4,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
-        "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "가시덤불 지대는 종종 작은 새들의 안전한 보금자리가 됩니다.",
       "preps": "🟢⚪⚪ 열매: 씹어서 [FAIR 2]에 사용, 요리하여 [FAIR 3]에 사용\n🟢🟢⚪ 껍질: 끓여서 연고를 만든 뒤 [HIDE 1]에 사용\n🟢🟢🟢 뿌리: 씹어서 달인 후 사용"
@@ -1066,18 +998,13 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 3,
       "regions": [
-        "Bog",
         "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "밭두렁이나 길가에서 흔히 볼 수 있는 생명력 강한 풀입니다.",
       "preps": "🟢🟢🟢 뿌리: 달여서 [INFECTION 1]에 사용\n🟢🟢⚪ 줄기: 갈아서 [FUR 1] 결 고르는 데 사용\n🟢⚪⚪ 꽃: 소화시켜 밝은 페이스트로 만들어 사용\n🟢⚪⚪ 씨꼬투리: 빗처럼 쓸어 [PARASITES 1]에 사용"
@@ -1090,16 +1017,12 @@ export const GAME_DATA = {
       "regions": [
         "Bog",
         "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "어린 야수들이 숲의 화사한 초원에서 쫓아다니길 좋아하는 곤충입니다.",
       "preps": "🟢⚪⚪ 살아있는 나비: 이마에 얹어 진정시키는 데 사용"
@@ -1110,18 +1033,12 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 6,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "고양이과 야수뿐 아니라 숲의 모든 야수를 나른하고 즐겁게 만드는 최고의 약초입니다.",
       "preps": "🟢⚪⚪ 뿌리: 씹어서 [BREATH 1]에 사용\n🟢⚪⚪ 꽃: 달여서 [INSTINCT 2] 및 [MOOD 1]에 사용"
@@ -1132,18 +1049,12 @@ export const GAME_DATA = {
       "type": "EARTH",
       "br": 4,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "아무런 맛도 없지만 빻으면 미세한 가루가 되는 흙 원소입니다.",
       "preps": "🟢⚪⚪ 석회 가루: 빻아서 [STOMACH 2] 및 [POISON 1]에 사용"
@@ -1154,12 +1065,7 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 4,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
         "Spring",
@@ -1176,18 +1082,10 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 6,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Summer"
       ],
       "description": "어떤 야수들에게는 혀가 타들어 갈 것 같지만 훌륭한 각성 유발 약재가 됩니다.",
       "preps": "🟢⚪⚪ 속껍질: 끓여서 [PAIN 1]에 사용\n🟢⚪⚪ 씨앗: 빻아서 사용"
@@ -1199,11 +1097,7 @@ export const GAME_DATA = {
       "br": 3,
       "regions": [
         "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Loch"
       ],
       "seasons": [
         "Spring",
@@ -1220,12 +1114,7 @@ export const GAME_DATA = {
       "type": "EARTH",
       "br": 4,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
         "Spring",
@@ -1242,11 +1131,6 @@ export const GAME_DATA = {
       "type": "TITAN",
       "br": 8,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
         "Titan"
       ],
       "seasons": [
@@ -1266,16 +1150,10 @@ export const GAME_DATA = {
       "regions": [
         "Bog",
         "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Spring"
       ],
       "description": "제대로 조리하지 않으면 입안이 텁텁하고 신맛이 강한 야생 과일입니다.",
       "preps": "🟢🟢🟢 과육: 복용 치료제에 넣어 [FOUL 1]에 사용, 요리하여 보존(PRESERVED) 속성을 부여해 복용 치료제에 사용"
@@ -1286,18 +1164,12 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 6,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
         "Mountain",
         "Titan"
       ],
       "seasons": [
-        "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "샐러드와 샌드위치의 필수적인 수분 보충 야채입니다.",
       "preps": "🟢⚪⚪ 꽃: 달여서 [SENSES 2], [SLEEP 1]에 사용\n🟢⚪⚪ 오이 속살: 복용 치료제에 넣어 사용"
@@ -1309,17 +1181,13 @@ export const GAME_DATA = {
       "br": 2,
       "regions": [
         "Bog",
-        "Forest",
-        "Loch",
         "Meadow",
         "Mountain",
         "Titan"
       ],
       "seasons": [
         "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Summer"
       ],
       "description": "초원을 황금빛으로 물들이는 아름다운 풀꽃입니다.",
       "preps": "🟢⚪⚪ 꽃: [JOY 1]에 사용\n🟢⚪⚪ 뿌리: 갈아서 [STOMACH 1]에 사용\n🟢⚪⚪ 잎: 복용 치료제에 넣어 [FAIR 1]에 사용\n🟢⚪⚪ 줄기: 달여서 [HIDE 1]에 사용"
@@ -1330,18 +1198,14 @@ export const GAME_DATA = {
       "type": "EARTH",
       "br": 4,
       "regions": [
-        "Bog",
         "Forest",
-        "Loch",
         "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "약초 연고를 빻는 약제사들은 모닥불 잔해도 결코 낭비하지 않습니다.",
       "preps": "🟢⚪⚪ 재: 비늘 각질 제거를 위한 [SCALE 2]에 바르거나, 비누로 끓여 [HIDE 2]에 사용\n🟢⚪⚪ 숯: 빻아서 [POISON 2] 및 [ELSEWHERE 2]에 사용"
@@ -1352,16 +1216,9 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 7,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Forest"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
         "Autumn",
         "Winter"
       ],
@@ -1374,16 +1231,11 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 4,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
+        "Winter",
         "Spring",
-        "Summer",
         "Autumn",
         "Winter"
       ],
@@ -1396,12 +1248,8 @@ export const GAME_DATA = {
       "type": "EARTH",
       "br": 7,
       "regions": [
-        "Bog",
-        "Forest",
         "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
         "Spring",
@@ -1418,11 +1266,6 @@ export const GAME_DATA = {
       "type": "TITAN",
       "br": 6,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
         "Titan"
       ],
       "seasons": [
@@ -1440,16 +1283,9 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 5,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Forest"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
         "Autumn",
         "Winter"
       ],
@@ -1462,18 +1298,10 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 6,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Loch"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Summer"
       ],
       "description": "우정과 사랑을 전할 때 꽃다발로 가장 많이 선물하는 작고 푸른 꽃입니다.",
       "preps": "🟢⚪⚪ 꽃: 달여서 [NERVES 3]에 사용\n🟢⚪⚪ 꿀샘: 달여서 [BREATH 2]에 사용"
@@ -1484,18 +1312,12 @@ export const GAME_DATA = {
       "type": "ANIMAL",
       "br": 5,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Loch"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "여름철 개구리의 피부에서 분비되는 천연의 질병 억제 점액질입니다.",
       "preps": "🟢⚪⚪ 점액: 끓여서 [INFECTION 2] 및 [PARASITE 2]에 사용"
@@ -1508,16 +1330,11 @@ export const GAME_DATA = {
       "regions": [
         "Bog",
         "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
-        "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "머리를 맑게 해주는 상쾌한 정원 허브의 대명사입니다.",
       "preps": "🟢⚪⚪ 잎사귀: 씹어서 [BREATH 2] 및 [PAIN 1]에 사용\n🟢⚪⚪ 줄기: 달여서 [STOMACH 2]에 사용"
@@ -1528,18 +1345,12 @@ export const GAME_DATA = {
       "type": "TITAN",
       "br": 7,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
         "Titan"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "삼밧줄보다 열 배는 더 질긴 고대 티탄들의 광택 섬유 실입니다.",
       "preps": "🟢⚪⚪ 유리 실타래: [HIDE 3] 및 [WOUND 3]에 실로 엮어 사용"
@@ -1552,16 +1363,10 @@ export const GAME_DATA = {
       "regions": [
         "Bog",
         "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Spring"
       ],
       "description": "어린 동물들이 털옷에 던지며 노는 거칠거칠한 잡초입니다.",
       "preps": "🟢⚪⚪ 씨앗: 갈아서 달인 뒤 [SLEEP 1]에 사용\n🟢⚪⚪ 어린줄기: 끓여서 [HIDE 1] 및 [PAIN 1]에 사용"
@@ -1574,10 +1379,7 @@ export const GAME_DATA = {
       "regions": [
         "Bog",
         "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
         "Spring",
@@ -1594,14 +1396,10 @@ export const GAME_DATA = {
       "type": "TITAN",
       "br": 7,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
         "Titan"
       ],
       "seasons": [
+        "Winter",
         "Spring",
         "Summer",
         "Autumn",
@@ -1616,18 +1414,12 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 6,
       "regions": [
-        "Bog",
         "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
-        "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "쉽게 지나치기 쉽지만 아주 독특하고 쓴 향을 풍기는 약초입니다.",
       "preps": "🟢🟢⚪ 잎사귀 뭉치: 요리하여 [PAIN 2] 및 [BREATH 3]에 사용"
@@ -1640,16 +1432,12 @@ export const GAME_DATA = {
       "regions": [
         "Bog",
         "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "숲속 곳곳을 바쁘게 잉잉거리며 날아다니는 작은 곤충입니다.",
       "preps": "🟢⚪⚪ 꽃가루: [STOMACH 1] 및 [MOOD 2]에 첨가하여 사용"
@@ -1660,16 +1448,9 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 4,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
         "Autumn",
         "Winter"
       ],
@@ -1682,12 +1463,7 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 4,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Loch"
       ],
       "seasons": [
         "Spring",
@@ -1704,12 +1480,7 @@ export const GAME_DATA = {
       "type": "EARTH",
       "br": 7,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
         "Spring",
@@ -1726,11 +1497,6 @@ export const GAME_DATA = {
       "type": "TITAN",
       "br": 8,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
         "Titan"
       ],
       "seasons": [
@@ -1748,18 +1514,11 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 5,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Bog"
       ],
       "seasons": [
         "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Summer"
       ],
       "description": "일부 연고 약제사들은 라벤더 하나만 있으면 숲의 모든 병을 고칠 수 있다고 굳게 믿습니다.",
       "preps": "🟢⚪⚪ 라벤더 꽃: 달여서 [NERVES 2] 및 [SLEEP 2]에 사용"
@@ -1770,18 +1529,11 @@ export const GAME_DATA = {
       "type": "INSECT",
       "br": 5,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Loch"
       ],
       "seasons": [
-        "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "연고 조제사들은 오래전부터 상처의 나쁜 피를 뽑아내는 거머리의 신비한 가치를 잘 알고 있었습니다.",
       "preps": "🟢🟢⚪ 거머리: 빻아서 페이스트로 만들어 [WOUND 2] 및 [PARASITE 2]에 사용"
@@ -1793,17 +1545,10 @@ export const GAME_DATA = {
       "br": 7,
       "regions": [
         "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Forest"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Summer"
       ],
       "description": "피부가 깊게 썩어 들어가는 끔찍한 상처에는 죽은 살을 먹어치우는 구더기를 쓰는 것이 최선입니다.",
       "preps": "🟢🟢⚪ 유충: [INFECTION 3] 및 [WOUND 3]에 얹어 상처를 소독하는 데 사용"
@@ -1814,18 +1559,12 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 5,
       "regions": [
-        "Bog",
         "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
-        "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "벌집 관리인들과 꿀벌들이 단 꿀을 모으기 위해 가장 즐겨 찾는 주황색 꽃입니다.",
       "preps": "🟢⚪⚪ 꽃꿀: [FAIR 1]에 첨가하여 사용\n🟢🟢⚪ 꽃잎: [JOY 2]로 조제"
@@ -1837,17 +1576,10 @@ export const GAME_DATA = {
       "br": 3,
       "regions": [
         "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Loch"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Spring"
       ],
       "description": "습지와 늪지대를 밝혀주는 가장 화사하고 아름다운 야생화 중 하나입니다.",
       "preps": "🟢🟢⚪ 꽃잎: [ELSEWHERE 2]에 사용\n🟢⚪⚪ 꽃잎: 달여서 [JOY 2] 및 [BREATH 2]에 사용"
@@ -1859,17 +1591,12 @@ export const GAME_DATA = {
       "br": 6,
       "regions": [
         "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "캠프파이어 때 구워 먹는 말랑말랑한 과자와 혼동해서는 안 되는 허브 식물입니다.",
       "preps": "🟢⚪⚪ 꽃잎: 끓여서 [FEATHER 1], [FUR 1]에 사용\n🟢⚪⚪ 뿌리 수액: 요리해서 [STOMACH 3] 및 [FAIR 1]에 사용"
@@ -1881,15 +1608,9 @@ export const GAME_DATA = {
       "br": 4,
       "regions": [
         "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
         "Autumn",
         "Winter"
       ],
@@ -1902,11 +1623,6 @@ export const GAME_DATA = {
       "type": "TITAN",
       "br": 11,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
         "Titan"
       ],
       "seasons": [
@@ -1924,18 +1640,12 @@ export const GAME_DATA = {
       "type": "TITAN",
       "br": 10,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
         "Titan"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "아주 신비롭고 이상한 온갖 냄새들이 가득 담겨 있는 실린더 형태의 티탄 용기입니다.",
       "preps": "향수 원액: [JOY 3], [BREATH 3], [SENSES 3], [ELSEWHERE 3], [MOOD 3] 및 [NERVES 3]에 다양하게 스프레이하여 사용"
@@ -1948,10 +1658,8 @@ export const GAME_DATA = {
       "regions": [
         "Bog",
         "Forest",
-        "Loch",
         "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
         "Spring",
@@ -1968,18 +1676,11 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 6,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
-        "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "죽음의 어둠처럼 검게 익어가는 매우 치명적인 독을 품은 검은 열매입니다.",
       "preps": "🟢⚪⚪ 검은 열매: 갈아서 달인 뒤 [SENSES 3]에 독성 마취제로 사용"
@@ -1990,11 +1691,8 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 4,
       "regions": [
-        "Bog",
         "Forest",
-        "Loch",
         "Meadow",
-        "Mountain",
         "Titan"
       ],
       "seasons": [
@@ -2012,18 +1710,12 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 3,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
         "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
-        "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "야수들이 다른 야수를 저편으로 보낸 추모제 의식 때 전통적으로 올리던 오렌지빛 버섯입니다.",
       "preps": "🟢⚪⚪ 버섯 꽃잎: [JOY 1] 혹은 [ELSEWHERE 1]로 사용"
@@ -2034,12 +1726,7 @@ export const GAME_DATA = {
       "type": "EARTH",
       "br": 8,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Loch"
       ],
       "seasons": [
         "Spring",
@@ -2056,11 +1743,6 @@ export const GAME_DATA = {
       "type": "TITAN",
       "br": 10,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
         "Titan"
       ],
       "seasons": [
@@ -2078,18 +1760,12 @@ export const GAME_DATA = {
       "type": "TITAN",
       "br": 8,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
         "Titan"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "수 세기 전에 살던 조상 야수들이 가장 즐겨 마셨다던 진하고 달콤한 붉은 나무 수액 액체입니다.",
       "preps": "🟢🟢🟢 병입 수액: [PAIN 3] 및 [BREATH 3] 완화를 위해 첨가해 사용"
@@ -2100,18 +1776,12 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 2,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
         "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
         "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Summer"
       ],
       "description": "산비탈을 따라 군락을 지어 자라며 씹으면 극도로 쓰고 신맛이 강한 풀입니다.",
       "preps": "🟢⚪⚪ 줄기: 씹어서 [FOUL 2]에 사용, 요리하여 [FAIR 2]에 사용\n🟢⚪⚪ 질긴 줄기 섬유: 씹어서 붕대 고정 줄로 묶는 데 사용"
@@ -2123,17 +1793,11 @@ export const GAME_DATA = {
       "br": 5,
       "regions": [
         "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
-        "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "야수들 사이에서 종종 나그네의 풀이라고도 불리는 생명력이 끈질긴 약초입니다.",
       "preps": "🟢⚪⚪ 씨꼬투리: 빻아서 [FAIR 1]에 사용\n🟢⚪⚪ 잎사귀: 즙을 내어 연고로 사용"
@@ -2145,17 +1809,11 @@ export const GAME_DATA = {
       "br": 6,
       "regions": [
         "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Loch"
       ],
       "seasons": [
         "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Summer"
       ],
       "description": "물안개가 피어나는 서늘한 하천변에서 돋아나는 향긋하고 여린 박하 풀입니다.",
       "preps": "🟢⚪⚪ 잎: 갈아서 상처에 바르거나 [BREATH 2]를 위해 달여서 사용\n🟢⚪⚪ 줄기: 씹어서 [PAIN 1]에 사용"
@@ -2166,12 +1824,7 @@ export const GAME_DATA = {
       "type": "EARTH",
       "br": 7,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
         "Spring",
@@ -2188,18 +1841,10 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 8,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "어떤 다른 이름으로 불려도 그 향기는 여전히 달콤할 붉은 꽃송이입니다.",
       "preps": "🟢⚪⚪ 장미 꽃잎: [JOY 1]에 사용\n🟢⚪⚪ 들장미 열매: 빻아서 사용"
@@ -2210,12 +1855,7 @@ export const GAME_DATA = {
       "type": "ANIMAL",
       "br": 4,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Loch"
       ],
       "seasons": [
         "Spring",
@@ -2232,18 +1872,12 @@ export const GAME_DATA = {
       "type": "EARTH",
       "br": 11,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "부드럽고 가공하기 쉬워 뼈 고정 스플린트나 의치 보철물에 최고로 꼽히는 광물입니다.",
       "preps": "🟢⚪⚪ 은 조각: 갈아서 붕대 안쪽에 얹어 [WOUND 2] 소독 및 뼈 지지용으로 사용"
@@ -2256,16 +1890,12 @@ export const GAME_DATA = {
       "regions": [
         "Bog",
         "Forest",
-        "Loch",
         "Meadow",
-        "Mountain",
         "Titan"
       ],
       "seasons": [
-        "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "브리슬리 숲의 야수들이 기력이 떨어졌을 때 단백질을 보충하기 위해 삼키는 주식입니다.",
       "preps": "🟢🟢⚪ 민달팽이: 요리하여 [FAIR 2]에 단백질 보충식으로 사용"
@@ -2277,17 +1907,13 @@ export const GAME_DATA = {
       "br": 7,
       "regions": [
         "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Loch"
       ],
       "seasons": [
+        "Winter",
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "개울가에서 족대로 쉽게 건져 올릴 수 있는 평범한 물고기입니다.",
       "preps": "🟢⚪⚪ 생선 가시: 정교한 봉합 침으로 사용\n🟢🟢🟢 살코기: 요리하여 마시는 약에 풍미 보충\n🟢⚪⚪ 생선 비늘: 기름을 짜내어 연고 기제로 사용"
@@ -2298,11 +1924,6 @@ export const GAME_DATA = {
       "type": "TITAN",
       "br": 10,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
         "Titan"
       ],
       "seasons": [
@@ -2320,18 +1941,13 @@ export const GAME_DATA = {
       "type": "INSECT",
       "br": 4,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
         "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "여덟 개의 다리로 나뭇가지 사이에 정교한 집을 짓는 숲의 사냥꾼 곤충입니다.",
       "preps": "🟢⚪⚪ 거미줄: 상처를 지혈하고 붙잡는 [WOUND 1] 붕대로 사용"
@@ -2342,18 +1958,10 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 4,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "맛이 좋은 딸기가 자라나는 덩굴의 위치는 부모가 자식에게만 몰래 가르쳐주는 가문 비밀입니다.",
       "preps": "🟢🟢⚪ 딸기 열매: [FAIR 2]로 조제, 요리하여 [FAIR 4]로 조제\n🟢⚪⚪ 딸기꽃: 달이거나 발라서 [JOY 2]에 사용\n🟢⚪⚪ 잎사귀: 빻아서 [HIDE 1]에 사용"
@@ -2364,18 +1972,10 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 5,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Spring"
       ],
       "description": "지역의 경계선이나 길가 모퉁이에서 주로 자라며 톡 쏘는 향이 나는 노란 꽃입니다.",
       "preps": "🟢⚪⚪ 쓴 잎: 소화시켜 뱃속 [PARASITE 3] 구충에 사용\n🟢🟢⚪ 줄기: 달여서 [INSTINCT 1]에 사용"
@@ -2388,16 +1988,13 @@ export const GAME_DATA = {
       "regions": [
         "Bog",
         "Forest",
-        "Loch",
         "Meadow",
-        "Mountain",
-        "Titan"
+        "Mountain"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "고대 티탄들이 이 보랏빛의 가시 돋친 아름다운 식물을 아주 좋아했다고 전해집니다.",
       "preps": "🟢⚪⚪ 엉겅퀴 가시 머리: 발라서 [FUR 2]에 사용\n🟢⚪⚪ 엉겅퀴 꿀: [MOOD 1]에 첨가하여 사용"
@@ -2408,18 +2005,13 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 6,
       "regions": [
-        "Bog",
         "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
         "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "샐러드에 넣으면 톡 쏘는 신맛과 쓴맛이 어우러져 입맛을 돋우는 붉은 잎 풀입니다.",
       "preps": "🟢⚪⚪ 잎: [MOOD 1]에 첨가(단, [FOUL 1]도 함께 부가)\n🟢⚪⚪ 뿌리: 요리하여 상처에 연고로 부착 사용"
@@ -2431,17 +2023,11 @@ export const GAME_DATA = {
       "br": 7,
       "regions": [
         "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Loch"
       ],
       "seasons": [
-        "Spring",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "스트레스를 받으면 피부에서 찐득한 분비물을 내뿜는 양서류 동물입니다.",
       "preps": "🟢⚪⚪ 피부 독성 점액: [SENSES 1]에 소량 첨가(단, [FOUL 3]이 다량 유발됨)"
@@ -2454,16 +2040,12 @@ export const GAME_DATA = {
       "regions": [
         "Bog",
         "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Loch"
       ],
       "seasons": [
-        "Spring",
+        "Winter",
         "Summer",
-        "Autumn",
-        "Winter"
+        "Autumn"
       ],
       "description": "꿀벌보다 몸집이 크고 공격적이며 꿀을 만들지 않는 독충입니다.",
       "preps": "🟢⚪⚪ 말벌 침 독: 신경 자극용 [SENSES 2]에 소량 사용"
@@ -2474,11 +2056,6 @@ export const GAME_DATA = {
       "type": "TITAN",
       "br": 10,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
         "Titan"
       ],
       "seasons": [
@@ -2496,11 +2073,6 @@ export const GAME_DATA = {
       "type": "TITAN",
       "br": 9,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
         "Titan"
       ],
       "seasons": [
@@ -2519,11 +2091,7 @@ export const GAME_DATA = {
       "br": 5,
       "regions": [
         "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Loch"
       ],
       "seasons": [
         "Spring",
@@ -2540,18 +2108,10 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 2,
       "regions": [
-        "Bog",
-        "Forest",
-        "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Forest"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Spring"
       ],
       "description": "마늘 특유의 짙은 향이 사방에 퍼져 한여름 채집가들의 코를 즐겁게 만드는 풀입니다.",
       "preps": "🟢🟢⚪ 잎사귀: 씹어서 [FAIR 1]에 부착해 사용\n🟢⚪⚪ 줄기: 빻아서 [BREATH 2]에 사용"
@@ -2562,18 +2122,11 @@ export const GAME_DATA = {
       "type": "PLANT",
       "br": 6,
       "regions": [
-        "Bog",
-        "Forest",
         "Loch",
-        "Meadow",
-        "Mountain",
-        "Titan"
+        "Meadow"
       ],
       "seasons": [
-        "Spring",
-        "Summer",
-        "Autumn",
-        "Winter"
+        "Spring"
       ],
       "description": "벌레에 물린 부위에 바르면 부기를 가라앉히고 가려움을 달래주는 아름다운 보랏빛 꽃입니다.",
       "preps": "🟢⚪⚪ 제비꽃 잎: 소화시켜 [PAIN 1]에 사용\n🟢⚪⚪ 잎사귀: 씹어서 [SENSES 2]에 사용"

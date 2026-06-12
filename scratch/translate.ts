@@ -1,6 +1,9 @@
 import fs from 'fs';
 import { GAME_DATA } from '../src/gameData.ts';
 
+const extractedReagents = JSON.parse(fs.readFileSync('./extracted_reagents_v2.json', 'utf-8'));
+
+
 // 1. AILMENTS TRANSLATION MAP (Cleaned keys without page numbers)
 const ailmentsMap: Record<string, { name: string; description: string; outcome: string; consequence: string }> = {
   "Paw Rot": {
@@ -804,13 +807,32 @@ const translatedReagents = GAME_DATA.reagents.map(reag => {
   const codeLine = lines[0] || "";
   const description = lines.slice(1).join('\n') || "";
 
-  const regions: string[] = [];
-  const seasons: string[] = [];
+  let regions: string[] = [];
+  let seasons: string[] = [];
   
-  const cleanCode = codeLine.replace(/\s+/g, '').toLowerCase();
-  for (const char of cleanCode) {
-    if (regMap[char]) regions.push(regMap[char]);
-    else if (seasonMap[char]) seasons.push(seasonMap[char]);
+  const normName = reag.rawName.toLowerCase()
+    .replace(/-/g, ' ')
+    .replace(/[’']/g, '')
+    .trim();
+  
+  const overrides: Record<string, string> = {
+    "can only be foraged for in summer frog slime": "frog slime",
+    "trinket ironslug": "ironslug",
+    "can only be foraged for in summer wild garlic": "wild garlic"
+  };
+
+  const lookupName = overrides[normName] || normName;
+  const matched = extractedReagents[lookupName];
+  if (matched) {
+    regions = matched.regions;
+    seasons = matched.seasons;
+  } else {
+    console.warn(`Warning: No extracted availability found for '${reag.rawName}' (normalized: '${lookupName}'). Falling back to character code parsing.`);
+    const cleanCode = codeLine.replace(/\s+/g, '').toLowerCase();
+    for (const char of cleanCode) {
+      if (regMap[char]) regions.push(regMap[char]);
+      else if (seasonMap[char]) seasons.push(seasonMap[char]);
+    }
   }
 
   const cleanPrepFraction = (str: string) => {

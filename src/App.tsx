@@ -4,6 +4,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
 import { GAME_DATA } from "./gameData";
 import parsedSocial from "../parsed_social.json";
+import parsedPrepsList from "../parsed_preps_list.json";
 
 const suitLabels: { [key: string]: string } = { '♥': '하트 ♥', '♦': '다이아 ♦', '♣': '클로버 ♣', '♠': '스페이드 ♠' };
 
@@ -193,6 +194,7 @@ interface WorldAlmanacEntry {
   firstSeen: number;
   lastSeen: number;
   sightings: number;
+  prepsDetail?: { part: string; prep: string; tag: string; val: number }[];
 }
 
 type ScrapbookKind = 'journey' | 'discovery' | 'patient' | 'remedy';
@@ -477,6 +479,19 @@ const upsertAlmanac = (
   );
   const stamp = entry.timestamp || Date.now();
 
+  let prepsDetail: { part: string; prep: string; tag: string; val: number }[] | undefined = undefined;
+  if (entry.category === 'reagent') {
+    const matchedReag = GAME_DATA.reagents.find(r =>
+      r.name.toLowerCase() === name.toLowerCase() ||
+      r.rawName.toLowerCase() === name.toLowerCase() ||
+      cleanMemoryName(r.name).toLowerCase() === name.toLowerCase() ||
+      cleanMemoryName(r.rawName).toLowerCase() === name.toLowerCase()
+    );
+    if (matchedReag && (parsedPrepsList as any)[matchedReag.rawName]) {
+      prepsDetail = (parsedPrepsList as any)[matchedReag.rawName];
+    }
+  }
+
   if (idx >= 0) {
     const next = [...entries];
     next[idx] = {
@@ -485,7 +500,8 @@ const upsertAlmanac = (
       source: entry.source || next[idx].source,
       notes: entry.notes || next[idx].notes,
       lastSeen: Math.max(next[idx].lastSeen || stamp, stamp),
-      sightings: next[idx].sightings || 1
+      sightings: (next[idx].sightings || 1) + 1,
+      ...(prepsDetail ? { prepsDetail } : {})
     };
     return next;
   }
@@ -501,7 +517,8 @@ const upsertAlmanac = (
       notes: entry.notes,
       firstSeen: stamp,
       lastSeen: stamp,
-      sightings: 1
+      sightings: 1,
+      ...(prepsDetail ? { prepsDetail } : {})
     },
     ...entries
   ];
@@ -1092,6 +1109,69 @@ const PortionIndicator = ({ value }: { value: string }) => {
   );
 };
 
+const prepKeywordMap: { [key: string]: { label: string; bg: string; color: string; border: string } } = {
+  '빻아서': { label: '빻기 [CRUSH] 🔨', bg: '#fef3c7', color: '#b45309', border: '#fcd34d' },
+  '갈아서': { label: '갈기 [GRIND] 🔨', bg: '#fef3c7', color: '#b45309', border: '#fcd34d' },
+  '끓여서': { label: '끓이기 [BOIL] ♨️', bg: '#e0f2fe', color: '#0369a1', border: '#7dd3fc' },
+  '달여서': { label: '달이기 [BREW] ♨️', bg: '#e0f2fe', color: '#0369a1', border: '#7dd3fc' },
+  '끓인 뒤': { label: '끓이기 [BOIL] ♨️', bg: '#e0f2fe', color: '#0369a1', border: '#7dd3fc' },
+  '요리해서': { label: '요리 [COOK] 🍳', bg: '#dcfce7', color: '#15803d', border: '#86efac' },
+  '요리하여': { label: '요리 [COOK] 🍳', bg: '#dcfce7', color: '#15803d', border: '#86efac' },
+  '씹어서': { label: '씹기 [CHEW] 🦷', bg: '#ffedd5', color: '#c2410c', border: '#fdbb2d' },
+  '발라서': { label: '바르기 [APPLY] 🐾', bg: '#f3e8ff', color: '#6b21a8', border: '#d8b4fe' },
+  '발라': { label: '바르기 [APPLY] 🐾', bg: '#f3e8ff', color: '#6b21a8', border: '#d8b4fe' },
+  '첨가하여': { label: '첨가 [ADD] ➕', bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' },
+  '첨가': { label: '첨가 [ADD] ➕', bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' },
+};
+
+const formatTextWithPrepKeywords = (text: string, keyPrefix: string): React.ReactNode[] => {
+  const keywords = Object.keys(prepKeywordMap);
+  keywords.sort((a, b) => b.length - a.length);
+
+  const pattern = new RegExp(`(${keywords.join('|')})`, 'g');
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+
+    const keyword = match[1];
+    const style = prepKeywordMap[keyword];
+
+    parts.push(
+      <span
+        key={`${keyPrefix}_kw_${match.index}`}
+        style={{
+          padding: '0.12rem 0.35rem',
+          borderRadius: '4px',
+          background: style.bg,
+          color: style.color,
+          border: `1px solid ${style.border}`,
+          fontSize: '0.72rem',
+          fontWeight: 'bold',
+          display: 'inline-flex',
+          alignItems: 'center',
+          margin: '0 0.15rem',
+          transform: 'translateY(-1px)'
+        }}
+      >
+        {style.label}
+      </span>
+    );
+
+    lastIndex = pattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : [text];
+};
+
 const renderPreps = (prepsStr: string) => {
   if (!prepsStr) return null;
 
@@ -1109,7 +1189,8 @@ const renderPreps = (prepsStr: string) => {
 
         while ((match = tagRegex.exec(content)) !== null) {
           if (match.index > lastIndex) {
-            parts.push(content.substring(lastIndex, match.index));
+            const rawText = content.substring(lastIndex, match.index);
+            parts.push(...formatTextWithPrepKeywords(rawText, `idx_${idx}_part_${lastIndex}`));
           }
 
           const tagText = match[1];
@@ -1154,13 +1235,16 @@ const renderPreps = (prepsStr: string) => {
         }
 
         if (lastIndex < content.length) {
-          parts.push(content.substring(lastIndex));
+          const rawText = content.substring(lastIndex);
+          parts.push(...formatTextWithPrepKeywords(rawText, `idx_${idx}_end_${lastIndex}`));
         }
+
+        const finalContent = parts.length > 0 ? parts : formatTextWithPrepKeywords(content, `idx_${idx}_full`);
 
         return (
           <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem', fontSize: '0.88rem', color: '#444', lineHeight: '1.5' }}>
             {portion && <PortionIndicator value={portion} />}
-            <div style={{ flex: 1 }}>{parts.length > 0 ? parts : content}</div>
+            <div style={{ flex: 1 }}>{finalContent}</div>
           </div>
         );
       })}
@@ -5444,6 +5528,130 @@ function PlayView({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <button 
+        id="debug-inject-state"
+        style={{
+          background: '#d97706',
+          color: '#fff',
+          padding: '0.5rem 1rem',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          fontWeight: 'bold',
+          alignSelf: 'flex-start',
+          margin: '1rem',
+          zIndex: 9999
+        }}
+        onClick={() => {
+          const customState = {
+            bio: {
+              name: 'Current Apprentice',
+              descriptor: 'Burrowing',
+              examples: '오소리, 토끼, 고슴도치, 두더지',
+              travelStyle: 'Rambling and Ready',
+              speed: 3,
+              carry: 4,
+              originName: '약제사 사고 후의 치료 서비스',
+              originDesc: '큰 사고를 당하고 치유를 받으면서 약제사의 길을 걷기로 결심했습니다.',
+              familiarName: 'Buddy',
+              familiarRelation: '깊은 동반자 (서로 아끼고 의지함)',
+              canFly: false
+            },
+            reputation: 15,
+            currentLocationName: 'Starting Oak Road',
+            currentLocationType: 'Wilds',
+            currentRegion: 'Forest',
+            currentSeason: 'Spring',
+            bag: [
+              { id: 'tool_knife', name: '벨트 칼', weight: 1/3, type: 'tool' },
+              { id: 'tool_mortar', name: '나무 절구와 공이 [GRIND/CRUSH]', weight: 1/3, type: 'tool' },
+              { id: 'tool_kettle', name: '낡은 캠프 주전자 [BOIL/BREW]', weight: 1/3, type: 'tool' },
+              { id: 'tool_jaws', name: '이빨 [CHEW/DIGEST]', weight: 0, type: 'tool' },
+              { id: 'tool_paws', name: '앞발/발톱 [ADD/APPLY]', weight: 0, type: 'tool' },
+              { id: 'reagent_1', name: 'Oak Leaves (Part: ⅓ Leaves)', weight: 1/3, type: 'reagent', qty: 1, preps: '[ADD/APPLY] for [WOUND 1]' },
+              { id: 'reagent_2', name: 'Birch Bark (Part: ⅔ Bark)', weight: 1/3, type: 'reagent', qty: 1, preps: '[BOIL/BREW] for [FEVER 1]' }
+            ],
+            trinkets: ['기념품 (Memento)'],
+            journeyActive: true,
+            journeyOrigin: 'Starting Oak Road',
+            journeyDestination: 'Newdam',
+            journeyDistance: '12 Paths',
+            journeyDirection: 'North',
+            journeyGoalTitle: 'Spring Restoration',
+            calendarDays: 2,
+            calendarMaxDays: 12,
+            calendarHistory: ['여정 시작: Newdam로 출발!'],
+            activeAilment: {
+              id: 'ailment_test',
+              name: 'Paw Rot',
+              severity: 'Lesser',
+              timer: 5,
+              maxTimer: 10,
+              tags: '[WOUND 1 & FEVER 1]',
+              description: 'Sore paw with infection.',
+              outcome: '',
+              consequence: '',
+              foragingPoints: 0,
+              reagentsGathered: []
+            },
+            pursuedByBehemoth: {
+              headStart: 3
+            },
+            legacyClinics: [
+              {
+                locationName: 'Starting Oak Road',
+                region: 'Forest',
+                services: ['foraging'],
+                founder: '약제사 1대 스승 (Apothecary Gen 1)'
+              }
+            ],
+            legacyApothecaries: [
+              {
+                name: '약제사 1대 스승 (Apothecary Gen 1)',
+                ageOfRetirement: 12,
+                clinicsBuilt: 1,
+                legacyScore: 16
+              }
+            ],
+            discoveredRecipes: {
+              'Paw Rot': [
+                ['Oak Leaves', 'Birch Bark']
+              ]
+            },
+            worldAlmanac: [
+              {
+                id: 'alm_reagent_oak_leaves',
+                category: 'reagent',
+                name: 'Oak Leaves',
+                locationName: 'Starting Oak Road',
+                region: 'Forest',
+                source: 'Current location',
+                notes: 'Useful for wounds',
+                firstSeen: Date.now(),
+                lastSeen: Date.now(),
+                sightings: 1
+              }
+            ],
+            travelScrapbook: [
+              {
+                id: 'scrap_test_log',
+                sourceId: 'log_1',
+                kind: 'journey',
+                title: 'Travel log 1',
+                text: 'Moved to Starting Oak Road',
+                locationName: 'Starting Oak Road',
+                timestamp: Date.now()
+              }
+            ],
+            trinketArchive: [],
+            visitedLocations: ['Starting Oak Road']
+          };
+          localStorage.setItem('apawthecaria_rpg_state', JSON.stringify(customState));
+          window.location.reload();
+        }}
+      >
+        🔧 Inject Smoke Test State (Debug)
+      </button>
       {state.pendingPatientArchive && (
         <div style={{ position: 'fixed', right: '1.2rem', bottom: '1.2rem', zIndex: 1100, width: 'min(420px, calc(100vw - 2.4rem))' }}>
           <div className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--border-cozy)', boxShadow: '0 8px 24px rgba(36,32,24,0.16)' }}>
@@ -9489,13 +9697,116 @@ function LivingArchiveView({ state }: { state: GameState }) {
             <span className="document-kicker">{herbarium.length} entries</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
-            {herbarium.slice(0, 10).map(entry => (
-              <div key={entry.id} style={{ border: '1px solid var(--glass-border)', background: '#fbfaf4', padding: '0.65rem', borderRadius: '4px' }}>
-                <strong style={{ color: 'var(--text-bright)' }}>{entry.name}</strong>
-                <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{entry.region || 'region unpinned'} / sightings {entry.sightings}</div>
-                <div style={{ fontSize: '0.8rem', marginTop: '0.35rem' }}>{entry.notes}</div>
-              </div>
-            ))}
+            {herbarium.slice(0, 10).map(entry => {
+              let preps = entry.prepsDetail;
+              let matchedReag: any = null;
+              const cleanName = cleanMemoryName(entry.name).toLowerCase();
+              matchedReag = GAME_DATA.reagents.find(r =>
+                r.name.toLowerCase() === cleanName ||
+                r.rawName.toLowerCase() === cleanName ||
+                cleanMemoryName(r.name).toLowerCase() === cleanName ||
+                cleanMemoryName(r.rawName).toLowerCase() === cleanName
+              );
+              if (!preps && matchedReag) {
+                preps = (parsedPrepsList as any)[matchedReag.rawName];
+              }
+
+              return (
+                <div key={entry.id} style={{ border: '1px solid var(--glass-border)', background: '#fbfaf4', padding: '0.65rem', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <strong style={{ color: 'var(--text-bright)' }}>{entry.name}</strong>
+                    {matchedReag && matchedReag.rawName && matchedReag.rawName.toLowerCase() !== entry.name.toLowerCase() && (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>({matchedReag.rawName})</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>📍 {entry.region || 'region unpinned'} / sightings {entry.sightings}</div>
+                  
+                  {preps && preps.length > 0 && (
+                    <div style={{ 
+                      marginTop: '0.25rem', 
+                      padding: '0.35rem 0.45rem', 
+                      background: '#f4f3e8', 
+                      borderRadius: '4px', 
+                      border: '1px solid var(--glass-border)',
+                      fontSize: '0.74rem'
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {preps.map((p, idx) => {
+                          let prepBg = '#f1f5f9';
+                          let prepColor = '#475569';
+                          const prepUpper = p.prep.toUpperCase();
+                          if (prepUpper === 'BOILED' || prepUpper === 'BREWED') {
+                            prepBg = '#e0f2fe';
+                            prepColor = '#0369a1';
+                          } else if (prepUpper === 'CRUSHED' || prepUpper === 'GROUND') {
+                            prepBg = '#fef3c7';
+                            prepColor = '#b45309';
+                          } else if (prepUpper === 'COOKED' || prepUpper === 'CONSUMED') {
+                            prepBg = '#dcfce7';
+                            prepColor = '#15803d';
+                          } else if (prepUpper === 'ADDED' || prepUpper === 'APPLIED') {
+                            prepBg = '#f3e8ff';
+                            prepColor = '#6b21a8';
+                          }
+
+                          let tagBg = '#f3f4f6';
+                          let tagColor = '#4b5563';
+                          const tagUpper = p.tag.toUpperCase();
+                          if (['WOUND', 'BURN', 'PAIN'].includes(tagUpper)) {
+                            tagBg = '#fee2e2';
+                            tagColor = '#b91c1c';
+                          } else if (['FEVER', 'STOMACH', 'SENSES', 'BREATH'].includes(tagUpper)) {
+                            tagBg = '#e0f2fe';
+                            tagColor = '#0369a1';
+                          } else if (['FAIR', 'JOY', 'MOOD'].includes(tagUpper)) {
+                            tagBg = '#d1fae5';
+                            tagColor = '#047857';
+                          } else if (['HIDE', 'FEATHER', 'SCALE', 'FUR', 'INSTINCT'].includes(tagUpper)) {
+                            tagBg = '#ffedd5';
+                            tagColor = '#c2410c';
+                          }
+
+                          return (
+                            <div key={idx} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.3rem', padding: '0.15rem 0', borderBottom: idx < preps.length - 1 ? '1px dashed #e2d6b5' : 'none' }}>
+                              <span style={{ fontWeight: 'bold', color: 'var(--text-bright)', fontSize: '0.74rem' }}>
+                                {p.part}
+                              </span>
+                              <span style={{ 
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                padding: '0.05rem 0.35rem',
+                                borderRadius: '10px',
+                                fontSize: '0.64rem',
+                                fontWeight: 'bold',
+                                background: prepBg,
+                                color: prepColor
+                              }}>
+                                {p.prep}
+                              </span>
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>→</span>
+                              <span style={{ 
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                padding: '0.05rem 0.35rem',
+                                borderRadius: '10px',
+                                fontSize: '0.64rem',
+                                fontWeight: 'bold',
+                                background: tagBg,
+                                color: tagColor
+                              }}>
+                                {p.tag} {p.val}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {entry.notes && <div style={{ fontSize: '0.8rem', marginTop: '0.2rem', color: 'var(--text-bright)' }}>{entry.notes}</div>}
+                </div>
+              );
+            })}
             {herbarium.length === 0 && <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Gather or carry reagents to seed the herbarium.</div>}
           </div>
         </section>
@@ -9845,14 +10156,130 @@ function JournalsView({ state, updateState }: { state: GameState; updateState: a
               <section key={category} className="cute-card" style={{ background: '#fffefa' }}>
                 <h3 style={{ margin: '0 0 0.8rem 0', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.4rem' }}>{almanacLabels[category]}</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
-                  {entries.map(entry => (
-                    <div key={entry.id} style={{ border: '1px solid var(--glass-border)', background: '#fbfaf4', padding: '0.75rem', borderRadius: '4px' }}>
-                      <div style={{ fontWeight: 700, color: 'var(--text-bright)' }}>{entry.name}</div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{entry.locationName || 'No fixed place'} {entry.region ? `- ${entry.region}` : ''}</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-bright)', marginTop: '0.35rem' }}>{entry.notes}</div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', marginTop: '0.35rem' }}>{entry.source} / sightings {entry.sightings}</div>
-                    </div>
-                  ))}
+                  {entries.map(entry => {
+                    let preps = entry.prepsDetail;
+                    let matchedReag: any = null;
+                    if (entry.category === 'reagent') {
+                      const cleanName = cleanMemoryName(entry.name).toLowerCase();
+                      matchedReag = GAME_DATA.reagents.find(r =>
+                        r.name.toLowerCase() === cleanName ||
+                        r.rawName.toLowerCase() === cleanName ||
+                        cleanMemoryName(r.name).toLowerCase() === cleanName ||
+                        cleanMemoryName(r.rawName).toLowerCase() === cleanName
+                      );
+                      if (!preps && matchedReag) {
+                        preps = (parsedPrepsList as any)[matchedReag.rawName];
+                      }
+                    }
+
+                    return (
+                      <div key={entry.id} style={{ border: '1px solid var(--glass-border)', background: '#fbfaf4', padding: '0.75rem', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                          <span style={{ fontWeight: 700, color: 'var(--text-bright)' }}>{entry.name}</span>
+                          {matchedReag && matchedReag.rawName && matchedReag.rawName.toLowerCase() !== entry.name.toLowerCase() && (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>({matchedReag.rawName})</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>📍 {entry.locationName || 'No fixed place'} {entry.region ? `- ${entry.region}` : ''}</div>
+                        
+                        {entry.category === 'reagent' && preps && preps.length > 0 && (
+                          <div style={{ 
+                            marginTop: '0.4rem', 
+                            padding: '0.5rem', 
+                            background: '#f4f3e8', 
+                            borderRadius: '4px', 
+                            border: '1px solid var(--glass-border)',
+                            fontSize: '0.78rem'
+                          }}>
+                            <div style={{ fontWeight: 'bold', fontSize: '0.74rem', color: 'var(--text-bright)', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.2rem', marginBottom: '0.3rem' }}>
+                              🧪 Preparation & Application (조제 및 사용법)
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                              {preps.map((p, idx) => {
+                                let prepBg = '#f1f5f9';
+                                let prepColor = '#475569';
+                                const prepUpper = p.prep.toUpperCase();
+                                if (prepUpper === 'BOILED' || prepUpper === 'BREWED') {
+                                  prepBg = '#e0f2fe';
+                                  prepColor = '#0369a1';
+                                } else if (prepUpper === 'CRUSHED' || prepUpper === 'GROUND') {
+                                  prepBg = '#fef3c7';
+                                  prepColor = '#b45309';
+                                } else if (prepUpper === 'COOKED' || prepUpper === 'CONSUMED') {
+                                  prepBg = '#dcfce7';
+                                  prepColor = '#15803d';
+                                } else if (prepUpper === 'ADDED' || prepUpper === 'APPLIED') {
+                                  prepBg = '#f3e8ff';
+                                  prepColor = '#6b21a8';
+                                }
+
+                                let tagBg = '#f3f4f6';
+                                let tagColor = '#4b5563';
+                                const tagUpper = p.tag.toUpperCase();
+                                if (['WOUND', 'BURN', 'PAIN'].includes(tagUpper)) {
+                                  tagBg = '#fee2e2';
+                                  tagColor = '#b91c1c';
+                                } else if (['FEVER', 'STOMACH', 'SENSES', 'BREATH'].includes(tagUpper)) {
+                                  tagBg = '#e0f2fe';
+                                  tagColor = '#0369a1';
+                                } else if (['FAIR', 'JOY', 'MOOD'].includes(tagUpper)) {
+                                  tagBg = '#d1fae5';
+                                  tagColor = '#047857';
+                                } else if (['HIDE', 'FEATHER', 'SCALE', 'FUR', 'INSTINCT'].includes(tagUpper)) {
+                                  tagBg = '#ffedd5';
+                                  tagColor = '#c2410c';
+                                }
+
+                                return (
+                                  <div key={idx} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem', padding: '0.2rem 0', borderBottom: idx < preps.length - 1 ? '1px dashed #e2d6b5' : 'none' }}>
+                                    <span style={{ fontWeight: 'bold', color: 'var(--text-bright)', fontSize: '0.78rem' }}>
+                                      {p.part}
+                                    </span>
+                                    <span style={{ 
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      padding: '0.1rem 0.4rem',
+                                      borderRadius: '12px',
+                                      fontSize: '0.68rem',
+                                      fontWeight: 'bold',
+                                      background: prepBg,
+                                      color: prepColor
+                                    }}>
+                                      {p.prep}
+                                    </span>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>→</span>
+                                    <span style={{ 
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      padding: '0.1rem 0.4rem',
+                                      borderRadius: '12px',
+                                      fontSize: '0.68rem',
+                                      fontWeight: 'bold',
+                                      background: tagBg,
+                                      color: tagColor
+                                    }}>
+                                      {p.tag} {p.val}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {entry.notes && (
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-bright)', marginTop: '0.2rem' }}>
+                            📝 {entry.notes}
+                          </div>
+                        )}
+
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.3rem', marginTop: '0.2rem', display: 'flex', justifyContent: 'space-between' }}>
+                          <span>출처: {entry.source}</span>
+                          <span>발견 횟수: {entry.sightings}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </section>
             );
