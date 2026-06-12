@@ -4973,13 +4973,25 @@ function PlayView({
       const cureTimestamp = Date.now();
       const cureSourceId = 'cure_' + cureTimestamp;
       const cureNotes = `${s.currentLocationName}에서 환자 치료를 성공적으로 마쳤습니다!\\n- 소모 시간: 조제 ${timeSpent}시간 (남은 시간: ${nextTimer}시간)\\n- 심각도: ${severity} (난이도 레벨 ${sevLevel})\\n- Fair ${fairPts}점, Foul ${foulPts}점 (상쇄 후 보정 ${fairFoulAdjustment >= 0 ? '+' : ''}${fairFoulAdjustment})\\n- 장신구 공식: ${sevLevel} ${fairFoulAdjustment >= 0 ? '+' : ''}${fairFoulAdjustment} = ${trinketCalc} → 획득 ${actualTrinkets}개\\n${isGifting ? '- 💝 Gifting: 장신구 대신 평판 +2 선택' : ''}\\n- 길드 명성 +${actualRep}점`;
+      const KEEPSAKE_TEMPLATES = [
+        { name: '말린 엉겅퀴 씨앗 주머니 (Pouch of Dried Thistle)', story: '치료의 답례로 건네받은 작은 천 주머니. 흔들면 바스락거리는 마른 씨앗 소리가 납니다.' },
+        { name: '구멍 뚫린 매끄러운 조약돌 (A Polished Lucky Pebble)', story: '강가에서 행운을 빌며 주웠다며 수줍게 손에 쥐여준 조약돌. 만지면 아주 차갑고 매끄럽습니다.' },
+        { name: '바람에 실려온 깃털 다발 (Bundle of Crane Feathers)', story: '빛바랜 무명실로 정성껏 묶어놓은 깃털 뭉치. 만지면 포근한 온기가 느껴집니다.' },
+        { name: '조각된 도토리 껍질 피리 (Carved Acorn Whistle)', story: '마른 도토리 모자를 정성껏 깎아 만든 작은 피리. 입술에 대고 불면 맑고 가녀린 솔바람 소리가 납니다.' },
+        { name: '압착된 마가목 잎사귀 (Pressed Rowan Leaf)', story: '노트 갈피에 끼워 오랫동안 잘 말려둔 노란색 마가목 잎사귀.' },
+        { name: '솔송나무 수지 한 조각 (Hemlock Resin Fragment)', story: '숲의 깊은 향취를 그대로 머금은 채 노랗게 굳은 작은 나무진 덩어리.' },
+        { name: '민들레 솜털을 담은 작은 병 (Fluff in a Glass Vial)', story: '마치 시간이 멈춘 듯 바람 한 점 없는 투명한 유리병 속의 하얀 민들레 솜털.' },
+        { name: '투박하게 깎은 자작나무 반지 (Birch Wood Ring)', story: '칼끝으로 투박하게 깎았지만, 손가락에 끼우면 자작나무 껍질의 부드러움이 느껴지는 반지.' },
+        { name: '마른 라벤더와 가죽 끈 (Lavender Bound with Leather)', story: '말린 라벤더 꽃송이를 거친 가죽끈으로 묶은 것. 서랍 속에 넣어두면 은은한 옛 향기가 흐릅니다.' }
+      ];
+      const template = KEEPSAKE_TEMPLATES[Math.floor(Math.random() * KEEPSAKE_TEMPLATES.length)];
       const trinketArchive = actualTrinkets > 0
         ? addTrinketMemory(s.trinketArchive || [], {
           sourceId: `${cureSourceId}_trinkets`,
-          name: '치료 보상 장신구 (Trinket)',
+          name: template.name,
           count: actualTrinkets,
-          source: `Patient reward: ${s.activeAilment!.name}`,
-          story: `${s.currentLocationName}에서 ${s.activeAilment!.name} 환자를 도운 뒤 받은 작은 답례들.`,
+          source: `Patient: ${s.activeAilment!.patientName || 'Anonymous'} (${s.activeAilment!.species || 'unknown species'})`,
+          story: `${template.story}\n\n— ${s.currentLocationName}에서 ${s.activeAilment!.patientName || '이름 모를 야수'}의 '${s.activeAilment!.name}'를 낫게 돕고 남겨진 조각입니다.`,
           locationName: s.currentLocationName,
           timestamp: cureTimestamp,
           spent: false,
@@ -7809,33 +7821,36 @@ function PlayView({
             ) : !state.activeAilment ? (
               <div style={{ marginTop: '1rem' }}>
                 {state.lostPatientLegacy && (
-                  <div className="cute-card" style={{ border: '1.5px solid var(--accent-red)', background: '#fff9f8', padding: '1.2rem', marginBottom: '1.2rem', position: 'relative' }}>
+                  <div className="cute-card" style={{ border: '1.5px dashed #c4b5a3', background: '#fbf9f4', padding: '1.25rem', marginBottom: '1.2rem', position: 'relative', boxShadow: 'inset 0 0 12px rgba(139, 90, 43, 0.04)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div style={{ flex: 1 }}>
-                        <div className="document-kicker" style={{ color: 'var(--accent-red)', borderColor: 'var(--accent-red)', marginBottom: '0.4rem' }}>🪦 The Empty Bed / 빈 침상</div>
-                        <h4 style={{ margin: '0.2rem 0 0.3rem 0', fontSize: '1.1rem', color: 'var(--text-bright)' }}>
-                          {state.lostPatientLegacy.name} {state.lostPatientLegacy.species ? `/ ${state.lostPatientLegacy.species}` : ''}
+                        <div className="document-kicker" style={{ color: '#8c7a6b', borderColor: '#c4b5a3', marginBottom: '0.45rem', textTransform: 'uppercase', fontSize: '0.74rem', fontWeight: 600, letterSpacing: '0.04em' }}>
+                          An Untouched Blanket / 온기 잃은 빈 침상
+                        </div>
+                        <h4 style={{ margin: '0.2rem 0 0.4rem 0', fontSize: '1.12rem', color: 'var(--text-bright)', fontFamily: 'var(--font-fancy)' }}>
+                          {state.lostPatientLegacy.name} {state.lostPatientLegacy.species ? `(${state.lostPatientLegacy.species})` : ''}
                         </h4>
-                        <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', margin: '0 0 0.6rem 0' }}>
-                          They could not be saved from <strong>{state.lostPatientLegacy.ailmentName}</strong>. Their departure leaves a quiet stillness in the clinic.
+                        <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', margin: '0 0 0.8rem 0', fontStyle: 'italic', lineHeight: '1.5' }}>
+                          침상 위 짚더미가 차갑게 식어 있습니다. 한때 가쁜 숨을 몰아쉬던 이가 머물렀던 자리에는 흩뜨려진 모포와 온기를 잃은 찻잔만이 남았습니다. 약효가 들기 전에 떠나간 그들의 빈자리에 무거운 고요가 맴돕니다.
                         </p>
                         {state.lostPatientLegacy.consequence && (
-                          <div style={{ padding: '0.65rem', background: '#fffefa', border: '1px dashed rgba(155, 63, 54, 0.4)', borderRadius: '4px', fontSize: '0.84rem', color: 'var(--text-bright)' }}>
-                            <strong>Consequence:</strong> {state.lostPatientLegacy.consequence}
+                          <div style={{ padding: '0.75rem', background: '#f8f5ee', border: '1px dashed #dcd3c1', borderRadius: '4px', fontSize: '0.84rem', color: '#5c4d3c', lineHeight: '1.55' }}>
+                            <span style={{ display: 'block', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8c7a6b', fontWeight: 'bold', marginBottom: '0.25rem' }}>Diary Notes / 남겨진 흔적:</span>
+                            {state.lostPatientLegacy.consequence}
                           </div>
                         )}
                       </div>
-                      <span style={{ fontSize: '1.8rem', opacity: 0.8, marginLeft: '0.8rem' }}>🕯️</span>
+                      <span style={{ fontSize: '1.8rem', opacity: 0.65, marginLeft: '0.8rem', userSelect: 'none' }}>🕯️</span>
                     </div>
-                    <div style={{ marginTop: '0.8rem', display: 'flex', gap: '0.5rem' }}>
+                    <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
                       <button
                         onClick={() => {
                           updateState(s => ({ ...s, lostPatientLegacy: null }));
                         }}
                         className="btn-cozy-secondary"
-                        style={{ padding: '0.45rem 0.8rem', fontSize: '0.8rem', background: '#fff' }}
+                        style={{ padding: '0.45rem 0.9rem', fontSize: '0.8rem', background: '#fff', border: '1px solid #d4c5b3', color: '#6e5d4f', cursor: 'pointer' }}
                       >
-                        Clear the Bed & Clean the Linens (침상 정리하기)
+                        Wash the linens, prepare the straw (시트를 거두고 짚을 다시 깝니다)
                       </button>
                     </div>
                   </div>
@@ -9931,22 +9946,24 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
           </div>
         </section>
 
-        <section className="cute-card" style={{ background: '#fffefa', gridColumn: '1 / -1' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
-            <h3 style={{ margin: 0, color: 'var(--primary)' }}>Trinket Cabinet</h3>
-            <span className="document-kicker">{trinkets.length} remembered rewards</span>
+        <section className="cute-card" style={{ background: '#f8f5ee', border: '1.5px solid #a89684', gridColumn: '1 / -1', boxShadow: 'inset 0 0 15px rgba(139, 90, 43, 0.04)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed #c4b5a3', paddingBottom: '0.55rem', marginBottom: '0.75rem' }}>
+            <h3 style={{ margin: 0, color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>Trinket Cabinet / 선물 보관함</h3>
+            <span className="document-kicker" style={{ color: '#8c7a6b', borderColor: '#c4b5a3' }}>{trinkets.length} remembered keepsakes</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.7rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
             {trinkets.map(record => (
-              <article key={record.id} style={{ border: '1px solid var(--glass-border)', background: record.spent ? '#f2eee9' : '#fbfaf4', padding: '0.75rem', borderRadius: '4px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem' }}>
-                  <strong>{record.name}{record.count > 1 ? ` x${record.count}` : ''}</strong>
-                  {record.spent && <span className="document-kicker">spent</span>}
+              <article key={record.id} style={{ border: '1px dashed #c4b5a3', background: record.spent ? '#eae5db' : '#fcfaf6', padding: '0.8rem', borderRadius: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem', alignItems: 'center' }}>
+                  <strong style={{ color: 'var(--text-bright)', fontSize: '0.88rem' }}>{record.name}{record.count > 1 ? ` x${record.count}` : ''}</strong>
+                  {record.spent && <span style={{ fontSize: '0.68rem', fontStyle: 'italic', color: '#8c7a6b' }}>— 건네어 소모됨</span>}
                 </div>
-                <div style={{ fontSize: '0.77rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{record.source} / {record.locationName || 'place unrecorded'}</div>
-                <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.84rem', marginTop: '0.4rem' }}>{record.story}</div>
+                <div style={{ fontSize: '0.74rem', color: '#8c7a6b', marginTop: '0.25rem', fontStyle: 'italic' }}>
+                  {record.source} {record.locationName ? ` / ${record.locationName}` : ''}
+                </div>
+                <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.83rem', marginTop: '0.45rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>{record.story}</div>
                 {record.patientCaseId && (
-                  <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ marginTop: '0.6rem', display: 'flex', justifyContent: 'flex-end' }}>
                     <button
                       onClick={() => {
                         if (setActiveTab && setHighlightedPatientId) {
@@ -9955,9 +9972,9 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
                         }
                       }}
                       className="btn-cozy-secondary"
-                      style={{ padding: '0.2rem 0.5rem', fontSize: '0.74rem', border: '1px solid var(--glass-border)', background: '#fff', cursor: 'pointer' }}
+                      style={{ padding: '0.2rem 0.55rem', fontSize: '0.72rem', border: '1px dashed #c4b5a3', background: '#fff', color: '#6e5d4f', cursor: 'pointer' }}
                     >
-                      🔍 Revisit Giver / 선물해 준 환자 찾아보기
+                      🌿 Revisit Giver / 선물해 준 환자 찾아보기
                     </button>
                   </div>
                 )}
@@ -9976,6 +9993,14 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
 // =================================================================
 // 12. PATIENT ARCHIVE VIEW COMPONENT
 // =================================================================
+const getNaturalSeverityDescription = (severity: string) => {
+  const clean = (severity || '').toLowerCase().trim();
+  if (clean === 'dire') return '위태로운 생사의 기로 (A dire struggle)';
+  if (clean === 'severe') return '깊고 무거운 병증 (A heavy affliction)';
+  if (clean === 'intermediate') return '어려운 병색 (A troublesome malady)';
+  return '비교적 가벼운 앓음 (A mild discomfort)';
+};
+
 function PatientArchiveView({
   state,
   updateState,
@@ -10041,96 +10066,104 @@ function PatientArchiveView({
                 id={record.id}
                 className="cute-card"
                 style={{
-                  background: isHighlighted ? '#fffef2' : '#fffefa',
+                  background: isHighlighted ? '#fffef2' : '#fcfaf5',
                   border: isHighlighted
                     ? '2px solid #d97706'
-                    : `1.5px solid ${isFailure ? '#b9aca3' : 'var(--border-cozy)'}`,
-                  boxShadow: isHighlighted ? '0 0 14px rgba(217, 119, 6, 0.4)' : 'var(--shadow-sm)',
-                  transition: 'all 0.3s ease'
+                    : `1px dashed ${isFailure ? '#b9aca3' : '#c4b5a3'}`,
+                  boxShadow: isHighlighted ? '0 0 14px rgba(217, 119, 6, 0.4)' : 'none',
+                  transition: 'all 0.3s ease',
+                  padding: '1.1rem'
                 }}
               >
-                {/* Visual Header: Date & Helped Status */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+                {/* Visual Header: Date & Quiet Status Stamp */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.55rem', marginBottom: '0.75rem' }}>
                   <div>
-                    <div className="document-kicker">{record.locationName || 'Bristley Woods'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}</div>
-                    <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1.08rem', color: 'var(--text-bright)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <div className="document-kicker" style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
+                      {record.locationName || 'Bristley Woods'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}
+                    </div>
+                    <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1.25rem', color: 'var(--text-bright)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem', fontFamily: 'var(--font-fancy)' }}>
                       <span>{record.patientName || 'Anonymous patient'}</span>
+                      {record.species && (
+                        <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>
+                          ({record.species})
+                        </span>
+                      )}
                       <button
                         onClick={() => handleToggleBookmark(record.id)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.15rem', padding: 0, display: 'inline-flex', alignItems: 'center', color: record.isBookmarked ? '#d97706' : 'var(--text-dim)' }}
-                        title={record.isBookmarked ? '마음에 깊이 담아둔 환자 (Bookmarked)' : '마음에 담아두기 (Bookmark)'}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.15rem', padding: 0, display: 'inline-flex', alignItems: 'center', color: record.isBookmarked ? '#d97706' : '#c4b5a3', transition: 'color 0.2s' }}
+                        title={record.isBookmarked ? '이 환자와의 만남을 마음에 깊이 품어두었습니다.' : '이 환자와의 만남을 마음에 품어두기'}
                       >
                         {record.isBookmarked ? '★' : '☆'}
                       </button>
                     </h3>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{record.species || 'Species unrecorded'}</div>
                   </div>
-                  <span className="journal-stamp" style={{ color: isFailure ? '#8a6f65' : 'var(--primary)', borderColor: isFailure ? '#8a6f65' : 'var(--primary)' }}>
-                    {isFailure ? 'unresolved' : 'helped'}
+                  <span style={{ fontSize: '0.76rem', fontStyle: 'italic', fontWeight: 600, color: isFailure ? '#8c7a6b' : '#4a6b48', borderBottom: `1px dashed ${isFailure ? 'rgba(140, 122, 107, 0.4)' : 'rgba(74, 107, 72, 0.4)'}`, paddingBottom: '2px', alignSelf: 'flex-start', whiteSpace: 'nowrap' }}>
+                    {isFailure ? '— 결국 치료하지 못함 (left unresolved)' : '— 온전히 나아 길을 떠남 (departed)'}
                   </span>
                 </div>
 
                 {/* Visual Highlight Banner if clicked from Trinket cabinet */}
                 {isHighlighted && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '4px', padding: '0.35rem 0.55rem', marginBottom: '0.75rem', fontSize: '0.76rem', color: '#b45309' }}>
-                    <span>💝 이 장신구를 건네준 환자입니다.</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fcf8eb', border: '1px dashed #d97706', borderRadius: '4px', padding: '0.45rem 0.65rem', marginBottom: '0.75rem', fontSize: '0.78rem', color: '#b45309', fontStyle: 'italic' }}>
+                    <span>🕯️ 이 물건을 건네주고 떠난 야수의 소중한 기억이 여기에 깃들어 있습니다.</span>
                     <button
                       onClick={() => setHighlightedPatientId(null)}
-                      style={{ background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer', color: '#b45309', padding: 0, fontWeight: 'bold' }}
+                      style={{ background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer', color: '#b45309', padding: 0, fontWeight: 'bold', fontSize: '0.75rem' }}
                     >
-                      Dismiss / 닫기
+                      Dismiss / 기억 덮기
                     </button>
                   </div>
                 )}
 
                 {/* EMOTIONAL FOCUS: Remembered Life Notes */}
-                <div style={{ display: 'grid', gap: '0.6rem' }}>
+                <div style={{ display: 'grid', gap: '0.65rem' }}>
                   {record.initialRememberedNote && (
-                    <div style={{ padding: '0.65rem', border: '1px dashed var(--glass-border)', background: '#fbfaf4', borderRadius: '4px' }}>
-                      <div className="document-kicker">First impression</div>
-                      <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.86rem', color: 'var(--text-muted)' }}>{record.initialRememberedNote}</div>
+                    <div style={{ padding: '0.65rem', border: '1px dashed #dcd3c1', background: '#fcfbf7', borderRadius: '4px' }}>
+                      <div className="document-kicker" style={{ color: '#8c7a6b', fontSize: '0.7rem' }}>First impression / 첫인상</div>
+                      <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>{record.initialRememberedNote}</div>
                     </div>
                   )}
 
                   {record.finalArchiveNote && (
-                    <div style={{ padding: '0.65rem', border: '1px solid var(--glass-border)', background: '#fbfaf4', borderRadius: '4px' }}>
-                      <div className="document-kicker">Remembered note</div>
-                      <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.88rem', color: 'var(--text-bright)' }}>{record.finalArchiveNote}</div>
+                    <div style={{ padding: '0.65rem', border: '1px solid #dcd3c1', background: '#faf8f2', borderRadius: '4px', boxShadow: 'inset 0 0 4px rgba(0,0,0,0.01)' }}>
+                      <div className="document-kicker" style={{ color: 'var(--primary)', fontSize: '0.7rem' }}>Remembered note / 새겨진 기억</div>
+                      <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.88rem', color: 'var(--text-bright)', lineHeight: '1.5', fontFamily: 'var(--font-fancy)' }}>{record.finalArchiveNote}</div>
                     </div>
                   )}
 
                   {record.notes && record.notes !== record.finalArchiveNote && (
-                    <div style={{ padding: '0.65rem', border: '1px dashed var(--glass-border)', background: '#fbfaf4', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                      <div className="document-kicker">Treatment outcome</div>
+                    <div style={{ padding: '0.65rem', border: '1px dashed #dcd3c1', background: '#fcfbf7', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.82rem', lineHeight: '1.45' }}>
+                      <div className="document-kicker" style={{ color: '#8c7a6b', fontSize: '0.7rem' }}>Treatment outcome / 경과기록</div>
                       <div style={{ whiteSpace: 'pre-wrap' }}>{record.notes}</div>
                     </div>
                   )}
 
                   {isFailure && record.consequence && (
-                    <div style={{ padding: '0.65rem', border: '1px solid #d7cbc1', background: '#f2eee9', borderRadius: '4px', color: '#6c5a4f', fontSize: '0.84rem' }}>
-                      <strong>Consequence:</strong> {record.consequence}
+                    <div style={{ padding: '0.65rem', border: '1px solid #d7cbc1', background: '#f2eee9', borderRadius: '4px', color: '#6c5a4f', fontSize: '0.84rem', lineHeight: '1.45' }}>
+                      <strong style={{ fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a6f65', display: 'block', marginBottom: '0.2rem' }}>Consequence / 발생한 실패 결과:</strong>
+                      {record.consequence}
                     </div>
                   )}
                 </div>
 
                 {/* COLLAPSIBLE DETAILS: Technical / Apothecary report */}
-                <details className="medical-drawer" style={{ marginTop: '0.8rem', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.5rem' }}>
-                  <summary style={{ cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)', outline: 'none' }}>
-                    🩺 View Medical Report / 상세 의무 기록 보기
+                <details className="medical-drawer" style={{ marginTop: '0.85rem', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.55rem' }}>
+                  <summary style={{ cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)', outline: 'none', userSelect: 'none' }}>
+                    🗒️ Field Notes on the Malady (병증에 관한 관찰 일지)
                   </summary>
-                  <div style={{ padding: '0.5rem', background: '#fcfbf7', border: '1px solid var(--glass-border)', borderRadius: '4px', marginTop: '0.4rem', fontSize: '0.82rem', display: 'grid', gap: '0.35rem' }}>
-                    <div><strong>Ailment / 질병명:</strong> {record.ailmentName}</div>
-                    <div><strong>Severity / 심각도:</strong> <span style={{ textTransform: 'uppercase' }}>{record.severity}</span></div>
-                    {record.tags && <div><strong>Symptom Tags / 필요 약효:</strong> {record.tags}</div>}
-                    {record.journeyTitle && <div><strong>Journey / 여정명:</strong> {record.journeyTitle}</div>}
+                  <div style={{ padding: '0.6rem', background: '#f8f6f0', border: '1px dashed #c4b5a3', borderRadius: '4px', marginTop: '0.45rem', fontSize: '0.82rem', display: 'grid', gap: '0.4rem', color: '#5c4d3c', lineHeight: '1.45' }}>
+                    <div><strong>Observed Malady / 관찰된 병증:</strong> {record.ailmentName}</div>
+                    <div><strong>Affliction Depth / 병의 깊이:</strong> {getNaturalSeverityDescription(record.severity)}</div>
+                    {record.tags && <div><strong>Symptom Requirements / 요구 효능:</strong> {record.tags}</div>}
+                    {record.journeyTitle && <div><strong>Journey / 기록된 여정:</strong> {record.journeyTitle}</div>}
                     {record.remedy && record.remedy.length > 0 && (
-                      <div><strong>Remedy Composition / 조제 성분:</strong> {record.remedy.join(', ')}</div>
+                      <div><strong>Remedy Composition / 조제 약재 목록:</strong> {record.remedy.join(', ')}</div>
                     )}
                   </div>
                 </details>
 
                 {/* Footer stamp info */}
-                <div style={{ marginTop: '0.75rem', fontSize: '0.74rem', color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ marginTop: '0.8rem', fontSize: '0.74rem', color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between' }}>
                   <span>{record.season || 'Season unrecorded'}</span>
                   <span>{formatDateTime(record.timestamp)}</span>
                 </div>
@@ -10348,20 +10381,28 @@ function JournalsView({
                 id={'journals_case_' + record.id}
                 className="cute-card"
                 style={{
-                  background: isHighlighted ? '#fffef2' : '#fffefa',
+                  background: isHighlighted ? '#fffef2' : '#fcfaf5',
                   border: isHighlighted
                     ? '2px solid #d97706'
-                    : `1.5px solid ${isFailure ? '#b9aca3' : 'var(--border-cozy)'}`,
-                  boxShadow: isHighlighted ? '0 0 14px rgba(217, 119, 6, 0.4)' : 'var(--shadow-sm)',
-                  transition: 'all 0.3s ease'
+                    : `1px dashed ${isFailure ? '#b9aca3' : '#c4b5a3'}`,
+                  boxShadow: isHighlighted ? '0 0 14px rgba(217, 119, 6, 0.4)' : 'none',
+                  transition: 'all 0.3s ease',
+                  padding: '1.1rem'
                 }}
               >
                 {/* Visual Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.55rem', marginBottom: '0.75rem' }}>
                   <div>
-                    <div className="document-kicker">{record.locationName || 'Bristley Woods'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}</div>
-                    <h4 style={{ margin: '0.2rem 0 0 0', fontSize: '1.08rem', color: 'var(--text-bright)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <div className="document-kicker" style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
+                      {record.locationName || 'Bristley Woods'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}
+                    </div>
+                    <h4 style={{ margin: '0.2rem 0 0 0', fontSize: '1.25rem', color: 'var(--text-bright)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem', fontFamily: 'var(--font-fancy)' }}>
                       <span>{record.patientName || 'Anonymous patient'}</span>
+                      {record.species && (
+                        <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>
+                          ({record.species})
+                        </span>
+                      )}
                       <button
                         onClick={() => {
                           updateState((s: GameState) => ({
@@ -10371,79 +10412,79 @@ function JournalsView({
                             )
                           }));
                         }}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.15rem', padding: 0, display: 'inline-flex', alignItems: 'center', color: record.isBookmarked ? '#d97706' : 'var(--text-dim)' }}
-                        title={record.isBookmarked ? '마음에 깊이 담아둔 환자 (Bookmarked)' : '마음에 담아두기 (Bookmark)'}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.15rem', padding: 0, display: 'inline-flex', alignItems: 'center', color: record.isBookmarked ? '#d97706' : '#c4b5a3', transition: 'color 0.2s' }}
+                        title={record.isBookmarked ? '이 환자와의 만남을 마음에 깊이 품어두었습니다.' : '이 환자와의 만남을 마음에 품어두기'}
                       >
                         {record.isBookmarked ? '★' : '☆'}
                       </button>
                     </h4>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{record.species || 'Species unrecorded'}</div>
                   </div>
-                  <span className="journal-stamp" style={{ color: isFailure ? 'var(--accent-red)' : 'var(--primary)', borderColor: isFailure ? 'var(--accent-red)' : 'var(--primary)' }}>
-                    {record.outcome}
+                  <span style={{ fontSize: '0.76rem', fontStyle: 'italic', fontWeight: 600, color: isFailure ? '#8c7a6b' : '#4a6b48', borderBottom: `1px dashed ${isFailure ? 'rgba(140, 122, 107, 0.4)' : 'rgba(74, 107, 72, 0.4)'}`, paddingBottom: '2px', alignSelf: 'flex-start', whiteSpace: 'nowrap' }}>
+                    {isFailure ? '— 결국 치료하지 못함 (left unresolved)' : '— 온전히 나아 길을 떠남 (departed)'}
                   </span>
                 </div>
 
                 {/* Highlight Banner */}
                 {isHighlighted && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '4px', padding: '0.35rem 0.55rem', marginBottom: '0.75rem', fontSize: '0.76rem', color: '#b45309' }}>
-                    <span>💝 이 장신구를 건네준 환자입니다.</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fcf8eb', border: '1px dashed #d97706', borderRadius: '4px', padding: '0.45rem 0.65rem', marginBottom: '0.75rem', fontSize: '0.78rem', color: '#b45309', fontStyle: 'italic' }}>
+                    <span>🕯️ 이 물건을 건네주고 떠난 야수의 소중한 기억이 여기에 깃들어 있습니다.</span>
                     <button
                       onClick={() => setHighlightedPatientId && setHighlightedPatientId(null)}
-                      style={{ background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer', color: '#b45309', padding: 0, fontWeight: 'bold' }}
+                      style={{ background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer', color: '#b45309', padding: 0, fontWeight: 'bold', fontSize: '0.75rem' }}
                     >
-                      Dismiss / 닫기
+                      Dismiss / 기억 덮기
                     </button>
                   </div>
                 )}
 
                 {/* EMOTIONAL FOCUS */}
-                <div style={{ display: 'grid', gap: '0.6rem' }}>
+                <div style={{ display: 'grid', gap: '0.65rem' }}>
                   {record.initialRememberedNote && (
-                    <div style={{ padding: '0.5rem', border: '1px dashed var(--glass-border)', background: '#fbfaf4', borderRadius: '4px' }}>
-                      <div className="document-kicker">First impression</div>
-                      <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.82rem', color: 'var(--text-muted)' }}>{record.initialRememberedNote}</div>
+                    <div style={{ padding: '0.5rem', border: '1px dashed #dcd3c1', background: '#fbfaf4', borderRadius: '4px' }}>
+                      <div className="document-kicker" style={{ color: '#8c7a6b', fontSize: '0.7rem' }}>First impression / 첫인상</div>
+                      <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>{record.initialRememberedNote}</div>
                     </div>
                   )}
 
                   {record.finalArchiveNote && (
-                    <div style={{ padding: '0.5rem', border: '1px solid var(--glass-border)', background: '#fbfaf4', borderRadius: '4px' }}>
-                      <div className="document-kicker">Remembered note</div>
-                      <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.84rem', color: 'var(--text-bright)' }}>{record.finalArchiveNote}</div>
+                    <div style={{ padding: '0.5rem', border: '1px solid #dcd3c1', background: '#faf8f2', borderRadius: '4px' }}>
+                      <div className="document-kicker" style={{ color: 'var(--primary)', fontSize: '0.7rem' }}>Remembered note / 새겨진 기억</div>
+                      <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.84rem', color: 'var(--text-bright)', lineHeight: '1.5', fontFamily: 'var(--font-fancy)' }}>{record.finalArchiveNote}</div>
                     </div>
                   )}
 
                   {record.notes && record.notes !== record.finalArchiveNote && (
-                    <div style={{ padding: '0.5rem', border: '1px dashed var(--glass-border)', background: '#fbfaf4', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                      <div className="document-kicker">Treatment outcome</div>
+                    <div style={{ padding: '0.5rem', border: '1px dashed #dcd3c1', background: '#fcfbf7', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.8rem', lineHeight: '1.45' }}>
+                      <div className="document-kicker" style={{ color: '#8c7a6b', fontSize: '0.7rem' }}>Treatment outcome / 경과기록</div>
                       <div style={{ whiteSpace: 'pre-wrap' }}>{record.notes}</div>
                     </div>
                   )}
 
                   {isFailure && record.consequence && (
-                    <div style={{ padding: '0.5rem', border: '1px solid #d7cbc1', background: '#f2eee9', borderRadius: '4px', color: '#6c5a4f', fontSize: '0.82rem' }}>
-                      <strong>Consequence:</strong> {record.consequence}
+                    <div style={{ padding: '0.5rem', border: '1px solid #d7cbc1', background: '#f2eee9', borderRadius: '4px', color: '#6c5a4f', fontSize: '0.82rem', lineHeight: '1.45' }}>
+                      <strong style={{ fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a6f65', display: 'block', marginBottom: '0.2rem' }}>Consequence / 발생한 실패 결과:</strong>
+                      {record.consequence}
                     </div>
                   )}
                 </div>
 
                 {/* Collapsible Details */}
-                <details className="medical-drawer" style={{ marginTop: '0.8rem', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.5rem' }}>
-                  <summary style={{ cursor: 'pointer', fontSize: '0.78rem', fontWeight: 'bold', color: 'var(--primary)', outline: 'none' }}>
-                    🩺 View Medical Report / 상세 의무 기록 보기
+                <details className="medical-drawer" style={{ marginTop: '0.85rem', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.55rem' }}>
+                  <summary style={{ cursor: 'pointer', fontSize: '0.78rem', fontWeight: 'bold', color: 'var(--primary)', outline: 'none', userSelect: 'none' }}>
+                    🗒️ Field Notes on the Malady (병증에 관한 관찰 일지)
                   </summary>
-                  <div style={{ padding: '0.4rem', background: '#fcfbf7', border: '1px solid var(--glass-border)', borderRadius: '4px', marginTop: '0.4rem', fontSize: '0.8rem', display: 'grid', gap: '0.25rem' }}>
-                    <div><strong>Ailment:</strong> {record.ailmentName}</div>
-                    <div><strong>Severity:</strong> <span style={{ textTransform: 'uppercase' }}>{record.severity}</span></div>
-                    {record.tags && <div><strong>Symptom Tags:</strong> {record.tags}</div>}
-                    {record.journeyTitle && <div><strong>Journey:</strong> {record.journeyTitle}</div>}
+                  <div style={{ padding: '0.6rem', background: '#f8f6f0', border: '1px dashed #c4b5a3', borderRadius: '4px', marginTop: '0.45rem', fontSize: '0.82rem', display: 'grid', gap: '0.4rem', color: '#5c4d3c', lineHeight: '1.45' }}>
+                    <div><strong>Observed Malady / 관찰된 병증:</strong> {record.ailmentName}</div>
+                    <div><strong>Affliction Depth / 병의 깊이:</strong> {getNaturalSeverityDescription(record.severity)}</div>
+                    {record.tags && <div><strong>Symptom Requirements / 요구 효능:</strong> {record.tags}</div>}
+                    {record.journeyTitle && <div><strong>Journey / 기록된 여정:</strong> {record.journeyTitle}</div>}
                     {record.remedy && record.remedy.length > 0 && (
-                      <div><strong>Remedy:</strong> {record.remedy.join(', ')}</div>
+                      <div><strong>Remedy Composition / 조제 약재 목록:</strong> {record.remedy.join(', ')}</div>
                     )}
                   </div>
                 </details>
 
-                <div style={{ marginTop: '0.75rem', fontSize: '0.74rem', color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ marginTop: '0.8rem', fontSize: '0.74rem', color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between' }}>
                   <span>{record.season || 'Season unrecorded'}</span>
                   <span>{formatDateTime(record.timestamp)}</span>
                 </div>
