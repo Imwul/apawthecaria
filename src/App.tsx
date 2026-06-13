@@ -2549,7 +2549,7 @@ export default function App() {
               setHighlightedPatientId={setHighlightedPatientId}
             />
           )}
-          {activeTab === 'map' && <MapView />}
+          {activeTab === 'map' && <MapView state={state} />}
           {activeTab === 'journals' && (
             <JournalsView
               state={state}
@@ -9452,9 +9452,30 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
 }
 
 // =================================================================
-// 9. MAP VIEW COMPONENT
+// 9. MAP VIEW COMPONENT (Cartographer’s Margins Pass)
 // =================================================================
-function MapView() {
+const HouseSketch = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" style={{ opacity: 0.75, marginRight: '4px', verticalAlign: 'middle', display: 'inline-block' }}>
+    <path d="M3 10l9-7 9 7v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />
+    <path d="M9 22V12h6v10" />
+  </svg>
+);
+
+const HearthSketch = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" style={{ opacity: 0.75, marginRight: '4px', verticalAlign: 'middle', display: 'inline-block' }}>
+    <path d="M12 2c0 4-3 6-3 10a3 3 0 0 0 6 0c0-4-3-6-3-10z" />
+    <path d="M5 21h14M8 18h8" />
+  </svg>
+);
+
+const BranchSketch = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" style={{ opacity: 0.65, marginRight: '4px', verticalAlign: 'middle', display: 'inline-block' }}>
+    <path d="M3 12c4 0 8 3 13 1" />
+    <path d="M9 11c1-2 2-3 4-3M13 12c1-2 3-2 4-4M16 13c1-2 2-2 3-3" />
+  </svg>
+);
+
+function MapView({ state }: { state: GameState }) {
   const [mapWidth, setMapWidth] = useState(1600);
   const handleZoomOut = () => setMapWidth((w: number) => Math.max(800, w - 200));
   const handleZoomIn = () => setMapWidth((w: number) => Math.min(3000, w + 200));
@@ -9491,6 +9512,107 @@ function MapView() {
   const handleMouseUpOrLeave = () => {
     setIsDragging(false);
   };
+
+  // Compile unique visited or active locations from campaign records
+  const visitedLocs = state.visitedLocations || [];
+  const patientLocs = (state.patientCasebook || []).map(r => r.locationName).filter(Boolean) as string[];
+  const clinicLocs = (state.clinics || []).map(c => c.locationName).filter(Boolean) as string[];
+  const scrapbookLocs = (state.travelScrapbook || []).map(s => s.locationName).filter(Boolean) as string[];
+  const currentLoc = state.currentLocationName;
+
+  const allLocNames = Array.from(new Set([
+    ...visitedLocs,
+    ...patientLocs,
+    ...clinicLocs,
+    ...scrapbookLocs,
+    currentLoc
+  ].filter(Boolean)));
+
+  // Hashing mapper for positioning pins on the map
+  const getCoordinatesForLocation = (name: string) => {
+    const canonical: Record<string, { x: number; y: number }> = {
+      'starting oak road': { x: 26, y: 34 },
+      'noonhill': { x: 42, y: 64 },
+      'odoak': { x: 62, y: 44 },
+      'newdam': { x: 34, y: 52 },
+      'vessel': { x: 30, y: 56 },
+      'summit': { x: 48, y: 24 },
+      'spoolkeep': { x: 74, y: 32 },
+      'glasswall': { x: 18, y: 42 }
+    };
+    const clean = name.toLowerCase().trim();
+    if (canonical[clean]) return canonical[clean];
+
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const x = 18 + Math.abs(hash % 64);
+    const y = 18 + Math.abs((hash >> 8) % 64);
+    return { x, y };
+  };
+
+  // Find First Patient
+  const casesSortedAsc = [...(state.patientCasebook || [])].sort((a, b) => a.timestamp - b.timestamp);
+  const firstPatient = casesSortedAsc[0] || null;
+
+  // Find Oldest Keepsake
+  const trinketsSortedAsc = [...(state.trinketArchive || [])].sort((a, b) => a.timestamp - b.timestamp);
+  const oldestTrinket = trinketsSortedAsc[0] || null;
+
+  // Find First Clinic
+  const firstClinic = (state.clinics || [])[0] || null;
+
+  // Find Most Lived-In Place
+  const locationCounts: Record<string, number> = {};
+  (state.visitedLocations || []).forEach(loc => {
+    if (loc) locationCounts[loc] = (locationCounts[loc] || 0) + 1;
+  });
+  (state.patientCasebook || []).forEach(p => {
+    if (p.locationName) locationCounts[p.locationName] = (locationCounts[p.locationName] || 0) + 1;
+  });
+  (state.clinics || []).forEach(c => {
+    if (c.locationName) locationCounts[c.locationName] = (locationCounts[c.locationName] || 0) + 1;
+  });
+  (state.travelScrapbook || []).forEach(s => {
+    if (s.locationName) locationCounts[s.locationName] = (locationCounts[s.locationName] || 0) + 1;
+  });
+  let mostLivedInLoc = '';
+  let maxCount = 0;
+  Object.entries(locationCounts).forEach(([loc, count]) => {
+    if (count > maxCount) {
+      maxCount = count;
+      mostLivedInLoc = loc;
+    }
+  });
+
+  // Marginal Chronicle notes
+  const marginalNotes: string[] = [];
+  if (firstPatient) {
+    marginalNotes.push(`첫 번째 환자는 ${firstPatient.species || '야수'} ${firstPatient.patientName}였다.`);
+  }
+  if (oldestTrinket) {
+    marginalNotes.push(`가장 오래 품은 물건은 '${oldestTrinket.name}'였다.`);
+  }
+  if (firstClinic) {
+    marginalNotes.push(`처음 약제소를 세운 곳은 ${firstClinic.locationName}였다.`);
+  }
+  if (mostLivedInLoc && maxCount >= 2) {
+    marginalNotes.push(`가장 오랜 발길이 머문 곳은 ${mostLivedInLoc}였다.`);
+  }
+  const failedCount = (state.patientCasebook || []).filter(r => r.outcome === 'failure').length;
+  if (failedCount > 0) {
+    marginalNotes.push('돌아오지 못한 가여운 이들을 기억함.');
+  }
+  marginalNotes.push(state.calendarHistory.length > 5 ? '가시나무 숲에 불어오던 눅눅한 바람.' : '약초를 처음 배우던 숲속의 고요.');
+
+  const placements = [
+    { left: '4%', top: '6%', rotate: '-3deg' },
+    { right: '6%', top: '8%', rotate: '2deg' },
+    { left: '4%', bottom: '8%', rotate: '4deg' },
+    { right: '6%', bottom: '10%', rotate: '-2deg' },
+    { left: '3%', top: '48%', rotate: '-4deg' }
+  ];
 
   return (
     <div style={{
@@ -9542,19 +9664,167 @@ function MapView() {
               userSelect: 'none'
             }}
           >
-            <img
-              src="/Apawthecaria Map Back.jpg"
-              alt="Bristley Woods Map Back"
-              onDragStart={e => e.preventDefault()}
-              style={{
-                display: 'block',
-                maxWidth: 'none',
-                height: 'auto',
-                width: `${mapWidth}px`,
-                transition: isDragging ? 'none' : 'width 0.2s ease-out',
-                pointerEvents: 'none'
-              }}
-            />
+            <div style={{
+              position: 'relative',
+              display: 'inline-block',
+              width: `${mapWidth}px`,
+              transition: isDragging ? 'none' : 'width 0.2s ease-out'
+            }}>
+              <img
+                src="/Apawthecaria Map Back.jpg"
+                alt="Bristley Woods Map Back"
+                onDragStart={e => e.preventDefault()}
+                style={{
+                  display: 'block',
+                  maxWidth: 'none',
+                  height: 'auto',
+                  width: '100%',
+                  pointerEvents: 'none'
+                }}
+              />
+
+              {/* Dynamic location pins & annotations */}
+              {allLocNames.map(locName => {
+                const { x, y } = getCoordinatesForLocation(locName);
+                const successes = (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'success');
+                const failures = (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'failure');
+                const isFirstClinic = firstClinic && firstClinic.locationName === locName;
+                const hasClinic = (state.clinics || []).some(c => c.locationName === locName);
+                const isMostLivedIn = mostLivedInLoc === locName && maxCount >= 2;
+                const keepsakeRecords = (state.trinketArchive || []).filter(t => t.locationName === locName && !t.spent);
+
+                let isLoss = failures.length > 0;
+                let isCare = successes.length > 0 || hasClinic;
+
+                const notes: string[] = [];
+                if (isFirstClinic) {
+                  notes.push('첫 약제소 — 이곳에서 오래 머물렀다.');
+                } else if (isMostLivedIn) {
+                  notes.push('자주 돌아오던 곳. 오래 머문 자리.');
+                }
+
+                if (keepsakeRecords.length > 0) {
+                  notes.push(`이곳에서 ${keepsakeRecords[0].name}을(를) 선물받았다.`);
+                } else if (isCare && !isFirstClinic && !isMostLivedIn) {
+                  if (successes.length >= 2) {
+                    notes.push('이곳에서 여러 야수를 돌보았다.');
+                  } else {
+                    notes.push('여행자들이 자주 도움을 청하던 곳.');
+                  }
+                }
+
+                if (isLoss) {
+                  const lossPhrases = [
+                    '돌아오지 못한 이를 기억하며.',
+                    '한동안 빈 침상이 남아 있었다.',
+                    '숲은 그 이름을 오래 품고 있었다.'
+                  ];
+                  notes.push(lossPhrases[locName.length % lossPhrases.length]);
+                }
+
+                // Visual styling variables based on care, loss, or clinic status
+                let pinColor = 'rgba(107, 81, 59, 0.7)'; // brown ink
+                let textColor = 'rgba(75, 60, 45, 0.8)';
+                let fontW = '400';
+                let shadowBg = 'transparent';
+                let SketchIcon = null;
+
+                if (isLoss) {
+                  pinColor = 'rgba(110, 105, 95, 0.6)'; // faded gray
+                  textColor = 'rgba(100, 95, 88, 0.75)';
+                  SketchIcon = BranchSketch;
+                }
+                if (isCare) {
+                  pinColor = 'rgba(74, 107, 72, 0.75)'; // green ink
+                  textColor = 'rgba(56, 77, 54, 0.85)';
+                  fontW = '500';
+                  shadowBg = 'rgba(244, 230, 208, 0.28)';
+                  SketchIcon = HearthSketch;
+                }
+                if (isFirstClinic) {
+                  pinColor = 'rgba(176, 122, 66, 0.8)';
+                  textColor = 'rgba(120, 78, 38, 0.9)';
+                  fontW = '700';
+                  SketchIcon = HouseSketch;
+                }
+
+                return (
+                  <div
+                    key={locName}
+                    style={{
+                      position: 'absolute',
+                      left: `${x}%`,
+                      top: `${y}%`,
+                      transformOrigin: 'top left',
+                      transform: `translate(-10px, -10px) rotate(${(locName.length % 3) - 1.5}deg)`,
+                      pointerEvents: 'none',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '6px',
+                      fontFamily: 'var(--font-script)',
+                      fontSize: '0.82rem',
+                      userSelect: 'none'
+                    }}
+                  >
+                    {/* Pin Dot */}
+                    <div style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: pinColor,
+                      marginTop: '6px',
+                      boxShadow: shadowBg !== 'transparent' ? `0 0 12px 6px ${shadowBg}` : 'none',
+                      flexShrink: 0
+                    }} />
+
+                    {/* Text Details */}
+                    <div style={{ display: 'flex', flexDirection: 'column', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', fontWeight: fontW as any, color: textColor }}>
+                        {SketchIcon && <SketchIcon />}
+                        <span>{locName}</span>
+                      </div>
+                      {notes.map((note, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            fontSize: '0.74rem',
+                            color: isLoss ? 'rgba(110, 105, 95, 0.65)' : 'rgba(120, 110, 95, 0.75)',
+                            fontStyle: 'italic',
+                            marginTop: '1px'
+                          }}
+                        >
+                          {note}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Edge Marginalia */}
+              {marginalNotes.slice(0, 5).map((noteText, idx) => {
+                const p = placements[idx];
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      position: 'absolute',
+                      ...p,
+                      pointerEvents: 'none',
+                      fontFamily: 'var(--font-script)',
+                      fontSize: '0.82rem',
+                      fontStyle: 'italic',
+                      color: 'rgba(125, 115, 100, 0.55)', // soft pencil
+                      transform: `rotate(${p.rotate})`,
+                      whiteSpace: 'nowrap',
+                      userSelect: 'none'
+                    }}
+                  >
+                    “{noteText}”
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 
