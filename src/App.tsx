@@ -465,6 +465,59 @@ const memoryKey = (...parts: string[]) =>
 const cleanMemoryName = (name: string) =>
   name.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
 
+const getLocalizedLocationName = (name: string): string => {
+  if (!name) return '이름 모를 곳';
+  const clean = name.trim();
+  const lower = clean.toLowerCase();
+  if (lower === 'starting oak road' || lower === 'oak road') return '오크 길';
+  if (lower === 'bristley woods') return '브리슬리 숲';
+  if (lower === 'noonhill') return '눈힐';
+  if (lower === 'odoak') return '오도악';
+  if (lower === 'newdam') return '뉴댐';
+  if (lower === 'vessel') return '베셀';
+  if (lower === 'summit') return '서밋';
+  if (lower === 'spoolkeep') return '스풀킵';
+  if (lower === 'glasswall') return '글래스월';
+  return clean;
+};
+
+const getLocalizedSource = (source: string): string => {
+  const s = (source || '').toLowerCase().trim();
+  if (s.includes('starting keepsake')) return '여정의 시작점';
+  if (s.includes('carried trinket')) return '여정길의 길동무';
+  if (s.includes('current collection')) return '약제사 배낭 속 수집품';
+  if (s.includes('handwritten trinket note')) return '기록장에 끼워둔 쪽지';
+  if (s.includes('cured patient keepsake') || s.includes('cured patient') || s.includes('cured beast')) return '완치된 야수의 보답';
+  return source;
+};
+
+const getLocalizedStory = (story: string): string => {
+  const s = (story || '').toLowerCase().trim();
+  if (s.includes('a first keepsake tucked into the bag')) {
+    return '브리슬리 숲길의 먼 여정을 나서며 낡은 약제사 배낭 가장 깊은 곳에 고이 넣어둔 첫 번째 징표.';
+  }
+  if (s.includes('a carried trinket preserved from an older save') || s.includes('preserved from an older save')) {
+    return '어느 오래된 기억의 길목에서부터 소중히 품고 온 손때 묻은 물건.';
+  }
+  if (s.includes('handwritten keepsake note')) {
+    return '보답으로 받은 작은 물건 곁에, 고마운 마음을 서툴게 꾹꾹 눌러 쓴 작은 종이쪽지.';
+  }
+  if (s.includes('a warm keepsake left by a cured beast') || s.includes('cured beast') || s.includes('cured patient') || s.includes('warm keepsake')) {
+    return '약이 차도를 보이고 기운을 차린 야수가, 고마움의 눈빛을 건네며 발치에 슬그머니 밀어놓고 간 물건.';
+  }
+  if (s.includes('a trinket currently kept in the travelling bag, preserved in the cabinet')) {
+    return '약제사 배낭 속에 소중히 담아 지니고 다니는 물건. 나중에 거래에 쓰이더라도 기억이 바래지 않도록 보관함에 그 사연을 남겨둡니다.';
+  }
+  return story;
+};
+
+const getLocalizedSpentStory = (spentLine: string): string => {
+  if (!spentLine) return '물꼬 거래나 조력에 사용됨';
+  const clean = spentLine.replace(/^Spent from the pouch at /, '').replace(/\.$/, '').trim();
+  const loc = getLocalizedLocationName(clean);
+  return `약제사 배낭에서 꺼내어 [${loc}]에서 거래나 조력을 위해 사용함.`;
+};
+
 const locationCategoryFor = (type?: string): AlmanacCategory => {
   if (type === 'City' || type === 'Settlement') return 'settlement';
   if (type === 'Ruin' || type === 'Barrow') return 'landmark';
@@ -3255,8 +3308,8 @@ function PlayView({
           pendingPatientArchive: pendingArchive,
           journals,
           lostPatientLegacy: {
-            name: s.activeAilment!.patientName || 'Anonymous patient',
-            species: s.activeAilment!.species || 'Unknown species',
+            name: s.activeAilment!.patientName || '이름 모를 야수',
+            species: s.activeAilment!.species || '알 수 없는 종',
             ailmentName: s.activeAilment!.name,
             day: s.cumulativeDays || s.calendarDays || 0,
             consequence: s.activeAilment!.consequence
@@ -4856,8 +4909,8 @@ function PlayView({
             ...s.journals
           ],
           lostPatientLegacy: {
-            name: s.activeAilment!.patientName || 'Anonymous patient',
-            species: s.activeAilment!.species || 'Unknown species',
+            name: s.activeAilment!.patientName || '이름 모를 야수',
+            species: s.activeAilment!.species || '알 수 없는 종',
             ailmentName: s.activeAilment!.name,
             day: s.cumulativeDays || s.calendarDays || 0,
             consequence: s.activeAilment!.consequence
@@ -4897,8 +4950,8 @@ function PlayView({
             ...s.journals
           ],
           lostPatientLegacy: {
-            name: s.activeAilment!.patientName || 'Anonymous patient',
-            species: s.activeAilment!.species || 'Unknown species',
+            name: s.activeAilment!.patientName || '이름 모를 야수',
+            species: s.activeAilment!.species || '알 수 없는 종',
             ailmentName: s.activeAilment!.name,
             day: s.cumulativeDays || s.calendarDays || 0,
             consequence: s.activeAilment!.consequence
@@ -5784,25 +5837,25 @@ function PlayView({
           <div className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--border-cozy)', boxShadow: '0 8px 24px rgba(36,32,24,0.16)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.45rem', marginBottom: '0.7rem' }}>
               <div>
-                <div className="document-kicker">Close Field Case File</div>
+                <div className="document-kicker">진료 일지 덮기</div>
                 <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1rem' }}>{state.pendingPatientArchive.ailmentName}</h3>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                  {(state.pendingPatientArchive.patientName || 'Anonymous patient')}
+                  {(state.pendingPatientArchive.patientName || '이름 모를 야수')}
                   {state.pendingPatientArchive.species ? ` / ${state.pendingPatientArchive.species}` : ''}
                 </div>
               </div>
               <span className="journal-stamp" style={{ color: state.pendingPatientArchive.outcome === 'success' ? 'var(--primary)' : '#8a6f65', borderColor: state.pendingPatientArchive.outcome === 'success' ? 'var(--primary)' : '#8a6f65' }}>
-                {state.pendingPatientArchive.outcome}
+                {state.pendingPatientArchive.outcome === 'success' ? '온전히 나아감' : '꺾지 못함'}
               </span>
             </div>
             <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-              Final note for the archive
+              기록장에 남길 맺음말
             </label>
             <textarea
               rows={4}
               value={finalArchiveNoteDraft}
               onChange={e => setFinalArchiveNoteDraft(e.target.value)}
-              placeholder="Leave unchanged, edit, or clear this closing note."
+              placeholder="맺음말을 그대로 두거나, 알맞게 다듬거나 비워두세요."
               style={{ width: '100%', resize: 'vertical', fontSize: '0.9rem' }}
             />
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', marginTop: '0.5rem', cursor: 'pointer', color: 'var(--text-bright)', fontWeight: 'bold' }}>
@@ -5811,11 +5864,11 @@ function PlayView({
                 checked={isBookmarkedDraft}
                 onChange={e => setIsBookmarkedDraft(e.target.checked)}
               />
-              <span>⭐ 이 환자를 마음에 담아두기 (Keep in Heart / Bookmark)</span>
+              <span>⭐ 이 인연을 마음에 깊이 품어두기</span>
             </label>
             {state.pendingPatientArchive.consequence && (
               <div style={{ marginTop: '0.55rem', padding: '0.55rem', background: '#f2eee9', border: '1px solid #d7cbc1', borderRadius: '4px', color: '#6c5a4f', fontSize: '0.8rem' }}>
-                <strong>Consequence:</strong> {state.pendingPatientArchive.consequence}
+                <strong>이후의 병색과 여파:</strong> {state.pendingPatientArchive.consequence}
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.8rem' }}>
@@ -5830,7 +5883,7 @@ function PlayView({
                 className="btn-cozy-primary"
                 style={{ padding: '0.45rem 0.9rem', fontSize: '0.82rem' }}
               >
-                케이스 파일 닫기
+                기록장에 새기기
               </button>
             </div>
           </div>
@@ -8020,10 +8073,10 @@ function PlayView({
                 <div className="grid-patient-stats" style={{ borderBottom: '1px dashed var(--glass-border)', paddingBottom: '1rem' }}>
                   <div>
                     <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-bright)' }}>{state.activeAilment.name}</div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginTop: '2px' }}>등급: {state.activeAilment.severity.toUpperCase()}</div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginTop: '2px' }}>병색의 깊이: {getNaturalSeverityDescription(state.activeAilment.severity)}</div>
                     {(state.activeAilment.patientName || state.activeAilment.species || state.activeAilment.initialRememberedNote) && (
                       <div style={{ marginTop: '0.5rem', padding: '0.65rem', border: '1px dashed var(--glass-border)', background: '#fffefa', borderRadius: '4px', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
-                        <div><strong>환자:</strong> {state.activeAilment.patientName || 'Anonymous patient'} {state.activeAilment.species ? ` / ${state.activeAilment.species}` : ''}</div>
+                        <div><strong>환자:</strong> {state.activeAilment.patientName || '이름 모를 야수'} {state.activeAilment.species ? ` / ${state.activeAilment.species}` : ''}</div>
                         {state.activeAilment.initialRememberedNote && (
                           <div style={{ marginTop: '0.35rem', whiteSpace: 'pre-wrap' }}>{state.activeAilment.initialRememberedNote}</div>
                         )}
@@ -9173,7 +9226,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
 
   return (
     <div>
-      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>🌿 영약재 도감</h2>
+      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>🌿 영약재 관찰 기록</h2>
       <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)' }}>
         각 영약재 부위는 특정한 조제법(빻기, 끓이기, 바르기 등)을 통과해 질병 증상을 치료할 수 있는 고유 약효를 냅니다.
       </p>
@@ -9182,21 +9235,21 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
       <div style={{ display: 'flex', gap: '0.5rem', margin: '1rem 0' }}>
         <input
           type="text"
-          placeholder="영약재 이름 검색..."
+          placeholder="기록장에서 영약재 이름 뒤적이기..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{ flex: 1 }}
         />
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-          <option value="">전체 분류 (ALL)</option>
-          <option value="PLANT">PLANT</option>
-          <option value="ANIMAL">ANIMAL</option>
-          <option value="INSECT">INSECT</option>
-          <option value="EARTH">EARTH</option>
-          <option value="TITAN">TITAN</option>
+          <option value="">모든 분류</option>
+          <option value="PLANT">풀과 나무</option>
+          <option value="ANIMAL">야수의 흔적</option>
+          <option value="INSECT">곤충과 벌레</option>
+          <option value="EARTH">흙과 돌</option>
+          <option value="TITAN">거수의 조각</option>
         </select>
         <select value={filter} onChange={e => setFilter(e.target.value)}>
-          <option value="">전체 치료 효과</option>
+          <option value="">약효별로 대조하기</option>
           <option value="pain">통증</option>
           <option value="wound">상처</option>
           <option value="infection">감염</option>
@@ -9219,7 +9272,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
         </select>
       </div>
 
-      <div className="grid-reagents" style={{ maxHeight: '500px', overflowY: 'auto', padding: '0.5rem' }}>
+      <div className="grid-reagents" style={{ padding: '0.5rem' }}>
         {filtered.map((r, i) => (
           <div key={i} className="cute-card" style={{ background: '#fafafa' }}>
             <h4 style={{ margin: 0, color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1.1rem', fontWeight: 'bold' }}>
@@ -9338,22 +9391,22 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
 
   return (
     <div>
-      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>🤒 질병 도감</h2>
+      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>🤒 병세와 처방 관찰</h2>
       <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)' }}>
-        약제사는 주민 야수들의 다양한 병증을 식별할 수 있습니다. 환자를 약제소에 등록할 때 이름을 도감에서 찾아 적용해 주세요.
+        약제사는 길녘에서 만나는 야수들의 다양한 병증을 살핍니다. 환자의 병명을 이 기록에서 대조하여 알맞은 탕약을 지으세요.
       </p>
 
       {/* Search and Filters */}
       <div style={{ display: 'flex', gap: '0.5rem', margin: '1rem 0' }}>
         <input
           type="text"
-          placeholder="질병 이름 검색..."
+          placeholder="기록장에서 병색 찾아보기..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{ flex: 1 }}
         />
         <select value={filter} onChange={e => setFilter(e.target.value)}>
-          <option value="">전체 치료 효과</option>
+          <option value="">약효별로 대조하기</option>
           <option value="pain">통증</option>
           <option value="wound">상처</option>
           <option value="infection">감염</option>
@@ -9376,7 +9429,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
         </select>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxHeight: '500px', overflowY: 'auto', padding: '0.5rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '0.5rem' }}>
         {filtered.map((a, i) => {
           const cleanedName = cleanAilmentName(a.name);
           return (
@@ -10145,7 +10198,7 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
               if (isFailure) {
                 return (
                   <div key={record.id} style={{ borderBottom: '1px dotted var(--glass-border)', padding: '0.6rem 0', fontSize: '0.86rem', color: 'var(--text-dim)' }}>
-                    🕯️ {record.patientName || '가여운 이'}{record.species ? ` (${record.species})` : ''} — Day {record.resolvedAtDay || 0}
+                    🕯️ {record.patientName || '가여운 이'}{record.species ? ` (${record.species})` : ''} — {record.resolvedAtDay || 0}일째 되던 날
                   </div>
                 );
               }
@@ -10153,13 +10206,13 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
               return (
                 <article key={record.id} style={{ border: '1px solid var(--glass-border)', background: '#fbfaf4', padding: '0.75rem', borderRadius: '4px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem' }}>
-                    <strong>{record.patientName || 'Anonymous patient'}{record.species ? ` / ${record.species}` : ''}</strong>
+                    <strong>{record.patientName || '이름 모를 야수'}{record.species ? ` / ${record.species}` : ''}</strong>
                     <span className="journal-stamp" style={{ color: 'var(--primary)', borderColor: 'var(--primary)' }}>
-                      helped
+                      온전히 나아 길을 떠남
                     </span>
                   </div>
                   <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                    {record.ailmentName} / {record.locationName || 'unknown place'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}
+                    {record.ailmentName} / {getLocalizedLocationName(record.locationName)} {record.resolvedAtDay ? `| ${record.resolvedAtDay}일째` : ''}
                   </div>
                   {(record.finalArchiveNote || record.initialRememberedNote) && (
                     <div style={{ fontSize: '0.84rem', marginTop: '0.45rem', whiteSpace: 'pre-wrap' }}>
@@ -10381,14 +10434,14 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
                       {record.spent && <span style={{ fontSize: '0.68rem', fontStyle: 'italic', color: '#8c7a6b' }}>— 건네어 소모됨</span>}
                     </div>
                     <div style={{ fontSize: '0.74rem', color: '#8c7a6b', marginTop: '0.25rem', fontStyle: 'italic' }}>
-                      {record.source} {record.locationName ? ` / ${record.locationName}` : ''}
+                      {getLocalizedSource(record.source)} {record.locationName ? ` / ${getLocalizedLocationName(record.locationName)}` : ''}
                     </div>
                     <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.83rem', marginTop: '0.45rem', color: record.spent ? 'var(--text-dim)' : 'var(--text-muted)', lineHeight: '1.45' }}>
-                      {originalStory}
+                      {getLocalizedStory(originalStory)}
                     </div>
                     {record.spent && (
                       <div style={{ fontSize: '0.8rem', color: '#8c7a6b', marginTop: '0.35rem', fontStyle: 'italic' }}>
-                        ↳ {spentStoryLine ? spentStoryLine.replace(/^Spent from the pouch at /, '약제사 배낭에서 꺼내어 ').replace(/$/, '에서 사용함') : '물꼬 거래나 조력에 사용됨'}
+                        ↳ {getLocalizedSpentStory(spentStoryLine)}
                       </div>
                     )}
                     {record.patientCaseId && (
@@ -10403,7 +10456,7 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
                           className="btn-cozy-secondary"
                           style={{ padding: '0.2rem 0.55rem', fontSize: '0.72rem', border: '1px dashed #c4b5a3', background: '#fff', color: '#6e5d4f', cursor: 'pointer' }}
                         >
-                          🌿 Revisit Giver / 선물해 준 환자 찾아보기
+                          🌿 선물을 보낸 인연 돌아보기
                         </button>
                       </div>
                     )}
@@ -10430,10 +10483,10 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
 // =================================================================
 const getNaturalSeverityDescription = (severity: string) => {
   const clean = (severity || '').toLowerCase().trim();
-  if (clean === 'dire') return '위태로운 생사의 기로 (A dire struggle)';
-  if (clean === 'severe') return '깊고 무거운 병증 (A heavy affliction)';
-  if (clean === 'intermediate') return '어려운 병색 (A troublesome malady)';
-  return '비교적 가벼운 앓음 (A mild discomfort)';
+  if (clean === 'dire') return '위태로운 생사의 기로';
+  if (clean === 'severe') return '깊고 무거운 병증';
+  if (clean === 'intermediate') return '가볍지 않은 병색';
+  return '비교적 가벼운 앓음';
 };
 
 function PatientArchiveView({
@@ -10476,13 +10529,11 @@ function PatientArchiveView({
   return (
     <div>
       <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-        <span>환자 기록장</span>
-        <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-          {records.length} case files / {successCount} helped / {failureCount} unresolved
-        </span>
+        <span>기록장</span>
       </h2>
       <p style={{ fontSize: '0.92rem', color: 'var(--text-muted)', marginTop: 0 }}>
         들녘에서 만난 야수들, 그들이 건넨 이야기와 약제사 배낭에서 꺼내어 조제해준 약의 흔적들을 모은 기록장입니다.
+        {records.length > 0 && ` 지금까지 온전히 나아 돌아간 야수들 ${successCount}마리와, 끝내 병세를 꺾지 못한 ${failureCount}마리의 이야기가 기록되어 있습니다.`}
       </p>
 
       {records.length === 0 ? (
@@ -10513,7 +10564,7 @@ function PatientArchiveView({
                 {/* Visual Header: Date & Bookmark */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.55rem', marginBottom: '0.75rem' }}>
                   <div className="document-kicker" style={{ color: 'var(--text-muted)', fontSize: '0.74rem', margin: 0 }}>
-                    {record.locationName || 'Bristley Woods'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}
+                    {getLocalizedLocationName(record.locationName)} {record.resolvedAtDay ? `| ${record.resolvedAtDay}일째 되던 날` : ''}
                   </div>
                   <button
                     onClick={() => handleToggleBookmark(record.id)}
@@ -10600,19 +10651,19 @@ function PatientArchiveView({
                     🗒️ 병증에 관한 관찰 일지
                   </summary>
                   <div style={{ padding: '0.6rem', background: '#f8f6f0', border: '1px dashed #c4b5a3', borderRadius: '4px', marginTop: '0.45rem', fontSize: '0.8rem', display: 'grid', gap: '0.4rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>
-                    <div><strong>Observed Malady / 관찰된 병증:</strong> {record.ailmentName}</div>
-                    <div><strong>Affliction Depth / 병의 깊이:</strong> {getNaturalSeverityDescription(record.severity)}</div>
-                    {record.tags && <div><strong>Symptom Requirements / 요구 효능:</strong> {record.tags}</div>}
-                    {record.journeyTitle && <div><strong>Journey / 기록된 여정:</strong> {record.journeyTitle}</div>}
+                    <div><strong>관찰된 병증:</strong> {record.ailmentName}</div>
+                    <div><strong>병색의 깊이:</strong> {getNaturalSeverityDescription(record.severity)}</div>
+                    {record.tags && <div><strong>요구되는 약효:</strong> {record.tags}</div>}
+                    {record.journeyTitle && <div><strong>기록된 여정:</strong> {record.journeyTitle}</div>}
                     {record.remedy && record.remedy.length > 0 && (
-                      <div><strong>Remedy Composition / 조제 약재 목록:</strong> {record.remedy.join(', ')}</div>
+                      <div><strong>우려낸 약재들:</strong> {record.remedy.join(', ')}</div>
                     )}
                   </div>
                 </details>
 
                 {/* Footer stamp info */}
                 <div style={{ marginTop: '0.8rem', fontSize: '0.74rem', color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between' }}>
-                  <span>{record.season || 'Season unrecorded'}</span>
+                  <span>{record.season ? (record.season === 'Spring' ? '봄' : record.season === 'Summer' ? '여름' : record.season === 'Autumn' ? '가을' : '겨울') : '계절 미기록'}</span>
                   <span>{formatDateTime(record.timestamp)}</span>
                 </div>
               </article>
@@ -10841,7 +10892,7 @@ function JournalsView({
                 {/* Visual Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.55rem', marginBottom: '0.75rem' }}>
                   <div className="document-kicker" style={{ color: 'var(--text-muted)', fontSize: '0.74rem', margin: 0 }}>
-                    {record.locationName || 'Bristley Woods'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}
+                    {getLocalizedLocationName(record.locationName)} {record.resolvedAtDay ? `| ${record.resolvedAtDay}일째 되던 날` : ''}
                   </div>
                   <button
                     onClick={() => {
@@ -10935,18 +10986,18 @@ function JournalsView({
                     🗒️ 병증에 관한 관찰 일지
                   </summary>
                   <div style={{ padding: '0.6rem', background: '#f8f6f0', border: '1px dashed #c4b5a3', borderRadius: '4px', marginTop: '0.45rem', fontSize: '0.8rem', display: 'grid', gap: '0.4rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>
-                    <div><strong>Observed Malady / 관찰된 병증:</strong> {record.ailmentName}</div>
-                    <div><strong>Affliction Depth / 병의 깊이:</strong> {getNaturalSeverityDescription(record.severity)}</div>
-                    {record.tags && <div><strong>Symptom Requirements / 요구 효능:</strong> {record.tags}</div>}
-                    {record.journeyTitle && <div><strong>Journey / 기록된 여정:</strong> {record.journeyTitle}</div>}
+                    <div><strong>관찰된 병증:</strong> {record.ailmentName}</div>
+                    <div><strong>병색의 깊이:</strong> {getNaturalSeverityDescription(record.severity)}</div>
+                    {record.tags && <div><strong>요구되는 약효:</strong> {record.tags}</div>}
+                    {record.journeyTitle && <div><strong>기록된 여정:</strong> {record.journeyTitle}</div>}
                     {record.remedy && record.remedy.length > 0 && (
-                      <div><strong>Remedy Composition / 조제 약재 목록:</strong> {record.remedy.join(', ')}</div>
+                      <div><strong>우려낸 약재들:</strong> {record.remedy.join(', ')}</div>
                     )}
                   </div>
                 </details>
 
                 <div style={{ marginTop: '0.8rem', fontSize: '0.74rem', color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between' }}>
-                  <span>{record.season || 'Season unrecorded'}</span>
+                  <span>{record.season ? (record.season === 'Spring' ? '봄' : record.season === 'Summer' ? '여름' : record.season === 'Autumn' ? '가을' : '겨울') : '계절 미기록'}</span>
                   <span>{formatDateTime(record.timestamp)}</span>
                 </div>
               </div>
@@ -11147,7 +11198,7 @@ function JournalsView({
           {/* List journals */}
           <div style={{ marginTop: '2rem' }}>
             <h3>📖 과거 저널 기록 ({state.journals.length}개)</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '450px', overflowY: 'auto', padding: '0.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem' }}>
               {state.journals.map(j => (
                 <div key={j.id} className="cute-card" style={{ background: '#fff' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #eee', paddingBottom: '0.4rem' }}>
