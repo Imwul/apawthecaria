@@ -2398,14 +2398,14 @@ export default function App() {
           <div className="glass-panel cute-border" style={{ padding: '0.8rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
               {[
-                { id: 'play', label: 'Travel Log', sub: 'Journey & Calendar' },
-                { id: 'bio', label: 'Poulticepounder', sub: 'Profile & Bags' },
-                { id: 'reagents', label: 'Apothecary Notes', sub: 'Reagents & Methods' },
-                { id: 'ailments', label: 'Case Files', sub: 'Ailments & Remedies' },
-                { id: 'patientArchive', label: 'Patient Archive', sub: 'Remembered Beasts' },
-                { id: 'livingArchive', label: 'Living Archive', sub: 'Specimens & Stories' },
-                { id: 'map', label: 'Folded Map', sub: 'Bristley Woods' },
-                { id: 'journals', label: 'Field Journal', sub: 'Chronicles & Records' }
+                { id: 'play', label: '여정 일지', sub: '여정과 달력' },
+                { id: 'bio', label: '약제사 정보', sub: '초상과 배낭' },
+                { id: 'reagents', label: '약초 관찰기', sub: '약재와 제조법' },
+                { id: 'ailments', label: '진료 기록', sub: '병증과 처방' },
+                { id: 'patientArchive', label: '환자 기록장', sub: '기억 속 야수들' },
+                { id: 'livingArchive', label: '살아 있는 기록들', sub: '표본과 이야기' },
+                { id: 'map', label: '접어둔 지도', sub: '가시덤불 숲' },
+                { id: 'journals', label: '들녘의 일지', sub: '방랑기' }
               ].map(t => (
                 <button
                   key={t.id}
@@ -3231,17 +3231,17 @@ function PlayView({
 
       if (nextTimer === 0) {
         // Trigger Consequence
-        alert(`💥 시간이 다 되었습니다! 환자의 질병이 악화되어 실패 결과를 받습니다: \n${s.activeAilment.consequence}`);
+        alert(`💥 침상의 야수가 깊은 고통 끝에 쓸쓸히 숨을 거두었습니다: \n${s.activeAilment.consequence}`);
         // Deduct reputation based on severity
         const loss = s.activeAilment.severity === 'dire' ? 4 : s.activeAilment.severity === 'severe' ? 3 : s.activeAilment.severity === 'intermediate' ? 2 : 1;
         newRep = Math.max(0, s.reputation - loss);
         const timestamp = Date.now();
         const sourceId = 'cure_fail_timer_' + timestamp;
-        const notes = `환자 치료를 완수하지 못하고 시간이 마감되었습니다.\n\n[치료 실패 결과(Consequence)]\n${s.activeAilment.consequence}\n\n길드 명성 점수가 ${loss}점 깎입니다.`;
+        const notes = `방랑의 여정이 이어지는 동안, 약제소 침상에 누워있던 야수의 시간이 속절없이 흘러가 버렸습니다. 미처 적절한 처방을 지어 올리기도 전에 병증이 그가 견딜 수 없을 만큼 깊어졌고, 결국 약제사로서 그의 마지막 동반자가 되어주지 못했습니다. 침상 위에 홀로 남겨진 흔적(${s.activeAilment.consequence})만이 쓸쓸하게 공방의 정적 속에 남아, 약을 지어 올리지 못한 내 미숙함을 호되게 꾸짖는 듯합니다.`;
 
         journals.unshift({
           id: sourceId,
-          title: `💥 치료 실패 결과: ${s.activeAilment.name}`,
+          title: `🕯️ 짚침상에 머문 슬픔: ${s.activeAilment.patientName || '이름 없는 이'}의 마지막 숨결`,
           text: notes,
           timestamp
         });
@@ -4831,14 +4831,15 @@ function PlayView({
 
     // 1. Time out failure
     if (nextTimer <= 0) {
-      alert(`💥 조제 시간 도중 환자의 치료 기한이 마감되었습니다!\n질병이 악화되어 실패 결과를 받습니다:\n${state.activeAilment.consequence}`);
+      alert(`💥 조제하는 데 소중한 시간이 흩날려 버렸고, 탕약이 끓어오르기도 전에 그의 호흡이 멈추었습니다:\n${state.activeAilment.consequence}`);
 
       updateState(s => {
         const nextBag = s.bag.filter(item => !selectedBagItems.includes(item.id));
         const nextRep = Math.max(0, s.reputation - loss);
         const timestamp = Date.now();
         const sourceId = 'cure_fail_' + timestamp;
-        const notes = `조제 시간 경과로 치료 기한 내 완료하지 못했습니다.\\n- 치료 실패 결과(Consequence): ${s.activeAilment!.consequence}\\n- 길드 평판 -${loss}점`;
+        const reagentsStr = selectedReagents.map(r => r.name.split(' (')[0]).join(', ');
+        const notes = `가방에서 꺼낸 약재 [${reagentsStr}]를 다듬으며 약을 달이려 애썼으나, 불 앞에 꼬박 지새운 ${timeSpent}시간 동안 기약된 치료의 기한이 모두 다 흘러가 버렸습니다. 미처 약이 완성되기도 전에 환자의 호흡이 가늘어졌고, 침상 위 짚더미는 무정한 추위 속에서 차갑게 식어가고 말았습니다. 끝내 환자를 구하지 못했다는 깊은 자책감이 공방의 차가운 정적 속에 어둡게 내리앉았습니다.`;
         return {
           ...s,
           bag: nextBag,
@@ -4848,7 +4849,7 @@ function PlayView({
           journals: [
             {
               id: sourceId,
-              title: `💥 치료 실패: ${s.activeAilment!.name} (시간 초과)`,
+              title: `🕯️ 짚침상에 머문 슬픔: ${s.activeAilment!.patientName || '가여운 야수'}를 기억하며`,
               text: notes,
               timestamp
             },
@@ -4869,16 +4870,17 @@ function PlayView({
 
     // 2. Incomplete Remedy failure
     if (!isComplete) {
-      const proceedIncomplete = confirm(`⚠️ 경고: 요구 조건 중 일부를 충족하지 못해 [불완전 Remedy] 상태입니다.\\n이대로 조제를 완료하면 치료 실패로 취급되어 Consequence가 발생합니다. 진행하시겠습니까?`);
+      const proceedIncomplete = confirm(`⚠️ 경고: 가슴 아프게도 요구하는 알맞은 성분을 이 처방전에 모두 채워 넣지 못했습니다.\n이대로 탕약을 달여 올려보내시겠습니까?`);
       if (!proceedIncomplete) return;
 
-      alert(`💥 불완전 치료제 조제로 환자의 치료가 실패했습니다!\\n질병 실패 결과:\\n${state.activeAilment.consequence}`);
+      alert(`💥 정성껏 달인 탕약의 효능이 모자라 차도를 보이지 못했습니다:\n${state.activeAilment.consequence}`);
       updateState(s => {
         const nextBag = s.bag.filter(item => !selectedBagItems.includes(item.id));
         const nextRep = Math.max(0, s.reputation - loss);
         const timestamp = Date.now();
         const sourceId = 'cure_fail_incomplete_' + timestamp;
-        const notes = `요구 조건 미달의 불완전 치료제를 조제하여 치료에 실패했습니다.\\n- 미충족 요구사항: ${missingRequirements.join(', ')}\\n- 치료 실패 결과(Consequence): ${s.activeAilment!.consequence}\\n- 길드 평판 -${loss}점`;
+        const reagentsStr = selectedReagents.map(r => r.name.split(' (')[0]).join(', ');
+        const notes = `병의 깊이에 맞는 효능을 온전히 이끌어내지 못하고, 불완전하게 조제된 처방약을 올리고 말았습니다. 가방에 든 [${reagentsStr}]를 조제하여 올렸으나 약효가 가닿지 못했습니다. 약을 들이킨 야수는 차도를 보이지 못한 채, 끝내 지친 몸을 이끌고 쓸쓸히 길을 떠났습니다. 약제사로서 알맞은 효능을 찾아내지 못했다는 뼈아픈 자책과 탄식이 후회와 함께 방 안에 머뭅니다.`;
         return {
           ...s,
           bag: nextBag,
@@ -4888,7 +4890,7 @@ function PlayView({
           journals: [
             {
               id: sourceId,
-              title: `💥 치료 실패: ${s.activeAilment!.name} (불완전 치료제)`,
+              title: `🕯️ 끝내 닿지 못한 처방: ${s.activeAilment!.patientName || '이름 모를 이'}의 쓸쓸한 길`,
               text: notes,
               timestamp
             },
@@ -4927,7 +4929,7 @@ function PlayView({
     let isGifting = false;
     if (trinketGain > 0) {
       isGifting = confirm(
-        `보상: 장신구 ${trinketGain}개\\n\\n💝 Gifting: 장신구 대신 길드 평판 +2를 선택하시겠습니까?\\n(장신구 0개일 때는 Gifting 불가)`
+        `보상: 장신구 ${trinketGain}개\n\n💝 Gifting: 장신구 대신 길드 평판 +2를 선택하시겠습니까?\n(장신구 0개일 때는 Gifting 불가)`
       );
     }
 
@@ -4950,10 +4952,10 @@ function PlayView({
       // Goal 7 (의학 연구 자료) check
       let nextGoalCounter = s.journeyGoalCounter || 0;
       if (s.journeyActive && s.journeyGoalTitle === '의학 연구 자료') {
-        const ailmentTags = s.activeAilment?.tags || '';
-        if (ailmentTags.toUpperCase().includes('SCALE') || ailmentTags.toUpperCase().includes('FEATHER') || ailmentTags.toUpperCase().includes('FUR') || ailmentTags.includes('비늘') || ailmentTags.includes('깃털') || ailmentTags.includes('털')) {
-          nextGoalCounter += 1;
-        }
+         const ailmentTags = s.activeAilment?.tags || '';
+         if (ailmentTags.toUpperCase().includes('SCALE') || ailmentTags.toUpperCase().includes('FEATHER') || ailmentTags.toUpperCase().includes('FUR') || ailmentTags.includes('비늘') || ailmentTags.includes('깃털') || ailmentTags.includes('털')) {
+           nextGoalCounter += 1;
+         }
       }
 
       const updatedAilment = triggerScrounge ? { ...s.activeAilment!, timer: nextTimer } : null;
@@ -4972,7 +4974,8 @@ function PlayView({
       }
       const cureTimestamp = Date.now();
       const cureSourceId = 'cure_' + cureTimestamp;
-      const cureNotes = `${s.currentLocationName}에서 환자 치료를 성공적으로 마쳤습니다!\\n- 소모 시간: 조제 ${timeSpent}시간 (남은 시간: ${nextTimer}시간)\\n- 심각도: ${severity} (난이도 레벨 ${sevLevel})\\n- Fair ${fairPts}점, Foul ${foulPts}점 (상쇄 후 보정 ${fairFoulAdjustment >= 0 ? '+' : ''}${fairFoulAdjustment})\\n- 장신구 공식: ${sevLevel} ${fairFoulAdjustment >= 0 ? '+' : ''}${fairFoulAdjustment} = ${trinketCalc} → 획득 ${actualTrinkets}개\\n${isGifting ? '- 💝 Gifting: 장신구 대신 평판 +2 선택' : ''}\\n- 길드 명성 +${actualRep}점`;
+      const reagentsStr = reagentNames.join(', ');
+      const cureNotes = `${s.currentLocationName}의 고요한 방에서 약재를 가려 조제하여 온전한 탕약을 올렸습니다. [${reagentsStr}]을(를) 정성껏 달여 빚은 지 수 시간 만에, 열병으로 괴로워하던 야수의 눈빛에 맑은 총기가 깃들고 편안한 숨이 돌아왔습니다. 앓던 야수는 마침내 온전히 회복하여, 고맙다는 듯이 머리를 조아린 뒤 활기차게 숲으로 돌아갔습니다. 내 가슴속에는 다시금 생명을 도왔다는 따뜻한 온기가 머무릅니다.`;
       const KEEPSAKE_TEMPLATES = [
         { name: '말린 엉겅퀴 씨앗 주머니 (Pouch of Dried Thistle)', story: '치료의 답례로 건네받은 작은 천 주머니. 흔들면 바스락거리는 마른 씨앗 소리가 납니다.' },
         { name: '구멍 뚫린 매끄러운 조약돌 (A Polished Lucky Pebble)', story: '강가에서 행운을 빌며 주웠다며 수줍게 손에 쥐여준 조약돌. 만지면 아주 차갑고 매끄럽습니다.' },
@@ -5015,7 +5018,7 @@ function PlayView({
         journals: [
           {
             id: cureSourceId,
-            title: `🎉 완치 성공: ${s.activeAilment!.name}`,
+            title: `🌿 짚침상을 털고 일어난 야수: ${s.activeAilment!.patientName || '이름 없는 이'}`,
             text: cureNotes,
             timestamp: cureTimestamp
           },
@@ -5026,9 +5029,9 @@ function PlayView({
 
     setSelectedBagItems([]);
     if (nextTimer > 0) {
-      alert(`🎉 완치 성공!\\n장신구 +${actualTrinkets}개, 길드 명성 +${actualRep}점 획득!\\n\\n⏱️ 남은 시간(${nextTimer}시간) 동안 여분 채집(Scrounging)이 가능합니다.`);
+      alert(`🎉 완치 성공!\n장신구 +${actualTrinkets}개, 길드 명성 +${actualRep}점 획득!\n\n⏱️ 남은 시간(${nextTimer}시간) 동안 여분 채집(Scrounging)이 가능합니다.`);
     } else {
-      alert(`🎉 완치 성공!\\n장신구 +${actualTrinkets}개, 길드 명성 +${actualRep}점 획득!`);
+      alert(`🎉 완치 성공!\n장신구 +${actualTrinkets}개, 길드 명성 +${actualRep}점 획득!`);
     }
   };
 
@@ -7879,17 +7882,17 @@ function PlayView({
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div style={{ flex: 1 }}>
                         <div className="document-kicker" style={{ color: '#8c7a6b', borderColor: '#c4b5a3', marginBottom: '0.45rem', textTransform: 'uppercase', fontSize: '0.74rem', fontWeight: 600, letterSpacing: '0.04em' }}>
-                          An Untouched Blanket / 온기 잃은 빈 침상
+                          온기를 잃고 비어버린 짚침상
                         </div>
                         <h4 style={{ margin: '0.2rem 0 0.4rem 0', fontSize: '1.12rem', color: 'var(--text-bright)', fontFamily: 'var(--font-fancy)' }}>
                           {state.lostPatientLegacy.name} {state.lostPatientLegacy.species ? `(${state.lostPatientLegacy.species})` : ''}
                         </h4>
                         <p style={{ fontSize: '0.86rem', color: 'var(--text-muted)', margin: '0 0 0.8rem 0', fontStyle: 'italic', lineHeight: '1.5' }}>
-                          침상 위 짚더미가 차갑게 식어 있습니다. 한때 가쁜 숨을 몰아쉬던 이가 머물렀던 자리에는 흩뜨려진 모포와 온기를 잃은 찻잔만이 남았습니다. 약효가 들기 전에 떠나간 그들의 빈자리에 무거운 고요가 맴돕니다.
+                          아침 햇살이 창문을 넘어 들어왔을 때, 침상은 이미 싸늘하게 비어 있었습니다. 밤새 가쁜 호흡을 몰아쉬던 그 가여운 생명은 결국 마지막 한 숨을 거두고 길을 잃고 말았습니다. 식어버린 짚더미 위에 남겨진 흩뜨려진 모포를 보며, 약효가 닿지 못했던 내 부족한 손길을 탓해 봅니다. 가슴을 짓누르는 정적 속에 슬픔만이 자욱하게 내려앉습니다.
                         </p>
                         {state.lostPatientLegacy.consequence && (
                           <div style={{ padding: '0.75rem', background: '#f8f5ee', border: '1px dashed #dcd3c1', borderRadius: '4px', fontSize: '0.84rem', color: '#5c4d3c', lineHeight: '1.55' }}>
-                            <span style={{ display: 'block', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8c7a6b', fontWeight: 'bold', marginBottom: '0.25rem' }}>Diary Notes / 남겨진 흔적:</span>
+                            <span style={{ display: 'block', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8c7a6b', fontWeight: 'bold', marginBottom: '0.25rem' }}>남겨진 흔적:</span>
                             {state.lostPatientLegacy.consequence}
                           </div>
                         )}
@@ -7904,11 +7907,78 @@ function PlayView({
                         className="btn-cozy-secondary"
                         style={{ padding: '0.45rem 0.9rem', fontSize: '0.8rem', background: '#fff', border: '1px solid #d4c5b3', color: '#6e5d4f', cursor: 'pointer' }}
                       >
-                        Wash the linens, prepare the straw (시트를 거두고 짚을 다시 깝니다)
+                        시트를 거두고 새로 짚을 깔며 그를 보냅니다
                       </button>
                     </div>
                   </div>
                 )}
+
+                {/* Workshop Shelves */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.2rem', marginBottom: '1.5rem', background: '#faf9f5', border: '1px solid #dcd3c1', padding: '1.1rem', borderRadius: '8px' }}>
+                  <div>
+                    <h4 style={{ margin: '0 0 0.6rem 0', color: 'var(--primary)', fontSize: '0.92rem', fontFamily: 'var(--font-fancy)' }}>
+                      🌿 최근 다녀간 이들
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {(() => {
+                        const cured = (state.patientCasebook || []).filter(p => p.outcome === 'success').slice(0, 3);
+                        if (cured.length === 0) {
+                          return <div style={{ fontSize: '0.84rem', color: 'var(--text-dim)', fontStyle: 'italic', padding: '0.3rem 0' }}>아직 다녀간 야수의 온기가 남아있지 않습니다.</div>;
+                        }
+                        return cured.map(p => (
+                          <div key={p.id} style={{ borderBottom: '1px dotted var(--glass-border)', padding: '0.45rem 0', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+                            🌿 {p.patientName || '이름 모를 이'}{p.species ? ` (${p.species})` : ''} — {p.locationName || '어느 숲'}
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 style={{ margin: '0 0 0.6rem 0', color: '#8c7a6b', fontSize: '0.92rem', fontFamily: 'var(--font-fancy)' }}>
+                      🕯️ 기억 속에 남은 이들
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {(() => {
+                        const lost = (state.patientCasebook || []).filter(p => p.outcome === 'failure').slice(0, 3);
+                        if (lost.length === 0) {
+                          return <div style={{ fontSize: '0.84rem', color: 'var(--text-dim)', fontStyle: 'italic', padding: '0.3rem 0' }}>아직 아프게 남은 상실의 흔적이 없습니다. 숲속을 스쳐 지나간 바람만이 빈자리 주위를 맴돌 뿐입니다.</div>;
+                        }
+                        return lost.map(p => (
+                          <div key={p.id} style={{ borderBottom: '1px dotted var(--glass-border)', padding: '0.45rem 0', fontSize: '0.84rem', color: 'var(--text-dim)' }}>
+                            🕯️ {p.patientName || '가여운 이'}{p.species ? ` (${p.species})` : ''} — Day {p.resolvedAtDay || 0}
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                  
+                  {/* Ambient Workshop Lines */}
+                  <div style={{ gridColumn: '1 / -1', borderTop: '1.5px dashed var(--glass-border)', paddingTop: '0.75rem', marginTop: '0.4rem', textAlign: 'center' }}>
+                    {(() => {
+                      const dayVal = state.cumulativeDays || state.calendarDays || 0;
+                      const casebookLen = (state.patientCasebook || []).length;
+                      const trinketLen = (state.trinketArchive || []).length;
+                      const repVal = state.reputation || 0;
+                      const ambientIndex = (dayVal + casebookLen + trinketLen + repVal) % 6;
+                      
+                      const ambientLines = [
+                        "약초 다발이 천장 아래에서 천천히 마르고 있습니다.",
+                        "창가에 놓인 빈 찻잔에는 아직도 은은한 향이 남아 있습니다.",
+                        "오래된 약절구에는 말린 잎의 가루가 희미하게 남아 있습니다.",
+                        "빗물이 지나간 창문 너머로 숲이 조용히 흔들립니다.",
+                        "벽에 꽂힌 식물 표본들이 조용히 계절을 견디고 있습니다.",
+                        "누군가 남기고 간 작은 발자국이 아직도 문가에 희미하게 남아 있습니다."
+                      ];
+                      
+                      return (
+                        <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-muted)', fontStyle: 'italic', fontFamily: 'var(--font-base)' }}>
+                          ✨ {ambientLines[ambientIndex]}
+                        </p>
+                      );
+                    })()}
+                  </div>
+                </div>
+
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                   현재 돌보는 환자가 없습니다. 정착지나 야생에서 만난 환자의 질병을 도감에서 검색해 진단하세요.
                 </p>
@@ -9787,64 +9857,58 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
   return (
     <div>
       <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center' }}>
-        <span>Living Archive</span>
+        <span>살아 있는 기록들</span>
         <span className="document-kicker">naturalist field journal</span>
       </h2>
       <p style={{ fontSize: '0.92rem', color: 'var(--text-muted)', marginTop: 0 }}>
-        A desk of permanent records: patients helped, specimens noticed, familiar memories, travelled roads, and trinkets whose stories outlast their use.
+        약제사가 숲을 거닐며 모은 인연과 배낭에 담긴 장신구의 사연, 박물지 표본이 서랍 속에 소중히 깃들어 있습니다.
       </p>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '0.8rem', marginBottom: '1rem' }}>
-        {[
-          { label: 'Case Files', value: patients.length, note: 'beasts remembered' },
-          { label: 'Herbarium', value: herbarium.length, note: 'reagents and specimens' },
-          { label: 'Routes', value: routeStops.length, note: 'places visited' },
-          { label: 'Trinket Cabinet', value: trinkets.reduce((sum, t) => sum + t.count, 0), note: 'keepsakes recorded' }
-        ].map(item => (
-          <div key={item.label} className="cute-card" style={{ background: '#fffefa', padding: '0.9rem', border: '1.4px solid var(--border-cozy)' }}>
-            <div className="document-kicker">{item.label}</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-bright)', lineHeight: 1 }}>{item.value}</div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{item.note}</div>
-          </div>
-        ))}
-      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', gap: '1rem', alignItems: 'start' }}>
         <section className="cute-card" style={{ background: '#fffefa' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
-            <h3 style={{ margin: 0, color: 'var(--primary)' }}>Patient Case Shelf</h3>
-            <span className="document-kicker">{patients.filter(p => p.outcome === 'success').length} helped</span>
+            <h3 style={{ margin: 0, color: 'var(--primary)' }}>환자 기록장</h3>
           </div>
           <div style={{ display: 'grid', gap: '0.7rem' }}>
-            {patients.slice(0, 5).map(record => (
-              <article key={record.id} style={{ border: '1px solid var(--glass-border)', background: '#fbfaf4', padding: '0.75rem', borderRadius: '4px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem' }}>
-                  <strong>{record.patientName || 'Anonymous patient'}{record.species ? ` / ${record.species}` : ''}</strong>
-                  <span className="journal-stamp" style={{ color: record.outcome === 'failure' ? '#8a6f65' : 'var(--primary)', borderColor: record.outcome === 'failure' ? '#8a6f65' : 'var(--primary)' }}>
-                    {record.outcome === 'failure' ? 'unresolved' : 'helped'}
-                  </span>
-                </div>
-                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                  {record.ailmentName} / {record.locationName || 'unknown place'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}
-                </div>
-                {(record.finalArchiveNote || record.initialRememberedNote) && (
-                  <div style={{ fontSize: '0.84rem', marginTop: '0.45rem', whiteSpace: 'pre-wrap' }}>
-                    {record.finalArchiveNote || record.initialRememberedNote}
+            {patients.slice(0, 5).map(record => {
+              const isFailure = record.outcome === 'failure';
+              if (isFailure) {
+                return (
+                  <div key={record.id} style={{ borderBottom: '1px dotted var(--glass-border)', padding: '0.6rem 0', fontSize: '0.86rem', color: 'var(--text-dim)' }}>
+                    🕯️ {record.patientName || '가여운 이'}{record.species ? ` (${record.species})` : ''} — Day {record.resolvedAtDay || 0}
                   </div>
-                )}
-              </article>
-            ))}
-            {patients.length === 0 && <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No patients have reached the archive yet.</div>}
+                );
+              }
+
+              return (
+                <article key={record.id} style={{ border: '1px solid var(--glass-border)', background: '#fbfaf4', padding: '0.75rem', borderRadius: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem' }}>
+                    <strong>{record.patientName || 'Anonymous patient'}{record.species ? ` / ${record.species}` : ''}</strong>
+                    <span className="journal-stamp" style={{ color: 'var(--primary)', borderColor: 'var(--primary)' }}>
+                      helped
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                    {record.ailmentName} / {record.locationName || 'unknown place'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}
+                  </div>
+                  {(record.finalArchiveNote || record.initialRememberedNote) && (
+                    <div style={{ fontSize: '0.84rem', marginTop: '0.45rem', whiteSpace: 'pre-wrap' }}>
+                      {record.finalArchiveNote || record.initialRememberedNote}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+            {patients.length === 0 && <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.85rem' }}>아직 진료한 야수의 기록이 없습니다. 아픈 이가 짚더미를 털고 숲으로 돌아가거나, 어쩔 수 없이 떠나보내야 했던 모든 순간의 이야기가 기록지에 고요히 스며들 것입니다.</div>}
           </div>
         </section>
 
         <section className="cute-card" style={{ background: '#fffefa' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
-            <h3 style={{ margin: 0, color: 'var(--primary)' }}>Familiar Chronicle</h3>
-            <span className="document-kicker">{state.familiarTrust || 0}% trust</span>
+            <h3 style={{ margin: 0, color: 'var(--primary)' }}>사역마와의 기억</h3>
           </div>
           <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
-            {state.bio.familiarName || 'Unnamed familiar'} / {state.bio.familiarRelation || 'relationship unrecorded'}
+            {state.bio.familiarName || '이름 없는 사역마'} / {state.bio.familiarRelation || '관계 미기록'}
           </div>
           <div style={{ display: 'grid', gap: '0.5rem' }}>
             {(state.familiarMemories || []).slice(0, 5).map((memory, idx) => (
@@ -9853,15 +9917,14 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
               </div>
             ))}
             {(!state.familiarMemories || state.familiarMemories.length === 0) && (
-              <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Spend time with or feed your familiar to build a visible relationship chronicle.</div>
+              <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.85rem' }}>사역마와 함께 시간을 보내거나 약재를 먹여 유대감을 쌓으면 여기에 기억이 새겨집니다.</div>
             )}
           </div>
         </section>
 
         <section className="cute-card" style={{ background: '#fffefa' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
-            <h3 style={{ margin: 0, color: 'var(--primary)' }}>Specimen Herbarium</h3>
-            <span className="document-kicker">{herbarium.length} entries</span>
+            <h3 style={{ margin: 0, color: 'var(--primary)' }}>채집 약초 표본지</h3>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.65rem' }}>
             {herbarium.slice(0, 10).map(entry => {
@@ -9974,14 +10037,13 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
                 </div>
               );
             })}
-            {herbarium.length === 0 && <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Gather or carry reagents to seed the herbarium.</div>}
+            {herbarium.length === 0 && <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.85rem' }}>길가에서 약재를 채취하거나 지니고 다녔던 표본들이 여기에 채워집니다.</div>}
           </div>
         </section>
 
         <section className="cute-card" style={{ background: '#fffefa' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
-            <h3 style={{ margin: 0, color: 'var(--primary)' }}>Route Map Notes</h3>
-            <span className="document-kicker">{routeStops.length} stops</span>
+            <h3 style={{ margin: 0, color: 'var(--primary)' }}>방랑 지도 기록</h3>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
             {routeStops.map(stop => (
@@ -9996,45 +10058,94 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
                 <div style={{ fontSize: '0.82rem', marginTop: '0.25rem', whiteSpace: 'pre-wrap' }}>{entry.text}</div>
               </article>
             ))}
-            {journeyEntries.length === 0 && <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Complete journeys or write travel logs to fill this map margin.</div>}
+            {journeyEntries.length === 0 && <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.85rem' }}>여정을 마무리하거나 길가에서 일기를 적어 지도의 여백을 채우세요.</div>}
           </div>
         </section>
 
         <section className="cute-card" style={{ background: '#f8f5ee', border: '1.5px solid #a89684', gridColumn: '1 / -1', boxShadow: 'inset 0 0 15px rgba(139, 90, 43, 0.04)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed #c4b5a3', paddingBottom: '0.55rem', marginBottom: '0.75rem' }}>
-            <h3 style={{ margin: 0, color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>Trinket Cabinet / 선물 보관함</h3>
-            <span className="document-kicker" style={{ color: '#8c7a6b', borderColor: '#c4b5a3' }}>{trinkets.length} remembered keepsakes</span>
+            <h3 style={{ margin: 0, color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>선물 보관함</h3>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
-            {trinkets.map(record => (
-              <article key={record.id} style={{ border: '1px dashed #c4b5a3', background: record.spent ? '#eae5db' : '#fcfaf6', padding: '0.8rem', borderRadius: '4px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem', alignItems: 'center' }}>
-                  <strong style={{ color: 'var(--text-bright)', fontSize: '0.88rem' }}>{record.name}{record.count > 1 ? ` x${record.count}` : ''}</strong>
-                  {record.spent && <span style={{ fontSize: '0.68rem', fontStyle: 'italic', color: '#8c7a6b' }}>— 건네어 소모됨</span>}
-                </div>
-                <div style={{ fontSize: '0.74rem', color: '#8c7a6b', marginTop: '0.25rem', fontStyle: 'italic' }}>
-                  {record.source} {record.locationName ? ` / ${record.locationName}` : ''}
-                </div>
-                <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.83rem', marginTop: '0.45rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>{record.story}</div>
-                {record.patientCaseId && (
-                  <div style={{ marginTop: '0.6rem', display: 'flex', justifyContent: 'flex-end' }}>
-                    <button
-                      onClick={() => {
-                        if (setActiveTab && setHighlightedPatientId) {
-                          setHighlightedPatientId(record.patientCaseId);
-                          setActiveTab('patientArchive');
-                        }
-                      }}
-                      className="btn-cozy-secondary"
-                      style={{ padding: '0.2rem 0.55rem', fontSize: '0.72rem', border: '1px dashed #c4b5a3', background: '#fff', color: '#6e5d4f', cursor: 'pointer' }}
-                    >
-                      🌿 Revisit Giver / 선물해 준 환자 찾아보기
-                    </button>
-                  </div>
-                )}
-              </article>
-            ))}
-            {trinkets.length === 0 && <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Add or earn trinkets to begin the cabinet.</div>}
+            {(() => {
+              const oldestTrinket = trinkets.length > 0 ? trinkets[trinkets.length - 1] : null;
+
+              return trinkets.map(record => {
+                const isOldest = oldestTrinket && record.id === oldestTrinket.id;
+                
+                // Deterministic hashing based on timestamp for vintage patina
+                const t = record.timestamp || 0;
+                const paperTones = ['#fbfaf4', '#fcfbf7', '#faf8f2', '#fbfaf2', '#fbfbf7'];
+                const borderStyles = ['dashed', 'dotted', 'solid'];
+                
+                const paperTone = isOldest ? '#f2eae0' : paperTones[t % paperTones.length];
+                const borderStyle = isOldest ? 'double' : borderStyles[t % borderStyles.length];
+                const borderWidth = isOldest ? '3px' : '1.3px';
+                const boxS = isOldest ? '0 4px 10px rgba(107, 81, 59, 0.15)' : 'none';
+                
+                // Split spent details from story
+                const storyLines = (record.story || '').split('\n');
+                const originalStory = storyLines[0];
+                const spentStoryLine = storyLines.slice(1).join('\n').trim();
+
+                return (
+                  <article 
+                    key={record.id} 
+                    className={record.spent ? 'keepsake-spent' : ''}
+                    style={{ 
+                      border: `${borderWidth} ${borderStyle} #c4b5a3`, 
+                      background: paperTone, 
+                      padding: '0.8rem', 
+                      borderRadius: '4px',
+                      boxShadow: boxS,
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem', alignItems: 'center' }}>
+                      <strong 
+                        className={record.spent ? 'keepsake-spent-title' : ''}
+                        style={{ color: 'var(--text-bright)', fontSize: '0.88rem' }}
+                      >
+                        {record.name}{record.count > 1 ? ` x${record.count}` : ''}
+                      </strong>
+                      {record.spent && <span style={{ fontSize: '0.68rem', fontStyle: 'italic', color: '#8c7a6b' }}>— 건네어 소모됨</span>}
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: '#8c7a6b', marginTop: '0.25rem', fontStyle: 'italic' }}>
+                      {record.source} {record.locationName ? ` / ${record.locationName}` : ''}
+                    </div>
+                    <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.83rem', marginTop: '0.45rem', color: record.spent ? 'var(--text-dim)' : 'var(--text-muted)', lineHeight: '1.45' }}>
+                      {originalStory}
+                    </div>
+                    {record.spent && (
+                      <div style={{ fontSize: '0.8rem', color: '#8c7a6b', marginTop: '0.35rem', fontStyle: 'italic' }}>
+                        ↳ {spentStoryLine ? spentStoryLine.replace(/^Spent from the pouch at /, '약제사 배낭에서 꺼내어 ').replace(/$/, '에서 사용함') : '물꼬 거래나 조력에 사용됨'}
+                      </div>
+                    )}
+                    {record.patientCaseId && (
+                      <div style={{ marginTop: '0.6rem', display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                          onClick={() => {
+                            if (setActiveTab && setHighlightedPatientId) {
+                              setHighlightedPatientId(record.patientCaseId);
+                              setActiveTab('patientArchive');
+                            }
+                          }}
+                          className="btn-cozy-secondary"
+                          style={{ padding: '0.2rem 0.55rem', fontSize: '0.72rem', border: '1px dashed #c4b5a3', background: '#fff', color: '#6e5d4f', cursor: 'pointer' }}
+                        >
+                          🌿 Revisit Giver / 선물해 준 환자 찾아보기
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                );
+              });
+            })()}
+            {trinkets.length === 0 && (
+              <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.85rem', padding: '1rem', gridColumn: '1 / -1', lineHeight: '1.6' }}>
+                보관함이 텅 비어 있습니다. 정성껏 빚은 약의 답례로 건네받은 작은 나뭇잎, 돌멩이, 조약돌 소리가 서랍장을 채우기까지, 야수들의 고마운 마음을 기다립니다.
+              </div>
+            )}
           </div>
         </section>
       </div>
@@ -10095,18 +10206,18 @@ function PatientArchiveView({
   return (
     <div>
       <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-        <span>Patient Archive</span>
+        <span>환자 기록장</span>
         <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 400 }}>
           {records.length} case files / {successCount} helped / {failureCount} unresolved
         </span>
       </h2>
       <p style={{ fontSize: '0.92rem', color: 'var(--text-muted)', marginTop: 0 }}>
-        A field archive of beasts met on the road, the care they received, and the traces they left in the apothecary's memory.
+        들녘에서 만난 야수들, 그들이 건넨 이야기와 약제사 배낭에서 꺼내어 조제해준 약의 흔적들을 모은 기록장입니다.
       </p>
 
       {records.length === 0 ? (
-        <div className="cute-card" style={{ background: '#fffefa', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-          No field case files yet. When a patient is cured or a case ends badly, the archive will ask for a brief closing note and preserve the case here.
+        <div className="cute-card" style={{ background: '#fffefa', color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: '1.6' }}>
+          아직 진료한 야수의 기록이 없습니다. 아픈 이가 짚더미를 털고 숲으로 돌아가거나, 어쩔 수 없이 떠나보내야 했던 모든 순간의 이야기가 기록지에 고요히 스며들 것입니다.
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
@@ -10129,31 +10240,18 @@ function PatientArchiveView({
                   padding: '1.1rem'
                 }}
               >
-                {/* Visual Header: Date & Quiet Status Stamp */}
+                {/* Visual Header: Date & Bookmark */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.55rem', marginBottom: '0.75rem' }}>
-                  <div>
-                    <div className="document-kicker" style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
-                      {record.locationName || 'Bristley Woods'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}
-                    </div>
-                    <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1.25rem', color: 'var(--text-bright)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem', fontFamily: 'var(--font-fancy)' }}>
-                      <span>{record.patientName || 'Anonymous patient'}</span>
-                      {record.species && (
-                        <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>
-                          ({record.species})
-                        </span>
-                      )}
-                      <button
-                        onClick={() => handleToggleBookmark(record.id)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.15rem', padding: 0, display: 'inline-flex', alignItems: 'center', color: record.isBookmarked ? '#d97706' : '#c4b5a3', transition: 'color 0.2s' }}
-                        title={record.isBookmarked ? '이 환자와의 만남을 마음에 깊이 품어두었습니다.' : '이 환자와의 만남을 마음에 품어두기'}
-                      >
-                        {record.isBookmarked ? '★' : '☆'}
-                      </button>
-                    </h3>
+                  <div className="document-kicker" style={{ color: 'var(--text-muted)', fontSize: '0.74rem', margin: 0 }}>
+                    {record.locationName || 'Bristley Woods'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}
                   </div>
-                  <span style={{ fontSize: '0.76rem', fontStyle: 'italic', fontWeight: 600, color: isFailure ? '#8c7a6b' : '#4a6b48', borderBottom: `1px dashed ${isFailure ? 'rgba(140, 122, 107, 0.4)' : 'rgba(74, 107, 72, 0.4)'}`, paddingBottom: '2px', alignSelf: 'flex-start', whiteSpace: 'nowrap' }}>
-                    {isFailure ? '— 결국 치료하지 못함 (left unresolved)' : '— 온전히 나아 길을 떠남 (departed)'}
-                  </span>
+                  <button
+                    onClick={() => handleToggleBookmark(record.id)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.15rem', padding: 0, display: 'inline-flex', alignItems: 'center', color: record.isBookmarked ? '#d97706' : '#c4b5a3', transition: 'color 0.2s' }}
+                    title={record.isBookmarked ? '이 환자와의 만남을 마음에 깊이 품어두었습니다.' : '이 환자와의 만남을 마음에 품어두기'}
+                  >
+                    {record.isBookmarked ? '★' : '☆'}
+                  </button>
                 </div>
 
                 {/* Visual Highlight Banner if clicked from Trinket cabinet */}
@@ -10169,43 +10267,69 @@ function PatientArchiveView({
                   </div>
                 )}
 
-                {/* EMOTIONAL FOCUS: Remembered Life Notes */}
+                {/* 1. Patient Name */}
+                <h3 style={{ margin: '0 0 0.65rem 0', fontSize: '1.25rem', color: 'var(--text-bright)', fontFamily: 'var(--font-fancy)' }}>
+                  <span>{record.patientName || '이름 모를 야수'}</span>
+                  {record.species && (
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal', marginLeft: '0.4rem' }}>
+                      ({record.species})
+                    </span>
+                  )}
+                </h3>
+
+                {/* Restructured ordering */}
                 <div style={{ display: 'grid', gap: '0.65rem' }}>
+                  {/* 2. Remembered Note */}
+                  {record.finalArchiveNote && (
+                    <div style={{ padding: '0.65rem', border: '1px solid #dcd3c1', background: '#faf8f2', borderRadius: '4px', boxShadow: 'inset 0 0 4px rgba(0,0,0,0.01)' }}>
+                      <div className="document-kicker" style={{ color: 'var(--primary)', fontSize: '0.7rem' }}>새겨진 기억</div>
+                      <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.88rem', color: 'var(--text-bright)', lineHeight: '1.5', fontFamily: 'var(--font-base)' }}>{record.finalArchiveNote}</div>
+                    </div>
+                  )}
+
+                  {/* 3. First Impression */}
                   {record.initialRememberedNote && (
                     <div style={{ padding: '0.65rem', border: '1px dashed #dcd3c1', background: '#fcfbf7', borderRadius: '4px' }}>
-                      <div className="document-kicker" style={{ color: '#8c7a6b', fontSize: '0.7rem' }}>First impression / 첫인상</div>
+                      <div className="document-kicker" style={{ color: '#8c7a6b', fontSize: '0.7rem' }}>첫인상</div>
                       <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>{record.initialRememberedNote}</div>
                     </div>
                   )}
 
-                  {record.finalArchiveNote && (
-                    <div style={{ padding: '0.65rem', border: '1px solid #dcd3c1', background: '#faf8f2', borderRadius: '4px', boxShadow: 'inset 0 0 4px rgba(0,0,0,0.01)' }}>
-                      <div className="document-kicker" style={{ color: 'var(--primary)', fontSize: '0.7rem' }}>Remembered note / 새겨진 기억</div>
-                      <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.88rem', color: 'var(--text-bright)', lineHeight: '1.5', fontFamily: 'var(--font-fancy)' }}>{record.finalArchiveNote}</div>
-                    </div>
-                  )}
+                  {/* 4. Outcome sentence */}
+                  <div style={{ fontSize: '0.86rem', fontStyle: 'italic', fontWeight: 600, color: isFailure ? '#8c7a6b' : '#4a6b48', padding: '0.2rem 0' }}>
+                    {isFailure ? '결국 치료하지 못하고 길을 잃었습니다.' : '이 야수는 온전히 나아 길을 떠났습니다.'}
+                  </div>
 
+                  {/* 5. Keepsake status */}
+                  {(() => {
+                    if (record.outcome !== 'success') return null;
+                    const keepsake = (state.trinketArchive || []).find(t => t.patientCaseId === record.id || (record.sourceId && t.patientCaseId === memoryKey('case', record.sourceId)));
+                    if (keepsake) {
+                      if (!keepsake.spent) {
+                        return <div style={{ fontSize: '0.85rem', color: 'var(--accent-orange)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>💝 이 야수는 ’{keepsake.name}’를 남겼습니다.</div>;
+                      } else {
+                        return <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>🪙 이 야수의 선물은 이후 거래에 사용되었습니다.</div>;
+                      }
+                    } else {
+                      return <div style={{ fontSize: '0.85rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>🙏 이 야수는 선물 대신 감사의 축복을 남겼습니다.</div>;
+                    }
+                  })()}
+
+                  {/* 6. Narrative notes */}
                   {record.notes && record.notes !== record.finalArchiveNote && (
                     <div style={{ padding: '0.65rem', border: '1px dashed #dcd3c1', background: '#fcfbf7', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.82rem', lineHeight: '1.45' }}>
-                      <div className="document-kicker" style={{ color: '#8c7a6b', fontSize: '0.7rem' }}>Treatment outcome / 경과기록</div>
+                      <div className="document-kicker" style={{ color: '#8c7a6b', fontSize: '0.7rem' }}>경과기록</div>
                       <div style={{ whiteSpace: 'pre-wrap' }}>{record.notes}</div>
-                    </div>
-                  )}
-
-                  {isFailure && record.consequence && (
-                    <div style={{ padding: '0.65rem', border: '1px solid #d7cbc1', background: '#f2eee9', borderRadius: '4px', color: '#6c5a4f', fontSize: '0.84rem', lineHeight: '1.45' }}>
-                      <strong style={{ fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a6f65', display: 'block', marginBottom: '0.2rem' }}>Consequence / 발생한 실패 결과:</strong>
-                      {record.consequence}
                     </div>
                   )}
                 </div>
 
-                {/* COLLAPSIBLE DETAILS: Technical / Apothecary report */}
+                {/* 7. Clinical Drawer (🗒️ 병증에 관한 관찰 일지) */}
                 <details className="medical-drawer" style={{ marginTop: '0.85rem', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.55rem' }}>
-                  <summary style={{ cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)', outline: 'none', userSelect: 'none' }}>
-                    🗒️ Field Notes on the Malady (병증에 관한 관찰 일지)
+                  <summary style={{ cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-dim)', outline: 'none', userSelect: 'none' }}>
+                    🗒️ 병증에 관한 관찰 일지
                   </summary>
-                  <div style={{ padding: '0.6rem', background: '#f8f6f0', border: '1px dashed #c4b5a3', borderRadius: '4px', marginTop: '0.45rem', fontSize: '0.82rem', display: 'grid', gap: '0.4rem', color: '#5c4d3c', lineHeight: '1.45' }}>
+                  <div style={{ padding: '0.6rem', background: '#f8f6f0', border: '1px dashed #c4b5a3', borderRadius: '4px', marginTop: '0.45rem', fontSize: '0.8rem', display: 'grid', gap: '0.4rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>
                     <div><strong>Observed Malady / 관찰된 병증:</strong> {record.ailmentName}</div>
                     <div><strong>Affliction Depth / 병의 깊이:</strong> {getNaturalSeverityDescription(record.severity)}</div>
                     {record.tags && <div><strong>Symptom Requirements / 요구 효능:</strong> {record.tags}</div>}
@@ -10389,19 +10513,19 @@ function JournalsView({
           onClick={() => setSubTab('casebook')}
           style={{ padding: '0.5rem 1rem', background: subTab === 'casebook' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'casebook' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
         >
-          Patient Casebook ({(state.patientCasebook || []).length})
+          진료 기록 ({(state.patientCasebook || []).length})
         </button>
         <button
           onClick={() => setSubTab('almanac')}
           style={{ padding: '0.5rem 1rem', background: subTab === 'almanac' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'almanac' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
         >
-          World Almanac ({(state.worldAlmanac || []).length})
+          세계 도감 ({(state.worldAlmanac || []).length})
         </button>
         <button
           onClick={() => setSubTab('scrapbook')}
           style={{ padding: '0.5rem 1rem', background: subTab === 'scrapbook' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'scrapbook' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
         >
-          Travel Scrapbook ({(state.travelScrapbook || []).length})
+          여정 기록장 ({(state.travelScrapbook || []).length})
         </button>
         <button
           onClick={() => setSubTab('journals')}
@@ -10446,36 +10570,23 @@ function JournalsView({
               >
                 {/* Visual Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.55rem', marginBottom: '0.75rem' }}>
-                  <div>
-                    <div className="document-kicker" style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
-                      {record.locationName || 'Bristley Woods'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}
-                    </div>
-                    <h4 style={{ margin: '0.2rem 0 0 0', fontSize: '1.25rem', color: 'var(--text-bright)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem', fontFamily: 'var(--font-fancy)' }}>
-                      <span>{record.patientName || 'Anonymous patient'}</span>
-                      {record.species && (
-                        <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>
-                          ({record.species})
-                        </span>
-                      )}
-                      <button
-                        onClick={() => {
-                          updateState((s: GameState) => ({
-                            ...s,
-                            patientCasebook: (s.patientCasebook || []).map(r =>
-                              r.id === record.id ? { ...r, isBookmarked: !r.isBookmarked } : r
-                            )
-                          }));
-                        }}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.15rem', padding: 0, display: 'inline-flex', alignItems: 'center', color: record.isBookmarked ? '#d97706' : '#c4b5a3', transition: 'color 0.2s' }}
-                        title={record.isBookmarked ? '이 환자와의 만남을 마음에 깊이 품어두었습니다.' : '이 환자와의 만남을 마음에 품어두기'}
-                      >
-                        {record.isBookmarked ? '★' : '☆'}
-                      </button>
-                    </h4>
+                  <div className="document-kicker" style={{ color: 'var(--text-muted)', fontSize: '0.74rem', margin: 0 }}>
+                    {record.locationName || 'Bristley Woods'} {record.resolvedAtDay ? `/ Day ${record.resolvedAtDay}` : ''}
                   </div>
-                  <span style={{ fontSize: '0.76rem', fontStyle: 'italic', fontWeight: 600, color: isFailure ? '#8c7a6b' : '#4a6b48', borderBottom: `1px dashed ${isFailure ? 'rgba(140, 122, 107, 0.4)' : 'rgba(74, 107, 72, 0.4)'}`, paddingBottom: '2px', alignSelf: 'flex-start', whiteSpace: 'nowrap' }}>
-                    {isFailure ? '— 결국 치료하지 못함 (left unresolved)' : '— 온전히 나아 길을 떠남 (departed)'}
-                  </span>
+                  <button
+                    onClick={() => {
+                      updateState((s: GameState) => ({
+                        ...s,
+                        patientCasebook: (s.patientCasebook || []).map(r =>
+                          r.id === record.id ? { ...r, isBookmarked: !r.isBookmarked } : r
+                        )
+                      }));
+                    }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.15rem', padding: 0, display: 'inline-flex', alignItems: 'center', color: record.isBookmarked ? '#d97706' : '#c4b5a3', transition: 'color 0.2s' }}
+                    title={record.isBookmarked ? '이 환자와의 만남을 마음에 깊이 품어두었습니다.' : '이 환자와의 만남을 마음에 품어두기'}
+                  >
+                    {record.isBookmarked ? '★' : '☆'}
+                  </button>
                 </div>
 
                 {/* Highlight Banner */}
@@ -10491,43 +10602,69 @@ function JournalsView({
                   </div>
                 )}
 
-                {/* EMOTIONAL FOCUS */}
+                {/* 1. Patient Name */}
+                <h4 style={{ margin: '0 0 0.65rem 0', fontSize: '1.25rem', color: 'var(--text-bright)', fontFamily: 'var(--font-fancy)' }}>
+                  <span>{record.patientName || '이름 모를 야수'}</span>
+                  {record.species && (
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal', marginLeft: '0.4rem' }}>
+                      ({record.species})
+                    </span>
+                  )}
+                </h4>
+
+                {/* Restructured ordering */}
                 <div style={{ display: 'grid', gap: '0.65rem' }}>
+                  {/* 2. Remembered Note */}
+                  {record.finalArchiveNote && (
+                    <div style={{ padding: '0.65rem', border: '1px solid #dcd3c1', background: '#faf8f2', borderRadius: '4px' }}>
+                      <div className="document-kicker" style={{ color: 'var(--primary)', fontSize: '0.7rem' }}>새겨진 기억</div>
+                      <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.84rem', color: 'var(--text-bright)', lineHeight: '1.5', fontFamily: 'var(--font-base)' }}>{record.finalArchiveNote}</div>
+                    </div>
+                  )}
+
+                  {/* 3. First Impression */}
                   {record.initialRememberedNote && (
                     <div style={{ padding: '0.5rem', border: '1px dashed #dcd3c1', background: '#fbfaf4', borderRadius: '4px' }}>
-                      <div className="document-kicker" style={{ color: '#8c7a6b', fontSize: '0.7rem' }}>First impression / 첫인상</div>
+                      <div className="document-kicker" style={{ color: '#8c7a6b', fontSize: '0.7rem' }}>첫인상</div>
                       <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>{record.initialRememberedNote}</div>
                     </div>
                   )}
 
-                  {record.finalArchiveNote && (
-                    <div style={{ padding: '0.5rem', border: '1px solid #dcd3c1', background: '#faf8f2', borderRadius: '4px' }}>
-                      <div className="document-kicker" style={{ color: 'var(--primary)', fontSize: '0.7rem' }}>Remembered note / 새겨진 기억</div>
-                      <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.84rem', color: 'var(--text-bright)', lineHeight: '1.5', fontFamily: 'var(--font-fancy)' }}>{record.finalArchiveNote}</div>
-                    </div>
-                  )}
+                  {/* 4. Outcome sentence */}
+                  <div style={{ fontSize: '0.86rem', fontStyle: 'italic', fontWeight: 600, color: isFailure ? '#8c7a6b' : '#4a6b48', padding: '0.2rem 0' }}>
+                    {isFailure ? '결국 치료하지 못하고 길을 잃었습니다.' : '이 야수는 온전히 나아 길을 떠났습니다.'}
+                  </div>
 
+                  {/* 5. Keepsake status */}
+                  {(() => {
+                    if (record.outcome !== 'success') return null;
+                    const keepsake = (state.trinketArchive || []).find(t => t.patientCaseId === record.id || (record.sourceId && t.patientCaseId === memoryKey('case', record.sourceId)));
+                    if (keepsake) {
+                      if (!keepsake.spent) {
+                        return <div style={{ fontSize: '0.85rem', color: 'var(--accent-orange)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>💝 이 야수는 ’{keepsake.name}’를 남겼습니다.</div>;
+                      } else {
+                        return <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>🪙 이 야수의 선물은 이후 거래에 사용되었습니다.</div>;
+                      }
+                    } else {
+                      return <div style={{ fontSize: '0.85rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>🙏 이 야수는 선물 대신 감사의 축복을 남겼습니다.</div>;
+                    }
+                  })()}
+
+                  {/* 6. Narrative notes */}
                   {record.notes && record.notes !== record.finalArchiveNote && (
                     <div style={{ padding: '0.5rem', border: '1px dashed #dcd3c1', background: '#fcfbf7', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.8rem', lineHeight: '1.45' }}>
-                      <div className="document-kicker" style={{ color: '#8c7a6b', fontSize: '0.7rem' }}>Treatment outcome / 경과기록</div>
+                      <div className="document-kicker" style={{ color: '#8c7a6b', fontSize: '0.7rem' }}>경과기록</div>
                       <div style={{ whiteSpace: 'pre-wrap' }}>{record.notes}</div>
-                    </div>
-                  )}
-
-                  {isFailure && record.consequence && (
-                    <div style={{ padding: '0.5rem', border: '1px solid #d7cbc1', background: '#f2eee9', borderRadius: '4px', color: '#6c5a4f', fontSize: '0.82rem', lineHeight: '1.45' }}>
-                      <strong style={{ fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#8a6f65', display: 'block', marginBottom: '0.2rem' }}>Consequence / 발생한 실패 결과:</strong>
-                      {record.consequence}
                     </div>
                   )}
                 </div>
 
-                {/* Collapsible Details */}
+                {/* 7. Clinical Drawer (🗒️ 병증에 관한 관찰 일지) */}
                 <details className="medical-drawer" style={{ marginTop: '0.85rem', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.55rem' }}>
-                  <summary style={{ cursor: 'pointer', fontSize: '0.78rem', fontWeight: 'bold', color: 'var(--primary)', outline: 'none', userSelect: 'none' }}>
-                    🗒️ Field Notes on the Malady (병증에 관한 관찰 일지)
+                  <summary style={{ cursor: 'pointer', fontSize: '0.78rem', fontWeight: 'bold', color: 'var(--text-dim)', outline: 'none', userSelect: 'none' }}>
+                    🗒️ 병증에 관한 관찰 일지
                   </summary>
-                  <div style={{ padding: '0.6rem', background: '#f8f6f0', border: '1px dashed #c4b5a3', borderRadius: '4px', marginTop: '0.45rem', fontSize: '0.82rem', display: 'grid', gap: '0.4rem', color: '#5c4d3c', lineHeight: '1.45' }}>
+                  <div style={{ padding: '0.6rem', background: '#f8f6f0', border: '1px dashed #c4b5a3', borderRadius: '4px', marginTop: '0.45rem', fontSize: '0.8rem', display: 'grid', gap: '0.4rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>
                     <div><strong>Observed Malady / 관찰된 병증:</strong> {record.ailmentName}</div>
                     <div><strong>Affliction Depth / 병의 깊이:</strong> {getNaturalSeverityDescription(record.severity)}</div>
                     {record.tags && <div><strong>Symptom Requirements / 요구 효능:</strong> {record.tags}</div>}

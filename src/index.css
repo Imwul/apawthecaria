@@ -1,9 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Gowun+Batang:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Hahmlet:wght@300;400;500;600;700&family=Marcellus&family=Marcellus+SC&family=Noto+Sans+KR:wght@400;700&display=swap');
 
 :root {
-  --font-base: 'Gowun Batang', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-fancy: 'Gowun Dodum', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-script: 'Gowun Dodum', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-base: 'Hahmlet', 'Noto Serif KR', 'Apple SD Gothic Neo', serif;
+  --font-fancy: 'Noto Sans KR', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-script: 'Hahmlet', 'Noto Serif KR', 'Apple SD Gothic Neo', serif;
+  --font-display: 'Marcellus SC', 'Marcellus', 'Hahmlet', serif;
 
   /* Apawthecaria field-document palette: printed, muted, and practical. */
   --bg-deep: #ece9df;
@@ -500,3 +501,14 @@ button:active {
     min-height: 64px;
   }
 }
+
+/* Spent keepsake styling */
+.keepsake-spent {
+  opacity: 0.55;
+  filter: saturate(0.2) grayscale(0.8);
+}
+.keepsake-spent-title {
+  text-decoration: line-through;
+  color: var(--text-dim) !important;
+}
+
