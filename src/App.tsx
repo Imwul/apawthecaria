@@ -9834,9 +9834,10 @@ function MapView({ state }: { state: GameState }) {
                 </strong>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <svg width="20" height="20" style={{ flexShrink: 0 }}>
-                      <rect x="2" y="2" width="16" height="16" fill="#fff" stroke="#3c2f1f" strokeWidth="2" rx="1.5"/>
-                      <polygon points="10,4 5,14 15,14" fill="none" stroke="#3c2f1f" strokeWidth="2"/>
+                    {/* City: square with filled mountain silhouette inside, matching manual */}
+                    <svg width="22" height="22" viewBox="0 0 22 22" style={{ flexShrink: 0 }}>
+                      <rect x="1" y="1" width="20" height="20" fill="#f5f0e8" stroke="#3c2f1f" strokeWidth="2" rx="1"/>
+                      <polygon points="11,4 5,15 17,15" fill="#3c2f1f" stroke="none"/>
                     </svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>City (도시)</strong>
@@ -9845,8 +9846,9 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <svg width="20" height="20" style={{ flexShrink: 0 }}>
-                      <polygon points="10,2 2,17 18,17" fill="#fff" stroke="#3c2f1f" strokeWidth="2"/>
+                    {/* Settlement: hollow upward triangle, matching manual */}
+                    <svg width="22" height="22" viewBox="0 0 22 22" style={{ flexShrink: 0 }}>
+                      <polygon points="11,2 2,20 20,20" fill="#f5f0e8" stroke="#3c2f1f" strokeWidth="2"/>
                     </svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>Settlement (정착지)</strong>
@@ -9855,8 +9857,9 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <svg width="20" height="20" style={{ flexShrink: 0 }}>
-                      <circle cx="10" cy="10" r="7.5" fill="#fff" stroke="#3c2f1f" strokeWidth="2"/>
+                    {/* Wilds: hollow circle, matching manual */}
+                    <svg width="22" height="22" viewBox="0 0 22 22" style={{ flexShrink: 0 }}>
+                      <circle cx="11" cy="11" r="9" fill="#f5f0e8" stroke="#3c2f1f" strokeWidth="2"/>
                     </svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>Wilds (야생 구역)</strong>
@@ -9865,9 +9868,11 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <svg width="20" height="20" style={{ flexShrink: 0 }}>
-                      <circle cx="10" cy="10" r="7.5" fill="#fff" stroke="#3c2f1f" strokeWidth="2"/>
-                      <text x="10" y="14" fontSize="11" fontWeight="bold" textAnchor="middle" fill="#3c2f1f" fontFamily="Pretendard">T</text>
+                    {/* Titan Ruins: circle with crosshair (⊕), matching manual clock/T symbol */}
+                    <svg width="22" height="22" viewBox="0 0 22 22" style={{ flexShrink: 0 }}>
+                      <circle cx="11" cy="11" r="9" fill="#f5f0e8" stroke="#3c2f1f" strokeWidth="2"/>
+                      <line x1="11" y1="2" x2="11" y2="20" stroke="#3c2f1f" strokeWidth="1.8"/>
+                      <line x1="2" y1="11" x2="20" y2="11" stroke="#3c2f1f" strokeWidth="1.8"/>
                     </svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>Titan Ruins (티탄 유적)</strong>
@@ -9876,9 +9881,10 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <svg width="20" height="20" style={{ flexShrink: 0 }}>
-                      <polygon points="2,4 18,4 10,17" fill="#fff" stroke="#8b5a2b" strokeWidth="2"/>
-                      <circle cx="10" cy="8" r="3.5" fill="none" stroke="#8b5a2b" strokeWidth="2"/>
+                    {/* Behemoth Barrow: downward-pointing triangle with circle inside, matching manual */}
+                    <svg width="22" height="22" viewBox="0 0 22 22" style={{ flexShrink: 0 }}>
+                      <polygon points="2,3 20,3 11,20" fill="#f5f0e8" stroke="#8b5a2b" strokeWidth="2"/>
+                      <circle cx="11" cy="10" r="3.5" fill="none" stroke="#8b5a2b" strokeWidth="1.8"/>
                     </svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>Behemoth Barrow (거수 고분)</strong>
@@ -9887,9 +9893,10 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <svg width="20" height="20" style={{ flexShrink: 0 }}>
-                      <rect x="2" y="2" width="16" height="16" fill="#fff" stroke="#c9524b" strokeWidth="2" rx="1.5"/>
-                      <circle cx="10" cy="10" r="4.5" fill="none" stroke="#c9524b" strokeWidth="2"/>
+                    {/* Clinic: red-bordered square with circle inside, matching manual */}
+                    <svg width="22" height="22" viewBox="0 0 22 22" style={{ flexShrink: 0 }}>
+                      <rect x="1" y="1" width="20" height="20" fill="#f5f0e8" stroke="#c9524b" strokeWidth="2" rx="1"/>
+                      <circle cx="11" cy="11" r="5.5" fill="none" stroke="#c9524b" strokeWidth="2"/>
                     </svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>Clinic (약제소)</strong>
