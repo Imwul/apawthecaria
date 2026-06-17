@@ -9734,8 +9734,8 @@ function MapView({ state }: { state: GameState }) {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
               <div style={{ background: '#fffcf7', padding: '0.8rem', borderRadius: '6px', border: '1px solid #e5dec9' }}>
-                <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1rem', color: '#8b5a2b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M12 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm-5.5 2c-.8 0-1.5-.7-1.5-1.5S5.7 9 6.5 9s1.5.7 1.5 1.5S7.3 12 6.5 12zm11 0c-.8 0-1.5-.7-1.5-1.5s.7-1.5 1.5-1.5 1.5.7 1.5 1.5-.7 1.5-1.5 1.5zm-8 7c-.6 0-1.2-.3-1.6-.8l-2.7-3.6c-.6-.8-.5-2 .3-2.6.8-.6 2-.5 2.6.3l1 .7c.4.3.9.3 1.3 0l1-.7c.6-.8 1.8-.9 2.6-.3.8.6.9 1.8.3 2.6l-2.7 3.6c-.4.5-1 .8-1.6.8z"/></svg>
+                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#8b5a2b', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <img src="/symbols/paws.png" alt="Paws" style={{ width: '48px', height: 'auto', objectFit: 'contain', flexShrink: 0 }} />
                   <span>도보 (Paws)</span>
                 </h3>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: '#5c4033', lineHeight: '1.4' }}>
@@ -9744,8 +9744,8 @@ function MapView({ state }: { state: GameState }) {
               </div>
 
               <div style={{ background: '#fffcf7', padding: '0.8rem', borderRadius: '6px', border: '1px solid #e5dec9' }}>
-                <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1rem', color: '#4a8ca8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><path d="M12 2v20M12 12L4 20M12 12l8 8"/></svg>
+                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#4a8ca8', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <img src="/symbols/wings.png" alt="Wings" style={{ width: '48px', height: 'auto', objectFit: 'contain', flexShrink: 0 }} />
                   <span>날개 (Wings)</span>
                 </h3>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: '#5c4033', lineHeight: '1.4' }}>
@@ -9754,8 +9754,8 @@ function MapView({ state }: { state: GameState }) {
               </div>
 
               <div style={{ background: '#fffcf7', padding: '0.8rem', borderRadius: '6px', border: '1px solid #e5dec9' }}>
-                <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1rem', color: '#9275a8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M12 2v20M12 12L3 21 M12 12l9 9 M12 17l-4 4 M12 17l4 4"/></svg>
+                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#9275a8', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <img src="/symbols/soar.png" alt="Soar" style={{ width: '48px', height: 'auto', objectFit: 'contain', flexShrink: 0 }} />
                   <span>활공 (Soar)</span>
                 </h3>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: '#5c4033', lineHeight: '1.4' }}>
@@ -9764,41 +9764,10 @@ function MapView({ state }: { state: GameState }) {
               </div>
             </div>
 
-            {/* Scale ruler gauge */}
+            {/* Scale ruler — manual image */}
             <div style={{ marginTop: '1.2rem' }}>
               <strong style={{ fontSize: '0.85rem', color: '#5c4033', display: 'block', marginBottom: '0.5rem' }}>거리 척도 자 비교 (Scale Comparison)</strong>
-              <div style={{ border: '1px solid #e5dec9', padding: '0.8rem', borderRadius: '6px', background: '#fffdfb' }}>
-                {/* Soar */}
-                <div style={{ marginBottom: '0.6rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 'bold', color: '#9275a8' }}>
-                    <span>1 Soar (활공)</span>
-                    <span>최대 거리 (약 5 Paws)</span>
-                  </div>
-                  <div style={{ height: '16px', background: '#e8e2d5', borderRadius: '3px', position: 'relative', marginTop: '2px', display: 'flex', alignItems: 'center', padding: '0 4px' }}>
-                    <div style={{ width: '100%', height: '6px', background: '#9275a8', borderRadius: '2px' }} />
-                  </div>
-                </div>
-                {/* Wing */}
-                <div style={{ marginBottom: '0.6rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 'bold', color: '#4a8ca8' }}>
-                    <span>1 Wing (날개)</span>
-                    <span>중간 거리 (약 3 Paws)</span>
-                  </div>
-                  <div style={{ height: '16px', background: '#e8e2d5', borderRadius: '3px', position: 'relative', marginTop: '2px', display: 'flex', alignItems: 'center' }}>
-                    <div style={{ width: '60%', height: '6px', background: '#4a8ca8', borderRadius: '2px', marginLeft: '4px' }} />
-                  </div>
-                </div>
-                {/* Paw */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 'bold', color: '#8b5a2b' }}>
-                    <span>1 Paw (도보)</span>
-                    <span>기본 거리</span>
-                  </div>
-                  <div style={{ height: '16px', background: '#e8e2d5', borderRadius: '3px', position: 'relative', marginTop: '2px', display: 'flex', alignItems: 'center' }}>
-                    <div style={{ width: '20%', height: '6px', background: '#8b5a2b', borderRadius: '2px', marginLeft: '4px' }} />
-                  </div>
-                </div>
-              </div>
+              <img src="/symbols/scale.png" alt="Scale comparison: 1 paw, 1 wing, 1 soar" style={{ width: '100%', height: 'auto', borderRadius: '4px', border: '1px solid #e5dec9' }} />
             </div>
           </div>
 
@@ -9834,11 +9803,7 @@ function MapView({ state }: { state: GameState }) {
                 </strong>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {/* City: square with filled mountain silhouette inside, matching manual */}
-                    <svg width="22" height="22" viewBox="0 0 22 22" style={{ flexShrink: 0 }}>
-                      <rect x="1" y="1" width="20" height="20" fill="#f5f0e8" stroke="#3c2f1f" strokeWidth="2" rx="1"/>
-                      <polygon points="11,4 5,15 17,15" fill="#3c2f1f" stroke="none"/>
-                    </svg>
+                    <img src="/symbols/city.png" alt="City" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>City (도시)</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>치료소, 길드, 번화 상점</span>
@@ -9846,10 +9811,7 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {/* Settlement: hollow upward triangle, matching manual */}
-                    <svg width="22" height="22" viewBox="0 0 22 22" style={{ flexShrink: 0 }}>
-                      <polygon points="11,2 2,20 20,20" fill="#f5f0e8" stroke="#3c2f1f" strokeWidth="2"/>
-                    </svg>
+                    <img src="/symbols/settlement.png" alt="Settlement" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>Settlement (정착지)</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>마을, 주민 거주지, 여각</span>
@@ -9857,10 +9819,7 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {/* Wilds: hollow circle, matching manual */}
-                    <svg width="22" height="22" viewBox="0 0 22 22" style={{ flexShrink: 0 }}>
-                      <circle cx="11" cy="11" r="9" fill="#f5f0e8" stroke="#3c2f1f" strokeWidth="2"/>
-                    </svg>
+                    <img src="/symbols/wilds.png" alt="Wilds" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>Wilds (야생 구역)</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>정착지 밖 채집 및 탐험지</span>
@@ -9868,12 +9827,7 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {/* Titan Ruins: circle with crosshair (⊕), matching manual clock/T symbol */}
-                    <svg width="22" height="22" viewBox="0 0 22 22" style={{ flexShrink: 0 }}>
-                      <circle cx="11" cy="11" r="9" fill="#f5f0e8" stroke="#3c2f1f" strokeWidth="2"/>
-                      <line x1="11" y1="2" x2="11" y2="20" stroke="#3c2f1f" strokeWidth="1.8"/>
-                      <line x1="2" y1="11" x2="20" y2="11" stroke="#3c2f1f" strokeWidth="1.8"/>
-                    </svg>
+                    <img src="/symbols/titan.png" alt="Titan Ruins" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>Titan Ruins (티탄 유적)</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>고대 거인의 신비한 자생 흔적</span>
@@ -9881,11 +9835,7 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {/* Behemoth Barrow: downward-pointing triangle with circle inside, matching manual */}
-                    <svg width="22" height="22" viewBox="0 0 22 22" style={{ flexShrink: 0 }}>
-                      <polygon points="2,3 20,3 11,20" fill="#f5f0e8" stroke="#8b5a2b" strokeWidth="2"/>
-                      <circle cx="11" cy="10" r="3.5" fill="none" stroke="#8b5a2b" strokeWidth="1.8"/>
-                    </svg>
+                    <img src="/symbols/barrow.png" alt="Behemoth Barrow" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>Behemoth Barrow (거수 고분)</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>거수들의 고분군 및 위험 지대</span>
@@ -9893,11 +9843,7 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {/* Clinic: red-bordered square with circle inside, matching manual */}
-                    <svg width="22" height="22" viewBox="0 0 22 22" style={{ flexShrink: 0 }}>
-                      <rect x="1" y="1" width="20" height="20" fill="#f5f0e8" stroke="#c9524b" strokeWidth="2" rx="1"/>
-                      <circle cx="11" cy="11" r="5.5" fill="none" stroke="#c9524b" strokeWidth="2"/>
-                    </svg>
+                    <img src="/symbols/clinic.png" alt="Clinic" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>Clinic (약제소)</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>플레이어 약제사의 치료 본부</span>
