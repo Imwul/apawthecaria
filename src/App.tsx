@@ -78,6 +78,11 @@ interface BagItem {
   inBandolier?: boolean;
 }
 
+interface PlayingCard {
+  suit: string;
+  value: number;
+}
+
 interface ApothecaryBio {
   name: string;
   animal: string;
@@ -471,11 +476,28 @@ const getReputationRank = (rep: number) => {
   return { rank: "미등록", color: "#9b9487" };
 };
 
-const CHARACTER_CARD_VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'M'];
 const CHARACTER_SUITS = ['♥', '♦', '♣', '♠'];
 
-const drawCharacterCard = () => CHARACTER_CARD_VALUES[Math.floor(Math.random() * CHARACTER_CARD_VALUES.length)];
-const drawCharacterSuit = () => CHARACTER_SUITS[Math.floor(Math.random() * CHARACTER_SUITS.length)];
+const drawPlayingCard = (): PlayingCard => ({
+  suit: CHARACTER_SUITS[Math.floor(Math.random() * CHARACTER_SUITS.length)],
+  value: Math.floor(Math.random() * 13) + 1
+});
+
+const cardRuleValue = (card: PlayingCard | null) => {
+  if (!card) return '';
+  if (card.value === 1) return 'A';
+  if (card.value === 11) return 'J';
+  if (card.value >= 12) return 'M';
+  return String(card.value);
+};
+
+const cardDisplayValue = (value: number) => {
+  if (value === 1) return 'A';
+  if (value === 11) return 'J';
+  if (value === 12) return 'Q';
+  if (value === 13) return 'K';
+  return String(value);
+};
 
 const examplesToOptions = (examples: string) => examples.split(',').map(item => item.trim()).filter(Boolean);
 
@@ -984,6 +1006,132 @@ const getCardSvgUrl = (suit: string, value: number | string) => {
   else valPart = String(valNum);
 
   return `/cards/${suitPart}-${valPart}.svg`;
+};
+
+const CardDrawSlot = ({
+  label,
+  card,
+  onCard,
+  helper,
+  disabled = false
+}: {
+  label: string;
+  card: PlayingCard | null;
+  onCard: (card: PlayingCard) => void;
+  helper?: string;
+  disabled?: boolean;
+}) => {
+  const [manualSuit, setManualSuit] = useState(card?.suit || '♥');
+  const [manualValue, setManualValue] = useState(card?.value || 1);
+  const [isChoosing, setIsChoosing] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  useEffect(() => {
+    if (card) {
+      setManualSuit(card.suit);
+      setManualValue(card.value);
+      setIsChoosing(false);
+    }
+  }, [card?.suit, card?.value]);
+
+  const applyManual = () => {
+    onCard({ suit: manualSuit, value: manualValue });
+    setIsChoosing(false);
+  };
+
+  const applyRandom = () => {
+    if (disabled || isDrawing) return;
+    setIsChoosing(false);
+    setIsDrawing(true);
+    window.setTimeout(() => {
+      onCard(drawPlayingCard());
+      setIsDrawing(false);
+    }, 420);
+  };
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '104px 1fr', gap: '0.75rem', alignItems: 'start', width: '100%' }}>
+      <div style={{ display: 'grid', gap: '0.4rem', justifyItems: 'stretch' }}>
+        <button
+          type="button"
+          onClick={() => !disabled && !isDrawing && setIsChoosing(value => !value)}
+          disabled={disabled || isDrawing}
+          title={card ? `${card.suit} ${cardDisplayValue(card.value)}` : '오프라인에서 뽑은 카드를 직접 입력합니다.'}
+          style={{
+            width: '104px',
+            minHeight: '144px',
+            border: card ? '1px solid #d8d1bf' : '2px dashed var(--glass-border)',
+            borderRadius: '8px',
+            background: card ? '#fff' : '#f8f6ef',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: card ? '0.25rem' : '0.45rem',
+            color: 'var(--text-muted)',
+            fontSize: '0.76rem',
+            lineHeight: 1.3,
+            cursor: disabled || isDrawing ? 'not-allowed' : 'pointer',
+            boxShadow: card ? '0 3px 8px rgba(55, 45, 28, 0.12)' : 'inset 0 1px 2px rgba(0,0,0,0.04)',
+            transform: isDrawing ? 'translateY(-8px) rotate(-3deg)' : 'none',
+            opacity: isDrawing ? 0.72 : 1,
+            transition: 'transform 180ms ease, opacity 180ms ease'
+          }}
+        >
+          {card ? (
+            <img src={getCardSvgUrl(card.suit, card.value)} alt={`${card.suit} ${cardDisplayValue(card.value)}`} style={{ width: '100%', height: 'auto', display: 'block' }} />
+          ) : (
+            <span>빈 카드 칸<br />직접 선택</span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={applyRandom}
+          disabled={disabled || isDrawing}
+          style={{ height: '32px', padding: '0 0.55rem', background: 'var(--secondary)', color: '#fff', border: 'none', borderRadius: '5px', fontSize: '0.78rem', fontWeight: 'bold' }}
+        >
+          {isDrawing ? '뽑는 중...' : '랜덤 선택'}
+        </button>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+        <div style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '0.9rem' }}>{label}</div>
+        {helper && <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', lineHeight: 1.35 }}>{helper}</div>}
+        {isChoosing && (
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', padding: '0.5rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px' }}>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', width: '100%' }}>오프라인에서 뽑은 카드 입력</span>
+            <select value={manualSuit} onChange={e => setManualSuit(e.target.value)} disabled={disabled} style={{ height: '32px', fontSize: '0.8rem' }}>
+              <option value="♥">1. 문양: ♥</option>
+              <option value="♦">1. 문양: ♦</option>
+              <option value="♣">1. 문양: ♣</option>
+              <option value="♠">1. 문양: ♠</option>
+            </select>
+            <select value={manualValue} onChange={e => setManualValue(Number(e.target.value))} disabled={disabled} style={{ height: '32px', fontSize: '0.8rem' }}>
+              <option value={1}>2. 숫자: A</option>
+              <option value={2}>2. 숫자: 2</option>
+              <option value={3}>2. 숫자: 3</option>
+              <option value={4}>2. 숫자: 4</option>
+              <option value={5}>2. 숫자: 5</option>
+              <option value={6}>2. 숫자: 6</option>
+              <option value={7}>2. 숫자: 7</option>
+              <option value={8}>2. 숫자: 8</option>
+              <option value={9}>2. 숫자: 9</option>
+              <option value={10}>2. 숫자: 10</option>
+              <option value={11}>2. 숫자: J</option>
+              <option value={12}>2. 숫자: Q / Monarch</option>
+              <option value={13}>2. 숫자: K / Monarch</option>
+            </select>
+            <button type="button" onClick={applyManual} disabled={disabled} style={{ height: '32px', padding: '0 0.65rem', background: '#fff', color: 'var(--primary)', border: '1px solid var(--primary)', borderRadius: '5px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+              카드 채우기
+            </button>
+          </div>
+        )}
+        {card && (
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+            현재 카드: <strong>{card.suit} {cardDisplayValue(card.value)}</strong> · 룰 표기: <strong>{cardRuleValue(card)}</strong>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 // =================================================================
@@ -3198,6 +3346,8 @@ function PlayView({
   const [destName, setDestName] = useState("");
   const [destRegion, setDestRegion] = useState("Forest");
   const [destType, setDestType] = useState("Wilds");
+  const [journeyDestinationCard, setJourneyDestinationCard] = useState<PlayingCard | null>(null);
+  const [journeyGoalCard, setJourneyGoalCard] = useState<PlayingCard | null>(null);
 
   const [newAilmentName, setNewAilmentName] = useState("");
   const [patientNameDraft, setPatientNameDraft] = useState("");
@@ -3216,10 +3366,12 @@ function PlayView({
   const [travelCardMode, setTravelCardMode] = useState<'random' | 'manual'>('random');
   const [selectedTravelSuit, setSelectedTravelSuit] = useState('♥');
   const [selectedTravelValue, setSelectedTravelValue] = useState(1);
+  const [travelDrawCard, setTravelDrawCard] = useState<PlayingCard | null>(null);
 
   const [forageCardMode, setForageCardMode] = useState<'random' | 'manual'>('random');
   const [selectedForageSuit, setSelectedForageSuit] = useState('♥');
   const [selectedForageValue, setSelectedForageValue] = useState(1);
+  const [forageDrawCard, setForageDrawCard] = useState<PlayingCard | null>(null);
 
   // Barrow Delve UI state
   const [delveActive, setDelveActive] = useState(false);
@@ -3740,11 +3892,15 @@ function PlayView({
       return;
     }
 
-    // Goal and Distance Draw
-    const suits = ['♥', '♦', '♣', '♠'];
+    // Rulebook p.19-21: draw destination/direction and goal cards.
     const suitNames: { [key: string]: string } = { '♥': '북쪽', '♦': '남쪽', '♣': '동쪽', '♠': '서쪽' };
-    const randomSuit = suits[Math.floor(Math.random() * suits.length)];
-    const cardVal = Math.floor(Math.random() * 13) + 1; // 1 to 13
+    const destinationCard = journeyDestinationCard || drawPlayingCard();
+    const goalCard = journeyGoalCard || drawPlayingCard();
+    if (!journeyDestinationCard) setJourneyDestinationCard(destinationCard);
+    if (!journeyGoalCard) setJourneyGoalCard(goalCard);
+    const randomSuit = destinationCard.suit;
+    const cardVal = destinationCard.value;
+    const goalKey = cardRuleValue(goalCard);
 
     let distLabel = "";
     let maxDays = 12;
@@ -3760,8 +3916,7 @@ function PlayView({
       maxDays = state.reputation >= 35 ? 9 : state.reputation >= 25 ? 12 : state.reputation >= 15 ? 15 : 20;
     }
 
-    // Select random goal
-    const goalObj = GAME_DATA.goals[Math.floor(Math.random() * GAME_DATA.goals.length)];
+    const goalObj = GAME_DATA.goals.find((goal: any) => goal.card === goalKey) || GAME_DATA.goals[0];
 
     updateState(s => {
       let nextBag = s.bag;
@@ -3787,7 +3942,7 @@ function PlayView({
         journeyGoalProgress: goalObj.goalText,
         calendarDays: 0,
         calendarMaxDays: maxDays,
-        calendarHistory: [`여정 시작: ${destName}로 출발! (일수: ${maxDays}일 목표: ${goalObj.title})`],
+        calendarHistory: [`여정 시작: ${destName}로 출발! (목적지 카드: ${randomSuit} ${cardDisplayValue(cardVal)}, 목표 카드: ${goalCard.suit} ${cardDisplayValue(goalCard.value)}, 일수: ${maxDays}일 목표: ${goalObj.title})`],
         journeyGoalCounter: 0,
         journeyGoalChecklist: [],
         journeyStartReputation: s.reputation,
@@ -3796,7 +3951,7 @@ function PlayView({
           {
             id: 'start_' + Date.now(),
             title: `새 여정 시작: ${destName}`,
-            text: `${s.currentLocationName}에서 ${destName}로 출발합니다.\n목표: ${goalObj.title} - ${goalObj.desc}\n해결 일정: ${maxDays}일\n방향: ${suitNames[randomSuit]}`,
+            text: `${s.currentLocationName}에서 ${destName}로 출발합니다.\n목적지 카드: ${randomSuit} ${cardDisplayValue(cardVal)} (${distLabel})\n목표 카드: ${goalCard.suit} ${cardDisplayValue(goalCard.value)} (${goalObj.title})\n목표: ${goalObj.title} - ${goalObj.desc}\n해결 일정: ${maxDays}일\n방향: ${suitNames[randomSuit]}`,
             timestamp: Date.now()
           },
           ...s.journals
@@ -3805,6 +3960,8 @@ function PlayView({
     });
 
     setDestName("");
+    setJourneyDestinationCard(null);
+    setJourneyGoalCard(null);
   };
 
   const executeTravelMove = (drawnSuit: string, cardVal: number, travelWaterway: boolean = false) => {
@@ -4064,25 +4221,25 @@ function PlayView({
     }
 
     const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === state.bio.familiarBenefit)?.mechanic || '';
-    const suits = ['♥', '♦', '♣', '♠'];
 
-    if (familiarMechanic === 'seasoned' && travelCardMode === 'random') {
+    if (familiarMechanic === 'seasoned' && !travelDrawCard) {
       // Draw 2 cards and trigger selection modal
-      const draw1 = { suit: suits[Math.floor(Math.random() * suits.length)], val: Math.floor(Math.random() * 13) + 1 };
-      const draw2 = { suit: suits[Math.floor(Math.random() * suits.length)], val: Math.floor(Math.random() * 13) + 1 };
+      const c1 = drawPlayingCard();
+      const c2 = drawPlayingCard();
+      const draw1 = { suit: c1.suit, val: c1.value };
+      const draw2 = { suit: c2.suit, val: c2.value };
       setSeasonedDraws([draw1, draw2]);
       setShowSeasonedModal(true);
       return;
     }
 
-    const drawnSuit = travelCardMode === 'random'
-      ? suits[Math.floor(Math.random() * suits.length)]
-      : selectedTravelSuit;
-    const cardVal = travelCardMode === 'random'
-      ? Math.floor(Math.random() * 13) + 1
-      : selectedTravelValue;
+    const card = travelDrawCard || drawPlayingCard();
+    if (!travelDrawCard) setTravelDrawCard(card);
+    const drawnSuit = card.suit;
+    const cardVal = card.value;
 
     executeTravelMove(drawnSuit, cardVal, isWaterway);
+    setTravelDrawCard(null);
   };
 
   // Resolve Ailment Diagnoses
@@ -4232,29 +4389,29 @@ function PlayView({
     if (!state.activeAilment) return;
 
     const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === state.bio.familiarBenefit)?.mechanic || '';
-    const suits = ['♥', '♦', '♣', '♠'];
 
     const isTitanOrBarrow = state.currentRegion === 'Titan' ||
                             state.currentLocationType === 'Barrow' ||
                             state.currentLocationType === 'Ruin';
 
-    if (familiarMechanic === 'titanwise' && isTitanOrBarrow && forageCardMode === 'random') {
+    if (familiarMechanic === 'titanwise' && isTitanOrBarrow && !forageDrawCard) {
       // Draw 2 cards and trigger selection modal
-      const draw1 = { suit: suits[Math.floor(Math.random() * suits.length)], val: Math.floor(Math.random() * 13) + 1 };
-      const draw2 = { suit: suits[Math.floor(Math.random() * suits.length)], val: Math.floor(Math.random() * 13) + 1 };
+      const c1 = drawPlayingCard();
+      const c2 = drawPlayingCard();
+      const draw1 = { suit: c1.suit, val: c1.value };
+      const draw2 = { suit: c2.suit, val: c2.value };
       setTitanwiseDraws([draw1, draw2]);
       setShowTitanwiseModal(true);
       return;
     }
 
-    const drawnSuit = forageCardMode === 'random'
-      ? suits[Math.floor(Math.random() * suits.length)]
-      : selectedForageSuit;
-    const cardVal = forageCardMode === 'random'
-      ? Math.floor(Math.random() * 13) + 1
-      : selectedForageValue;
+    const card = forageDrawCard || drawPlayingCard();
+    if (!forageDrawCard) setForageDrawCard(card);
+    const drawnSuit = card.suit;
+    const cardVal = card.value;
 
     executeForageDraw(drawnSuit, cardVal);
+    setForageDrawCard(null);
   };
 
   // Familiar: Independent benefit — forage in adjacent region once per ailment (no hour cost, no hazard event, card value fixed at 8)
@@ -6950,11 +7107,29 @@ function PlayView({
                   />
                 </div>
 
+                <div style={{ display: 'grid', gap: '0.75rem', padding: '0.85rem', background: '#fffdf8', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                    룰북 p.18-21 순서: 출발지와 계절을 확인한 뒤, 목적지/거리 카드와 목표 카드를 뽑아 여정 기록을 시작합니다.
+                  </div>
+                  <CardDrawSlot
+                    label="목적지와 방향 카드 (p.19)"
+                    helper="값은 거리(A-6 가까움, 7-9 멂, 10/J/M 지평선 너머), 문양은 방향을 정합니다."
+                    card={journeyDestinationCard}
+                    onCard={setJourneyDestinationCard}
+                  />
+                  <CardDrawSlot
+                    label="여정 목표 카드 (p.20-21)"
+                    helper="값으로 목표 표를 찾습니다. Q/K는 Monarch(M) 목표로 처리합니다."
+                    card={journeyGoalCard}
+                    onCard={setJourneyGoalCard}
+                  />
+                </div>
+
                 <button
                   type="submit"
                   style={{ padding: '0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '8px', fontSize: '1rem', fontWeight: 'bold', border: 'none', cursor: 'pointer', boxShadow: 'var(--shadow-md)' }}
                 >
-                  목적지 카드 드로우 및 여행 출발
+                  여정 기록 확정 및 출발
                 </button>
               </form>
             </div>
@@ -7215,47 +7390,22 @@ function PlayView({
                 🚶‍♂️ 경로 이동 및 카드 조우
               </button>
 
-              <div style={{ gridColumn: 'span 4', display: 'flex', gap: '1rem', alignItems: 'center', fontSize: '0.85rem', background: '#faf8f5', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', marginTop: '0.4rem', flexWrap: 'wrap' }}>
+              <div style={{ gridColumn: 'span 4', display: 'grid', gap: '0.75rem', fontSize: '0.85rem', background: '#faf8f5', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)', marginTop: '0.4rem' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginRight: '1rem', cursor: 'pointer', color: 'var(--primary)', fontWeight: 'bold' }}>
                   <input type="checkbox" checked={isWaterway} onChange={e => setIsWaterway(e.target.checked)} />
                   💧 수로(Waterway) 물길 이동
                 </label>
-                <strong>🃏 조우 드로우 방식:</strong>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
-                  <input type="radio" checked={travelCardMode === 'random'} onChange={() => setTravelCardMode('random')} />
-                  🎲 랜덤 드로우 (무작위)
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
-                  <input type="radio" checked={travelCardMode === 'manual'} onChange={() => setTravelCardMode('manual')} />
-                  🎴 수동 카드 선택
-                </label>
-                {travelCardMode === 'manual' && (
-                  <div style={{ display: 'flex', gap: '0.4rem', marginLeft: 'auto', alignItems: 'center' }}>
-                    <span>문양:</span>
-                    <select value={selectedTravelSuit} onChange={e => setSelectedTravelSuit(e.target.value)} style={{ padding: '0.2rem', fontSize: '0.8rem' }}>
-                      <option value="♥">하트 ♥ (북쪽)</option>
-                      <option value="♦">다이아 ♦ (남쪽)</option>
-                      <option value="♣">클로버 ♣ (동쪽)</option>
-                      <option value="♠">스페이드 ♠ (서쪽)</option>
-                    </select>
-                    <span>값:</span>
-                    <select value={selectedTravelValue} onChange={e => setSelectedTravelValue(Number(e.target.value))} style={{ padding: '0.2rem', fontSize: '0.8rem' }}>
-                      <option value={1}>A (Ace)</option>
-                      <option value={2}>2</option>
-                      <option value={3}>3</option>
-                      <option value={4}>4</option>
-                      <option value={5}>5</option>
-                      <option value={6}>6</option>
-                      <option value={7}>7</option>
-                      <option value={8}>8</option>
-                      <option value={9}>9</option>
-                      <option value={10}>10</option>
-                      <option value={11}>J (Jack)</option>
-                      <option value={12}>Q (Queen)</option>
-                      <option value={13}>K (King)</option>
-                    </select>
-                  </div>
-                )}
+                <CardDrawSlot
+                  label="이동 조우 카드 (p.25)"
+                  helper="빈 칸을 문양/숫자로 채우거나 랜덤으로 뽑습니다. 이동 버튼을 누를 때 비어 있으면 자동 랜덤 드로우됩니다."
+                  card={travelDrawCard}
+                  onCard={(card) => {
+                    setTravelDrawCard(card);
+                    setSelectedTravelSuit(card.suit);
+                    setSelectedTravelValue(card.value);
+                    setTravelCardMode('manual');
+                  }}
+                />
               </div>
             </form>
           </div>
@@ -7958,43 +8108,18 @@ function PlayView({
                 </div>
 
                 {/* Foraging Drawing selector */}
-                <div style={{ margin: '0.8rem 0', display: 'flex', gap: '1rem', alignItems: 'center', fontSize: '0.85rem', background: '#faf8f5', padding: '0.6rem', borderRadius: '8px', border: '1px solid var(--glass-border)', flexWrap: 'wrap', width: '100%' }}>
-                  <strong>🃏 채집 드로우 방식:</strong>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
-                    <input type="radio" checked={forageCardMode === 'random'} onChange={() => setForageCardMode('random')} />
-                    🎲 랜덤 드로우 (무작위)
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
-                    <input type="radio" checked={forageCardMode === 'manual'} onChange={() => setForageCardMode('manual')} />
-                    🎴 수동 카드 선택
-                  </label>
-                  {forageCardMode === 'manual' && (
-                    <div style={{ display: 'flex', gap: '0.4rem', marginLeft: 'auto', alignItems: 'center' }}>
-                      <span>문양:</span>
-                      <select value={selectedForageSuit} onChange={e => setSelectedForageSuit(e.target.value)} style={{ padding: '0.2rem', fontSize: '0.8rem' }}>
-                        <option value="♥">하트 ♥</option>
-                        <option value="♦">다이아 ♦</option>
-                        <option value="♣">클로버 ♣</option>
-                        <option value="♠">스페이드 ♠</option>
-                      </select>
-                      <span>값:</span>
-                      <select value={selectedForageValue} onChange={e => setSelectedForageValue(Number(e.target.value))} style={{ padding: '0.2rem', fontSize: '0.8rem' }}>
-                        <option value={1}>A (Ace)</option>
-                        <option value={2}>2</option>
-                        <option value={3}>3</option>
-                        <option value={4}>4</option>
-                        <option value={5}>5</option>
-                        <option value={6}>6</option>
-                        <option value={7}>7</option>
-                        <option value={8}>8</option>
-                        <option value={9}>9</option>
-                        <option value={10}>10</option>
-                        <option value={11}>J (Jack)</option>
-                        <option value={12}>Q (Queen)</option>
-                        <option value={13}>K (King)</option>
-                      </select>
-                    </div>
-                  )}
+                <div style={{ margin: '0.8rem 0', display: 'grid', gap: '0.75rem', fontSize: '0.85rem', background: '#faf8f5', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)', width: '100%' }}>
+                  <CardDrawSlot
+                    label="채집 카드"
+                    helper="카드 값이 영약재 희귀도 이상이면 발견합니다. 빈 칸이면 채집 버튼을 누를 때 자동 랜덤 드로우됩니다."
+                    card={forageDrawCard}
+                    onCard={(card) => {
+                      setForageDrawCard(card);
+                      setSelectedForageSuit(card.suit);
+                      setSelectedForageValue(card.value);
+                      setForageCardMode('manual');
+                    }}
+                  />
                 </div>
 
                 {/* Foraging and Bartering buttons */}
@@ -8305,6 +8430,7 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
     familiarJournal: state.bio.familiarJournal,
     relationshipJournal: state.bio.relationshipJournal
   });
+  const [wizardCards, setWizardCards] = useState<Record<string, PlayingCard | null>>({});
 
   const steps = [
     '약제사 동물',
@@ -8317,14 +8443,17 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
     '확정'
   ];
 
-  const cautiousRedraw = (hasValue: boolean, action: () => void) => {
-    if (hasValue && !confirm("이미 나온 결과가 있습니다. 룰북의 우연성을 살리려면 지금 결과를 그대로 가져가는 편을 추천합니다. 그래도 조심스럽게 다시 뽑을까요?")) return;
-    action();
+  const applyWizardCard = (key: string, card: PlayingCard, action: (card: PlayingCard) => void) => {
+    const previous = wizardCards[key];
+    const isChanging = previous && (previous.suit !== card.suit || previous.value !== card.value);
+    if (isChanging && !confirm("이미 나온 카드가 있습니다. 룰북의 우연성을 살리려면 지금 결과를 그대로 가져가는 편을 추천합니다. 그래도 조심스럽게 바꿀까요?")) return;
+    setWizardCards(cards => ({ ...cards, [key]: card }));
+    action(card);
   };
 
-  const handleDrawDescriptor = (target: 'self' | 'familiar') => {
-    cautiousRedraw(target === 'self' ? !!draft.descriptor : !!draft.familiarDescriptor, () => {
-      const drawn = findByCard(bioChoices.descriptors as any[], drawCharacterCard());
+  const applyDescriptorCard = (target: 'self' | 'familiar', key: string, card: PlayingCard) => {
+    applyWizardCard(key, card, selected => {
+      const drawn = findByCard(bioChoices.descriptors as any[], cardRuleValue(selected));
       if (target === 'self') {
         setDraft(d => ({ ...d, descriptor: drawn, animal: "" }));
       } else {
@@ -8333,28 +8462,27 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
     });
   };
 
-  const handleDrawTravel = () => {
-    cautiousRedraw(!!draft.travel, () => {
-      const drawnSuit = drawCharacterSuit();
-      setDraft(d => ({ ...d, travel: findBySuit(bioChoices.travelStyles as any[], drawnSuit) }));
+  const applyTravelCard = (card: PlayingCard) => {
+    applyWizardCard('travel', card, selected => {
+      setDraft(d => ({ ...d, travel: findBySuit(bioChoices.travelStyles as any[], selected.suit) }));
     });
   };
 
-  const handleDrawOrigin = () => {
-    cautiousRedraw(!!draft.origin, () => {
-      setDraft(d => ({ ...d, origin: findBySuit(bioChoices.origins as any[], drawCharacterSuit()) }));
+  const applyOriginCard = (card: PlayingCard) => {
+    applyWizardCard('origin', card, selected => {
+      setDraft(d => ({ ...d, origin: findBySuit(bioChoices.origins as any[], selected.suit) }));
     });
   };
 
-  const handleDrawBenefit = () => {
-    cautiousRedraw(!!draft.familiarBenefit, () => {
-      setDraft(d => ({ ...d, familiarBenefit: findByCard(bioChoices.familiars as any[], drawCharacterCard()) }));
+  const applyBenefitCard = (card: PlayingCard) => {
+    applyWizardCard('familiarBenefit', card, selected => {
+      setDraft(d => ({ ...d, familiarBenefit: findByCard(bioChoices.familiars as any[], cardRuleValue(selected)) }));
     });
   };
 
-  const handleDrawRelationship = () => {
-    cautiousRedraw(!!draft.relationship, () => {
-      setDraft(d => ({ ...d, relationship: findByCard(bioChoices.relationships as any[], drawCharacterCard()) }));
+  const applyRelationshipCard = (card: PlayingCard) => {
+    applyWizardCard('relationship', card, selected => {
+      setDraft(d => ({ ...d, relationship: findByCard(bioChoices.relationships as any[], cardRuleValue(selected)) }));
     });
   };
 
@@ -8512,10 +8640,13 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
         <FieldCard title="1. Who Are You? / 약제사 동물">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <input value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} placeholder="약제사 이름" />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.5rem' }}>
-              <ChoiceSelect value={draft.descriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, descriptor: item, animal: "" }))} />
-              <button type="button" onClick={() => handleDrawDescriptor('self')} style={{ padding: '0 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '6px' }}>카드 뽑기</button>
-            </div>
+            <CardDrawSlot
+              label="약제사 정체성 카드 (p.10)"
+              helper="빈 칸을 누르면 오프라인에서 뽑은 카드를 문양-숫자 순서로 입력합니다. 랜덤 선택은 앱이 대신 한 장을 뽑습니다."
+              card={wizardCards.self || null}
+              onCard={card => applyDescriptorCard('self', 'self', card)}
+            />
+            <ChoiceSelect value={draft.descriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, descriptor: item, animal: "" }))} />
             <div style={{ color: 'var(--text-muted)', fontSize: '0.86rem' }}>결과: <strong>{draft.descriptor.card} - {draft.descriptor.name}</strong> / 예시 동물: {draft.descriptor.examples}</div>
             {animalChips(draft.descriptor.examples, value => setDraft(d => ({ ...d, animal: value })))}
             <input value={draft.animal} onChange={e => setDraft(d => ({ ...d, animal: e.target.value }))} placeholder="실제 동물 또는 외형을 적어주세요" />
@@ -8526,10 +8657,13 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
       {step === 1 && (
         <FieldCard title="2. How Do You Travel? / 이동 방식">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.5rem' }}>
-              <ChoiceSelect value={draft.travel.name} items={bioChoices.travelStyles as any[]} onChange={item => setDraft(d => ({ ...d, travel: item }))} />
-              <button type="button" onClick={handleDrawTravel} style={{ padding: '0 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '6px' }}>수트 뽑기</button>
-            </div>
+            <CardDrawSlot
+              label="이동 방식 수트 카드 (p.11)"
+              helper="이 표는 문양을 사용합니다. 숫자는 카드 이미지를 보존하기 위해 함께 기록됩니다."
+              card={wizardCards.travel || null}
+              onCard={applyTravelCard}
+            />
+            <ChoiceSelect value={draft.travel.name} items={bioChoices.travelStyles as any[]} onChange={item => setDraft(d => ({ ...d, travel: item }))} />
             <div style={{ padding: '0.7rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', fontSize: '0.9rem' }}>
               <strong>{draft.travel.suit} - {draft.travel.name}</strong><br />
               Speed {draft.travel.speed}, Carry {draft.travel.carry}<br />
@@ -8542,10 +8676,13 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
       {step === 2 && (
         <FieldCard title="3. How Did You Start Out? / 출발 계기">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.5rem' }}>
-              <ChoiceSelect value={draft.origin.name} items={bioChoices.origins as any[]} onChange={item => setDraft(d => ({ ...d, origin: item }))} />
-              <button type="button" onClick={handleDrawOrigin} style={{ padding: '0 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '6px' }}>수트 뽑기</button>
-            </div>
+            <CardDrawSlot
+              label="출발 계기 수트 카드 (p.12)"
+              helper="이 표도 문양으로 결과를 찾습니다. 빈 칸을 눌러 직접 입력하거나 랜덤 선택을 사용하세요."
+              card={wizardCards.origin || null}
+              onCard={applyOriginCard}
+            />
+            <ChoiceSelect value={draft.origin.name} items={bioChoices.origins as any[]} onChange={item => setDraft(d => ({ ...d, origin: item }))} />
             <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{draft.origin.desc}</div>
             <textarea value={draft.originJournal} onChange={e => setDraft(d => ({ ...d, originJournal: e.target.value }))} rows={4} placeholder="그 계기가 약제사의 길로 어떻게 이어졌는지 짧게 기록하세요." />
           </div>
@@ -8567,10 +8704,13 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
         <FieldCard title="5. Who Is Your Familiar? / 사역마 동물">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <input value={draft.familiarName} onChange={e => setDraft(d => ({ ...d, familiarName: e.target.value }))} placeholder="사역마 이름" />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.5rem' }}>
-              <ChoiceSelect value={draft.familiarDescriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, familiarDescriptor: item, familiarAnimal: "" }))} />
-              <button type="button" onClick={() => handleDrawDescriptor('familiar')} style={{ padding: '0 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '6px' }}>카드 뽑기</button>
-            </div>
+            <CardDrawSlot
+              label="사역마 정체성 카드 (p.14)"
+              helper="약제사와 같은 동물 표를 사용합니다. 직접 입력하거나 랜덤 선택으로 한 장을 뽑습니다."
+              card={wizardCards.familiar || null}
+              onCard={card => applyDescriptorCard('familiar', 'familiar', card)}
+            />
+            <ChoiceSelect value={draft.familiarDescriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, familiarDescriptor: item, familiarAnimal: "" }))} />
             <div style={{ color: 'var(--text-muted)', fontSize: '0.86rem' }}>결과: <strong>{draft.familiarDescriptor.card} - {draft.familiarDescriptor.name}</strong> / 예시 동물: {draft.familiarDescriptor.examples}</div>
             {animalChips(draft.familiarDescriptor.examples, value => setDraft(d => ({ ...d, familiarAnimal: value })))}
             <input value={draft.familiarAnimal} onChange={e => setDraft(d => ({ ...d, familiarAnimal: e.target.value }))} placeholder="사역마의 실제 동물 또는 외형" />
@@ -8582,10 +8722,13 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
       {step === 5 && (
         <FieldCard title="6. How Do They Help You? / 사역마의 도움">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.5rem' }}>
-              <ChoiceSelect value={draft.familiarBenefit.name} items={bioChoices.familiars as any[]} onChange={item => setDraft(d => ({ ...d, familiarBenefit: item }))} />
-              <button type="button" onClick={handleDrawBenefit} style={{ padding: '0 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '6px' }}>카드 뽑기</button>
-            </div>
+            <CardDrawSlot
+              label="사역마 도움 카드 (p.15)"
+              helper="카드 값을 기준으로 사역마의 도움을 찾습니다. Q/K는 Monarch 결과로 처리됩니다."
+              card={wizardCards.familiarBenefit || null}
+              onCard={applyBenefitCard}
+            />
+            <ChoiceSelect value={draft.familiarBenefit.name} items={bioChoices.familiars as any[]} onChange={item => setDraft(d => ({ ...d, familiarBenefit: item }))} />
             <div style={{ padding: '0.7rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', fontSize: '0.9rem' }}>
               <strong>{draft.familiarBenefit.card} - {draft.familiarBenefit.name}</strong><br />
               <span style={{ color: 'var(--text-muted)' }}>{draft.familiarBenefit.desc}</span>
@@ -8597,10 +8740,13 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
       {step === 6 && (
         <FieldCard title="7. What Is Your Relationship? / 관계">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.5rem' }}>
-              <ChoiceSelect value={draft.relationship.name} items={bioChoices.relationships as any[]} onChange={item => setDraft(d => ({ ...d, relationship: item }))} />
-              <button type="button" onClick={handleDrawRelationship} style={{ padding: '0 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '6px' }}>카드 뽑기</button>
-            </div>
+            <CardDrawSlot
+              label="관계 카드 (p.16)"
+              helper="카드 값을 기준으로 사역마와의 관계를 정합니다. 필요하면 아래 표에서 직접 고를 수도 있습니다."
+              card={wizardCards.relationship || null}
+              onCard={applyRelationshipCard}
+            />
+            <ChoiceSelect value={draft.relationship.name} items={bioChoices.relationships as any[]} onChange={item => setDraft(d => ({ ...d, relationship: item }))} />
             <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{draft.relationship.desc}</div>
             <textarea value={draft.relationshipJournal} onChange={e => setDraft(d => ({ ...d, relationshipJournal: e.target.value }))} rows={4} placeholder="둘의 관계를 보여주는 짧은 장면이나 기억을 기록하세요." />
           </div>
