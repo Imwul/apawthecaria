@@ -1010,18 +1010,37 @@ const getCardSvgUrl = (suit: string, value: number | string) => {
   return `/cards/${suitPart}-${valPart}.svg`;
 };
 
+const SUIT_OPTIONS = ['♥', '♦', '♣', '♠'] as const;
+const VALUE_OPTIONS = [
+  { value: 1, label: 'A' },
+  { value: 2, label: '2' },
+  { value: 3, label: '3' },
+  { value: 4, label: '4' },
+  { value: 5, label: '5' },
+  { value: 6, label: '6' },
+  { value: 7, label: '7' },
+  { value: 8, label: '8' },
+  { value: 9, label: '9' },
+  { value: 10, label: '10' },
+  { value: 11, label: 'J' },
+  { value: 12, label: 'Q' },
+  { value: 13, label: 'K' },
+] as const;
+
 const CardDrawSlot = ({
   label,
   card,
   onCard,
   helper,
-  disabled = false
+  disabled = false,
+  variant = 'compact'
 }: {
   label: string;
   card: PlayingCard | null;
   onCard: (card: PlayingCard) => void;
   helper?: string;
   disabled?: boolean;
+  variant?: 'hero' | 'compact';
 }) => {
   const [manualSuit, setManualSuit] = useState(card?.suit || '♥');
   const [manualValue, setManualValue] = useState(card?.value || 1);
@@ -1051,6 +1070,105 @@ const CardDrawSlot = ({
     }, 420);
   };
 
+  // ─── HERO variant: centered, ritualistic card-at-table layout ───
+  if (variant === 'hero') {
+    return (
+      <div className="card-draw-hero">
+        <div style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '0.92rem', textAlign: 'center' }}>{label}</div>
+        {helper && <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', lineHeight: 1.4, textAlign: 'center', maxWidth: '380px' }}>{helper}</div>}
+
+        {/* Card visual */}
+        <button
+          type="button"
+          onClick={() => !disabled && !isDrawing && setIsChoosing(v => !v)}
+          disabled={disabled || isDrawing}
+          className={`card-draw-hero__card ${card ? 'card-draw-hero__card--filled' : 'card-draw-hero__card--empty'} ${isDrawing ? 'card-draw-hero__card--drawing' : ''}`}
+          title={card ? `${card.suit} ${cardDisplayValue(card.value)}` : '카드를 뽑거나 직접 입력하세요'}
+        >
+          {card ? (
+            <img src={getCardSvgUrl(card.suit, card.value)} alt={`${card.suit} ${cardDisplayValue(card.value)}`} />
+          ) : (
+            <span>🃏<br />카드를 뽑아주세요</span>
+          )}
+        </button>
+
+        {/* Action buttons */}
+        <div className="card-draw-hero__actions">
+          <button
+            type="button"
+            onClick={applyRandom}
+            disabled={disabled || isDrawing}
+            style={{ background: 'var(--secondary)', color: '#fff', border: 'none', cursor: disabled || isDrawing ? 'not-allowed' : 'pointer' }}
+          >
+            {isDrawing ? '뽑는 중…' : '🎴 랜덤 한 장 뽑기'}
+          </button>
+          <button
+            type="button"
+            onClick={() => !disabled && !isDrawing && setIsChoosing(v => !v)}
+            disabled={disabled || isDrawing}
+            style={{ background: '#fff', color: 'var(--text-muted)', border: '1.5px solid var(--glass-border)', cursor: 'pointer' }}
+          >
+            {isChoosing ? '접기' : '✏️ 직접 입력'}
+          </button>
+        </div>
+
+        {/* Manual input: suit buttons + value chips */}
+        {isChoosing && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem', padding: '0.8rem', background: '#fff', border: '1.5px dashed var(--border-cozy)', borderRadius: '10px', width: '100%', maxWidth: '400px' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>오프라인에서 뽑은 카드를 눌러 입력하세요</span>
+
+            {/* Suit buttons */}
+            <div className="suit-btn-row">
+              {SUIT_OPTIONS.map(s => (
+                <button
+                  key={s}
+                  type="button"
+                  className={`suit-btn ${manualSuit === s ? 'active' : ''}`}
+                  onClick={() => setManualSuit(s)}
+                  disabled={disabled}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+
+            {/* Value chips */}
+            <div className="value-chip-strip">
+              {VALUE_OPTIONS.map(v => (
+                <button
+                  key={v.value}
+                  type="button"
+                  className={`value-chip ${manualValue === v.value ? 'active' : ''}`}
+                  onClick={() => setManualValue(v.value)}
+                  disabled={disabled}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={applyManual}
+              disabled={disabled}
+              style={{ padding: '0.45rem 1.2rem', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              {manualSuit} {VALUE_OPTIONS.find(v => v.value === manualValue)?.label} 카드 놓기
+            </button>
+          </div>
+        )}
+
+        {/* Current card indicator */}
+        {card && (
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+            놓인 카드: <strong>{card.suit} {cardDisplayValue(card.value)}</strong> · 룰 표기: <strong>{cardRuleValue(card)}</strong>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ─── COMPACT variant: original functional layout ───
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '104px 1fr', gap: '0.75rem', alignItems: 'start', width: '100%' }}>
       <div style={{ display: 'grid', gap: '0.4rem', justifyItems: 'stretch' }}>
@@ -2677,28 +2795,33 @@ export default function App() {
               </span>
             </h3>
             {state.bio.name ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
-                <div><strong>이름:</strong> {state.bio.name}</div>
-                <div><strong>동물:</strong> {state.bio.animal || state.bio.examples}</div>
-                <div><strong>종족:</strong> {state.bio.descriptor} ({state.bio.examples})</div>
-                <div><strong>이동 스타일:</strong> {state.bio.travelStyle}</div>
-                 <div><strong>속도:</strong> {travelSpeed} | <strong>길드 명성:</strong> {state.reputation}</div>
+              <div className="prose-summary">
+                <strong>{state.bio.animal || state.bio.examples}</strong> 약제사 <strong>{state.bio.name}</strong>.
+                <br />
+                {state.bio.travelStyle}으로 여행하며, 길드에서는 {getReputationRank(state.reputation).rank} <span className="dim">(명성 {state.reputation})</span>.
 
                 {state.bio.familiarName && (
-                  <div style={{ borderTop: '1px dashed var(--glass-border)', marginTop: '0.4rem', paddingTop: '0.4rem' }}>
-                    🐾 <strong>사역마:</strong> {state.bio.familiarName}
-                    {state.bio.familiarAnimal && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>- 동물: {state.bio.familiarAnimal}</div>
-                    )}
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>- 특성: {state.bio.familiarBenefit}</div>
+                  <div style={{ borderTop: '1px dashed var(--glass-border)', marginTop: '0.45rem', paddingTop: '0.45rem' }}>
+                    🐾 사역마 <strong>{state.bio.familiarName}</strong>{state.bio.familiarAnimal ? ` (${state.bio.familiarAnimal})` : ''}.
+                    <br />
+                    <span className="dim">{state.bio.familiarBenefit}.</span>
                   </div>
                 )}
 
-                <div style={{ borderTop: '1px dashed var(--glass-border)', marginTop: '0.4rem', paddingTop: '0.4rem' }}>
-                  🎒 <strong>배낭 무게:</strong> <span style={{ color: isOverEncumbered ? 'var(--accent-red)' : 'var(--primary)', fontWeight: 'bold' }}>{formatWeight(currentWeight)}</span> / {maxCarry}
+                <div style={{ borderTop: '1px dashed var(--glass-border)', marginTop: '0.45rem', paddingTop: '0.45rem' }}>
+                  🎒 배낭 <span style={{ color: isOverEncumbered ? 'var(--accent-red)' : 'var(--primary)', fontWeight: 'bold' }}>{formatWeight(currentWeight)}</span> / {maxCarry}
+                  <div className="bag-progress">
+                    <div
+                      className="bag-progress__fill"
+                      style={{
+                        width: `${Math.min(100, (currentWeight / maxCarry) * 100)}%`,
+                        background: isOverEncumbered ? 'var(--accent-red)' : currentWeight / maxCarry > 0.8 ? 'var(--accent-orange)' : 'var(--primary)'
+                      }}
+                    />
+                  </div>
                   {isOverEncumbered && (
-                    <div style={{ color: 'var(--accent-red)', fontSize: '0.75rem', fontWeight: 'bold', marginTop: '0.1rem' }}>
-                      ⚠️ 과다적재! 이동 거리가 1일당 1경로로 고정됩니다.
+                    <div style={{ color: 'var(--accent-red)', fontSize: '0.75rem', fontWeight: 'bold', marginTop: '0.2rem' }}>
+                      ⚠️ 과다적재! 이동이 1경로로 고정됩니다.
                     </div>
                   )}
                 </div>
@@ -7192,37 +7315,31 @@ function PlayView({
 
           {/* Active stats panel */}
           <div className="cute-card journey-record" style={{ background: '#fffefa', borderColor: 'var(--primary)' }}>
-            <h2 style={{ color: 'var(--primary)', margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>활성화된 방랑 여정 기록</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem' }}>
+              <div className="prose-summary" style={{ fontSize: '0.95rem' }}>
+                <strong>{state.journeyDestination}</strong>을 향해 {state.journeyDirection} 방향으로 {state.journeyDistance} 거리를 여행 중.
+                <br />
+                출발한 지 <strong>{state.calendarDays}일째</strong>, 남은 시간은 <strong>{Math.max(0, state.calendarMaxDays - state.calendarDays)}일</strong>.
+              </div>
               <button
                 onClick={handleEndJourney}
-                style={{ padding: '0.4rem 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '20px', fontSize: '0.85rem' }}
+                style={{ padding: '0.4rem 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '20px', fontSize: '0.82rem', whiteSpace: 'nowrap', flexShrink: 0 }}
               >
-                여정 도착지 도달 (마감)
+                여정 마감
               </button>
-            </h2>
-            <div className="grid-2col" style={{ marginTop: '1rem', fontSize: '0.95rem', gap: '1.5rem' }}>
-              <div>
-                <strong>목적지:</strong> {state.journeyDestination} ({state.journeyDistance}) <br />
-                <strong>방향:</strong> {state.journeyDirection} <br />
-                <strong>현재 누적 경과일:</strong> {state.calendarDays} / {state.calendarMaxDays} 일
-              </div>
-              <div style={{ background: '#ffffff', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                <strong>여정 수행 목표: {state.journeyGoalTitle}</strong>
-                <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{state.journeyGoalDesc}</p>
-                <div style={{ marginTop: '0.4rem', fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--primary)' }}>수행 과제: {state.journeyGoalProgress}</div>
+            </div>
+            <div style={{ marginTop: '0.8rem', background: '#ffffff', padding: '0.7rem', borderRadius: '8px', border: '1px solid var(--glass-border)', fontSize: '0.9rem', lineHeight: 1.55 }}>
+              목표: <strong style={{ color: 'var(--primary)' }}>{state.journeyGoalTitle}</strong>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}> — {state.journeyGoalDesc}</span>
+              <div style={{ marginTop: '0.3rem', fontSize: '0.84rem', fontWeight: 'bold', color: checkJourneyGoalSatisfaction(state) ? '#16a34a' : '#ea580c' }}>
+                {checkJourneyGoalSatisfaction(state) ? '✅ 조건 충족됨' : '⚠️ 미달성'} · {state.journeyGoalProgress}
               </div>
             </div>
 
-            {/* 여정 목표 세부 진행 상태 및 조절기 */}
-            <div style={{ marginTop: '1rem', background: '#f8fafc', padding: '0.8rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <div style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--text)', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>목표 진행 세부 사항 (자동/수동 추적)</span>
-                <span style={{ fontSize: '0.8rem', color: checkJourneyGoalSatisfaction(state) ? '#16a34a' : '#ea580c', fontWeight: 'bold' }}>
-                  {checkJourneyGoalSatisfaction(state) ? '✅ 조건 충족됨' : '⚠️ 미달성 상태'}
-                </span>
-              </div>
-
+            {/* 여정 목표 세부 진행 상태 및 조절기 — collapsible */}
+            <details style={{ marginTop: '0.8rem' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-muted)', padding: '0.4rem 0' }}>▸ 목표 세부 사항 및 수동 조절</summary>
+              <div style={{ marginTop: '0.4rem', background: '#f8fafc', padding: '0.8rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
               <div style={{ fontSize: '0.85rem', color: 'var(--text)', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                 <div>
                   <strong>현재 상태: </strong>
@@ -7255,7 +7372,7 @@ function PlayView({
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.2rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>진행도(카운터) 수동 제어:</span>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>진행도 수동 제어:</span>
                   <button
                     type="button"
                     onClick={() => updateState((s: GameState) => ({ ...s, journeyGoalCounter: Math.max(0, (s.journeyGoalCounter || 0) - 1) }))}
@@ -7271,7 +7388,7 @@ function PlayView({
                     onClick={() => updateState((s: GameState) => ({ ...s, journeyGoalCounter: (s.journeyGoalCounter || 0) + 1 }))}
                     style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', background: '#e2e8f0', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', color: 'var(--primary)' }}
                   >
-                    ➕ 진행도 올리기
+                    ➕
                   </button>
                 </div>
 
@@ -7331,14 +7448,13 @@ function PlayView({
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* Tangible Effects — rulebook p.39: permanent consequences after journey */}
-            <div style={{ marginTop: '1rem', padding: '0.8rem', background: '#fff8ee', borderRadius: '8px', border: '1px dashed #d4a853' }}>
-              <div style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#8b5e1a', marginBottom: '0.5rem' }}>
-                ✨ 영구적 결과 (Tangible Effects, p.39) — 여정 종료 후 아래에서 선택 적용:
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            </details>
+
+            {/* Tangible Effects — collapsible */}
+            <details style={{ marginTop: '0.5rem' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', color: '#8b5e1a', padding: '0.4rem 0' }}>▸ 영구적 결과 적용 (Tangible Effects, p.39)</summary>
+              <div style={{ marginTop: '0.3rem', padding: '0.7rem', background: '#fff8ee', borderRadius: '8px', border: '1px dashed #d4a853', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button onClick={() => { if(confirm('이동 속도 +1 영구 적용?')) updateState((s: GameState) => ({ ...s, bio: { ...s.bio, speed: s.bio.speed + 1 } })); }}
                   style={{ padding: '0.4rem 0.7rem', fontSize: '0.78rem', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '6px', cursor: 'pointer' }}>
                   🦶 속도 +1
@@ -7367,15 +7483,15 @@ function PlayView({
                   🌅 캐릭터 은퇴
                 </button>
               </div>
-            </div>
+            </details>
           </div>
 
           {/* Current location and movement form */}
           <div className="cute-card">
-            <h3>📍 현재 머무는 곳: <span style={{ color: 'var(--primary)' }}>{state.currentLocationName}</span></h3>
+            <div className="prose-summary" style={{ marginBottom: '0.8rem' }}>
+              📍 <strong>{state.currentRegion}</strong> 지역 {state.currentLocationType === 'City' ? '도시' : state.currentLocationType === 'Settlement' ? '정착지' : state.currentLocationType === 'Wilds' ? '야생' : state.currentLocationType === 'Ruin' ? '유적지' : state.currentLocationType === 'Barrow' ? '야수 고분' : state.currentLocationType} <strong>{state.currentLocationName}</strong>에 머무는 중.
+            </div>
             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-              <span>지역: <strong>{state.currentRegion}</strong></span>
-              <span>지형 종류: <strong>{state.currentLocationType}</strong></span>
               <span>계절:
                 <select
                   value={localSeason}
@@ -8691,63 +8807,105 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
       </div>
 
       {step === 0 && (
-        <FieldCard title="1. Who Are You? / 약제사 동물">
+        <FieldCard title="어떤 동물인가요?">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <input value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} placeholder="약제사 이름" />
+            <input value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} placeholder="약제사의 이름을 지어주세요" />
             <CardDrawSlot
+              variant="hero"
               label="약제사 정체성 카드 (p.10)"
-              helper="빈 칸을 누르면 오프라인에서 뽑은 카드를 문양-숫자 순서로 입력합니다. 랜덤 선택은 앱이 대신 한 장을 뽑습니다."
+              helper="카드 한 장을 뽑아 당신의 종족을 알아보세요. 오프라인 덱이 있다면 직접 입력도 가능합니다."
               card={wizardCards.self || null}
               onCard={card => applyDescriptorCard('self', 'self', card)}
             />
-            <ChoiceSelect value={draft.descriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, descriptor: item, animal: "" }))} />
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.86rem' }}>결과: <strong>{draft.descriptor.card} - {draft.descriptor.name}</strong> / 예시 동물: {draft.descriptor.examples}</div>
+            <div style={{ color: 'var(--text-bright)', fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
+              {wizardCards.self ? (
+                <>뽑은 카드가 말하길, 당신은 <strong style={{ color: 'var(--primary)' }}>{draft.descriptor.name}</strong> 약제사입니다.<br /><span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.descriptor.examples} 중에서 골라보세요.</span></>
+              ) : (
+                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 종족이 정해집니다.</span>
+              )}
+            </div>
             {animalChips(draft.descriptor.examples, value => setDraft(d => ({ ...d, animal: value })))}
             <input value={draft.animal} onChange={e => setDraft(d => ({ ...d, animal: e.target.value }))} placeholder="실제 동물 또는 외형을 적어주세요" />
+            <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
+              <div style={{ marginTop: '0.4rem' }}>
+                <ChoiceSelect value={draft.descriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, descriptor: item, animal: "" }))} />
+              </div>
+            </details>
           </div>
         </FieldCard>
       )}
 
       {step === 1 && (
-        <FieldCard title="2. How Do You Travel? / 이동 방식">
+        <FieldCard title="어떻게 여행하나요?">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <CardDrawSlot
-              label="이동 방식 수트 카드 (p.11)"
-              helper="이 표는 문양을 사용합니다. 숫자는 카드 이미지를 보존하기 위해 함께 기록됩니다."
+              variant="hero"
+              label="이동 방식 카드 (p.11)"
+              helper="문양이 여행 스타일을 정합니다. 느릿느릿 짐을 잔뜩 싣거나, 가볍게 날듯이 움직이거나."
               card={wizardCards.travel || null}
               onCard={applyTravelCard}
             />
-            <ChoiceSelect value={draft.travel.name} items={bioChoices.travelStyles as any[]} onChange={item => setDraft(d => ({ ...d, travel: item }))} />
-            <div style={{ padding: '0.7rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', fontSize: '0.9rem' }}>
-              <strong>{draft.travel.suit} - {draft.travel.name}</strong><br />
-              Speed {draft.travel.speed}, Carry {draft.travel.carry}<br />
-              <span style={{ color: 'var(--text-muted)' }}>{draft.travel.desc}</span>
+            <div style={{ padding: '0.8rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
+              {wizardCards.travel ? (
+                <>
+                  <strong style={{ color: 'var(--primary)' }}>{draft.travel.name}</strong>으로 여행합니다.<br />
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+                    하루에 {draft.travel.speed}경로를 이동하고, 짐은 {draft.travel.carry}칸까지 들 수 있습니다.
+                  </span><br />
+                  <span style={{ color: 'var(--text-dim)', fontSize: '0.82rem', fontStyle: 'italic' }}>{draft.travel.desc}</span>
+                </>
+              ) : (
+                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 이동 방식이 정해집니다.</span>
+              )}
             </div>
+            <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
+              <div style={{ marginTop: '0.4rem' }}>
+                <ChoiceSelect value={draft.travel.name} items={bioChoices.travelStyles as any[]} onChange={item => setDraft(d => ({ ...d, travel: item }))} />
+              </div>
+            </details>
           </div>
         </FieldCard>
       )}
 
       {step === 2 && (
-        <FieldCard title="3. How Did You Start Out? / 출발 계기">
+        <FieldCard title="왜 약제사의 길을 떠났나요?">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <CardDrawSlot
-              label="출발 계기 수트 카드 (p.12)"
-              helper="이 표도 문양으로 결과를 찾습니다. 빈 칸을 눌러 직접 입력하거나 랜덤 선택을 사용하세요."
+              variant="hero"
+              label="출발 계기 카드 (p.12)"
+              helper="문양이 약제사가 된 동기를 알려줍니다."
               card={wizardCards.origin || null}
               onCard={applyOriginCard}
             />
-            <ChoiceSelect value={draft.origin.name} items={bioChoices.origins as any[]} onChange={item => setDraft(d => ({ ...d, origin: item }))} />
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{draft.origin.desc}</div>
+            <div style={{ fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
+              {wizardCards.origin ? (
+                <>
+                  <strong style={{ color: 'var(--primary)' }}>{draft.origin.name}</strong><br />
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.origin.desc}</span>
+                </>
+              ) : (
+                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 출발 계기가 정해집니다.</span>
+              )}
+            </div>
             <textarea value={draft.originJournal} onChange={e => setDraft(d => ({ ...d, originJournal: e.target.value }))} rows={4} placeholder="그 계기가 약제사의 길로 어떻게 이어졌는지 짧게 기록하세요." />
+            <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
+              <div style={{ marginTop: '0.4rem' }}>
+                <ChoiceSelect value={draft.origin.name} items={bioChoices.origins as any[]} onChange={item => setDraft(d => ({ ...d, origin: item }))} />
+              </div>
+            </details>
           </div>
         </FieldCard>
       )}
 
       {step === 3 && (
-        <FieldCard title="4. Equipment & Memento / 장비와 기념품">
+        <FieldCard title="가방에 무엇을 챙겼나요?">
           <div style={{ display: 'grid', gap: '0.75rem', fontSize: '0.9rem' }}>
-            <div style={{ padding: '0.7rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px' }}>
-              시작 도구: 벨트 칼, 나무 절구와 공이, 낡은 캠프 주전자, 이빨, 앞발/발톱. 시작 장신구: 기념품 1개.
+            <div style={{ padding: '0.8rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', lineHeight: 1.55 }}>
+              벨트 칼, 나무 절구와 공이, 낡은 캠프 주전자, 이빨, 앞발/발톱을 챙겼습니다.<br />
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>그리고 소중한 기념품 하나를 장신구 대신 들고 떠납니다.</span>
             </div>
             <textarea value={draft.mementoNote} onChange={e => setDraft(d => ({ ...d, mementoNote: e.target.value }))} rows={4} placeholder="첫 여정에 들고 가는 기념품이 무엇이고, 왜 소중한지 기록하세요." />
           </div>
@@ -8755,69 +8913,111 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
       )}
 
       {step === 4 && (
-        <FieldCard title="5. Who Is Your Familiar? / 사역마 동물">
+        <FieldCard title="함께하는 사역마는 누구인가요?">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <input value={draft.familiarName} onChange={e => setDraft(d => ({ ...d, familiarName: e.target.value }))} placeholder="사역마 이름" />
+            <input value={draft.familiarName} onChange={e => setDraft(d => ({ ...d, familiarName: e.target.value }))} placeholder="사역마의 이름을 지어주세요" />
             <CardDrawSlot
+              variant="hero"
               label="사역마 정체성 카드 (p.14)"
-              helper="약제사와 같은 동물 표를 사용합니다. 직접 입력하거나 랜덤 선택으로 한 장을 뽑습니다."
+              helper="약제사와 같은 동물 표를 사용합니다. 카드 한 장으로 사역마의 종족을 알아보세요."
               card={wizardCards.familiar || null}
               onCard={card => applyDescriptorCard('familiar', 'familiar', card)}
             />
-            <ChoiceSelect value={draft.familiarDescriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, familiarDescriptor: item, familiarAnimal: "" }))} />
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.86rem' }}>결과: <strong>{draft.familiarDescriptor.card} - {draft.familiarDescriptor.name}</strong> / 예시 동물: {draft.familiarDescriptor.examples}</div>
+            <div style={{ color: 'var(--text-bright)', fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
+              {wizardCards.familiar ? (
+                <>당신의 사역마는 <strong style={{ color: 'var(--primary)' }}>{draft.familiarDescriptor.name}</strong>입니다.<br /><span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.familiarDescriptor.examples} 중에서 골라보세요.</span></>
+              ) : (
+                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 사역마의 종족이 정해집니다.</span>
+              )}
+            </div>
             {animalChips(draft.familiarDescriptor.examples, value => setDraft(d => ({ ...d, familiarAnimal: value })))}
             <input value={draft.familiarAnimal} onChange={e => setDraft(d => ({ ...d, familiarAnimal: e.target.value }))} placeholder="사역마의 실제 동물 또는 외형" />
             <textarea value={draft.familiarJournal} onChange={e => setDraft(d => ({ ...d, familiarJournal: e.target.value }))} rows={3} placeholder="처음 어떻게 만났는지 기록하세요." />
+            <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
+              <div style={{ marginTop: '0.4rem' }}>
+                <ChoiceSelect value={draft.familiarDescriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, familiarDescriptor: item, familiarAnimal: "" }))} />
+              </div>
+            </details>
           </div>
         </FieldCard>
       )}
 
       {step === 5 && (
-        <FieldCard title="6. How Do They Help You? / 사역마의 도움">
+        <FieldCard title="사역마가 어떻게 도와주나요?">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <CardDrawSlot
+              variant="hero"
               label="사역마 도움 카드 (p.15)"
-              helper="카드 값을 기준으로 사역마의 도움을 찾습니다. Q/K는 Monarch 결과로 처리됩니다."
+              helper="카드 값이 사역마의 특기를 정합니다. Q와 K는 Monarch로 처리됩니다."
               card={wizardCards.familiarBenefit || null}
               onCard={applyBenefitCard}
             />
-            <ChoiceSelect value={draft.familiarBenefit.name} items={bioChoices.familiars as any[]} onChange={item => setDraft(d => ({ ...d, familiarBenefit: item }))} />
-            <div style={{ padding: '0.7rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', fontSize: '0.9rem' }}>
-              <strong>{draft.familiarBenefit.card} - {draft.familiarBenefit.name}</strong><br />
-              <span style={{ color: 'var(--text-muted)' }}>{draft.familiarBenefit.desc}</span>
+            <div style={{ padding: '0.8rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
+              {wizardCards.familiarBenefit ? (
+                <>
+                  사역마의 특기: <strong style={{ color: 'var(--primary)' }}>{draft.familiarBenefit.name}</strong><br />
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.familiarBenefit.desc}</span>
+                </>
+              ) : (
+                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 사역마의 도움이 정해집니다.</span>
+              )}
             </div>
+            <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
+              <div style={{ marginTop: '0.4rem' }}>
+                <ChoiceSelect value={draft.familiarBenefit.name} items={bioChoices.familiars as any[]} onChange={item => setDraft(d => ({ ...d, familiarBenefit: item }))} />
+              </div>
+            </details>
           </div>
         </FieldCard>
       )}
 
       {step === 6 && (
-        <FieldCard title="7. What Is Your Relationship? / 관계">
+        <FieldCard title="사역마와 어떤 사이인가요?">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <CardDrawSlot
+              variant="hero"
               label="관계 카드 (p.16)"
-              helper="카드 값을 기준으로 사역마와의 관계를 정합니다. 필요하면 아래 표에서 직접 고를 수도 있습니다."
+              helper="카드 값이 약제사와 사역마 사이의 관계를 정합니다."
               card={wizardCards.relationship || null}
               onCard={applyRelationshipCard}
             />
-            <ChoiceSelect value={draft.relationship.name} items={bioChoices.relationships as any[]} onChange={item => setDraft(d => ({ ...d, relationship: item }))} />
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{draft.relationship.desc}</div>
+            <div style={{ fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
+              {wizardCards.relationship ? (
+                <>
+                  둘의 관계: <strong style={{ color: 'var(--primary)' }}>{draft.relationship.name}</strong><br />
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.relationship.desc}</span>
+                </>
+              ) : (
+                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 관계가 정해집니다.</span>
+              )}
+            </div>
             <textarea value={draft.relationshipJournal} onChange={e => setDraft(d => ({ ...d, relationshipJournal: e.target.value }))} rows={4} placeholder="둘의 관계를 보여주는 짧은 장면이나 기억을 기록하세요." />
+            <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
+              <div style={{ marginTop: '0.4rem' }}>
+                <ChoiceSelect value={draft.relationship.name} items={bioChoices.relationships as any[]} onChange={item => setDraft(d => ({ ...d, relationship: item }))} />
+              </div>
+            </details>
           </div>
         </FieldCard>
       )}
 
       {step === 7 && (
-        <FieldCard title="8. 시트 확정">
-          <div style={{ display: 'grid', gap: '0.55rem', fontSize: '0.92rem' }}>
-            <div><strong>약제사:</strong> {draft.name || '이름 미정'} / {draft.animal || '동물 미정'} ({draft.descriptor.name})</div>
-            <div><strong>이동:</strong> {draft.travel.name} / Speed {draft.travel.speed}, Carry {draft.travel.carry}</div>
-            <div><strong>출발 계기:</strong> {draft.origin.name}</div>
-            <div><strong>사역마:</strong> {draft.familiarName || '이름 미정'} / {draft.familiarAnimal || '동물 미정'} ({draft.familiarDescriptor.name})</div>
-            <div><strong>도움:</strong> {draft.familiarBenefit.name}</div>
-            <div><strong>관계:</strong> {draft.relationship.name}</div>
-            <button type="button" onClick={saveCharacter} style={{ marginTop: '0.5rem', padding: '0.75rem 1rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', border: 'none', fontWeight: 'bold' }}>
-              약제사 시트에 저장
+        <FieldCard title="시트를 확정할까요?">
+          <div style={{ display: 'grid', gap: '0.7rem', fontSize: '0.92rem', lineHeight: 1.6 }}>
+            <div className="prose-summary">
+              <strong>{draft.descriptor.name}</strong> 약제사 <strong>{draft.name || '(이름 미정)'}</strong>.<br />
+              {draft.animal && <>{draft.animal}의 모습으로, </>}<strong>{draft.travel.name}</strong> 스타일로 여행합니다.<br />
+              <span className="dim">하루 {draft.travel.speed}경로 이동, 짐 {draft.travel.carry}칸. 출발 동기: {draft.origin.name}.</span>
+            </div>
+            <div className="prose-summary" style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '0.6rem' }}>
+              사역마 <strong>{draft.familiarName || '(이름 미정)'}</strong>{draft.familiarAnimal && `, ${draft.familiarAnimal}`}.<br />
+              특기: <strong>{draft.familiarBenefit.name}</strong>. 관계: {draft.relationship.name}.
+            </div>
+            <button type="button" onClick={saveCharacter} style={{ marginTop: '0.5rem', padding: '0.75rem 1rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '1rem' }}>
+              ✨ 약제사 시트에 저장
             </button>
           </div>
         </FieldCard>

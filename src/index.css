@@ -512,3 +512,199 @@ button:active {
   color: var(--text-dim) !important;
 }
 
+/* =================================================================
+   HERO CARD DRAW SLOT — character creation ritual
+   ================================================================= */
+.card-draw-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 1rem 0;
+}
+
+.card-draw-hero .card-draw-hero__card {
+  width: 160px;
+  min-height: 220px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 260ms cubic-bezier(.4,0,.2,1), box-shadow 260ms ease, opacity 200ms ease;
+  cursor: pointer;
+}
+
+.card-draw-hero .card-draw-hero__card--empty {
+  border: 2.5px dashed rgba(36, 32, 24, 0.28);
+  background: #f8f6ef;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  text-align: center;
+  line-height: 1.4;
+  padding: 1rem;
+}
+
+.card-draw-hero .card-draw-hero__card--filled {
+  border: 1.5px solid #d0c9b5;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(55, 45, 28, 0.14);
+  padding: 0.4rem;
+}
+
+.card-draw-hero .card-draw-hero__card--drawing {
+  transform: translateY(-12px) rotate(-4deg);
+  opacity: 0.7;
+}
+
+.card-draw-hero .card-draw-hero__card img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.card-draw-hero__actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.card-draw-hero__actions button {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* Suit selection buttons */
+.suit-btn-row {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
+.suit-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  font-size: 1.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid rgba(36, 32, 24, 0.25);
+  background: #fffefa;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.suit-btn:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+
+.suit-btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+  box-shadow: 0 2px 6px rgba(102, 116, 93, 0.25);
+}
+
+/* Value chip strip */
+.value-chip-strip {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 360px;
+}
+
+.value-chip {
+  min-width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.3px solid rgba(36, 32, 24, 0.22);
+  background: #fffefa;
+  cursor: pointer;
+  transition: all 120ms ease;
+  padding: 0 0.35rem;
+}
+
+.value-chip:hover {
+  background: #f0ede4;
+  border-color: var(--secondary);
+}
+
+.value-chip.active {
+  background: var(--secondary);
+  color: #fff;
+  border-color: var(--secondary);
+}
+
+/* Bag weight progress bar */
+.bag-progress {
+  width: 100%;
+  height: 8px;
+  background: #eae7dd;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 0.3rem;
+}
+
+.bag-progress__fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+/* Collapsible section toggle */
+.collapsible-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  padding: 0.4rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-fancy);
+}
+
+.collapsible-toggle:hover {
+  color: var(--primary);
+}
+
+.collapsible-toggle__arrow {
+  display: inline-block;
+  transition: transform 200ms ease;
+  font-size: 0.7rem;
+}
+
+.collapsible-toggle__arrow.open {
+  transform: rotate(90deg);
+}
+
+/* Natural language prose style for sidebar */
+.prose-summary {
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--text-bright);
+}
+
+.prose-summary strong {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.prose-summary .dim {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
