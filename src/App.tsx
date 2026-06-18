@@ -317,6 +317,7 @@ interface GameState {
   independentUsedThisAilment?: boolean;
   visitedLocations?: string[];
   curedAilmentInThisWilds?: boolean;
+  needsLocalHelpBeforeMove?: boolean;
   lastForageCardValue?: number;
   gardenPlant?: string;
   gardenHarvestedThisAilment?: boolean;
@@ -429,6 +430,7 @@ const INITIAL_STATE: GameState = {
   independentUsedThisAilment: false,
   visitedLocations: ["Starting Oak Road"],
   curedAilmentInThisWilds: false,
+  needsLocalHelpBeforeMove: false,
   lastForageCardValue: 0,
   gardenPlant: "",
   gardenHarvestedThisAilment: false,
@@ -1558,6 +1560,7 @@ const migrateState = (s: any): GameState => {
     independentUsedThisAilment: s.independentUsedThisAilment || false,
     visitedLocations: s.visitedLocations || ["Starting Oak Road"],
     curedAilmentInThisWilds: s.curedAilmentInThisWilds || false,
+    needsLocalHelpBeforeMove: s.needsLocalHelpBeforeMove || false,
     lastForageCardValue: s.lastForageCardValue || 0,
     gardenPlant: s.gardenPlant || "",
     gardenHarvestedThisAilment: s.gardenHarvestedThisAilment || false,
@@ -1994,6 +1997,8 @@ const WAGON_UPGRADES_DB = [
 ];
 
 const COMPANIONS_DB = [
+  { id: 'cranky_contraption', name: '성질 고약한 기계장치 (Cranky Contraption)', cost: 3, region: 'Titan', desc: '거수(Behemoth) 조우 중 자신을 희생해 부정적 결과를 피하고 탈출합니다.' },
+  { id: 'cricket', name: '귀뚜라미 (Cricket)', cost: 6, region: 'Bog, Forest', desc: '악기 도구로 공연할 때 추가 악기이자 연주할 발 한 쌍으로 계산됩니다.' },
   { id: 'beetle', name: '딱정벌레 (Beetle)', cost: 5, region: 'Meadow, Mountain', desc: '여정당 1회, 맹수(Beast) 조우의 부정적 효과를 무시합니다.' },
   { id: 'caterpillar', name: '애벌레 (Caterpillar)', cost: 3, region: 'Bog, Forest', desc: 'Lesser/Intermediate 질병 타이머 시작 시 +1시간. 1시즌 후 나비로 탈바꿈합니다.' },
   { id: 'butterfly', name: '나비 (Butterfly)', cost: 12, region: 'Bog, Meadow', desc: '봄/여름 채집 시, 식물 약재의 희귀도를 1만큼 감소시킵니다.' },
@@ -2002,6 +2007,18 @@ const COMPANIONS_DB = [
   { id: 'pond_skimmer', name: '소금쟁이 (Pond Skimmer)', cost: 6, region: 'Loch', desc: '여정당 1회, 호수(Loch) 조우 카드를 다시 드로우합니다.' },
   { id: 'wasp', name: '말벌 (Wasp)', cost: 8, region: 'Forest, Mountain', desc: '10경로를 이동할 때마다 곤충 약재 1개를 수렵해 옵니다.' }
 ];
+
+const isToolAvailableAtLocation = (tool: any, s: GameState, bypass: boolean = false) => {
+  if (bypass) return true;
+  const places = String(tool.places || '');
+  if (places === 'Any') return s.currentLocationType === 'Settlement' || s.currentLocationType === 'City';
+  if (['Odoak', 'Noonhill', 'Spoolkeep', 'Glasswall', 'Summit', 'Vessel', 'Newdam'].some(city => places.includes(city) && s.currentLocationName === city)) {
+    return true;
+  }
+  if (!places.includes('Settlements') || s.currentLocationType !== 'Settlement') return false;
+  const normalized = places.replace('Meadows', 'Meadow');
+  return ['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain'].some(region => normalized.includes(region) && s.currentRegion === region);
+};
 
 export default function App() {
   const [state, setState] = useState<GameState | null>(null);
@@ -3492,6 +3509,7 @@ function PlayView({
           ...s,
           reputation: newRep,
           activeAilment: null,
+          needsLocalHelpBeforeMove: false,
           pendingPatientArchive: pendingArchive,
           journals,
           lostPatientLegacy: {
@@ -3715,6 +3733,10 @@ function PlayView({
   };
 
   const handleBuyTool = (tool: any) => {
+    if (!isToolAvailableAtLocation(tool, state, bypassShopRules)) {
+      alert("현재 위치에서는 이 도구를 구입할 수 없습니다.");
+      return;
+    }
     if (state.trinkets.length < tool.cost) {
       alert("장신구가 부족합니다!");
       return;
@@ -3747,6 +3769,10 @@ function PlayView({
   };
 
   const handleUpgradeTool = () => {
+    if (state.currentLocationType !== 'City' && !(state.currentLocationType === 'Settlement' && state.currentRegion === 'Mountain') && !bypassShopRules) {
+      alert("도구 개조는 산맥 정착지 또는 도시에서만 가능합니다.");
+      return;
+    }
     if (state.trinkets.length < 3) {
       alert("도구 개조에는 3 장신구가 필요합니다!");
       return;
@@ -3903,17 +3929,14 @@ function PlayView({
     const goalKey = cardRuleValue(goalCard);
 
     let distLabel = "";
-    let maxDays = 12;
+    const maxDays = state.reputation >= 35 ? 3 : state.reputation >= 25 ? 6 : state.reputation >= 15 ? 9 : 12;
 
     if (cardVal <= 6) {
-      distLabel = "가까운 거리 — 12일 경로 이하";
-      maxDays = state.reputation >= 35 ? 3 : state.reputation >= 25 ? 6 : state.reputation >= 15 ? 9 : 12;
+      distLabel = "가까운 거리 — 12경로 이하";
     } else if (cardVal <= 9) {
       distLabel = "먼 거리 — 13~24일 경로";
-      maxDays = state.reputation >= 35 ? 6 : state.reputation >= 25 ? 9 : state.reputation >= 15 ? 12 : 15;
     } else {
       distLabel = "지평선 너머 — 24일 이상 대도시";
-      maxDays = state.reputation >= 35 ? 9 : state.reputation >= 25 ? 12 : state.reputation >= 15 ? 15 : 20;
     }
 
     const goalObj = GAME_DATA.goals.find((goal: any) => goal.card === goalKey) || GAME_DATA.goals[0];
@@ -4075,7 +4098,7 @@ function PlayView({
           // Caught! Check for escape tools
           const hasCrossbow = hasTool(s, 'crossbow') || hasTool(s, '석궁');
           const hasBolts = s.bag.some(i => i.name.includes('볼트') || i.id === 'tool_bolts');
-          const hasCranky = hasTool(s, 'cranky') || hasTool(s, '기계 장치') || hasTool(s, '기구');
+          const hasCranky = hasTool(s, 'cranky') || hasTool(s, '기계 장치') || hasTool(s, '기구') || (s.companions || []).some(comp => comp.name === 'cranky_contraption');
           if (hasCrossbow && hasBolts) {
             caughtAlert = '🏹 거수에게 따라잡혔지만 석궁으로 탈출! 볼트 1개 소비. 선행 거리 2 재설정.';
             nextPursued = { headStart: 2 };
@@ -4108,6 +4131,7 @@ function PlayView({
 
       // Compute next bag after potential waterway loss
       let finalBag = s.bag;
+      let finalCompanions = s.companions || [];
       if (lostReagentItem) {
         let found = false;
         finalBag = s.bag.map(item => {
@@ -4129,6 +4153,7 @@ function PlayView({
         finalBag = finalBag.filter(i => { if (!r && (i.id === 'tool_bolts' || i.name.includes('볼트'))) { r = true; return false; } return true; });
       } else if (caughtAlert.includes('⚙️')) {
         finalBag = finalBag.filter(i => !i.name.toLowerCase().includes('cranky') && !i.name.includes('기계 장치'));
+        finalCompanions = finalCompanions.filter(comp => comp.name !== 'cranky_contraption');
       }
 
       const newState: GameState = {
@@ -4141,9 +4166,11 @@ function PlayView({
         cumulativeDays: nextCumulative,
         visitedLocations: nextVisited,
         curedAilmentInThisWilds: false,
+        needsLocalHelpBeforeMove: true,
         legacyRestUsedThisLocation: false,
         journeyGoalCounter: nextGoalCounter,
         bag: finalBag,
+        companions: finalCompanions,
         calendarHistory: [
           ...s.calendarHistory,
           `Day ${nextDays}: ${nextLocName} (${destRegion} / ${destType})로 이동. ${effectivePaths}경로.` +
@@ -4185,7 +4212,7 @@ function PlayView({
         if (newHS <= 0) {
           const hasCrossbow = hasTool(state, 'crossbow') || hasTool(state, '석궁');
           const hasBolts = state.bag.some(i => i.name.includes('볼트') || i.id === 'tool_bolts');
-          const hasCranky = hasTool(state, 'cranky') || hasTool(state, '기계 장치') || hasTool(state, '기구');
+          const hasCranky = hasTool(state, 'cranky') || hasTool(state, '기계 장치') || hasTool(state, '기구') || (state.companions || []).some(comp => comp.name === 'cranky_contraption');
           if (hasCrossbow && hasBolts) alert('🏹 석궁으로 탈출! 볼트 소비, 선행 거리 2 재설정.');
           else if (hasCranky) alert('⚙️ 기계 장치로 탈출! 장치 소비.');
           else alert('💀 게임 오버! 탈출 도구 없이 거수에게 잡혔습니다.');
@@ -4201,6 +4228,11 @@ function PlayView({
   const handleTravelMove = (e: React.FormEvent) => {
     e.preventDefault();
     if (!state.journeyActive) return;
+
+    if (state.needsLocalHelpBeforeMove) {
+      alert("p.25 Earning Your Keep: 이동 후에는 현지 야수를 돕거나 고분 문제를 해결해야 다시 이동할 수 있습니다. 현재 환자 기록 또는 고분 델브를 마무리하세요.");
+      return;
+    }
 
     if (!nextLocName) {
       alert("이동할 새 위치의 이름을 적어주세요!");
@@ -5090,6 +5122,7 @@ function PlayView({
           bag: nextBag,
           reputation: nextRep,
           activeAilment: null,
+          needsLocalHelpBeforeMove: false,
           pendingPatientArchive: createPendingPatientArchive(s, sourceId, 'failure', notes, selectedReagents.map(r => r.name.split(' (')[0]), s.activeAilment!.consequence, timestamp),
           journals: [
             {
@@ -5131,6 +5164,7 @@ function PlayView({
           bag: nextBag,
           reputation: nextRep,
           activeAilment: null,
+          needsLocalHelpBeforeMove: false,
           pendingPatientArchive: createPendingPatientArchive(s, sourceId, 'failure', notes, selectedReagents.map(r => r.name.split(' (')[0]), s.activeAilment!.consequence, timestamp),
           journals: [
             {
@@ -5254,6 +5288,7 @@ function PlayView({
         trinketArchive,
         reputation: nextRep,
         activeAilment: updatedAilment,
+        needsLocalHelpBeforeMove: false,
         discoveredRecipes: nextDiscoveredRecipes,
         scroungingMode: triggerScrounge,
         scroungingTimer: nextTimer,
@@ -5315,6 +5350,7 @@ function PlayView({
           ...s,
           journeyActive: false,
           journeyOrigin: "",
+          needsLocalHelpBeforeMove: false,
           pursuedByBehemoth: null, // Reaching journey end clears the chase
           calendarDays: 0,
           reputation: nextRep,
@@ -5405,7 +5441,7 @@ function PlayView({
   };
 
   const handleAbortDelve = () => {
-    updateState((s: GameState) => ({ ...s, activeDelve: null }));
+    updateState((s: GameState) => ({ ...s, activeDelve: null, needsLocalHelpBeforeMove: false }));
     setDelveActive(false);
     setDelveChallenge('');
     setDelveDrawnSuit('');
@@ -5456,6 +5492,7 @@ function PlayView({
         updateState((s: GameState) => ({
           ...s,
           activeDelve: null,
+          needsLocalHelpBeforeMove: false,
           calendarDays: s.calendarDays + daysToMark,
           calendarHistory: [...s.calendarHistory, `고분 탐험 마감(침실 도달): 누적 타이머 ${newTimer} → ${daysToMark}일 소모`]
         }));
@@ -5472,6 +5509,7 @@ function PlayView({
     updateState((s: GameState) => ({
       ...s,
       activeDelve: null,
+      needsLocalHelpBeforeMove: false,
       calendarDays: s.calendarDays + daysToMark,
       calendarHistory: [...s.calendarHistory, `고분 탐험 마감: 누적 타이머 ${delveTimer} → ${daysToMark}일 소모`]
     }));
@@ -5494,6 +5532,7 @@ function PlayView({
       updateState((s: GameState) => ({
         ...s,
         activeDelve: null,
+        needsLocalHelpBeforeMove: false,
         pursuedByBehemoth: { headStart: 2 },
         journals: [
           { id: 'chase_' + Date.now(), title: '🐾 거수의 추격 시작!', text: `고분에서 수면제 제조에 실패하여 거대 야수가 깨어났습니다. 도시 또는 여정 종료 전까지 매 이동마다 최소 3경로를 이동해야 합니다. 선행 거리: 2경로.`, timestamp: Date.now() }
@@ -5511,6 +5550,7 @@ function PlayView({
     updateState((s: GameState) => ({
       ...s,
       activeDelve: null,
+      needsLocalHelpBeforeMove: false,
       calendarDays: s.calendarDays + 1,
       trinkets: [...s.trinkets, ...Array(trinketGain).fill('고분 보물 (Trinket)')],
       barrows: (s.barrows || []).filter(b => b.locationName !== s.currentLocationName),
@@ -5538,12 +5578,13 @@ function PlayView({
       // Bust — caught!
       const hasCrossbow = state.bag.some(i => i.name.includes('석궁') || i.id === 'tool_crossbow');
       const hasBolts = state.bag.some(i => i.name.includes('볼트') || i.id === 'tool_bolts');
-      const hasCranky = state.bag.some(i => i.name.toLowerCase().includes('cranky') || i.name.includes('기구'));
+      const hasCranky = state.bag.some(i => i.name.toLowerCase().includes('cranky') || i.name.includes('기구')) || (state.companions || []).some(comp => comp.name === 'cranky_contraption');
       if (hasCrossbow && hasBolts) {
         alert(`❌ 합계 ${total}! 잡혔습니다!\n\n하지만 석궁으로 탈출! 볼트 1개를 소비하고 달력 +1일.`);
         updateState((s: GameState) => ({
           ...s,
           activeDelve: null,
+          needsLocalHelpBeforeMove: false,
           calendarDays: s.calendarDays + 1,
           bag: (() => {
             let removed = false;
@@ -5558,14 +5599,17 @@ function PlayView({
         updateState((s: GameState) => ({
           ...s,
           activeDelve: null,
+          needsLocalHelpBeforeMove: false,
           calendarDays: s.calendarDays + 1,
-          bag: s.bag.filter(i => !i.name.toLowerCase().includes('cranky'))
+          bag: s.bag.filter(i => !i.name.toLowerCase().includes('cranky')),
+          companions: (s.companions || []).filter(comp => comp.name !== 'cranky_contraption')
         }));
       } else {
         alert(`💀 합계 ${total}! 잡혔습니다!\n\n탈출 도구가 없습니다. 여정이 비극으로 끝납니다.`);
         updateState((s: GameState) => ({
           ...s,
           activeDelve: null,
+          needsLocalHelpBeforeMove: false,
           journeyActive: false,
           journals: [
             { id: 'death_' + Date.now(), title: '💀 게임 오버 — 야수에게 잡힘', text: `물건을 훔치다 잡혀 탈출 도구도 없이 거대 야수의 분노에 쓰러졌습니다.`, timestamp: Date.now() },
@@ -5587,6 +5631,7 @@ function PlayView({
     updateState((s: GameState) => ({
       ...s,
       activeDelve: null,
+      needsLocalHelpBeforeMove: false,
       calendarDays: s.calendarDays + 1,
       barrows: (s.barrows || []).filter(b => b.locationName !== s.currentLocationName),
       trinkets: [
@@ -5649,6 +5694,7 @@ function PlayView({
       return {
         ...s,
         activeDelve: null,
+        needsLocalHelpBeforeMove: false,
         activeAilment: null,
         reputation: s.reputation + repGain,
         currentLocationType: 'Settlement',
@@ -5670,6 +5716,7 @@ function PlayView({
     updateState((s: GameState) => ({
       ...s,
       activeDelve: null,
+      needsLocalHelpBeforeMove: false,
       calendarDays: s.calendarDays + 1,
       barrows: (s.barrows || []).filter(b => b.locationName !== s.currentLocationName),
       journals: [
@@ -5712,6 +5759,7 @@ function PlayView({
     updateState((s: GameState) => ({
       ...s,
       activeDelve: null,
+      needsLocalHelpBeforeMove: false,
       calendarDays: s.calendarDays + extraDays,
       barrows: (s.barrows || []).filter(b => b.locationName !== s.currentLocationName),
       trinkets: [...s.trinkets, ...Array(trinkets).fill('가구 보수 보상 (Trinket)')],
@@ -5735,6 +5783,7 @@ function PlayView({
       updateState((s: GameState) => ({
         ...s,
         activeDelve: null,
+        needsLocalHelpBeforeMove: false,
         calendarDays: s.calendarDays + 2,
         calendarHistory: [...s.calendarHistory, '군집 야수 고분 실패 — 연회 재료 부족']
       }));
@@ -5753,6 +5802,7 @@ function PlayView({
     updateState((s: GameState) => ({
       ...s,
       activeDelve: null,
+      needsLocalHelpBeforeMove: false,
       calendarDays: s.calendarDays + 1,
       barrows: (s.barrows || []).filter(b => b.locationName !== s.currentLocationName),
       bag: [...s.bag, { id: 'artifact_titan_detector_' + Date.now(), name: '🔮 티탄 탐지 기계 (Titan Detector)', weight: 1, type: 'item' as any }],
@@ -5775,6 +5825,7 @@ function PlayView({
       updateState((s: GameState) => ({
         ...s,
         activeDelve: null,
+        needsLocalHelpBeforeMove: false,
         calendarDays: s.calendarDays + 1
       }));
       setDelveActive(false);
@@ -5793,6 +5844,7 @@ function PlayView({
     updateState((s: GameState) => ({
       ...s,
       activeDelve: null,
+      needsLocalHelpBeforeMove: false,
       calendarDays: s.calendarDays + 1,
       barrows: (s.barrows || []).filter(b => b.locationName !== s.currentLocationName),
       trinkets: [...s.trinkets, ...Array(trinkets).fill('거래 보상 (Trinket)')],
@@ -5825,6 +5877,7 @@ function PlayView({
         updateState((s: GameState) => ({
           ...s,
           activeDelve: null,
+          needsLocalHelpBeforeMove: false,
           calendarDays: s.calendarDays + 1,
           barrows: (s.barrows || []).filter(b => b.locationName !== s.currentLocationName),
           trinkets: [...s.trinkets, ...Array(5).fill('용병 보수 (Trinket)')],
@@ -5835,6 +5888,7 @@ function PlayView({
         updateState((s: GameState) => ({
           ...s,
           activeDelve: null,
+          needsLocalHelpBeforeMove: false,
           calendarDays: s.calendarDays + 1
         }));
         alert(`❌ 실패. 카드 ${card} + 보너스 ${bonus} = ${total}.\n용병들이 패퇴했습니다. 숨어있다 탈출, 달력 +1일.`);
@@ -6813,13 +6867,7 @@ function PlayView({
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.8rem' }}>
                   {TOOLS_DB.map(tool => {
                     const hasTool = state.bag.some(item => item.name.includes(tool.name.split(' (')[0]));
-                    const isAvailable = bypassShopRules ||
-                      tool.places === 'Any' ||
-                      (tool.places.includes('Settlements') && state.currentLocationType === 'Settlement') ||
-                      (tool.places.includes('Spoolkeep') && state.currentLocationName === 'Spoolkeep') ||
-                      (tool.places.includes('Noonhill') && state.currentLocationName === 'Noonhill') ||
-                      (tool.places.includes('Odoak') && state.currentLocationName === 'Odoak') ||
-                      (tool.places.includes('Loch Settlements') && state.currentLocationType === 'Settlement' && state.currentRegion === 'Loch');
+                    const isAvailable = isToolAvailableAtLocation(tool, state, bypassShopRules);
 
                     return (
                       <div key={tool.id} style={{ border: '1px solid #e5dec9', borderRadius: '8px', padding: '0.8rem', background: isAvailable ? '#fff' : '#f9f6f0', opacity: isAvailable ? 1 : 0.6 }}>
@@ -6854,7 +6902,7 @@ function PlayView({
                   산맥 정착지나 모든 도시(City)에서 <strong>3 장신구</strong>를 지불하고 기본 도구를 업그레이드합니다.
                 </p>
 
-                {state.currentLocationType !== 'City' && state.currentRegion !== 'Mountain' && !bypassShopRules ? (
+                {state.currentLocationType !== 'City' && !(state.currentLocationType === 'Settlement' && state.currentRegion === 'Mountain') && !bypassShopRules ? (
                   <div style={{ fontStyle: 'italic', color: 'var(--accent-red)', fontSize: '0.85rem' }}>
                     ⚠️ 현재 위치가 도시나 산맥 구역이 아니어서 대장간 이용이 불가능합니다.
                   </div>
@@ -7359,6 +7407,12 @@ function PlayView({
             </div>
 
             {/* Travel Form */}
+            {state.needsLocalHelpBeforeMove && (
+              <div style={{ borderTop: '1px dashed var(--glass-border)', padding: '0.8rem', background: '#fffdf8', borderRadius: '8px', border: '1px solid var(--border-cozy)', color: 'var(--text-muted)', fontSize: '0.86rem', lineHeight: 1.45 }}>
+                <strong style={{ color: 'var(--primary)' }}>현지 기록 미결 (p.25 Earning Your Keep)</strong><br />
+                이곳에서 환자를 돌보거나 고분 문제를 마무리해야 다음 위치로 이동할 수 있습니다.
+              </div>
+            )}
             <form onSubmit={handleTravelMove} className="grid-travel-form" style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '1rem' }}>
               <input
                 name="locName"
@@ -7386,8 +7440,8 @@ function PlayView({
                 <option value="Barrow">야수 고분 (Barrow)</option>
               </select>
 
-              <button type="submit" style={{ background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold' }}>
-                🚶‍♂️ 경로 이동 및 카드 조우
+              <button type="submit" disabled={state.needsLocalHelpBeforeMove} style={{ background: state.needsLocalHelpBeforeMove ? '#d8d1c4' : 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold', cursor: state.needsLocalHelpBeforeMove ? 'not-allowed' : 'pointer' }}>
+                {state.needsLocalHelpBeforeMove ? '현지 일을 마친 뒤 이동 가능' : '🚶‍♂️ 경로 이동 및 카드 조우'}
               </button>
 
               <div style={{ gridColumn: 'span 4', display: 'grid', gap: '0.75rem', fontSize: '0.85rem', background: '#faf8f5', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)', marginTop: '0.4rem' }}>
