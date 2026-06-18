@@ -80,6 +80,7 @@ interface BagItem {
 
 interface ApothecaryBio {
   name: string;
+  animal: string;
   descriptor: string;
   examples: string;
   travelStyle: string;
@@ -87,10 +88,17 @@ interface ApothecaryBio {
   carry: number;
   originName: string;
   originDesc: string;
+  originJournal: string;
   familiarName: string;
+  familiarAnimal: string;
+  familiarDescriptor: string;
+  familiarExamples: string;
   familiarBenefit: string;
   familiarRelation: string;
   canFly?: boolean;
+  familiarJournal: string;
+  relationshipJournal: string;
+  mementoNote: string;
 }
 
 interface ActiveAilment {
@@ -338,6 +346,7 @@ interface GameState {
 
 const INITIAL_BIO: ApothecaryBio = {
   name: "",
+  animal: "",
   descriptor: "Burrowing",
   examples: "오소리, 토끼, 고슴도치, 두더지",
   travelStyle: "Rambling and Ready",
@@ -345,10 +354,17 @@ const INITIAL_BIO: ApothecaryBio = {
   carry: 4,
   originName: "약제사 사고 후의 치료 서비스",
   originDesc: "큰 사고를 당하고 치유를 받으면서 약제사의 길을 걷기로 결심했습니다.",
+  originJournal: "",
   familiarName: "",
+  familiarAnimal: "",
+  familiarDescriptor: "",
+  familiarExamples: "",
   familiarBenefit: "따뜻한 약제사 (모든 질병 치료 시작 타이머 +2시간)",
   familiarRelation: "깊은 동반자 (서로 아끼고 의지함)",
-  canFly: false
+  canFly: false,
+  familiarJournal: "",
+  relationshipJournal: "",
+  mementoNote: ""
 };
 
 const INITIAL_BAG: BagItem[] = [
@@ -453,6 +469,19 @@ const getReputationRank = (rep: number) => {
   if (rep >= 25) return { rank: "명망 높음", color: "#6ba6c9" };
   if (rep >= 15) return { rank: "인지도 있음", color: "#e59a73" };
   return { rank: "미등록", color: "#9b9487" };
+};
+
+const CHARACTER_CARD_VALUES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'M'];
+const CHARACTER_SUITS = ['♥', '♦', '♣', '♠'];
+
+const drawCharacterCard = () => CHARACTER_CARD_VALUES[Math.floor(Math.random() * CHARACTER_CARD_VALUES.length)];
+const drawCharacterSuit = () => CHARACTER_SUITS[Math.floor(Math.random() * CHARACTER_SUITS.length)];
+
+const examplesToOptions = (examples: string) => examples.split(',').map(item => item.trim()).filter(Boolean);
+
+const findByCard = <T extends { card: string }>(items: T[], card: string) => items.find(item => item.card === card) || items[0];
+const findBySuit = <T extends { suit: string }>(items: T[], suit: string) => {
+  return items.find(item => item.suit.split('/').map(part => part.trim()).includes(suit)) || items[0];
 };
 
 const formatDateTime = (ts: number) => {
@@ -1899,12 +1928,14 @@ export default function App() {
                 const localParsed = JSON.parse(localStr);
                 const isLocalDefault = !localParsed.bio?.name && (!localParsed.journals || localParsed.journals.length === 0);
                 if (isLocalDefault || confirm("구글 클라우드에 백업된 아포테카리아 데이터를 발견했습니다. 불러오시겠습니까?\n(불러오면 현재 진행 중인 로컬 데이터는 덮어씌워집니다.)")) {
-                  setState(migrateState(parsed));
-                  localStorage.setItem('apawthecaria_rpg_state', JSON.stringify(parsed));
+                  const migrated = migrateState(parsed);
+                  setState(migrated);
+                  localStorage.setItem('apawthecaria_rpg_state', JSON.stringify(migrated));
                 }
               } else {
-                setState(migrateState(parsed));
-                localStorage.setItem('apawthecaria_rpg_state', JSON.stringify(parsed));
+                const migrated = migrateState(parsed);
+                setState(migrated);
+                localStorage.setItem('apawthecaria_rpg_state', JSON.stringify(migrated));
               }
             }
           } else {
@@ -2483,6 +2514,7 @@ export default function App() {
             {state.bio.name ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.9rem' }}>
                 <div><strong>이름:</strong> {state.bio.name}</div>
+                <div><strong>동물:</strong> {state.bio.animal || state.bio.examples}</div>
                 <div><strong>종족:</strong> {state.bio.descriptor} ({state.bio.examples})</div>
                 <div><strong>이동 스타일:</strong> {state.bio.travelStyle}</div>
                  <div><strong>속도:</strong> {travelSpeed} | <strong>길드 명성:</strong> {state.reputation}</div>
@@ -2490,6 +2522,9 @@ export default function App() {
                 {state.bio.familiarName && (
                   <div style={{ borderTop: '1px dashed var(--glass-border)', marginTop: '0.4rem', paddingTop: '0.4rem' }}>
                     🐾 <strong>사역마:</strong> {state.bio.familiarName}
+                    {state.bio.familiarAnimal && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>- 동물: {state.bio.familiarAnimal}</div>
+                    )}
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>- 특성: {state.bio.familiarBenefit}</div>
                   </div>
                 )}
@@ -8228,8 +8263,8 @@ function PlayView({
 // 6. CHARACTER SHEET (BIO & BAGS) VIEW
 // Rulebook p.14-15: All 12 Familiar benefit options (card A~M)
 const FAMILIAR_BENEFITS = [
-  { card: 'A', name: '따뜻한 약제사 (Helpful)', desc: '모든 질병 치료 시작 타이머 +2시간', mechanic: 'helpful' },
-  { card: '2', name: '덤불 마스터 (Brushwise)', desc: '모든 식물(PLANT) 약재 채집 희귀도 -2', mechanic: 'brushwise' },
+  { card: 'A', name: '덤불 마스터 (Brushwise)', desc: '모든 식물(PLANT) 약재 채집 희귀도 -2', mechanic: 'brushwise' },
+  { card: '2', name: '따뜻한 약제사 (Helpful)', desc: '모든 질병 치료 시작 타이머 +2시간', mechanic: 'helpful' },
   { card: '3', name: '용감한 동반자 (Brave)', desc: '거수(Behemoth) 태그 조우 시 ♥/♦ 드로우 → 지역 약재(희귀도≤6) 획득', mechanic: 'brave' },
   { card: '4', name: '말동무 (Chatty)', desc: '물꼬 거래(Bartering) 시 목표 희귀도 -2', mechanic: 'chatty' },
   { card: '5', name: '현명한 장사꾼 (Shrewd)', desc: '치료제를 장신구로 교환 시 장신구 +1', mechanic: 'shrewd' },
@@ -8243,8 +8278,359 @@ const FAMILIAR_BENEFITS = [
 ];
 
 // =================================================================
-// 6. BIO VIEW COMPONENT
-// =================================================================
+function CharacterCreationWizard({ state, updateState }: { state: GameState; updateState: any }) {
+  const bioChoices = GAME_DATA.bioChoices;
+  const initialDescriptor = bioChoices.descriptors.find((d: any) => d.examples === state.bio.examples) || bioChoices.descriptors[2];
+  const initialTravel = bioChoices.travelStyles.find((t: any) => t.name === state.bio.travelStyle || (t.speed === state.bio.speed && t.carry === state.bio.carry)) || bioChoices.travelStyles[1];
+  const initialOrigin = bioChoices.origins.find((o: any) => state.bio.originName.includes(o.name) || o.name.includes(state.bio.originName)) || bioChoices.origins[3];
+  const initialFamiliarDescriptor = bioChoices.descriptors.find((d: any) => d.examples === state.bio.familiarExamples) || bioChoices.descriptors[0];
+  const initialBenefit = bioChoices.familiars.find((f: any) => state.bio.familiarBenefit.includes(f.name)) || bioChoices.familiars[1];
+  const initialRelationship = bioChoices.relationships.find((r: any) => state.bio.familiarRelation.includes(r.name)) || bioChoices.relationships[1];
+
+  const [open, setOpen] = useState(!state.bio.name);
+  const [step, setStep] = useState(0);
+  const [draft, setDraft] = useState({
+    name: state.bio.name,
+    descriptor: initialDescriptor,
+    animal: state.bio.animal,
+    travel: initialTravel,
+    origin: initialOrigin,
+    originJournal: state.bio.originJournal,
+    mementoNote: state.bio.mementoNote,
+    familiarName: state.bio.familiarName,
+    familiarDescriptor: initialFamiliarDescriptor,
+    familiarAnimal: state.bio.familiarAnimal,
+    familiarBenefit: initialBenefit,
+    relationship: initialRelationship,
+    familiarJournal: state.bio.familiarJournal,
+    relationshipJournal: state.bio.relationshipJournal
+  });
+
+  const steps = [
+    '약제사 동물',
+    '이동 방식',
+    '출발 계기',
+    '장비와 기념품',
+    '사역마 동물',
+    '사역마 도움',
+    '관계',
+    '확정'
+  ];
+
+  const cautiousRedraw = (hasValue: boolean, action: () => void) => {
+    if (hasValue && !confirm("이미 나온 결과가 있습니다. 룰북의 우연성을 살리려면 지금 결과를 그대로 가져가는 편을 추천합니다. 그래도 조심스럽게 다시 뽑을까요?")) return;
+    action();
+  };
+
+  const handleDrawDescriptor = (target: 'self' | 'familiar') => {
+    cautiousRedraw(target === 'self' ? !!draft.descriptor : !!draft.familiarDescriptor, () => {
+      const drawn = findByCard(bioChoices.descriptors as any[], drawCharacterCard());
+      if (target === 'self') {
+        setDraft(d => ({ ...d, descriptor: drawn, animal: "" }));
+      } else {
+        setDraft(d => ({ ...d, familiarDescriptor: drawn, familiarAnimal: "" }));
+      }
+    });
+  };
+
+  const handleDrawTravel = () => {
+    cautiousRedraw(!!draft.travel, () => {
+      const drawnSuit = drawCharacterSuit();
+      setDraft(d => ({ ...d, travel: findBySuit(bioChoices.travelStyles as any[], drawnSuit) }));
+    });
+  };
+
+  const handleDrawOrigin = () => {
+    cautiousRedraw(!!draft.origin, () => {
+      setDraft(d => ({ ...d, origin: findBySuit(bioChoices.origins as any[], drawCharacterSuit()) }));
+    });
+  };
+
+  const handleDrawBenefit = () => {
+    cautiousRedraw(!!draft.familiarBenefit, () => {
+      setDraft(d => ({ ...d, familiarBenefit: findByCard(bioChoices.familiars as any[], drawCharacterCard()) }));
+    });
+  };
+
+  const handleDrawRelationship = () => {
+    cautiousRedraw(!!draft.relationship, () => {
+      setDraft(d => ({ ...d, relationship: findByCard(bioChoices.relationships as any[], drawCharacterCard()) }));
+    });
+  };
+
+  const saveCharacter = () => {
+    if (!draft.name.trim() || !draft.animal.trim() || !draft.familiarName.trim() || !draft.familiarAnimal.trim()) {
+      alert("약제사 이름/동물, 사역마 이름/동물을 채우면 시트가 완성됩니다.");
+      return;
+    }
+
+    const timestamp = Date.now();
+    const journalEntries = [
+      draft.originJournal.trim() && {
+        id: `origin_${timestamp}`,
+        title: "약제사의 출발 계기",
+        text: `${draft.origin.name}\n${draft.originJournal.trim()}`,
+        timestamp
+      },
+      draft.mementoNote.trim() && {
+        id: `memento_${timestamp}`,
+        title: "첫 여정의 기념품",
+        text: draft.mementoNote.trim(),
+        timestamp
+      },
+      draft.familiarJournal.trim() && {
+        id: `familiar_${timestamp}`,
+        title: "사역마와의 첫 만남",
+        text: draft.familiarJournal.trim(),
+        timestamp
+      },
+      draft.relationshipJournal.trim() && {
+        id: `relation_${timestamp}`,
+        title: "사역마와의 관계",
+        text: `${draft.relationship.name}\n${draft.relationshipJournal.trim()}`,
+        timestamp
+      }
+    ].filter(Boolean);
+
+    const matchedBenefit = FAMILIAR_BENEFITS.find(f => f.card === draft.familiarBenefit.card);
+    const canFlyFromTravel = draft.travel.speed === 5 && draft.travel.carry === 2;
+
+    updateState((s: GameState) => ({
+      ...s,
+      bio: {
+        ...s.bio,
+        name: draft.name.trim(),
+        animal: draft.animal.trim(),
+        descriptor: draft.descriptor.name,
+        examples: draft.descriptor.examples,
+        travelStyle: draft.travel.name,
+        speed: draft.travel.speed,
+        carry: draft.travel.carry,
+        canFly: canFlyFromTravel || !!s.bio.canFly,
+        originName: draft.origin.name,
+        originDesc: draft.origin.desc,
+        originJournal: draft.originJournal.trim(),
+        familiarName: draft.familiarName.trim(),
+        familiarAnimal: draft.familiarAnimal.trim(),
+        familiarDescriptor: draft.familiarDescriptor.name,
+        familiarExamples: draft.familiarDescriptor.examples,
+        familiarBenefit: matchedBenefit?.name || draft.familiarBenefit.name,
+        familiarRelation: `${draft.relationship.name} (${draft.relationship.desc})`,
+        familiarJournal: draft.familiarJournal.trim(),
+        relationshipJournal: draft.relationshipJournal.trim(),
+        mementoNote: draft.mementoNote.trim()
+      },
+      trinkets: s.trinkets.length > 0 ? s.trinkets : ["기념품 (Memento)"],
+      journals: [...journalEntries as any[], ...s.journals]
+    }));
+    setOpen(false);
+    alert("룰북 절차에 따라 약제사 시트가 완성되었습니다.");
+  };
+
+  const FieldCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
+    <div style={{ border: '1.5px solid var(--border-cozy)', borderRadius: '8px', padding: '1rem', background: '#fff' }}>
+      <h4 style={{ margin: '0 0 0.75rem 0', color: 'var(--primary)', fontFamily: 'var(--font-fancy)', fontSize: '1.15rem' }}>{title}</h4>
+      {children}
+    </div>
+  );
+
+  const ChoiceSelect = ({ value, onChange, items, labelKey = 'name' }: { value: string; onChange: (item: any) => void; items: any[]; labelKey?: string }) => (
+    <select
+      value={value}
+      onChange={e => onChange(items.find(item => item[labelKey] === e.target.value) || items[0])}
+      style={{ width: '100%', height: '38px', fontSize: '0.9rem' }}
+    >
+      {items.map(item => (
+        <option key={`${item.card || item.suit}_${item[labelKey]}`} value={item[labelKey]}>
+          {item.card || item.suit} - {item[labelKey]}
+        </option>
+      ))}
+    </select>
+  );
+
+  const animalChips = (examples: string, onPick: (value: string) => void) => (
+    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+      {examplesToOptions(examples).map(option => (
+        <button
+          key={option}
+          type="button"
+          onClick={() => onPick(option)}
+          style={{ padding: '0.25rem 0.55rem', border: '1px solid var(--glass-border)', borderRadius: '999px', background: '#fffdf8', color: 'var(--text-muted)', fontSize: '0.8rem' }}
+        >
+          {option}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (!open) {
+    return (
+      <div style={{ border: '1.5px dashed var(--border-cozy)', borderRadius: '10px', padding: '0.8rem 1rem', background: '#fff', display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', marginBottom: '1.2rem' }}>
+        <div>
+          <strong style={{ color: 'var(--primary)' }}>룰북 기반 캐릭터 생성</strong>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>10-16쪽 순서대로 약제사와 사역마를 다시 정리합니다.</div>
+        </div>
+        <button type="button" onClick={() => setOpen(true)} style={{ padding: '0.45rem 0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '6px', border: 'none', fontWeight: 'bold' }}>
+          생성 도우미 열기
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1rem', background: '#fffdf8', marginBottom: '1.4rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.75rem', marginBottom: '0.9rem' }}>
+        <div>
+          <h3 style={{ margin: 0, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)', fontSize: '1.35rem' }}>룰북 따라 캐릭터 만들기</h3>
+          <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.86rem', color: 'var(--text-muted)' }}>p.10-16의 표를 따라 카드 드로우 또는 직접 선택으로 시트를 완성합니다.</p>
+        </div>
+        <button type="button" onClick={() => setOpen(false)} style={{ padding: '0.35rem 0.65rem', background: '#eee', color: '#555', borderRadius: '6px' }}>접기</button>
+      </div>
+
+      <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+        {steps.map((label, idx) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => setStep(idx)}
+            style={{
+              padding: '0.35rem 0.55rem',
+              border: '1px solid var(--glass-border)',
+              borderRadius: '999px',
+              background: step === idx ? 'var(--primary)' : '#fff',
+              color: step === idx ? '#fff' : 'var(--text-muted)',
+              fontSize: '0.78rem',
+              fontWeight: step === idx ? 'bold' : 'normal'
+            }}
+          >
+            {idx + 1}. {label}
+          </button>
+        ))}
+      </div>
+
+      {step === 0 && (
+        <FieldCard title="1. Who Are You? / 약제사 동물">
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <input value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} placeholder="약제사 이름" />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.5rem' }}>
+              <ChoiceSelect value={draft.descriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, descriptor: item, animal: "" }))} />
+              <button type="button" onClick={() => handleDrawDescriptor('self')} style={{ padding: '0 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '6px' }}>카드 뽑기</button>
+            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.86rem' }}>결과: <strong>{draft.descriptor.card} - {draft.descriptor.name}</strong> / 예시 동물: {draft.descriptor.examples}</div>
+            {animalChips(draft.descriptor.examples, value => setDraft(d => ({ ...d, animal: value })))}
+            <input value={draft.animal} onChange={e => setDraft(d => ({ ...d, animal: e.target.value }))} placeholder="실제 동물 또는 외형을 적어주세요" />
+          </div>
+        </FieldCard>
+      )}
+
+      {step === 1 && (
+        <FieldCard title="2. How Do You Travel? / 이동 방식">
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.5rem' }}>
+              <ChoiceSelect value={draft.travel.name} items={bioChoices.travelStyles as any[]} onChange={item => setDraft(d => ({ ...d, travel: item }))} />
+              <button type="button" onClick={handleDrawTravel} style={{ padding: '0 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '6px' }}>수트 뽑기</button>
+            </div>
+            <div style={{ padding: '0.7rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', fontSize: '0.9rem' }}>
+              <strong>{draft.travel.suit} - {draft.travel.name}</strong><br />
+              Speed {draft.travel.speed}, Carry {draft.travel.carry}<br />
+              <span style={{ color: 'var(--text-muted)' }}>{draft.travel.desc}</span>
+            </div>
+          </div>
+        </FieldCard>
+      )}
+
+      {step === 2 && (
+        <FieldCard title="3. How Did You Start Out? / 출발 계기">
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.5rem' }}>
+              <ChoiceSelect value={draft.origin.name} items={bioChoices.origins as any[]} onChange={item => setDraft(d => ({ ...d, origin: item }))} />
+              <button type="button" onClick={handleDrawOrigin} style={{ padding: '0 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '6px' }}>수트 뽑기</button>
+            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{draft.origin.desc}</div>
+            <textarea value={draft.originJournal} onChange={e => setDraft(d => ({ ...d, originJournal: e.target.value }))} rows={4} placeholder="그 계기가 약제사의 길로 어떻게 이어졌는지 짧게 기록하세요." />
+          </div>
+        </FieldCard>
+      )}
+
+      {step === 3 && (
+        <FieldCard title="4. Equipment & Memento / 장비와 기념품">
+          <div style={{ display: 'grid', gap: '0.75rem', fontSize: '0.9rem' }}>
+            <div style={{ padding: '0.7rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px' }}>
+              시작 도구: 벨트 칼, 나무 절구와 공이, 낡은 캠프 주전자, 이빨, 앞발/발톱. 시작 장신구: 기념품 1개.
+            </div>
+            <textarea value={draft.mementoNote} onChange={e => setDraft(d => ({ ...d, mementoNote: e.target.value }))} rows={4} placeholder="첫 여정에 들고 가는 기념품이 무엇이고, 왜 소중한지 기록하세요." />
+          </div>
+        </FieldCard>
+      )}
+
+      {step === 4 && (
+        <FieldCard title="5. Who Is Your Familiar? / 사역마 동물">
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <input value={draft.familiarName} onChange={e => setDraft(d => ({ ...d, familiarName: e.target.value }))} placeholder="사역마 이름" />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.5rem' }}>
+              <ChoiceSelect value={draft.familiarDescriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, familiarDescriptor: item, familiarAnimal: "" }))} />
+              <button type="button" onClick={() => handleDrawDescriptor('familiar')} style={{ padding: '0 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '6px' }}>카드 뽑기</button>
+            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.86rem' }}>결과: <strong>{draft.familiarDescriptor.card} - {draft.familiarDescriptor.name}</strong> / 예시 동물: {draft.familiarDescriptor.examples}</div>
+            {animalChips(draft.familiarDescriptor.examples, value => setDraft(d => ({ ...d, familiarAnimal: value })))}
+            <input value={draft.familiarAnimal} onChange={e => setDraft(d => ({ ...d, familiarAnimal: e.target.value }))} placeholder="사역마의 실제 동물 또는 외형" />
+            <textarea value={draft.familiarJournal} onChange={e => setDraft(d => ({ ...d, familiarJournal: e.target.value }))} rows={3} placeholder="처음 어떻게 만났는지 기록하세요." />
+          </div>
+        </FieldCard>
+      )}
+
+      {step === 5 && (
+        <FieldCard title="6. How Do They Help You? / 사역마의 도움">
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.5rem' }}>
+              <ChoiceSelect value={draft.familiarBenefit.name} items={bioChoices.familiars as any[]} onChange={item => setDraft(d => ({ ...d, familiarBenefit: item }))} />
+              <button type="button" onClick={handleDrawBenefit} style={{ padding: '0 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '6px' }}>카드 뽑기</button>
+            </div>
+            <div style={{ padding: '0.7rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', fontSize: '0.9rem' }}>
+              <strong>{draft.familiarBenefit.card} - {draft.familiarBenefit.name}</strong><br />
+              <span style={{ color: 'var(--text-muted)' }}>{draft.familiarBenefit.desc}</span>
+            </div>
+          </div>
+        </FieldCard>
+      )}
+
+      {step === 6 && (
+        <FieldCard title="7. What Is Your Relationship? / 관계">
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.5rem' }}>
+              <ChoiceSelect value={draft.relationship.name} items={bioChoices.relationships as any[]} onChange={item => setDraft(d => ({ ...d, relationship: item }))} />
+              <button type="button" onClick={handleDrawRelationship} style={{ padding: '0 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '6px' }}>카드 뽑기</button>
+            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{draft.relationship.desc}</div>
+            <textarea value={draft.relationshipJournal} onChange={e => setDraft(d => ({ ...d, relationshipJournal: e.target.value }))} rows={4} placeholder="둘의 관계를 보여주는 짧은 장면이나 기억을 기록하세요." />
+          </div>
+        </FieldCard>
+      )}
+
+      {step === 7 && (
+        <FieldCard title="8. 시트 확정">
+          <div style={{ display: 'grid', gap: '0.55rem', fontSize: '0.92rem' }}>
+            <div><strong>약제사:</strong> {draft.name || '이름 미정'} / {draft.animal || '동물 미정'} ({draft.descriptor.name})</div>
+            <div><strong>이동:</strong> {draft.travel.name} / Speed {draft.travel.speed}, Carry {draft.travel.carry}</div>
+            <div><strong>출발 계기:</strong> {draft.origin.name}</div>
+            <div><strong>사역마:</strong> {draft.familiarName || '이름 미정'} / {draft.familiarAnimal || '동물 미정'} ({draft.familiarDescriptor.name})</div>
+            <div><strong>도움:</strong> {draft.familiarBenefit.name}</div>
+            <div><strong>관계:</strong> {draft.relationship.name}</div>
+            <button type="button" onClick={saveCharacter} style={{ marginTop: '0.5rem', padding: '0.75rem 1rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', border: 'none', fontWeight: 'bold' }}>
+              약제사 시트에 저장
+            </button>
+          </div>
+        </FieldCard>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.9rem' }}>
+        <button type="button" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0} style={{ padding: '0.45rem 0.8rem', borderRadius: '6px', background: step === 0 ? '#eee' : '#fff', color: step === 0 ? '#aaa' : 'var(--text-muted)', border: '1px solid var(--glass-border)' }}>이전</button>
+        <button type="button" onClick={() => setStep(Math.min(steps.length - 1, step + 1))} disabled={step === steps.length - 1} style={{ padding: '0.45rem 0.8rem', borderRadius: '6px', background: step === steps.length - 1 ? '#eee' : 'var(--secondary)', color: step === steps.length - 1 ? '#aaa' : '#fff', border: 'none' }}>다음</button>
+      </div>
+    </div>
+  );
+}
+
 function BioView({ state, updateState, currentWeight, handleRetireClick }: { state: GameState; updateState: any; currentWeight: number; handleRetireClick: () => void }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(state.bio.name);
@@ -8396,6 +8782,8 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
         </div>
       </div>
 
+      <CharacterCreationWizard state={state} updateState={updateState} />
+
       {!editing ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
@@ -8410,6 +8798,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
                 <div><strong>약제사 이름:</strong> {state.bio.name || '미등록'}</div>
+                <div><strong>실제 동물:</strong> {state.bio.animal || '미정'}</div>
                 <div><strong>종족 구분:</strong> {state.bio.descriptor} ({state.bio.examples})</div>
                 <div><strong>이동 스타일:</strong> {state.bio.travelStyle}</div>
                 <div><strong>비행 능력 (Can Fly):</strong> {state.bio.canFly ? '가능 🦅' : '불가능 ❌'} {state.canFlyOverride && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>(하우스 룰 허용됨)</span>}</div>
@@ -8429,6 +8818,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
                 <div><strong>사역마 이름:</strong> {state.bio.familiarName || '이름 없음'}</div>
+                <div><strong>사역마 동물:</strong> {state.bio.familiarAnimal || state.bio.familiarExamples || '미정'}</div>
                 <div><strong>길드 관계:</strong> {state.bio.familiarRelation}</div>
                 <div style={{ background: '#f3faf5', borderRadius: '8px', padding: '0.6rem', border: '1px solid #c8e6c9' }}>
                   <div style={{ fontWeight: 'bold', color: 'var(--primary)', marginBottom: '0.2rem' }}>
