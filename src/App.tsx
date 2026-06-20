@@ -397,7 +397,7 @@ const INITIAL_WAGON: WagonExpansions = {
 const INITIAL_STATE: GameState = {
   bio: INITIAL_BIO,
   reputation: 5,
-  currentLocationName: "Starting Oak Road",
+  currentLocationName: "오크 길",
   currentLocationType: "Wilds",
   currentRegion: "Forest",
   currentSeason: "Spring",
@@ -428,7 +428,7 @@ const INITIAL_STATE: GameState = {
   scroungingMode: false,
   scroungingTimer: 0,
   independentUsedThisAilment: false,
-  visitedLocations: ["Starting Oak Road"],
+  visitedLocations: ["오크 길"],
   curedAilmentInThisWilds: false,
   needsLocalHelpBeforeMove: false,
   lastForageCardValue: 0,
@@ -541,7 +541,29 @@ const getLocalizedSource = (source: string): string => {
   if (s.includes('current collection')) return '약제사 배낭 속 수집품';
   if (s.includes('handwritten trinket note')) return '기록장에 끼워둔 쪽지';
   if (s.includes('cured patient keepsake') || s.includes('cured patient') || s.includes('cured beast')) return '완치된 야수의 보답';
+  if (s.includes('current location')) return '현재 위치';
+  if (s.includes('journey destination')) return '여정 목적지';
+  if (s.includes('visited location')) return '방문한 위치';
+  if (s.includes('clinic network')) return '약제소 네트워크';
+  if (s.includes('barrow rumour')) return '고분 소문';
+  if (s.includes('companion record')) return '동반자 기록';
+  if (s.includes('apothecary bag')) return '약제사 배낭';
+  if (s.includes('known remedy')) return '알려진 처방';
   return source;
+};
+
+const getLocalizedAlmanacNotes = (notes: string): string => {
+  const text = notes || '';
+  const s = text.toLowerCase().trim();
+  if (s === 'recorded from travel history.') return '여행 기록에서 자동으로 옮겨 적었습니다.';
+  if (s.includes('destination for current travel log')) return text.replace(/^Destination for current travel log:\s*/i, '현재 여정의 목적지: ').replace('open journey', '열린 여정');
+  if (s.includes('guild service:')) return text.replace(/^Guild service:\s*/i, '길드 서비스: ');
+  if (s.includes('joined the travelling apothecary')) return text.replace(/joined the travelling apothecary\.?/i, '약제사의 여정에 동행하게 되었습니다.');
+  if (s === 'reagent carried in the bag.') return '배낭에 담아 다니는 영약재.';
+  if (s === 'remembered from a discovered remedy combination.') return '성공한 처방 조합에서 기억해 둔 약재.';
+  if (s.includes('behemoth barrow')) return text.replace(/Towering/i, '거대').replace(/Many/i, '군집').replace(/Violent/i, '포악').replace(/Demanding/i, '까다로운').replace(/behemoth barrow/i, '거수 고분');
+  if (s.includes('behemoth')) return text.replace(/Towering/i, '거대').replace(/Many/i, '군집').replace(/Violent/i, '포악').replace(/Demanding/i, '까다로운').replace(/behemoth/i, '거수');
+  return text;
 };
 
 const getLocalizedStory = (story: string): string => {
@@ -809,8 +831,8 @@ const syncWorldMemory = (state: GameState): GameState => {
     name: state.currentLocationName,
     locationName: state.currentLocationName,
     region: state.currentRegion,
-    source: 'Current location',
-    notes: `${state.currentLocationType} in ${state.currentRegion}`,
+    source: '현재 위치',
+    notes: `${state.currentRegion} 지역의 ${state.currentLocationType} 위치`,
     timestamp: now
   });
 
@@ -820,8 +842,8 @@ const syncWorldMemory = (state: GameState): GameState => {
       name: state.journeyDestination,
       locationName: state.journeyDestination,
       region: '',
-      source: 'Journey destination',
-      notes: `Destination for current travel log: ${state.journeyGoalTitle || 'open journey'}`,
+      source: '여정 목적지',
+      notes: `현재 여정의 목적지: ${state.journeyGoalTitle || '열린 여정'}`,
       timestamp: now
     });
   }
@@ -832,8 +854,8 @@ const syncWorldMemory = (state: GameState): GameState => {
       name: locationName,
       locationName,
       region: locationName === state.currentLocationName ? state.currentRegion : '',
-      source: 'Visited location',
-      notes: 'Recorded from travel history.',
+      source: '방문한 위치',
+      notes: '여행 기록에서 자동으로 옮겨 적었습니다.',
       timestamp: now
     });
   });
@@ -841,11 +863,11 @@ const syncWorldMemory = (state: GameState): GameState => {
   (state.clinics || []).forEach(clinic => {
     worldAlmanac = upsertAlmanac(worldAlmanac, {
       category: 'clinic',
-      name: `${clinic.locationName} clinic`,
+      name: `${clinic.locationName} 약제소`,
       locationName: clinic.locationName,
       region: clinic.region,
-      source: 'Clinic network',
-      notes: `Guild service: ${clinic.agendaService.toUpperCase()}`,
+      source: '약제소 네트워크',
+      notes: `길드 서비스: ${clinic.agendaService.toUpperCase()}`,
       timestamp: now
     });
   });
@@ -856,8 +878,8 @@ const syncWorldMemory = (state: GameState): GameState => {
       name: barrow.locationName || barrow.name,
       locationName: barrow.locationName,
       region: barrow.region,
-      source: 'Barrow rumour',
-      notes: `${barrow.behemothClass} behemoth barrow, ${barrow.direction}, ${barrow.distance}`,
+      source: '고분 소문',
+      notes: `${barrow.behemothClass} 거수 고분, ${barrow.direction}, ${barrow.distance}`,
       timestamp: now
     });
     worldAlmanac = upsertAlmanac(worldAlmanac, {
@@ -865,8 +887,8 @@ const syncWorldMemory = (state: GameState): GameState => {
       name: barrow.name,
       locationName: barrow.locationName,
       region: barrow.region,
-      source: 'Barrow rumour',
-      notes: `${barrow.behemothClass} behemoth`,
+      source: '고분 소문',
+      notes: `${barrow.behemothClass} 거수`,
       timestamp: now
     });
   });
@@ -877,8 +899,8 @@ const syncWorldMemory = (state: GameState): GameState => {
       name: companion.koreanName || companion.name,
       locationName: companion.adoptedLocation,
       region: '',
-      source: 'Companion record',
-      notes: `${companion.name} joined the travelling apothecary.`,
+      source: '동반자 기록',
+      notes: `${companion.koreanName || companion.name}이(가) 약제사의 여정에 동행하게 되었습니다.`,
       timestamp: now
     });
   });
@@ -889,8 +911,8 @@ const syncWorldMemory = (state: GameState): GameState => {
       name: cleanMemoryName(item.name),
       locationName: state.currentLocationName,
       region: state.currentRegion,
-      source: 'Apothecary bag',
-      notes: item.preps || 'Reagent carried in the bag.',
+      source: '약제사 배낭',
+      notes: item.preps || '배낭에 담아 다니는 영약재.',
       timestamp: now
     });
   });
@@ -901,8 +923,8 @@ const syncWorldMemory = (state: GameState): GameState => {
       name: reagentName,
       locationName: '',
       region: '',
-      source: 'Known remedy',
-      notes: 'Remembered from a discovered remedy combination.',
+      source: '알려진 처방',
+      notes: '성공한 처방 조합에서 기억해 둔 약재.',
       timestamp: now
     });
   });
@@ -924,7 +946,7 @@ const syncWorldMemory = (state: GameState): GameState => {
       travelScrapbook = addScrapbookEntry(travelScrapbook, {
         sourceId: `${journal.id}_remedy`,
         kind: 'remedy',
-        title: journal.title.replace('완치 성공', 'Remedy note'),
+        title: journal.title.replace('완치 성공', '처방 기록'),
         text: journal.text,
         locationName: state.currentLocationName,
         timestamp: journal.timestamp
@@ -947,7 +969,7 @@ const syncWorldMemory = (state: GameState): GameState => {
     travelScrapbook = addScrapbookEntry(travelScrapbook, {
       sourceId: memoryKey('calendar', String(idx), line),
       kind: 'journey',
-      title: line.startsWith('여정 시작') ? 'Journey departure note' : `Travel log ${idx + 1}`,
+      title: line.startsWith('여정 시작') ? '여정 출발 기록' : `여행 기록 ${idx + 1}`,
       text: line,
       locationName: state.currentLocationName,
       timestamp: now - idx
@@ -963,7 +985,7 @@ const syncWorldMemory = (state: GameState): GameState => {
         sourceId: memoryKey('trinket_auto', cleanName, String(now)),
         name: cleanName,
         count: currentCount - existingCount,
-        source: 'Current collection',
+        source: '현재 수집품',
         story: 'A trinket currently kept in the travelling bag, preserved in the cabinet so its story is not lost when it is later spent.',
         locationName: state.currentLocationName,
         timestamp: now,
@@ -1729,7 +1751,7 @@ const migrateState = (s: any): GameState => {
     scroungingMode: s.scroungingMode || false,
     scroungingTimer: s.scroungingTimer || 0,
     independentUsedThisAilment: s.independentUsedThisAilment || false,
-    visitedLocations: s.visitedLocations || ["Starting Oak Road"],
+    visitedLocations: s.visitedLocations || ["오크 길"],
     curedAilmentInThisWilds: s.curedAilmentInThisWilds || false,
     needsLocalHelpBeforeMove: s.needsLocalHelpBeforeMove || false,
     lastForageCardValue: s.lastForageCardValue || 0,
@@ -9533,7 +9555,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
 
                     {/* Table B: Reagents & Items */}
                     <div>
-                      <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.95rem', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>🌿 영약재 및 수집물 (Reagents & Collected Parts)</h4>
+                      <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.95rem', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>🌿 영약재 및 수집물</h4>
                       <div style={{ overflowX: 'auto', maxHeight: '200px', overflowY: 'auto', border: '1px solid #f0f0f0', borderRadius: '8px' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
                           <thead>
@@ -10959,7 +10981,7 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
         id: entry.id,
         title: entry.title,
         text: entry.text,
-        stamp: `${entry.locationName || 'On the road'} / ${formatDateTime(entry.timestamp)}`
+        stamp: `${entry.locationName ? getLocalizedLocationName(entry.locationName) : '길 위'} / ${formatDateTime(entry.timestamp)}`
       }))
   ];
   const trinkets = [...(state.trinketArchive || [])].sort((a, b) => b.timestamp - a.timestamp);
@@ -10969,7 +10991,7 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
     <div>
       <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center' }}>
         <span>살아 있는 기록들</span>
-        <span className="document-kicker">naturalist field journal</span>
+        <span className="document-kicker">박물지 현장 기록</span>
       </h2>
       <p style={{ fontSize: '0.92rem', color: 'var(--text-muted)', marginTop: 0 }}>
         약제사가 숲을 거닐며 모은 인연과 배낭에 담긴 장신구의 사연, 박물지 표본이 서랍 속에 소중히 깃들어 있습니다.
@@ -11060,7 +11082,7 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>({matchedReag.rawName})</span>
                     )}
                   </div>
-                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>📍 {entry.region || 'region unpinned'} / sightings {entry.sightings}</div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>📍 {entry.region || '지역 미지정'} / 발견 횟수 {entry.sightings}</div>
                   
                   {preps && preps.length > 0 && (
                     <div style={{ 
@@ -11494,19 +11516,19 @@ function JournalsView({
   }, [highlightedPatientId, subTab]);
 
   const almanacLabels: Record<AlmanacCategory, string> = {
-    settlement: 'Settlements',
-    clinic: 'Clinics',
-    reagent: 'Reagents',
-    creature: 'Creatures',
-    landmark: 'Landmarks',
-    notable: 'Notable Places'
+    settlement: '정착지와 도시',
+    clinic: '약제소',
+    reagent: '영약재',
+    creature: '만난 이들',
+    landmark: '랜드마크',
+    notable: '기억할 만한 장소'
   };
 
   const scrapbookLabels: Record<ScrapbookKind, string> = {
-    journey: 'Journey',
-    discovery: 'Discovery',
-    patient: 'Patient',
-    remedy: 'Remedy'
+    journey: '여정',
+    discovery: '발견',
+    patient: '환자',
+    remedy: '처방'
   };
 
   const handleAddJournal = (e: React.FormEvent) => {
@@ -11827,12 +11849,12 @@ function JournalsView({
                     return (
                       <div key={entry.id} style={{ border: '1px solid var(--glass-border)', background: '#fbfaf4', padding: '0.75rem', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                          <span style={{ fontWeight: 700, color: 'var(--text-bright)' }}>{entry.name}</span>
+                          <span style={{ fontWeight: 700, color: 'var(--text-bright)' }}>{getLocalizedLocationName(entry.name)}</span>
                           {matchedReag && matchedReag.rawName && matchedReag.rawName.toLowerCase() !== entry.name.toLowerCase() && (
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>({matchedReag.rawName})</span>
                           )}
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>📍 {entry.locationName || 'No fixed place'} {entry.region ? `- ${entry.region}` : ''}</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>📍 {entry.locationName ? getLocalizedLocationName(entry.locationName) : '정해진 장소 없음'} {entry.region ? `- ${entry.region}` : ''}</div>
                         
                         {entry.category === 'reagent' && preps && preps.length > 0 && (
                           <div style={{ 
@@ -11844,7 +11866,7 @@ function JournalsView({
                             fontSize: '0.78rem'
                           }}>
                             <div style={{ fontWeight: 'bold', fontSize: '0.74rem', color: 'var(--text-bright)', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.2rem', marginBottom: '0.3rem' }}>
-                              🧪 Preparation & Application (조제 및 사용법)
+                              🧪 조제 및 사용법
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                               {preps.map((p, idx) => {
@@ -11921,12 +11943,12 @@ function JournalsView({
 
                         {entry.notes && (
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-bright)', marginTop: '0.2rem' }}>
-                            📝 {entry.notes}
+                            📝 {getLocalizedAlmanacNotes(entry.notes)}
                           </div>
                         )}
 
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.3rem', marginTop: '0.2rem', display: 'flex', justifyContent: 'space-between' }}>
-                          <span>출처: {entry.source}</span>
+                          <span>출처: {getLocalizedSource(entry.source)}</span>
                           <span>발견 횟수: {entry.sightings}</span>
                         </div>
                       </div>
@@ -11949,7 +11971,7 @@ function JournalsView({
               </div>
               <p style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem', lineHeight: 1.7, margin: 0 }}>{entry.text}</p>
               <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '0.6rem' }}>
-                {entry.locationName || 'On the road'} / {formatDateTime(entry.timestamp)}
+                {entry.locationName ? getLocalizedLocationName(entry.locationName) : '길 위'} / {formatDateTime(entry.timestamp)}
               </div>
             </div>
           ))}
@@ -12059,7 +12081,7 @@ function JournalsView({
           </div>
 
           <div className="cute-card" style={{ background: '#f8fafc', border: '1px solid #cbd5e1' }}>
-            <h4 style={{ color: 'var(--primary)', margin: '0 0 0.8rem 0' }}>🏡 보존된 세대별 약제소 네트워크 (Clinics Network)</h4>
+            <h4 style={{ color: 'var(--primary)', margin: '0 0 0.8rem 0' }}>🏡 보존된 세대별 약제소 네트워크</h4>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.8rem' }}>
               {(state.legacyClinics || []).map((cl, i) => (
                 <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '0.8rem', borderRadius: '8px' }}>
