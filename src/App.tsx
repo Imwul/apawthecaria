@@ -2348,18 +2348,24 @@ export default function App() {
       let journalText = `[사교 조우: ${socialEncounter.title}]\n소감: ${journalNote || '협상에 실패했다.'}\n\n- 거래 희귀도: ${finalRarity}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (실패)`;
 
       if (isSuccess) {
-        const firstPart = splitReagentPreparations(r.preps)[0];
-        const newBagItem = createPreparedReagentItem(r, firstPart, 'barter_reag');
+        // Prompt player to choose which preparation part to obtain
+        const parts = splitReagentPreparations(r.preps);
+        const chosenPart = parts.length > 1
+          ? prompt(`거래로 획득할 ${r.name} 부위를 선택하세요:\n${parts.map((p, i) => `${i + 1}. ${p.trim()}`).join('\n')}`)
+          : '1';
+        const partIdx = Math.max(0, (parseInt(chosenPart || '1') || 1) - 1);
+        const partText = parts[partIdx] || parts[0];
+        const newBagItem = createPreparedReagentItem(r, partText, 'barter_reag');
         nextBag = [...s.bag, newBagItem];
 
         if (paidTrinketsCount > 0 || paidReputationCount > 0) {
           nextTrinkets = s.trinkets.slice(paidTrinketsCount);
           nextReputation = Math.max(0, s.reputation - paidReputationCount);
           journalTitle = `🤝 거래 강제 성사: ${reagentName}`;
-          journalText = `[사교 조우: ${socialEncounter.title}]\n소감: ${journalNote || '추가 대가를 치르고 거래를 마쳤다.'}\n\n- 거래 희귀도: ${finalRarity}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (장신구 ${paidTrinketsCount}개, 길드 명성 ${paidReputationCount}점 지불 성사)\n- 획득 영약재: ${r.name}`;
+          journalText = `[사교 조우: ${socialEncounter.title}]\n소감: ${journalNote || '추가 대가를 치르고 거래를 마쳤다.'}\n\n- 거래 희귀도: ${finalRarity}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (장신구 ${paidTrinketsCount}개, 길드 명성 ${paidReputationCount}점 지불 성사)\n- 획득 영약재: ${r.name} (${partText.trim()})`;
         } else {
           journalTitle = `🤝 거래 성사: ${reagentName}`;
-          journalText = `[사교 조우: ${socialEncounter.title}]\n소감: ${journalNote || '협상에 성공했다.'}\n\n- 거래 희귀도: ${finalRarity}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (성공)\n- 획득 영약재: ${r.name}`;
+          journalText = `[사교 조우: ${socialEncounter.title}]\n소감: ${journalNote || '협상에 성공했다.'}\n\n- 거래 희귀도: ${finalRarity}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (성공)\n- 획득 영약재: ${r.name} (${partText.trim()})`;
         }
       }
 
@@ -4775,11 +4781,15 @@ function PlayView({
     const finalRarity = calculateForageRarity(state, r);
     const currentFP = state.activeAilment.foragingPoints;
     const lastDraw = state.lastForageCardValue || 0;
-    const autoByStoredFP = currentFP >= finalRarity;
-    const gapCost = Math.max(0, finalRarity - lastDraw);
-    const cost = autoByStoredFP ? 0 : gapCost;
+    // FP cost: always spend the full rarity (if card was drawn, lastDraw portion already matched;
+    // but the rulebook intent is that FP is always consumed to cover the gap or the full rarity).
+    // When FP >= finalRarity and no card was drawn yet, the player may spend FP = finalRarity directly.
+    // When a card was drawn (lastDraw > 0), cost = max(0, finalRarity - lastDraw).
+    const canCoverWithoutCard = currentFP >= finalRarity;
+    const gapCost = lastDraw > 0 ? Math.max(0, finalRarity - lastDraw) : finalRarity;
+    const cost = gapCost; // FP is always consumed
 
-    if (!autoByStoredFP && lastDraw <= 0) {
+    if (lastDraw <= 0 && !canCoverWithoutCard) {
       alert("먼저 채집 카드를 뽑아주세요. FP는 마지막 채집 카드가 희귀도에 부족한 차이를 메우는 데 사용합니다.");
       return;
     }
@@ -4800,6 +4810,7 @@ function PlayView({
       return {
         ...s,
         bag: [...s.bag, newItem],
+        lastForageCardValue: 0, // reset after FP spend so the next foraging starts fresh
         activeAilment: {
           ...s.activeAilment,
           foragingPoints: nextPoints
@@ -4807,10 +4818,10 @@ function PlayView({
         journals: [
           {
             id: 'fp_acquire_' + Date.now(),
-            title: `🌿 FP 자동 획득: ${r.name}`,
-            text: autoByStoredFP
-              ? `누적 채집 포인트(FP)가 희귀도 ${finalRarity} 이상이므로 FP를 소모하지 않고 ${r.name} (${partText.trim()})을(를) 획득했습니다.`
-              : `마지막 채집 카드 ${lastDraw}와 희귀도 ${finalRarity}의 차이인 FP ${cost}점을 소비하여 ${r.name} (${partText.trim()})을(를) 획득했습니다.`,
+            title: `🌿 FP 소비 획득: ${r.name}`,
+            text: lastDraw > 0
+              ? `마지막 채집 카드 ${lastDraw}와 희귀도 ${finalRarity}의 차이인 FP ${cost}점을 소비하여 ${r.name} (${partText.trim()})을(를) 획득했습니다.`
+              : `FP ${cost}점을 소비하여 (희귀도 ${finalRarity}) ${r.name} (${partText.trim()})을(를) 획득했습니다.`,
             timestamp: Date.now()
           },
           ...s.journals
@@ -4818,7 +4829,7 @@ function PlayView({
       };
     });
 
-    alert(autoByStoredFP ? `🌿 누적 FP 기준으로 ${r.name}을(를) FP 소모 없이 획득했습니다.` : `🌿 FP ${cost}점을 소비하여 ${r.name}을(를) 가방에 획득했습니다.`);
+    alert(`🌿 FP ${cost}점을 소비하여 ${r.name}을(를) 가방에 획득했습니다.`);
   };
 
   // Check if reagent has at least one prep with potency <= 2
@@ -5726,26 +5737,32 @@ function PlayView({
       };
     });
 
-    // Check milestones for Collapsed Entrance
-    let milestone = '';
-    if (newFP >= 50 && delveFP < 50) milestone = '침실 (Bedchambers) 도달! 장신구 10개 획득!';
-    else if (newFP >= 30 && delveFP < 30) milestone = '식당 (Dining Hall) 도달! 평판 +5 획득!';
-    else if (newFP >= 15 && delveFP < 15) milestone = '현관 (Entrance Hall) 도달! 장신구 1개 획득!';
+    // Check milestones for Collapsed Entrance — use independent ifs so multiple milestones
+    // hit in one big draw are ALL rewarded (e.g. a single card taking FP from 5 to 55).
+    const milestoneMessages: string[] = [];
+    let totalTrinketGain = 0;
+    let totalRepGain = 0;
 
-    if (milestone) {
-      // Give rewards
-      updateState((s: GameState) => {
-        let trinketGain = 0, repGain = 0;
-        if (newFP >= 50 && delveFP < 50) trinketGain = 10;
-        else if (newFP >= 30 && delveFP < 30) repGain = 5;
-        else if (newFP >= 15 && delveFP < 15) trinketGain = 1;
-        return {
-          ...s,
-          trinkets: [...s.trinkets, ...Array(trinketGain).fill('고분 보물 (Trinket)')],
-          reputation: s.reputation + repGain
-        };
-      });
-      alert(`🏆 ${milestone}`);
+    if (newFP >= 15 && delveFP < 15) {
+      totalTrinketGain += 1;
+      milestoneMessages.push('현관 (Entrance Hall) 도달! 장신구 1개 획득!');
+    }
+    if (newFP >= 30 && delveFP < 30) {
+      totalRepGain += 5;
+      milestoneMessages.push('식당 (Dining Hall) 도달! 평판 +5 획득!');
+    }
+    if (newFP >= 50 && delveFP < 50) {
+      totalTrinketGain += 10;
+      milestoneMessages.push('침실 (Bedchambers) 도달! 장신구 10개 획득!');
+    }
+
+    if (milestoneMessages.length > 0) {
+      updateState((s: GameState) => ({
+        ...s,
+        trinkets: [...s.trinkets, ...Array(totalTrinketGain).fill('고분 보물 (Trinket)')],
+        reputation: s.reputation + totalRepGain
+      }));
+      alert(`🏆 ${milestoneMessages.join('\n')}`);
 
       if (newFP >= 50) {
         const daysToMark = Math.floor(newTimer / 4);
@@ -5991,12 +6008,21 @@ function PlayView({
 
   // Suitable Furnishings: Draw 5 cards -> target rarities, then forage/barter
   const handleSuitableFurnishingsDrawTargets = () => {
-    const targets = Array.from({ length: 5 }, () => Math.floor(Math.random() * 10) + 1);
+    // Draw 5 playing cards; convert to rarity values: A=1, 2-10=face value, J=11, Q/K=10
+    const cardToRarity = (val: number) => {
+      if (val === 1) return 1;   // Ace = 1
+      if (val === 11) return 11; // Jack = 11
+      if (val >= 12) return 10;  // Queen/King (Monarch) = 10
+      return val;                 // 2-10 face value
+    };
+    const drawnCards = Array.from({ length: 5 }, () => Math.floor(Math.random() * 13) + 1);
+    const targets = drawnCards.map(cardToRarity);
+    const cardLabels = drawnCards.map(v => v === 1 ? 'A' : v === 11 ? 'J' : v === 12 ? 'Q' : v === 13 ? 'K' : String(v));
     updateState((s: GameState) => {
       if (!s.activeDelve) return s;
       return { ...s, activeDelve: { ...s.activeDelve, requiredReagents: targets.map(String) } };
     });
-    alert(`🏡 목표 희귀도 5개 드로우 완료:\n${targets.join(', ')}\n이 희귀도에 맞는 약재들을 채집 또는 거래로 구해주세요.`);
+    alert(`🏡 카드 5장 드로우 완료:\n카드: ${cardLabels.join(', ')}\n목표 희귀도: ${targets.join(', ')}\n(A=1, J=11, Q/K=10)\n이 희귀도에 맞는 약재들을 채집 또는 거래로 구해주세요.`);
   };
 
   const handleSuitableFurnishingsForage = () => {
@@ -6099,8 +6125,8 @@ function PlayView({
   };
 
   const handleInsideJobComplete = () => {
-    // Rulebook p.121: 성공 시 장신구 20개 고정 (타이머와 무관)
-    const trinkets = 20;
+    // Rulebook p.121: 성공 시 "Gain 20 Trinkets, minus the Time it took to gather the Reagents"
+    const trinkets = Math.max(0, 20 - delveTimer);
     updateState((s: GameState) => ({
       ...s,
       activeDelve: null,
@@ -6109,13 +6135,13 @@ function PlayView({
       barrows: (s.barrows || []).filter(b => b.locationName !== s.currentLocationName),
       trinkets: [...s.trinkets, ...Array(trinkets).fill('거래 보상 (Trinket)')],
       journals: [
-        { id: 'inside_' + Date.now(), title: '🕵️ 내부 소행 성공!', text: '나쁜 음료를 제조해 음모 회의를 성공적으로 망쳤습니다!\n장신구 20개 획득 + 달력 +1일.', timestamp: Date.now() },
+        { id: 'inside_' + Date.now(), title: '🕵️ 내부 소행 성공!', text: `나쁜 음료를 제조해 음모 회의를 성공적으로 망쳤습니다!\n장신구 ${trinkets}개 획득 (20 - 타이머 ${delveTimer}) + 달력 +1일.`, timestamp: Date.now() },
         ...s.journals
       ]
     }));
     setDelveActive(false);
     setDelveChallenge('');
-    alert('🕵️ 성공! 장신구 20개 획득!');
+    alert(`🕵️ 성공! 장신구 ${trinkets}개 획득! (20 - 타이머 ${delveTimer})`);
   };
 
   // Potent Poison: gather 7 reagents then draw card
@@ -8527,19 +8553,19 @@ function PlayView({
                           const finalRarity = calculateForageRarity(state, r);
                           const currentFP = state.activeAilment?.foragingPoints || 0;
                           const lastDraw = state.lastForageCardValue || 0;
-                          const autoByStoredFP = currentFP >= finalRarity;
-                          const cost = autoByStoredFP ? 0 : Math.max(0, finalRarity - lastDraw);
+                          const canCoverWithoutCard = currentFP >= finalRarity;
+                          const cost = lastDraw > 0 ? Math.max(0, finalRarity - lastDraw) : finalRarity;
                           const canAfford = state.activeAilment.foragingPoints >= cost;
-                          const label = autoByStoredFP
-                            ? `FP 0소모, 희귀도 ${finalRarity} 자동`
-                            : lastDraw > 0
-                              ? `FP ${cost}소모 (카드 ${lastDraw}→희귀도 ${finalRarity})`
+                          const label = lastDraw > 0
+                            ? `FP ${cost}소모 (카드 ${lastDraw}→희귀도 ${finalRarity})`
+                            : canCoverWithoutCard
+                              ? `FP ${finalRarity}소모 (희귀도 ${finalRarity} 직접 충당)`
                               : `채집 카드 필요 (희귀도 ${finalRarity})`;
                           return (
                             <button
                               key={r.name}
                               onClick={() => handleAcquireReagentWithFP(r.name)}
-                              disabled={!canAfford || (!autoByStoredFP && lastDraw <= 0)}
+                              disabled={!canAfford || (lastDraw <= 0 && !canCoverWithoutCard)}
                               style={{
                                 padding: '0.4rem 0.6rem',
                                 fontSize: '0.8rem',
