@@ -261,6 +261,12 @@ interface Companion {
   adoptedLocation: string;
 }
 
+interface Clinic {
+  locationName: string;
+  region: string;
+  agendaService?: string;
+}
+
 interface BarterSession {
   reagentName: string;
   finalRarity: number;
@@ -323,9 +329,10 @@ interface GameState {
   pursuedByBehemoth?: PursuedByBehemoth | null;
   wagonExpansions?: WagonExpansions;
   companions?: Companion[];
+  companionHive?: Companion[];
   resourcefulReagent?: string;
   ingenuitiveTool?: string;
-  clinics?: { locationName: string; region: string; agendaService: string }[];
+  clinics?: Clinic[];
   scroungingMode?: boolean;
   scroungingTimer?: number;
   independentUsedThisAilment?: boolean;
@@ -436,6 +443,7 @@ const INITIAL_STATE: GameState = {
   pursuedByBehemoth: null,
   wagonExpansions: INITIAL_WAGON,
   companions: [],
+  companionHive: [],
   resourcefulReagent: "",
   ingenuitiveTool: "",
   clinics: [],
@@ -582,6 +590,168 @@ const prepareJournalPhotos = async (files: FileList | null): Promise<JournalPhot
   if (!files || files.length === 0) return [];
   return Promise.all(Array.from(files).map(file => prepareJournalPhoto(file)));
 };
+
+const CLINIC_SERVICE_LABELS: Record<string, string> = {
+  pantry: '식료품 저장고',
+  library: '도서관',
+  hive_boxes: '벌집 보관함',
+  gardens: '약초 정원',
+  greenhouses: '온실',
+  sodden_logs: '물에 젖은 통나무',
+  taproom: '선술집',
+  hostel: '숙소',
+  mailbox: '우체통',
+  goodwill_stand: '친선 매대',
+  none: '아젠다 미지정'
+};
+
+const clinicServiceLabel = (service?: string) => CLINIC_SERVICE_LABELS[service || 'none'] || service || '아젠다 미지정';
+
+interface MapLocationNode {
+  label: string;
+  x: number;
+  y: number;
+  aliases?: string[];
+  neighbors: string[];
+}
+
+const MAP_LOCATIONS: Record<string, MapLocationNode> = {
+  narin: { label: 'Narin', x: 11, y: 11, neighbors: ['widim', 'olddam'] },
+  widim: { label: 'Widim', x: 10, y: 27, neighbors: ['narin', 'windtop', 'whitebirch'] },
+  windtop: { label: 'Windtop', x: 8, y: 54, neighbors: ['widim', 'sailors_fang', 'bigpaw'] },
+  bigpaw: { label: 'Bigpaw', x: 11, y: 83, neighbors: ['windtop', 'moatcourt'] },
+  moatcourt: { label: 'Moatcourt', x: 20, y: 92, neighbors: ['bigpaw', 'glasswall'] },
+  wavshade: { label: 'Waveshade', x: 18, y: 72, neighbors: ['glasswall', 'locsid'] },
+  glasswall: { label: 'Glasswall', x: 27, y: 69, aliases: ['글래스월'], neighbors: ['vessel', 'wavshade', 'moatcourt', 'locsid'] },
+  vessel: { label: 'Vessel', x: 34, y: 71, aliases: ['베셀'], neighbors: ['glasswall', 'noonhill', 'sailors_fang'] },
+  noonhill: { label: 'Noonhill', x: 37, y: 91, aliases: ['눈힐'], neighbors: ['vessel', 'bogbridge', 'moatcourt'] },
+  bogbridge: { label: 'Bogbridge', x: 46, y: 92, neighbors: ['noonhill', 'summit', 'sweetgorse'] },
+  summit: { label: 'Summit', x: 90, y: 91, aliases: ['서밋'], neighbors: ['sweetgorse', 'shallot'] },
+  sweetgorse: { label: 'Sweetgorse', x: 80, y: 88, neighbors: ['summit', 'shallot', 'bogbridge'] },
+  shallot: { label: 'Shallot', x: 81, y: 78, neighbors: ['sweetgorse', 'loho', 'summit'] },
+  loho: { label: 'Loho', x: 82, y: 57, neighbors: ['shallot', 'solkroot', 'highroad'] },
+  solkroot: { label: 'Solkroot', x: 88, y: 56, neighbors: ['loho', 'bowing_hog', 'deepholm'] },
+  bowing_hog: { label: 'Bowing Hog', x: 94, y: 66, neighbors: ['solkroot', 'deepholm'] },
+  deepholm: { label: 'Deepholm', x: 95, y: 54, neighbors: ['bowing_hog', 'greenport', 'solkroot'] },
+  greenport: { label: 'Greenport', x: 96, y: 42, neighbors: ['deepholm', 'grainport'] },
+  grainport: { label: 'Grainport', x: 87, y: 39, neighbors: ['greenport', 'oldwife', 'cres_stitch'] },
+  oldwife: { label: 'Oldwife', x: 80, y: 43, neighbors: ['grainport', 'boatlast', 'highroad'] },
+  highroad: { label: 'Highroad', x: 74, y: 48, neighbors: ['oldwife', 'seven_flowers', 'loho'] },
+  seven_flowers: { label: 'Seven Flowers', x: 67, y: 47, neighbors: ['highroad', 'tuskpoint', 'boatlast'] },
+  boatlast: { label: 'Boatlast', x: 74, y: 40, neighbors: ['oldwife', 'pinesworth', 'seven_flowers'] },
+  pinesworth: { label: 'Pinesworth', x: 65, y: 40, neighbors: ['boatlast', 'fort_ard', 'odoak'] },
+  fort_ard: { label: 'Fort Ard', x: 58, y: 39, neighbors: ['pinesworth', 'odoak', 'parsley_nook'] },
+  tuskpoint: { label: 'Tuskpoint', x: 59, y: 60, neighbors: ['seven_flowers', 'spinner_cot', 'rosehill'] },
+  spinner_cot: { label: "Spinner's Cot", x: 50, y: 60, neighbors: ['tuskpoint', 'holdall', 'crossyce'] },
+  holdall: { label: 'Holdall', x: 44, y: 62, neighbors: ['spinner_cot', 'spoutneck', 'obridge'] },
+  rosehill: { label: 'Rosehill', x: 64, y: 65, neighbors: ['tuskpoint', 'shallot'] },
+  crossyce: { label: 'Crossyce', x: 50, y: 49, neighbors: ['spinner_cot', 'odoak', 'widrow'] },
+  obridge: { label: 'Obridge', x: 44, y: 39, neighbors: ['holdall', 'spoutneck', 'odoak'] },
+  spoutneck: { label: 'Spoutneck', x: 31, y: 39, neighbors: ['obridge', 'brander', 'locsid'] },
+  brander: { label: 'Brander', x: 30, y: 50, neighbors: ['spoutneck', 'sailors_fang', 'holdall'] },
+  locsid: { label: 'Locsid', x: 30, y: 56, neighbors: ['brander', 'wavshade', 'glasswall'] },
+  sailors_fang: { label: "Sailor's Fang", x: 23, y: 56, neighbors: ['windtop', 'brander', 'vessel'] },
+  odoak: { label: 'Odoak', x: 47, y: 34, aliases: ['오도악'], neighbors: ['obridge', 'widrow', 'fort_ard', 'pinesworth', 'crossyce'] },
+  widrow: { label: 'Widrow', x: 53, y: 32, neighbors: ['odoak', 'widfneck', 'willow_moot', 'parsley_nook'] },
+  widfneck: { label: 'Widfneck', x: 45, y: 29, neighbors: ['widrow', 'whitebirch', 'odoak'] },
+  whitebirch: { label: 'Whitebirch', x: 30, y: 23, neighbors: ['widfneck', 'widim', 'fallowfields'] },
+  fallowfields: { label: 'Fallowfields', x: 43, y: 17, neighbors: ['whitebirch', 'aspengrace', 'lady_bank'] },
+  aspengrace: { label: 'Aspengrace', x: 51, y: 21, neighbors: ['fallowfields', 'bramblefork', 'brambledam'] },
+  bramblefork: { label: 'Bramblefork', x: 54, y: 15, neighbors: ['aspengrace', 'blueberry_pond'] },
+  willow_moot: { label: 'Willow Moot', x: 59, y: 24, neighbors: ['widrow', 'parsley_nook', 'brambledam'] },
+  parsley_nook: { label: 'Parsley Nook', x: 62, y: 31, neighbors: ['willow_moot', 'widrow', 'fort_ard'] },
+  brambledam: { label: 'Brambledam', x: 61, y: 20, neighbors: ['willow_moot', 'aspengrace', 'blackberry_log'] },
+  blueberry_pond: { label: 'Blueberry Pond', x: 59, y: 9, neighbors: ['bramblefork', 'brambledam', 'lady_bank'] },
+  olddam: { label: 'Olddam', x: 29, y: 10, neighbors: ['narin', 'newdam', 'lady_bank'] },
+  lady_bank: { label: "Lady's Bank", x: 43, y: 5, neighbors: ['olddam', 'blueberry_pond', 'fallowfields'] },
+  newdam: { label: 'New Dam', x: 35, y: 7, aliases: ['Newdam', '뉴댐'], neighbors: ['olddam', 'lady_bank'] },
+  blackberry_log: { label: 'Blackberry Log', x: 72, y: 22, neighbors: ['brambledam', 'fort_bulrush', 'cres_stitch'] },
+  fort_bulrush: { label: 'Fort Bulrush', x: 80, y: 23, neighbors: ['blackberry_log', 'apple_stump', 'grainport'] },
+  cres_stitch: { label: 'Cres Stitch', x: 82, y: 35, neighbors: ['fort_bulrush', 'grainport', 'blackberry_log'] },
+  apple_stump: { label: 'Apple Stump', x: 86, y: 18, neighbors: ['fort_bulrush', 'elderflower_flux', 'eyrin'] },
+  elderflower_flux: { label: 'Elderflower Flux', x: 86, y: 13, neighbors: ['apple_stump', 'spoolkeep', 'eyrin'] },
+  eyrin: { label: 'Eyrin', x: 90, y: 24, neighbors: ['apple_stump', 'spoolkeep', 'greenport'] },
+  spoolkeep: { label: 'Spoolkeep', x: 94, y: 17, aliases: ['스풀킵'], neighbors: ['elderflower_flux', 'eyrin', 'screens', 'crowless'] },
+  screens: { label: 'Screens', x: 88, y: 8, neighbors: ['spoolkeep', 'skimslim'] },
+  skimslim: { label: 'Skimslim', x: 74, y: 5, neighbors: ['screens', 'blueberry_pond'] },
+  crowless: { label: 'Crowless', x: 96, y: 9, neighbors: ['spoolkeep', 'screens'] },
+  starting_oak_road: { label: '오크 길', x: 26, y: 34, aliases: ['Starting Oak Road', 'Oak Road', '오크 길'], neighbors: ['whitebirch', 'spoutneck'] }
+};
+
+const MAP_WAYPOINTS = `77.96,3.81;48.38,4.34;82.68,4.78;54.52,5.04;51.24,5.17;3.95,5.34;47.85,5.83;61.54,6.12;85.58,6.23;7.30,6.32;44.97,6.34;57.71,6.45;76.58,6.49;72.81,6.92;90.75,6.80;84.35,7.21;14.61,7.41;88.68,7.40;65.77,7.49;43.25,7.89;76.97,8.20;63.67,8.44;82.11,8.36;51.24,8.72;7.60,8.92;33.59,8.99;36.50,9.19;69.52,9.25;21.31,9.41;92.50,9.93;61.26,10.02;4.25,10.13;63.78,10.40;71.82,10.39;26.38,10.76;9.47,11.08;29.41,11.15;16.21,11.45;12.33,12.09;67.41,12.04;38.96,12.34;77.32,12.40;49.35,12.83;95.11,12.86;3.64,13.38;30.31,13.46;36.12,13.63;57.04,14.17;64.86,13.92;14.78,13.99;83.44,14.14;23.20,14.61;31.18,15.22;80.77,15.21;74.68,15.32;28.89,15.61;68.89,15.54;34.59,15.86;86.57,15.83;18.64,16.17;65.83,16.55;5.63,16.63;37.53,16.72;44.56,17.11;14.47,17.17;29.04,17.21;96.62,17.35;65.03,17.82;33.03,17.79;77.19,17.94;22.91,18.04;87.43,18.02;39.68,18.17;93.68,18.63;90.03,18.78;36.71,18.82;84.21,18.97;44.61,19.05;4.77,19.22;70.66,19.56;60.19,19.47;16.07,19.78;28.15,19.81;40.41,20.04;25.26,20.39;76.37,20.38;12.75,20.47;38.59,20.56;70.52,20.64;36.63,20.73;20.27,21.13;9.16,21.80;50.37,22.17;46.63,22.15;96.51,22.39;62.74,22.50;17.38,22.88;19.43,23.03;67.68,23.07;15.96,23.19;49.46,23.28;23.47,23.53;41.65,23.82;75.38,23.96;27.90,24.15;77.92,24.33;93.80,24.46;37.98,24.67;57.78,24.75;35.95,24.84;2.85,24.87;15.89,24.98;53.11,25.23;64.47,25.20;60.96,25.53;72.93,25.56;95.52,25.66;69.92,25.82;21.93,26.32;92.94,26.55;65.79,27.73;42.94,27.82;58.70,27.84;28.25,27.84;8.11,27.99;83.90,27.94;40.93,28.10;33.31,28.21;61.73,28.44;5.32,28.69;32.83,29.27;72.04,29.25;86.80,29.78;21.67,29.85;56.14,29.91;36.34,29.97;64.77,30.15;33.28,30.35;18.38,30.61;75.96,31.05;15.33,31.89;79.03,32.02;52.05,32.46;81.97,32.41;58.62,32.59;89.90,32.69;2.81,32.77;41.69,32.76;55.04,32.83;9.47,33.05;32.09,33.08;62.67,33.40;27.11,33.48;85.40,33.57;15.48,33.90;20.37,34.07;47.94,34.45;73.45,34.70;45.83,34.85;5.05,35.42;79.30,35.53;16.45,35.66;28.63,35.65;86.87,35.69;24.82,36.16;55.02,36.65;12.71,36.47;57.84,36.52;30.83,36.60;61.03,37.06;42.26,37.28;55.98,37.21;94.81,37.48;65.63,37.84;87.15,38.07;18.33,38.07;28.07,38.11;34.15,38.17;69.39,38.10;23.46,38.20;45.58,38.19;11.59,38.67;5.55,38.78;20.14,38.79;37.26,38.96;76.87,39.18;62.68,39.37;35.27,39.46;22.15,39.61;54.94,39.94;97.05,39.94;50.06,40.14;27.28,40.26;32.70,40.55;58.59,40.47;21.13,40.81;64.42,40.85;78.55,40.94;24.80,41.25;74.77,41.31;52.75,41.37;15.64,41.93;88.11,41.89;54.80,41.97;22.33,42.22;84.34,42.24;80.28,42.40;56.49,42.95;94.75,42.39;69.39,42.89;37.76,42.98;30.57,43.20;40.36,43.38;55.71,43.60;93.32,43.71;90.84,43.84;96.44,43.84;36.09,44.05;73.11,44.01;65.25,44.18;55.73,44.48;33.19,44.67;18.82,44.87;67.38,45.81;23.01,45.89;97.14,45.90;45.11,46.15;27.06,46.36;5.47,46.65;92.24,46.82;15.75,46.94;86.49,47.02;36.04,47.34;51.95,47.87;95.75,47.94;39.72,48.39;69.44,48.45;48.43,48.68;90.13,48.64;33.11,48.91;26.14,49.15;9.25,49.30;86.81,49.97;96.63,49.94;72.54,50.29;15.57,50.48;36.10,50.57;91.71,50.68;31.70,51.00;28.98,51.16;57.41,51.36;33.93,51.44;44.94,51.72;95.62,51.81;41.97,51.97;89.15,51.96;39.66,52.20;83.78,52.20;77.16,52.49;68.50,52.69;86.55,52.67;93.35,52.82;91.54,52.89;47.67,53.06;18.05,53.15;39.06,53.13;25.73,53.19;30.66,53.82;84.94,54.15;63.77,54.35;73.82,54.34;10.30,54.64;75.76,55.56;61.18,55.66;34.97,55.85;7.24,56.10;84.01,56.68;31.18,56.94;66.62,57.07;82.20,57.21;87.38,57.48;18.29,57.50;63.54,57.49;51.69,57.89;75.59,58.11;9.43,59.05;54.78,59.02;14.61,59.25;79.52,59.69;70.09,59.81;73.00,60.10;48.53,60.28;58.41,60.39;20.27,61.21;46.55,61.31;90.53,61.58;7.83,61.62;76.55,61.75;28.95,62.48;17.15,62.43;55.27,62.52;61.68,62.56;37.77,63.01;45.16,63.15;69.82,63.35;4.82,63.64;83.63,63.63;89.58,64.22;74.35,64.51;62.67,64.82;19.66,65.38;42.42,65.49;81.48,66.02;4.78,66.10;77.93,66.87;57.95,67.16;27.65,67.24;82.94,67.32;68.96,67.40;73.46,67.78;85.21,68.00;92.97,68.29;13.82,68.82;9.23,68.96;78.29,69.78;44.18,70.61;66.54,70.59;21.27,70.88;55.47,71.20;83.21,71.25;6.45,71.36;71.79,72.93;51.87,73.20;80.53,74.41;13.53,75.13;75.20,75.65;58.14,76.32;5.92,76.05;38.02,76.00;77.36,76.19;62.09,76.09;77.78,77.83;34.37,78.32;61.39,78.56;18.01,79.10;89.08,79.18;60.24,79.59;5.85,79.88;57.55,80.23;61.60,80.71;78.97,81.13;93.38,81.10;10.27,81.75;29.45,82.46;91.28,82.79;50.68,83.22;68.49,83.20;12.53,83.90;3.81,83.97;8.21,84.15;80.86,84.17;19.75,84.38;93.55,84.59;39.14,84.86;91.14,85.06;35.93,85.91;63.32,86.24;76.98,86.32;85.58,86.60;32.93,86.63;95.47,87.29;53.93,87.41;91.80,87.41;41.28,87.67;12.57,87.84;8.23,88.03;4.25,88.09;72.71,88.21;44.95,88.95;87.64,89.45;91.19,89.55;37.78,90.05;69.30,90.09;59.15,90.12;48.53,90.41;95.26,90.79;31.52,90.93;35.66,91.31;82.58,92.16;75.99,92.43;51.28,92.40;39.43,92.86;53.89,92.98;4.24,93.13;8.48,93.24;15.85,93.25;42.51,93.28;59.73,93.33;34.02,93.56;86.75,94.04;24.39,94.30;93.97,95.40;57.60,96.28;19.68,96.37;39.69,96.45;8.65,96.72;12.46,96.74;4.35,96.82;26.78,97.28`
+  .split(';')
+  .map(pair => pair.split(',').map(Number) as [number, number]);
+
+const MAP_SERVICE_HOPS = 5;
+
+const MAP_GRAPH_NODES: Record<string, MapLocationNode> = (() => {
+  const nodes: Record<string, MapLocationNode> = {};
+  Object.entries(MAP_LOCATIONS).forEach(([key, node]) => {
+    nodes[key] = {
+      ...node,
+      aliases: node.aliases ? [...node.aliases] : undefined,
+      neighbors: [...node.neighbors]
+    };
+  });
+
+  MAP_WAYPOINTS.forEach(([x, y], index) => {
+    nodes[`wp_${index}`] = { label: `경유점 ${index + 1}`, x, y, neighbors: [] };
+  });
+
+  const keys = Object.keys(nodes);
+  const distance = (a: MapLocationNode, b: MapLocationNode) => Math.hypot(a.x - b.x, a.y - b.y);
+  const connect = (from: string, to: string) => {
+    if (!nodes[from].neighbors.includes(to)) nodes[from].neighbors.push(to);
+    if (!nodes[to].neighbors.includes(from)) nodes[to].neighbors.push(from);
+  };
+
+  keys.forEach(key => {
+    const isWaypoint = key.startsWith('wp_');
+    const limit = isWaypoint ? 3.8 : 7.2;
+    const take = isWaypoint ? 3 : 8;
+    keys
+      .filter(other => other !== key)
+      .map(other => ({ key: other, distance: distance(nodes[key], nodes[other]) }))
+      .filter(candidate => candidate.distance <= limit)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, take)
+      .forEach(candidate => connect(key, candidate.key));
+  });
+
+  return nodes;
+})();
+
+const normalizeMapLocationName = (name: string) => name.trim().toLowerCase().replace(/[^a-z0-9가-힣]+/gi, '_').replace(/^_+|_+$/g, '');
+
+const findMapLocationKey = (name: string) => {
+  const normalized = normalizeMapLocationName(name);
+  const direct = Object.entries(MAP_LOCATIONS).find(([key, node]) =>
+    key === normalized || normalizeMapLocationName(node.label) === normalized || (node.aliases || []).some(alias => normalizeMapLocationName(alias) === normalized)
+  );
+  return direct?.[0] || '';
+};
+
+const getMapServiceEntriesWithinHops = (startName: string, maxHops: number = MAP_SERVICE_HOPS) => {
+  const startKey = findMapLocationKey(startName);
+  if (!startKey) return [];
+  const seen = new Map<string, number>([[startKey, 0]]);
+  const queue = [startKey];
+  while (queue.length > 0) {
+    const key = queue.shift()!;
+    const depth = seen.get(key) || 0;
+    if (depth >= maxHops) continue;
+    for (const next of MAP_GRAPH_NODES[key]?.neighbors || []) {
+      if (!seen.has(next)) {
+        seen.set(next, depth + 1);
+        queue.push(next);
+      }
+    }
+  }
+  return [...seen.entries()].map(([key, hops]) => ({ key, hops, node: MAP_GRAPH_NODES[key] })).filter(entry => entry.node);
+};
+
+const getMapLocationsWithinHops = (startName: string, maxHops: number = MAP_SERVICE_HOPS) =>
+  getMapServiceEntriesWithinHops(startName, maxHops).filter(entry => !entry.key.startsWith('wp_'));
 
 const memoryKey = (...parts: string[]) =>
   parts.join('_').toLowerCase().replace(/[^a-z0-9가-힣]+/gi, '_').replace(/^_+|_+$/g, '');
@@ -938,7 +1108,7 @@ const syncWorldMemory = (state: GameState): GameState => {
       locationName: clinic.locationName,
       region: clinic.region,
       source: '약제소 네트워크',
-      notes: `길드 서비스: ${clinic.agendaService.toUpperCase()}`,
+      notes: `길드 서비스: ${clinicServiceLabel(clinic.agendaService)}`,
       timestamp: now
     });
   });
@@ -1816,6 +1986,7 @@ const migrateState = (s: any): GameState => {
     activeDelve: s.activeDelve || null,
     pursuedByBehemoth: s.pursuedByBehemoth || null,
     companions: s.companions || [],
+    companionHive: s.companionHive || [],
     resourcefulReagent: s.resourcefulReagent || "",
     ingenuitiveTool: s.ingenuitiveTool || "",
     clinics: s.clinics || [],
@@ -2502,7 +2673,7 @@ export default function App() {
     const archivedClinics = currentClinics.map(c => ({
       locationName: c.locationName,
       region: c.region,
-      services: [c.agendaService],
+      services: c.agendaService && c.agendaService !== 'none' ? [c.agendaService] : [],
       founder: retiredApothecaryName
     }));
 
@@ -4223,16 +4394,24 @@ function PlayView({
       return;
     }
 
-    updateState(s => {
-      const nextTrinkets = s.trinkets.slice(companion.cost);
-      let nextCompanions = [...(s.companions || [])];
+	    updateState(s => {
+	      const nextTrinkets = s.trinkets.slice(companion.cost);
+	      let nextCompanions = [...(s.companions || [])];
+	      let nextHive = [...(s.companionHive || [])];
+	      const canStoreInHive = (s.clinics || []).some(c => c.agendaService === 'hive_boxes') &&
+	        ((s.clinics || []).some(c => c.locationName === s.currentLocationName) || (s.clinics || []).some(c => c.region === s.currentRegion));
 
-      const maxAllowed = s.wagonExpansions?.hiveBrackets ? 2 : 1;
-      let releasedMsg = "";
-      if (nextCompanions.length >= maxAllowed) {
-        const released = nextCompanions.shift();
-        releasedMsg = `\n(기존 동반자였던 [${released?.koreanName}]은 야생으로 자연스레 돌아갑니다.)`;
-      }
+	      const maxAllowed = s.wagonExpansions?.hiveBrackets ? 2 : 1;
+	      let releasedMsg = "";
+	      if (nextCompanions.length >= maxAllowed) {
+	        const released = nextCompanions.shift();
+	        if (released && canStoreInHive) {
+	          nextHive.push(released);
+	          releasedMsg = `\n(기존 동반자였던 [${released.koreanName}]은 클리닉 벌집 보관함에 머뭅니다.)`;
+	        } else {
+	          releasedMsg = `\n(기존 동반자였던 [${released?.koreanName}]은 야생으로 자연스레 돌아갑니다.)`;
+	        }
+	      }
 
       nextCompanions.push({
         id: 'comp_' + Date.now(),
@@ -4242,10 +4421,11 @@ function PlayView({
       });
 
       return {
-        ...s,
-        trinkets: nextTrinkets,
-        companions: nextCompanions,
-        journals: [
+	        ...s,
+	        trinkets: nextTrinkets,
+	        companions: nextCompanions,
+	        companionHive: nextHive,
+	        journals: [
           {
             id: 'companion_' + Date.now(),
             title: `🐝 동반자 고용: ${companion.name}`,
@@ -4260,14 +4440,68 @@ function PlayView({
     alert(`${companion.name}을 동반자로 영입했습니다!`);
   };
 
-  const handleReleaseCompanion = (id: string) => {
-    if (confirm("이 동료를 자연의 야생으로 방생하시겠습니까?")) {
-      updateState(s => ({
-        ...s,
-        companions: (s.companions || []).filter(c => c.id !== id)
-      }));
-    }
-  };
+	  const handleReleaseCompanion = (id: string) => {
+	    if (confirm("이 동료를 자연의 야생으로 방생하시겠습니까?")) {
+	      updateState(s => ({
+	        ...s,
+	        companions: (s.companions || []).filter(c => c.id !== id)
+	      }));
+	    }
+	  };
+
+	  const handleStoreCompanionInHive = (id: string) => {
+	    updateState((s: GameState) => {
+	      const companion = (s.companions || []).find(c => c.id === id);
+	      if (!companion) return s;
+	      return {
+	        ...s,
+	        companions: (s.companions || []).filter(c => c.id !== id),
+	        companionHive: [...(s.companionHive || []), companion],
+	        journals: [
+	          {
+	            id: 'hive_store_' + Date.now(),
+	            title: `🐝 벌집 보관함: ${companion.koreanName}`,
+	            text: `${s.currentLocationName}의 클리닉 벌집 보관함에 ${companion.koreanName}이(가) 머물게 되었습니다.`,
+	            timestamp: Date.now()
+	          },
+	          ...s.journals
+	        ]
+	      };
+	    });
+	  };
+
+	  const handleRecallHiveCompanion = (id: string) => {
+	    updateState((s: GameState) => {
+	      const companion = (s.companionHive || []).find(c => c.id === id);
+	      if (!companion) return s;
+	      const maxAllowed = s.wagonExpansions?.hiveBrackets ? 2 : 1;
+	      let nextCompanions = [...(s.companions || [])];
+	      let nextHive = (s.companionHive || []).filter(c => c.id !== id);
+	      let swappedNote = "";
+	      if (nextCompanions.length >= maxAllowed) {
+	        const stored = nextCompanions.shift();
+	        if (stored) {
+	          nextHive = [...nextHive, stored];
+	          swappedNote = `\n자리가 부족하여 ${stored.koreanName}은(는) 대신 보관함에 머뭅니다.`;
+	        }
+	      }
+	      nextCompanions.push(companion);
+	      return {
+	        ...s,
+	        companions: nextCompanions,
+	        companionHive: nextHive,
+	        journals: [
+	          {
+	            id: 'hive_recall_' + Date.now(),
+	            title: `🐝 벌집 보관함에서 동행: ${companion.koreanName}`,
+	            text: `${s.currentLocationName}의 클리닉 벌집 보관함에서 ${companion.koreanName}을(를) 다시 동행시켰습니다.${swappedNote}`,
+	            timestamp: Date.now()
+	          },
+	          ...s.journals
+	        ]
+	      };
+	    });
+	  };
 
   const handleStartJourney = (e: React.FormEvent) => {
     e.preventDefault();
@@ -4642,13 +4876,24 @@ function PlayView({
     }
 
     const chosenName = newAilmentName.trim();
-    if (!chosenName) {
-      alert("질병명을 골라주세요!");
+    const hasLibraryChoice = (atClinicLocation || inClinicRegion) && (state.clinics || []).some(c => c.agendaService === 'library');
+
+    let dbAil = chosenName
+      ? GAME_DATA.ailments.find(a => a.name.toLowerCase().includes(chosenName.toLowerCase()) || a.rawName.toLowerCase().includes(chosenName.toLowerCase()))
+      : undefined;
+
+    if (!chosenName && hasLibraryChoice) {
+      const first = GAME_DATA.ailments[Math.floor(Math.random() * GAME_DATA.ailments.length)];
+      let second = GAME_DATA.ailments[Math.floor(Math.random() * GAME_DATA.ailments.length)];
+      if (second === first) {
+        second = GAME_DATA.ailments[(GAME_DATA.ailments.indexOf(first) + 1) % GAME_DATA.ailments.length];
+      }
+      const choice = prompt(`도서관 자료를 참고해 병증 2개를 대조했습니다. 맡을 환자를 선택하세요:\n1. ${first.name} (${first.severity})\n2. ${second.name} (${second.severity})`, '1');
+      dbAil = choice === '2' ? second : first;
+    } else if (!chosenName) {
+      alert("질병명을 골라주세요! 도서관(Library) 아젠다가 있는 클리닉 서비스 영역에서는 비워두고 2개 드로우 선택을 할 수 있습니다.");
       return;
     }
-
-    // Seek in database
-    const dbAil = GAME_DATA.ailments.find(a => a.name.toLowerCase().includes(chosenName.toLowerCase()) || a.rawName.toLowerCase().includes(chosenName.toLowerCase()));
 
     if (!dbAil) {
       alert("해당 질병을 도감에서 찾을 수 없습니다. 도감 탭에서 이름을 참고해 주세요.");
@@ -5074,7 +5319,45 @@ function PlayView({
     alert("🚪 여분 채집이 마감되었습니다. 여정을 재개합니다.");
   };
 
-  const handleBuildClinic = (agendaService: string) => {
+  const getClinicAgendaRequirement = (agendaService: string, s: GameState = state) => {
+    const activeServices = Array.from(new Set((s.clinics || []).map(c => c.agendaService).filter(Boolean))) as string[];
+    const isVisited = (loc: string) => (s.visitedLocations || []).includes(loc);
+
+    if (agendaService === 'pantry') {
+      return { satisfied: s.reputation >= 15, message: `길드 Reputation 15 이상 필요 (현재: ${s.reputation})` };
+    }
+    if (agendaService === 'library') {
+      return {
+        satisfied: isVisited('Summit') && !!s.completedReconnecting,
+        message: `Summit 방문 및 '동료들과 재회하기' 완료 필요 (Summit 방문: ${isVisited('Summit') ? '✅' : '❌'}, 재회 완료: ${s.completedReconnecting ? '✅' : '❌'})`
+      };
+    }
+    if (agendaService === 'hive_boxes') {
+      return { satisfied: isVisited('Spoolkeep'), message: `Spoolkeep 방문 필요 (방문 여부: ${isVisited('Spoolkeep') ? '✅' : '❌'})` };
+    }
+    if (agendaService === 'gardens') {
+      return { satisfied: isVisited('Noonhill'), message: `Noonhill 방문 필요 (방문 여부: ${isVisited('Noonhill') ? '✅' : '❌'})` };
+    }
+    if (agendaService === 'greenhouses') {
+      return {
+        satisfied: activeServices.includes('gardens') && isVisited('Glasswall'),
+        message: `정원 서비스 구축 및 Glasswall 방문 필요 (정원 서비스: ${activeServices.includes('gardens') ? '✅' : '❌'}, Glasswall 방문: ${isVisited('Glasswall') ? '✅' : '❌'})`
+      };
+    }
+    if (agendaService === 'sodden_logs') {
+      return { satisfied: isVisited('Odoak'), message: `Odoak 방문 필요 (방문 여부: ${isVisited('Odoak') ? '✅' : '❌'})` };
+    }
+    if (agendaService === 'taproom') {
+      return { satisfied: isVisited('Vessel'), message: `Vessel 방문 필요 (방문 여부: ${isVisited('Vessel') ? '✅' : '❌'})` };
+    }
+    if (agendaService === 'hostel') {
+      return { satisfied: activeServices.includes('taproom'), message: `선술집(Taproom) 구축 필요 (구축 여부: ${activeServices.includes('taproom') ? '✅' : '❌'})` };
+    }
+
+    return { satisfied: true, message: '없음 (즉시 추가 가능) ✅' };
+  };
+
+	  const handleBuildClinic = (agendaService: string) => {
     if (state.currentLocationType !== 'Wilds') {
       alert("약제소는 야생(Wilds) 지역에서만 지을 수 있습니다.");
       return;
@@ -5085,12 +5368,14 @@ function PlayView({
     }
 
     updateState((s: GameState) => {
+      const requirement = getClinicAgendaRequirement(agendaService, s);
+      const serviceToAdd = requirement.satisfied ? agendaService : 'none';
       const nextTrinkets = [...s.trinkets];
       nextTrinkets.splice(0, 15); // deduct 15 trinkets
       const newClinic = {
         locationName: s.currentLocationName,
         region: s.currentRegion,
-        agendaService
+        agendaService: serviceToAdd
       };
       return {
         ...s,
@@ -5101,7 +5386,7 @@ function PlayView({
           {
             id: 'clinic_build_' + Date.now(),
             title: `🏡 약제소 건설: ${s.currentLocationName} 지부`,
-            text: `장신구 15개를 투자하여 ${s.currentLocationName}에 새로운 약제소를 지었습니다!\n길드 아젠다 서비스로 [${agendaService.toUpperCase()}]를 추가했습니다.`,
+            text: `장신구 15개를 투자하여 ${s.currentLocationName}에 새로운 약제소를 지었습니다!\n${requirement.satisfied ? `길드 아젠다 서비스로 [${clinicServiceLabel(agendaService)}]를 추가했습니다.` : `선택한 아젠다 [${clinicServiceLabel(agendaService)}]의 요구조건을 아직 만족하지 못해, 이 클리닉은 아젠다 미지정으로 완성되었습니다.`}`,
             timestamp: Date.now()
           },
           ...s.journals
@@ -5109,11 +5394,60 @@ function PlayView({
       };
     });
 
-    alert(`🏡 ${state.currentLocationName}에 약제소를 성공적으로 지었습니다!\n아젠다 서비스: ${agendaService}가 추가되었습니다.`);
-  };
+    const requirement = getClinicAgendaRequirement(agendaService);
+	    alert(`🏡 ${state.currentLocationName}에 약제소를 성공적으로 지었습니다!\n아젠다 서비스: ${requirement.satisfied ? clinicServiceLabel(agendaService) : '미지정 (요구조건 미충족)'}`);
+	  };
 
-  const handlePantryHibernate = () => {
-    const activeServices = Array.from(new Set((state.clinics || []).map(c => c.agendaService)));
+	  const handleMailboxPatient = () => {
+	    if (state.activeAilment) {
+	      alert("이미 치료 중인 환자가 있습니다. 먼저 현재 환자를 마무리해 주세요.");
+	      return;
+	    }
+	    const ailment = GAME_DATA.ailments[Math.floor(Math.random() * GAME_DATA.ailments.length)];
+	    const patientName = prompt("서신을 보낸 환자 이름 (선택):", "") || "";
+	    const species = prompt("환자의 종 / 생김새 (선택):", "") || "";
+	    const letterNote = prompt("서신에 적힌 사연이나 요청을 짧게 적어주세요:", "Noonmessengers가 먼 곳의 치료 요청을 전해왔다.") || "";
+
+	    updateState((s: GameState) => {
+	      const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === s.bio.familiarBenefit)?.mechanic || '';
+	      const startTimer = ailment.timer + ((familiarMechanic === 'helpful' || s.bio.familiarBenefit.includes("따뜻한 약제사")) ? 2 : 0);
+	      return {
+	        ...s,
+	        barterCountThisAilment: 0,
+	        independentUsedThisAilment: false,
+	        activeAilment: {
+	          id: 'mail_ail_' + Date.now(),
+	          name: ailment.name,
+	          severity: ailment.severity,
+	          timer: startTimer,
+	          maxTimer: startTimer,
+	          tags: ailment.tags,
+	          description: ailment.description,
+	          outcome: ailment.outcome,
+	          consequence: ailment.consequence,
+	          foragingPoints: ((familiarMechanic === 'perceptive' || s.bio.familiarBenefit.includes("예리한 관찰자")) ? 2 : 0),
+	          reagentsGathered: [],
+	          patientName: patientName.trim(),
+	          species: species.trim(),
+	          initialRememberedNote: letterNote.trim(),
+	          startedAtDay: s.cumulativeDays || s.calendarDays || 0,
+	          journeyTitle: '우체통 서신 환자'
+	        },
+	        journals: [
+	          {
+	            id: 'mailbox_patient_' + Date.now(),
+	            title: `📮 우체통 서신 환자: ${ailment.name}`,
+	            text: `Noonmessengers의 우체통을 통해 새 환자의 서신을 받았습니다.\n- 환자: ${patientName.trim() || '이름 미기록'} ${species.trim() ? `/ ${species.trim()}` : ''}\n- 병증: ${ailment.name} (${ailment.severity})\n- 치료 기한: ${startTimer}시간\n- 서신 내용: ${letterNote.trim() || '치료 요청이 도착했다.'}`,
+	            timestamp: Date.now()
+	          },
+	          ...s.journals
+	        ]
+	      };
+	    });
+	  };
+
+	  const handlePantryHibernate = () => {
+    const activeServices = Array.from(new Set((state.clinics || []).map(c => c.agendaService).filter(Boolean))) as string[];
     if (!activeServices.includes('pantry')) {
       alert("식료품 저장고(Pantry) 아젠다 서비스가 활성화되어 있지 않습니다.");
       return;
@@ -5182,7 +5516,7 @@ function PlayView({
       alert("정원에 심어진 식물이 없습니다.");
       return;
     }
-    const activeServices = Array.from(new Set((state.clinics || []).map(c => c.agendaService)));
+    const activeServices = Array.from(new Set((state.clinics || []).map(c => c.agendaService).filter(Boolean))) as string[];
     const isWinter = state.currentSeason === 'Winter';
     const hasGreenhouse = activeServices.includes('greenhouses');
 
@@ -5320,7 +5654,7 @@ function PlayView({
   };
 
   const handleSettleSeasonTipsAndDonations = (nextSeason: 'Spring' | 'Summer' | 'Autumn' | 'Winter') => {
-    const activeServices = Array.from(new Set((state.clinics || []).map(c => c.agendaService)));
+    const activeServices = Array.from(new Set((state.clinics || []).map(c => c.agendaService).filter(Boolean))) as string[];
     const clinicsCount = (state.clinics || []).length;
 
     // Taproom / Hostel calculation
@@ -6410,14 +6744,74 @@ function PlayView({
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
                     {(state.clinics || []).map((c, i) => (
                       <span key={i} style={{ background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', padding: '0.2rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                        📍 {c.locationName} 지부: {c.agendaService.toUpperCase()}
+                        📍 {c.locationName} 지부: {clinicServiceLabel(c.agendaService)}
                       </span>
                     ))}
-                  </div>
+	                  </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    {/* 1. Pantry (Hibernate) */}
-                    {(state.clinics || []).some(c => c.agendaService === 'pantry') && (
+	                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+	                    {/* Hive Boxes */}
+	                    {(state.clinics || []).some(c => c.agendaService === 'hive_boxes') && (
+	                      <div style={{ background: '#fff', padding: '0.8rem', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+	                        <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.9rem', color: '#166534' }}>🐝 벌집 보관함 (Hive Boxes)</h4>
+	                        <p style={{ fontSize: '0.8rem', color: '#666', margin: '0 0 0.6rem 0' }}>
+	                          클리닉 서비스 영역에서 동반자를 보관하거나 다시 동행시킬 수 있습니다. 동행 한도가 꽉 찬 상태에서 회수하면 가장 오래 동행한 친구가 보관함으로 들어갑니다.
+	                        </p>
+	                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+	                          <div>
+	                            <strong style={{ fontSize: '0.8rem', color: '#166534' }}>현재 동행</strong>
+	                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.4rem' }}>
+	                              {(state.companions || []).length === 0 && <span style={{ fontSize: '0.78rem', color: '#888', fontStyle: 'italic' }}>동행 중인 곤충이 없습니다.</span>}
+	                              {(state.companions || []).map(comp => (
+	                                <div key={comp.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', alignItems: 'center', border: '1px solid #dcfce7', borderRadius: '6px', padding: '0.4rem', fontSize: '0.8rem' }}>
+	                                  <span>{comp.koreanName}</span>
+	                                  <button onClick={() => handleStoreCompanionInHive(comp.id)} style={{ border: 'none', borderRadius: '6px', padding: '0.25rem 0.45rem', background: '#dcfce7', color: '#166534', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.75rem' }}>보관</button>
+	                                </div>
+	                              ))}
+	                            </div>
+	                          </div>
+	                          <div>
+	                            <strong style={{ fontSize: '0.8rem', color: '#166534' }}>벌집 보관함</strong>
+	                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.4rem' }}>
+	                              {(!state.companionHive || state.companionHive.length === 0) && <span style={{ fontSize: '0.78rem', color: '#888', fontStyle: 'italic' }}>보관 중인 곤충이 없습니다.</span>}
+	                              {(state.companionHive || []).map(comp => (
+	                                <div key={comp.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', alignItems: 'center', border: '1px solid #dcfce7', borderRadius: '6px', padding: '0.4rem', fontSize: '0.8rem' }}>
+	                                  <span>{comp.koreanName}</span>
+	                                  <button onClick={() => handleRecallHiveCompanion(comp.id)} style={{ border: 'none', borderRadius: '6px', padding: '0.25rem 0.45rem', background: '#166534', color: '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.75rem' }}>동행</button>
+	                                </div>
+	                              ))}
+	                            </div>
+	                          </div>
+	                        </div>
+	                      </div>
+	                    )}
+
+	                    {/* Mailbox */}
+	                    {(state.clinics || []).some(c => c.agendaService === 'mailbox') && (
+	                      <div style={{ background: '#fff', padding: '0.8rem', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+	                        <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.9rem', color: '#166534' }}>📮 우체통 (Mailbox)</h4>
+	                        <p style={{ fontSize: '0.8rem', color: '#666', margin: '0 0 0.6rem 0' }}>
+	                          Noonmessengers가 전해온 서신 환자를 하나 받아 진료에 등록합니다. 현재 치료 중인 환자가 없을 때만 사용할 수 있습니다.
+	                        </p>
+	                        <button
+	                          onClick={handleMailboxPatient}
+	                          disabled={!!state.activeAilment}
+	                          className="btn-cozy-secondary"
+	                          style={{
+	                            padding: '0.4rem 0.8rem',
+	                            fontSize: '0.8rem',
+	                            background: state.activeAilment ? '#e2e8f0' : '#166534',
+	                            color: state.activeAilment ? '#94a3b8' : '#fff',
+	                            cursor: state.activeAilment ? 'not-allowed' : 'pointer'
+	                          }}
+	                        >
+	                          📮 서신 환자 받기
+	                        </button>
+	                      </div>
+	                    )}
+
+	                    {/* 1. Pantry (Hibernate) */}
+	                    {(state.clinics || []).some(c => c.agendaService === 'pantry') && (
                       <div style={{ background: '#fff', padding: '0.8rem', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
                         <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.9rem', color: '#166534' }}>❄️ 식료품 저장고 (Pantry Winter Hibernation)</h4>
                         <p style={{ fontSize: '0.8rem', color: '#666', margin: '0 0 0.6rem 0' }}>
@@ -7137,82 +7531,57 @@ function PlayView({
                       >
                         <option value="pantry">식료품 저장고 (Pantry - 요구 평판 15+): 겨울철 동면하여 봄으로 건너뛰기</option>
                         <option value="library">도서관 (Library - Summit 방문 및 동료 재회 완료): 질병 진단 시 2개 드로우 선택</option>
-                        <option value="hive_boxes">벌집 보관함 (Hive Boxes - Spoolkeep 방문): 곤충 보관 및 교체</option>
+	                        <option value="hive_boxes">벌집 보관함 (Hive Boxes - Spoolkeep 방문): 곤충 보관 및 교체</option>
                         <option value="gardens">약초 정원 (Gardens - Noonhill 방문): 식물 재배 및 질병당 1회 채취</option>
                         <option value="greenhouses">온실 (Greenhouses - 정원 보유 및 Glasswall 방문): 겨울에도 정원 채취 가능</option>
                         <option value="sodden_logs">물에 젖은 통나무 (Sodden Logs - Odoak 방문): 지정 곤충 채취 및 타이머 -1</option>
                         <option value="taproom">선술집 (Taproom - Vessel 방문): 계절 정산 시 약제소당 1 장신구 팁 수입</option>
                         <option value="hostel">숙소 (Hostel - 선술집 보유): 선술집 팁이 약제소당 2 장신구로 상승</option>
-                        <option value="mailbox">우체통 (Mailbox - 요구사항 없음): Noonmessengers 서신 환자 진료</option>
+	                        <option value="mailbox">우체통 (Mailbox - 요구사항 없음): Noonmessengers 서신 환자 진료</option>
                         <option value="goodwill_stand">친선 매대 (Goodwill Stand - 요구사항 없음): 아이템 기부하여 계절 정산 시 평판으로 변환</option>
                       </select>
                     </div>
 
-                    {/* Requirements validation indicator */}
-                    {(() => {
-                      const activeServices = Array.from(new Set((state.clinics || []).map(c => c.agendaService)));
-                      const isVisited = (loc: string) => (state.visitedLocations || []).includes(loc);
+	                    {/* Requirements validation indicator */}
+	                    {(() => {
+	                      const requirement = getClinicAgendaRequirement(selectedAgendaService);
+	                      const hasTrinkets = state.trinkets.length >= 15;
+	                      const hasDays = (state.cumulativeDays || 0) >= 120;
+	                      const canBuildClinic = hasTrinkets && hasDays;
 
-                      let satisfied = true;
-                      let reqMsg = "";
+	                      return (
+	                        <div style={{ marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+	                          <div style={{ color: requirement.satisfied ? '#047857' : '#d97706', fontWeight: 'bold' }}>
+	                            📌 아젠다 서비스 요구사항: {requirement.message}
+	                          </div>
+	                          {!requirement.satisfied && (
+	                            <div style={{ color: '#92400e', fontSize: '0.8rem' }}>
+	                              요구조건을 못 맞춰도 약제소 자체는 세울 수 있습니다. 이 경우 아젠다 서비스 없이 지도에 클리닉만 표시됩니다.
+	                            </div>
+	                          )}
+	                          <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: '#4b5563' }}>
+	                            <span>💰 장신구 15개 소지: {hasTrinkets ? '✅' : '❌ (장신구 부족)'}</span>
+	                            <span>📅 누적 시간 120일 경과: {hasDays ? '✅' : '❌ (미달 - 프로필에서 수정 가능)'}</span>
+	                          </div>
 
-                      if (selectedAgendaService === 'pantry') {
-                        satisfied = state.reputation >= 15;
-                        reqMsg = "길드 Reputation 15 이상 필요 (현재: " + state.reputation + ")";
-                      } else if (selectedAgendaService === 'library') {
-                        satisfied = isVisited('Summit') && !!state.completedReconnecting;
-                        reqMsg = "Summit 방문 및 '동료들과 재회하기' 완료 필요 (Summit 방문: " + (isVisited('Summit') ? '✅' : '❌') + ", 재회 완료: " + (state.completedReconnecting ? '✅' : '❌') + ")";
-                      } else if (selectedAgendaService === 'hive_boxes') {
-                        satisfied = isVisited('Spoolkeep');
-                        reqMsg = "Spoolkeep 방문 필요 (방문 여부: " + (isVisited('Spoolkeep') ? '✅' : '❌') + ")";
-                      } else if (selectedAgendaService === 'gardens') {
-                        satisfied = isVisited('Noonhill');
-                        reqMsg = "Noonhill 방문 필요 (방문 여부: " + (isVisited('Noonhill') ? '✅' : '❌') + ")";
-                      } else if (selectedAgendaService === 'greenhouses') {
-                        satisfied = activeServices.includes('gardens') && isVisited('Glasswall');
-                        reqMsg = "정원 서비스 구축 및 Glasswall 방문 필요 (정원 서비스: " + (activeServices.includes('gardens') ? '✅' : '❌') + ", Glasswall 방문: " + (isVisited('Glasswall') ? '✅' : '❌') + ")";
-                      } else if (selectedAgendaService === 'sodden_logs') {
-                        satisfied = isVisited('Odoak');
-                        reqMsg = "Odoak 방문 필요 (방문 여부: " + (isVisited('Odoak') ? '✅' : '❌') + ")";
-                      } else if (selectedAgendaService === 'taproom') {
-                        satisfied = isVisited('Vessel');
-                        reqMsg = "Vessel 방문 필요 (방문 여부: " + (isVisited('Vessel') ? '✅' : '❌') + ")";
-                      } else if (selectedAgendaService === 'hostel') {
-                        satisfied = activeServices.includes('taproom');
-                        reqMsg = "선술집(Taproom) 구축 필요 (구축 여부: " + (activeServices.includes('taproom') ? '✅' : '❌') + ")";
-                      }
-
-                      const hasTrinkets = state.trinkets.length >= 15;
-                      const hasDays = (state.cumulativeDays || 0) >= 120;
-
-                      return (
-                        <div style={{ marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                          <div style={{ color: satisfied ? '#047857' : '#d97706', fontWeight: 'bold' }}>
-                            📌 서비스 요구사항: {reqMsg || "없음 (즉시 건설 가능) ✅"}
-                          </div>
-                          <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: '#4b5563' }}>
-                            <span>💰 장신구 15개 소지: {hasTrinkets ? '✅' : '❌ (장신구 부족)'}</span>
-                            <span>📅 누적 시간 120일 경과: {hasDays ? '✅' : '❌ (미달 - 프로필에서 수정 가능)'}</span>
-                          </div>
-
-                          <button
-                            onClick={() => handleBuildClinic(selectedAgendaService)}
-                            disabled={!satisfied || !hasTrinkets || !hasDays}
-                            style={{
-                              marginTop: '0.6rem',
-                              padding: '0.6rem 1.2rem',
-                              background: (satisfied && hasTrinkets && hasDays) ? '#059669' : '#a7f3d0',
-                              color: '#fff',
-                              border: 'none',
-                              borderRadius: '8px',
-                              fontWeight: 'bold',
-                              cursor: (satisfied && hasTrinkets && hasDays) ? 'pointer' : 'not-allowed'
-                            }}
-                          >
-                            🏡 약제소 설립 및 아젠다 지정 (🪙 15 Trinkets 소모)
-                          </button>
-                        </div>
-                      );
+	                          <button
+	                            onClick={() => handleBuildClinic(selectedAgendaService)}
+	                            disabled={!canBuildClinic}
+	                            style={{
+	                              marginTop: '0.6rem',
+	                              padding: '0.6rem 1.2rem',
+	                              background: canBuildClinic ? '#059669' : '#a7f3d0',
+	                              color: '#fff',
+	                              border: 'none',
+	                              borderRadius: '8px',
+	                              fontWeight: 'bold',
+	                              cursor: canBuildClinic ? 'pointer' : 'not-allowed'
+	                            }}
+	                          >
+	                            {requirement.satisfied ? '🏡 약제소 설립 및 아젠다 지정' : '🏡 약제소만 설립'} (🪙 15 Trinkets 소모)
+	                          </button>
+	                        </div>
+	                      );
                     })()}
                   </div>
                 </div>
@@ -8471,12 +8840,12 @@ function PlayView({
                 </p>
                 <form onSubmit={handleDiagnoseAilment} style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', marginTop: '0.8rem' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 0.8fr)', gap: '0.5rem' }}>
-                    <input
-                      type="text"
-                      placeholder="질병 이름 입력 (예: 발썩음병, 귀 막힘증...)"
-                      value={newAilmentName}
-                      onChange={e => setNewAilmentName(e.target.value)}
-                    />
+	                    <input
+	                      type="text"
+	                      placeholder="질병 이름 입력 (도서관 아젠다 클리닉에서는 비워두면 2개 드로우 선택)"
+	                      value={newAilmentName}
+	                      onChange={e => setNewAilmentName(e.target.value)}
+	                    />
                     <input
                       type="text"
                       placeholder="환자 이름 (선택)"
@@ -10497,34 +10866,39 @@ function MapView({ state }: { state: GameState }) {
   // Compile unique visited or active locations from campaign records
   const visitedLocs = state.visitedLocations || [];
   const patientLocs = (state.patientCasebook || []).map(r => r.locationName).filter(Boolean) as string[];
-  const clinicLocs = (state.clinics || []).map(c => c.locationName).filter(Boolean) as string[];
-  const scrapbookLocs = (state.travelScrapbook || []).map(s => s.locationName).filter(Boolean) as string[];
-  const currentLoc = state.currentLocationName;
+	  const clinicLocs = (state.clinics || []).map(c => c.locationName).filter(Boolean) as string[];
+	  const scrapbookLocs = (state.travelScrapbook || []).map(s => s.locationName).filter(Boolean) as string[];
+	  const currentLoc = state.currentLocationName;
+	  const clinicServiceLocs = (state.clinics || []).flatMap(c =>
+	    getMapLocationsWithinHops(c.locationName).map(entry => entry.node.label)
+	  );
 
-  const allLocNames = Array.from(new Set([
-    ...visitedLocs,
-    ...patientLocs,
-    ...clinicLocs,
-    ...scrapbookLocs,
-    currentLoc
-  ].filter(Boolean)));
+	  const locCandidates = [
+	    ...visitedLocs,
+	    ...patientLocs,
+	    ...clinicLocs,
+	    ...clinicServiceLocs,
+	    ...scrapbookLocs,
+	    currentLoc
+	  ].filter(Boolean);
+	  const seenLocKeys = new Set<string>();
+	  const allLocNames = locCandidates.filter(name => {
+	    const key = findMapLocationKey(name) || normalizeMapLocationName(name);
+	    if (seenLocKeys.has(key)) return false;
+	    seenLocKeys.add(key);
+	    return true;
+	  });
+  const routeStops = [...new Set([...(state.visitedLocations || []), currentLoc].filter(Boolean))];
 
-  // Hashing mapper for positioning pins on the map
-  const getCoordinatesForLocation = (name: string) => {
-    const canonical: Record<string, { x: number; y: number }> = {
-      'starting oak road': { x: 26, y: 34 },
-      'noonhill': { x: 42, y: 64 },
-      'odoak': { x: 62, y: 44 },
-      'newdam': { x: 34, y: 52 },
-      'vessel': { x: 30, y: 56 },
-      'summit': { x: 48, y: 24 },
-      'spoolkeep': { x: 74, y: 32 },
-      'glasswall': { x: 18, y: 42 }
-    };
-    const clean = name.toLowerCase().trim();
-    if (canonical[clean]) return canonical[clean];
+	  // Hashing mapper for positioning pins on the map
+	  const getCoordinatesForLocation = (name: string) => {
+	    const structuredKey = findMapLocationKey(name);
+	    if (structuredKey) {
+	      const node = MAP_LOCATIONS[structuredKey];
+	      return { x: node.x, y: node.y };
+	    }
 
-    let hash = 0;
+	    let hash = 0;
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
@@ -10662,25 +11036,93 @@ function MapView({ state }: { state: GameState }) {
                   width: '100%',
                   pointerEvents: 'none'
                 }}
-              />
+	              />
 
-              {/* Dynamic location pins & annotations */}
-              {allLocNames.map(locName => {
-                const { x, y } = getCoordinatesForLocation(locName);
-                const successes = (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'success');
-                const failures = (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'failure');
-                const isFirstClinic = firstClinic && firstClinic.locationName === locName;
-                const hasClinic = (state.clinics || []).some(c => c.locationName === locName);
-                const isMostLivedIn = mostLivedInLoc === locName && maxCount >= 2;
-                const keepsakeRecords = (state.trinketArchive || []).filter(t => t.locationName === locName && !t.spent);
+	              {/* Travel route and clinic service areas */}
+	              <svg
+	                viewBox="0 0 100 100"
+	                preserveAspectRatio="none"
+	                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}
+	              >
+	                {routeStops.length > 1 && (
+	                  <polyline
+	                    points={routeStops.map(loc => {
+	                      const { x, y } = getCoordinatesForLocation(loc);
+	                      return `${x},${y}`;
+	                    }).join(' ')}
+	                    fill="none"
+	                    stroke="rgba(40, 91, 139, 0.72)"
+	                    strokeWidth="0.42"
+	                    strokeLinecap="round"
+	                    strokeLinejoin="round"
+	                    strokeDasharray="1.4 1.1"
+	                  />
+		                )}
+		                {(state.clinics || []).map((clinic, idx) => {
+		                  const serviceEntries = getMapServiceEntriesWithinHops(clinic.locationName);
+		                  const servicePoints = serviceEntries.length > 0
+		                    ? serviceEntries.map(entry => ({ x: entry.node.x, y: entry.node.y }))
+		                    : [getCoordinatesForLocation(clinic.locationName)];
+		                  const xs = servicePoints.map(p => p.x);
+		                  const ys = servicePoints.map(p => p.y);
+		                  const minX = Math.min(...xs);
+		                  const maxX = Math.max(...xs);
+		                  const minY = Math.min(...ys);
+		                  const maxY = Math.max(...ys);
+		                  const x = (minX + maxX) / 2;
+		                  const y = (minY + maxY) / 2;
+		                  const rx = Math.max(7, (maxX - minX) / 2 + 4);
+		                  const ry = Math.max(5, (maxY - minY) / 2 + 3);
+		                  return (
+		                    <g key={`${clinic.locationName}_${idx}_service_area`}>
+		                      <ellipse
+		                        cx={x}
+		                        cy={y}
+		                        rx={rx}
+		                        ry={ry}
+		                        fill="rgba(220, 38, 38, 0.025)"
+		                        stroke="rgba(220, 38, 38, 0.72)"
+		                        strokeWidth="0.34"
+		                        strokeLinecap="round"
+		                        strokeDasharray="0.9 0.55"
+		                        transform={`rotate(${(idx % 2 === 0 ? -8 : 7)} ${x} ${y})`}
+		                      />
+		                      {serviceEntries.map(entry => (
+		                        <circle
+		                          key={`${clinic.locationName}_${entry.key}_service_dot`}
+		                          cx={entry.node.x}
+		                          cy={entry.node.y}
+		                          r={entry.hops === 0 ? 0.42 : 0.26}
+		                          fill={entry.hops === 0 ? 'rgba(207, 45, 45, 0.9)' : 'rgba(220, 38, 38, 0.52)'}
+		                        />
+		                      ))}
+		                    </g>
+		                  );
+		                })}
+	              </svg>
+
+	              {/* Dynamic location pins & annotations */}
+	              {allLocNames.map(locName => {
+	                const { x, y } = getCoordinatesForLocation(locName);
+	                const locKey = findMapLocationKey(locName);
+	                const successes = (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'success');
+	                const failures = (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'failure');
+	                const isFirstClinic = !!firstClinic && (firstClinic.locationName === locName || (!!locKey && findMapLocationKey(firstClinic.locationName) === locKey));
+	                const hasClinic = (state.clinics || []).some(c => c.locationName === locName || (!!locKey && findMapLocationKey(c.locationName) === locKey));
+	                const isCurrent = currentLoc === locName || (!!locKey && findMapLocationKey(currentLoc) === locKey);
+	                const isMostLivedIn = mostLivedInLoc === locName && maxCount >= 2;
+	                const keepsakeRecords = (state.trinketArchive || []).filter(t => t.locationName === locName && !t.spent);
 
                 let isLoss = failures.length > 0;
                 let isCare = successes.length > 0 || hasClinic;
 
-                const notes: string[] = [];
-                if (isFirstClinic) {
-                  notes.push('첫 약제소 — 이곳에서 오래 머물렀다.');
-                } else if (isMostLivedIn) {
+	                const notes: string[] = [];
+	                if (isCurrent) {
+	                  notes.push('현재 위치 — 이곳에서 머무는 중.');
+	                }
+	                if (isFirstClinic) {
+	                  notes.push('첫 약제소 — 이곳에서 오래 머물렀다.');
+	                } else if (isMostLivedIn) {
                   notes.push('자주 돌아오던 곳. 오래 머문 자리.');
                 }
 
@@ -10746,9 +11188,34 @@ function MapView({ state }: { state: GameState }) {
                       fontSize: '0.82rem',
                       userSelect: 'none'
                     }}
-                  >
-                    {/* Pin Dot */}
-                    <div style={{
+	                  >
+	                    {hasClinic && (
+	                      <div style={{
+	                        position: 'absolute',
+	                        left: '-6px',
+	                        top: '-3px',
+	                        width: '20px',
+	                        height: '20px',
+	                        border: '3px solid rgba(207, 45, 45, 0.9)',
+	                        borderRadius: '2px',
+	                        transform: `rotate(${locName.length % 2 === 0 ? '3deg' : '-4deg'})`,
+	                        boxShadow: '0 0 0 2px rgba(255, 246, 232, 0.35)'
+	                      }} />
+	                    )}
+	                    {isCurrent && (
+	                      <div style={{
+	                        position: 'absolute',
+	                        left: '-13px',
+	                        top: '-10px',
+	                        width: '34px',
+	                        height: '34px',
+	                        border: '3px solid rgba(35, 103, 177, 0.85)',
+	                        borderRadius: '999px',
+	                        boxShadow: '0 0 0 5px rgba(35, 103, 177, 0.12)'
+	                      }} />
+	                    )}
+	                    {/* Pin Dot */}
+	                    <div style={{
                       width: '8px',
                       height: '8px',
                       borderRadius: '50%',
@@ -10947,15 +11414,47 @@ function MapView({ state }: { state: GameState }) {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <img src="/symbols/clinic.png" alt="Clinic" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.85rem' }}>Clinic (약제소)</strong>
-                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>플레이어 약제사의 치료 본부</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+	                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+	                    <img src="/symbols/clinic.png" alt="Clinic" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
+	                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+	                      <strong style={{ fontSize: '0.85rem' }}>Clinic (약제소)</strong>
+	                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>플레이어 약제사의 치료 본부</span>
+	                    </div>
+	                  </div>
+
+	                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+	                    <svg width="32" height="32" viewBox="0 0 32 32" style={{ flexShrink: 0 }}>
+	                      <circle cx="16" cy="16" r="12" fill="none" stroke="#2367b1" strokeWidth="3" />
+	                      <circle cx="16" cy="16" r="4" fill="#2367b1" />
+	                    </svg>
+	                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+	                      <strong style={{ fontSize: '0.85rem' }}>현재 위치</strong>
+	                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>지금 약제사가 머무는 곳</span>
+	                    </div>
+	                  </div>
+
+	                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+	                    <svg width="32" height="32" viewBox="0 0 32 32" style={{ flexShrink: 0 }}>
+	                      <rect x="8" y="8" width="16" height="16" fill="none" stroke="#cf2d2d" strokeWidth="3" />
+	                      <ellipse cx="16" cy="16" rx="14" ry="9" fill="none" stroke="#dc2626" strokeWidth="2" strokeDasharray="4 3" />
+	                    </svg>
+	                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+	                      <strong style={{ fontSize: '0.85rem' }}>클리닉과 서비스 영역</strong>
+	                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>네모는 본부, 붉은 둘레는 서비스 영역</span>
+	                    </div>
+	                  </div>
+
+	                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+	                    <svg width="32" height="20" viewBox="0 0 32 20" style={{ flexShrink: 0 }}>
+	                      <path d="M3 15 C9 3 19 17 29 5" fill="none" stroke="#285b8b" strokeWidth="2.5" strokeDasharray="5 4" strokeLinecap="round" />
+	                    </svg>
+	                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+	                      <strong style={{ fontSize: '0.85rem' }}>방문 경로</strong>
+	                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>기록된 방문지와 현재 위치를 이은 선</span>
+	                    </div>
+	                  </div>
+	                </div>
+	              </div>
 
               {/* Category: Terrains */}
               <div>
