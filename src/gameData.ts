@@ -2685,6 +2685,30 @@ export const GAME_DATA = {
         "card": "5 & 6",
         "title": "Can It\nThe Titans, for some unknown \nreason, liked to store their food \naway in metal barrels",
         "text": ". Perhaps it was their way of preparing for Winter. Whatever the reason, you find a mysteriously preserved snack. What food is inside? What brand made this tin, and what does the packaging look like? Well Fed - Add 2 to your next Timer. Titan travel encounters These truly gargantuan ruins are abandoned for a reason. Set paw in these places with extreme caution. 98"
+      },
+      {
+        "page": 99,
+        "card": "7 & 8",
+        "title": "Grim Opening",
+        "text": "The only way into this ruin is filled with some sort of horrendous material that makes your hide itch and your eyes burn. What solution do you find? Could it be another entrance, or something to protect yourself?\n\nHostile Environment - Mark a Day on your Calendar as you find a clever way to get in without hurting yourself.\n\nDuty Calls - You push on regardless. You develop a Titan Rash with [Hide 2], [Poison 1], and no Timer; until you solve this rash, you cannot gain Foraging Points."
+      },
+      {
+        "page": 99,
+        "card": "9 & 10",
+        "title": "Fabled Place",
+        "text": "This ruin has a special name among the beasts of the Bristley Woods. As you approach, you can see why.\n\nWrite this ruin's name on the map. How did it get this name?"
+      },
+      {
+        "page": 99,
+        "card": "J",
+        "title": "Siren",
+        "text": "A terrible high pitched sound blares out from a totem by the door of this Titan ruin. It hurts your ears to be near it.\n\nSilence! - If you have a Crossbow and Bolt you may silence the device and enter. Otherwise, you will have to Mark a Day as you find another way to get in or deal with the sound."
+      },
+      {
+        "page": 99,
+        "card": "M",
+        "title": "Electrician, or Electrocuted?",
+        "text": "A frustrated magpie rests atop a metal box. They call down, asking if you can help them fix something inside!\n\nFixer Upper - Mark 1 Day, and Draw a Card.\n\n2 - 10 - You fix the issue and the magpie lets out an appreciative caw. However, it's only revealed another problem. The magpie frustratedly thanks you for your help and gives you 1 Trinket. You can choose to Mark 1 Day and Draw again.\n\nM or J - Lights swirl inside the box, and inside the Ruins music begins to play. Just what does this box do, exactly? At the end of this season, this Ruin becomes a Settlement. What beasts have moved in and what strange things can be found here?\n\nAce - As you're following the Knower's instructions, two wires touch and the box explodes. You awake at a nearby Settlement, burnt and bruised. End your Journey, as you rest until the start of the next Season."
       }
     ]
   },

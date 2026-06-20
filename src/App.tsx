@@ -1255,6 +1255,59 @@ const CardDrawSlot = ({
 };
 
 // =================================================================
+// 3.4b. TRAVEL SECONDARY DRAW SLOT (inline, self-contained)
+// =================================================================
+const TravelSecondaryDrawSlot = () => {
+  const [drawnCard, setDrawnCard] = useState<PlayingCard | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  const handleDraw = () => {
+    if (isDrawing) return;
+    setIsDrawing(true);
+    window.setTimeout(() => {
+      setDrawnCard(drawPlayingCard());
+      setIsDrawing(false);
+    }, 380);
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+      {drawnCard ? (
+        <>
+          <img
+            src={getCardSvgUrl(drawnCard.suit, drawnCard.value)}
+            alt={`${drawnCard.suit} ${cardDisplayValue(drawnCard.value)}`}
+            style={{ width: '56px', height: '82px', objectFit: 'contain', borderRadius: '5px', boxShadow: '0 3px 8px rgba(0,0,0,0.15)' }}
+          />
+          <div>
+            <div style={{ fontWeight: 'bold', color: '#3a4c8a', fontSize: '0.92rem' }}>
+              {drawnCard.suit} {cardDisplayValue(drawnCard.value)}
+            </div>
+            <div style={{ fontSize: '0.78rem', color: '#666' }}>룰 표기: {cardRuleValue(drawnCard)}</div>
+            <button
+              type="button"
+              onClick={handleDraw}
+              style={{ marginTop: '0.3rem', padding: '0.25rem 0.65rem', fontSize: '0.76rem', background: '#3a4c8a', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            >
+              다시 뽑기
+            </button>
+          </div>
+        </>
+      ) : (
+        <button
+          type="button"
+          onClick={handleDraw}
+          disabled={isDrawing}
+          style={{ padding: '0.45rem 1rem', fontSize: '0.84rem', background: '#3a4c8a', color: '#fff', border: 'none', borderRadius: '6px', cursor: isDrawing ? 'not-allowed' : 'pointer', fontWeight: 600 }}
+        >
+          {isDrawing ? '뽑는 중…' : '🎴 추가 카드 뽑기'}
+        </button>
+      )}
+    </div>
+  );
+};
+
+// =================================================================
 // 3.5. COZY TAG & PORTION RENDERING SYSTEM
 // =================================================================
 const tagTranslationMap: { [key: string]: string } = {
@@ -1909,7 +1962,7 @@ const checkJourneyGoalSatisfaction = (s: GameState): boolean => {
   }
   if (title === '길드의 책임') {
     const startRep = s.journeyStartReputation !== undefined ? s.journeyStartReputation : 5;
-    return (s.reputation - startRep >= 5) || s.reputation >= 10;
+    return (s.reputation - startRep >= 5);
   }
   if (title === '자연 환경 조사') {
     return counter >= 3;
@@ -2024,7 +2077,7 @@ const getTravelSpeed = (s: GameState, weight: number): number => {
 
 const calculateForageRarity = (s: GameState, r: any, regionName: string = s.currentRegion): number => {
   const isInSeason = r.seasons.includes(s.currentSeason);
-  const isLocal = r.regions.includes(regionName);
+  const isLocal = r.regions.includes(regionName) || (s.resourcefulReagent && r.name === s.resourcefulReagent);
   const baseRarity = r.br + (isLocal ? 0 : 3) + (isInSeason ? 0 : 3);
   let finalRarity = baseRarity;
 
@@ -2938,195 +2991,253 @@ export default function App() {
       </div>
 
       {/* Travel Encounter Dialog Modal */}
-      {activeTravelEncounter && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
-          <div className="glass-panel" style={{ maxWidth: '600px', width: '100%', padding: '2rem', background: '#fff', position: 'relative', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', borderRadius: '20px' }}>
-            <div style={{ textAlign: 'center', marginBottom: '1.2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <img
-                src={getCardSvgUrl(activeTravelEncounter.suit, activeTravelEncounter.cardValue)}
-                alt={`${activeTravelEncounter.suitLabel} ${activeTravelEncounter.cardValue}`}
-                style={{ width: '100px', height: '150px', objectFit: 'contain', borderRadius: '6px', boxShadow: '0 4px 10px rgba(0,0,0,0.12)', marginBottom: '0.8rem' }}
-              />
-              <h2 style={{ color: 'var(--primary)', margin: '0.5rem 0 0 0' }}>여정 조우 (Page {activeTravelEncounter.page})</h2>
-              <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>뽑은 카드: {activeTravelEncounter.cardValue} {activeTravelEncounter.suitLabel}</div>
-            </div>
+      {activeTravelEncounter && (() => {
+        const encText: string = activeTravelEncounter.text || '';
+        const encTitle: string = activeTravelEncounter.title || '';
+        const secondaryDrawPhrases = [
+          'draw a card', 'draw another card', 'pull another card', 'draw from the deck',
+          '추가 카드', '다시 카드', '카드를 뽑', 'draw two cards', 'draw one card'
+        ];
+        const hasSecondaryDraw = secondaryDrawPhrases.some(phrase =>
+          encText.toLowerCase().includes(phrase.toLowerCase()) ||
+          encTitle.toLowerCase().includes(phrase.toLowerCase())
+        );
 
-            <h3 style={{ borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.8rem', color: 'var(--text-bright)' }}>
-              {activeTravelEncounter.title}
-            </h3>
+        return (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
+            <div className="glass-panel" style={{ maxWidth: '600px', width: '100%', padding: '2rem', background: '#fff', position: 'relative', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', borderRadius: '20px', maxHeight: '92vh', overflowY: 'auto' }}>
 
-            <p style={{ fontSize: '1rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', maxHeight: '250px', overflowY: 'auto', background: '#faf8f4', padding: '1rem', borderRadius: '10px', color: 'var(--text-bright)', borderLeft: '4.5px solid var(--primary)' }}>
-              {activeTravelEncounter.text}
-            </p>
-
-            <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#fbfaf4', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
-              <div className="document-kicker" style={{ marginBottom: '0.45rem' }}>Structured encounter effects</div>
-              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                {[
-                  ['gainFP', 'Gain FP'],
-                  ['loseFP', 'Lose FP'],
-                  ['gainTime', 'Gain Time'],
-                  ['loseTime', 'Lose Time'],
-                  ['gainReagent', 'Gain Reagent'],
-                  ['loseReagent', 'Lose Reagent'],
-                  ['gainTrinket', 'Gain Trinket'],
-                  ['loseTrinket', 'Lose Trinket'],
-                  ['startPursuit', 'Start Pursuit']
-                ].map(([effect, label]) => (
-                  <button
-                    key={effect}
-                    type="button"
-                    onClick={() => applyEncounterStateEffect(effect as any)}
-                    style={{ padding: '0.35rem 0.55rem', fontSize: '0.76rem', border: '1px solid var(--glass-border)', background: '#fffefa', color: 'var(--text-muted)', borderRadius: '4px' }}
-                  >
-                    {label}
-                  </button>
-                ))}
+              {/* Card header */}
+              <div style={{ textAlign: 'center', marginBottom: '1.2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <img
+                  src={getCardSvgUrl(activeTravelEncounter.suit, activeTravelEncounter.cardValue)}
+                  alt={`${activeTravelEncounter.suitLabel} ${activeTravelEncounter.cardValue}`}
+                  style={{ width: '100px', height: '150px', objectFit: 'contain', borderRadius: '6px', boxShadow: '0 4px 10px rgba(0,0,0,0.12)', marginBottom: '0.8rem' }}
+                />
+                <h2 style={{ color: 'var(--primary)', margin: '0.5rem 0 0 0' }}>여정 조우 <span style={{ fontWeight: 'normal', fontSize: '0.82em', color: 'var(--text-muted)' }}>p.{activeTravelEncounter.page}</span></h2>
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>뽑은 카드: <strong>{activeTravelEncounter.cardValue} {activeTravelEncounter.suitLabel}</strong></div>
               </div>
-            </div>
 
-            <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.5rem' }}>
-              <button
-                onClick={() => {
-                  // Prompt user to write about this encounter
-                  const note = prompt("이 조우에 대해 저널에 한 줄 소감을 남겨주세요 (선택):");
-                  if (note !== null) {
-                    updateState(s => ({
-                      ...s,
-                      journals: [
-                        {
-                          id: 'journal_' + Date.now(),
-                          title: `여정 조우: ${activeTravelEncounter.title}`,
-                          text: `[페이지 ${activeTravelEncounter.page} - 드로우: ${activeTravelEncounter.cardValue} ${activeTravelEncounter.suitLabel}]\n${activeTravelEncounter.text}\n\n나의 행동: ${note || '묵묵히 길을 나아갔다.'}`,
-                          timestamp: Date.now()
-                        },
-                        ...s.journals
-                      ]
-                    }));
-                  }
-                  setActiveTravelEncounter(null);
-                }}
-                style={{ flex: 1, padding: '0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold' }}
-              >
-                Journal Only / 조우 해결
-              </button>
-              <button onClick={() => setActiveTravelEncounter(null)} style={{ padding: '0.8rem 1.2rem', background: '#eee', color: '#555', borderRadius: '8px' }}>닫기</button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Foraging Encounter Dialog Modal */}
-      {activeForageEncounter && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
-          <div className="glass-panel" style={{ maxWidth: '600px', width: '100%', padding: '2rem', background: '#fff', position: 'relative', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', borderRadius: '20px' }}>
-            <div style={{ textAlign: 'center', marginBottom: '1.2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <img
-                src={getCardSvgUrl(activeForageEncounter.suit, activeForageEncounter.cardValue)}
-                alt={`${activeForageEncounter.suitLabel} ${activeForageEncounter.cardValue}`}
-                style={{ width: '100px', height: '150px', objectFit: 'contain', borderRadius: '6px', boxShadow: '0 4px 10px rgba(0,0,0,0.12)', marginBottom: '0.8rem' }}
-              />
-              <h2 style={{ color: 'var(--primary)', margin: '0.5rem 0 0 0' }}>채집 및 조우 (Page {activeForageEncounter.page})</h2>
-              <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>뽑은 카드: {activeForageEncounter.cardValue} {activeForageEncounter.suitLabel}</div>
-            </div>
+              {/* Encounter title */}
+              <h3 style={{ borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.8rem', color: 'var(--text-bright)' }}>
+                {activeTravelEncounter.title}
+              </h3>
 
-            <h3 style={{ borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.8rem', color: 'var(--text-bright)' }}>
-              {activeForageEncounter.title}
-            </h3>
+              {/* Encounter body text */}
+              <p style={{ fontSize: '1rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', maxHeight: '220px', overflowY: 'auto', background: '#faf8f4', padding: '1rem', borderRadius: '10px', color: 'var(--text-bright)', borderLeft: '4.5px solid var(--primary)' }}>
+                {activeTravelEncounter.text}
+              </p>
 
-            <p style={{ fontSize: '1rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', maxHeight: '200px', overflowY: 'auto', background: '#faf8f4', padding: '1rem', borderRadius: '10px', color: 'var(--text-bright)', borderLeft: '4.5px solid var(--primary)' }}>
-              {activeForageEncounter.text}
-            </p>
-
-            <div style={{ marginTop: '1rem', background: '#f0f9f4', padding: '1rem', borderRadius: '10px', borderLeft: '4.5px solid var(--secondary)' }}>
-              <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--secondary)', fontSize: '0.95rem' }}>🌿 Resolve Forage Finds</h4>
-              {activeForageEncounter.foundReagents.length > 0 ? (
-                <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                  {activeForageEncounter.foundReagents.map((find: ForageFind | string, idx: number) => {
-                    const normalizedFind: ForageFind = typeof find === 'string'
-                      ? { name: find.replace(/\s*\(.*/, ''), rarity: 0 }
-                      : find;
-                    return (
-                      <li key={`${normalizedFind.name}_${idx}`} style={{ color: '#2b5e3d', fontWeight: 'bold' }}>
-                        <span>{normalizedFind.name} {normalizedFind.rarity ? `(희귀도: ${normalizedFind.rarity}${normalizedFind.fpAvailable ? ', FP 가능' : ''})` : ''}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleAddForageFindToBag(normalizedFind, idx)}
-                          style={{ marginLeft: '0.5rem', padding: '0.25rem 0.5rem', fontSize: '0.75rem', background: 'var(--secondary)', color: '#fff', borderRadius: '4px', border: 'none' }}
-                        >
-                          부위 선택 후 가방에 추가
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <div style={{ fontSize: '0.85rem', color: '#666', fontStyle: 'italic' }}>
-                  영약재의 희귀도가 뽑은 카드 값보다 높아 발견하지 못했습니다. (+1 채집 포인트 획득)
+              {/* Secondary draw guidance */}
+              {hasSecondaryDraw && (
+                <div style={{ marginTop: '0.9rem', padding: '0.8rem 1rem', background: '#f0f4ff', border: '1.5px dashed #7a8ec9', borderRadius: '10px', fontSize: '0.88rem', lineHeight: 1.65 }}>
+                  <div style={{ fontWeight: 'bold', color: '#3a4c8a', marginBottom: '0.35rem' }}>🎴 추가 카드 뽑기 필요</div>
+                  <div style={{ color: '#3a4c8a', marginBottom: '0.6rem' }}>
+                    이 조우는 추가 카드 뽑기를 요구합니다.<br />
+                    실제 덱이나 앱의 카드 뽑기 도구를 사용해 다음 지시를 처리하십시오.
+                  </div>
+                  <TravelSecondaryDrawSlot />
                 </div>
               )}
-            </div>
 
-            <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#fbfaf4', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
-              <div className="document-kicker" style={{ marginBottom: '0.45rem' }}>Structured encounter effects</div>
-              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                {[
-                  ['gainFP', 'Gain FP'],
-                  ['loseFP', 'Lose FP'],
-                  ['gainTime', 'Gain Time'],
-                  ['loseTime', 'Lose Time'],
-                  ['gainReagent', 'Gain Reagent'],
-                  ['loseReagent', 'Lose Reagent'],
-                  ['gainTrinket', 'Gain Trinket'],
-                  ['loseTrinket', 'Lose Trinket'],
-                  ['startPursuit', 'Start Pursuit']
-                ].map(([effect, label]) => (
-                  <button
-                    key={effect}
-                    type="button"
-                    onClick={() => applyEncounterStateEffect(effect as any)}
-                    style={{ padding: '0.35rem 0.55rem', fontSize: '0.76rem', border: '1px solid var(--glass-border)', background: '#fffefa', color: 'var(--text-muted)', borderRadius: '4px' }}
-                  >
-                    {label}
-                  </button>
-                ))}
+              {/* Effect shortcuts */}
+              <div style={{ marginTop: '0.9rem', padding: '0.75rem', background: '#fbfaf4', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: '0.45rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>조우 효과 적용</div>
+                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                  {([
+                    ['gainFP', '채집 포인트 +'],
+                    ['loseFP', '채집 포인트 −'],
+                    ['gainTime', '타이머 +'],
+                    ['loseTime', '타이머 −'],
+                    ['gainReagent', '약재 획득'],
+                    ['loseReagent', '약재 분실'],
+                    ['gainTrinket', '장신구 획득'],
+                    ['loseTrinket', '장신구 분실'],
+                    ['startPursuit', '거수 추격 시작']
+                  ] as [string, string][]).map(([effect, label]) => (
+                    <button
+                      key={effect}
+                      type="button"
+                      onClick={() => applyEncounterStateEffect(effect as any)}
+                      style={{ padding: '0.35rem 0.55rem', fontSize: '0.76rem', border: '1px solid var(--glass-border)', background: '#fffefa', color: 'var(--text-muted)', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.5rem' }}>
-              <button
-                onClick={() => {
-                  const note = prompt("채집 조우와 발견한 약초에 대한 저널 기록 소감 (선택):");
-                  if (note !== null) {
-                    updateState(s => {
-                      const listStr = activeForageEncounter.foundReagents.length > 0
-                        ? activeForageEncounter.foundReagents.map((find: ForageFind | string) => typeof find === 'string' ? find : `${find.name} (희귀도: ${find.rarity}${find.fpAvailable ? ', FP 가능' : ''})`).join(', ')
-                        : '없음 (+1 채집포인트)';
-                      return {
+              {/* Action buttons */}
+              <div style={{ marginTop: '1.25rem', display: 'flex', gap: '0.5rem' }}>
+                <button
+                  onClick={() => {
+                    const note = prompt('이 조우에서 어떤 선택을 했나요? (선택 사항 — 빈칸으로 두면 기본 문구가 저장됩니다)');
+                    if (note !== null) {
+                      const journalBody = `[p.${activeTravelEncounter.page} · ${activeTravelEncounter.cardValue} ${activeTravelEncounter.suitLabel}]\n${activeTravelEncounter.text}\n\n나의 선택: ${note || '묵묵히 길을 나아갔다.'}`;
+                      updateState(s => ({
                         ...s,
                         journals: [
                           {
-                            id: 'forage_' + Date.now(),
-                            title: `🌿 채집 일지: ${activeForageEncounter.title}`,
-                            text: `[페이지 ${activeForageEncounter.page} - 드로우: ${activeForageEncounter.cardValue} ${activeForageEncounter.suitLabel}]\n위치: ${s.currentLocationName} (${activeForageEncounter.region} / ${s.currentSeason})\n조우 결과: ${activeForageEncounter.text}\n발견한 영약재: ${listStr}\n\n기록: ${note || '조심스럽게 약초 채집을 마무리했다.'}`,
+                            id: 'journal_' + Date.now(),
+                            title: `여정 조우: ${activeTravelEncounter.title}`,
+                            text: journalBody,
                             timestamp: Date.now()
                           },
                           ...s.journals
                         ]
-                      };
-                    });
-                  }
-                  setActiveForageEncounter(null);
-                }}
-                style={{ flex: 1, padding: '0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold' }}
-              >
-                Journal Only / 조우 해결
-              </button>
-              <button onClick={() => setActiveForageEncounter(null)} style={{ padding: '0.8rem 1.2rem', background: '#eee', color: '#555', borderRadius: '8px' }}>닫기</button>
+                      }));
+                    }
+                    setActiveTravelEncounter(null);
+                  }}
+                  style={{ flex: 1, padding: '0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}
+                >
+                  ✍️ 저널 기록 후 조우 해결
+                </button>
+                <button onClick={() => setActiveTravelEncounter(null)} style={{ padding: '0.8rem 1.2rem', background: '#eee', color: '#555', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>닫기</button>
+              </div>
+
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
+      {/* Foraging Encounter Dialog Modal */}
+      {activeForageEncounter && (() => {
+        const encText: string = activeForageEncounter.text || '';
+        const encTitle: string = activeForageEncounter.title || '';
+        const secondaryDrawPhrases = [
+          'draw a card', 'draw another card', 'pull another card', 'draw from the deck',
+          '추가 카드', '다시 카드', '카드를 뽑', 'draw two cards', 'draw one card'
+        ];
+        const hasSecondaryDraw = secondaryDrawPhrases.some(phrase =>
+          encText.toLowerCase().includes(phrase.toLowerCase()) ||
+          encTitle.toLowerCase().includes(phrase.toLowerCase())
+        );
+
+        return (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
+            <div className="glass-panel" style={{ maxWidth: '600px', width: '100%', padding: '2rem', background: '#fff', position: 'relative', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', borderRadius: '20px', maxHeight: '92vh', overflowY: 'auto' }}>
+              <div style={{ textAlign: 'center', marginBottom: '1.2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <img
+                  src={getCardSvgUrl(activeForageEncounter.suit, activeForageEncounter.cardValue)}
+                  alt={`${activeForageEncounter.suitLabel} ${activeForageEncounter.cardValue}`}
+                  style={{ width: '100px', height: '150px', objectFit: 'contain', borderRadius: '6px', boxShadow: '0 4px 10px rgba(0,0,0,0.12)', marginBottom: '0.8rem' }}
+                />
+                <h2 style={{ color: 'var(--primary)', margin: '0.5rem 0 0 0' }}>채집 및 조우 (Page {activeForageEncounter.page})</h2>
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>뽑은 카드: {activeForageEncounter.cardValue} {activeForageEncounter.suitLabel}</div>
+              </div>
+
+              <h3 style={{ borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.8rem', color: 'var(--text-bright)' }}>
+                {activeForageEncounter.title}
+              </h3>
+
+              <p style={{ fontSize: '1rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', maxHeight: '200px', overflowY: 'auto', background: '#faf8f4', padding: '1rem', borderRadius: '10px', color: 'var(--text-bright)', borderLeft: '4.5px solid var(--primary)' }}>
+                {activeForageEncounter.text}
+              </p>
+
+              {/* Secondary draw guidance */}
+              {hasSecondaryDraw && (
+                <div style={{ marginTop: '0.9rem', padding: '0.8rem 1rem', background: '#f0f4ff', border: '1.5px dashed #7a8ec9', borderRadius: '10px', fontSize: '0.88rem', lineHeight: 1.65 }}>
+                  <div style={{ fontWeight: 'bold', color: '#3a4c8a', marginBottom: '0.35rem' }}>🎴 추가 카드 뽑기 필요</div>
+                  <div style={{ color: '#3a4c8a', marginBottom: '0.6rem' }}>
+                    이 조우는 추가 카드 뽑기를 요구합니다.<br />
+                    실제 덱이나 앱의 카드 뽑기 도구를 사용해 다음 지시를 처리하십시오.
+                  </div>
+                  <TravelSecondaryDrawSlot />
+                </div>
+              )}
+
+              <div style={{ marginTop: '1rem', background: '#f0f9f4', padding: '1rem', borderRadius: '10px', borderLeft: '4.5px solid var(--secondary)' }}>
+                <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--secondary)', fontSize: '0.95rem' }}>🌿 Resolve Forage Finds</h4>
+                {activeForageEncounter.foundReagents.length > 0 ? (
+                  <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                    {activeForageEncounter.foundReagents.map((find: ForageFind | string, idx: number) => {
+                      const normalizedFind: ForageFind = typeof find === 'string'
+                        ? { name: find.replace(/\s*\(.*/, ''), rarity: 0 }
+                        : find;
+                      return (
+                        <li key={`${normalizedFind.name}_${idx}`} style={{ color: '#2b5e3d', fontWeight: 'bold' }}>
+                          <span>{normalizedFind.name} {normalizedFind.rarity ? `(희귀도: ${normalizedFind.rarity}${normalizedFind.fpAvailable ? ', FP 가능' : ''})` : ''}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleAddForageFindToBag(normalizedFind, idx)}
+                            style={{ marginLeft: '0.5rem', padding: '0.25rem 0.55rem', fontSize: '0.75rem', background: 'var(--secondary)', color: '#fff', borderRadius: '4px', border: 'none' }}
+                          >
+                            부위 선택 후 가방에 추가
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <div style={{ fontSize: '0.85rem', color: '#666', fontStyle: 'italic' }}>
+                    영약재의 희귀도가 뽑은 카드 값보다 높아 발견하지 못했습니다. (+1 채집 포인트 획득)
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#fbfaf4', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
+                <div className="document-kicker" style={{ marginBottom: '0.45rem' }}>Structured encounter effects</div>
+                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                  {[
+                    ['gainFP', 'Gain FP'],
+                    ['loseFP', 'Lose FP'],
+                    ['gainTime', 'Gain Time'],
+                    ['loseTime', 'Lose Time'],
+                    ['gainReagent', 'Gain Reagent'],
+                    ['loseReagent', 'Lose Reagent'],
+                    ['gainTrinket', 'Gain Trinket'],
+                    ['loseTrinket', 'Lose Trinket'],
+                    ['startPursuit', 'Start Pursuit']
+                  ].map(([effect, label]) => (
+                    <button
+                      key={effect}
+                      type="button"
+                      onClick={() => applyEncounterStateEffect(effect as any)}
+                      style={{ padding: '0.35rem 0.55rem', fontSize: '0.76rem', border: '1px solid var(--glass-border)', background: '#fffefa', color: 'var(--text-muted)', borderRadius: '4px' }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.5rem' }}>
+                <button
+                  onClick={() => {
+                    const note = prompt("채집 조우와 발견한 약초에 대한 저널 기록 소감 (선택):");
+                    if (note !== null) {
+                      updateState(s => {
+                        const listStr = activeForageEncounter.foundReagents.length > 0
+                          ? activeForageEncounter.foundReagents.map((find: ForageFind | string) => typeof find === 'string' ? find : `${find.name} (희귀도: ${find.rarity}${find.fpAvailable ? ', FP 가능' : ''})`).join(', ')
+                          : '없음 (+1 채집포인트)';
+                        return {
+                          ...s,
+                          journals: [
+                            {
+                              id: 'forage_' + Date.now(),
+                              title: `🌿 채집 일지: ${activeForageEncounter.title}`,
+                              text: `[페이지 ${activeForageEncounter.page} - 드로우: ${activeForageEncounter.cardValue} ${activeForageEncounter.suitLabel}]\n위치: ${s.currentLocationName} (${activeForageEncounter.region} / ${s.currentSeason})\n조우 결과: ${activeForageEncounter.text}\n발견한 영약재: ${listStr}\n\n기록: ${note || '조심스럽게 약초 채집을 마무리했다.'}`,
+                              timestamp: Date.now()
+                            },
+                            ...s.journals
+                          ]
+                        };
+                      });
+                    }
+                    setActiveForageEncounter(null);
+                  }}
+                  style={{ flex: 1, padding: '0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold' }}
+                >
+                  Journal Only / 조우 해결
+                </button>
+                <button onClick={() => setActiveForageEncounter(null)} style={{ padding: '0.8rem 1.2rem', background: '#eee', color: '#555', borderRadius: '8px' }}>닫기</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Seasoned (베테랑 여행자) 카드 선택 모달 */}
       {showSeasonedModal && seasonedDraws.length === 2 && (
@@ -3251,59 +3362,84 @@ export default function App() {
               🤝 물꼬 거래 (Bartering) — {state.activeBarter.reagentName}
             </h3>
 
-            {state.activeBarter.phase === 'social' && (
-              <>
-                <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-                  <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.2rem', fontWeight: 'bold' }}>
-                    1단계: 사교 조우 (Social Encounter Card Draw)
-                  </div>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '0.8rem' }}>
-                    <img
-                      src={getCardSvgUrl(state.activeBarter.socialCard.suit, state.activeBarter.socialCard.val)}
-                      alt="Social Card"
-                      style={{ width: '60px', height: '90px', objectFit: 'contain' }}
-                    />
-                    <div>
-                      <strong>드로우된 카드:</strong> {suitLabels[state.activeBarter.socialCard.suit]} {state.activeBarter.socialCard.val === 1 ? 'A' : state.activeBarter.socialCard.val === 11 ? 'J' : state.activeBarter.socialCard.val === 12 ? 'Q' : state.activeBarter.socialCard.val === 13 ? 'K' : state.activeBarter.socialCard.val} <br />
-                      <strong>조우 카드 이름:</strong> {state.activeBarter.socialEncounter.title} (p.{state.activeBarter.socialEncounter.page})
+            {state.activeBarter.phase === 'social' && (() => {
+              const encText: string = state.activeBarter.socialEncounter.text || '';
+              const encTitle: string = state.activeBarter.socialEncounter.title || '';
+              const secondaryDrawPhrases = [
+                'draw a card', 'draw another card', 'pull another card', 'draw from the deck',
+                '추가 카드', '다시 카드', '카드를 뽑', 'draw two cards', 'draw one card'
+              ];
+              const hasSecondaryDraw = secondaryDrawPhrases.some(phrase =>
+                encText.toLowerCase().includes(phrase.toLowerCase()) ||
+                encTitle.toLowerCase().includes(phrase.toLowerCase())
+              );
+
+              return (
+                <>
+                  <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.2rem', fontWeight: 'bold' }}>
+                      1단계: 사교 조우 (Social Encounter Card Draw)
                     </div>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '0.8rem' }}>
+                      <img
+                        src={getCardSvgUrl(state.activeBarter.socialCard.suit, state.activeBarter.socialCard.val)}
+                        alt="Social Card"
+                        style={{ width: '60px', height: '90px', objectFit: 'contain' }}
+                      />
+                      <div>
+                        <strong>드로우된 카드:</strong> {suitLabels[state.activeBarter.socialCard.suit]} {state.activeBarter.socialCard.val === 1 ? 'A' : state.activeBarter.socialCard.val === 11 ? 'J' : state.activeBarter.socialCard.val === 12 ? 'Q' : state.activeBarter.socialCard.val === 13 ? 'K' : state.activeBarter.socialCard.val} <br />
+                        <strong>조우 카드 이름:</strong> {state.activeBarter.socialEncounter.title} (p.{state.activeBarter.socialEncounter.page})
+                      </div>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text)', fontStyle: 'italic', lineHeight: 1.4, background: '#fff', padding: '0.6rem', borderRadius: '6px', border: '1px dashed #cbd5e1' }}>
+                      "{state.activeBarter.socialEncounter.text}"
+                    </p>
+
+                    {/* Secondary draw guidance */}
+                    {hasSecondaryDraw && (
+                      <div style={{ marginTop: '0.9rem', padding: '0.8rem 1rem', background: '#f0f4ff', border: '1.5px dashed #7a8ec9', borderRadius: '10px', fontSize: '0.88rem', lineHeight: 1.65 }}>
+                        <div style={{ fontWeight: 'bold', color: '#3a4c8a', marginBottom: '0.35rem' }}>🎴 추가 카드 뽑기 필요</div>
+                        <div style={{ color: '#3a4c8a', marginBottom: '0.6rem' }}>
+                          이 조우는 추가 카드 뽑기를 요구합니다.<br />
+                          실제 덱이나 앱의 카드 뽑기 도구를 사용해 다음 지시를 처리하십시오.
+                        </div>
+                        <TravelSecondaryDrawSlot />
+                      </div>
+                    )}
                   </div>
-                  <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text)', fontStyle: 'italic', lineHeight: 1.4, background: '#fff', padding: '0.6rem', borderRadius: '6px', border: '1px dashed #cbd5e1' }}>
-                    "{state.activeBarter.socialEncounter.text}"
-                  </p>
-                </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text)' }}>✍️ 사교 조우 소감 및 상황 묘사 (저널에 기록됨):</label>
-                  <textarea
-                    rows={3}
-                    placeholder="상인과 만난 대화 분위기나 협상 상황 등을 적어주세요..."
-                    value={barterJournalNote}
-                    onChange={e => setBarterJournalNote(e.target.value)}
-                    style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid #ccc', fontSize: '0.85rem', resize: 'vertical' }}
-                  />
-                </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text)' }}>✍️ 사교 조우 소감 및 상황 묘사 (저널에 기록됨):</label>
+                    <textarea
+                      rows={3}
+                      placeholder="상인과 만난 대화 분위기나 협상 상황 등을 적어주세요..."
+                      value={barterJournalNote}
+                      onChange={e => setBarterJournalNote(e.target.value)}
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid #ccc', fontSize: '0.85rem', resize: 'vertical' }}
+                    />
+                  </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                  <button
-                    onClick={handleBarterProgressToDeal}
-                    className="btn-cozy-primary"
-                    style={{ flex: 1, padding: '0.6rem' }}
-                  >
-                    🎲 2단계 Rarity 판정 카드 드로우
-                  </button>
-                  <button
-                    onClick={() => {
-                      updateState((s: GameState) => ({ ...s, activeBarter: null }));
-                      setBarterJournalNote("");
-                    }}
-                    style={{ padding: '0.6rem 1.2rem', background: '#eee', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem' }}
-                  >
-                    거래 중단
-                  </button>
-                </div>
-              </>
-            )}
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    <button
+                      onClick={handleBarterProgressToDeal}
+                      className="btn-cozy-primary"
+                      style={{ flex: 1, padding: '0.6rem' }}
+                    >
+                      🎲 2단계 Rarity 판정 카드 드로우
+                    </button>
+                    <button
+                      onClick={() => {
+                        updateState((s: GameState) => ({ ...s, activeBarter: null }));
+                        setBarterJournalNote("");
+                      }}
+                      style={{ padding: '0.6rem 1.2rem', background: '#eee', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem' }}
+                    >
+                      거래 중단
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
 
             {state.activeBarter.phase === 'deal' && state.activeBarter.dealCard && (() => {
               const cardVal = state.activeBarter.dealCard.val;
@@ -4156,7 +4292,7 @@ function PlayView({
     // Match based on cardKey
     // Also, seasonal adjustments if multiple exist
     const matchingEncs = regionEncounters.filter((e: any) => e.card === cardKey);
-    let selectedEnc = matchingEncs[0] || { title: "호젓한 오솔길", text: "특별한 문제 없이 평화롭게 가시나무 숲 길을 지나갑니다. 주변 약초들의 향기를 맡으며 길을 재촉합니다.", page: 74 };
+    let selectedEnc = matchingEncs[0] || { title: '호젓한 오솔길', text: '특별한 문제 없이 평화롭게 가시나무 숲 길을 지나갑니다. 주변 약초들의 향기를 맡으며 길을 재촉합니다.', page: 74 };
 
     if (matchingEncs.length > 1) {
       const seasonIndex = state.currentSeason === 'Spring' ? 0 : state.currentSeason === 'Summer' ? 1 : state.currentSeason === 'Autumn' ? 2 : 3;
@@ -4202,6 +4338,7 @@ function PlayView({
       region: destRegion,
       locName: nextLocName
     });
+
 
     // Effective paths for chase calculation:
     // If fleeSafety was pending, force speed 1
@@ -7345,7 +7482,7 @@ function PlayView({
                   <strong>현재 상태: </strong>
                   {state.journeyGoalTitle === '자아 성찰' && `만난 야수 수: ${(state.journeyGoalCounter || 0)} / 3`}
                   {state.journeyGoalTitle === '관계 회복' && `해결한 저널 일지 수: ${(state.journeyGoalCounter || 0)} / 3`}
-                  {state.journeyGoalTitle === '길드의 책임' && `시작 평판: ${state.journeyStartReputation || 5} → 현재 평판: ${state.reputation} (+5 이상 증가 또는 평판 10 도달 필요)`}
+                  {state.journeyGoalTitle === '길드의 책임' && `시작 평판: ${state.journeyStartReputation || 5} → 현재 평판: ${state.reputation} (시작 대비 +5 이상 증가 필요)`}
                   {state.journeyGoalTitle === '자연 환경 조사' && `조사한 지역 수: ${(state.journeyGoalCounter || 0)} / 3`}
                   {state.journeyGoalTitle === '긴급 치료' && (
                     state.bag.some(item => {
@@ -8598,7 +8735,9 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
     familiarBenefit: initialBenefit,
     relationship: initialRelationship,
     familiarJournal: state.bio.familiarJournal,
-    relationshipJournal: state.bio.relationshipJournal
+    relationshipJournal: state.bio.relationshipJournal,
+    resourcefulReagent: state.resourcefulReagent || "",
+    ingenuitiveTool: state.ingenuitiveTool || ""
   });
   const [wizardCards, setWizardCards] = useState<Record<string, PlayingCard | null>>({});
 
@@ -8718,6 +8857,8 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
         relationshipJournal: draft.relationshipJournal.trim(),
         mementoNote: draft.mementoNote.trim()
       },
+      resourcefulReagent: matchedBenefit?.mechanic === 'resourceful' ? draft.resourcefulReagent : "",
+      ingenuitiveTool: matchedBenefit?.mechanic === 'ingenuitive' ? draft.ingenuitiveTool : "",
       trinkets: s.trinkets.length > 0 ? s.trinkets : ["기념품 (Memento)"],
       journals: [...journalEntries as any[], ...s.journals]
     }));
@@ -8905,12 +9046,19 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
           <div style={{ display: 'grid', gap: '0.75rem', fontSize: '0.9rem' }}>
             <div style={{ padding: '0.8rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', lineHeight: 1.55 }}>
               벨트 칼, 나무 절구와 공이, 낡은 캠프 주전자, 이빨, 앞발/발톱을 챙겼습니다.<br />
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>그리고 소중한 기념품 하나를 장신구 대신 들고 떠납니다.</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>그리고 소중한 기념품 하나를 장신구 대신 들고 떠납니다. (규칙서 p.12: 기념품 장신구 1개로 시작)</span>
             </div>
-            <textarea value={draft.mementoNote} onChange={e => setDraft(d => ({ ...d, mementoNote: e.target.value }))} rows={4} placeholder="첫 여정에 들고 가는 기념품이 무엇이고, 왜 소중한지 기록하세요." />
+
+            <textarea
+              value={draft.mementoNote}
+              onChange={e => setDraft(d => ({ ...d, mementoNote: e.target.value }))}
+              rows={4}
+              placeholder="첫 여정에 들고 가는 기념품이 무엇이고, 왜 소중한지 기록하세요."
+            />
           </div>
         </FieldCard>
       )}
+
 
       {step === 4 && (
         <FieldCard title="함께하는 사역마는 누구인가요?">
@@ -8943,35 +9091,76 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
         </FieldCard>
       )}
 
-      {step === 5 && (
-        <FieldCard title="사역마가 어떻게 도와주나요?">
-          <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <CardDrawSlot
-              variant="hero"
-              label="사역마 도움 카드 (p.15)"
-              helper="카드 값이 사역마의 특기를 정합니다. Q와 K는 Monarch로 처리됩니다."
-              card={wizardCards.familiarBenefit || null}
-              onCard={applyBenefitCard}
-            />
-            <div style={{ padding: '0.8rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
-              {wizardCards.familiarBenefit ? (
-                <>
-                  사역마의 특기: <strong style={{ color: 'var(--primary)' }}>{draft.familiarBenefit.name}</strong><br />
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.familiarBenefit.desc}</span>
-                </>
-              ) : (
-                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 사역마의 도움이 정해집니다.</span>
-              )}
-            </div>
-            <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
-              <div style={{ marginTop: '0.4rem' }}>
-                <ChoiceSelect value={draft.familiarBenefit.name} items={bioChoices.familiars as any[]} onChange={item => setDraft(d => ({ ...d, familiarBenefit: item }))} />
+      {step === 5 && (() => {
+        const matchedBenefit = FAMILIAR_BENEFITS.find(f => f.card === draft.familiarBenefit.card);
+        return (
+          <FieldCard title="사역마가 어떻게 도와주나요?">
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              <CardDrawSlot
+                variant="hero"
+                label="사역마 도움 카드 (p.15)"
+                helper="카드 값이 사역마의 특기를 정합니다. Q와 K는 Monarch로 처리됩니다."
+                card={wizardCards.familiarBenefit || null}
+                onCard={applyBenefitCard}
+              />
+              <div style={{ padding: '0.8rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
+                {wizardCards.familiarBenefit ? (
+                  <>
+                    사역마의 특기: <strong style={{ color: 'var(--primary)' }}>{draft.familiarBenefit.name}</strong><br />
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.familiarBenefit.desc}</span>
+                  </>
+                ) : (
+                  <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 사역마의 도움이 정해집니다.</span>
+                )}
               </div>
-            </details>
-          </div>
-        </FieldCard>
-      )}
+
+              {/* Resourceful familiar: select target reagent */}
+              {matchedBenefit?.mechanic === 'resourceful' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
+                  <label style={{ fontSize: '0.88rem' }}><strong>🌱 상시 채집할 약재 지정 (희귀도 7 이하):</strong></label>
+                  <select
+                    value={draft.resourcefulReagent}
+                    onChange={e => setDraft(d => ({ ...d, resourcefulReagent: e.target.value }))}
+                    style={{ padding: '0.4rem', borderRadius: '6px', fontSize: '0.85rem', border: '1px solid var(--border-cozy)' }}
+                  >
+                    <option value="">-- 약재 선택 --</option>
+                    {GAME_DATA.reagents.filter(r => r.br <= 7).map(r => (
+                      <option key={r.name} value={r.name}>{r.name} (희귀도: {r.br})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Ingenuitive familiar: select target tool */}
+              {matchedBenefit?.mechanic === 'ingenuitive' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
+                  <label style={{ fontSize: '0.88rem' }}><strong>⚒️ 모방할 추가 도구 지정:</strong></label>
+                  <select
+                    value={draft.ingenuitiveTool}
+                    onChange={e => setDraft(d => ({ ...d, ingenuitiveTool: e.target.value }))}
+                    style={{ padding: '0.4rem', borderRadius: '6px', fontSize: '0.85rem', border: '1px solid var(--border-cozy)' }}
+                  >
+                    <option value="">-- 도구 선택 --</option>
+                    <option value="tool_crossbow">석궁 (Crossbow)</option>
+                    <option value="tool_saddlebags">안장가방 (Saddlebags)</option>
+                    <option value="tool_stilts">죽창 (Stilts)</option>
+                    <option value="tool_mortar">나무 절구와 공이 (Mortar & Pestle)</option>
+                    <option value="tool_kettle">낡은 캠프 주전자 (Kettle)</option>
+                    <option value="tool_knife">벨트 칼 (Knife)</option>
+                  </select>
+                </div>
+              )}
+
+              <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
+                <div style={{ marginTop: '0.4rem' }}>
+                  <ChoiceSelect value={draft.familiarBenefit.name} items={bioChoices.familiars as any[]} onChange={item => setDraft(d => ({ ...d, familiarBenefit: item }))} />
+                </div>
+              </details>
+            </div>
+          </FieldCard>
+        );
+      })()}
 
       {step === 6 && (
         <FieldCard title="사역마와 어떤 사이인가요?">
@@ -9004,24 +9193,31 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
         </FieldCard>
       )}
 
-      {step === 7 && (
-        <FieldCard title="시트를 확정할까요?">
-          <div style={{ display: 'grid', gap: '0.7rem', fontSize: '0.92rem', lineHeight: 1.6 }}>
-            <div className="prose-summary">
-              <strong>{draft.descriptor.name}</strong> 약제사 <strong>{draft.name || '(이름 미정)'}</strong>.<br />
-              {draft.animal && <>{draft.animal}의 모습으로, </>}<strong>{draft.travel.name}</strong> 스타일로 여행합니다.<br />
-              <span className="dim">하루 {draft.travel.speed}경로 이동, 짐 {draft.travel.carry}칸. 출발 동기: {draft.origin.name}.</span>
+      {step === 7 && (() => {
+        const matchedBenefit = FAMILIAR_BENEFITS.find(f => f.card === draft.familiarBenefit.card);
+        return (
+          <FieldCard title="시트를 확정할까요?">
+            <div style={{ display: 'grid', gap: '0.7rem', fontSize: '0.92rem', lineHeight: 1.6 }}>
+              <div className="prose-summary">
+                <strong>{draft.descriptor.name}</strong> 약제사 <strong>{draft.name || '(이름 미정)'}</strong>.<br />
+                {draft.animal && <>{draft.animal}의 모습으로, </>}<strong>{draft.travel.name}</strong> 스타일로 여행합니다.<br />
+                <span className="dim">하루 {draft.travel.speed}경로 이동, 짐 {draft.travel.carry}칸. 출발 동기: {draft.origin.name}.</span>
+              </div>
+              <div className="prose-summary" style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '0.6rem' }}>
+                사역마 <strong>{draft.familiarName || '(이름 미정)'}</strong>{draft.familiarAnimal && `, ${draft.familiarAnimal}`}.<br />
+                특기: <strong>{draft.familiarBenefit.name}</strong>
+                {matchedBenefit?.mechanic === 'resourceful' && draft.resourcefulReagent && ` (지정 약재: ${draft.resourcefulReagent})`}
+                {matchedBenefit?.mechanic === 'ingenuitive' && draft.ingenuitiveTool && ` (지정 도구: ${draft.ingenuitiveTool})`}
+                .<br />
+                관계: {draft.relationship.name}.
+              </div>
+              <button type="button" onClick={saveCharacter} style={{ marginTop: '0.5rem', padding: '0.75rem 1rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '1rem' }}>
+                ✨ 약제사 시트에 저장
+              </button>
             </div>
-            <div className="prose-summary" style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '0.6rem' }}>
-              사역마 <strong>{draft.familiarName || '(이름 미정)'}</strong>{draft.familiarAnimal && `, ${draft.familiarAnimal}`}.<br />
-              특기: <strong>{draft.familiarBenefit.name}</strong>. 관계: {draft.relationship.name}.
-            </div>
-            <button type="button" onClick={saveCharacter} style={{ marginTop: '0.5rem', padding: '0.75rem 1rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '1rem' }}>
-              ✨ 약제사 시트에 저장
-            </button>
-          </div>
-        </FieldCard>
-      )}
+          </FieldCard>
+        );
+      })()}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.9rem' }}>
         <button type="button" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0} style={{ padding: '0.45rem 0.8rem', borderRadius: '6px', background: step === 0 ? '#eee' : '#fff', color: step === 0 ? '#aaa' : 'var(--text-muted)', border: '1px solid var(--glass-border)' }}>이전</button>
@@ -9758,8 +9954,8 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                   style={{ padding: '0.4rem', borderRadius: '6px', fontSize: '0.85rem', border: '1px solid var(--border-cozy)' }}
                 >
                   <option value="">-- 약재 선택 --</option>
-                  {GAME_DATA.reagents.map(r => (
-                    <option key={r.name} value={r.name}>{r.name}</option>
+                  {GAME_DATA.reagents.filter(r => r.br <= 7).map(r => (
+                    <option key={r.name} value={r.name}>{r.name} (희귀도: {r.br})</option>
                   ))}
                 </select>
               </div>
