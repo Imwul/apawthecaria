@@ -563,10 +563,10 @@ const prepareJournalPhoto = async (file: File): Promise<JournalPhoto> => {
 
   const rawDataUrl = await readFileAsDataUrl(file);
   const image = await loadImageFromDataUrl(rawDataUrl);
-  let dataUrl = compressJournalImage(image, 1200, 0.74);
+  let dataUrl = compressJournalImage(image, 1600, 0.78);
 
-  if (dataUrl.length > 520000) dataUrl = compressJournalImage(image, 900, 0.66);
-  if (dataUrl.length > 760000) dataUrl = compressJournalImage(image, 720, 0.58);
+  if (dataUrl.length > 620000) dataUrl = compressJournalImage(image, 1200, 0.72);
+  if (dataUrl.length > 820000) dataUrl = compressJournalImage(image, 900, 0.62);
   if (dataUrl.length > 900000) {
     throw new Error(`${file.name} 사진이 너무 큽니다. 더 작은 이미지로 다시 시도해 주세요.`);
   }
@@ -11573,6 +11573,7 @@ function JournalsView({
   const [newTitle, setNewTitle] = useState("");
   const [newText, setNewText] = useState("");
   const [newPhotos, setNewPhotos] = useState<JournalPhoto[]>([]);
+  const [viewingPhoto, setViewingPhoto] = useState<{ photo: JournalPhoto; title: string } | null>(null);
   const [subTab, setSubTab] = useState<'casebook' | 'almanac' | 'scrapbook' | 'journals' | 'chronicles' | 'legacy'>('casebook');
 
   useEffect(() => {
@@ -12180,11 +12181,20 @@ function JournalsView({
                     </p>
                   )}
                   {(j.photos || []).length > 0 && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.75rem', marginTop: '0.85rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: (j.photos || []).length === 1 ? 'minmax(0, 760px)' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', marginTop: '1.1rem', alignItems: 'start' }}>
                       {(j.photos || []).map(photo => (
-                        <figure key={photo.id} style={{ margin: 0, position: 'relative', border: '1px solid #e2ddd2', borderRadius: '8px', overflow: 'hidden', background: '#faf8f2' }}>
-                          <img src={photo.dataUrl} alt={photo.name || j.title} style={{ width: '100%', aspectRatio: '4 / 3', objectFit: 'cover', display: 'block' }} />
-                          <button onClick={() => handleRemoveJournalPhoto(j.id, photo.id)} style={{ position: 'absolute', top: '0.35rem', right: '0.35rem', border: 'none', borderRadius: '999px', background: 'rgba(30, 24, 18, 0.78)', color: '#fff', width: '1.65rem', height: '1.65rem', cursor: 'pointer', lineHeight: 1 }}>×</button>
+                        <figure key={photo.id} style={{ margin: 0, border: '1px solid #e2ddd2', borderRadius: '10px', overflow: 'hidden', background: '#faf8f2', boxShadow: '0 2px 8px rgba(39, 32, 24, 0.08)' }}>
+                          <button
+                            onClick={() => setViewingPhoto({ photo, title: j.title })}
+                            style={{ display: 'block', width: '100%', padding: 0, border: 'none', background: '#f5f1e8', cursor: 'zoom-in' }}
+                            title="크게 보기"
+                          >
+                            <img src={photo.dataUrl} alt={photo.name || j.title} style={{ width: '100%', maxHeight: '620px', objectFit: 'contain', display: 'block' }} />
+                          </button>
+                          <figcaption style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', padding: '0.45rem 0.6rem', borderTop: '1px solid #e2ddd2', color: 'var(--text-dim)', fontSize: '0.76rem' }}>
+                            <button onClick={() => setViewingPhoto({ photo, title: j.title })} style={{ border: 'none', background: 'transparent', color: 'var(--primary)', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}>🔎 원본 보기</button>
+                            <button onClick={() => handleRemoveJournalPhoto(j.id, photo.id)} style={{ border: 'none', background: 'transparent', color: 'var(--accent-red)', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}>삭제</button>
+                          </figcaption>
                         </figure>
                       ))}
                     </div>
@@ -12267,6 +12277,26 @@ function JournalsView({
                   아직 네트워크에 등록된 보존 약제소가 없습니다.
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewingPhoto && (
+        <div
+          onClick={() => setViewingPhoto(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(20, 17, 14, 0.82)', zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ width: 'min(1120px, 96vw)', maxHeight: '94vh', display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', color: '#fff' }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 'bold', fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{viewingPhoto.title}</div>
+                <div style={{ fontSize: '0.78rem', opacity: 0.78, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{viewingPhoto.photo.name}</div>
+              </div>
+              <button onClick={() => setViewingPhoto(null)} style={{ border: '1px solid rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.12)', color: '#fff', borderRadius: '999px', width: '2.2rem', height: '2.2rem', cursor: 'pointer', fontSize: '1.25rem', lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ background: '#f7f3ea', borderRadius: '10px', padding: '0.75rem', overflow: 'auto', boxShadow: '0 18px 40px rgba(0,0,0,0.35)' }}>
+              <img src={viewingPhoto.photo.dataUrl} alt={viewingPhoto.photo.name || viewingPhoto.title} style={{ display: 'block', maxWidth: '100%', maxHeight: '82vh', width: 'auto', height: 'auto', margin: '0 auto' }} />
             </div>
           </div>
         </div>
