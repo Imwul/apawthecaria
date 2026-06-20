@@ -271,6 +271,20 @@ interface BarterSession {
   journalNote: string;
 }
 
+interface JournalPhoto {
+  id: string;
+  name: string;
+  dataUrl: string;
+}
+
+interface JournalEntry {
+  id: string;
+  title: string;
+  text: string;
+  timestamp: number;
+  photos?: JournalPhoto[];
+}
+
 interface GameState {
   bio: ApothecaryBio;
   reputation: number; // starts at 5
@@ -301,7 +315,7 @@ interface GameState {
   barterCountThisAilment: number; // Rulebook p.34: Settlement 1x, City 3x per ailment
 
   // Log history
-  journals: { id: string; title: string; text: string; timestamp: number }[];
+  journals: JournalEntry[];
 
   // New features
   barrows?: Barrow[];
@@ -510,6 +524,63 @@ const findBySuit = <T extends { suit: string }>(items: T[], suit: string) => {
 
 const formatDateTime = (ts: number) => {
   return new Date(ts).toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' });
+};
+
+const makeJournalPhotoId = () =>
+  `journal_photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+const readFileAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('사진 파일을 읽지 못했습니다.'));
+    reader.readAsDataURL(file);
+  });
+
+const loadImageFromDataUrl = (dataUrl: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('사진을 불러오지 못했습니다.'));
+    image.src = dataUrl;
+  });
+
+const compressJournalImage = (image: HTMLImageElement, maxSide: number, quality: number) => {
+  const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(image.width * scale));
+  canvas.height = Math.max(1, Math.round(image.height * scale));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('사진을 압축할 수 없습니다.');
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', quality);
+};
+
+const prepareJournalPhoto = async (file: File): Promise<JournalPhoto> => {
+  if (!file.type.startsWith('image/')) {
+    throw new Error(`${file.name}은(는) 이미지 파일이 아닙니다.`);
+  }
+
+  const rawDataUrl = await readFileAsDataUrl(file);
+  const image = await loadImageFromDataUrl(rawDataUrl);
+  let dataUrl = compressJournalImage(image, 1200, 0.74);
+
+  if (dataUrl.length > 520000) dataUrl = compressJournalImage(image, 900, 0.66);
+  if (dataUrl.length > 760000) dataUrl = compressJournalImage(image, 720, 0.58);
+  if (dataUrl.length > 900000) {
+    throw new Error(`${file.name} 사진이 너무 큽니다. 더 작은 이미지로 다시 시도해 주세요.`);
+  }
+
+  return {
+    id: makeJournalPhotoId(),
+    name: file.name,
+    dataUrl
+  };
+};
+
+const prepareJournalPhotos = async (files: FileList | null): Promise<JournalPhoto[]> => {
+  if (!files || files.length === 0) return [];
+  return Promise.all(Array.from(files).map(file => prepareJournalPhoto(file)));
 };
 
 const memoryKey = (...parts: string[]) =>
@@ -11501,6 +11572,7 @@ function JournalsView({
 }) {
   const [newTitle, setNewTitle] = useState("");
   const [newText, setNewText] = useState("");
+  const [newPhotos, setNewPhotos] = useState<JournalPhoto[]>([]);
   const [subTab, setSubTab] = useState<'casebook' | 'almanac' | 'scrapbook' | 'journals' | 'chronicles' | 'legacy'>('casebook');
 
   useEffect(() => {
@@ -11531,11 +11603,51 @@ function JournalsView({
     remedy: '처방'
   };
 
+  const handleNewJournalPhotos = async (files: FileList | null) => {
+    try {
+      const photos = await prepareJournalPhotos(files);
+      if (photos.length > 0) {
+        setNewPhotos(prev => [...prev, ...photos]);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '사진을 추가하지 못했습니다.');
+    }
+  };
+
+  const handleRemovePendingPhoto = (photoId: string) => {
+    setNewPhotos(prev => prev.filter(photo => photo.id !== photoId));
+  };
+
+  const handleAddPhotosToJournal = async (journalId: string, files: FileList | null) => {
+    try {
+      const photos = await prepareJournalPhotos(files);
+      if (photos.length === 0) return;
+      updateState((s: GameState) => ({
+        ...s,
+        journals: s.journals.map(j =>
+          j.id === journalId ? { ...j, photos: [...(j.photos || []), ...photos] } : j
+        )
+      }));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '사진을 추가하지 못했습니다.');
+    }
+  };
+
+  const handleRemoveJournalPhoto = (journalId: string, photoId: string) => {
+    if (!confirm("이 사진을 일지에서 삭제하시겠습니까?")) return;
+    updateState((s: GameState) => ({
+      ...s,
+      journals: s.journals.map(j =>
+        j.id === journalId ? { ...j, photos: (j.photos || []).filter(photo => photo.id !== photoId) } : j
+      )
+    }));
+  };
+
   const handleAddJournal = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim() || !newText.trim()) return;
+    if (!newTitle.trim() || (!newText.trim() && newPhotos.length === 0)) return;
 
-    updateState(s => {
+    updateState((s: GameState) => {
       let nextGoalCounter = s.journeyGoalCounter || 0;
       let nextChecklist = [...(s.journeyGoalChecklist || [])];
 
@@ -11573,7 +11685,8 @@ function JournalsView({
             id: 'user_journal_' + Date.now(),
             title: newTitle.trim(),
             text: newText.trim(),
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            photos: newPhotos
           },
           ...s.journals
         ]
@@ -11582,6 +11695,7 @@ function JournalsView({
 
     setNewTitle("");
     setNewText("");
+    setNewPhotos([]);
     alert("새 저널 일지가 등록되었습니다.");
   };
 
@@ -12002,6 +12116,35 @@ function JournalsView({
               onChange={e => setNewText(e.target.value)}
               style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid #ccc', resize: 'vertical' }}
             />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', padding: '0.75rem', border: '1px dashed #d6d1c6', borderRadius: '8px', background: '#fffdf7' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 'bold', color: 'var(--text-bright)', fontSize: '0.9rem' }}>📷 사진 첨부</span>
+                <label style={{ padding: '0.45rem 0.75rem', border: '1px solid var(--glass-border)', borderRadius: '999px', background: '#fff', color: 'var(--primary)', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.82rem' }}>
+                  사진 선택
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={async e => {
+                      await handleNewJournalPhotos(e.currentTarget.files);
+                      e.currentTarget.value = '';
+                    }}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              </div>
+              {newPhotos.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '0.6rem' }}>
+                  {newPhotos.map(photo => (
+                    <div key={photo.id} style={{ position: 'relative', aspectRatio: '1 / 1', borderRadius: '8px', overflow: 'hidden', border: '1px solid #ddd', background: '#f8f6f0' }}>
+                      <img src={photo.dataUrl} alt={photo.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      <button type="button" onClick={() => handleRemovePendingPhoto(photo.id)} style={{ position: 'absolute', top: '0.25rem', right: '0.25rem', border: 'none', borderRadius: '999px', background: 'rgba(30, 24, 18, 0.78)', color: '#fff', width: '1.55rem', height: '1.55rem', cursor: 'pointer', lineHeight: 1 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)' }}>사진은 세이브 용량을 아끼기 위해 자동으로 작게 압축됩니다.</div>
+            </div>
             <button type="submit" style={{ padding: '0.6rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>🖋️ 저널 등록</button>
           </form>
 
@@ -12015,12 +12158,37 @@ function JournalsView({
                     <h4 style={{ margin: 0, color: 'var(--primary)' }}>{j.title}</h4>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{formatDateTime(j.timestamp)}</span>
+                      <label style={{ background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                        📷 사진 추가
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={async e => {
+                            await handleAddPhotosToJournal(j.id, e.currentTarget.files);
+                            e.currentTarget.value = '';
+                          }}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
                       <button onClick={() => handleRemoveJournal(j.id)} style={{ background: 'transparent', border: 'none', color: 'var(--accent-red)', cursor: 'pointer', fontSize: '0.8rem' }}>❌ 삭제</button>
                     </div>
                   </div>
-                  <p style={{ fontSize: '0.9rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', color: 'var(--text-bright)', marginTop: '0.5rem' }}>
-                    {j.text}
-                  </p>
+                  {j.text && (
+                    <p style={{ fontSize: '0.9rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', color: 'var(--text-bright)', marginTop: '0.5rem' }}>
+                      {j.text}
+                    </p>
+                  )}
+                  {(j.photos || []).length > 0 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.75rem', marginTop: '0.85rem' }}>
+                      {(j.photos || []).map(photo => (
+                        <figure key={photo.id} style={{ margin: 0, position: 'relative', border: '1px solid #e2ddd2', borderRadius: '8px', overflow: 'hidden', background: '#faf8f2' }}>
+                          <img src={photo.dataUrl} alt={photo.name || j.title} style={{ width: '100%', aspectRatio: '4 / 3', objectFit: 'cover', display: 'block' }} />
+                          <button onClick={() => handleRemoveJournalPhoto(j.id, photo.id)} style={{ position: 'absolute', top: '0.35rem', right: '0.35rem', border: 'none', borderRadius: '999px', background: 'rgba(30, 24, 18, 0.78)', color: '#fff', width: '1.65rem', height: '1.65rem', cursor: 'pointer', lineHeight: 1 }}>×</button>
+                        </figure>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               {state.journals.length === 0 && (
