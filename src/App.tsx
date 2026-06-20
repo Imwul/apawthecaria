@@ -2213,42 +2213,44 @@ const validateConcoction = (
   };
 };
 
+const isJourneyGoal = (title: string | undefined, ...names: string[]) => names.includes(title || '');
+
 const checkJourneyGoalSatisfaction = (s: GameState): boolean => {
   const title = s.journeyGoalTitle;
   const counter = s.journeyGoalCounter || 0;
   const checklist = s.journeyGoalChecklist || [];
 
-  if (title === '자아 성찰') {
+  if (isJourneyGoal(title, '자아 성찰')) {
     return counter >= 3;
   }
-  if (title === '관계 회복') {
+  if (isJourneyGoal(title, '동반자 우대', '관계 회복')) {
     return counter >= 3;
   }
-  if (title === '길드의 책임') {
+  if (isJourneyGoal(title, '길드의 책임')) {
     const startRep = s.journeyStartReputation !== undefined ? s.journeyStartReputation : 5;
     return (s.reputation - startRep >= 5);
   }
-  if (title === '자연 환경 조사') {
+  if (isJourneyGoal(title, '자연 조사', '자연 환경 조사')) {
     return counter >= 3;
   }
-  if (title === '긴급 치료') {
+  if (isJourneyGoal(title, '긴급 치료')) {
     return s.bag.some(item => {
       if (item.type !== 'reagent' || !item.name) return false;
       const match = /\[(WOUND|INFECTION|SLEEP)\s+(\d+)\]/i.exec(item.name);
       return match !== null && parseInt(match[2]) >= 3;
     });
   }
-  if (title === '신선한 영감') {
+  if (isJourneyGoal(title, '영감 수집', '신선한 영감')) {
     const uniqueRegions = new Set(checklist);
     return uniqueRegions.size >= 6;
   }
-  if (title === '의학 연구 자료') {
+  if (isJourneyGoal(title, '의학 연구 자료')) {
     return counter >= 3;
   }
-  if (title === '호송 및 정의') {
+  if (isJourneyGoal(title, '호송 및 정의')) {
     return s.bag.some(item => item.name.includes("Evidence") || item.name.includes("수송 증거물"));
   }
-  if (title === '영약 보충') {
+  if (isJourneyGoal(title, '영약 보충')) {
     const tagCounts: Record<string, number> = {};
     s.bag.forEach(item => {
       if (item.type !== 'reagent' || !item.name) return;
@@ -2261,17 +2263,17 @@ const checkJourneyGoalSatisfaction = (s: GameState): boolean => {
     });
     return Object.values(tagCounts).some(count => count >= 3);
   }
-  if (title === '마음의 정리') {
+  if (isJourneyGoal(title, '마음의 정리')) {
     return counter >= 3;
   }
-  if (title === '마지막 작별') {
+  if (isJourneyGoal(title, '마지막 작별')) {
     return s.bag.some(item => {
       if (item.type !== 'reagent' || !item.name) return false;
       const match = /\[ELSEWHERE\s+(\d+)\]/i.exec(item.name);
       return match !== null && parseInt(match[2]) >= 2;
     });
   }
-  if (title === '방랑벽') {
+  if (isJourneyGoal(title, '방랑벽')) {
     const uniqueRegions = new Set(checklist);
     return uniqueRegions.size >= 5;
   }
@@ -2281,7 +2283,7 @@ const checkJourneyGoalSatisfaction = (s: GameState): boolean => {
 const checkReagentGatherForGoal = (s: GameState, reagentName: string) => {
   let nextGoalCounter = s.journeyGoalCounter || 0;
   let nextChecklist = [...(s.journeyGoalChecklist || [])];
-  if (s.journeyActive && s.journeyGoalTitle === '신선한 영감') {
+  if (s.journeyActive && isJourneyGoal(s.journeyGoalTitle, '영감 수집', '신선한 영감')) {
     const dbReag = GAME_DATA.reagents.find(item => item.name.toLowerCase().includes(reagentName.toLowerCase()) || item.rawName.toLowerCase().includes(reagentName.toLowerCase()));
     if (dbReag && dbReag.type === 'PLANT') {
       const validRegions = ['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain', 'Titan'];
@@ -4526,7 +4528,7 @@ function PlayView({
     if (cardVal <= 6) {
       distLabel = "가까운 거리 — 12경로 이하";
     } else if (cardVal <= 9) {
-      distLabel = "먼 거리 — 13~24일 경로";
+      distLabel = "먼 거리 — 13~24경로";
     } else {
       distLabel = "지평선 너머 — 24일 이상 대도시";
     }
@@ -7968,32 +7970,32 @@ function PlayView({
               <div style={{ fontSize: '0.85rem', color: 'var(--text)', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                 <div>
                   <strong>현재 상태: </strong>
-                  {state.journeyGoalTitle === '자아 성찰' && `만난 야수 수: ${(state.journeyGoalCounter || 0)} / 3`}
-                  {state.journeyGoalTitle === '관계 회복' && `해결한 저널 일지 수: ${(state.journeyGoalCounter || 0)} / 3`}
-                  {state.journeyGoalTitle === '길드의 책임' && `시작 평판: ${state.journeyStartReputation || 5} → 현재 평판: ${state.reputation} (시작 대비 +5 이상 증가 필요)`}
-                  {state.journeyGoalTitle === '자연 환경 조사' && `조사한 지역 수: ${(state.journeyGoalCounter || 0)} / 3`}
-                  {state.journeyGoalTitle === '긴급 치료' && (
+                  {isJourneyGoal(state.journeyGoalTitle, '자아 성찰') && `만난 야수 수: ${(state.journeyGoalCounter || 0)} / 3`}
+                  {isJourneyGoal(state.journeyGoalTitle, '동반자 우대', '관계 회복') && `사역마/동반자 저널 기록 수: ${(state.journeyGoalCounter || 0)} / 3`}
+                  {isJourneyGoal(state.journeyGoalTitle, '길드의 책임') && `시작 평판: ${state.journeyStartReputation || 5} → 현재 평판: ${state.reputation} (시작 대비 +5 이상 증가 필요)`}
+                  {isJourneyGoal(state.journeyGoalTitle, '자연 조사', '자연 환경 조사') && `조사한 지역 수: ${(state.journeyGoalCounter || 0)} / 3`}
+                  {isJourneyGoal(state.journeyGoalTitle, '긴급 치료') && (
                     state.bag.some(item => {
                       if (item.type !== 'reagent' || !item.name) return false;
                       const match = /\[(WOUND|INFECTION|SLEEP)\s+(\d+)\]/i.exec(item.name);
                       return match !== null && parseInt(match[2]) >= 3;
                     }) ? '가방에 WOUND/INFECTION/SLEEP이 3 이상인 약재 보유 중! (충족)' : '가방에 WOUND/INFECTION/SLEEP이 3 이상인 약재 없음 (미충족)'
                   )}
-                  {state.journeyGoalTitle === '신선한 영감' && `발견한 새로운 지역 수: ${new Set(state.journeyGoalChecklist || []).size} / 6 (${Array.from(new Set(state.journeyGoalChecklist || [])).join(', ') || '없음'})`}
-                  {state.journeyGoalTitle === '의학 연구 자료' && `치료한 야수 질병 수: ${(state.journeyGoalCounter || 0)} / 3`}
-                  {state.journeyGoalTitle === '호송 및 정의' && (
+                  {isJourneyGoal(state.journeyGoalTitle, '영감 수집', '신선한 영감') && `식물 약재를 채집한 지역 수: ${new Set(state.journeyGoalChecklist || []).size} / 6 (${Array.from(new Set(state.journeyGoalChecklist || [])).join(', ') || '없음'})`}
+                  {isJourneyGoal(state.journeyGoalTitle, '의학 연구 자료') && `치료한 야수 질병 수: ${(state.journeyGoalCounter || 0)} / 3`}
+                  {isJourneyGoal(state.journeyGoalTitle, '호송 및 정의') && (
                     state.bag.some(item => item.name.includes("Evidence") || item.name.includes("수송 증거물")) ? '가방에 수송 증거물(Evidence) 보유 중! (충족)' : '가방에 수송 증거물(Evidence) 분실함! (미충족)'
                   )}
-                  {state.journeyGoalTitle === '영약 보충' && '가방 내의 어떤 태그 약재든 3개 이상 모아야 합니다.'}
-                  {state.journeyGoalTitle === '마음의 정리' && `해결한 질병/일지 수: ${(state.journeyGoalCounter || 0)} / 3`}
-                  {state.journeyGoalTitle === '마지막 작별' && (
+                  {isJourneyGoal(state.journeyGoalTitle, '영약 보충') && '가방 내의 어떤 태그 약재든 3개 이상 모아야 합니다.'}
+                  {isJourneyGoal(state.journeyGoalTitle, '마음의 정리') && `해결한 질병/일지 수: ${(state.journeyGoalCounter || 0)} / 3`}
+                  {isJourneyGoal(state.journeyGoalTitle, '마지막 작별') && (
                     state.bag.some(item => {
                       if (item.type !== 'reagent' || !item.name) return false;
                       const match = /\[ELSEWHERE\s+(\d+)\]/i.exec(item.name);
                       return match !== null && parseInt(match[2]) >= 2;
                     }) ? '가방에 ELSEWHERE가 2 이상인 약재 보유 중! (충족)' : '가방에 ELSEWHERE가 2 이상인 약재 없음 (미충족)'
                   )}
-                  {state.journeyGoalTitle === '방랑벽' && `방문한 독특한 지역 종류 수: ${new Set(state.journeyGoalChecklist || []).size} / 5 (${Array.from(new Set(state.journeyGoalChecklist || [])).join(', ') || '없음'})`}
+                  {isJourneyGoal(state.journeyGoalTitle, '방랑벽') && `방문한 독특한 지역 종류 수: ${new Set(state.journeyGoalChecklist || []).size} / 5 (${Array.from(new Set(state.journeyGoalChecklist || [])).join(', ') || '없음'})`}
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.2rem', flexWrap: 'wrap' }}>
@@ -8017,7 +8019,7 @@ function PlayView({
                   </button>
                 </div>
 
-                {(state.journeyGoalTitle === '신선한 영감' || state.journeyGoalTitle === '방랑벽') && (
+                {(isJourneyGoal(state.journeyGoalTitle, '영감 수집', '신선한 영감') || isJourneyGoal(state.journeyGoalTitle, '방랑벽')) && (
                   <div style={{ marginTop: '0.3rem', padding: '0.4rem', background: '#fff', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#475569', marginBottom: '0.2rem' }}>체크리스트 지역 관리:</div>
                     <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
@@ -12155,19 +12157,19 @@ function JournalsView({
         const titleLower = newTitle.toLowerCase();
         const textLower = newText.toLowerCase();
 
-        if (s.journeyGoalTitle === '관계 회복' && (textLower.includes("사역마") || textLower.includes("동반자") || titleLower.includes("사역마") || titleLower.includes("동반자") || textLower.includes("familiar") || textLower.includes("companion"))) {
+        if (isJourneyGoal(s.journeyGoalTitle, '동반자 우대', '관계 회복') && (textLower.includes("사역마") || textLower.includes("동반자") || titleLower.includes("사역마") || titleLower.includes("동반자") || textLower.includes("familiar") || textLower.includes("companion"))) {
           nextGoalCounter += 1;
         }
-        if (s.journeyGoalTitle === '마음의 정리' && (textLower.includes("갈등") || textLower.includes("해결") || textLower.includes("마음") || titleLower.includes("갈등") || titleLower.includes("해결") || titleLower.includes("마음"))) {
+        if (isJourneyGoal(s.journeyGoalTitle, '마음의 정리') && (textLower.includes("갈등") || textLower.includes("해결") || textLower.includes("마음") || titleLower.includes("갈등") || titleLower.includes("해결") || titleLower.includes("마음"))) {
           nextGoalCounter += 1;
         }
-        if (s.journeyGoalTitle === '자연 환경 조사') {
+        if (isJourneyGoal(s.journeyGoalTitle, '자연 조사', '자연 환경 조사')) {
           nextChecklist.push(s.currentRegion);
           const counts: Record<string, number> = {};
           nextChecklist.forEach(r => { counts[r] = (counts[r] || 0) + 1; });
           nextGoalCounter = Math.max(...Object.values(counts));
         }
-        if (s.journeyGoalTitle === '방랑벽') {
+        if (isJourneyGoal(s.journeyGoalTitle, '방랑벽')) {
           const targetRegions = ['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain'];
           if (targetRegions.includes(s.currentRegion) && !nextChecklist.includes(s.currentRegion)) {
             nextChecklist.push(s.currentRegion);
