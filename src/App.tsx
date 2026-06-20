@@ -8735,6 +8735,27 @@ const FAMILIAR_BENEFITS = [
   { card: 'M', name: '창의적인 발명가 (Ingenuitive)', desc: '도구(Tool) 1개의 효과를 추가로 보유 (여정마다 선택)', mechanic: 'ingenuitive' },
 ];
 
+const WizardFieldCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div style={{ border: '1.5px solid var(--border-cozy)', borderRadius: '8px', padding: '1rem', background: '#fff' }}>
+    <h4 style={{ margin: '0 0 0.75rem 0', color: 'var(--primary)', fontFamily: 'var(--font-fancy)', fontSize: '1.15rem' }}>{title}</h4>
+    {children}
+  </div>
+);
+
+const WizardChoiceSelect = ({ value, onChange, items, labelKey = 'name' }: { value: string; onChange: (item: any) => void; items: any[]; labelKey?: string }) => (
+  <select
+    value={value}
+    onChange={e => onChange(items.find(item => item[labelKey] === e.target.value) || items[0])}
+    style={{ width: '100%', height: '38px', fontSize: '0.9rem' }}
+  >
+    {items.map(item => (
+      <option key={`${item.card || item.suit}_${item[labelKey]}`} value={item[labelKey]}>
+        {item.card || item.suit} - {item[labelKey]}
+      </option>
+    ))}
+  </select>
+);
+
 // =================================================================
 function CharacterCreationWizard({ state, updateState }: { state: GameState; updateState: any }) {
   const bioChoices = GAME_DATA.bioChoices;
@@ -8892,27 +8913,6 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
     alert("룰북 절차에 따라 약제사 시트가 완성되었습니다.");
   };
 
-  const FieldCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div style={{ border: '1.5px solid var(--border-cozy)', borderRadius: '8px', padding: '1rem', background: '#fff' }}>
-      <h4 style={{ margin: '0 0 0.75rem 0', color: 'var(--primary)', fontFamily: 'var(--font-fancy)', fontSize: '1.15rem' }}>{title}</h4>
-      {children}
-    </div>
-  );
-
-  const ChoiceSelect = ({ value, onChange, items, labelKey = 'name' }: { value: string; onChange: (item: any) => void; items: any[]; labelKey?: string }) => (
-    <select
-      value={value}
-      onChange={e => onChange(items.find(item => item[labelKey] === e.target.value) || items[0])}
-      style={{ width: '100%', height: '38px', fontSize: '0.9rem' }}
-    >
-      {items.map(item => (
-        <option key={`${item.card || item.suit}_${item[labelKey]}`} value={item[labelKey]}>
-          {item.card || item.suit} - {item[labelKey]}
-        </option>
-      ))}
-    </select>
-  );
-
   const animalChips = (examples: string, onPick: (value: string) => void) => (
     <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
       {examplesToOptions(examples).map(option => (
@@ -8974,7 +8974,7 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
       </div>
 
       {step === 0 && (
-        <FieldCard title="어떤 동물인가요?">
+        <WizardFieldCard title="어떤 동물인가요?">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <input value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} placeholder="약제사의 이름을 지어주세요" />
             <CardDrawSlot
@@ -8996,15 +8996,15 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
               <div style={{ marginTop: '0.4rem' }}>
-                <ChoiceSelect value={draft.descriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, descriptor: item, animal: "" }))} />
+                <WizardChoiceSelect value={draft.descriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, descriptor: item, animal: "" }))} />
               </div>
             </details>
           </div>
-        </FieldCard>
+        </WizardFieldCard>
       )}
 
       {step === 1 && (
-        <FieldCard title="어떻게 여행하나요?">
+        <WizardFieldCard title="어떻게 여행하나요?">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <CardDrawSlot
               variant="hero"
@@ -9029,15 +9029,15 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
               <div style={{ marginTop: '0.4rem' }}>
-                <ChoiceSelect value={draft.travel.name} items={bioChoices.travelStyles as any[]} onChange={item => setDraft(d => ({ ...d, travel: item }))} />
+                <WizardChoiceSelect value={draft.travel.name} items={bioChoices.travelStyles as any[]} onChange={item => setDraft(d => ({ ...d, travel: item }))} />
               </div>
             </details>
           </div>
-        </FieldCard>
+        </WizardFieldCard>
       )}
 
       {step === 2 && (
-        <FieldCard title="왜 약제사의 길을 떠났나요?">
+        <WizardFieldCard title="왜 약제사의 길을 떠났나요?">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <CardDrawSlot
               variant="hero"
@@ -9060,15 +9060,15 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
               <div style={{ marginTop: '0.4rem' }}>
-                <ChoiceSelect value={draft.origin.name} items={bioChoices.origins as any[]} onChange={item => setDraft(d => ({ ...d, origin: item }))} />
+                <WizardChoiceSelect value={draft.origin.name} items={bioChoices.origins as any[]} onChange={item => setDraft(d => ({ ...d, origin: item }))} />
               </div>
             </details>
           </div>
-        </FieldCard>
+        </WizardFieldCard>
       )}
 
       {step === 3 && (
-        <FieldCard title="가방에 무엇을 챙겼나요?">
+        <WizardFieldCard title="가방에 무엇을 챙겼나요?">
           <div style={{ display: 'grid', gap: '0.75rem', fontSize: '0.9rem' }}>
             <div style={{ padding: '0.8rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', lineHeight: 1.55 }}>
               벨트 칼, 나무 절구와 공이, 낡은 캠프 주전자, 이빨, 앞발/발톱을 챙겼습니다.<br />
@@ -9082,12 +9082,12 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
               placeholder="첫 여정에 들고 가는 기념품이 무엇이고, 왜 소중한지 기록하세요."
             />
           </div>
-        </FieldCard>
+        </WizardFieldCard>
       )}
 
 
       {step === 4 && (
-        <FieldCard title="함께하는 사역마는 누구인가요?">
+        <WizardFieldCard title="함께하는 사역마는 누구인가요?">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <input value={draft.familiarName} onChange={e => setDraft(d => ({ ...d, familiarName: e.target.value }))} placeholder="사역마의 이름을 지어주세요" />
             <CardDrawSlot
@@ -9110,17 +9110,17 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
               <div style={{ marginTop: '0.4rem' }}>
-                <ChoiceSelect value={draft.familiarDescriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, familiarDescriptor: item, familiarAnimal: "" }))} />
+                <WizardChoiceSelect value={draft.familiarDescriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, familiarDescriptor: item, familiarAnimal: "" }))} />
               </div>
             </details>
           </div>
-        </FieldCard>
+        </WizardFieldCard>
       )}
 
       {step === 5 && (() => {
         const matchedBenefit = FAMILIAR_BENEFITS.find(f => f.card === draft.familiarBenefit.card);
         return (
-          <FieldCard title="사역마가 어떻게 도와주나요?">
+          <WizardFieldCard title="사역마가 어떻게 도와주나요?">
             <div style={{ display: 'grid', gap: '0.75rem' }}>
               <CardDrawSlot
                 variant="hero"
@@ -9180,16 +9180,16 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
               <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
                 <div style={{ marginTop: '0.4rem' }}>
-                  <ChoiceSelect value={draft.familiarBenefit.name} items={bioChoices.familiars as any[]} onChange={item => setDraft(d => ({ ...d, familiarBenefit: item }))} />
+                  <WizardChoiceSelect value={draft.familiarBenefit.name} items={bioChoices.familiars as any[]} onChange={item => setDraft(d => ({ ...d, familiarBenefit: item }))} />
                 </div>
               </details>
             </div>
-          </FieldCard>
+          </WizardFieldCard>
         );
       })()}
 
       {step === 6 && (
-        <FieldCard title="사역마와 어떤 사이인가요?">
+        <WizardFieldCard title="사역마와 어떤 사이인가요?">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <CardDrawSlot
               variant="hero"
@@ -9212,17 +9212,17 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
               <div style={{ marginTop: '0.4rem' }}>
-                <ChoiceSelect value={draft.relationship.name} items={bioChoices.relationships as any[]} onChange={item => setDraft(d => ({ ...d, relationship: item }))} />
+                <WizardChoiceSelect value={draft.relationship.name} items={bioChoices.relationships as any[]} onChange={item => setDraft(d => ({ ...d, relationship: item }))} />
               </div>
             </details>
           </div>
-        </FieldCard>
+        </WizardFieldCard>
       )}
 
       {step === 7 && (() => {
         const matchedBenefit = FAMILIAR_BENEFITS.find(f => f.card === draft.familiarBenefit.card);
         return (
-          <FieldCard title="시트를 확정할까요?">
+          <WizardFieldCard title="시트를 확정할까요?">
             <div style={{ display: 'grid', gap: '0.7rem', fontSize: '0.92rem', lineHeight: 1.6 }}>
               <div className="prose-summary">
                 <strong>{draft.descriptor.name}</strong> 약제사 <strong>{draft.name || '(이름 미정)'}</strong>.<br />
@@ -9241,7 +9241,7 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
                 ✨ 약제사 시트에 저장
               </button>
             </div>
-          </FieldCard>
+          </WizardFieldCard>
         );
       })()}
 
