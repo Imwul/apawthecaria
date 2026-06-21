@@ -2232,8 +2232,24 @@ const parseLocs = (locsStr: string) => {
 // =================================================================
 // 4. MAIN APP COMPONENT
 // =================================================================
+const migrateLegacyTerminology = (value: any): any => {
+  if (typeof value === 'string') {
+    return value.replace(/사역마/g, '길동무');
+  }
+  if (Array.isArray(value)) {
+    return value.map(migrateLegacyTerminology);
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nested]) => [key, migrateLegacyTerminology(nested)])
+    );
+  }
+  return value;
+};
+
 const migrateState = (s: any): GameState => {
   if (!s) return INITIAL_STATE;
+  s = migrateLegacyTerminology(s);
   return syncWorldMemory({
     ...INITIAL_STATE,
     ...s,
