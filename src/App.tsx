@@ -607,13 +607,48 @@ const CLINIC_SERVICE_LABELS: Record<string, string> = {
 
 const clinicServiceLabel = (service?: string) => CLINIC_SERVICE_LABELS[service || 'none'] || service || '아젠다 미지정';
 
+type MapRegion = 'Bog' | 'Forest' | 'Loch' | 'Meadow' | 'Mountain' | 'Titan' | 'Wilds';
+type MapLocationKind = 'named' | 'wild';
+
 interface MapLocationNode {
   label: string;
   x: number;
   y: number;
+  region?: MapRegion;
+  kind?: MapLocationKind;
   aliases?: string[];
   neighbors: string[];
 }
+
+const MAP_REGION_CODES: Record<string, MapRegion> = {
+  B: 'Bog',
+  F: 'Forest',
+  L: 'Loch',
+  M: 'Meadow',
+  R: 'Mountain',
+  T: 'Titan',
+  W: 'Wilds'
+};
+
+const MAP_REGION_LABELS: Record<MapRegion, string> = {
+  Bog: '수렁',
+  Forest: '숲',
+  Loch: '호수/강',
+  Meadow: '초원',
+  Mountain: '산맥',
+  Titan: '티탄 유적',
+  Wilds: '야생'
+};
+
+const MAP_REGION_COLORS: Record<MapRegion, string> = {
+  Bog: '#9d2e84',
+  Forest: '#5f8f3c',
+  Loch: '#1c6da8',
+  Meadow: '#e5a832',
+  Mountain: '#b7533c',
+  Titan: '#77726c',
+  Wilds: '#6b7280'
+};
 
 const MAP_LOCATIONS: Record<string, MapLocationNode> = {
   narin: { label: 'Narin', x: 11, y: 11, neighbors: ['widim', 'olddam'] },
@@ -682,6 +717,20 @@ const MAP_WAYPOINTS = `77.96,3.81;48.38,4.34;82.68,4.78;54.52,5.04;51.24,5.17;3.
   .split(';')
   .map(pair => pair.split(',').map(Number) as [number, number]);
 
+const MAP_WILD_REGION_CODES = `RRRLMMRRRRRRMRRRBRBRLBRLRLLMRRBRBMMLLMLMMFBMBRMTFBFRRFFRFMFMFMFBRRMLMLFFFRFFFMBLLRMFFFLLLFFBMMMFRLMRMFFFFFFFMMRRMFMFFFMMMLMLLMFFFRLMFRMMMLBMRMLFFFRMFRLFBFRRFFFRMRBFBLMFBMLFLFMRBMLMFRBRMFFLRLFFMBFRFFMLFRMFFFFLFFBBBLFFFMFFFBLMFFMFFFMMBMFBFMFBFFFFFRBFFLFMBFBFLMLFFFFMRLFFFBBMFLLRMFFMLRFFFRFRFMFFFRFMRFMMFMFMMBFFFMRFFRFBMFFFMMRRMFBFBFBBMFRLMBWLMLWLMMLFLLMMMBMMMFFFMMMBBBMMMBMBBBFFFMBMBBMBBMBBLLBBBFFFBBBMMMBBBFFFB`;
+
+const MAP_WILD_LOCATIONS = MAP_WAYPOINTS.map(([x, y], index) => {
+  const region = MAP_REGION_CODES[MAP_WILD_REGION_CODES[index]] || 'Wilds';
+  return {
+    label: `${MAP_REGION_LABELS[region]} 위치 ${index + 1}`,
+    x,
+    y,
+    region,
+    kind: 'wild' as const,
+    neighbors: []
+  };
+});
+
 const MAP_SERVICE_HOPS = 5;
 
 const MAP_GRAPH_NODES: Record<string, MapLocationNode> = (() => {
@@ -694,8 +743,8 @@ const MAP_GRAPH_NODES: Record<string, MapLocationNode> = (() => {
     };
   });
 
-  MAP_WAYPOINTS.forEach(([x, y], index) => {
-    nodes[`wp_${index}`] = { label: `경유점 ${index + 1}`, x, y, neighbors: [] };
+  MAP_WILD_LOCATIONS.forEach((location, index) => {
+    nodes[`loc_${index}`] = { ...location, neighbors: [] };
   });
 
   const keys = Object.keys(nodes);
@@ -706,9 +755,9 @@ const MAP_GRAPH_NODES: Record<string, MapLocationNode> = (() => {
   };
 
   keys.forEach(key => {
-    const isWaypoint = key.startsWith('wp_');
-    const limit = isWaypoint ? 3.8 : 7.2;
-    const take = isWaypoint ? 3 : 8;
+    const isWildLocation = nodes[key].kind === 'wild';
+    const limit = isWildLocation ? 3.8 : 7.2;
+    const take = isWildLocation ? 3 : 8;
     keys
       .filter(other => other !== key)
       .map(other => ({ key: other, distance: distance(nodes[key], nodes[other]) }))
@@ -751,7 +800,7 @@ const getMapServiceEntriesWithinHops = (startName: string, maxHops: number = MAP
 };
 
 const getMapLocationsWithinHops = (startName: string, maxHops: number = MAP_SERVICE_HOPS) =>
-  getMapServiceEntriesWithinHops(startName, maxHops).filter(entry => !entry.key.startsWith('wp_'));
+  getMapServiceEntriesWithinHops(startName, maxHops).filter(entry => entry.node.kind !== 'wild');
 
 const memoryKey = (...parts: string[]) =>
   parts.join('_').toLowerCase().replace(/[^a-z0-9가-힣]+/gi, '_').replace(/^_+|_+$/g, '');
@@ -11046,6 +11095,16 @@ function MapView({ state }: { state: GameState }) {
 	                preserveAspectRatio="none"
 	                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}
 	              >
+	                {MAP_WILD_LOCATIONS.map((location, idx) => (
+	                  <circle
+	                    key={`map_wild_location_${idx}`}
+	                    cx={location.x}
+	                    cy={location.y}
+	                    r="0.18"
+	                    fill={MAP_REGION_COLORS[location.region]}
+	                    opacity="0.34"
+	                  />
+	                ))}
 	                {routeStops.length > 1 && (
 	                  <polyline
 	                    points={routeStops.map(loc => {
