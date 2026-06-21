@@ -333,6 +333,8 @@ interface GameState {
   resourcefulReagent?: string;
   ingenuitiveTool?: string;
   clinics?: Clinic[];
+  customMapLocations?: CustomMapLocation[];
+  customMapEdges?: CustomMapEdge[];
   scroungingMode?: boolean;
   scroungingTimer?: number;
   independentUsedThisAilment?: boolean;
@@ -447,6 +449,8 @@ const INITIAL_STATE: GameState = {
   resourcefulReagent: "",
   ingenuitiveTool: "",
   clinics: [],
+  customMapLocations: [],
+  customMapEdges: [],
   scroungingMode: false,
   scroungingTimer: 0,
   independentUsedThisAilment: false,
@@ -521,6 +525,27 @@ const cardDisplayValue = (value: number) => {
   if (value === 12) return 'Q';
   if (value === 13) return 'K';
   return String(value);
+};
+
+const drawSocialEncounterForLocation = (regionName: string, locationName: string) => {
+  const card = drawPlayingCard();
+  const normalizedLocation = normalizeMapLocationName(locationName);
+  const tableKey =
+    normalizedLocation.includes('glasswall') || normalizedLocation.includes('글래스월')
+      ? 'Glasswall'
+      : (parsedSocial as any)[regionName]
+        ? regionName
+        : 'Other';
+  const table = ((parsedSocial as any)[tableKey] || (parsedSocial as any).Other || []) as any[];
+  if (table.length === 0) return null;
+  const suitMatches = table.filter(entry => entry.suit === card.suit);
+  const candidates = suitMatches.length > 0 ? suitMatches : table;
+  const encounter = candidates[(card.value - 1) % candidates.length];
+  return {
+    card,
+    tableKey,
+    encounter
+  };
 };
 
 const examplesToOptions = (examples: string) => examples.split(',').map(item => item.trim()).filter(Boolean);
@@ -608,7 +633,7 @@ const CLINIC_SERVICE_LABELS: Record<string, string> = {
 const clinicServiceLabel = (service?: string) => CLINIC_SERVICE_LABELS[service || 'none'] || service || '아젠다 미지정';
 
 type MapRegion = 'Bog' | 'Forest' | 'Loch' | 'Meadow' | 'Mountain' | 'Titan' | 'Wilds';
-type MapLocationKind = 'named' | 'wild';
+type MapLocationKind = 'named' | 'wild' | 'settlement' | 'city' | 'ruin' | 'barrow' | 'clinic';
 
 interface MapLocationNode {
   label: string;
@@ -618,6 +643,20 @@ interface MapLocationNode {
   kind?: MapLocationKind;
   aliases?: string[];
   neighbors: string[];
+}
+
+interface CustomMapLocation extends MapLocationNode {
+  id: string;
+  source?: string;
+  createdAt?: number;
+}
+
+interface CustomMapEdge {
+  id: string;
+  from: string;
+  to: string;
+  label?: string;
+  createdAt?: number;
 }
 
 const MAP_REGION_CODES: Record<string, MapRegion> = {
@@ -772,16 +811,63 @@ const MAP_GRAPH_NODES: Record<string, MapLocationNode> = (() => {
 
 const normalizeMapLocationName = (name: string) => name.trim().toLowerCase().replace(/[^a-z0-9가-힣]+/gi, '_').replace(/^_+|_+$/g, '');
 
-const findMapLocationKey = (name: string) => {
+const buildMapGraphNodes = (customLocations: CustomMapLocation[] = [], customEdges: CustomMapEdge[] = []): Record<string, MapLocationNode> => {
+  const nodes: Record<string, MapLocationNode> = {};
+  Object.entries(MAP_GRAPH_NODES).forEach(([key, node]) => {
+    nodes[key] = {
+      ...node,
+      aliases: node.aliases ? [...node.aliases] : undefined,
+      neighbors: [...node.neighbors]
+    };
+  });
+
+  customLocations.forEach(location => {
+    nodes[location.id] = {
+      ...location,
+      aliases: location.aliases ? [...location.aliases] : undefined,
+      neighbors: [...(location.neighbors || [])]
+    };
+  });
+
+  customEdges.forEach(edge => {
+    if (!nodes[edge.from] || !nodes[edge.to]) return;
+    if (!nodes[edge.from].neighbors.includes(edge.to)) nodes[edge.from].neighbors.push(edge.to);
+    if (!nodes[edge.to].neighbors.includes(edge.from)) nodes[edge.to].neighbors.push(edge.from);
+  });
+
+  Object.keys(nodes).forEach(key => {
+    nodes[key].neighbors = (nodes[key].neighbors || []).filter(neighbor => !!nodes[neighbor]);
+  });
+
+  Object.entries(nodes).forEach(([key, node]) => {
+    node.neighbors.forEach(neighbor => {
+      if (nodes[neighbor] && !nodes[neighbor].neighbors.includes(key)) {
+        nodes[neighbor].neighbors.push(key);
+      }
+    });
+  });
+
+  return nodes;
+};
+
+const findMapLocationKey = (name: string, customLocations: CustomMapLocation[] = []) => {
   const normalized = normalizeMapLocationName(name);
+  const custom = customLocations.find(location =>
+    location.id === normalized ||
+    normalizeMapLocationName(location.label) === normalized ||
+    (location.aliases || []).some(alias => normalizeMapLocationName(alias) === normalized)
+  );
+  if (custom) return custom.id;
+
   const direct = Object.entries(MAP_LOCATIONS).find(([key, node]) =>
     key === normalized || normalizeMapLocationName(node.label) === normalized || (node.aliases || []).some(alias => normalizeMapLocationName(alias) === normalized)
   );
   return direct?.[0] || '';
 };
 
-const getMapServiceEntriesWithinHops = (startName: string, maxHops: number = MAP_SERVICE_HOPS) => {
-  const startKey = findMapLocationKey(startName);
+const getMapServiceEntriesWithinHops = (startName: string, maxHops: number = MAP_SERVICE_HOPS, customLocations: CustomMapLocation[] = [], customEdges: CustomMapEdge[] = []) => {
+  const graphNodes = buildMapGraphNodes(customLocations, customEdges);
+  const startKey = findMapLocationKey(startName, customLocations);
   if (!startKey) return [];
   const seen = new Map<string, number>([[startKey, 0]]);
   const queue = [startKey];
@@ -789,21 +875,107 @@ const getMapServiceEntriesWithinHops = (startName: string, maxHops: number = MAP
     const key = queue.shift()!;
     const depth = seen.get(key) || 0;
     if (depth >= maxHops) continue;
-    for (const next of MAP_GRAPH_NODES[key]?.neighbors || []) {
+    for (const next of graphNodes[key]?.neighbors || []) {
       if (!seen.has(next)) {
         seen.set(next, depth + 1);
         queue.push(next);
       }
     }
   }
-  return [...seen.entries()].map(([key, hops]) => ({ key, hops, node: MAP_GRAPH_NODES[key] })).filter(entry => entry.node);
+  return [...seen.entries()].map(([key, hops]) => ({ key, hops, node: graphNodes[key] })).filter(entry => entry.node);
 };
 
-const getMapLocationsWithinHops = (startName: string, maxHops: number = MAP_SERVICE_HOPS) =>
-  getMapServiceEntriesWithinHops(startName, maxHops).filter(entry => entry.node.kind !== 'wild');
+const getMapLocationsWithinHops = (startName: string, maxHops: number = MAP_SERVICE_HOPS, customLocations: CustomMapLocation[] = [], customEdges: CustomMapEdge[] = []) =>
+  getMapServiceEntriesWithinHops(startName, maxHops, customLocations, customEdges).filter(entry => entry.node.kind !== 'wild');
 
 const memoryKey = (...parts: string[]) =>
   parts.join('_').toLowerCase().replace(/[^a-z0-9가-힣]+/gi, '_').replace(/^_+|_+$/g, '');
+
+const mapLocationId = (name: string) => {
+  const key = normalizeMapLocationName(name || 'custom_location');
+  return `custom_${key || Date.now()}`;
+};
+
+const clampMapCoordinate = (value: number) => Math.max(3, Math.min(97, value));
+
+const mapKindFromLocationType = (locationType: string): MapLocationKind => {
+  if (locationType === 'Settlement') return 'settlement';
+  if (locationType === 'City') return 'city';
+  if (locationType === 'Ruin') return 'ruin';
+  if (locationType === 'Barrow') return 'barrow';
+  if (locationType === 'Clinic') return 'clinic';
+  return 'wild';
+};
+
+const inferMapCoordinates = (
+  name: string,
+  region: MapRegion,
+  anchorName: string,
+  customLocations: CustomMapLocation[] = []
+) => {
+  const graphNodes = buildMapGraphNodes(customLocations);
+  const anchorKey = findMapLocationKey(anchorName, customLocations);
+  const anchor = anchorKey ? graphNodes[anchorKey] : null;
+
+  if (anchor) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    const angle = (Math.abs(hash) % 360) * Math.PI / 180;
+    const radius = 2.4 + (Math.abs(hash >> 4) % 24) / 10;
+    return {
+      x: clampMapCoordinate(anchor.x + Math.cos(angle) * radius),
+      y: clampMapCoordinate(anchor.y + Math.sin(angle) * radius)
+    };
+  }
+
+  const regionLocations = MAP_WILD_LOCATIONS.filter(location => location.region === region);
+  if (regionLocations.length > 0) {
+    const x = regionLocations.reduce((sum, loc) => sum + loc.x, 0) / regionLocations.length;
+    const y = regionLocations.reduce((sum, loc) => sum + loc.y, 0) / regionLocations.length;
+    return { x: clampMapCoordinate(x), y: clampMapCoordinate(y) };
+  }
+
+  return { x: 50, y: 50 };
+};
+
+const upsertCustomMapLocation = (
+  customLocations: CustomMapLocation[] = [],
+  name: string,
+  regionName: string,
+  locationType: string,
+  anchorName: string,
+  source: string,
+  extraNeighbors: string[] = []
+) => {
+  const region = MAP_REGION_CODES[regionName?.[0]?.toUpperCase()] || (MAP_REGION_LABELS[regionName as MapRegion] ? regionName as MapRegion : 'Wilds');
+  const knownKey = findMapLocationKey(name, customLocations);
+  if (knownKey && !knownKey.startsWith('custom_')) return customLocations;
+
+  const anchorKey = findMapLocationKey(anchorName, customLocations);
+  const neighborKeys = Array.from(new Set([anchorKey, ...extraNeighbors].filter(Boolean)));
+  const coords = inferMapCoordinates(name, region, anchorName, customLocations);
+  const id = knownKey || mapLocationId(name);
+  const existing = customLocations.find(location => location.id === id);
+  const nextLocation: CustomMapLocation = {
+    ...(existing || {}),
+    id,
+    label: name.trim(),
+    x: existing?.x ?? coords.x,
+    y: existing?.y ?? coords.y,
+    region,
+    kind: mapKindFromLocationType(locationType),
+    aliases: Array.from(new Set([...(existing?.aliases || []), name.trim()])),
+    neighbors: Array.from(new Set([...(existing?.neighbors || []), ...neighborKeys])),
+    source,
+    createdAt: existing?.createdAt || Date.now()
+  };
+
+  if (existing) {
+    return customLocations.map(location => location.id === id ? nextLocation : location);
+  }
+
+  return [...customLocations, nextLocation];
+};
 
 const cleanMemoryName = (name: string) =>
   name.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
@@ -1146,6 +1318,33 @@ const syncWorldMemory = (state: GameState): GameState => {
       region: locationName === state.currentLocationName ? state.currentRegion : '',
       source: '방문한 위치',
       notes: '여행 기록에서 자동으로 옮겨 적었습니다.',
+      timestamp: now
+    });
+  });
+
+  (state.customMapLocations || []).forEach(location => {
+    worldAlmanac = upsertAlmanac(worldAlmanac, {
+      category: location.kind === 'settlement' || location.kind === 'city' ? 'settlement' : 'notable',
+      name: location.label,
+      locationName: location.label,
+      region: location.region || '',
+      source: location.source || '지도에 직접 추가한 위치',
+      notes: `지도 좌표 ${location.x.toFixed(1)}, ${location.y.toFixed(1)} · 연결: ${location.neighbors.length || 0}개`,
+      timestamp: now
+    });
+  });
+
+  (state.customMapEdges || []).forEach(edge => {
+    const graphNodes = buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || []);
+    const fromLabel = graphNodes[edge.from]?.label || edge.from;
+    const toLabel = graphNodes[edge.to]?.label || edge.to;
+    worldAlmanac = upsertAlmanac(worldAlmanac, {
+      category: 'landmark',
+      name: edge.label || `${fromLabel} ↔ ${toLabel}`,
+      locationName: fromLabel,
+      region: '',
+      source: '개척한 경로',
+      notes: `${fromLabel}에서 ${toLabel}로 이어지는 저장된 지도 경로입니다.`,
       timestamp: now
     });
   });
@@ -2039,6 +2238,8 @@ const migrateState = (s: any): GameState => {
     resourcefulReagent: s.resourcefulReagent || "",
     ingenuitiveTool: s.ingenuitiveTool || "",
     clinics: s.clinics || [],
+    customMapLocations: s.customMapLocations || [],
+    customMapEdges: s.customMapEdges || [],
     scroungingMode: s.scroungingMode || false,
     scroungingTimer: s.scroungingTimer || 0,
     independentUsedThisAilment: s.independentUsedThisAilment || false,
@@ -4684,6 +4885,10 @@ function PlayView({
     }
 
     const suitLabels: { [key: string]: string } = { '♥': '하트 ♥', '♦': '다이아 ♦', '♣': '클로버 ♣', '♠': '스페이드 ♠' };
+    const socialDraw = (destType === 'Settlement' || destType === 'City') ? drawSocialEncounterForLocation(destRegion, nextLocName) : null;
+    const socialTextExtra = socialDraw
+      ? `\n\n🤝 [정착지/도시 사회 조우]\n카드: ${socialDraw.card.suit} ${cardDisplayValue(socialDraw.card.value)} · 표: ${socialDraw.tableKey}\n${socialDraw.encounter.title}\n${socialDraw.encounter.text}`
+      : '';
 
     // Familiar: Brave benefit
     const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === state.bio.familiarBenefit)?.mechanic || '';
@@ -4715,7 +4920,7 @@ function PlayView({
 
     setActiveTravelEncounter({
       ...selectedEnc,
-      text: selectedEnc.text + braveTextExtra,
+      text: selectedEnc.text + braveTextExtra + socialTextExtra,
       cardValue: cardVal === 1 ? 'Ace' : cardVal === 11 ? 'Jack' : cardVal === 12 ? 'Queen' : cardVal === 13 ? 'King' : cardVal,
       suitLabel: suitLabels[drawnSuit],
       suit: drawnSuit,
@@ -4763,6 +4968,14 @@ function PlayView({
       }
 
       const nextCumulative = (s.cumulativeDays || 0) + daysToAdd;
+      const nextCustomMapLocations = upsertCustomMapLocation(
+        s.customMapLocations || [],
+        nextLocName,
+        destRegion,
+        destType,
+        s.currentLocationName,
+        '이동으로 발견한 위치'
+      );
       const nextVisited = Array.from(new Set([...(s.visitedLocations || []), nextLocName]));
 
       let nextGoalCounter = s.journeyGoalCounter || 0;
@@ -4805,6 +5018,7 @@ function PlayView({
         currentLocationName: nextLocName,
         currentRegion: destRegion,
         currentLocationType: destType,
+        customMapLocations: nextCustomMapLocations,
         pursuedByBehemoth: nextPursued,
         calendarDays: nextDays,
         cumulativeDays: nextCumulative,
@@ -4822,14 +5036,20 @@ function PlayView({
         ]
       };
 
-      if (braveReagentToAdd) {
+      if (braveReagentToAdd || socialDraw) {
         newState.journals = [
-          {
+          ...(socialDraw ? [{
+            id: 'social_enter_' + Date.now(),
+            title: `🤝 사회 조우: ${nextLocName}`,
+            text: `${nextLocName}에 들어서며 사회 조우를 해결했습니다.\n카드: ${socialDraw.card.suit} ${cardDisplayValue(socialDraw.card.value)}\n\n${socialDraw.encounter.title}\n${socialDraw.encounter.text}`,
+            timestamp: Date.now()
+          }] : []),
+          ...(braveReagentToAdd ? [{
             id: 'brave_enc_' + Date.now(),
             title: `🐾 Brave 거수 조우 해결`,
             text: `${nextLocName}으로 이동 중 거수 조우에서 사역마의 용기로 위기를 극복하고 약재를 획득했습니다.`,
             timestamp: Date.now()
-          },
+          }] : []),
           ...s.journals
         ];
       } else {
@@ -5370,6 +5590,126 @@ function PlayView({
     alert("🚪 여분 채집이 마감되었습니다. 여정을 재개합니다.");
   };
 
+  const handleSellOddment = (itemId: string) => {
+    const item = state.bag.find(bagItem => bagItem.id === itemId);
+    if (!item) return;
+    const gain = Math.max(1, item.qty || 1);
+    if (!confirm(`${item.name}을(를) 상인에게 팔아 장신구 ${gain}개로 바꿀까요?`)) return;
+
+    updateState((s: GameState) => ({
+      ...s,
+      bag: s.bag.filter(bagItem => bagItem.id !== itemId),
+      trinkets: [...s.trinkets, ...Array(gain).fill(`잡동사니 판매 장신구: ${item.name}`)],
+      trinketArchive: addTrinketMemory(s.trinketArchive || [], {
+        sourceId: `oddment_sale_${item.id}_${Date.now()}`,
+        name: `잡동사니 판매 장신구`,
+        count: gain,
+        source: `Scrounging 정리 판매`,
+        story: `${s.currentLocationName}을 떠나기 전, 가방 속 ${item.name}을(를) 상인에게 넘기고 장신구 ${gain}개를 받았습니다.`,
+        locationName: s.currentLocationName,
+        timestamp: Date.now(),
+        spent: false
+      }),
+      journals: [
+        {
+          id: 'oddment_sale_' + Date.now(),
+          title: `🪙 잡동사니 판매: ${item.name}`,
+          text: `정착지를 떠나기 전 가방 속 ${item.name}을(를) 팔아 장신구 ${gain}개를 얻었습니다.`,
+          timestamp: Date.now()
+        },
+        ...s.journals
+      ]
+    }));
+  };
+
+  const handleExploreNewPath = () => {
+    const fromName = prompt("새 경로가 시작되는 장소를 입력하세요:", state.currentLocationName)?.trim();
+    if (!fromName) return;
+    const toName = prompt("새 경로가 이어지는 장소 이름을 입력하세요:", "")?.trim();
+    if (!toName) return;
+    const regionName = prompt("이어지는 장소의 지역을 입력하세요: Forest, Meadow, Loch, Bog, Mountain, Titan", state.currentRegion)?.trim() || state.currentRegion;
+    const locationType = prompt("이어지는 장소 유형을 입력하세요: Wilds, Settlement, City, Ruin, Barrow", "Wilds")?.trim() || "Wilds";
+    const pathDesc = prompt("개척한 경로나 물길을 짧게 묘사해 주세요:", `${fromName}에서 ${toName}로 이어지는 새 길`)?.trim() || `${fromName}에서 ${toName}로 이어지는 새 길`;
+
+    updateState((s: GameState) => {
+      const customWithTarget = upsertCustomMapLocation(
+        s.customMapLocations || [],
+        toName,
+        regionName,
+        locationType,
+        fromName,
+        '숲 탐험으로 개척한 위치'
+      );
+      const fromKey = findMapLocationKey(fromName, customWithTarget);
+      const toKey = findMapLocationKey(toName, customWithTarget);
+      const edgeId = fromKey && toKey
+        ? `edge_${[fromKey, toKey].sort().join('_')}`
+        : '';
+      const nextCustomMapLocations = customWithTarget.map(location => {
+        if (location.id === fromKey && toKey && !location.neighbors.includes(toKey)) {
+          return { ...location, neighbors: [...location.neighbors, toKey] };
+        }
+        if (location.id === toKey && fromKey && !location.neighbors.includes(fromKey)) {
+          return { ...location, neighbors: [...location.neighbors, fromKey] };
+        }
+        return location;
+      });
+      const existingEdges = s.customMapEdges || [];
+      const nextCustomMapEdges = edgeId && !existingEdges.some(edge => edge.id === edgeId)
+        ? [...existingEdges, { id: edgeId, from: fromKey, to: toKey, label: pathDesc, createdAt: Date.now() }]
+        : existingEdges;
+
+      return {
+        ...s,
+        customMapLocations: nextCustomMapLocations,
+        customMapEdges: nextCustomMapEdges,
+        visitedLocations: Array.from(new Set([...(s.visitedLocations || []), fromName, toName])),
+        journals: [
+          {
+            id: 'explore_woods_' + Date.now(),
+            title: `🧭 숲 개척 일지: ${fromName} → ${toName}`,
+            text: `새로운 경로를 실제 지도에 기록했습니다.\n- 시작: ${fromName}\n- 도착: ${toName} (${regionName} / ${locationType})\n- 경로 상세: ${pathDesc}`,
+            timestamp: Date.now()
+          },
+          ...s.journals
+        ]
+      };
+    });
+
+    alert("🧭 새로운 경로를 지도와 일지에 저장했습니다.");
+  };
+
+  const handleAddMappedSettlement = () => {
+    const settlementName = prompt("지도에 추가할 정착지 이름을 입력하세요:")?.trim();
+    if (!settlementName) return;
+    const regionName = prompt("정착지 지역을 입력하세요: Forest, Meadow, Loch, Bog, Mountain, Titan", state.currentRegion)?.trim() || state.currentRegion;
+    const sourceNote = prompt("이 정착지가 생긴 이유나 특징을 적어주세요:", "여정의 영구적 결과로 생긴 정착지")?.trim() || "여정의 영구적 결과로 생긴 정착지";
+
+    updateState((s: GameState) => ({
+      ...s,
+      customMapLocations: upsertCustomMapLocation(
+        s.customMapLocations || [],
+        settlementName,
+        regionName,
+        'Settlement',
+        s.currentLocationName,
+        '영구적 결과: 정착지 추가'
+      ),
+      visitedLocations: Array.from(new Set([...(s.visitedLocations || []), settlementName])),
+      journals: [
+        {
+          id: 'settlement_map_' + Date.now(),
+          title: `🏘️ 지도에 새 정착지 추가: ${settlementName}`,
+          text: `${s.currentLocationName} 근처에 ${settlementName} 정착지를 지도에 표시했습니다.\n지역: ${regionName}\n기록: ${sourceNote}`,
+          timestamp: Date.now()
+        },
+        ...s.journals
+      ]
+    }));
+
+    alert(`🏘️ ${settlementName} 정착지를 지도에 저장했습니다.`);
+  };
+
   const getClinicAgendaRequirement = (agendaService: string, s: GameState = state) => {
     const activeServices = Array.from(new Set((s.clinics || []).map(c => c.agendaService).filter(Boolean))) as string[];
     const isVisited = (loc: string) => (s.visitedLocations || []).includes(loc);
@@ -5432,6 +5772,14 @@ function PlayView({
         ...s,
         trinkets: nextTrinkets,
         clinics: [...(s.clinics || []), newClinic],
+        customMapLocations: upsertCustomMapLocation(
+          s.customMapLocations || [],
+          s.currentLocationName,
+          s.currentRegion,
+          'Clinic',
+          s.currentLocationName,
+          '약제소 건설'
+        ),
         curedAilmentInThisWilds: false,
         journals: [
           {
@@ -5830,6 +6178,55 @@ function PlayView({
         journeyGoalChecklist: nextChecklist
       };
     });
+  };
+
+  const handleCreateReplacementReagent = () => {
+    if (!state.activeAilment) return;
+    const requirements = parseAilmentRequirements(state.activeAilment.tags);
+    const choices = requirements.flatMap(req => {
+      if (req.isSpecialBone) return [{ tag: 'BONE', val: 1, label: '부목용 약재' }];
+      return req.alternatives.map(alt => ({ tag: alt.tag, val: alt.val, label: `${alt.tag} ${alt.val}` }));
+    });
+
+    if (choices.length === 0) {
+      alert("이 질병에서 대체할 요구 성분을 찾지 못했습니다.");
+      return;
+    }
+
+    const choiceInput = prompt(
+      `대체할 요구 성분을 선택하세요:\n${choices.map((choice, idx) => `${idx + 1}. ${choice.label}`).join('\n')}`,
+      '1'
+    );
+    const choice = choices[Math.max(0, (parseInt(choiceInput || '1') || 1) - 1)] || choices[0];
+    const modeInput = prompt("대체 방식 선택:\n1. Make Do — 한 단계 높은 가치의 대용품\n2. Replacement — 희귀도 12, 무게 2/3 대안 재료", "2");
+    const isMakeDo = modeInput === '1';
+    const providedVal = isMakeDo ? choice.val + 1 : choice.val;
+    const weight = isMakeDo ? 1/3 : 2/3;
+    const id = `replacement_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const name = choice.tag === 'BONE'
+      ? `${isMakeDo ? 'Make Do 대용 부목' : 'Replacement 대안 부목'} (Rarity 12)`
+      : `${isMakeDo ? 'Make Do 대용 재료' : 'Replacement 대안 재료'} (${choice.tag} ${providedVal}, Rarity 12)`;
+    const tags = choice.tag === 'BONE' ? '[BONE 1] 부목' : `[${choice.tag} ${providedVal}]`;
+
+    updateState((s: GameState) => ({
+      ...s,
+      bag: [
+        ...s.bag,
+        { id, name, weight, type: 'reagent', qty: 1, tags, preps: tags }
+      ],
+      journals: [
+        {
+          id: 'replacement_reagent_' + Date.now(),
+          title: `🧩 약재 대체: ${choice.label}`,
+          text: `${state.activeAilment?.name || '현재 질병'} 치료를 위해 ${isMakeDo ? 'Make Do' : 'Replacement'} 규칙으로 대체 재료를 만들었습니다.\n- 제공 효능: ${tags}\n- 무게: ${formatWeight(weight)}\n- 기록: 희귀도 12 대안/대용 재료로 취급`,
+          timestamp: Date.now()
+        },
+        ...s.journals
+      ]
+    }));
+
+    setSelectedBagItems(Array.from(new Set([...selectedBagItems, id])));
+    alert(`🧩 ${name}을(를) 가방에 추가하고 조제 재료로 선택했습니다.`);
   };
 
   // Concoction remedy checker
@@ -7343,24 +7740,7 @@ function PlayView({
                   현재 머무는 위치 주변의 지도에 두 장소 간 새로운 경로(Path)나 물길을 하나 개척합니다.
                 </p>
                 <button
-                  onClick={() => {
-                    const pathDesc = prompt("개척할 새로운 경로의 상세 정보 및 연결되는 장소를 입력하세요:");
-                    if (pathDesc) {
-                      updateState(s => ({
-                        ...s,
-                        journals: [
-                          {
-                            id: 'explore_woods_' + Date.now(),
-                            title: `🧭 숲 개척 일지: 새로운 경로`,
-                            text: `새로운 경로를 개척했습니다.\n- 경로 상세: ${pathDesc}`,
-                            timestamp: Date.now()
-                          },
-                          ...s.journals
-                        ]
-                      }));
-                      alert("🧭 새로운 경로를 성공적으로 개척하고 일지에 기록했습니다!");
-                    }
-                  }}
+                  onClick={handleExploreNewPath}
                   className="btn-cozy-secondary"
                   style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
                 >
@@ -8148,8 +8528,7 @@ function PlayView({
                   📉 평판 -5
                 </button>
                 <button onClick={() => {
-                  const toolName = prompt('지도에서 추가할 정착지 이름을 입력하세요:');
-                  if (toolName) alert(`'${toolName}' 정착지를 지도에 표시하세요. (지도는 직접 기록)`);
+                  handleAddMappedSettlement();
                 }}
                   style={{ padding: '0.4rem 0.7rem', fontSize: '0.78rem', background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: '6px', cursor: 'pointer' }}>
                   🏘️ 정착지 추가
@@ -9104,6 +9483,27 @@ function PlayView({
                   <strong>🔍 여분 채집 (Scrounging, p.37)</strong> — 치료 완료 후 남은 타이머로 여분 약재 획득 가능.<br />
                   타이머 소비: 현재 위치 채집 1회, 인접 위치 채집 1회, 현재 위치 약재 1개(효능≤2), 인접 약재 1개(효능≤2).<br />
                   <span style={{ color: '#888' }}>* 치료제 완성 후 모든 타이머가 0 이상일 때만 사용 가능.</span>
+                  {(() => {
+                    const saleableOddments = state.bag.filter(item => item.type === 'item' || item.type === 'trinket');
+                    if (saleableOddments.length === 0) return null;
+                    return (
+                      <div style={{ marginTop: '0.65rem', paddingTop: '0.55rem', borderTop: '1px dashed #d6c8a8' }}>
+                        <strong style={{ color: '#7c5a2a' }}>🪙 떠나기 전 잡동사니 판매</strong>
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.45rem' }}>
+                          {saleableOddments.map(item => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => handleSellOddment(item.id)}
+                              style={{ padding: '0.35rem 0.55rem', background: '#fffaf0', border: '1px solid #d8b16c', borderRadius: '6px', color: '#7c5a2a', fontSize: '0.78rem', fontWeight: 'bold', cursor: 'pointer' }}
+                            >
+                              {item.name} 판매
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Concocting Remedy Panel */}
@@ -9112,6 +9512,26 @@ function PlayView({
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
                     가방 속 영약재들을 도구를 사용하여 가공한 뒤 환자의 증상을 치료해 치료제를 만듭니다.
                   </p>
+
+                  {(() => {
+                    const selectedReagents = state.bag.filter(item => selectedBagItems.includes(item.id));
+                    const validation = validateConcoction(state.activeAilment, selectedReagents, state.bag, state);
+                    return (
+                      <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#fff8ee', border: '1px dashed #d4a853', borderRadius: '8px', fontSize: '0.82rem', lineHeight: 1.45 }}>
+                        <strong style={{ color: '#8b5e1a' }}>🧩 약재 대체 및 대안 (Replacement, p.30)</strong>
+                        <div style={{ marginTop: '0.25rem', color: '#6f604d' }}>
+                          현재 선택 기준 미충족: {validation.missingRequirements.length > 0 ? validation.missingRequirements.join(', ') : '없음'}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleCreateReplacementReagent}
+                          style={{ marginTop: '0.55rem', padding: '0.45rem 0.75rem', background: '#f5efe2', border: '1px solid #c9a66b', borderRadius: '6px', color: '#6f4e23', fontWeight: 'bold', cursor: 'pointer' }}
+                        >
+                          🧩 Make Do / Replacement 재료 만들기
+                        </button>
+                      </div>
+                    );
+                  })()}
 
                   {/* 과거 성공 처방 (Discovered Recipes) 추천 및 자동 완성 */}
                   {(() => {
@@ -10920,8 +11340,11 @@ function MapView({ state }: { state: GameState }) {
 	  const clinicLocs = (state.clinics || []).map(c => c.locationName).filter(Boolean) as string[];
 	  const scrapbookLocs = (state.travelScrapbook || []).map(s => s.locationName).filter(Boolean) as string[];
 	  const currentLoc = state.currentLocationName;
+	  const customMapLocations = state.customMapLocations || [];
+	  const customMapEdges = state.customMapEdges || [];
+	  const mapGraphNodes = buildMapGraphNodes(customMapLocations, customMapEdges);
 	  const clinicServiceLocs = (state.clinics || []).flatMap(c =>
-	    getMapLocationsWithinHops(c.locationName).map(entry => entry.node.label)
+	    getMapLocationsWithinHops(c.locationName, MAP_SERVICE_HOPS, customMapLocations, customMapEdges).map(entry => entry.node.label)
 	  );
 
 	  const locCandidates = [
@@ -10930,11 +11353,12 @@ function MapView({ state }: { state: GameState }) {
 	    ...clinicLocs,
 	    ...clinicServiceLocs,
 	    ...scrapbookLocs,
+	    ...customMapLocations.map(location => location.label),
 	    currentLoc
 	  ].filter(Boolean);
 	  const seenLocKeys = new Set<string>();
 	  const allLocNames = locCandidates.filter(name => {
-	    const key = findMapLocationKey(name) || normalizeMapLocationName(name);
+	    const key = findMapLocationKey(name, customMapLocations) || normalizeMapLocationName(name);
 	    if (seenLocKeys.has(key)) return false;
 	    seenLocKeys.add(key);
 	    return true;
@@ -10943,9 +11367,9 @@ function MapView({ state }: { state: GameState }) {
 
 	  // Hashing mapper for positioning pins on the map
 	  const getCoordinatesForLocation = (name: string) => {
-	    const structuredKey = findMapLocationKey(name);
+	    const structuredKey = findMapLocationKey(name, customMapLocations);
 	    if (structuredKey) {
-	      const node = MAP_LOCATIONS[structuredKey];
+	      const node = mapGraphNodes[structuredKey];
 	      return { x: node.x, y: node.y };
 	    }
 
@@ -11092,7 +11516,7 @@ function MapView({ state }: { state: GameState }) {
 	                  />
 		                )}
 		                {(state.clinics || []).map((clinic, idx) => {
-		                  const serviceEntries = getMapServiceEntriesWithinHops(clinic.locationName);
+		                  const serviceEntries = getMapServiceEntriesWithinHops(clinic.locationName, MAP_SERVICE_HOPS, customMapLocations, customMapEdges);
 		                  const servicePoints = serviceEntries.length > 0
 		                    ? serviceEntries.map(entry => ({ x: entry.node.x, y: entry.node.y }))
 		                    : [getCoordinatesForLocation(clinic.locationName)];
@@ -11137,12 +11561,12 @@ function MapView({ state }: { state: GameState }) {
 	              {/* Dynamic location pins & annotations */}
 	              {allLocNames.map(locName => {
 	                const { x, y } = getCoordinatesForLocation(locName);
-	                const locKey = findMapLocationKey(locName);
+	                const locKey = findMapLocationKey(locName, customMapLocations);
 	                const successes = (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'success');
 	                const failures = (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'failure');
-	                const isFirstClinic = !!firstClinic && (firstClinic.locationName === locName || (!!locKey && findMapLocationKey(firstClinic.locationName) === locKey));
-	                const hasClinic = (state.clinics || []).some(c => c.locationName === locName || (!!locKey && findMapLocationKey(c.locationName) === locKey));
-	                const isCurrent = currentLoc === locName || (!!locKey && findMapLocationKey(currentLoc) === locKey);
+	                const isFirstClinic = !!firstClinic && (firstClinic.locationName === locName || (!!locKey && findMapLocationKey(firstClinic.locationName, customMapLocations) === locKey));
+	                const hasClinic = (state.clinics || []).some(c => c.locationName === locName || (!!locKey && findMapLocationKey(c.locationName, customMapLocations) === locKey));
+	                const isCurrent = currentLoc === locName || (!!locKey && findMapLocationKey(currentLoc, customMapLocations) === locKey);
 	                const isMostLivedIn = mostLivedInLoc === locName && maxCount >= 2;
 	                const keepsakeRecords = (state.trinketArchive || []).filter(t => t.locationName === locName && !t.spent);
 
