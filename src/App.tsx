@@ -3268,6 +3268,61 @@ export default function App() {
     );
   }
 
+  function handlePassHour(amt: number = 1) {
+    if (!state.activeAilment) return;
+    updateState((s: GameState) => {
+      if (!s.activeAilment) return s;
+      const nextTimer = Math.max(0, s.activeAilment.timer - amt);
+
+      let nextAilment = { ...s.activeAilment, timer: nextTimer };
+      let newRep = s.reputation;
+      let journals = [...s.journals];
+
+      if (nextTimer === 0) {
+        // Trigger Consequence
+        alert(`💥 침상의 야수가 깊은 고통 끝에 쓸쓸히 숨을 거두었습니다: \n${s.activeAilment.consequence}`);
+        // Deduct reputation based on severity
+        const loss = s.activeAilment.severity === 'dire' ? 4 : s.activeAilment.severity === 'severe' ? 3 : s.activeAilment.severity === 'intermediate' ? 2 : 1;
+        newRep = Math.max(0, s.reputation - loss);
+        const timestamp = Date.now();
+        const sourceId = 'cure_fail_timer_' + timestamp;
+        const notes = `방랑의 여정이 이어지는 동안, 약제소 침상에 누워있던 야수의 시간이 속절없이 흘러가 버렸습니다. 미처 적절한 처방을 지어 올리기도 전에 병증이 그가 견딜 수 없을 만큼 깊어졌고, 결국 약제사로서 그의 마지막 동반자가 되어주지 못했습니다. 침상 위에 홀로 남겨진 흔적(${s.activeAilment.consequence})만이 쓸쓸하게 공방의 정적 속에 남아, 약을 지어 올리지 못한 내 미숙함을 호되게 꾸짖는 듯합니다.`;
+
+        journals.unshift({
+          id: sourceId,
+          title: `🕯️ 짚침상에 머문 슬픔: ${s.activeAilment.patientName || '이름 없는 이'}의 마지막 숨결`,
+          text: notes,
+          timestamp
+        });
+
+        const pendingArchive = createPendingPatientArchive(s, sourceId, 'failure', notes, [], s.activeAilment.consequence, timestamp);
+        nextAilment = null as any;
+        return {
+          ...s,
+          reputation: newRep,
+          activeAilment: null,
+          needsLocalHelpBeforeMove: false,
+          pendingPatientArchive: pendingArchive,
+          journals,
+          lostPatientLegacy: {
+            name: s.activeAilment!.patientName || '이름 모를 야수',
+            species: s.activeAilment!.species || '알 수 없는 종',
+            ailmentName: s.activeAilment!.name,
+            day: s.cumulativeDays || s.calendarDays || 0,
+            consequence: s.activeAilment!.consequence
+          }
+        };
+      }
+
+      return {
+        ...s,
+        reputation: newRep,
+        activeAilment: nextAilment === null ? null : nextAilment,
+        journals
+      };
+    });
+  }
+
   // Calculate current weight
   // Calculate current weight (taking Greenpaw Bandolier weight saving into account)
   const hasBandolier = hasTool(state, 'tool_bandolier') || hasTool(state, 'Greenpaw Bandolier');
@@ -3331,6 +3386,7 @@ export default function App() {
         nextFinds.splice(idx, 1);
         return { ...prev, foundReagents: nextFinds };
       });
+      handlePassHour(1); // 룰북 p.17: 발견한 약재 중 가방에 담기로 결정한 약재당 1시간씩 추가 소모
     });
   };
 
@@ -3605,6 +3661,7 @@ export default function App() {
               handleLegacyClinicRest={handleLegacyClinicRest}
               handleFamiliarSpendTime={handleFamiliarSpendTime}
               handleFamiliarFeedReagent={handleFamiliarFeedReagent}
+              handlePassHour={handlePassHour}
             />
           )}
           {activeTab === 'bio' && <BioView state={state} updateState={updateState} currentWeight={currentWeight} handleRetireClick={handleRetireClick} />}
@@ -4277,7 +4334,8 @@ function PlayView({
   handleRetireClick,
   handleLegacyClinicRest,
   handleFamiliarSpendTime,
-  handleFamiliarFeedReagent
+  handleFamiliarFeedReagent,
+  handlePassHour
 }: {
   state: GameState;
   updateState: any;
@@ -4298,6 +4356,7 @@ function PlayView({
   handleLegacyClinicRest: () => void;
   handleFamiliarSpendTime: () => void;
   handleFamiliarFeedReagent: (itemId: string) => void;
+  handlePassHour: (amt?: number) => void;
 }) {
   const [destName, setDestName] = useState("");
   const [destRegion, setDestRegion] = useState("Forest");
@@ -4329,6 +4388,8 @@ function PlayView({
   const [selectedForageSuit, setSelectedForageSuit] = useState('♥');
   const [selectedForageValue, setSelectedForageValue] = useState(1);
   const [forageDrawCard, setForageDrawCard] = useState<PlayingCard | null>(null);
+  const [forageLocationType, setForageLocationType] = useState<'current' | 'adjacent'>('current');
+  const [forageAdjacentRegion, setForageAdjacentRegion] = useState<string>('Forest');
 
   // Barrow Delve UI state
   const [delveActive, setDelveActive] = useState(false);
@@ -4422,63 +4483,8 @@ function PlayView({
       delete (window as any)._onSelectSeasonedCard;
       delete (window as any)._onSelectTitanwiseCard;
     };
-  }, [state, destRegion, nextLocName, destType, currentWeight, travelCardMode, selectedTravelSuit, selectedTravelValue, forageCardMode, selectedForageSuit, selectedForageValue, isWaterway, travelChoiceSource]);
-  const handlePassHour = (amt: number = 1) => {
-    if (!state.activeAilment) return;
-    updateState((s: GameState) => {
-      if (!s.activeAilment) return s;
-      const nextTimer = Math.max(0, s.activeAilment.timer - amt);
-
-      let nextAilment = { ...s.activeAilment, timer: nextTimer };
-      let newRep = s.reputation;
-      let journals = [...s.journals];
-
-      if (nextTimer === 0) {
-        // Trigger Consequence
-        alert(`💥 침상의 야수가 깊은 고통 끝에 쓸쓸히 숨을 거두었습니다: \n${s.activeAilment.consequence}`);
-        // Deduct reputation based on severity
-        const loss = s.activeAilment.severity === 'dire' ? 4 : s.activeAilment.severity === 'severe' ? 3 : s.activeAilment.severity === 'intermediate' ? 2 : 1;
-        newRep = Math.max(0, s.reputation - loss);
-        const timestamp = Date.now();
-        const sourceId = 'cure_fail_timer_' + timestamp;
-        const notes = `방랑의 여정이 이어지는 동안, 약제소 침상에 누워있던 야수의 시간이 속절없이 흘러가 버렸습니다. 미처 적절한 처방을 지어 올리기도 전에 병증이 그가 견딜 수 없을 만큼 깊어졌고, 결국 약제사로서 그의 마지막 동반자가 되어주지 못했습니다. 침상 위에 홀로 남겨진 흔적(${s.activeAilment.consequence})만이 쓸쓸하게 공방의 정적 속에 남아, 약을 지어 올리지 못한 내 미숙함을 호되게 꾸짖는 듯합니다.`;
-
-        journals.unshift({
-          id: sourceId,
-          title: `🕯️ 짚침상에 머문 슬픔: ${s.activeAilment.patientName || '이름 없는 이'}의 마지막 숨결`,
-          text: notes,
-          timestamp
-        });
-
-        const pendingArchive = createPendingPatientArchive(s, sourceId, 'failure', notes, [], s.activeAilment.consequence, timestamp);
-        nextAilment = null as any;
-        return {
-          ...s,
-          reputation: newRep,
-          activeAilment: null,
-          needsLocalHelpBeforeMove: false,
-          pendingPatientArchive: pendingArchive,
-          journals,
-          lostPatientLegacy: {
-            name: s.activeAilment!.patientName || '이름 모를 야수',
-            species: s.activeAilment!.species || '알 수 없는 종',
-            ailmentName: s.activeAilment!.name,
-            day: s.cumulativeDays || s.calendarDays || 0,
-            consequence: s.activeAilment!.consequence
-          }
-        };
-      }
-
-      return {
-        ...s,
-        reputation: newRep,
-        activeAilment: nextAilment === null ? null : nextAilment,
-        journals
-      };
-    });
-  };
-
-  // Downtime Actions handlers
+  }, [state, destRegion, nextLocName, destType, currentWeight, travelCardMode, selectedTravelSuit, selectedTravelValue, forageCardMode, selectedForageSuit, selectedForageValue, isWaterway, travelChoiceSource, forageLocationType, forageAdjacentRegion]);
+    // Downtime Actions handlers
   const handleDrawRumours = () => {
     if (state.reputation < 15) {
       alert("길드 평판이 '인지도 있음(15+)' 이상이어야 소문을 들을 수 있습니다.");
@@ -5659,9 +5665,10 @@ function PlayView({
     setPatientInitialNoteDraft("");
   };
 
-  const executeForageDraw = (drawnSuit: string, cardVal: number) => {
+  const executeForageDraw = (drawnSuit: string, cardVal: number, overrideRegion?: string) => {
+    const activeRegion = overrideRegion || state.currentRegion;
     // Resolve Foraging Event
-    const regionForage = GAME_DATA.foragingEncounters[state.currentRegion as any] || [];
+    const regionForage = GAME_DATA.foragingEncounters[activeRegion as any] || [];
 
     let cardKey = String(cardVal);
     if (cardVal === 1) cardKey = "ace & 2";
@@ -5681,9 +5688,9 @@ function PlayView({
       selectedFEnc = matchingFEnc[seasonIdx % matchingFEnc.length];
     }
 
-    // Search reagents native to the current region (or the resourceful reagent specified by the player)
+    // Search reagents native to the active region (or the resourceful reagent specified by the player)
     const localReagents = GAME_DATA.reagents.filter(r => {
-      const isLocal = r.regions.includes(state.currentRegion);
+      const isLocal = r.regions.includes(activeRegion);
       const isResourceful = state.resourcefulReagent && r.name === state.resourcefulReagent;
       return isLocal || isResourceful;
     });
@@ -5692,7 +5699,7 @@ function PlayView({
     const foundReagents: ForageFind[] = [];
     const currentFP = state.activeAilment?.foragingPoints || 0;
     localReagents.forEach(r => {
-      const finalRarity = calculateForageRarity(state, r);
+      const finalRarity = calculateForageRarity(state, r, activeRegion);
       if (cardVal >= finalRarity) {
         foundReagents.push({ name: r.name, rarity: finalRarity });
       } else if (currentFP >= finalRarity) {
@@ -5710,7 +5717,7 @@ function PlayView({
       suitLabel: suitLabels[drawnSuit],
       suit: drawnSuit,
       foundReagents: foundReagents,
-      region: state.currentRegion,
+      region: activeRegion,
       season: state.currentSeason
     });
 
@@ -5734,7 +5741,8 @@ function PlayView({
       };
     });
 
-    handlePassHour(1); // 1 hour for current location foraging
+    const timeSpent = overrideRegion ? 3 : 1;
+    handlePassHour(timeSpent);
   };
 
   const handleForageDraw = (e?: React.MouseEvent) => {
@@ -5743,9 +5751,11 @@ function PlayView({
 
     const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === state.bio.familiarBenefit)?.mechanic || '';
 
-    const isTitanOrBarrow = state.currentRegion === 'Titan' ||
-                            state.currentLocationType === 'Barrow' ||
-                            state.currentLocationType === 'Ruin';
+    const isAdjacent = forageLocationType === 'adjacent';
+    const activeRegion = isAdjacent ? forageAdjacentRegion : state.currentRegion;
+
+    const isTitanOrBarrow = activeRegion === 'Titan' ||
+                            (!isAdjacent && (state.currentLocationType === 'Barrow' || state.currentLocationType === 'Ruin'));
 
     if (familiarMechanic === 'titanwise' && isTitanOrBarrow && !forageDrawCard) {
       // Draw 2 cards and trigger selection modal
@@ -5763,7 +5773,7 @@ function PlayView({
     const drawnSuit = card.suit;
     const cardVal = card.value;
 
-    executeForageDraw(drawnSuit, cardVal);
+    executeForageDraw(drawnSuit, cardVal, isAdjacent ? forageAdjacentRegion : undefined);
     setForageDrawCard(null);
   };
 
@@ -6860,12 +6870,9 @@ function PlayView({
     const trinketGain = Math.max(0, trinketCalc);
 
     // Gifting option
-    let isGifting = false;
-    if (trinketGain > 0) {
-      isGifting = confirm(
-        `보상: 장신구 ${trinketGain}개\n\n💝 Gifting: 장신구 대신 길드 평판 +2를 선택하시겠습니까?\n(장신구 0개일 때는 Gifting 불가)`
-      );
-    }
+    const isGifting = confirm(
+      `보상: 장신구 ${trinketGain}개\n\n💝 Gifting: 장신구 대신 길드 평판 +2를 선택하시겠습니까?`
+    );
 
     // Familiar: Shrewd — +1 Trinket when trading remedy for trinkets (not gifting)
     const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === state.bio.familiarBenefit)?.mechanic || '';
@@ -9897,13 +9904,40 @@ function PlayView({
                   />
                 </div>
 
+                {/* Foraging Location Type Selector */}
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', width: '100%', marginBottom: '0.5rem', background: 'var(--bg-glass)', border: '1px solid var(--glass-border)', padding: '0.5rem', borderRadius: '8px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--primary)' }}>📍 채집 지역:</span>
+                  <select
+                    value={forageLocationType}
+                    onChange={(e) => setForageLocationType(e.target.value as 'current' | 'adjacent')}
+                    style={{ padding: '0.3rem', borderRadius: '6px', border: '1px solid var(--glass-border)', fontSize: '0.85rem', background: '#fff', color: '#333' }}
+                  >
+                    <option value="current">현재 지역 ({state.currentRegion}) (1시간 소모)</option>
+                    <option value="adjacent">인접 지역 (3시간 소모)</option>
+                  </select>
+
+                  {forageLocationType === 'adjacent' && (
+                    <select
+                      value={forageAdjacentRegion}
+                      onChange={(e) => setForageAdjacentRegion(e.target.value)}
+                      style={{ padding: '0.3rem', borderRadius: '6px', border: '1px solid var(--glass-border)', fontSize: '0.85rem', background: '#fff', color: '#333' }}
+                    >
+                      {['Forest', 'Meadow', 'Loch', 'Bog', 'Mountain', 'Titan']
+                        .filter(r => r !== state.currentRegion)
+                        .map(r => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                    </select>
+                  )}
+                </div>
+
                 {/* Foraging and Bartering buttons */}
-                <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', width: '100%' }}>
+                <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', width: '100%' }}>
                   <button
                     onClick={(e) => handleForageDraw(e)}
                     style={{ flex: 1, padding: '0.7rem', background: 'var(--primary-light)', color: 'var(--primary)', border: '1.5px solid var(--primary)', borderRadius: '8px', fontWeight: 'bold' }}
                   >
-                    🌿 이 위치 채집 및 조우 (Draw Forage)
+                    🌿 {forageLocationType === 'adjacent' ? `인접 지역 [${forageAdjacentRegion}] 채집 시작` : '이 위치 채집 및 조우 (Draw Forage)'}
                   </button>
 
                   {/* Barter — show remaining attempts */}
