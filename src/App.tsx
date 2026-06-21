@@ -10992,34 +10992,6 @@ function MapView({ state }: { state: GameState }) {
     }
   });
 
-  // Marginal Chronicle notes
-  const marginalNotes: string[] = [];
-  if (firstPatient) {
-    marginalNotes.push(`첫 번째 환자는 ${firstPatient.species || '야수'} ${firstPatient.patientName}였다.`);
-  }
-  if (oldestTrinket) {
-    marginalNotes.push(`가장 오래 품은 물건은 '${oldestTrinket.name}'였다.`);
-  }
-  if (firstClinic) {
-    marginalNotes.push(`처음 약제소를 세운 곳은 ${firstClinic.locationName}였다.`);
-  }
-  if (mostLivedInLoc && maxCount >= 2) {
-    marginalNotes.push(`가장 오랜 발길이 머문 곳은 ${mostLivedInLoc}였다.`);
-  }
-  const failedCount = (state.patientCasebook || []).filter(r => r.outcome === 'failure').length;
-  if (failedCount > 0) {
-    marginalNotes.push('돌아오지 못한 가여운 이들을 기억함.');
-  }
-  marginalNotes.push(state.calendarHistory.length > 5 ? '가시나무 숲에 불어오던 눅눅한 바람.' : '약초를 처음 배우던 숲속의 고요.');
-
-  const placements = [
-    { left: '4%', top: '6%', rotate: '-3deg' },
-    { right: '6%', top: '8%', rotate: '2deg' },
-    { left: '4%', bottom: '8%', rotate: '4deg' },
-    { right: '6%', bottom: '10%', rotate: '-2deg' },
-    { left: '3%', top: '48%', rotate: '-4deg' }
-  ];
-
   return (
     <div style={{
       width: '100%',
@@ -11310,29 +11282,6 @@ function MapView({ state }: { state: GameState }) {
                 );
               })}
 
-              {/* Edge Marginalia */}
-              {marginalNotes.slice(0, 5).map((noteText, idx) => {
-                const p = placements[idx];
-                return (
-                  <div
-                    key={idx}
-                    style={{
-                      position: 'absolute',
-                      ...p,
-                      pointerEvents: 'none',
-                      fontFamily: 'var(--font-script)',
-                      fontSize: '0.82rem',
-                      fontStyle: 'italic',
-                      color: 'rgba(125, 115, 100, 0.55)', // soft pencil
-                      transform: `rotate(${p.rotate})`,
-                      whiteSpace: 'nowrap',
-                      userSelect: 'none'
-                    }}
-                  >
-                    “{noteText}”
-                  </div>
-                );
-              })}
             </div>
           </div>
         </div>
