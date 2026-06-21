@@ -335,6 +335,14 @@ interface GameState {
   clinics?: Clinic[];
   customMapLocations?: CustomMapLocation[];
   customMapEdges?: CustomMapEdge[];
+  guildServiceTravelRerolls?: number;
+  forecastMoves?: number;
+  taxiSoarActive?: boolean;
+  griphUsedThisJourney?: boolean;
+  pondSkimmerUsedThisJourney?: boolean;
+  beetleUsedThisJourney?: boolean;
+  companionTravelPaths?: number;
+  missiveSettlements?: string[];
   scroungingMode?: boolean;
   scroungingTimer?: number;
   independentUsedThisAilment?: boolean;
@@ -451,6 +459,14 @@ const INITIAL_STATE: GameState = {
   clinics: [],
   customMapLocations: [],
   customMapEdges: [],
+  guildServiceTravelRerolls: 0,
+  forecastMoves: 0,
+  taxiSoarActive: false,
+  griphUsedThisJourney: false,
+  pondSkimmerUsedThisJourney: false,
+  beetleUsedThisJourney: false,
+  companionTravelPaths: 0,
+  missiveSettlements: [],
   scroungingMode: false,
   scroungingTimer: 0,
   independentUsedThisAilment: false,
@@ -2240,6 +2256,14 @@ const migrateState = (s: any): GameState => {
     clinics: s.clinics || [],
     customMapLocations: s.customMapLocations || [],
     customMapEdges: s.customMapEdges || [],
+    guildServiceTravelRerolls: s.guildServiceTravelRerolls || 0,
+    forecastMoves: s.forecastMoves || 0,
+    taxiSoarActive: s.taxiSoarActive || false,
+    griphUsedThisJourney: s.griphUsedThisJourney || false,
+    pondSkimmerUsedThisJourney: s.pondSkimmerUsedThisJourney || false,
+    beetleUsedThisJourney: s.beetleUsedThisJourney || false,
+    companionTravelPaths: s.companionTravelPaths || 0,
+    missiveSettlements: s.missiveSettlements || [],
     scroungingMode: s.scroungingMode || false,
     scroungingTimer: s.scroungingTimer || 0,
     independentUsedThisAilment: s.independentUsedThisAilment || false,
@@ -2303,6 +2327,13 @@ const getFamiliarReduction = (s: GameState, mechanic: string, defaultVal: number
   if (trust >= 80) return defaultVal + 2;
   if (trust >= 40) return defaultVal + 1;
   return defaultVal;
+};
+
+const getStartingForagingPoints = (s: GameState): number => {
+  const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === s.bio.familiarBenefit)?.mechanic || '';
+  const perceptiveFp = familiarMechanic === 'perceptive' || s.bio.familiarBenefit.includes("예리한 관찰자") ? 2 : 0;
+  const steelAxeFp = hasTool(s, 'Steel Axe') || hasTool(s, '강철 도끼') ? 3 : 0;
+  return perceptiveFp + steelAxeFp;
 };
 
 interface AilmentRequirement {
@@ -2384,11 +2415,38 @@ const createPreparedReagentItem = (r: any, partText: string, idPrefix: string): 
   preps: r.preps
 });
 
+const toolEffectItem = (tool: BagItem): BagItem | null => {
+  const text = `${tool.id} ${tool.name}`.toLowerCase();
+  if (text.includes('fairwind') || tool.name.includes('페어윈드')) {
+    return { id: `${tool.id}_effect`, name: `${tool.name} 효과`, weight: 0, type: 'reagent', tags: '[FAIR 1]', preps: '[FAIR 1]' };
+  }
+  if (text.includes('comb') || tool.name.includes('참빗')) {
+    return { id: `${tool.id}_effect`, name: `${tool.name} 효과`, weight: 0, type: 'reagent', tags: '[FUR 3] [PARASITE 1]', preps: '[FUR 3] [PARASITE 1]' };
+  }
+  if (text.includes('cauldron') || tool.name.includes('가마솥')) {
+    return { id: `${tool.id}_effect`, name: `${tool.name} 효과`, weight: 0, type: 'reagent', tags: '[PRESERVED 1] [DISTILLED 1]', preps: '[PRESERVED 1] [DISTILLED 1]' };
+  }
+  if (text.includes('frying') || tool.name.includes('프라이팬')) {
+    return { id: `${tool.id}_effect`, name: `${tool.name} 효과`, weight: 0, type: 'reagent', tags: '[COOKED 1]', preps: '[COOKED 1]' };
+  }
+  if (text.includes('double boiler') || tool.name.includes('이중 가마솥')) {
+    return { id: `${tool.id}_effect`, name: `${tool.name} 효과`, weight: 0, type: 'reagent', tags: '[BOIL 1] [BREW 1]', preps: '[BOIL 1] [BREW 1]' };
+  }
+  return null;
+};
+
+const selectedToolEffectItems = (bag: BagItem[], selectedToolIds: string[]) =>
+  bag
+    .filter(item => selectedToolIds.includes(item.id))
+    .map(toolEffectItem)
+    .filter(Boolean) as BagItem[];
+
 const validateConcoction = (
   ailment: ActiveAilment | null,
   selectedReagents: BagItem[],
   bag: BagItem[],
-  s: GameState
+  s: GameState,
+  purifyFoul: boolean = false
 ) => {
   if (!ailment) {
     return { isComplete: false, totalFair: 0, totalFoul: 0, missingRequirements: [], statusText: "환자 없음" };
@@ -2418,6 +2476,10 @@ const validateConcoction = (
       }
     }
   });
+
+  if (purifyFoul) {
+    totalFoul = 0;
+  }
 
   // Verify requirements
   const reqs = parseAilmentRequirements(ailment.tags);
@@ -2451,7 +2513,7 @@ const validateConcoction = (
   const isComplete = missingRequirements.length === 0;
   let statusText = "불완전 Remedy";
   if (isComplete) {
-    statusText = totalFoul > 0 ? "Foul Remedy" : "Fair Remedy";
+    statusText = purifyFoul ? "정화된 Remedy" : totalFoul > 0 ? "Foul Remedy" : "Fair Remedy";
   }
 
   return {
@@ -2599,9 +2661,23 @@ const calculateForageRarity = (s: GameState, r: any, regionName: string = s.curr
 
   if (r.type === 'PLANT') {
     finalRarity = Math.max(1, finalRarity - getFamiliarReduction(s, 'brushwise'));
+    const hasButterfly = (s.companions || []).some(comp => comp.name === 'butterfly');
+    if (hasButterfly && (s.currentSeason === 'Spring' || s.currentSeason === 'Summer')) {
+      finalRarity = Math.max(1, finalRarity - 1);
+    }
   }
   if (r.type === 'TITAN') {
     finalRarity = Math.max(1, finalRarity - getFamiliarReduction(s, 'titanwise'));
+  }
+  if (regionName === 'Loch' && (hasTool(s, 'tool_coracle') || hasTool(s, 'coracle') || hasTool(s, '자작나무 보트'))) {
+    finalRarity = Math.max(1, finalRarity - 2);
+  }
+  const isSmallFish = String(r.rawName || r.name).toLowerCase().includes('small fish');
+  if ((r.type === 'INSECT' || isSmallFish) && (hasTool(s, 'tool_spidersilk_net') || hasTool(s, 'spidersilk') || hasTool(s, '거미줄'))) {
+    finalRarity = Math.max(1, finalRarity - 3);
+  }
+  if (r.type === 'INSECT' && (s.companions || []).some(comp => comp.name === 'spider')) {
+    finalRarity = Math.max(1, finalRarity - 1);
   }
 
   return finalRarity;
@@ -2652,6 +2728,7 @@ const calculateBarterRarity = (s: GameState, r: any, isCity: boolean): number =>
 };
 
 const TOOLS_DB = [
+  { id: 'tool_basic_replacement', name: '기본 도구 교체품 (Basic Tools)', cost: 1, weight: 1/3, desc: '잃어버린 벨트 칼, 캠프 주전자, 절구와 공이를 대체합니다. 구매 시 이름을 선택해 가방에 넣습니다.', places: 'Any' },
   { id: 'tool_tent', name: '가죽 텐트 (Canvas Tent)', cost: 3, weight: 1, desc: '날씨(Weather) 태그 조우의 부정적 효과를 무시합니다. 사용 후 클로버/스페이드 드로우 시 파손.', places: 'Meadows Settlements' },
   { id: 'tool_frying_pan', name: '구리 프라이팬 (Copper Frying Pan)', cost: 6, weight: 2/3, desc: '[COOKED] 조제법 활성화.', places: 'Mountain Settlements' },
   { id: 'tool_cauldron', name: '철제 가마솥 (Big Iron Cauldron)', cost: 7, weight: 1, desc: '[DISTILLED] 조제법 활성화 및 치료제 보존[PRESERVE] 가능.', places: 'Mountain/Bog Settlements' },
@@ -2664,10 +2741,29 @@ const TOOLS_DB = [
   { id: 'tool_fairwind_spices', name: '페어윈드 양념 (Fairwind Spices)', cost: 10, weight: 1, desc: '제작하는 모든 치료제에 [FAIR 1] 효과를 추가합니다.', places: 'Odoak' },
   { id: 'tool_comb', name: '참빗 (Fine-toothed Comb)', cost: 3, weight: 1/3, desc: '치료제에 [FUR 3] 및 [PARASITE 1] 제공. 사용 후 스페이드 드로우 시 파손.', places: 'Forest/Mountain Settlements' },
   { id: 'tool_needles', name: '뜨개바늘 (Knitting Needles)', cost: 2, weight: 1/3, desc: '채집 대신 뜨개질 프로젝트(담요, 코트, 가방, 목도리)를 개시하여 도구를 제작합니다.', places: 'Noonhill' },
-  { id: 'tool_instruments', name: '악기 (Instruments)', cost: 5, weight: 1, desc: '정착지/도시 진입 후 사역마나 다른 동료와 연주회를 열어 장신구를 획득합니다.', places: 'Forest/Bog Settlements' },
+  { id: 'tool_instruments', name: '악기 (Instruments)', cost: 5, weight: 1, desc: '정착지/도시 진입 후 길동무나 다른 동료와 연주회를 열어 장신구를 획득합니다.', places: 'Forest/Bog Settlements' },
   { id: 'tool_waxed_satchel', name: '방수 가방 (Waxed Satchel)', cost: 5, weight: 1, desc: '영약재 분실 없이 물길 이동 가능.', places: 'Any' },
   { id: 'tool_stilts', name: '죽창 (Stilts)', cost: 3, weight: 1/3, desc: '수렁(Bog)에서 이동 시작 시 속도 +1.', places: 'Noonhill' },
-  { id: 'tool_saddlebags', name: '안장가방 (Saddlebags)', cost: 3, weight: 0, desc: '가방 소지 한도 +2 (사역마에게도 1개 장착 가능).', places: 'Any' }
+  { id: 'tool_saddlebags', name: '안장가방 (Saddlebags)', cost: 3, weight: 0, desc: '가방 소지 한도 +2 (길동무에게도 1개 장착 가능).', places: 'Any' }
+];
+
+const GUILD_SERVICES_DB = [
+  { id: 'rug_wonders', name: '놀라운 양탄자 (Rug of Wonders)', cost: 1, places: 'Any Settlement or City', desc: '여정당 1회, 기본 희귀도 9 이하 영약재 부위 1개를 구입합니다.' },
+  { id: 'news_trail', name: '길 위의 소식 (News From The Trail)', cost: 2, places: 'Any Settlement or City', desc: '목적지에 도착할 때까지 이동 조우를 한 번 2장 중 선택합니다.' },
+  { id: 'forecast', name: '날씨 예보 (Forecast)', cost: 1, places: 'Bog Settlement', desc: '다음 3번 이동 동안 Weather 태그 조우의 부정적 효과를 무시합니다.' },
+  { id: 'shortcut', name: '숨은 지름길 (Shortcut)', cost: 2, places: 'Forest Settlement', desc: '안전한 숲길로 근처 위치까지 즉시 이동하고 지도 경로를 남깁니다.' },
+  { id: 'hitch_ride', name: '농부 마차 얻어타기 (Hitch a Ride)', cost: 2, places: 'Meadow Settlement', desc: '초원 위치까지 최대 5경로 이동하고 이동 조우를 생략합니다.' },
+  { id: 'catch_day_small', name: '오늘의 작은 물고기 (Catch of the Day)', cost: 1, places: 'Loch Settlement', desc: 'Small Fish 부위 1개를 얻습니다.' },
+  { id: 'catch_day_big', name: '오늘의 큰 물고기 (Catch of the Day)', cost: 2, places: 'Loch Settlement', desc: 'Big Fish 부위 1개를 얻습니다.' },
+  { id: 'take_clippings', name: '온실 꺾꽂이 (Take Clippings)', cost: 5, places: 'Glasswall', desc: '원하는 식물 영약재 부위 1개를 얻습니다.' },
+  { id: 'taxi_service', name: '독수리 택시 (Taxi Service)', cost: 5, places: 'Summit', desc: '다음 이동을 Soar로 수행할 수 있고 Soar 부정 결과를 보호받습니다.' },
+  { id: 'build_bridge', name: '다리 건설 (Build a Bridge)', cost: 8, places: 'Spoolkeep', desc: '두 위치 사이의 물길을 일반 경로로 기록합니다.' },
+  { id: 'floodplain', name: '범람지 만들기 (Floodplain)', cost: 8, places: 'Newdam', desc: '야생 위치 하나를 다음 봄까지 Loch 지역으로 기록합니다.' },
+  { id: 'survey_paths', name: '경로 측량 (Survey Paths)', cost: 10, places: 'Any City', desc: '지도에 새 경로를 추가합니다.' },
+  { id: 'pick_deep', name: '깊은 곳의 수확 (Pick of the Deep)', cost: 2, places: 'Vessel', desc: '카드를 뽑아 값 이하의 티탄 영약재 1개를 얻습니다.' },
+  { id: 'scare_tactics', name: '위협 제거 (Scare Tactics)', cost: 8, places: 'Odoak', desc: '지도 위 거대 야수/고분 효과 하나를 제거합니다.' },
+  { id: 'retrieval', name: '회수 의뢰 (Retrieval)', cost: 5, places: 'Vessel', desc: '비-티탄 영약재나 잃어버린 물건 회수 의뢰를 기록하고 가방에 표시합니다.' },
+  { id: 'send_missive', name: '전령 보내기 (Send a Missive)', cost: 3, places: 'Noonhill', desc: '정착지 최대 3곳을 지정해 도착 시 질병을 직접 선택할 수 있게 기록합니다.' }
 ];
 
 const WAGON_UPGRADES_DB = [
@@ -2677,7 +2773,7 @@ const WAGON_UPGRADES_DB = [
   { id: 'axelSprings', name: '차축 스프링 (Axel Springs)', cost: 7, desc: '마차가 제공하는 속도 보너스가 +1에서 +2로 상향됩니다.', city: 'Any City' },
   { id: 'sideBrackets', name: '측면 브래킷 (Side Brackets)', cost: 7, desc: '마차가 제공하는 소지 용량 보너스가 +4에서 +6으로 상향됩니다.', city: 'Any City' },
   { id: 'hiveBrackets', name: '벌집 브래킷 (Hive Brackets)', cost: 7, desc: '여정 도중 동반자를 최대 2마리까지 동행할 수 있습니다.', city: 'Odoak' },
-  { id: 'passengerBooth', name: '조수석 부스 (Passenger Booth)', cost: 20, desc: '이동 중 승객을 동승시킬 수 있으며, 승객이 임시 사역마 역할을 수행합니다.', city: 'Summit' },
+  { id: 'passengerBooth', name: '조수석 부스 (Passenger Booth)', cost: 20, desc: '이동 중 승객을 동승시킬 수 있으며, 승객이 임시 길동무 역할을 수행합니다.', city: 'Summit' },
   { id: 'shadowCanvas', name: '그림자 캔버스 (Shadow Canvas)', cost: 5, desc: '정착지 진입 시 인형극을 열어 길드 명성을 +1 얻습니다.', city: 'Spoolkeep' },
   { id: 'experimentalContraption', name: '비행 기구 개조 (Experimental Balloon)', cost: 20, desc: '비행(Soar) 이동이 가능해지지만, 비행 이동 시 일정이 3일 소모됩니다.', city: 'Glasswall' },
   { id: 'clayPots', name: '이식용 진흙 화분 (Clay Pots)', cost: 5, desc: '마차 안에서 식물 약재 1종을 직접 재배하여 이동 2회당 1회씩 수확할 수 있습니다.', city: 'Noonhill' }
@@ -2705,6 +2801,18 @@ const isToolAvailableAtLocation = (tool: any, s: GameState, bypass: boolean = fa
   if (!places.includes('Settlements') || s.currentLocationType !== 'Settlement') return false;
   const normalized = places.replace('Meadows', 'Meadow');
   return ['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain'].some(region => normalized.includes(region) && s.currentRegion === region);
+};
+
+const isGuildServiceAvailableAtLocation = (service: any, s: GameState, bypass: boolean = false) => {
+  if (bypass) return true;
+  const places = String(service.places || '');
+  const isSettlementOrCity = s.currentLocationType === 'Settlement' || s.currentLocationType === 'City';
+  if (places === 'Any Settlement or City') return isSettlementOrCity;
+  if (places === 'Any City') return s.currentLocationType === 'City';
+  if (places.includes('Settlement') && s.currentLocationType !== 'Settlement') return false;
+  if (places.includes('City') && s.currentLocationType !== 'City') return false;
+  if (['Glasswall', 'Summit', 'Spoolkeep', 'Newdam', 'Vessel', 'Odoak', 'Noonhill'].some(city => places.includes(city) && s.currentLocationName === city)) return true;
+  return ['Bog', 'Forest', 'Meadow', 'Loch', 'Mountain'].some(region => places.includes(region) && s.currentRegion === region);
 };
 
 export default function App() {
@@ -3033,7 +3141,7 @@ export default function App() {
   const handleFamiliarSpendTime = () => {
     if (!state) return;
     if ((state.familiarTrust || 0) >= 100) {
-      alert("사역마와의 친밀도가 이미 최대치(100%)입니다! 더할 나위 없이 끈끈한 유대감을 느끼고 있습니다.");
+      alert("길동무와의 친밀도가 이미 최대치(100%)입니다! 더할 나위 없이 끈끈한 유대감을 느끼고 있습니다.");
       return;
     }
 
@@ -3053,8 +3161,8 @@ export default function App() {
         journals: [
           {
             id: 'familiar_bond_' + timestamp,
-            title: `🐾 사역마 교감: 시간 보내기`,
-            text: `하루 동안 사역마와 숲속을 산책하고 털을 빗겨주며 따뜻한 교감을 나눴습니다.\n- 친밀도(Trust): ${(s.familiarTrust || 0)}% → ${nextTrust}%\n- 달력 일정 +1일 소모`,
+            title: `🐾 길동무 교감: 시간 보내기`,
+            text: `하루 동안 길동무와 숲속을 산책하고 털을 빗겨주며 따뜻한 교감을 나눴습니다.\n- 친밀도(Trust): ${(s.familiarTrust || 0)}% → ${nextTrust}%\n- 달력 일정 +1일 소모`,
             timestamp
           },
           ...s.journals
@@ -3062,13 +3170,13 @@ export default function App() {
       };
     });
 
-    alert("🐾 사역마와 따뜻한 시간을 보냈습니다. 친밀도가 5% 상승하고, 일정 1일이 경과했습니다.");
+    alert("🐾 길동무와 따뜻한 시간을 보냈습니다. 친밀도가 5% 상승하고, 일정 1일이 경과했습니다.");
   };
 
   const handleFamiliarFeedReagent = (reagentItemId: string) => {
     if (!state) return;
     if ((state.familiarTrust || 0) >= 100) {
-      alert("사역마와의 친밀도가 이미 최대치(100%)입니다!");
+      alert("길동무와의 친밀도가 이미 최대치(100%)입니다!");
       return;
     }
     const foundItem = state.bag.find(item => item.id === reagentItemId);
@@ -3088,8 +3196,8 @@ export default function App() {
         journals: [
           {
             id: 'familiar_feed_' + timestamp,
-            title: `🐾 사역마 교감: 맛있는 약재 간식`,
-            text: `가방에서 맛있는 약재 [${foundItem.name}]을(를) 꺼내 사역마에게 간식으로 챙겨주었습니다. 사역마가 기쁘게 받아먹으며 꼬리를 흔들었습니다.\n- 친밀도(Trust): ${(s.familiarTrust || 0)}% → ${nextTrust}%\n- 약재 소비: ${foundItem.name}`,
+            title: `🐾 길동무 교감: 맛있는 약재 간식`,
+            text: `가방에서 맛있는 약재 [${foundItem.name}]을(를) 꺼내 길동무에게 간식으로 챙겨주었습니다. 길동무가 기쁘게 받아먹으며 꼬리를 흔들었습니다.\n- 친밀도(Trust): ${(s.familiarTrust || 0)}% → ${nextTrust}%\n- 약재 소비: ${foundItem.name}`,
             timestamp
           },
           ...s.journals
@@ -3097,7 +3205,7 @@ export default function App() {
       };
     });
 
-    alert(`🐾 사역마에게 [${foundItem.name}]을(를) 간식으로 주었습니다. 친밀도가 15% 상승했습니다!`);
+    alert(`🐾 길동무에게 [${foundItem.name}]을(를) 간식으로 주었습니다. 친밀도가 15% 상승했습니다!`);
   };
 
   const handleSignIn = async () => {
@@ -3289,6 +3397,27 @@ export default function App() {
     });
   };
 
+  const handleUseBeetleCompanion = (encounterTitle: string) => {
+    updateState(s => {
+      const hasBeetle = (s.companions || []).some(comp => comp.name === 'beetle');
+      if (!hasBeetle || s.beetleUsedThisJourney) return s;
+      return {
+        ...s,
+        beetleUsedThisJourney: true,
+        journals: [
+          {
+            id: `beetle_guard_${Date.now()}`,
+            title: '딱정벌레 동반자 보호',
+            text: `${encounterTitle || '여정 조우'}에서 딱정벌레 동반자를 사용해 맹수/야수 조우의 부정적 효과를 무시했습니다.`,
+            timestamp: Date.now()
+          },
+          ...s.journals
+        ]
+      };
+    });
+    alert("딱정벌레 동반자 효과를 이번 여정 1회 사용으로 기록했습니다.");
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-gradient)' }}>
       {/* Header Banner */}
@@ -3377,7 +3506,7 @@ export default function App() {
 
                 {state.bio.familiarName && (
                   <div style={{ borderTop: '1px dashed var(--glass-border)', marginTop: '0.45rem', paddingTop: '0.45rem' }}>
-                    🐾 사역마 <strong>{state.bio.familiarName}</strong>{state.bio.familiarAnimal ? ` (${state.bio.familiarAnimal})` : ''}.
+                    🐾 길동무 <strong>{state.bio.familiarName}</strong>{state.bio.familiarAnimal ? ` (${state.bio.familiarAnimal})` : ''}.
                     <br />
                     <span className="dim">{state.bio.familiarBenefit}.</span>
                   </div>
@@ -3524,6 +3653,10 @@ export default function App() {
           encText.toLowerCase().includes(phrase.toLowerCase()) ||
           encTitle.toLowerCase().includes(phrase.toLowerCase())
         );
+        const canUseBeetleCompanion =
+          (state.companions || []).some(comp => comp.name === 'beetle') &&
+          !state.beetleUsedThisJourney &&
+          /beast|behemoth|맹수|야수|거수/i.test(`${encTitle} ${encText}`);
 
         return (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
@@ -3587,6 +3720,15 @@ export default function App() {
                       {label}
                     </button>
                   ))}
+                  {canUseBeetleCompanion && (
+                    <button
+                      type="button"
+                      onClick={() => handleUseBeetleCompanion(activeTravelEncounter.title)}
+                      style={{ padding: '0.35rem 0.55rem', fontSize: '0.76rem', border: '1px solid #8e6d3a', background: '#fff7df', color: '#7a4a10', borderRadius: '4px', cursor: 'pointer', fontWeight: 700 }}
+                    >
+                      딱정벌레 보호 사용
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -3767,7 +3909,7 @@ export default function App() {
           <div className="glass-panel" style={{ maxWidth: '500px', width: '100%', padding: '2rem', background: '#fff', borderRadius: '20px', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', textAlign: 'center' }}>
             <h3 style={{ color: 'var(--primary)', margin: '0 0 1rem 0' }}>🧭 베테랑 여행자 (Seasoned) 조우 선택</h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-              사역마의 베테랑 길잡이 혜택으로 2장의 카드 중 여정 조우에 적용할 카드를 선택합니다.
+              길동무의 베테랑 길잡이 혜택으로 2장의 카드 중 여정 조우에 적용할 카드를 선택합니다.
             </p>
             <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', marginBottom: '1.8rem' }}>
               {seasonedDraws.map((card, idx) => {
@@ -4157,6 +4299,7 @@ function PlayView({
   // Concoction State
   const [selectedBagItems, setSelectedBagItems] = useState<string[]>([]);
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
+  const [usePurify, setUsePurify] = useState(false);
 
   // Manual Card Selector State
   const [nextLocName, setNextLocName] = useState("");
@@ -4223,6 +4366,7 @@ function PlayView({
   const [replenishNote, setReplenishNote] = useState('');
   const [selectedToolToUpgrade, setSelectedToolToUpgrade] = useState('');
   const [selectedUpgradeOption, setSelectedUpgradeOption] = useState('');
+  const [travelChoiceSource, setTravelChoiceSource] = useState<'seasoned' | 'news' | 'pondSkimmer' | null>(null);
 
   useEffect(() => {
     setLocalSeason(state.currentSeason);
@@ -4247,6 +4391,12 @@ function PlayView({
 
   useEffect(() => {
     (window as any)._onSelectSeasonedCard = (suit: string, val: number) => {
+      if (travelChoiceSource === 'news') {
+        updateState((s: GameState) => ({ ...s, guildServiceTravelRerolls: Math.max(0, (s.guildServiceTravelRerolls || 0) - 1) }));
+      } else if (travelChoiceSource === 'pondSkimmer') {
+        updateState((s: GameState) => ({ ...s, pondSkimmerUsedThisJourney: true }));
+      }
+      setTravelChoiceSource(null);
       executeTravelMove(suit, val, isWaterway);
     };
     (window as any)._onSelectTitanwiseCard = (suit: string, val: number) => {
@@ -4256,7 +4406,7 @@ function PlayView({
       delete (window as any)._onSelectSeasonedCard;
       delete (window as any)._onSelectTitanwiseCard;
     };
-  }, [state, destRegion, nextLocName, destType, currentWeight, travelCardMode, selectedTravelSuit, selectedTravelValue, forageCardMode, selectedForageSuit, selectedForageValue, isWaterway]);
+  }, [state, destRegion, nextLocName, destType, currentWeight, travelCardMode, selectedTravelSuit, selectedTravelValue, forageCardMode, selectedForageSuit, selectedForageValue, isWaterway, travelChoiceSource]);
   const handlePassHour = (amt: number = 1) => {
     if (!state.activeAilment) return;
     updateState((s: GameState) => {
@@ -4522,12 +4672,23 @@ function PlayView({
       alert("장신구가 부족합니다!");
       return;
     }
+    const replacementOptions: Record<string, { name: string; weight: number }> = {
+      knife: { name: '벨트 칼', weight: 1/3 },
+      kettle: { name: '낡은 캠프 주전자 [BOIL/BREW]', weight: 1/3 },
+      mortar: { name: '나무 절구와 공이 [GRIND/CRUSH]', weight: 1/3 }
+    };
+    let purchasedTool = tool;
+    if (tool.id === 'tool_basic_replacement') {
+      const chosen = prompt("교체할 기본 도구를 선택하세요:\n1. 벨트 칼\n2. 낡은 캠프 주전자\n3. 나무 절구와 공이", "1");
+      const key = chosen === '2' ? 'kettle' : chosen === '3' ? 'mortar' : 'knife';
+      purchasedTool = { ...tool, name: replacementOptions[key].name, weight: replacementOptions[key].weight };
+    }
     updateState(s => {
       const nextTrinkets = s.trinkets.slice(tool.cost);
       const newItem: BagItem = {
         id: 'purchased_' + Date.now(),
-        name: tool.name,
-        weight: tool.weight,
+        name: purchasedTool.name,
+        weight: purchasedTool.weight,
         type: 'tool',
         qty: 1
       };
@@ -4538,15 +4699,190 @@ function PlayView({
         journals: [
           {
             id: 'shop_' + Date.now(),
-            title: `🛒 도구 구매: ${tool.name}`,
-            text: `장신구 ${tool.cost}개를 지불하고 ${tool.name} 도구를 구입했습니다.`,
+            title: `🛒 도구 구매: ${purchasedTool.name}`,
+            text: `장신구 ${tool.cost}개를 지불하고 ${purchasedTool.name} 도구를 구입했습니다.`,
             timestamp: Date.now()
           },
           ...s.journals
         ]
       };
     });
-    alert(`${tool.name} 도구를 구매했습니다!`);
+    alert(`${purchasedTool.name} 도구를 구매했습니다!`);
+  };
+
+  const addReagentFromDatabase = (s: GameState, reagent: any, sourcePrefix: string): { next: GameState; itemName: string } => {
+    const parts = splitReagentPreparations(reagent.preps);
+    const chosenPart = parts[0] || 'unprepared specimen';
+    const item = createPreparedReagentItem(reagent, chosenPart, sourcePrefix);
+    return {
+      next: { ...s, bag: [...s.bag, item] },
+      itemName: `${reagent.name} (${chosenPart.trim()})`
+    };
+  };
+
+  const handleHireGuildService = (service: any) => {
+    if (!isGuildServiceAvailableAtLocation(service, state, bypassShopRules)) {
+      alert("현재 위치에서는 이 길드 서비스를 이용할 수 없습니다.");
+      return;
+    }
+    if (state.trinkets.length < service.cost) {
+      alert("장신구가 부족합니다!");
+      return;
+    }
+    if (service.id === 'rug_wonders' && state.griphUsedThisJourney) {
+      alert("Rug of Wonders는 여정당 1회만 이용할 수 있습니다.");
+      return;
+    }
+
+    updateState((s: GameState) => {
+      let next: GameState = { ...s, trinkets: s.trinkets.slice(service.cost) };
+      let resultText = service.desc;
+
+      const addJournal = (target: GameState, text: string) => ({
+        ...target,
+        journals: [
+          {
+            id: `guild_service_${service.id}_${Date.now()}`,
+            title: `🛎️ 길드 서비스: ${service.name}`,
+            text: `장신구 ${service.cost}개를 지불했습니다.\n${text}`,
+            timestamp: Date.now()
+          },
+          ...target.journals
+        ]
+      });
+
+      if (service.id === 'rug_wonders') {
+        const available = GAME_DATA.reagents.filter(r => r.br <= 9);
+        const chosenName = prompt(`구입할 영약재 이름을 입력하세요. 기본 희귀도 9 이하만 가능합니다.\n예: ${available.slice(0, 8).map(r => r.name).join(', ')}`);
+        const reagent = available.find(r => r.name.includes(chosenName || '') || r.rawName.toLowerCase().includes((chosenName || '').toLowerCase()));
+        if (!reagent) {
+          alert("조건에 맞는 영약재를 찾지 못했습니다. 장신구는 소비하지 않습니다.");
+          return s;
+        }
+        const added = addReagentFromDatabase(next, reagent, 'rug_wonders');
+        next = { ...added.next, griphUsedThisJourney: true };
+        resultText = `Griph에게서 ${added.itemName}을(를) 샀습니다.`;
+      } else if (service.id === 'news_trail') {
+        next = { ...next, guildServiceTravelRerolls: (next.guildServiceTravelRerolls || 0) + 1 };
+        resultText = '다음 이동 조우 1회에 카드 2장 중 선택할 수 있습니다.';
+      } else if (service.id === 'forecast') {
+        const costWasTwo = confirm("2 장신구를 지불해 더 정확한 예보로 기록할까요? 취소하면 1 장신구 서비스로 처리합니다.");
+        if (costWasTwo && s.trinkets.length >= 2) {
+          next = { ...s, trinkets: s.trinkets.slice(2), forecastMoves: 3 };
+          resultText = '다음 3번 이동 동안 Weather 태그 조우의 부정적 효과를 무시합니다. 정확 예보 비용 2 장신구.';
+        } else {
+          next = { ...next, forecastMoves: 3 };
+          resultText = '다음 3번 이동 동안 Weather 태그 조우의 부정적 효과를 무시합니다.';
+        }
+      } else if (service.id === 'shortcut' || service.id === 'hitch_ride') {
+        const targetName = prompt(service.id === 'shortcut' ? "지름길로 도착할 근처 위치 이름:" : "마차를 얻어타고 도착할 Meadow 위치 이름:");
+        if (!targetName) return s;
+        const targetRegion = service.id === 'hitch_ride' ? 'Meadow' : (prompt("도착 위치 지역:", s.currentRegion) || s.currentRegion);
+        const targetType = prompt("도착 위치 유형:", "Wilds") || "Wilds";
+        const customLocations = upsertCustomMapLocation(next.customMapLocations || [], targetName, targetRegion, targetType, s.currentLocationName, service.name);
+        const fromKey = findMapLocationKey(s.currentLocationName, customLocations);
+        const toKey = findMapLocationKey(targetName, customLocations);
+        const edgeId = fromKey && toKey ? `edge_${[fromKey, toKey].sort().join('_')}` : '';
+        next = {
+          ...next,
+          currentLocationName: targetName,
+          currentRegion: targetRegion,
+          currentLocationType: targetType,
+          calendarDays: s.journeyActive ? s.calendarDays + 1 : s.calendarDays,
+          cumulativeDays: (s.cumulativeDays || 0) + 1,
+          visitedLocations: Array.from(new Set([...(s.visitedLocations || []), targetName])),
+          customMapLocations: customLocations,
+          customMapEdges: edgeId && !(s.customMapEdges || []).some(edge => edge.id === edgeId)
+            ? [...(s.customMapEdges || []), { id: edgeId, from: fromKey, to: toKey, label: service.name, createdAt: Date.now() }]
+            : (s.customMapEdges || [])
+        };
+        resultText = `${service.name}으로 이동 조우 없이 ${targetName}에 도착했습니다.`;
+      } else if (service.id === 'catch_day_small' || service.id === 'catch_day_big') {
+        const rawName = service.id === 'catch_day_big' ? 'Big Fish' : 'Small Fish';
+        const reagent = GAME_DATA.reagents.find(r => r.rawName === rawName);
+        if (reagent) {
+          const added = addReagentFromDatabase(next, reagent, service.id);
+          next = added.next;
+          resultText = `${added.itemName}을(를) 획득했습니다.`;
+        }
+      } else if (service.id === 'take_clippings') {
+        const plantName = prompt("꺾꽂이로 얻을 식물 영약재 이름을 입력하세요:");
+        const reagent = GAME_DATA.reagents.find(r => r.type === 'PLANT' && (r.name.includes(plantName || '') || r.rawName.toLowerCase().includes((plantName || '').toLowerCase())));
+        if (!reagent) {
+          alert("식물 영약재를 찾지 못했습니다. 장신구는 소비하지 않습니다.");
+          return s;
+        }
+        const added = addReagentFromDatabase(next, reagent, 'clipping');
+        next = added.next;
+        resultText = `${added.itemName} 꺾꽂이를 획득했습니다.`;
+      } else if (service.id === 'taxi_service') {
+        next = { ...next, taxiSoarActive: true };
+        resultText = '다음 이동은 Soar로 가능하며, Soar 조우의 부정적 결과를 보호받습니다.';
+      } else if (service.id === 'build_bridge' || service.id === 'survey_paths') {
+        const fromName = prompt("연결할 첫 위치:", s.currentLocationName);
+        const toName = prompt("연결할 두 번째 위치:");
+        if (!fromName || !toName) return s;
+        const customLocations = upsertCustomMapLocation(next.customMapLocations || [], toName, s.currentRegion, 'Wilds', fromName, service.name);
+        const fromKey = findMapLocationKey(fromName, customLocations);
+        const toKey = findMapLocationKey(toName, customLocations);
+        const edgeId = fromKey && toKey ? `edge_${[fromKey, toKey].sort().join('_')}` : '';
+        next = {
+          ...next,
+          customMapLocations: customLocations,
+          customMapEdges: edgeId && !(s.customMapEdges || []).some(edge => edge.id === edgeId)
+            ? [...(s.customMapEdges || []), { id: edgeId, from: fromKey, to: toKey, label: service.name, createdAt: Date.now() }]
+            : (s.customMapEdges || [])
+        };
+        resultText = `${fromName}와 ${toName} 사이의 새 경로를 지도에 기록했습니다.`;
+      } else if (service.id === 'floodplain') {
+        const locationName = prompt("Loch로 범람시킬 야생 위치:", s.currentLocationName);
+        if (!locationName) return s;
+        next = {
+          ...next,
+          customMapLocations: upsertCustomMapLocation(next.customMapLocations || [], locationName, 'Loch', 'Wilds', s.currentLocationName, 'Floodplain: 다음 봄까지 Loch')
+        };
+        resultText = `${locationName}을(를) 다음 봄까지 Loch 지역으로 지도에 기록했습니다.`;
+      } else if (service.id === 'pick_deep') {
+        const card = drawPlayingCard();
+        const candidates = GAME_DATA.reagents.filter(r => r.type === 'TITAN' && r.br <= card.value);
+        if (candidates.length > 0) {
+          const reagent = candidates[Math.floor(Math.random() * candidates.length)];
+          const added = addReagentFromDatabase(next, reagent, 'pick_deep');
+          next = added.next;
+          resultText = `카드 ${card.suit} ${cardDisplayValue(card.value)}. ${added.itemName}을(를) 획득했습니다.`;
+        } else {
+          resultText = `카드 ${card.suit} ${cardDisplayValue(card.value)}. 값 이하의 티탄 영약재가 없어 흥미로운 잡동사니만 기록했습니다.`;
+        }
+      } else if (service.id === 'scare_tactics') {
+        const removeBarrow = next.barrows?.[0];
+        next = {
+          ...next,
+          pursuedByBehemoth: null,
+          barrows: removeBarrow ? (next.barrows || []).slice(1) : (next.barrows || [])
+        };
+        resultText = removeBarrow
+          ? `${removeBarrow.name} 고분/거수 위협을 지도에서 제거했습니다.`
+          : '진행 중인 거수 추격 효과를 제거했습니다.';
+      } else if (service.id === 'retrieval') {
+        const itemName = prompt("회수할 비-티탄 영약재나 잃어버린 물건 이름:");
+        if (!itemName) return s;
+        next = {
+          ...next,
+          bag: [...next.bag, { id: `retrieval_${Date.now()}`, name: `회수 의뢰품: ${itemName}`, weight: 1/3, type: 'item', qty: 1 }]
+        };
+        resultText = `${itemName} 회수 의뢰를 기록하고 의뢰품 표식을 가방에 넣었습니다.`;
+      } else if (service.id === 'send_missive') {
+        const names = (prompt("서신을 보낼 정착지 최대 3곳을 쉼표로 적어주세요:") || '')
+          .split(',')
+          .map(name => name.trim())
+          .filter(Boolean)
+          .slice(0, 3);
+        next = { ...next, missiveSettlements: Array.from(new Set([...(next.missiveSettlements || []), ...names])) };
+        resultText = `서신 대상: ${names.join(', ') || '없음'}. 해당 정착지에서는 질병을 직접 선택할 수 있습니다.`;
+      }
+
+      return addJournal(next, resultText);
+    });
   };
 
   const handleUpgradeTool = () => {
@@ -4813,6 +5149,14 @@ function PlayView({
         journeyGoalCounter: 0,
         journeyGoalChecklist: [],
         journeyStartReputation: s.reputation,
+        griphUsedThisJourney: false,
+        pondSkimmerUsedThisJourney: false,
+        beetleUsedThisJourney: false,
+        companionTravelPaths: 0,
+        guildServiceTravelRerolls: 0,
+        forecastMoves: 0,
+        taxiSoarActive: false,
+        missiveSettlements: [],
         bag: nextBag,
         journals: [
           {
@@ -4889,6 +5233,12 @@ function PlayView({
     const socialTextExtra = socialDraw
       ? `\n\n🤝 [정착지/도시 사회 조우]\n카드: ${socialDraw.card.suit} ${cardDisplayValue(socialDraw.card.value)} · 표: ${socialDraw.tableKey}\n${socialDraw.encounter.title}\n${socialDraw.encounter.text}`
       : '';
+    const taxiTextExtra = state.taxiSoarActive && destRegion === 'Soar'
+      ? '\n\n🦅 [Taxi Service]\nBoldheart의 보호를 받는 Soar 이동입니다. 이 Soar 조우의 부정적 결과는 무시할 수 있습니다.'
+      : '';
+    const forecastTextExtra = (state.forecastMoves || 0) > 0
+      ? `\n\n🌦️ [Forecast]\n예보 보호가 활성화되어 있습니다. Weather 태그 조우의 부정적 효과를 무시할 수 있습니다.`
+      : '';
 
     // Familiar: Brave benefit
     const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === state.bio.familiarBenefit)?.mechanic || '';
@@ -4912,15 +5262,15 @@ function PlayView({
           qty: 1,
           preps: selectedR.preps
         };
-        braveTextExtra = `\n\n🐾 [용감한 동반자 (Brave) 효과 발동!]\n거대 야수와 마주쳤으나 사역마의 용기 덕분에 긍정적으로 해결되었습니다. 지역 약재인 "${selectedR.name}"을(를) 획득했습니다!`;
+        braveTextExtra = `\n\n🐾 [용감한 동반자 (Brave) 효과 발동!]\n거대 야수와 마주쳤으나 길동무의 용기 덕분에 긍정적으로 해결되었습니다. 지역 약재인 "${selectedR.name}"을(를) 획득했습니다!`;
       } else {
-        braveTextExtra = `\n\n🐾 [용감한 동반자 (Brave) 효과 발동!]\n거대 야수와 마주쳤으나 사역마의 용기 덕분에 위기를 모면했습니다. (이 지역에 희귀도 6 이하 약재가 없어 추가 획득은 없습니다)`;
+        braveTextExtra = `\n\n🐾 [용감한 동반자 (Brave) 효과 발동!]\n거대 야수와 마주쳤으나 길동무의 용기 덕분에 위기를 모면했습니다. (이 지역에 희귀도 6 이하 약재가 없어 추가 획득은 없습니다)`;
       }
     }
 
     setActiveTravelEncounter({
       ...selectedEnc,
-      text: selectedEnc.text + braveTextExtra + socialTextExtra,
+      text: selectedEnc.text + braveTextExtra + socialTextExtra + taxiTextExtra + forecastTextExtra,
       cardValue: cardVal === 1 ? 'Ace' : cardVal === 11 ? 'Jack' : cardVal === 12 ? 'Queen' : cardVal === 13 ? 'King' : cardVal,
       suitLabel: suitLabels[drawnSuit],
       suit: drawnSuit,
@@ -5004,6 +5354,72 @@ function PlayView({
         finalBag = [...finalBag, braveReagentToAdd];
       }
 
+      let nextCompanionTravelPaths = s.companionTravelPaths || 0;
+      const companionHarvestJournals: JournalEntry[] = [];
+      const activeCompanionNames = (s.companions || []).map(comp => comp.name);
+      const hasHoneybee = activeCompanionNames.includes('honeybee');
+      const hasWasp = activeCompanionNames.includes('wasp');
+      if (hasHoneybee || hasWasp) {
+        const totalCompanionPaths = nextCompanionTravelPaths + effectivePaths;
+        const harvestCount = Math.floor(totalCompanionPaths / 10);
+        nextCompanionTravelPaths = totalCompanionPaths % 10;
+
+        for (let i = 0; i < harvestCount; i += 1) {
+          if (hasHoneybee) {
+            const honeyReagent = GAME_DATA.reagents.find(r => r.rawName === 'Beehive') ||
+              GAME_DATA.reagents.find(r => r.rawName === 'Honeybees');
+            if (honeyReagent) {
+              const honeyParts = splitReagentPreparations(honeyReagent.preps);
+              const honeyPart = honeyParts.find(part => part.includes('꿀')) || honeyParts[0] || '꿀';
+              finalBag = [...finalBag, createPreparedReagentItem(honeyReagent, honeyPart, 'honeybee_path')];
+              companionHarvestJournals.push({
+                id: `honeybee_path_${Date.now()}_${i}`,
+                title: '꿀벌 동반자 보상',
+                text: `10경로 이동 누적으로 ${honeyReagent.name} (${honeyPart.trim()}) 부위를 얻었습니다.`,
+                timestamp: Date.now()
+              });
+            }
+          }
+          if (hasWasp) {
+            const waspReagent = GAME_DATA.reagents.find(r => r.rawName === 'Wasps') ||
+              GAME_DATA.reagents.filter(r => r.type === 'INSECT')[Math.floor(Math.random() * GAME_DATA.reagents.filter(r => r.type === 'INSECT').length)];
+            if (waspReagent) {
+              const waspParts = splitReagentPreparations(waspReagent.preps);
+              const waspPart = waspParts[0] || 'unprepared specimen';
+              finalBag = [...finalBag, createPreparedReagentItem(waspReagent, waspPart, 'wasp_path')];
+              companionHarvestJournals.push({
+                id: `wasp_path_${Date.now()}_${i}`,
+                title: '말벌 동반자 보상',
+                text: `10경로 이동 누적으로 ${waspReagent.name} (${waspPart.trim()}) 부위를 얻었습니다.`,
+                timestamp: Date.now()
+              });
+            }
+          }
+        }
+      }
+
+      const enteringSettlementOrCity = destType === 'Settlement' || destType === 'City';
+      const hasInstruments = s.bag.some(item => item.id === 'tool_instruments' || item.name.includes('악기') || item.name.toLowerCase().includes('instruments'));
+      const cricketCount = (s.companions || []).filter(comp => comp.name === 'cricket').length;
+      const performanceTrinkets = enteringSettlementOrCity && hasInstruments ? 1 + cricketCount : 0;
+      const shadowCanvasRep = destType === 'Settlement' && s.wagonExpansions?.shadowCanvas ? 1 : 0;
+      const performanceJournals: JournalEntry[] = [];
+      if (performanceTrinkets > 0) {
+        performanceJournals.push({
+          id: 'instrument_show_' + Date.now(),
+          title: `🎶 정착지 공연: ${nextLocName}`,
+          text: `악기와 동료들의 발을 빌려 공연을 열고 장신구 ${performanceTrinkets}개를 얻었습니다.${cricketCount > 0 ? ' 귀뚜라미 동료가 추가 악기이자 연주자로 함께했습니다.' : ''}`,
+          timestamp: Date.now()
+        });
+      }
+      if (shadowCanvasRep > 0) {
+        performanceJournals.push({
+          id: 'shadow_canvas_' + Date.now(),
+          title: `🎭 그림자극 공연: ${nextLocName}`,
+          text: `마차의 그림자 캔버스로 정착지에서 공연을 열어 길드 명성 +1을 얻었습니다.`,
+          timestamp: Date.now()
+        });
+      }
       // Handle escape tool consumption
       if (caughtAlert.includes('🏹')) {
         let r = false;
@@ -5028,6 +5444,11 @@ function PlayView({
         legacyRestUsedThisLocation: false,
         journeyGoalCounter: nextGoalCounter,
         bag: finalBag,
+        trinkets: performanceTrinkets > 0 ? [...s.trinkets, ...Array(performanceTrinkets).fill('공연 보상 장신구 (Performance Trinket)')] : s.trinkets,
+        reputation: s.reputation + shadowCanvasRep,
+        forecastMoves: Math.max(0, (s.forecastMoves || 0) - 1),
+        taxiSoarActive: s.taxiSoarActive && destRegion === 'Soar' ? false : s.taxiSoarActive,
+        companionTravelPaths: nextCompanionTravelPaths,
         companions: finalCompanions,
         calendarHistory: [
           ...s.calendarHistory,
@@ -5036,8 +5457,10 @@ function PlayView({
         ]
       };
 
-      if (braveReagentToAdd || socialDraw) {
+      if (braveReagentToAdd || socialDraw || performanceJournals.length > 0 || companionHarvestJournals.length > 0) {
         newState.journals = [
+          ...companionHarvestJournals,
+          ...performanceJournals,
           ...(socialDraw ? [{
             id: 'social_enter_' + Date.now(),
             title: `🤝 사회 조우: ${nextLocName}`,
@@ -5047,7 +5470,7 @@ function PlayView({
           ...(braveReagentToAdd ? [{
             id: 'brave_enc_' + Date.now(),
             title: `🐾 Brave 거수 조우 해결`,
-            text: `${nextLocName}으로 이동 중 거수 조우에서 사역마의 용기로 위기를 극복하고 약재를 획득했습니다.`,
+            text: `${nextLocName}으로 이동 중 거수 조우에서 길동무의 용기로 위기를 극복하고 약재를 획득했습니다.`,
             timestamp: Date.now()
           }] : []),
           ...s.journals
@@ -5108,6 +5531,7 @@ function PlayView({
       const hasFlightCapability =
         state.bio.travelStyle === '가볍고 신속하게' ||
         !!state.wagonExpansions?.experimentalContraption ||
+        !!state.taxiSoarActive ||
         (state.companions || []).some(comp => ['butterfly', 'honeybee', 'wasp'].includes(comp.name));
 
       if (!hasFlightCapability) {
@@ -5117,13 +5541,19 @@ function PlayView({
     }
 
     const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === state.bio.familiarBenefit)?.mechanic || '';
+    const canUseNewsReroll = (state.guildServiceTravelRerolls || 0) > 0;
+    const canUsePondSkimmer =
+      destRegion === 'Loch' &&
+      !state.pondSkimmerUsedThisJourney &&
+      (state.companions || []).some(comp => comp.name === 'pond_skimmer');
 
-    if (familiarMechanic === 'seasoned' && !travelDrawCard) {
+    if ((familiarMechanic === 'seasoned' || canUseNewsReroll || canUsePondSkimmer) && !travelDrawCard) {
       // Draw 2 cards and trigger selection modal
       const c1 = drawPlayingCard();
       const c2 = drawPlayingCard();
       const draw1 = { suit: c1.suit, val: c1.value };
       const draw2 = { suit: c2.suit, val: c2.value };
+      setTravelChoiceSource(familiarMechanic === 'seasoned' ? 'seasoned' : canUseNewsReroll ? 'news' : 'pondSkimmer');
       setSeasonedDraws([draw1, draw2]);
       setShowSeasonedModal(true);
       return;
@@ -5188,7 +5618,7 @@ function PlayView({
         description: dbAil.description,
         outcome: dbAil.outcome,
         consequence: dbAil.consequence,
-        foragingPoints: ((familiarMechanic === 'perceptive' || state.bio.familiarBenefit.includes("예리한 관찰자")) ? 2 : 0),
+        foragingPoints: getStartingForagingPoints(s),
         reagentsGathered: [],
         patientName: patientNameDraft.trim(),
         species: patientSpeciesDraft.trim(),
@@ -5350,7 +5780,7 @@ function PlayView({
 
     setActiveForageEncounter({
       title: `🦉 자유로운 영혼의 외출 (Independent Foraging)`,
-      text: `사역마가 혼자 인접 지역인 [${adjRegion}]로 날아가 안전하게 약초를 수집해 왔습니다. 어떠한 위험도 조우하지 않았습니다.`,
+      text: `길동무가 혼자 인접 지역인 [${adjRegion}]로 날아가 안전하게 약초를 수집해 왔습니다. 어떠한 위험도 조우하지 않았습니다.`,
       page: 153,
       cardValue: '8',
       suitLabel: suitLabels[drawnSuit],
@@ -5622,6 +6052,61 @@ function PlayView({
     }));
   };
 
+  const handleKnitProject = () => {
+    if (!hasTool(state, 'tool_needles') && !hasTool(state, '뜨개바늘') && !hasTool(state, 'Knitting Needles')) {
+      alert("뜨개바늘이 필요합니다.");
+      return;
+    }
+    const projects: Record<string, { name: string; hours: number; weight: number; note: string }> = {
+      '1': { name: '뜨개 담요 (Knitted Blanket)', hours: 20, weight: 1, note: '여정이 조기 종료될 때 기적처럼 구해주는 담요.' },
+      '2': { name: '뜨개 코트 (Knitted Coat)', hours: 15, weight: 2/3, note: '가을/겨울 채집 시 인접 위치를 2경로까지 봅니다.' },
+      '3': { name: '뜨개 가방 (Knitted Satchel)', hours: 10, weight: 0, note: '소지 용량 +1. Saddlebags와 1회 중첩됩니다.' },
+      '4': { name: '뜨개 목도리 (Knitted Scarf)', hours: 5, weight: 1/3, note: '겨울 동안 이동 속도 +1.' }
+    };
+    const choice = prompt("뜨개 프로젝트 선택:\n1. 담요 20시간\n2. 코트 15시간\n3. 가방 10시간\n4. 목도리 5시간", "4") || '4';
+    const project = projects[choice] || projects['4'];
+    const availableTimer = state.scroungingTimer || state.activeAilment?.timer || 0;
+    if (availableTimer <= 0) {
+      alert("줄일 수 있는 타이머가 0이면 뜨개질을 진행할 수 없습니다.");
+      return;
+    }
+    if (availableTimer < project.hours && !confirm(`현재 추적 중인 타이머가 ${availableTimer}시간뿐입니다. 그래도 수동 진행으로 ${project.name}을 완성 처리할까요?`)) {
+      return;
+    }
+
+    updateState((s: GameState) => {
+      const nextScroungingTimer = s.scroungingTimer ? Math.max(0, s.scroungingTimer - project.hours) : s.scroungingTimer;
+      const nextAilment = s.activeAilment && !s.scroungingTimer
+        ? { ...s.activeAilment, timer: Math.max(0, s.activeAilment.timer - project.hours) }
+        : s.activeAilment;
+      return {
+        ...s,
+        scroungingTimer: nextScroungingTimer,
+        activeAilment: nextAilment,
+        bag: [
+          ...s.bag,
+          {
+            id: `knit_${Date.now()}`,
+            name: project.name,
+            weight: project.weight,
+            type: 'item',
+            qty: 1,
+            tags: project.note
+          }
+        ],
+        journals: [
+          {
+            id: 'knit_project_' + Date.now(),
+            title: `🧶 뜨개질 완성: ${project.name}`,
+            text: `${project.hours}시간을 들여 ${project.name}을(를) 완성했습니다.\n효과: ${project.note}`,
+            timestamp: Date.now()
+          },
+          ...s.journals
+        ]
+      };
+    });
+  };
+
   const handleExploreNewPath = () => {
     const fromName = prompt("새 경로가 시작되는 장소를 입력하세요:", state.currentLocationName)?.trim();
     if (!fromName) return;
@@ -5824,7 +6309,7 @@ function PlayView({
 	          description: ailment.description,
 	          outcome: ailment.outcome,
 	          consequence: ailment.consequence,
-	          foragingPoints: ((familiarMechanic === 'perceptive' || s.bio.familiarBenefit.includes("예리한 관찰자")) ? 2 : 0),
+	          foragingPoints: getStartingForagingPoints(s),
 	          reagentsGathered: [],
 	          patientName: patientName.trim(),
 	          species: species.trim(),
@@ -6238,8 +6723,12 @@ function PlayView({
       return;
     }
 
-    const selectedReagents = state.bag.filter(item => selectedBagItems.includes(item.id));
-    const { isComplete, totalFair, totalFoul, missingRequirements, statusText } = validateConcoction(state.activeAilment, selectedReagents, state.bag, state);
+    const selectedToolEffects = selectedToolEffectItems(state.bag, selectedTools);
+    const selectedReagents = [
+      ...state.bag.filter(item => selectedBagItems.includes(item.id)),
+      ...selectedToolEffects
+    ];
+    const { isComplete, totalFair, totalFoul, missingRequirements, statusText } = validateConcoction(state.activeAilment, selectedReagents, state.bag, state, usePurify);
 
     const timeSpent = selectedBagItems.length;
     const severity = state.activeAilment.severity;
@@ -6289,6 +6778,8 @@ function PlayView({
         };
       });
       setSelectedBagItems([]);
+      setSelectedTools([]);
+      setUsePurify(false);
       return;
     }
 
@@ -6331,6 +6822,8 @@ function PlayView({
         };
       });
       setSelectedBagItems([]);
+      setSelectedTools([]);
+      setUsePurify(false);
       return;
     }
 
@@ -6400,7 +6893,7 @@ function PlayView({
       const cureTimestamp = Date.now();
       const cureSourceId = 'cure_' + cureTimestamp;
       const reagentsStr = reagentNames.join(', ');
-      const cureNotes = `${s.currentLocationName}의 고요한 방에서 약재를 가려 조제하여 온전한 탕약을 올렸습니다. [${reagentsStr}]을(를) 정성껏 달여 빚은 지 수 시간 만에, 열병으로 괴로워하던 야수의 눈빛에 맑은 총기가 깃들고 편안한 숨이 돌아왔습니다. 앓던 야수는 마침내 온전히 회복하여, 고맙다는 듯이 머리를 조아린 뒤 활기차게 숲으로 돌아갔습니다. 내 가슴속에는 다시금 생명을 도왔다는 따뜻한 온기가 머무릅니다.`;
+      const cureNotes = `${s.currentLocationName}의 고요한 방에서 약재를 가려 조제하여 온전한 탕약을 올렸습니다. [${reagentsStr}]을(를) 정성껏 달여 빚은 지 수 시간 만에, 열병으로 괴로워하던 야수의 눈빛에 맑은 총기가 깃들고 편안한 숨이 돌아왔습니다.${usePurify ? ' 산맥에서 익힌 정화 기법으로 탕약의 탁한 기운을 걷어냈습니다.' : ''} 앓던 야수는 마침내 온전히 회복하여, 고맙다는 듯이 머리를 조아린 뒤 활기차게 숲으로 돌아갔습니다. 내 가슴속에는 다시금 생명을 도왔다는 따뜻한 온기가 머무릅니다.`;
       const KEEPSAKE_TEMPLATES = [
         { name: '말린 엉겅퀴 씨앗 주머니 (Pouch of Dried Thistle)', story: '치료의 답례로 건네받은 작은 천 주머니. 흔들면 바스락거리는 마른 씨앗 소리가 납니다.' },
         { name: '구멍 뚫린 매끄러운 조약돌 (A Polished Lucky Pebble)', story: '강가에서 행운을 빌며 주웠다며 수줍게 손에 쥐여준 조약돌. 만지면 아주 차갑고 매끄럽습니다.' },
@@ -6454,6 +6947,8 @@ function PlayView({
     });
 
     setSelectedBagItems([]);
+    setSelectedTools([]);
+    setUsePurify(false);
     if (nextTimer > 0) {
       alert(`🎉 완치 성공!\n장신구 +${actualTrinkets}개, 길드 명성 +${actualRep}점 획득!\n\n⏱️ 남은 시간(${nextTimer}시간) 동안 여분 채집(Scrounging)이 가능합니다.`);
     } else {
@@ -6812,7 +7307,7 @@ function PlayView({
     updateState((s: GameState) => {
       const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === s.bio.familiarBenefit)?.mechanic || '';
       const startTimer = randomAil.timer + (familiarMechanic === 'helpful' || s.bio.familiarBenefit.includes("따뜻한 약제사") ? 2 : 0);
-      const startFP = (familiarMechanic === 'perceptive' || s.bio.familiarBenefit.includes("예리한 관찰자")) ? 2 : 0;
+      const startFP = getStartingForagingPoints(s);
       return {
         ...s,
         independentUsedThisAilment: false,
@@ -7670,16 +8165,16 @@ function PlayView({
                 </div>
               </div>
 
-              {/* 🐾 사역마와 교감 (Familiar Intimacy & milestones) */}
+              {/* 🐾 길동무와 교감 (Familiar Intimacy & milestones) */}
               <div className="cute-card" style={{ background: '#f8fafc', border: '1.5px solid var(--border-cozy)' }}>
                 <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>🐾 사역마 교감 (Familiar Intimacy)</span>
+                  <span>🐾 길동무 교감 (Familiar Intimacy)</span>
                   <span style={{ fontSize: '0.8rem', background: 'var(--primary)', color: '#fff', padding: '0.1rem 0.4rem', borderRadius: '12px' }}>
                     친밀도: {state.familiarTrust || 0}%
                   </span>
                 </h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
-                  현재 동행 중인 사역마: <strong>{state.bio.familiarBenefit}</strong><br />
+                  현재 동행 중인 길동무: <strong>{state.bio.familiarBenefit}</strong><br />
                   - 친밀도 마일스톤 등급: <strong>{ (state.familiarTrust || 0) >= 80 ? '🌟 영혼의 동반자 (최대)' : (state.familiarTrust || 0) >= 40 ? '🤝 신뢰하는 파트너' : '🌱 어색한 동행' }</strong><br />
                   - 친밀도 보너스: {
                     (() => {
@@ -7704,7 +8199,7 @@ function PlayView({
                     className="btn-cozy-primary"
                     style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', alignSelf: 'flex-start' }}
                   >
-                    🚶‍♂️ 사역마와 하루 동안 시간 보내기 (친밀도 +5%, 일정 +1일 소모)
+                    🚶‍♂️ 길동무와 하루 동안 시간 보내기 (친밀도 +5%, 일정 +1일 소모)
                   </button>
 
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.5rem' }}>
@@ -7830,7 +8325,7 @@ function PlayView({
               <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
                 <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>💖 친구들과 휴식하기 (Relaxing with Friends)</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
-                  동반자 사역마를 교체하거나, 가방에 들어갈 새로운 기본 도구를 이별 선물로 받습니다.
+                  길동무를 교체하거나, 가방에 들어갈 새로운 기본 도구를 이별 선물로 받습니다.
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.85rem' }}>
                   <div>
@@ -7843,9 +8338,9 @@ function PlayView({
                     </select>
                   </div>
                   <div>
-                    <label style={{ fontWeight: 'bold' }}>새로운 사역마 영입 (사역마를 교체할 경우):</label>
+                    <label style={{ fontWeight: 'bold' }}>새로운 길동무 영입 (길동무를 교체할 경우):</label>
                     <select id="relax_familiar_select" style={{ width: '100%', padding: '0.4rem', marginTop: '0.2rem' }}>
-                      <option value="">-- 새 사역마 혜택 선택 --</option>
+                      <option value="">-- 새 길동무 혜택 선택 --</option>
                       {FAMILIAR_BENEFITS.map(f => (
                         <option key={f.card} value={f.name}>{f.name} ({f.desc})</option>
                       ))}
@@ -7857,7 +8352,7 @@ function PlayView({
                       const fName = (document.getElementById('relax_familiar_select') as HTMLSelectElement)?.value;
 
                       if (!tName && !fName) {
-                        alert("도구 선물이나 사역마 교체 중 하나를 선택해 주세요.");
+                        alert("도구 선물이나 길동무 교체 중 하나를 선택해 주세요.");
                         return;
                       }
 
@@ -7881,7 +8376,7 @@ function PlayView({
 
                         if (fName) {
                           nextBio.familiarBenefit = fName;
-                          summary += (summary ? " & " : "") + `사역마 혜택 [${fName}]으로 변경!`;
+                          summary += (summary ? " & " : "") + `길동무 혜택 [${fName}]으로 변경!`;
                         }
 
                         return {
@@ -7899,7 +8394,7 @@ function PlayView({
                           ]
                         };
                       });
-                      alert(`💖 휴식을 즐겼습니다!\n결과: ${tName ? `🎁 도구 [${tName}] 가방 획득!` : ''} ${fName ? `🦉 사역마 혜택 변경!` : ''}`);
+                      alert(`💖 휴식을 즐겼습니다!\n결과: ${tName ? `🎁 도구 [${tName}] 가방 획득!` : ''} ${fName ? `🦉 길동무 혜택 변경!` : ''}`);
                     }}
                     className="btn-cozy-secondary"
                     style={{ padding: '0.5rem 1rem', alignSelf: 'flex-start' }}
@@ -8025,6 +8520,45 @@ function PlayView({
           {downtimeTab === 'shop' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
+              <div className="cute-card" style={{ background: '#fffdf8', border: '1.5px solid var(--border-cozy)', padding: '1rem' }}>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🛎️ 길드 서비스 (Guild Services, p.58-61)</h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 0.8rem 0', lineHeight: 1.45 }}>
+                  정착지/도시를 떠나기 전 고용하는 지역 서비스입니다. 적용한 서비스는 가방, 지도, 이동 보정, 일지 중 해당 위치에 바로 기록됩니다.
+                </p>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.8rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  {(state.guildServiceTravelRerolls || 0) > 0 && <span>🗞️ 이동 조우 선택권 {state.guildServiceTravelRerolls}회</span>}
+                  {(state.forecastMoves || 0) > 0 && <span>🌦️ 예보 보호 {state.forecastMoves}회 이동</span>}
+                  {state.taxiSoarActive && <span>🦅 다음 Soar 택시 활성</span>}
+                  {(state.missiveSettlements || []).length > 0 && <span>✉️ 서신: {(state.missiveSettlements || []).join(', ')}</span>}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.75rem' }}>
+                  {GUILD_SERVICES_DB.map(service => {
+                    const isAvailable = isGuildServiceAvailableAtLocation(service, state, bypassShopRules);
+                    const isUsed = service.id === 'rug_wonders' && !!state.griphUsedThisJourney;
+                    const disabled = !isAvailable || isUsed || state.trinkets.length < service.cost;
+                    return (
+                      <div key={service.id} style={{ border: '1px solid #e5dec9', borderRadius: '8px', padding: '0.75rem', background: isAvailable ? '#fff' : '#f9f6f0', opacity: isAvailable ? 1 : 0.62 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', fontWeight: 'bold', fontSize: '0.84rem', color: 'var(--primary)' }}>
+                          <span>{service.name}</span>
+                          <span style={{ color: 'var(--secondary)', whiteSpace: 'nowrap' }}>🪙 {service.cost}</span>
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{service.places}</div>
+                        <p style={{ fontSize: '0.74rem', color: '#666', margin: '0.35rem 0 0.55rem 0', lineHeight: 1.35, minHeight: '40px' }}>{service.desc}</p>
+                        <button
+                          type="button"
+                          onClick={() => handleHireGuildService(service)}
+                          className="btn-cozy-secondary"
+                          style={{ width: '100%', padding: '0.35rem', fontSize: '0.76rem' }}
+                          disabled={disabled}
+                        >
+                          {isUsed ? '여정 중 이미 이용' : !isAvailable ? '현재 위치 불가' : state.trinkets.length < service.cost ? '장신구 부족' : '고용/이용'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)', padding: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
                   <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '1.1rem' }}>🛒 저잣거리 도구 상점</h3>
@@ -8045,7 +8579,7 @@ function PlayView({
                 {/* Tools market list */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.8rem' }}>
                   {TOOLS_DB.map(tool => {
-                    const hasTool = state.bag.some(item => item.name.includes(tool.name.split(' (')[0]));
+                    const hasTool = tool.id !== 'tool_basic_replacement' && state.bag.some(item => item.name.includes(tool.name.split(' (')[0]));
                     const isAvailable = isToolAvailableAtLocation(tool, state, bypassShopRules);
 
                     return (
@@ -8400,7 +8934,7 @@ function PlayView({
                 <div>
                   <strong>현재 상태: </strong>
                   {isJourneyGoal(state.journeyGoalTitle, '자아 성찰') && `만난 야수 수: ${(state.journeyGoalCounter || 0)} / 3`}
-                  {isJourneyGoal(state.journeyGoalTitle, '동반자 우대', '관계 회복') && `사역마/동반자 저널 기록 수: ${(state.journeyGoalCounter || 0)} / 3`}
+                  {isJourneyGoal(state.journeyGoalTitle, '동반자 우대', '관계 회복') && `길동무/동반자 저널 기록 수: ${(state.journeyGoalCounter || 0)} / 3`}
                   {isJourneyGoal(state.journeyGoalTitle, '길드의 책임') && `시작 평판: ${state.journeyStartReputation || 5} → 현재 평판: ${state.reputation} (시작 대비 +5 이상 증가 필요)`}
                   {isJourneyGoal(state.journeyGoalTitle, '자연 조사', '자연 환경 조사') && `조사한 지역 수: ${(state.journeyGoalCounter || 0)} / 3`}
                   {isJourneyGoal(state.journeyGoalTitle, '긴급 치료') && (
@@ -9483,6 +10017,20 @@ function PlayView({
                   <strong>🔍 여분 채집 (Scrounging, p.37)</strong> — 치료 완료 후 남은 타이머로 여분 약재 획득 가능.<br />
                   타이머 소비: 현재 위치 채집 1회, 인접 위치 채집 1회, 현재 위치 약재 1개(효능≤2), 인접 약재 1개(효능≤2).<br />
                   <span style={{ color: '#888' }}>* 치료제 완성 후 모든 타이머가 0 이상일 때만 사용 가능.</span>
+                  {(hasTool(state, 'tool_needles') || hasTool(state, '뜨개바늘') || hasTool(state, 'Knitting Needles')) && (
+                    <div style={{ marginTop: '0.65rem', paddingTop: '0.55rem', borderTop: '1px dashed #d6c8a8' }}>
+                      <strong style={{ color: '#7c5a2a' }}>🧶 뜨개질 프로젝트 (Knitting Needles, p.64)</strong>
+                      <div style={{ marginTop: '0.35rem' }}>
+                        <button
+                          type="button"
+                          onClick={handleKnitProject}
+                          style={{ padding: '0.35rem 0.6rem', background: '#fffaf0', border: '1px solid #d8b16c', borderRadius: '6px', color: '#7c5a2a', fontSize: '0.78rem', fontWeight: 'bold', cursor: 'pointer' }}
+                        >
+                          담요/코트/가방/목도리 완성
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {(() => {
                     const saleableOddments = state.bag.filter(item => item.type === 'item' || item.type === 'trinket');
                     if (saleableOddments.length === 0) return null;
@@ -9514,8 +10062,11 @@ function PlayView({
                   </p>
 
                   {(() => {
-                    const selectedReagents = state.bag.filter(item => selectedBagItems.includes(item.id));
-                    const validation = validateConcoction(state.activeAilment, selectedReagents, state.bag, state);
+                    const selectedReagents = [
+                      ...state.bag.filter(item => selectedBagItems.includes(item.id)),
+                      ...selectedToolEffectItems(state.bag, selectedTools)
+                    ];
+                    const validation = validateConcoction(state.activeAilment, selectedReagents, state.bag, state, usePurify);
                     return (
                       <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#fff8ee', border: '1px dashed #d4a853', borderRadius: '8px', fontSize: '0.82rem', lineHeight: 1.45 }}>
                         <strong style={{ color: '#8b5e1a' }}>🧩 약재 대체 및 대안 (Replacement, p.30)</strong>
@@ -9630,6 +10181,19 @@ function PlayView({
                             {item.name}
                           </label>
                         ))}
+                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '5px', fontSize: '0.85rem', cursor: 'pointer', marginTop: '0.4rem', paddingTop: '0.45rem', borderTop: '1px dashed #ddd' }}>
+                          <input
+                            type="checkbox"
+                            checked={usePurify}
+                            onChange={e => setUsePurify(e.target.checked)}
+                          />
+                          <span>
+                            정화하기 [PURIFY] 적용
+                            <small style={{ display: 'block', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+                              산맥의 Special Technique로 배운 조제법을 사용해 이 치료제의 [FOUL]을 0으로 계산합니다.
+                            </small>
+                          </span>
+                        </label>
                       </div>
                     </div>
                   </div>
@@ -9726,8 +10290,8 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
     '이동 방식',
     '출발 계기',
     '장비와 기념품',
-    '사역마 동물',
-    '사역마 도움',
+    '길동무 동물',
+    '길동무 도움',
     '관계',
     '확정'
   ];
@@ -9777,7 +10341,7 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
 
   const saveCharacter = () => {
     if (!draft.name.trim() || !draft.animal.trim() || !draft.familiarName.trim() || !draft.familiarAnimal.trim()) {
-      alert("약제사 이름/동물, 사역마 이름/동물을 채우면 시트가 완성됩니다.");
+      alert("약제사 이름/동물, 길동무 이름/동물을 채우면 시트가 완성됩니다.");
       return;
     }
 
@@ -9797,13 +10361,13 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
       },
       draft.familiarJournal.trim() && {
         id: `familiar_${timestamp}`,
-        title: "사역마와의 첫 만남",
+        title: "길동무와의 첫 만남",
         text: draft.familiarJournal.trim(),
         timestamp
       },
       draft.relationshipJournal.trim() && {
         id: `relation_${timestamp}`,
-        title: "사역마와의 관계",
+        title: "길동무와의 관계",
         text: `${draft.relationship.name}\n${draft.relationshipJournal.trim()}`,
         timestamp
       }
@@ -9866,7 +10430,7 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
       <div style={{ border: '1.5px dashed var(--border-cozy)', borderRadius: '10px', padding: '0.8rem 1rem', background: '#fff', display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', marginBottom: '1.2rem' }}>
         <div>
           <strong style={{ color: 'var(--primary)' }}>룰북 기반 캐릭터 생성</strong>
-          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>10-16쪽 순서대로 약제사와 사역마를 다시 정리합니다.</div>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>10-16쪽 순서대로 약제사와 길동무를 다시 정리합니다.</div>
         </div>
         <button type="button" onClick={() => setOpen(true)} style={{ padding: '0.45rem 0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '6px', border: 'none', fontWeight: 'bold' }}>
           생성 도우미 열기
@@ -10020,25 +10584,25 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
 
 
       {step === 4 && (
-        <WizardFieldCard title="함께하는 사역마는 누구인가요?">
+        <WizardFieldCard title="함께하는 길동무는 누구인가요?">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <input value={draft.familiarName} onChange={e => setDraft(d => ({ ...d, familiarName: e.target.value }))} placeholder="사역마의 이름을 지어주세요" />
+            <input value={draft.familiarName} onChange={e => setDraft(d => ({ ...d, familiarName: e.target.value }))} placeholder="길동무의 이름을 지어주세요" />
             <CardDrawSlot
               variant="hero"
-              label="사역마 정체성 카드 (p.14)"
-              helper="약제사와 같은 동물 표를 사용합니다. 카드 한 장으로 사역마의 종족을 알아보세요."
+              label="길동무 정체성 카드 (p.14)"
+              helper="약제사와 같은 동물 표를 사용합니다. 카드 한 장으로 길동무의 종족을 알아보세요."
               card={wizardCards.familiar || null}
               onCard={card => applyDescriptorCard('familiar', 'familiar', card)}
             />
             <div style={{ color: 'var(--text-bright)', fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
               {wizardCards.familiar ? (
-                <>당신의 사역마는 <strong style={{ color: 'var(--primary)' }}>{draft.familiarDescriptor.name}</strong>입니다.<br /><span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.familiarDescriptor.examples} 중에서 골라보세요.</span></>
+                <>당신의 길동무는 <strong style={{ color: 'var(--primary)' }}>{draft.familiarDescriptor.name}</strong>입니다.<br /><span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.familiarDescriptor.examples} 중에서 골라보세요.</span></>
               ) : (
-                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 사역마의 종족이 정해집니다.</span>
+                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 길동무의 종족이 정해집니다.</span>
               )}
             </div>
             {animalChips(draft.familiarDescriptor.examples, value => setDraft(d => ({ ...d, familiarAnimal: value })))}
-            <input value={draft.familiarAnimal} onChange={e => setDraft(d => ({ ...d, familiarAnimal: e.target.value }))} placeholder="사역마의 실제 동물 또는 외형" />
+            <input value={draft.familiarAnimal} onChange={e => setDraft(d => ({ ...d, familiarAnimal: e.target.value }))} placeholder="길동무의 실제 동물 또는 외형" />
             <textarea value={draft.familiarJournal} onChange={e => setDraft(d => ({ ...d, familiarJournal: e.target.value }))} rows={3} placeholder="처음 어떻게 만났는지 기록하세요." />
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
@@ -10053,23 +10617,23 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
       {step === 5 && (() => {
         const matchedBenefit = FAMILIAR_BENEFITS.find(f => f.card === draft.familiarBenefit.card);
         return (
-          <WizardFieldCard title="사역마가 어떻게 도와주나요?">
+          <WizardFieldCard title="길동무가 어떻게 도와주나요?">
             <div style={{ display: 'grid', gap: '0.75rem' }}>
               <CardDrawSlot
                 variant="hero"
-                label="사역마 도움 카드 (p.15)"
-                helper="카드 값이 사역마의 특기를 정합니다. Q와 K는 Monarch로 처리됩니다."
+                label="길동무 도움 카드 (p.15)"
+                helper="카드 값이 길동무의 특기를 정합니다. Q와 K는 Monarch로 처리됩니다."
                 card={wizardCards.familiarBenefit || null}
                 onCard={applyBenefitCard}
               />
               <div style={{ padding: '0.8rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
                 {wizardCards.familiarBenefit ? (
                   <>
-                    사역마의 특기: <strong style={{ color: 'var(--primary)' }}>{draft.familiarBenefit.name}</strong><br />
+                    길동무의 특기: <strong style={{ color: 'var(--primary)' }}>{draft.familiarBenefit.name}</strong><br />
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.familiarBenefit.desc}</span>
                   </>
                 ) : (
-                  <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 사역마의 도움이 정해집니다.</span>
+                  <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 길동무의 도움이 정해집니다.</span>
                 )}
               </div>
 
@@ -10122,12 +10686,12 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
       })()}
 
       {step === 6 && (
-        <WizardFieldCard title="사역마와 어떤 사이인가요?">
+        <WizardFieldCard title="길동무와 어떤 사이인가요?">
           <div style={{ display: 'grid', gap: '0.75rem' }}>
             <CardDrawSlot
               variant="hero"
               label="관계 카드 (p.16)"
-              helper="카드 값이 약제사와 사역마 사이의 관계를 정합니다."
+              helper="카드 값이 약제사와 길동무 사이의 관계를 정합니다."
               card={wizardCards.relationship || null}
               onCard={applyRelationshipCard}
             />
@@ -10163,7 +10727,7 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
                 <span className="dim">하루 {draft.travel.speed}경로 이동, 짐 {draft.travel.carry}칸. 출발 동기: {draft.origin.name}.</span>
               </div>
               <div className="prose-summary" style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '0.6rem' }}>
-                사역마 <strong>{draft.familiarName || '(이름 미정)'}</strong>{draft.familiarAnimal && `, ${draft.familiarAnimal}`}.<br />
+                길동무 <strong>{draft.familiarName || '(이름 미정)'}</strong>{draft.familiarAnimal && `, ${draft.familiarAnimal}`}.<br />
                 특기: <strong>{draft.familiarBenefit.name}</strong>
                 {matchedBenefit?.mechanic === 'resourceful' && draft.resourcefulReagent && ` (지정 약재: ${draft.resourcefulReagent})`}
                 {matchedBenefit?.mechanic === 'ingenuitive' && draft.ingenuitiveTool && ` (지정 도구: ${draft.ingenuitiveTool})`}
@@ -10250,7 +10814,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
       }));
     }
     setEditing(false);
-    alert(`캐릭터 프로필이 저장되었습니다.\n사역마 혜택: ${familiarBenefitEdit}`);
+    alert(`캐릭터 프로필이 저장되었습니다.\n길동무 혜택: ${familiarBenefitEdit}`);
   };
 
   const handleAddTrinket = (e: React.FormEvent) => {
@@ -10365,15 +10929,15 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
               </div>
             </div>
 
-            {/* Familiar (사역마) */}
+            {/* Familiar (길동무) */}
             <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff', position: 'relative' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
                 <span style={{ fontSize: '1.8rem' }}>🐿️</span>
-                <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>사역마 친구</h3>
+                <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>길동무</h3>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
-                <div><strong>사역마 이름:</strong> {state.bio.familiarName || '이름 없음'}</div>
-                <div><strong>사역마 동물:</strong> {state.bio.familiarAnimal || state.bio.familiarExamples || '미정'}</div>
+                <div><strong>길동무 이름:</strong> {state.bio.familiarName || '이름 없음'}</div>
+                <div><strong>길동무 동물:</strong> {state.bio.familiarAnimal || state.bio.familiarExamples || '미정'}</div>
                 <div><strong>길드 관계:</strong> {state.bio.familiarRelation}</div>
                 <div style={{ background: '#f3faf5', borderRadius: '8px', padding: '0.6rem', border: '1px solid #c8e6c9' }}>
                   <div style={{ fontWeight: 'bold', color: 'var(--primary)', marginBottom: '0.2rem' }}>
@@ -10850,7 +11414,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                 { label: '증류하기', sub: '증류, p.82' },
                 { label: '보존하기', sub: '보존, p.82' },
                 { label: '요리하기', sub: '요리, p.62' },
-                { label: '정화하기', sub: '정화, p.??' }
+                { label: '정화하기', sub: '정화, p.180' }
               ].map((stamp, idx) => (
                 <div
                   key={idx}
@@ -10881,11 +11445,11 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
             <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="약제사 동물의 이름을 지어주세요" />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <label><strong>사역마 이름:</strong></label>
-            <input type="text" value={familiarName} onChange={e => setFamiliarName(e.target.value)} placeholder="사역마 친구의 이름을 지어주세요" />
+            <label><strong>길동무 이름:</strong></label>
+            <input type="text" value={familiarName} onChange={e => setFamiliarName(e.target.value)} placeholder="길동무의 이름을 지어주세요" />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <label><strong>🃏 사역마 혜택 (Familiar Benefit, p.14-15):</strong></label>
+            <label><strong>🃏 길동무 혜택 (Familiar Benefit, p.14-15):</strong></label>
             <select
               value={familiarBenefitEdit}
               onChange={e => setFamiliarBenefitEdit(e.target.value)}
@@ -11247,7 +11811,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
                           description: a.description,
                           outcome: a.outcome,
                           consequence: a.consequence,
-                          foragingPoints: s.bio.familiarBenefit.includes("예리한 관찰자") ? 2 : 0,
+                          foragingPoints: getStartingForagingPoints(s),
                           reagentsGathered: [],
                           patientName: patientName.trim(),
                           species: species.trim(),
@@ -12042,10 +12606,10 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
 
         <section className="cute-card" style={{ background: '#fffefa' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
-            <h3 style={{ margin: 0, color: 'var(--primary)' }}>사역마와의 기억</h3>
+            <h3 style={{ margin: 0, color: 'var(--primary)' }}>길동무와의 기억</h3>
           </div>
           <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
-            {state.bio.familiarName || '이름 없는 사역마'} / {state.bio.familiarRelation || '관계 미기록'}
+            {state.bio.familiarName || '이름 없는 길동무'} / {state.bio.familiarRelation || '관계 미기록'}
           </div>
           <div style={{ display: 'grid', gap: '0.5rem' }}>
             {(state.familiarMemories || []).slice(0, 5).map((memory, idx) => (
@@ -12054,7 +12618,7 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
               </div>
             ))}
             {(!state.familiarMemories || state.familiarMemories.length === 0) && (
-              <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.85rem' }}>사역마와 함께 시간을 보내거나 약재를 먹여 유대감을 쌓으면 여기에 기억이 새겨집니다.</div>
+              <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.85rem' }}>길동무와 함께 시간을 보내거나 약재를 먹여 유대감을 쌓으면 여기에 기억이 새겨집니다.</div>
             )}
           </div>
         </section>
@@ -12589,7 +13153,7 @@ function JournalsView({
         const titleLower = newTitle.toLowerCase();
         const textLower = newText.toLowerCase();
 
-        if (isJourneyGoal(s.journeyGoalTitle, '동반자 우대', '관계 회복') && (textLower.includes("사역마") || textLower.includes("동반자") || titleLower.includes("사역마") || titleLower.includes("동반자") || textLower.includes("familiar") || textLower.includes("companion"))) {
+        if (isJourneyGoal(s.journeyGoalTitle, '동반자 우대', '관계 회복') && (textLower.includes("길동무") || textLower.includes("동반자") || titleLower.includes("길동무") || titleLower.includes("동반자") || textLower.includes("familiar") || textLower.includes("companion"))) {
           nextGoalCounter += 1;
         }
         if (isJourneyGoal(s.journeyGoalTitle, '마음의 정리') && (textLower.includes("갈등") || textLower.includes("해결") || textLower.includes("마음") || titleLower.includes("갈등") || titleLower.includes("해결") || titleLower.includes("마음"))) {
