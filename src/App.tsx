@@ -2836,7 +2836,7 @@ const WAGON_UPGRADES_DB = [
   { id: 'axelSprings', name: '차축 스프링 (Axel Springs)', cost: 7, desc: '마차가 제공하는 속도 보너스가 +1에서 +2로 상향됩니다.', city: 'Any City' },
   { id: 'sideBrackets', name: '측면 브래킷 (Side Brackets)', cost: 7, desc: '마차가 제공하는 소지 용량 보너스가 +4에서 +6으로 상향됩니다.', city: 'Any City' },
   { id: 'hiveBrackets', name: '벌집 브래킷 (Hive Brackets)', cost: 7, desc: '여정 도중 동반자를 최대 2마리까지 동행할 수 있습니다.', city: 'Odoak' },
-  { id: 'passengerBooth', name: '조수석 부스 (Passenger Booth)', cost: 20, desc: '이동 중 승객을 동승시킬 수 있으며, 승객이 임시 길동무 역할을 수행합니다.', city: 'Summit' },
+  { id: 'passengerBooth', name: '조수석 부스', cost: 20, desc: '이동 중 승객을 동승시킬 수 있으며, 승객이 임시 길동무 역할을 수행합니다.', city: 'Summit' },
   { id: 'shadowCanvas', name: '그림자 캔버스 (Shadow Canvas)', cost: 5, desc: '정착지 진입 시 인형극을 열어 길드 명성을 +1 얻습니다.', city: 'Spoolkeep' },
   { id: 'experimentalContraption', name: '비행 기구 개조 (Experimental Balloon)', cost: 20, desc: '비행(Soar) 이동이 가능해지지만, 비행 이동 시 일정이 3일 소모됩니다.', city: 'Glasswall' },
   { id: 'clayPots', name: '이식용 진흙 화분 (Clay Pots)', cost: 5, desc: '마차 안에서 식물 약재 1종을 직접 재배하여 이동 2회당 1회씩 수확할 수 있습니다.', city: 'Noonhill' }
@@ -3710,7 +3710,7 @@ export default function App() {
 
           {/* Current Journey Calendar */}
           <div className="glass-panel journey-record" style={{ padding: '1.2rem', textAlign: 'left', background: '#fffefa' }}>
-            <span className="document-kicker">Journey / Calendar</span>
+              <span className="document-kicker">여정 / 일정</span>
             {state.journeyActive ? (
               <div style={{ marginTop: '0.5rem' }}>
                 <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary)' }}>{state.journeyDestination}</div>
@@ -3966,7 +3966,7 @@ export default function App() {
                   alt={`${activeForageEncounter.suitLabel} ${activeForageEncounter.cardValue}`}
                   style={{ width: '100px', height: '150px', objectFit: 'contain', borderRadius: '6px', boxShadow: '0 4px 10px rgba(0,0,0,0.12)', marginBottom: '0.8rem' }}
                 />
-                <h2 style={{ color: 'var(--primary)', margin: '0.5rem 0 0 0' }}>채집 및 조우 (Page {activeForageEncounter.page})</h2>
+                <h2 style={{ color: 'var(--primary)', margin: '0.5rem 0 0 0' }}>채집 및 조우 <span style={{ fontWeight: 'normal', fontSize: '0.82em', color: 'var(--text-muted)' }}>p.{activeForageEncounter.page}</span></h2>
                 <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>뽑은 카드: {activeForageEncounter.cardValue} {activeForageEncounter.suitLabel}</div>
               </div>
 
@@ -3991,7 +3991,7 @@ export default function App() {
               )}
 
               <div style={{ marginTop: '1rem', background: '#f0f9f4', padding: '1rem', borderRadius: '10px', borderLeft: '4.5px solid var(--secondary)' }}>
-                <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--secondary)', fontSize: '0.95rem' }}>🌿 Resolve Forage Finds</h4>
+                <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--secondary)', fontSize: '0.95rem' }}>🌿 채집 발견 처리</h4>
                 {activeForageEncounter.foundReagents.length > 0 ? (
                   <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
                     {activeForageEncounter.foundReagents.map((find: ForageFind | string, idx: number) => {
@@ -4020,7 +4020,7 @@ export default function App() {
               </div>
 
               <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#fbfaf4', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
-                <div className="document-kicker" style={{ marginBottom: '0.45rem' }}>Structured encounter effects</div>
+                <div className="document-kicker" style={{ marginBottom: '0.45rem' }}>조우 효과 적용</div>
                 <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                   {[
                     ['gainFP', '채집 포인트 +'],
@@ -4078,7 +4078,7 @@ export default function App() {
                   }}
                   style={{ flex: 1, padding: '0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold' }}
                 >
-                  Journal Only / 조우 해결
+                  저널 기록 후 조우 해결
                 </button>
                 <button onClick={() => setActiveForageEncounter(null)} style={{ padding: '0.8rem 1.2rem', background: '#eee', color: '#555', borderRadius: '8px' }}>닫기</button>
               </div>
@@ -4555,7 +4555,7 @@ function PlayView({
 
   const handlePickUpPassenger = () => {
     if (!state.wagonExpansions?.passengerBooth) {
-      alert("조수석 부스(Passenger Booth)를 먼저 설치해야 합니다.");
+      alert("조수석 부스를 먼저 설치해야 합니다.");
       return;
     }
     if (state.activePassenger) {
@@ -7881,7 +7881,7 @@ function PlayView({
         <div className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--border-cozy)', borderRadius: '7px', padding: '1rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div>
-              <div className="document-kicker">Passenger Booth</div>
+              <div className="document-kicker">조수석 부스</div>
               <h3 style={{ margin: '0.2rem 0 0.35rem 0', color: 'var(--primary)', fontSize: '1.05rem' }}>조수석 부스</h3>
               {state.activePassenger ? (
                 <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.86rem', lineHeight: 1.55 }}>
@@ -10225,7 +10225,7 @@ function PlayView({
                     onClick={(e) => handleForageDraw(e)}
                     style={{ flex: 1, padding: '0.7rem', background: 'var(--primary-light)', color: 'var(--primary)', border: '1.5px solid var(--primary)', borderRadius: '8px', fontWeight: 'bold' }}
                   >
-                    🌿 {forageLocationType === 'adjacent' ? `인접 지역 [${forageAdjacentRegion}] 채집 시작` : '이 위치 채집 및 조우 (Draw Forage)'}
+                    🌿 {forageLocationType === 'adjacent' ? `인접 지역 [${forageAdjacentRegion}] 채집 시작` : '이 위치 채집 및 조우'}
                   </button>
 
                   {/* Barter — show remaining attempts */}
@@ -10246,7 +10246,7 @@ function PlayView({
                         title={!isCity && !isSettlement ? '정착지/도시에서만 가능' : remaining === 0 ? '거래 횟수 초과' : ''}
                         style={{ flex: 1, padding: '0.7rem', background: canBarter ? 'var(--secondary-light)' : '#eee', color: canBarter ? 'var(--secondary)' : '#aaa', border: `1.5px solid ${canBarter ? 'var(--secondary)' : '#ccc'}`, borderRadius: '8px', fontWeight: 'bold', cursor: canBarter ? 'pointer' : 'not-allowed' }}
                       >
-                        🤝 물꼬 거래 (Barter) {isCity || isSettlement ? `${remaining}/${maxBarters}회 남음` : '— 정착지/도시만 가능'}
+                        🤝 물꼬 거래 {isCity || isSettlement ? `${remaining}/${maxBarters}회 남음` : '— 정착지/도시만 가능'}
                       </button>
                     );
                   })()}
