@@ -254,6 +254,17 @@ interface WagonExpansions {
   clayPots: boolean;
 }
 
+interface Passenger {
+  id: string;
+  name: string;
+  origin: string;
+  destination: string;
+  destinationType: 'nearby_settlement' | 'distant_settlement' | 'city';
+  reward: number;
+  roleBenefit: string;
+  pickedUpAtDay: number;
+}
+
 interface Companion {
   id: string;
   name: string;
@@ -328,6 +339,8 @@ interface GameState {
   activeDelve?: ActiveDelve | null;
   pursuedByBehemoth?: PursuedByBehemoth | null;
   wagonExpansions?: WagonExpansions;
+  activePassenger?: Passenger | null;
+  passengerPickupReady?: boolean;
   companions?: Companion[];
   companionHive?: Companion[];
   resourcefulReagent?: string;
@@ -452,6 +465,8 @@ const INITIAL_STATE: GameState = {
   activeDelve: null,
   pursuedByBehemoth: null,
   wagonExpansions: INITIAL_WAGON,
+  activePassenger: null,
+  passengerPickupReady: false,
   companions: [],
   companionHive: [],
   resourcefulReagent: "",
@@ -2232,9 +2247,28 @@ const parseLocs = (locsStr: string) => {
 // =================================================================
 // 4. MAIN APP COMPONENT
 // =================================================================
+const polishRuleText = (text: string = ''): string => text
+  .replace(/사역마/g, '길동무')
+  .replace(/길동무\s*\(Familiar\)/g, '길동무')
+  .replace(/Familiar/g, '길동무')
+  .replace(/Bartering/g, '물꼬 거래')
+  .replace(/Social Encounter Card Draw/g, '사교 조우 카드 뽑기')
+  .replace(/Rarity Check Card Draw/g, '희귀도 판정 카드 뽑기')
+  .replace(/Rarity/g, '희귀도')
+  .replace(/Draw a Card/gi, '카드를 뽑습니다')
+  .replace(/Draw another Card/gi, '카드를 한 장 더 뽑습니다')
+  .replace(/Trinkets?/g, '장신구')
+  .replace(/Reagents?/g, '영약재')
+  .replace(/Journey/g, '여정')
+  .replace(/Calendar/g, '일정')
+  .replace(/Reputation/g, '길드 명성')
+  .replace(/Foraging Points?|FP/g, '채집 포인트')
+  .replace(/Behemoth/g, '거수')
+  .replace(/\s+\)/g, ')');
+
 const migrateLegacyTerminology = (value: any): any => {
   if (typeof value === 'string') {
-    return value.replace(/사역마/g, '길동무');
+    return polishRuleText(value);
   }
   if (Array.isArray(value)) {
     return value.map(migrateLegacyTerminology);
@@ -2262,6 +2296,8 @@ const migrateState = (s: any): GameState => {
       ...INITIAL_WAGON,
       ...(s.wagonExpansions || {})
     },
+    activePassenger: s.activePassenger || null,
+    passengerPickupReady: s.passengerPickupReady || false,
     barrows: s.barrows || [],
     activeDelve: s.activeDelve || null,
     pursuedByBehemoth: s.pursuedByBehemoth || null,
@@ -2319,6 +2355,14 @@ const migrateState = (s: any): GameState => {
   });
 };
 
+const getActiveFamiliarBenefit = (s: GameState): string =>
+  (s.wagonExpansions?.passengerBooth && s.activePassenger?.roleBenefit)
+    ? s.activePassenger.roleBenefit
+    : s.bio.familiarBenefit;
+
+const getActiveFamiliarMechanic = (s: GameState): string =>
+  FAMILIAR_BENEFITS.find(f => f.name === getActiveFamiliarBenefit(s))?.mechanic || '';
+
 // Tool existence check helper (takes Ingenuitive familiar benefit into account)
 const hasTool = (s: GameState, toolIdOrName: string): boolean => {
   const inBag = s.bag.some(item =>
@@ -2327,7 +2371,7 @@ const hasTool = (s: GameState, toolIdOrName: string): boolean => {
   );
   if (inBag) return true;
 
-  const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === s.bio.familiarBenefit)?.mechanic || '';
+  const familiarMechanic = getActiveFamiliarMechanic(s);
   if (familiarMechanic === 'ingenuitive' && s.ingenuitiveTool) {
     if (s.ingenuitiveTool === toolIdOrName || s.ingenuitiveTool.toLowerCase().includes(toolIdOrName.toLowerCase())) {
       return true;
@@ -2337,17 +2381,18 @@ const hasTool = (s: GameState, toolIdOrName: string): boolean => {
 };
 
 const getFamiliarReduction = (s: GameState, mechanic: string, defaultVal: number = 2): number => {
-  const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === s.bio.familiarBenefit)?.mechanic || '';
+  const familiarMechanic = getActiveFamiliarMechanic(s);
   if (familiarMechanic !== mechanic) return 0;
-  const trust = s.familiarTrust || 0;
+  const trust = s.activePassenger ? 0 : (s.familiarTrust || 0);
   if (trust >= 80) return defaultVal + 2;
   if (trust >= 40) return defaultVal + 1;
   return defaultVal;
 };
 
 const getStartingForagingPoints = (s: GameState): number => {
-  const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === s.bio.familiarBenefit)?.mechanic || '';
-  const perceptiveFp = familiarMechanic === 'perceptive' || s.bio.familiarBenefit.includes("예리한 관찰자") ? 2 : 0;
+  const familiarBenefit = getActiveFamiliarBenefit(s);
+  const familiarMechanic = getActiveFamiliarMechanic(s);
+  const perceptiveFp = familiarMechanic === 'perceptive' || familiarBenefit.includes("예리한 관찰자") ? 2 : 0;
   const steelAxeFp = hasTool(s, 'Steel Axe') || hasTool(s, '강철 도끼') ? 3 : 0;
   return perceptiveFp + steelAxeFp;
 };
@@ -2649,8 +2694,9 @@ const getMaxCarry = (s: GameState): number => {
   if (hasSatchel) base += 1;
 
   // Familiar: Vigorous — +2 Carry (or +4 with Wagon), rulebook p.14
-  const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === s.bio.familiarBenefit)?.mechanic || '';
-  if (familiarMechanic === 'vigorous' || s.bio.familiarBenefit.includes('힘센 일꾼')) {
+  const familiarBenefit = getActiveFamiliarBenefit(s);
+  const familiarMechanic = getActiveFamiliarMechanic(s);
+  if (familiarMechanic === 'vigorous' || familiarBenefit.includes('힘센 일꾼')) {
     base += s.wagonExpansions?.baseUnit ? 4 : 2;
   }
 
@@ -2735,8 +2781,9 @@ const calculateBarterRarity = (s: GameState, r: any, isCity: boolean): number =>
   else if (s.reputation >= 25) finalRarity -= 1;
   else if (s.reputation < 15) finalRarity += 1;
 
-  const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === s.bio.familiarBenefit)?.mechanic || '';
-  if (familiarMechanic === 'chatty' || s.bio.familiarBenefit.includes('말동무')) {
+  const familiarBenefit = getActiveFamiliarBenefit(s);
+  const familiarMechanic = getActiveFamiliarMechanic(s);
+  if (familiarMechanic === 'chatty' || familiarBenefit.includes('말동무')) {
     finalRarity -= getFamiliarReduction(s, 'chatty');
   }
 
@@ -2985,7 +3032,8 @@ export default function App() {
       let nextTrinkets = s.trinkets;
       let nextReputation = s.reputation;
       let journalTitle = `🤝 물꼬 거래 실패: ${reagentName}`;
-      let journalText = `[사교 조우: ${socialEncounter.title}]\n소감: ${journalNote || '협상에 실패했다.'}\n\n- 거래 희귀도: ${finalRarity}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (실패)`;
+      const socialTitle = polishRuleText(socialEncounter.title);
+      let journalText = `[사교 조우: ${socialTitle}]\n소감: ${journalNote || '협상에 실패했다.'}\n\n- 거래 희귀도: ${finalRarity}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (실패)`;
 
       if (isSuccess) {
         // Prompt player to choose which preparation part to obtain
@@ -3002,10 +3050,10 @@ export default function App() {
           nextTrinkets = s.trinkets.slice(paidTrinketsCount);
           nextReputation = Math.max(0, s.reputation - paidReputationCount);
           journalTitle = `🤝 거래 강제 성사: ${reagentName}`;
-          journalText = `[사교 조우: ${socialEncounter.title}]\n소감: ${journalNote || '추가 대가를 치르고 거래를 마쳤다.'}\n\n- 거래 희귀도: ${finalRarity}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (장신구 ${paidTrinketsCount}개, 길드 명성 ${paidReputationCount}점 지불 성사)\n- 획득 영약재: ${r.name} (${partText.trim()})`;
+          journalText = `[사교 조우: ${socialTitle}]\n소감: ${journalNote || '추가 대가를 치르고 거래를 마쳤다.'}\n\n- 거래 희귀도: ${finalRarity}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (장신구 ${paidTrinketsCount}개, 길드 명성 ${paidReputationCount}점 지불 성사)\n- 획득 영약재: ${r.name} (${partText.trim()})`;
         } else {
           journalTitle = `🤝 거래 성사: ${reagentName}`;
-          journalText = `[사교 조우: ${socialEncounter.title}]\n소감: ${journalNote || '협상에 성공했다.'}\n\n- 거래 희귀도: ${finalRarity}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (성공)\n- 획득 영약재: ${r.name} (${partText.trim()})`;
+          journalText = `[사교 조우: ${socialTitle}]\n소감: ${journalNote || '협상에 성공했다.'}\n\n- 거래 희귀도: ${finalRarity}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (성공)\n- 획득 영약재: ${r.name} (${partText.trim()})`;
         }
       }
 
@@ -3390,8 +3438,8 @@ export default function App() {
     });
   };
 
-  const applyEncounterStateEffect = (effect: 'gainFP' | 'loseFP' | 'gainTime' | 'loseTime' | 'gainReagent' | 'loseReagent' | 'gainTrinket' | 'loseTrinket' | 'startPursuit') => {
-    const amountInput = ['gainFP', 'loseFP', 'gainTime', 'loseTime', 'gainTrinket', 'loseTrinket', 'startPursuit'].includes(effect)
+  const applyEncounterStateEffect = (effect: 'gainFP' | 'loseFP' | 'gainTime' | 'loseTime' | 'gainReagent' | 'loseReagent' | 'gainTrinket' | 'loseTrinket' | 'startPursuit' | 'clearPursuit' | 'gainRep' | 'loseRep' | 'markDay' | 'moveSettlement' | 'endJourney') => {
+    const amountInput = ['gainFP', 'loseFP', 'gainTime', 'loseTime', 'gainTrinket', 'loseTrinket', 'startPursuit', 'gainRep', 'loseRep', 'markDay'].includes(effect)
       ? prompt("적용할 수치를 입력하세요:", effect === 'startPursuit' ? "6" : "1")
       : null;
     const amount = Math.max(0, parseInt(amountInput || "0") || 0);
@@ -3408,6 +3456,13 @@ export default function App() {
       let nextBag = [...s.bag];
       let nextTrinkets = [...s.trinkets];
       let nextPursued = s.pursuedByBehemoth;
+      let nextReputation = s.reputation;
+      let nextCalendarDays = s.calendarDays;
+      let nextCumulative = s.cumulativeDays || 0;
+      let nextJourneyActive = s.journeyActive;
+      let nextCurrentLocationName = s.currentLocationName;
+      let nextCurrentLocationType = s.currentLocationType;
+      let nextCustomMapLocations = s.customMapLocations || [];
       let note = "";
 
       if ((effect === 'gainFP' || effect === 'loseFP' || effect === 'gainTime' || effect === 'loseTime') && !nextAilment) {
@@ -3453,6 +3508,37 @@ export default function App() {
       } else if (effect === 'startPursuit') {
         nextPursued = { headStart: amount || 6 };
         note = `조우 효과: 거수 추격 시작 (선행거리 ${amount || 6})`;
+      } else if (effect === 'clearPursuit') {
+        nextPursued = null;
+        note = `조우 효과: 거수 추격 종료`;
+      } else if (effect === 'gainRep') {
+        nextReputation = nextReputation + amount;
+        note = `조우 효과: 길드 명성 +${amount}`;
+      } else if (effect === 'loseRep') {
+        nextReputation = Math.max(0, nextReputation - amount);
+        note = `조우 효과: 길드 명성 -${amount}`;
+      } else if (effect === 'markDay') {
+        nextCalendarDays = nextCalendarDays + amount;
+        nextCumulative = nextCumulative + amount;
+        note = `조우 효과: 일정 +${amount}일`;
+      } else if (effect === 'moveSettlement') {
+        const settlementName = prompt("이동할 정착지 이름:", s.currentLocationName);
+        if (!settlementName) return s;
+        nextCurrentLocationName = settlementName;
+        nextCurrentLocationType = 'Settlement';
+        nextCustomMapLocations = upsertCustomMapLocation(
+          s.customMapLocations || [],
+          settlementName,
+          s.currentRegion,
+          'Settlement',
+          s.currentLocationName,
+          '조우 효과로 도착한 정착지'
+        );
+        note = `조우 효과: ${settlementName} 정착지로 이동`;
+      } else if (effect === 'endJourney') {
+        if (!confirm("이 조우 효과로 현재 여정을 종료할까요?")) return s;
+        nextJourneyActive = false;
+        note = `조우 효과: 여정 종료`;
       }
 
       return {
@@ -3461,6 +3547,13 @@ export default function App() {
         bag: nextBag,
         trinkets: nextTrinkets,
         pursuedByBehemoth: nextPursued,
+        reputation: nextReputation,
+        calendarDays: nextCalendarDays,
+        cumulativeDays: nextCumulative,
+        journeyActive: nextJourneyActive,
+        currentLocationName: nextCurrentLocationName,
+        currentLocationType: nextCurrentLocationType,
+        customMapLocations: nextCustomMapLocations,
         journals: note ? [
           { id: `encounter_effect_${timestamp}`, title: '조우 상태 효과 적용', text: note, timestamp },
           ...s.journals
@@ -3581,6 +3674,12 @@ export default function App() {
                     🐾 길동무 <strong>{state.bio.familiarName}</strong>{state.bio.familiarAnimal ? ` (${state.bio.familiarAnimal})` : ''}.
                     <br />
                     <span className="dim">{state.bio.familiarBenefit}.</span>
+                    {state.activePassenger && (
+                      <>
+                        <br />
+                        <span className="dim">승객 {state.activePassenger.name}의 임시 역할: {state.activePassenger.roleBenefit}.</span>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -3716,8 +3815,8 @@ export default function App() {
 
       {/* Travel Encounter Dialog Modal */}
       {activeTravelEncounter && (() => {
-        const encText: string = activeTravelEncounter.text || '';
-        const encTitle: string = activeTravelEncounter.title || '';
+        const encText: string = polishRuleText(activeTravelEncounter.text || '');
+        const encTitle: string = polishRuleText(activeTravelEncounter.title || '');
         const secondaryDrawPhrases = [
           'draw a card', 'draw another card', 'pull another card', 'draw from the deck',
           '추가 카드', '다시 카드', '카드를 뽑', 'draw two cards', 'draw one card'
@@ -3749,12 +3848,12 @@ export default function App() {
 
               {/* Encounter title */}
               <h3 style={{ borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.8rem', color: 'var(--text-bright)' }}>
-                {activeTravelEncounter.title}
+                {encTitle}
               </h3>
 
               {/* Encounter body text */}
               <p style={{ fontSize: '1rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', maxHeight: '220px', overflowY: 'auto', background: '#faf8f4', padding: '1rem', borderRadius: '10px', color: 'var(--text-bright)', borderLeft: '4.5px solid var(--primary)' }}>
-                {activeTravelEncounter.text}
+                {encText}
               </p>
 
               {/* Secondary draw guidance */}
@@ -3782,7 +3881,13 @@ export default function App() {
                     ['loseReagent', '약재 분실'],
                     ['gainTrinket', '장신구 획득'],
                     ['loseTrinket', '장신구 분실'],
-                    ['startPursuit', '거수 추격 시작']
+                    ['gainRep', '명성 +'],
+                    ['loseRep', '명성 −'],
+                    ['markDay', '일정 +일'],
+                    ['startPursuit', '거수 추격 시작'],
+                    ['clearPursuit', '거수 추격 종료'],
+                    ['moveSettlement', '정착지로 이동'],
+                    ['endJourney', '여정 종료']
                   ] as [string, string][]).map(([effect, label]) => (
                     <button
                       key={effect}
@@ -3796,7 +3901,7 @@ export default function App() {
                   {canUseBeetleCompanion && (
                     <button
                       type="button"
-                      onClick={() => handleUseBeetleCompanion(activeTravelEncounter.title)}
+                      onClick={() => handleUseBeetleCompanion(encTitle)}
                       style={{ padding: '0.35rem 0.55rem', fontSize: '0.76rem', border: '1px solid #8e6d3a', background: '#fff7df', color: '#7a4a10', borderRadius: '4px', cursor: 'pointer', fontWeight: 700 }}
                     >
                       딱정벌레 보호 사용
@@ -3811,13 +3916,13 @@ export default function App() {
                   onClick={() => {
                     const note = prompt('이 조우에서 어떤 선택을 했나요? (선택 사항 — 빈칸으로 두면 기본 문구가 저장됩니다)');
                     if (note !== null) {
-                      const journalBody = `[p.${activeTravelEncounter.page} · ${activeTravelEncounter.cardValue} ${activeTravelEncounter.suitLabel}]\n${activeTravelEncounter.text}\n\n나의 선택: ${note || '묵묵히 길을 나아갔다.'}`;
+                      const journalBody = `[p.${activeTravelEncounter.page} · ${activeTravelEncounter.cardValue} ${activeTravelEncounter.suitLabel}]\n${encText}\n\n나의 선택: ${note || '묵묵히 길을 나아갔다.'}`;
                       updateState(s => ({
                         ...s,
                         journals: [
                           {
                             id: 'journal_' + Date.now(),
-                            title: `여정 조우: ${activeTravelEncounter.title}`,
+                            title: `여정 조우: ${encTitle}`,
                             text: journalBody,
                             timestamp: Date.now()
                           },
@@ -3841,8 +3946,8 @@ export default function App() {
 
       {/* Foraging Encounter Dialog Modal */}
       {activeForageEncounter && (() => {
-        const encText: string = activeForageEncounter.text || '';
-        const encTitle: string = activeForageEncounter.title || '';
+        const encText: string = polishRuleText(activeForageEncounter.text || '');
+        const encTitle: string = polishRuleText(activeForageEncounter.title || '');
         const secondaryDrawPhrases = [
           'draw a card', 'draw another card', 'pull another card', 'draw from the deck',
           '추가 카드', '다시 카드', '카드를 뽑', 'draw two cards', 'draw one card'
@@ -3866,11 +3971,11 @@ export default function App() {
               </div>
 
               <h3 style={{ borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.8rem', color: 'var(--text-bright)' }}>
-                {activeForageEncounter.title}
+                {encTitle}
               </h3>
 
               <p style={{ fontSize: '1rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', maxHeight: '200px', overflowY: 'auto', background: '#faf8f4', padding: '1rem', borderRadius: '10px', color: 'var(--text-bright)', borderLeft: '4.5px solid var(--primary)' }}>
-                {activeForageEncounter.text}
+                {encText}
               </p>
 
               {/* Secondary draw guidance */}
@@ -3918,15 +4023,21 @@ export default function App() {
                 <div className="document-kicker" style={{ marginBottom: '0.45rem' }}>Structured encounter effects</div>
                 <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                   {[
-                    ['gainFP', 'Gain FP'],
-                    ['loseFP', 'Lose FP'],
-                    ['gainTime', 'Gain Time'],
-                    ['loseTime', 'Lose Time'],
-                    ['gainReagent', 'Gain Reagent'],
-                    ['loseReagent', 'Lose Reagent'],
-                    ['gainTrinket', 'Gain Trinket'],
-                    ['loseTrinket', 'Lose Trinket'],
-                    ['startPursuit', 'Start Pursuit']
+                    ['gainFP', '채집 포인트 +'],
+                    ['loseFP', '채집 포인트 −'],
+                    ['gainTime', '타이머 +'],
+                    ['loseTime', '타이머 −'],
+                    ['gainReagent', '영약재 획득'],
+                    ['loseReagent', '영약재 분실'],
+                    ['gainTrinket', '장신구 획득'],
+                    ['loseTrinket', '장신구 분실'],
+                    ['gainRep', '명성 +'],
+                    ['loseRep', '명성 −'],
+                    ['markDay', '일정 +일'],
+                    ['startPursuit', '거수 추격 시작'],
+                    ['clearPursuit', '거수 추격 종료'],
+                    ['moveSettlement', '정착지로 이동'],
+                    ['endJourney', '여정 종료']
                   ].map(([effect, label]) => (
                     <button
                       key={effect}
@@ -3954,8 +4065,8 @@ export default function App() {
                           journals: [
                             {
                               id: 'forage_' + Date.now(),
-                              title: `🌿 채집 일지: ${activeForageEncounter.title}`,
-                              text: `[페이지 ${activeForageEncounter.page} - 드로우: ${activeForageEncounter.cardValue} ${activeForageEncounter.suitLabel}]\n위치: ${s.currentLocationName} (${activeForageEncounter.region} / ${s.currentSeason})\n조우 결과: ${activeForageEncounter.text}\n발견한 영약재: ${listStr}\n\n기록: ${note || '조심스럽게 약초 채집을 마무리했다.'}`,
+                              title: `🌿 채집 일지: ${encTitle}`,
+                              text: `[페이지 ${activeForageEncounter.page} - 드로우: ${activeForageEncounter.cardValue} ${activeForageEncounter.suitLabel}]\n위치: ${s.currentLocationName} (${activeForageEncounter.region} / ${s.currentSeason})\n조우 결과: ${encText}\n발견한 영약재: ${listStr}\n\n기록: ${note || '조심스럽게 약초 채집을 마무리했다.'}`,
                               timestamp: Date.now()
                             },
                             ...s.journals
@@ -4100,8 +4211,8 @@ export default function App() {
             </h3>
 
             {state.activeBarter.phase === 'social' && (() => {
-              const encText: string = state.activeBarter.socialEncounter.text || '';
-              const encTitle: string = state.activeBarter.socialEncounter.title || '';
+              const encText: string = polishRuleText(state.activeBarter.socialEncounter.text || '');
+              const encTitle: string = polishRuleText(state.activeBarter.socialEncounter.title || '');
               const secondaryDrawPhrases = [
                 'draw a card', 'draw another card', 'pull another card', 'draw from the deck',
                 '추가 카드', '다시 카드', '카드를 뽑', 'draw two cards', 'draw one card'
@@ -4125,11 +4236,11 @@ export default function App() {
                       />
                       <div>
                         <strong>드로우된 카드:</strong> {suitLabels[state.activeBarter.socialCard.suit]} {state.activeBarter.socialCard.val === 1 ? 'A' : state.activeBarter.socialCard.val === 11 ? 'J' : state.activeBarter.socialCard.val === 12 ? 'Q' : state.activeBarter.socialCard.val === 13 ? 'K' : state.activeBarter.socialCard.val} <br />
-                        <strong>조우 카드 이름:</strong> {state.activeBarter.socialEncounter.title} (p.{state.activeBarter.socialEncounter.page})
+                        <strong>조우 카드 이름:</strong> {encTitle} (p.{state.activeBarter.socialEncounter.page})
                       </div>
                     </div>
                     <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text)', fontStyle: 'italic', lineHeight: 1.4, background: '#fff', padding: '0.6rem', borderRadius: '6px', border: '1px dashed #cbd5e1' }}>
-                      "{state.activeBarter.socialEncounter.text}"
+                      "{encText}"
                     </p>
 
                     {/* Secondary draw guidance */}
@@ -4143,6 +4254,31 @@ export default function App() {
                         <TravelSecondaryDrawSlot />
                       </div>
                     )}
+                  </div>
+
+                  <div style={{ padding: '0.75rem', background: '#fbfaf4', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: '0.45rem', fontWeight: 600 }}>사교 조우 효과 적용</div>
+                    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      {([
+                        ['gainRep', '명성 +'],
+                        ['loseRep', '명성 −'],
+                        ['gainTrinket', '장신구 획득'],
+                        ['loseTrinket', '장신구 분실'],
+                        ['gainReagent', '영약재 획득'],
+                        ['loseReagent', '영약재 분실'],
+                        ['markDay', '일정 +일'],
+                        ['moveSettlement', '정착지로 이동']
+                      ] as [string, string][]).map(([effect, label]) => (
+                        <button
+                          key={effect}
+                          type="button"
+                          onClick={() => applyEncounterStateEffect(effect as any)}
+                          style={{ padding: '0.35rem 0.55rem', fontSize: '0.76rem', border: '1px solid var(--glass-border)', background: '#fffefa', color: 'var(--text-muted)', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -4416,6 +4552,86 @@ function PlayView({
   const [scroungeReagentRegion, setScroungeReagentRegion] = useState("Forest");
   const [selectedAgendaService, setSelectedAgendaService] = useState("pantry");
   const [independentAdjRegion, setIndependentAdjRegion] = useState("Forest");
+
+  const handlePickUpPassenger = () => {
+    if (!state.wagonExpansions?.passengerBooth) {
+      alert("조수석 부스(Passenger Booth)를 먼저 설치해야 합니다.");
+      return;
+    }
+    if (state.activePassenger) {
+      alert("이미 동승 중인 승객이 있습니다.");
+      return;
+    }
+    if (!state.passengerPickupReady) {
+      alert("승객은 정착지에서 치료제를 거래한 뒤 모집할 수 있습니다.");
+      return;
+    }
+
+    const name = prompt("태울 승객 이름:", "길손");
+    if (!name) return;
+    const destination = prompt("승객의 목적지 이름:", state.journeyDestination || "");
+    if (!destination) return;
+    const destinationTypeInput = prompt(
+      "목적지 종류를 선택하세요:\n1. 가까운 정착지 (보상 장신구 1개)\n2. 먼 정착지/다른 지역 (보상 장신구 2개)\n3. 도시 (보상 장신구 4개)",
+      "1"
+    );
+    const destinationType = destinationTypeInput === "3" ? "city" : destinationTypeInput === "2" ? "distant_settlement" : "nearby_settlement";
+    const reward = destinationType === "city" ? 4 : destinationType === "distant_settlement" ? 2 : 1;
+    const roleChoice = prompt(
+      `이 승객이 이동 중 맡을 임시 길동무 역할 번호를 고르세요:\n${FAMILIAR_BENEFITS.map((f, idx) => `${idx + 1}. ${f.name}`).join('\n')}`,
+      "1"
+    );
+    const roleBenefit = FAMILIAR_BENEFITS[Math.max(0, (parseInt(roleChoice || "1") || 1) - 1)]?.name || FAMILIAR_BENEFITS[0].name;
+    const timestamp = Date.now();
+
+    updateState((s: GameState) => ({
+      ...s,
+      activePassenger: {
+        id: `passenger_${timestamp}`,
+        name,
+        origin: s.currentLocationName,
+        destination,
+        destinationType,
+        reward,
+        roleBenefit,
+        pickedUpAtDay: s.cumulativeDays || s.calendarDays || 0
+      },
+      passengerPickupReady: false,
+      journals: [
+        {
+          id: `passenger_pickup_${timestamp}`,
+          title: `승객 동승: ${name}`,
+          text: `${s.currentLocationName}에서 ${destination}(으)로 가는 승객 ${name}을(를) 태웠습니다. 이동 중 임시 길동무 역할: ${roleBenefit}. 도착 보상: 장신구 ${reward}개.`,
+          timestamp
+        },
+        ...s.journals
+      ]
+    }));
+  };
+
+  const handleDropOffPassenger = () => {
+    if (!state.activePassenger) return;
+    const passenger = state.activePassenger;
+    const atDestination = state.currentLocationName.trim().toLowerCase() === passenger.destination.trim().toLowerCase();
+    if (!atDestination && !confirm(`현재 위치가 목적지 "${passenger.destination}"와 다릅니다. 그래도 승객을 내려주고 보상을 받을까요?`)) {
+      return;
+    }
+    const timestamp = Date.now();
+    updateState((s: GameState) => ({
+      ...s,
+      trinkets: [...s.trinkets, ...Array(passenger.reward).fill('승객 운송 보상 장신구 (Passenger Fare)')],
+      activePassenger: null,
+      journals: [
+        {
+          id: `passenger_dropoff_${timestamp}`,
+          title: `승객 하차: ${passenger.name}`,
+          text: `${passenger.name}을(를) ${s.currentLocationName}에서 내려주고 장신구 ${passenger.reward}개를 받았습니다.`,
+          timestamp
+        },
+        ...s.journals
+      ]
+    }));
+  };
 
   useEffect(() => {
     setFinalArchiveNoteDraft(state.pendingPatientArchive?.initialRememberedNote || '');
@@ -5263,7 +5479,7 @@ function PlayView({
       : '';
 
     // Familiar: Brave benefit
-    const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === state.bio.familiarBenefit)?.mechanic || '';
+    const familiarMechanic = getActiveFamiliarMechanic(state);
     let braveTextExtra = "";
     let braveReagentToAdd: BagItem | null = null;
 
@@ -5349,6 +5565,8 @@ function PlayView({
         '이동으로 발견한 위치'
       );
       const nextVisited = Array.from(new Set([...(s.visitedLocations || []), nextLocName]));
+      const passengerArrived = !!s.activePassenger &&
+        nextLocName.trim().toLowerCase() === s.activePassenger.destination.trim().toLowerCase();
 
       let nextGoalCounter = s.journeyGoalCounter || 0;
       if (s.journeyActive && s.journeyGoalTitle === '자아 성찰') {
@@ -5472,6 +5690,7 @@ function PlayView({
         taxiSoarActive: s.taxiSoarActive && destRegion === 'Soar' ? false : s.taxiSoarActive,
         companionTravelPaths: nextCompanionTravelPaths,
         companions: finalCompanions,
+        passengerPickupReady: false,
         calendarHistory: [
           ...s.calendarHistory,
           `Day ${nextDays}: ${nextLocName} (${destRegion} / ${destType})로 이동. ${effectivePaths}경로.` +
@@ -5479,14 +5698,20 @@ function PlayView({
         ]
       };
 
-      if (braveReagentToAdd || socialDraw || performanceJournals.length > 0 || companionHarvestJournals.length > 0) {
+      if (braveReagentToAdd || socialDraw || performanceJournals.length > 0 || companionHarvestJournals.length > 0 || passengerArrived) {
         newState.journals = [
           ...companionHarvestJournals,
           ...performanceJournals,
+          ...(passengerArrived ? [{
+            id: 'passenger_arrival_' + Date.now(),
+            title: `승객 목적지 도착: ${s.activePassenger!.name}`,
+            text: `${s.activePassenger!.name}의 목적지 ${nextLocName}에 도착했습니다. 조수석 부스 패널에서 승객을 내려주고 장신구 ${s.activePassenger!.reward}개를 받으세요.`,
+            timestamp: Date.now()
+          }] : []),
           ...(socialDraw ? [{
             id: 'social_enter_' + Date.now(),
             title: `🤝 사회 조우: ${nextLocName}`,
-            text: `${nextLocName}에 들어서며 사회 조우를 해결했습니다.\n카드: ${socialDraw.card.suit} ${cardDisplayValue(socialDraw.card.value)}\n\n${socialDraw.encounter.title}\n${socialDraw.encounter.text}`,
+            text: `${nextLocName}에 들어서며 사회 조우를 해결했습니다.\n카드: ${socialDraw.card.suit} ${cardDisplayValue(socialDraw.card.value)}\n\n${polishRuleText(socialDraw.encounter.title)}\n${polishRuleText(socialDraw.encounter.text)}`,
             timestamp: Date.now()
           }] : []),
           ...(braveReagentToAdd ? [{
@@ -5562,7 +5787,7 @@ function PlayView({
       }
     }
 
-    const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === state.bio.familiarBenefit)?.mechanic || '';
+    const familiarMechanic = getActiveFamiliarMechanic(state);
     const canUseNewsReroll = (state.guildServiceTravelRerolls || 0) > 0;
     const canUsePondSkimmer =
       destRegion === 'Loch' &&
@@ -5623,8 +5848,9 @@ function PlayView({
       return;
     }
 
-    const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === state.bio.familiarBenefit)?.mechanic || '';
-    const startTimer = dbAil.timer + ((familiarMechanic === 'helpful' || state.bio.familiarBenefit.includes("따뜻한 약제사")) ? 2 : 0);
+    const familiarBenefit = getActiveFamiliarBenefit(state);
+    const familiarMechanic = getActiveFamiliarMechanic(state);
+    const startTimer = dbAil.timer + ((familiarMechanic === 'helpful' || familiarBenefit.includes("따뜻한 약제사")) ? 2 : 0);
 
     updateState(s => ({
       ...s,
@@ -5749,7 +5975,7 @@ function PlayView({
     if (e) e.preventDefault();
     if (!state.activeAilment) return;
 
-    const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === state.bio.familiarBenefit)?.mechanic || '';
+    const familiarMechanic = getActiveFamiliarMechanic(state);
 
     const isAdjacent = forageLocationType === 'adjacent';
     const activeRegion = isAdjacent ? forageAdjacentRegion : state.currentRegion;
@@ -6319,8 +6545,9 @@ function PlayView({
 	    const letterNote = prompt("서신에 적힌 사연이나 요청을 짧게 적어주세요:", "Noonmessengers가 먼 곳의 치료 요청을 전해왔다.") || "";
 
 	    updateState((s: GameState) => {
-	      const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === s.bio.familiarBenefit)?.mechanic || '';
-	      const startTimer = ailment.timer + ((familiarMechanic === 'helpful' || s.bio.familiarBenefit.includes("따뜻한 약제사")) ? 2 : 0);
+	      const familiarBenefit = getActiveFamiliarBenefit(s);
+	      const familiarMechanic = getActiveFamiliarMechanic(s);
+	      const startTimer = ailment.timer + ((familiarMechanic === 'helpful' || familiarBenefit.includes("따뜻한 약제사")) ? 2 : 0);
 	      return {
 	        ...s,
 	        barterCountThisAilment: 0,
@@ -6875,8 +7102,9 @@ function PlayView({
     );
 
     // Familiar: Shrewd — +1 Trinket when trading remedy for trinkets (not gifting)
-    const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === state.bio.familiarBenefit)?.mechanic || '';
-    const shrewdBonus = (!isGifting && (familiarMechanic === 'shrewd' || state.bio.familiarBenefit.includes('현명한 장사꾼'))) ? 1 : 0;
+    const familiarBenefit = getActiveFamiliarBenefit(state);
+    const familiarMechanic = getActiveFamiliarMechanic(state);
+    const shrewdBonus = (!isGifting && (familiarMechanic === 'shrewd' || familiarBenefit.includes('현명한 장사꾼'))) ? 1 : 0;
 
     const actualTrinkets = isGifting ? 0 : trinketGain + shrewdBonus;
     const actualRep = repGain + (isGifting ? 2 : 0);
@@ -6889,6 +7117,9 @@ function PlayView({
 
       const isWilds = s.currentLocationType === 'Wilds';
       const triggerScrounge = nextTimer > 0;
+      const canReadyPassenger = !!s.wagonExpansions?.passengerBooth &&
+        s.currentLocationType === 'Settlement' &&
+        !s.activePassenger;
 
       // Goal 7 (의학 연구 자료) check
       let nextGoalCounter = s.journeyGoalCounter || 0;
@@ -6955,9 +7186,16 @@ function PlayView({
         scroungingMode: triggerScrounge,
         scroungingTimer: nextTimer,
         curedAilmentInThisWilds: isWilds,
+        passengerPickupReady: canReadyPassenger ? true : s.passengerPickupReady,
         journeyGoalCounter: nextGoalCounter,
         pendingPatientArchive: createPendingPatientArchive(s, cureSourceId, 'success', cureNotes, reagentNames, '', cureTimestamp),
         journals: [
+          ...(canReadyPassenger ? [{
+            id: `passenger_ready_${cureTimestamp}`,
+            title: '조수석 부스 승객 모집 가능',
+            text: `${s.currentLocationName}에서 치료제를 거래했으므로, 조수석 부스로 목적지까지 동승할 승객을 모집할 수 있습니다.`,
+            timestamp: cureTimestamp
+          }] : []),
           {
             id: cureSourceId,
             title: `🌿 짚침상을 털고 일어난 야수: ${s.activeAilment!.patientName || '이름 없는 이'}`,
@@ -7328,8 +7566,9 @@ function PlayView({
     const cleanedName = randomAil.name.replace(/^PAGE\s*\d+\s*(---|--|-)\s*/i, '');
 
     updateState((s: GameState) => {
-      const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === s.bio.familiarBenefit)?.mechanic || '';
-      const startTimer = randomAil.timer + (familiarMechanic === 'helpful' || s.bio.familiarBenefit.includes("따뜻한 약제사") ? 2 : 0);
+      const familiarBenefit = getActiveFamiliarBenefit(s);
+      const familiarMechanic = getActiveFamiliarMechanic(s);
+      const startTimer = randomAil.timer + (familiarMechanic === 'helpful' || familiarBenefit.includes("따뜻한 약제사") ? 2 : 0);
       const startFP = getStartingForagingPoints(s);
       return {
         ...s,
@@ -7633,6 +7872,55 @@ function PlayView({
               >
                 기록장에 새기기
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {state.wagonExpansions?.passengerBooth && (
+        <div className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--border-cozy)', borderRadius: '7px', padding: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div>
+              <div className="document-kicker">Passenger Booth</div>
+              <h3 style={{ margin: '0.2rem 0 0.35rem 0', color: 'var(--primary)', fontSize: '1.05rem' }}>조수석 부스</h3>
+              {state.activePassenger ? (
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.86rem', lineHeight: 1.55 }}>
+                  <strong>{state.activePassenger.name}</strong> 동승 중 · 목적지: <strong>{state.activePassenger.destination}</strong><br />
+                  임시 길동무 역할: <strong>{state.activePassenger.roleBenefit}</strong> · 도착 보상: 장신구 {state.activePassenger.reward}개
+                </p>
+              ) : (
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.86rem', lineHeight: 1.55 }}>
+                  정착지에서 치료제를 거래한 뒤 승객을 모집할 수 있습니다.
+                  {state.passengerPickupReady ? ' 지금 이 위치에서 승객을 태울 수 있습니다.' : ''}
+                </p>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {state.activePassenger ? (
+                <button
+                  type="button"
+                  onClick={handleDropOffPassenger}
+                  className="btn-cozy-primary"
+                  style={{ padding: '0.45rem 0.8rem', fontSize: '0.82rem' }}
+                >
+                  승객 내려주기
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handlePickUpPassenger}
+                  disabled={!state.passengerPickupReady}
+                  className="btn-cozy-secondary"
+                  style={{
+                    padding: '0.45rem 0.8rem',
+                    fontSize: '0.82rem',
+                    opacity: state.passengerPickupReady ? 1 : 0.55,
+                    cursor: state.passengerPickupReady ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  승객 태우기
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -9983,7 +10271,7 @@ function PlayView({
 
                 {/* Independent Familiar UI */}
                 {(() => {
-                  const familiarMechanic = FAMILIAR_BENEFITS.find(f => f.name === state.bio.familiarBenefit)?.mechanic || '';
+                  const familiarMechanic = getActiveFamiliarMechanic(state);
                   if (familiarMechanic === 'independent' && !state.independentUsedThisAilment) {
                     return (
                       <div style={{ width: '100%', marginTop: '0.8rem', padding: '0.8rem', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -11848,7 +12136,9 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
                     const species = window.prompt("종 / 생김새 (선택):", "") || "";
                     const initialRememberedNote = window.prompt("첫 인상 메모 (선택):", "") || "";
                     updateState(s => {
-                      const startTimer = a.timer + (s.bio.familiarBenefit.includes("따뜻한 약제사") ? 2 : 0);
+                      const familiarBenefit = getActiveFamiliarBenefit(s);
+                      const familiarMechanic = getActiveFamiliarMechanic(s);
+                      const startTimer = a.timer + (familiarMechanic === 'helpful' || familiarBenefit.includes("따뜻한 약제사") ? 2 : 0);
                       return {
                         ...s,
                         activeAilment: {
