@@ -708,6 +708,28 @@ button:active {
   font-size: 0.82rem;
 }
 
+.journal-photo-missing {
+  width: 100%;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 1rem;
+  background: #f2eee6;
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.journal-photo-missing strong {
+  color: var(--text-bright);
+  font-family: var(--font-fancy);
+  font-size: 0.86rem;
+}
+
 /* Current-turn action hub */
 .action-hub {
   background: #fffefa;

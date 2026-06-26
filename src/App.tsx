@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, Fragment } from "react";
-import { db, isFirebaseConfigured, auth, googleProvider } from "./firebase";
+import { db, isFirebaseConfigured, auth, googleProvider, storage } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
+import { deleteObject, getDownloadURL, ref as storageRef, uploadString } from "firebase/storage";
 import { GAME_DATA } from "./gameData";
 import {
   FAMILIAR_BENEFITS,
@@ -311,6 +312,7 @@ interface JournalPhoto {
   id: string;
   name: string;
   dataUrl: string;
+  storagePath?: string;
 }
 
 interface JournalEntry {
@@ -639,6 +641,34 @@ const compressJournalImage = (image: HTMLImageElement, maxSide: number, quality:
   return canvas.toDataURL('image/jpeg', quality);
 };
 
+const uploadJournalPhoto = async (photoId: string, fileName: string, dataUrl: string): Promise<Pick<JournalPhoto, 'dataUrl' | 'storagePath'>> => {
+  const currentUser = auth?.currentUser;
+  if (!storage || !currentUser) {
+    return { dataUrl };
+  }
+
+  const safeName = fileName.replace(/[^\w.\-가-힣]/g, '_').slice(0, 80) || 'journal-photo.jpg';
+  const path = `journalPhotos/${currentUser.uid}/${photoId}-${safeName}.jpg`;
+  const photoRef = storageRef(storage, path);
+  await uploadString(photoRef, dataUrl, 'data_url', {
+    contentType: 'image/jpeg',
+    customMetadata: { originalName: fileName }
+  });
+  const downloadUrl = await getDownloadURL(photoRef);
+  return { dataUrl: downloadUrl, storagePath: path };
+};
+
+const deleteJournalPhotoFromStorage = async (photo: JournalPhoto) => {
+  if (!storage || !photo.storagePath) return;
+  try {
+    await deleteObject(storageRef(storage, photo.storagePath));
+  } catch (err) {
+    console.warn('저널 사진 Storage 삭제 실패:', err);
+  }
+};
+
+const getJournalPhotoSrc = (photo: JournalPhoto) => photo.dataUrl || '';
+
 const prepareJournalPhoto = async (file: File): Promise<JournalPhoto> => {
   if (!file.type.startsWith('image/')) {
     throw new Error(`${file.name}은(는) 이미지 파일이 아닙니다.`);
@@ -654,10 +684,13 @@ const prepareJournalPhoto = async (file: File): Promise<JournalPhoto> => {
     throw new Error(`${file.name} 사진이 너무 큽니다. 더 작은 이미지로 다시 시도해 주세요.`);
   }
 
+  const id = makeJournalPhotoId();
+  const uploaded = await uploadJournalPhoto(id, file.name, dataUrl);
+
   return {
-    id: makeJournalPhotoId(),
+    id,
     name: file.name,
-    dataUrl
+    ...uploaded
   };
 };
 
@@ -665,6 +698,29 @@ const prepareJournalPhotos = async (files: FileList | null): Promise<JournalPhot
   if (!files || files.length === 0) return [];
   return Promise.all(Array.from(files).map(file => prepareJournalPhoto(file)));
 };
+
+function JournalPhotoImage({ photo, alt, imageStyle }: { photo: JournalPhoto; alt: string; imageStyle?: any }) {
+  const [failed, setFailed] = useState(false);
+  const src = getJournalPhotoSrc(photo);
+
+  if (!src || failed) {
+    return (
+      <div className="journal-photo-missing">
+        <strong>{photo.name || '사진'}</strong>
+        <span>사진 데이터를 불러올 수 없습니다.</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      onError={() => setFailed(true)}
+      style={imageStyle}
+    />
+  );
+}
 
 const CLINIC_SERVICE_LABELS: Record<string, string> = {
   pantry: '식료품 저장고',
@@ -13375,7 +13431,9 @@ function JournalsView({
   };
 
   const handleRemovePendingPhoto = (photoId: string) => {
-    setNewPhotos(prev => prev.filter(photo => photo.id !== photoId));
+    const photo = newPhotos.find(item => item.id === photoId);
+    if (photo) void deleteJournalPhotoFromStorage(photo);
+    setNewPhotos(prev => prev.filter(item => item.id !== photoId));
   };
 
   const handleAddPhotosToJournal = async (journalId: string, files: FileList | null) => {
@@ -13395,6 +13453,8 @@ function JournalsView({
 
   const handleRemoveJournalPhoto = (journalId: string, photoId: string) => {
     if (!confirm("이 사진을 일지에서 삭제하시겠습니까?")) return;
+    const photo = state.journals.find(j => j.id === journalId)?.photos?.find(item => item.id === photoId);
+    if (photo) void deleteJournalPhotoFromStorage(photo);
     updateState((s: GameState) => ({
       ...s,
       journals: s.journals.map(j =>
@@ -13461,6 +13521,8 @@ function JournalsView({
 
   const handleRemoveJournal = (id: string) => {
     if (confirm("이 일지 기록을 삭제하시겠습니까?")) {
+      const journal = state.journals.find(j => j.id === id);
+      (journal?.photos || []).forEach(photo => void deleteJournalPhotoFromStorage(photo));
       updateState(s => ({
         ...s,
         journals: s.journals.filter(j => j.id !== id)
@@ -13897,13 +13959,13 @@ function JournalsView({
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '0.6rem' }}>
                   {newPhotos.map(photo => (
                     <div key={photo.id} style={{ position: 'relative', aspectRatio: '1 / 1', borderRadius: '8px', overflow: 'hidden', border: '1px solid #ddd', background: '#f8f6f0' }}>
-                      <img src={photo.dataUrl} alt={photo.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      <JournalPhotoImage photo={photo} alt={photo.name} imageStyle={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                       <button type="button" onClick={() => handleRemovePendingPhoto(photo.id)} style={{ position: 'absolute', top: '0.25rem', right: '0.25rem', border: 'none', borderRadius: '999px', background: 'rgba(30, 24, 18, 0.78)', color: '#fff', width: '1.55rem', height: '1.55rem', cursor: 'pointer', lineHeight: 1 }}>×</button>
                     </div>
                   ))}
                 </div>
               )}
-              <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)' }}>사진은 세이브 용량을 아끼기 위해 자동으로 작게 압축됩니다.</div>
+              <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)' }}>로그인 상태에서는 사진을 서버 파일 저장소에 올리고, 세이브에는 주소만 남깁니다.</div>
             </div>
             <button type="submit" style={{ padding: '0.6rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>🖋️ 저널 등록</button>
           </form>
@@ -13948,7 +14010,7 @@ function JournalsView({
                             style={{ display: 'block', width: '100%', padding: 0, border: 'none', background: '#f5f1e8', cursor: 'zoom-in' }}
                             title="크게 보기"
                           >
-                            <img src={photo.dataUrl} alt={photo.name || j.title} style={{ width: '100%', maxHeight: '620px', objectFit: 'contain', display: 'block' }} />
+                            <JournalPhotoImage photo={photo} alt={photo.name || j.title} imageStyle={{ width: '100%', maxHeight: '620px', objectFit: 'contain', display: 'block' }} />
                           </button>
                           <figcaption style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', padding: '0.45rem 0.6rem', borderTop: '1px solid #e2ddd2', color: 'var(--text-dim)', fontSize: '0.76rem' }}>
                             <button onClick={() => setViewingPhoto({ photo, title: j.title })} style={{ border: 'none', background: 'transparent', color: 'var(--primary)', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}>🔎 원본 보기</button>
@@ -14055,7 +14117,7 @@ function JournalsView({
               <button onClick={() => setViewingPhoto(null)} style={{ border: '1px solid rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.12)', color: '#fff', borderRadius: '999px', width: '2.2rem', height: '2.2rem', cursor: 'pointer', fontSize: '1.25rem', lineHeight: 1 }}>×</button>
             </div>
             <div style={{ background: '#f7f3ea', borderRadius: '10px', padding: '0.75rem', overflow: 'auto', boxShadow: '0 18px 40px rgba(0,0,0,0.35)' }}>
-              <img src={viewingPhoto.photo.dataUrl} alt={viewingPhoto.photo.name || viewingPhoto.title} style={{ display: 'block', maxWidth: '100%', maxHeight: '82vh', width: 'auto', height: 'auto', margin: '0 auto' }} />
+              <JournalPhotoImage photo={viewingPhoto.photo} alt={viewingPhoto.photo.name || viewingPhoto.title} imageStyle={{ display: 'block', maxWidth: '100%', maxHeight: '82vh', width: 'auto', height: 'auto', margin: '0 auto' }} />
             </div>
           </div>
         </div>
