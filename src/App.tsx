@@ -3,6 +3,25 @@ import { db, isFirebaseConfigured, auth, googleProvider } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
 import { GAME_DATA } from "./gameData";
+import {
+  FAMILIAR_BENEFITS,
+  calculateRemedyRewards,
+  calculateBarterRarity,
+  calculateForageRarity,
+  createPreparedReagentItem,
+  getActiveFamiliarBenefit,
+  getActiveFamiliarMechanic,
+  getBarterLimitForLocation,
+  getStartingForagingPoints,
+  hasTool,
+  parseAilmentRequirements,
+  previewConcoction,
+  previewPatientTimer,
+  selectedToolEffectItems,
+  splitReagentPreparations,
+  validateBarterAttempt,
+  validateConcoction
+} from "./rulesEngine";
 import parsedSocial from "../parsed_social.json";
 import parsedPrepsList from "../parsed_preps_list.json";
 
@@ -2355,237 +2374,6 @@ const migrateState = (s: any): GameState => {
   });
 };
 
-const getActiveFamiliarBenefit = (s: GameState): string =>
-  (s.wagonExpansions?.passengerBooth && s.activePassenger?.roleBenefit)
-    ? s.activePassenger.roleBenefit
-    : s.bio.familiarBenefit;
-
-const getActiveFamiliarMechanic = (s: GameState): string =>
-  FAMILIAR_BENEFITS.find(f => f.name === getActiveFamiliarBenefit(s))?.mechanic || '';
-
-// Tool existence check helper (takes Ingenuitive familiar benefit into account)
-const hasTool = (s: GameState, toolIdOrName: string): boolean => {
-  const inBag = s.bag.some(item =>
-    item.id === toolIdOrName ||
-    item.name.toLowerCase().includes(toolIdOrName.toLowerCase())
-  );
-  if (inBag) return true;
-
-  const familiarMechanic = getActiveFamiliarMechanic(s);
-  if (familiarMechanic === 'ingenuitive' && s.ingenuitiveTool) {
-    if (s.ingenuitiveTool === toolIdOrName || s.ingenuitiveTool.toLowerCase().includes(toolIdOrName.toLowerCase())) {
-      return true;
-    }
-  }
-  return false;
-};
-
-const getFamiliarReduction = (s: GameState, mechanic: string, defaultVal: number = 2): number => {
-  const familiarMechanic = getActiveFamiliarMechanic(s);
-  if (familiarMechanic !== mechanic) return 0;
-  const trust = s.activePassenger ? 0 : (s.familiarTrust || 0);
-  if (trust >= 80) return defaultVal + 2;
-  if (trust >= 40) return defaultVal + 1;
-  return defaultVal;
-};
-
-const getStartingForagingPoints = (s: GameState): number => {
-  const familiarBenefit = getActiveFamiliarBenefit(s);
-  const familiarMechanic = getActiveFamiliarMechanic(s);
-  const perceptiveFp = familiarMechanic === 'perceptive' || familiarBenefit.includes("예리한 관찰자") ? 2 : 0;
-  const steelAxeFp = hasTool(s, 'Steel Axe') || hasTool(s, '강철 도끼') ? 3 : 0;
-  return perceptiveFp + steelAxeFp;
-};
-
-interface AilmentRequirement {
-  alternatives: { tag: string; val: number }[];
-  isSpecialBone?: boolean;
-}
-
-const parseAilmentRequirements = (tagsStr: string): AilmentRequirement[] => {
-  if (!tagsStr) return [];
-
-  // Normalize and translate common connectors
-  let prepared = tagsStr.toUpperCase()
-    .replace('MINIMUM FAIR', 'MINIMUM_FAIR')
-    .replace('INSTINCTS', 'INSTINCT')
-    .replace('PARASITES', 'PARASITE')
-    .replace('SCALES', 'SCALE');
-
-  // Replace "TAG X 및 Y" with "TAG X 및 TAG Y"
-  prepared = prepared.replace(/([A-Z_]+)\s+(\d+)\s*(?:및|&|,)\s*(\d+)/g, '$1 $2 및 $1 $3');
-
-  // Replace newlines and AND connectors with comma
-  const normalized = prepared
-    .replace(/\r?\n/g, ',')
-    .replace(/\s*및\s*/g, ',')
-    .replace(/\s*&\s*/g, ',');
-
-  // Split by comma
-  const clauses = normalized.split(',').map(s => s.trim()).filter(s => s.length > 0);
-
-  return clauses.map(clause => {
-    if (clause.includes('부목') || clause.toUpperCase().includes('BONE') || clause.toUpperCase().includes('SET A BONE')) {
-      return { alternatives: [], isSpecialBone: true };
-    }
-
-    // Split by OR/또는
-    const parts = clause.split(/\s*또는\s*|\s*OR\s*/i);
-    const numbers = clause.match(/\d+/g);
-    const defaultVal = numbers ? parseInt(numbers[numbers.length - 1]) : 1;
-
-    const alternatives = parts.map(p => {
-      const tagMatch = p.match(/[A-Z_]+/);
-      const tag = tagMatch ? tagMatch[0] : '';
-      const valMatch = p.match(/\d+/);
-      const val = valMatch ? parseInt(valMatch[0]) : defaultVal;
-      return { tag, val };
-    }).filter(item => item.tag !== '');
-
-    return { alternatives };
-  });
-};
-
-const normalizeEffectTag = (tag: string) => tag.toUpperCase()
-  .replace('INSTINCTS', 'INSTINCT')
-  .replace('PARASITES', 'PARASITE')
-  .replace('SCALES', 'SCALE')
-  .replace('MINIMUM_FAIR', 'MINIMUM FAIR');
-
-const reagentEffectText = (item: BagItem) => {
-  const explicit = `${item.name || ''} ${item.tags || ''}`;
-  if (/\[[A-Z_ ]+\s+\d+\]/i.test(explicit)) return explicit;
-  return `${explicit} ${item.preps || ''}`;
-};
-
-const splitReagentPreparations = (preps: string) => {
-  let parts = (preps || '').split('\n').map(p => p.trim()).filter(p => p.length > 0);
-  if (parts.length <= 1) {
-    parts = (preps || '').split(/(?=⅓|⅔|1\s|🟢)/).map(p => p.trim()).filter(p => p.length > 0);
-  }
-  return parts.length > 0 ? parts : ['unprepared specimen'];
-};
-
-const createPreparedReagentItem = (r: any, partText: string, idPrefix: string): BagItem => ({
-  id: `${idPrefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-  name: `${r.name} (${partText.trim()})`,
-  weight: 1/3,
-  type: 'reagent',
-  qty: 1,
-  tags: partText.trim(),
-  preps: r.preps
-});
-
-const toolEffectItem = (tool: BagItem): BagItem | null => {
-  const text = `${tool.id} ${tool.name}`.toLowerCase();
-  if (text.includes('fairwind') || tool.name.includes('페어윈드')) {
-    return { id: `${tool.id}_effect`, name: `${tool.name} 효과`, weight: 0, type: 'reagent', tags: '[FAIR 1]', preps: '[FAIR 1]' };
-  }
-  if (text.includes('comb') || tool.name.includes('참빗')) {
-    return { id: `${tool.id}_effect`, name: `${tool.name} 효과`, weight: 0, type: 'reagent', tags: '[FUR 3] [PARASITE 1]', preps: '[FUR 3] [PARASITE 1]' };
-  }
-  if (text.includes('cauldron') || tool.name.includes('가마솥')) {
-    return { id: `${tool.id}_effect`, name: `${tool.name} 효과`, weight: 0, type: 'reagent', tags: '[PRESERVED 1] [DISTILLED 1]', preps: '[PRESERVED 1] [DISTILLED 1]' };
-  }
-  if (text.includes('frying') || tool.name.includes('프라이팬')) {
-    return { id: `${tool.id}_effect`, name: `${tool.name} 효과`, weight: 0, type: 'reagent', tags: '[COOKED 1]', preps: '[COOKED 1]' };
-  }
-  if (text.includes('double boiler') || tool.name.includes('이중 가마솥')) {
-    return { id: `${tool.id}_effect`, name: `${tool.name} 효과`, weight: 0, type: 'reagent', tags: '[BOIL 1] [BREW 1]', preps: '[BOIL 1] [BREW 1]' };
-  }
-  return null;
-};
-
-const selectedToolEffectItems = (bag: BagItem[], selectedToolIds: string[]) =>
-  bag
-    .filter(item => selectedToolIds.includes(item.id))
-    .map(toolEffectItem)
-    .filter(Boolean) as BagItem[];
-
-const validateConcoction = (
-  ailment: ActiveAilment | null,
-  selectedReagents: BagItem[],
-  bag: BagItem[],
-  s: GameState,
-  purifyFoul: boolean = false
-) => {
-  if (!ailment) {
-    return { isComplete: false, totalFair: 0, totalFoul: 0, missingRequirements: [], statusText: "환자 없음" };
-  }
-
-  // Parse reagents effects
-  const providedEffects: Record<string, number> = {};
-  let totalFair = 0;
-  let totalFoul = 0;
-
-  selectedReagents.forEach(item => {
-    if (!item.name && !item.preps) return;
-    const regex = /\[([A-Z_]+)\s+(\d+)\]/g;
-    let match;
-    const effectText = reagentEffectText(item);
-    while ((match = regex.exec(effectText)) !== null) {
-      const tag = normalizeEffectTag(match[1]);
-      const val = parseInt(match[2]);
-
-      providedEffects[tag] = (providedEffects[tag] || 0) + val;
-
-      if (tag === 'FAIR') {
-        totalFair += val;
-      }
-      if (tag === 'FOUL') {
-        totalFoul += val;
-      }
-    }
-  });
-
-  if (purifyFoul) {
-    totalFoul = 0;
-  }
-
-  // Verify requirements
-  const reqs = parseAilmentRequirements(ailment.tags);
-  const missingRequirements: string[] = [];
-
-  reqs.forEach((req) => {
-    if (req.isSpecialBone) {
-      // Check if selectedReagents or whole bag has a bone setter tool/reagent
-      const hasBoneSetter = [...selectedReagents, ...bag].some(item => {
-        const nameLower = reagentEffectText(item).toLowerCase();
-        return nameLower.includes('oak') || nameLower.includes('가지') || nameLower.includes('splint') || nameLower.includes('부목') || nameLower.includes('bandage') || nameLower.includes('붕대');
-      });
-      if (!hasBoneSetter) {
-        missingRequirements.push("부목용 약재 (Oak Branch or Splint/Bandage)");
-      }
-    } else {
-      // Check normal tag requirement
-      const satisfied = req.alternatives.some(alt => {
-        if (alt.tag === 'MINIMUM_FAIR') {
-          return totalFair >= alt.val;
-        }
-        return (providedEffects[alt.tag] || 0) >= alt.val;
-      });
-      if (!satisfied) {
-        const reqStr = req.alternatives.map(alt => `${alt.tag} ${alt.val}`).join(" 또는 ");
-        missingRequirements.push(reqStr);
-      }
-    }
-  });
-
-  const isComplete = missingRequirements.length === 0;
-  let statusText = "불완전 Remedy";
-  if (isComplete) {
-    statusText = purifyFoul ? "정화된 Remedy" : totalFoul > 0 ? "Foul Remedy" : "Fair Remedy";
-  }
-
-  return {
-    isComplete,
-    totalFair,
-    totalFoul,
-    missingRequirements,
-    statusText
-  };
-};
-
 const isJourneyGoal = (title: string | undefined, ...names: string[]) => names.includes(title || '');
 
 const checkJourneyGoalSatisfaction = (s: GameState): boolean => {
@@ -2713,81 +2501,6 @@ const getTravelSpeed = (s: GameState, weight: number): number => {
     base += s.wagonExpansions.axelSprings ? 2 : 1;
   }
   return base;
-};
-
-const calculateForageRarity = (s: GameState, r: any, regionName: string = s.currentRegion): number => {
-  const isInSeason = r.seasons.includes(s.currentSeason);
-  const isLocal = r.regions.includes(regionName) || (s.resourcefulReagent && r.name === s.resourcefulReagent);
-  const baseRarity = r.br + (isLocal ? 0 : 3) + (isInSeason ? 0 : 3);
-  let finalRarity = baseRarity;
-
-  if (r.type === 'PLANT') {
-    finalRarity = Math.max(1, finalRarity - getFamiliarReduction(s, 'brushwise'));
-    const hasButterfly = (s.companions || []).some(comp => comp.name === 'butterfly');
-    if (hasButterfly && (s.currentSeason === 'Spring' || s.currentSeason === 'Summer')) {
-      finalRarity = Math.max(1, finalRarity - 1);
-    }
-  }
-  if (r.type === 'TITAN') {
-    finalRarity = Math.max(1, finalRarity - getFamiliarReduction(s, 'titanwise'));
-  }
-  if (regionName === 'Loch' && (hasTool(s, 'tool_coracle') || hasTool(s, 'coracle') || hasTool(s, '자작나무 보트'))) {
-    finalRarity = Math.max(1, finalRarity - 2);
-  }
-  const isSmallFish = String(r.rawName || r.name).toLowerCase().includes('small fish');
-  if ((r.type === 'INSECT' || isSmallFish) && (hasTool(s, 'tool_spidersilk_net') || hasTool(s, 'spidersilk') || hasTool(s, '거미줄'))) {
-    finalRarity = Math.max(1, finalRarity - 3);
-  }
-  if (r.type === 'INSECT' && (s.companions || []).some(comp => comp.name === 'spider')) {
-    finalRarity = Math.max(1, finalRarity - 1);
-  }
-
-  return finalRarity;
-};
-
-const calculateBarterRarity = (s: GameState, r: any, isCity: boolean): number => {
-  let finalRarity = r.br;
-  const isLocal = r.regions.includes(s.currentRegion);
-  const isInSeason = r.seasons.includes(s.currentSeason);
-  const preps = r.preps || '';
-
-  if (isLocal) {
-    finalRarity -= 2;
-  } else if (isCity) {
-    // The app tracks region rather than exact path distance, so city trade route
-    // support is modelled as any reagent available to the current city region.
-    finalRarity -= 2;
-  }
-
-  if (isInSeason) {
-    finalRarity -= 1;
-  } else if (!isLocal && !isCity) {
-    finalRarity += 2;
-  }
-
-  if (/\[FAIR\s+\d+\]/i.test(preps)) {
-    finalRarity += 3;
-  }
-
-  if (/\[[A-Z_]+\s+3\]/i.test(preps)) {
-    finalRarity += 5;
-  }
-
-  const foulMatches = [...preps.matchAll(/\[FOUL\s+(\d+)\]/gi)];
-  const foulPenalty = foulMatches.reduce((sum, match) => sum + (parseInt(match[1]) || 0), 0);
-  finalRarity += foulPenalty;
-
-  if (s.reputation >= 35) finalRarity -= 2;
-  else if (s.reputation >= 25) finalRarity -= 1;
-  else if (s.reputation < 15) finalRarity += 1;
-
-  const familiarBenefit = getActiveFamiliarBenefit(s);
-  const familiarMechanic = getActiveFamiliarMechanic(s);
-  if (familiarMechanic === 'chatty' || familiarBenefit.includes('말동무')) {
-    finalRarity -= getFamiliarReduction(s, 'chatty');
-  }
-
-  return Math.max(1, finalRarity);
 };
 
 const TOOLS_DB = [
@@ -3320,7 +3033,8 @@ export default function App() {
     if (!state.activeAilment) return;
     updateState((s: GameState) => {
       if (!s.activeAilment) return s;
-      const nextTimer = Math.max(0, s.activeAilment.timer - amt);
+      const timerPreview = previewPatientTimer(s.activeAilment, amt);
+      const nextTimer = timerPreview.nextTimer;
 
       let nextAilment = { ...s.activeAilment, timer: nextTimer };
       let newRep = s.reputation;
@@ -3330,7 +3044,7 @@ export default function App() {
         // Trigger Consequence
         alert(`💥 침상의 야수가 깊은 고통 끝에 쓸쓸히 숨을 거두었습니다: \n${s.activeAilment.consequence}`);
         // Deduct reputation based on severity
-        const loss = s.activeAilment.severity === 'dire' ? 4 : s.activeAilment.severity === 'severe' ? 3 : s.activeAilment.severity === 'intermediate' ? 2 : 1;
+        const loss = timerPreview.reputationLoss;
         newRep = Math.max(0, s.reputation - loss);
         const timestamp = Date.now();
         const sourceId = 'cure_fail_timer_' + timestamp;
@@ -3344,7 +3058,6 @@ export default function App() {
         });
 
         const pendingArchive = createPendingPatientArchive(s, sourceId, 'failure', notes, [], s.activeAilment.consequence, timestamp);
-        nextAilment = null as any;
         return {
           ...s,
           reputation: newRep,
@@ -4451,6 +4164,30 @@ export default function App() {
 // =================================================================
 // 5. PLAY VIEW COMPONENT
 // =================================================================
+type ActionHubTone = 'primary' | 'warning' | 'neutral' | 'done';
+
+interface ActionHubItem {
+  id: string;
+  label: string;
+  detail: string;
+  meta?: string;
+  targetId?: string;
+  tone?: ActionHubTone;
+  disabled?: boolean;
+  activate?: () => void;
+}
+
+const locationTypeLabel = (type: string) => {
+  const labels: Record<string, string> = {
+    City: '도시',
+    Settlement: '정착지',
+    Wilds: '야생',
+    Ruin: '유적지',
+    Barrow: '야수 고분'
+  };
+  return labels[type] || type || '미정';
+};
+
 function PlayView({
   state,
   updateState,
@@ -6837,27 +6574,14 @@ function PlayView({
       alert("해당 이름의 영약재를 찾을 수 없습니다.");
       return;
     }
-    if (r.type === 'TITAN') {
-      alert("룰북 p.34 기준으로 물꼬 거래 대상은 비-티탄(non-Titan) 영약재입니다. 티탄 영약재는 채집/유적/특수 서비스로 획득해야 합니다.");
+
+    const barterCheck = validateBarterAttempt(state, r);
+    if (!barterCheck.allowed) {
+      alert(barterCheck.reason);
       return;
     }
 
-    // Rarity calculation
-    const isCity = state.currentLocationType === 'City';
-    const isSettlement = state.currentLocationType === 'Settlement';
-    if (!isCity && !isSettlement) {
-      alert("물꼬 거래는 정착지(Settlement)나 도시(City)에서만 가능합니다.");
-      return;
-    }
-
-    // Rulebook p.34: Settlement 1x, City 3x per ailment
-    const maxBarters = isCity ? 3 : 1;
-    if (state.barterCountThisAilment >= maxBarters) {
-      alert(`거래 횟수 초과!\n${isCity ? '도시(City): 최대 3회' : '정착지(Settlement): 최대 1회'} 거래 가능합니다.\n이미 ${state.barterCountThisAilment}회 사용했습니다.`);
-      return;
-    }
-
-    const finalRarity = calculateBarterRarity(state, r, isCity);
+    const finalRarity = barterCheck.finalRarity || calculateBarterRarity(state, r, state.currentLocationType === 'City');
 
     // Step 1: Draw Social Encounter Card
     const suits = ['♥', '♦', '♣', '♠'];
@@ -6981,18 +6705,20 @@ function PlayView({
       ...state.bag.filter(item => selectedBagItems.includes(item.id)),
       ...selectedToolEffects
     ];
-    const { isComplete, totalFair, totalFoul, missingRequirements, statusText } = validateConcoction(state.activeAilment, selectedReagents, state.bag, state, usePurify);
-
-    const timeSpent = selectedBagItems.length;
-    const severity = state.activeAilment.severity;
-    const sevLevel = severity === 'dire' ? 4 : severity === 'severe' ? 3 : severity === 'intermediate' ? 2 : 1;
-    const loss = sevLevel;
+    const concoctionPreview = previewConcoction(
+      state.activeAilment,
+      selectedReagents,
+      state.bag,
+      state,
+      usePurify,
+      selectedBagItems.length
+    );
+    const { validation, timeSpent, nextTimer, severityLevel: sevLevel, reputationLoss: loss } = concoctionPreview;
+    const { isComplete, totalFair, totalFoul, missingRequirements, statusText } = validation;
 
     // Confirm time cost
     const confirmTime = confirm(`💊 치료제 조제 검토:\n- 조합 상태: ${statusText} (Fair: ${totalFair}, Foul: ${totalFoul})\n- 필요 조건: ${state.activeAilment.tags}\n- 미충족 요구사항: ${missingRequirements.join(', ') || '없음 (충족됨) ✅'}\n\n⏱️ 조제 시간: 약재 ${timeSpent}개 사용으로 ${timeSpent}시간이 경과합니다. (환자 남은 시간: ${state.activeAilment.timer}시간 → 조제 후: ${state.activeAilment.timer - timeSpent}시간)\n\n계속 진행하시겠습니까?`);
     if (!confirmTime) return;
-
-    const nextTimer = Math.max(0, state.activeAilment.timer - timeSpent);
 
     // 1. Time out failure
     if (nextTimer <= 0) {
@@ -7082,19 +6808,18 @@ function PlayView({
 
     // 3. Successful cure (Fair / Foul Remedy)
     // Rulebook p.36: Fair and Foul cancel first, then every 2 net points adjusts trinkets.
-    const repGain = sevLevel; // +1 Rep per Severity level
-
     const fairInput = prompt(`🌟 Fair 점수를 입력하세요 (치료제의 [FAIR] 합계):`, String(totalFair));
     const foulInput = prompt(`💀 Foul 점수를 입력하세요 (치료제의 [FOUL] 합계):`, String(totalFoul));
     const fairPts = Math.max(0, parseInt(fairInput || '0') || 0);
     const foulPts = Math.max(0, parseInt(foulInput || '0') || 0);
 
-    const fairFoulNet = fairPts - foulPts;
-    const fairFoulAdjustment = fairFoulNet >= 0
-      ? Math.floor(fairFoulNet / 2)
-      : -Math.floor(Math.abs(fairFoulNet) / 2);
-    const trinketCalc = sevLevel + fairFoulAdjustment;
-    const trinketGain = Math.max(0, trinketCalc);
+    const rewardPreviewBeforeGifting = calculateRemedyRewards({
+      severity: state.activeAilment.severity,
+      fair: fairPts,
+      foul: foulPts,
+      gifting: false
+    });
+    const trinketGain = rewardPreviewBeforeGifting.baseTrinkets;
 
     // Gifting option
     const isGifting = confirm(
@@ -7105,9 +6830,16 @@ function PlayView({
     const familiarBenefit = getActiveFamiliarBenefit(state);
     const familiarMechanic = getActiveFamiliarMechanic(state);
     const shrewdBonus = (!isGifting && (familiarMechanic === 'shrewd' || familiarBenefit.includes('현명한 장사꾼'))) ? 1 : 0;
+    const rewardPreview = calculateRemedyRewards({
+      severity: state.activeAilment.severity,
+      fair: fairPts,
+      foul: foulPts,
+      gifting: isGifting,
+      shrewdBonus
+    });
 
-    const actualTrinkets = isGifting ? 0 : trinketGain + shrewdBonus;
-    const actualRep = repGain + (isGifting ? 2 : 0);
+    const actualTrinkets = rewardPreview.actualTrinkets;
+    const actualRep = rewardPreview.actualReputation;
 
     updateState(s => {
       const nextBag = s.bag.filter(item => !selectedBagItems.includes(item.id));
@@ -7816,11 +7548,182 @@ function PlayView({
     }
   };
 
+  const actionHubItems: ActionHubItem[] = [];
+  const currentBarrow = (state.barrows || []).find(b => b.locationName === state.currentLocationName);
+  const patientReagentCount = state.bag.filter(item => item.type === 'reagent').length;
+  const maxCarry = getMaxCarry(state);
+  const activeTravelSpeed = state.journeyActive ? getTravelSpeed(state, currentWeight) : state.bio.speed;
+  const barterLimit = state.activeAilment ? getBarterLimitForLocation(state.currentLocationType) : 0;
+  const barterRemaining = Math.max(0, barterLimit - (state.barterCountThisAilment || 0));
+  const journeyGoalDone = state.journeyActive ? checkJourneyGoalSatisfaction(state) : false;
+  const hubLocation = `${state.currentRegion} · ${locationTypeLabel(state.currentLocationType)} · ${state.currentLocationName}`;
+
+  const addActionHubItem = (item: ActionHubItem) => {
+    if (!actionHubItems.some(existing => existing.id === item.id) && actionHubItems.length < 4) {
+      actionHubItems.push(item);
+    }
+  };
+
+  if (!state.journeyActive) {
+    addActionHubItem({
+      id: 'start-journey',
+      label: '새 여정 출발',
+      detail: '목적지와 여정 목표 카드를 뽑아 다음 여행을 시작합니다.',
+      meta: `현재 위치: ${state.currentLocationName}`,
+      targetId: 'journey-start-panel',
+      tone: 'primary',
+      activate: () => setDowntimeTab('start')
+    });
+    addActionHubItem({
+      id: 'downtime-activities',
+      label: '휴식기 활동',
+      detail: '본부 업무, 유산 클리닉, 기부와 회복을 정리합니다.',
+      targetId: 'downtime-panel',
+      tone: 'neutral',
+      activate: () => setDowntimeTab('activities')
+    });
+    addActionHubItem({
+      id: 'downtime-shop',
+      label: '마차와 동료 정비',
+      detail: '도구, 마차 개조, 동반자 영입을 확인합니다.',
+      targetId: 'downtime-panel',
+      tone: 'neutral',
+      activate: () => setDowntimeTab(state.companions?.length ? 'companions' : 'shop')
+    });
+  } else {
+    if (state.pendingPatientArchive) {
+      addActionHubItem({
+        id: 'archive-patient',
+        label: '진료 기록 마감',
+        detail: `${state.pendingPatientArchive.patientName || '이름 모를 야수'}의 ${state.pendingPatientArchive.ailmentName} 기록을 닫습니다.`,
+        meta: state.pendingPatientArchive.outcome === 'success' ? '회복 기록' : '실패 기록',
+        targetId: 'pending-archive-panel',
+        tone: state.pendingPatientArchive.outcome === 'success' ? 'done' : 'warning'
+      });
+    }
+
+    if (state.pursuedByBehemoth) {
+      addActionHubItem({
+        id: 'behemoth-chase',
+        label: '거수 추격 대응',
+        detail: `선행 거리 ${state.pursuedByBehemoth.headStart}경로. 이동 계획이나 탈출 도구를 확인합니다.`,
+        targetId: 'travel-panel',
+        tone: 'warning'
+      });
+    }
+
+    if (delveActive && state.activeDelve) {
+      addActionHubItem({
+        id: 'active-delve',
+        label: '고분 도전 해결',
+        detail: `${state.activeDelve.behemothName} 고분의 현재 도전을 이어갑니다.`,
+        meta: `타이머 ${delveTimer} · FP ${delveFP}`,
+        targetId: 'barrow-panel',
+        tone: 'primary'
+      });
+    } else if (currentBarrow && !state.pursuedByBehemoth) {
+      addActionHubItem({
+        id: 'barrow-here',
+        label: '거수 고분 처리',
+        detail: `${currentBarrow.name} 고분을 탐험하거나 피해 도망칩니다.`,
+        meta: currentBarrow.behemothClass,
+        targetId: 'barrow-panel',
+        tone: 'primary'
+      });
+    }
+
+    if (state.scroungingMode) {
+      addActionHubItem({
+        id: 'scrounging',
+        label: '여분 채집 사용',
+        detail: `치료 후 남은 ${state.scroungingTimer || 0}시간으로 추가 약재를 확보합니다.`,
+        meta: `가방 약재 ${patientReagentCount}개`,
+        targetId: 'patient-clinic-panel',
+        tone: 'primary'
+      });
+    } else if (state.activeAilment) {
+      addActionHubItem({
+        id: 'active-patient',
+        label: '환자 치료 진행',
+        detail: `${state.activeAilment.name} 치료 기한 ${state.activeAilment.timer}시간, 채집 포인트 ${state.activeAilment.foragingPoints} FP.`,
+        meta: `가방 약재 ${patientReagentCount}개`,
+        targetId: 'patient-clinic-panel',
+        tone: 'primary'
+      });
+
+      if (barterLimit > 0) {
+        addActionHubItem({
+          id: 'barter-reagent',
+          label: barterRemaining > 0 ? '거래로 재료 확보' : '거래 횟수 소진',
+          detail: barterRemaining > 0
+            ? `${locationTypeLabel(state.currentLocationType)}에서 이 환자에게 ${barterRemaining}회 더 거래할 수 있습니다.`
+            : `${locationTypeLabel(state.currentLocationType)} 거래 한도를 모두 사용했습니다.`,
+          targetId: 'patient-clinic-panel',
+          tone: barterRemaining > 0 ? 'neutral' : 'warning',
+          disabled: barterRemaining <= 0
+        });
+      }
+    }
+
+    if (state.needsLocalHelpBeforeMove && !state.activeAilment && !state.scroungingMode) {
+      addActionHubItem({
+        id: 'local-help',
+        label: '현지 기록 마무리',
+        detail: '이곳의 환자나 고분 문제를 해결해야 다음 이동이 열립니다.',
+        targetId: currentBarrow ? 'barrow-panel' : 'patient-clinic-panel',
+        tone: 'warning'
+      });
+    }
+
+    if (!state.needsLocalHelpBeforeMove && !state.pursuedByBehemoth) {
+      addActionHubItem({
+        id: 'travel-next',
+        label: '다음 위치로 이동',
+        detail: `현재 이동 속도 ${activeTravelSpeed}. 새 장소와 지역을 정합니다.`,
+        meta: journeyGoalDone ? '여정 목표 충족' : '여정 목표 진행 중',
+        targetId: 'travel-panel',
+        tone: journeyGoalDone ? 'done' : 'neutral'
+      });
+    }
+
+    addActionHubItem({
+      id: 'clinic-open',
+      label: state.activeAilment ? '치료제 조제 확인' : '새 환자 진료',
+      detail: state.activeAilment ? '요구 태그와 선택 재료를 함께 검토합니다.' : '현재 위치에서 환자를 진단하거나 채집을 시작합니다.',
+      targetId: 'patient-clinic-panel',
+      tone: 'neutral'
+    });
+  }
+
+  const actionHubStatus = [
+    { label: '상태', value: state.journeyActive ? '여정 중' : '휴식기' },
+    { label: '위치', value: hubLocation },
+    { label: '가방', value: `${formatWeight(currentWeight)} / ${maxCarry}` },
+    state.journeyActive
+      ? { label: '목표', value: journeyGoalDone ? '충족' : '진행 중' }
+      : { label: '평판', value: `${state.reputation}점` },
+    state.scroungingMode
+      ? { label: '여분 시간', value: `${state.scroungingTimer || 0}시간` }
+      : state.activeAilment
+        ? { label: '환자', value: `${state.activeAilment.timer}시간` }
+        : null
+  ].filter(Boolean) as Array<{ label: string; value: string }>;
+
+  const handleActionHubItem = (item: ActionHubItem) => {
+    if (item.disabled) return;
+    item.activate?.();
+    if (item.targetId) {
+      window.setTimeout(() => {
+        document.getElementById(item.targetId || '')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 60);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
       {state.pendingPatientArchive && (
-        <div style={{ position: 'fixed', right: '1.2rem', bottom: '1.2rem', zIndex: 1100, width: 'min(420px, calc(100vw - 2.4rem))' }}>
+        <div id="pending-archive-panel" style={{ position: 'fixed', right: '1.2rem', bottom: '1.2rem', zIndex: 1100, width: 'min(420px, calc(100vw - 2.4rem))' }}>
           <div className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--border-cozy)', boxShadow: '0 8px 24px rgba(36,32,24,0.16)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.45rem', marginBottom: '0.7rem' }}>
               <div>
@@ -7877,6 +7780,41 @@ function PlayView({
         </div>
       )}
 
+      <section className="action-hub" aria-label="현재 진행판">
+        <div className="action-hub__header">
+          <div>
+            <div className="document-kicker">진행판</div>
+            <h2>지금 이어갈 일</h2>
+          </div>
+          <div className="action-hub__status" aria-label="현재 상태">
+            {actionHubStatus.map(item => (
+              <span key={item.label} className="action-hub__chip">
+                <strong>{item.label}</strong>
+                <span>{item.value}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="action-hub__grid">
+          {actionHubItems.map((item, index) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`action-step action-step--${item.tone || 'neutral'}`}
+              onClick={() => handleActionHubItem(item)}
+              disabled={item.disabled}
+            >
+              <span className="action-step__index">{index + 1}</span>
+              <span className="action-step__body">
+                <strong>{item.label}</strong>
+                <span>{item.detail}</span>
+                {item.meta && <em>{item.meta}</em>}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
       {state.wagonExpansions?.passengerBooth && (
         <div className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--border-cozy)', borderRadius: '7px', padding: '1rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -7931,7 +7869,7 @@ function PlayView({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
           {/* Downtime record */}
-          <div className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem', boxShadow: 'var(--shadow-md)' }}>
+          <div id="downtime-panel" className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem', boxShadow: 'var(--shadow-md)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.6rem', marginBottom: '0.8rem' }}>
               <span className="journal-stamp">Rest</span>
               <div>
@@ -9161,7 +9099,7 @@ function PlayView({
 
           {/* 4. Start journey form */}
           {downtimeTab === 'start' && (
-            <div className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem' }}>
+            <div id="journey-start-panel" className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem' }}>
               <h2 style={{ color: 'var(--secondary)', margin: '0 0 0.4rem 0', fontFamily: 'var(--font-fancy)' }}>새로운 여정 떠나기</h2>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 1.2rem 0' }}>
                 Bristley Woods 지도를 열고 어디로 가야할 지, 이번 여행의 목적지는 어디일지 의도를 설정합니다.
@@ -9215,7 +9153,7 @@ function PlayView({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
           {/* Active stats panel */}
-          <div className="cute-card journey-record" style={{ background: '#fffefa', borderColor: 'var(--primary)' }}>
+          <div id="active-journey-panel" className="cute-card journey-record" style={{ background: '#fffefa', borderColor: 'var(--primary)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem' }}>
               <div className="prose-summary" style={{ fontSize: '0.95rem' }}>
                 <strong>{state.journeyDestination}</strong>을 향해 {state.journeyDirection} 방향으로 {state.journeyDistance} 거리를 여행 중.
@@ -9387,7 +9325,7 @@ function PlayView({
           </div>
 
           {/* Current location and movement form */}
-          <div className="cute-card">
+          <div id="travel-panel" className="cute-card">
             <div className="prose-summary" style={{ marginBottom: '0.8rem' }}>
               📍 <strong>{state.currentRegion}</strong> 지역 {state.currentLocationType === 'City' ? '도시' : state.currentLocationType === 'Settlement' ? '정착지' : state.currentLocationType === 'Wilds' ? '야생' : state.currentLocationType === 'Ruin' ? '유적지' : state.currentLocationType === 'Barrow' ? '야수 고분' : state.currentLocationType} <strong>{state.currentLocationName}</strong>에 머무는 중.
             </div>
@@ -9551,7 +9489,7 @@ function PlayView({
             const barrow = (state.barrows || []).find(b => b.locationName === state.currentLocationName)!;
             const classLabel: Record<string, string> = { Towering: '거대형 (Towering)', Many: '군집형 (Many)', Violent: '포악형 (Violent)', Demanding: '까다로운 (Demanding)' };
             return (
-              <div className="cute-card" style={{ background: '#fdf6eb', border: '2.5px solid #c8873a', borderRadius: '12px', padding: '1.2rem' }}>
+              <div id="barrow-panel" className="cute-card" style={{ background: '#fdf6eb', border: '2.5px solid #c8873a', borderRadius: '12px', padding: '1.2rem' }}>
                 <h3 style={{ color: '#c8873a', margin: '0 0 0.6rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <span>🗿 거수 고분 발견!</span>
                 </h3>
@@ -9597,7 +9535,7 @@ function PlayView({
             };
 
             return (
-              <div className="cute-card" style={{ background: '#f5f0ff', border: '2.5px solid #7c5cbf', borderRadius: '12px', padding: '1.4rem' }}>
+              <div id="barrow-panel" className="cute-card" style={{ background: '#f5f0ff', border: '2.5px solid #7c5cbf', borderRadius: '12px', padding: '1.4rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.8rem' }}>
                   <div>
                     <h3 style={{ color: '#7c5cbf', margin: 0 }}>⚔️ {challengeNames[delveChallenge] || delveChallenge}</h3>
@@ -9879,7 +9817,7 @@ function PlayView({
           })()}
 
           {/* 3. Ailment Patient Care Section */}
-          <div className="cute-card" style={{ border: '1.5px solid var(--accent-purple)' }}>
+          <div id="patient-clinic-panel" className="cute-card" style={{ border: '1.5px solid var(--accent-purple)' }}>
 
             <h3 style={{ color: 'var(--accent-purple)', margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>{state.scroungingMode ? '🔍 여분 채집 (Scrounging)' : '🤒 환자 약제소 (Patient Clinic)'}</span>
@@ -10554,22 +10492,6 @@ function PlayView({
 
 // =================================================================
 // 6. CHARACTER SHEET (BIO & BAGS) VIEW
-// Rulebook p.14-15: All 12 Familiar benefit options (card A~M)
-const FAMILIAR_BENEFITS = [
-  { card: 'A', name: '덤불 마스터 (Brushwise)', desc: '모든 식물(PLANT) 약재 채집 희귀도 -2', mechanic: 'brushwise' },
-  { card: '2', name: '따뜻한 약제사 (Helpful)', desc: '모든 질병 치료 시작 타이머 +2시간', mechanic: 'helpful' },
-  { card: '3', name: '용감한 동반자 (Brave)', desc: '거수(Behemoth) 태그 조우 시 ♥/♦ 드로우 → 지역 약재(희귀도≤6) 획득', mechanic: 'brave' },
-  { card: '4', name: '말동무 (Chatty)', desc: '물꼬 거래(Bartering) 시 목표 희귀도 -2', mechanic: 'chatty' },
-  { card: '5', name: '현명한 장사꾼 (Shrewd)', desc: '치료제를 장신구로 교환 시 장신구 +1', mechanic: 'shrewd' },
-  { card: '6', name: '힘센 일꾼 (Vigorous)', desc: '가방 소지 한도 +2 (마차 있으면 +4)', mechanic: 'vigorous' },
-  { card: '7', name: '인맥왕 (Resourceful)', desc: '특정 약재 1종 선택, 어느 지역에서든 채집 가능 (여정마다 변경 가능)', mechanic: 'resourceful' },
-  { card: '8', name: '베테랑 여행자 (Seasoned)', desc: '여행 조우 드로우 시 2장 드로우 후 원하는 카드 선택', mechanic: 'seasoned' },
-  { card: '9', name: '예리한 관찰자 (Perceptive)', desc: '각 질병마다 채집 포인트(FP) +2 시작', mechanic: 'perceptive' },
-  { card: '10', name: '자유로운 영혼 (Independent)', desc: '질병당 1회, 인접 지역에서 채집 (이벤트/타이머 영향 없음)', mechanic: 'independent' },
-  { card: 'J', name: '유적/고분 마스터 (Titanwise)', desc: 'TITAN 약재 희귀도 -2 + 티탄/고분 채집 시 2장 드로우 후 선택', mechanic: 'titanwise' },
-  { card: 'M', name: '창의적인 발명가 (Ingenuitive)', desc: '도구(Tool) 1개의 효과를 추가로 보유 (여정마다 선택)', mechanic: 'ingenuitive' },
-];
-
 const WizardFieldCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div style={{ border: '1.5px solid var(--border-cozy)', borderRadius: '8px', padding: '1rem', background: '#fff' }}>
     <h4 style={{ margin: '0 0 0.75rem 0', color: 'var(--primary)', fontFamily: 'var(--font-fancy)', fontSize: '1.15rem' }}>{title}</h4>
