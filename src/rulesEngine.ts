@@ -252,6 +252,9 @@ export const toolEffectItem = <T extends RuleBagItem = RuleBagItem>(tool: RuleBa
   if (text.includes('double boiler') || tool.name.includes('이중 가마솥')) {
     return { id: `${tool.id}_effect`, name: `${tool.name} 효과`, weight: 0, type: 'reagent', tags: '[BOIL 1] [BREW 1]', preps: '[BOIL 1] [BREW 1]' } as T;
   }
+  if (text.includes('alembic') || tool.name.includes('증류기')) {
+    return { id: `${tool.id}_effect`, name: `${tool.name} 촉매 효과`, weight: 0, type: 'reagent', tags: '[CATALYSE 1]', preps: '[CATALYSE 1]' } as T;
+  }
   return null;
 };
 
@@ -281,28 +284,83 @@ export const validateConcoction = (
   }
 
   const providedEffects: Record<string, number> = {};
+  const regularEffects: Array<{ tag: string; val: number; itemId: string; used: boolean }> = [];
   let totalFair = 0;
   let totalFoul = 0;
+  let hasCatalyse = false;
 
   selectedReagents.forEach(item => {
     if (!item.name && !item.preps) return;
     const regex = /\[([A-Z_]+)\s+(\d+)\]/g;
     let match;
     const effectText = reagentEffectText(item);
+    if (/alembic|증류기|catalyse/i.test(`${item.id} ${item.name} ${effectText}`)) {
+      hasCatalyse = true;
+    }
     while ((match = regex.exec(effectText)) !== null) {
       const tag = normalizeEffectTag(match[1]);
       const val = parseInt(match[2]);
 
-      providedEffects[tag] = (providedEffects[tag] || 0) + val;
-
-      if (tag === 'FAIR') totalFair += val;
-      if (tag === 'FOUL') totalFoul += val;
+      if (tag === 'FAIR') {
+        totalFair += val;
+        providedEffects[tag] = (providedEffects[tag] || 0) + val;
+      } else if (tag === 'FOUL') {
+        totalFoul += val;
+        providedEffects[tag] = (providedEffects[tag] || 0) + val;
+      } else if (tag !== 'CATALYSE') {
+        regularEffects.push({ tag, val, itemId: item.id, used: false });
+      }
     }
   });
 
   if (purifyFoul) {
     totalFoul = 0;
+    providedEffects.FOUL = 0;
   }
+
+  const regularTags = Array.from(new Set(regularEffects.map(effect => effect.tag)));
+  regularTags.forEach(tag => {
+    const effects = regularEffects.filter(effect => effect.tag === tag);
+    let best = effects.reduce((max, effect) => Math.max(max, effect.val), 0);
+    if (hasCatalyse) {
+      effects.forEach((effect, idx) => {
+        effects.slice(idx + 1).forEach(other => {
+          if (effect.itemId !== other.itemId) {
+            best = Math.max(best, effect.val + other.val);
+          }
+        });
+      });
+    }
+    providedEffects[tag] = best;
+  });
+
+  const claimRegularEffect = (tag: string, val: number): boolean => {
+    const single = regularEffects
+      .filter(effect => !effect.used && effect.tag === tag && effect.val >= val)
+      .sort((a, b) => a.val - b.val)[0];
+    if (single) {
+      single.used = true;
+      return true;
+    }
+
+    if (!hasCatalyse) return false;
+
+    const candidates = regularEffects
+      .filter(effect => !effect.used && effect.tag === tag)
+      .sort((a, b) => a.val - b.val);
+
+    for (let i = 0; i < candidates.length; i += 1) {
+      for (let j = i + 1; j < candidates.length; j += 1) {
+        if (candidates[i].itemId !== candidates[j].itemId && candidates[i].val + candidates[j].val >= val) {
+          candidates[i].used = true;
+          candidates[j].used = true;
+          return true;
+        }
+      }
+    }
+
+    return false;
+  };
 
   const reqs = parseAilmentRequirements(ailment.tags);
   const missingRequirements: string[] = [];
@@ -326,7 +384,7 @@ export const validateConcoction = (
 
     const satisfied = req.alternatives.some(alt => {
       if (alt.tag === 'MINIMUM_FAIR') return totalFair >= alt.val;
-      return (providedEffects[alt.tag] || 0) >= alt.val;
+      return claimRegularEffect(alt.tag, alt.val);
     });
 
     if (!satisfied) {

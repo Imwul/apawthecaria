@@ -1357,6 +1357,69 @@ const createPendingPatientArchive = (
   };
 };
 
+const getAvailableRemedyIngredients = (s: GameState, bag: BagItem[] = s.bag): BagItem[] => [
+  ...bag.filter(item => item.type === 'reagent'),
+  ...selectedToolEffectItems(bag, bag.filter(item => item.type === 'tool').map(item => item.id))
+];
+
+const canCreateRemedyFromBag = (s: GameState, bag: BagItem[] = s.bag): boolean => {
+  if (!s.activeAilment) return false;
+  return validateConcoction(
+    s.activeAilment,
+    getAvailableRemedyIngredients(s, bag),
+    bag,
+    { ...s, bag },
+    false
+  ).isComplete;
+};
+
+const decreasePatientTimerInState = (s: GameState, amt: number): GameState => {
+  if (!s.activeAilment || amt <= 0) return s;
+
+  const timerPreview = previewPatientTimer(s.activeAilment, amt);
+  const nextTimer = timerPreview.nextTimer;
+
+  if (nextTimer === 0) {
+    alert(`💥 침상의 야수가 깊은 고통 끝에 쓸쓸히 숨을 거두었습니다: \n${s.activeAilment.consequence}`);
+    const loss = timerPreview.reputationLoss;
+    const timestamp = Date.now();
+    const sourceId = 'cure_fail_timer_' + timestamp;
+    const notes = `방랑의 여정이 이어지는 동안, 약제소 침상에 누워있던 야수의 시간이 속절없이 흘러가 버렸습니다. 미처 적절한 처방을 지어 올리기도 전에 병증이 그가 견딜 수 없을 만큼 깊어졌고, 결국 약제사로서 그의 마지막 동반자가 되어주지 못했습니다. 침상 위에 홀로 남겨진 흔적(${s.activeAilment.consequence})만이 쓸쓸하게 공방의 정적 속에 남아, 약을 지어 올리지 못한 내 미숙함을 호되게 꾸짖는 듯합니다.`;
+
+    return {
+      ...s,
+      reputation: Math.max(0, s.reputation - loss),
+      activeAilment: null,
+      needsLocalHelpBeforeMove: false,
+      pendingPatientArchive: createPendingPatientArchive(s, sourceId, 'failure', notes, [], s.activeAilment.consequence, timestamp),
+      journals: [
+        {
+          id: sourceId,
+          title: `🕯️ 짚침상에 머문 슬픔: ${s.activeAilment.patientName || '이름 없는 이'}의 마지막 숨결`,
+          text: notes,
+          timestamp
+        },
+        ...s.journals
+      ],
+      lostPatientLegacy: {
+        name: s.activeAilment.patientName || '이름 모를 야수',
+        species: s.activeAilment.species || '알 수 없는 종',
+        ailmentName: s.activeAilment.name,
+        day: s.cumulativeDays || s.calendarDays || 0,
+        consequence: s.activeAilment.consequence
+      }
+    };
+  }
+
+  return {
+    ...s,
+    activeAilment: {
+      ...s.activeAilment,
+      timer: nextTimer
+    }
+  };
+};
+
 const finalizePendingPatientArchive = (pending: PendingPatientArchive, finalArchiveNote: string): PatientCaseRecord => ({
   id: memoryKey('case', pending.sourceId),
   sourceId: pending.sourceId,
@@ -2519,6 +2582,28 @@ const isEligibleForBandolier = (item: BagItem): boolean => {
   return dbReag ? (dbReag.type === 'PLANT' || dbReag.type === 'INSECT') : false;
 };
 
+const hasLochStoppingGear = (s: GameState): boolean =>
+  hasTool(s, 'tool_coracle') ||
+  hasTool(s, 'coracle') ||
+  hasTool(s, '자작나무 보트') ||
+  !!s.wagonExpansions?.sealedCarriage;
+
+const hasSafeWaterwayTravel = (s: GameState): boolean =>
+  hasLochStoppingGear(s) ||
+  hasTool(s, 'tool_waxed_satchel') ||
+  hasTool(s, 'waxed_satchel') ||
+  hasTool(s, '방수 가방') ||
+  s.bio.travelStyle === '가볍고 신속하게' ||
+  (s.companions || []).some(comp => ['butterfly', 'honeybee', 'wasp', 'pond_skimmer'].includes(comp.name));
+
+const isRuinedWhenSoaked = (item: BagItem): boolean => {
+  const text = `${item.id} ${item.name} ${item.tags || ''} ${item.preps || ''}`.toLowerCase();
+  return item.type === 'reagent' ||
+    text.includes('evidence') ||
+    text.includes('ruined if soaked') ||
+    item.name.includes('증거');
+};
+
 // Helper for max carry capacity
 const getMaxCarry = (s: GameState): number => {
   let base = s.bio.carry;
@@ -2826,7 +2911,14 @@ export default function App() {
         }
       }
 
-      return {
+      const remedyReadyAfterBarter = !!s.activeAilment && canCreateRemedyFromBag({ ...s, bag: nextBag }, nextBag);
+      if (s.activeAilment) {
+        journalText += remedyReadyAfterBarter
+          ? `\n- 필요한 약재가 모여, 타이머 감소 전에 치료제를 조제할 수 있습니다.`
+          : `\n- 아직 필요한 약재가 부족하여 환자 타이머가 1시간 감소합니다.`;
+      }
+
+      let nextState: GameState = {
         ...s,
         bag: nextBag,
         trinkets: nextTrinkets,
@@ -2843,6 +2935,12 @@ export default function App() {
           ...s.journals
         ]
       };
+
+      if (s.activeAilment && !remedyReadyAfterBarter) {
+        nextState = decreasePatientTimerInState(nextState, 1);
+      }
+
+      return nextState;
     });
 
     setBarterJournalNote("");
@@ -3087,57 +3185,7 @@ export default function App() {
 
   function handlePassHour(amt: number = 1) {
     if (!state.activeAilment) return;
-    updateState((s: GameState) => {
-      if (!s.activeAilment) return s;
-      const timerPreview = previewPatientTimer(s.activeAilment, amt);
-      const nextTimer = timerPreview.nextTimer;
-
-      let nextAilment = { ...s.activeAilment, timer: nextTimer };
-      let newRep = s.reputation;
-      let journals = [...s.journals];
-
-      if (nextTimer === 0) {
-        // Trigger Consequence
-        alert(`💥 침상의 야수가 깊은 고통 끝에 쓸쓸히 숨을 거두었습니다: \n${s.activeAilment.consequence}`);
-        // Deduct reputation based on severity
-        const loss = timerPreview.reputationLoss;
-        newRep = Math.max(0, s.reputation - loss);
-        const timestamp = Date.now();
-        const sourceId = 'cure_fail_timer_' + timestamp;
-        const notes = `방랑의 여정이 이어지는 동안, 약제소 침상에 누워있던 야수의 시간이 속절없이 흘러가 버렸습니다. 미처 적절한 처방을 지어 올리기도 전에 병증이 그가 견딜 수 없을 만큼 깊어졌고, 결국 약제사로서 그의 마지막 동반자가 되어주지 못했습니다. 침상 위에 홀로 남겨진 흔적(${s.activeAilment.consequence})만이 쓸쓸하게 공방의 정적 속에 남아, 약을 지어 올리지 못한 내 미숙함을 호되게 꾸짖는 듯합니다.`;
-
-        journals.unshift({
-          id: sourceId,
-          title: `🕯️ 짚침상에 머문 슬픔: ${s.activeAilment.patientName || '이름 없는 이'}의 마지막 숨결`,
-          text: notes,
-          timestamp
-        });
-
-        const pendingArchive = createPendingPatientArchive(s, sourceId, 'failure', notes, [], s.activeAilment.consequence, timestamp);
-        return {
-          ...s,
-          reputation: newRep,
-          activeAilment: null,
-          needsLocalHelpBeforeMove: false,
-          pendingPatientArchive: pendingArchive,
-          journals,
-          lostPatientLegacy: {
-            name: s.activeAilment!.patientName || '이름 모를 야수',
-            species: s.activeAilment!.species || '알 수 없는 종',
-            ailmentName: s.activeAilment!.name,
-            day: s.cumulativeDays || s.calendarDays || 0,
-            consequence: s.activeAilment!.consequence
-          }
-        };
-      }
-
-      return {
-        ...s,
-        reputation: newRep,
-        activeAilment: nextAilment === null ? null : nextAilment,
-        journals
-      };
-    });
+    updateState((s: GameState) => decreasePatientTimerInState(s, amt));
   }
 
   // Calculate current weight
@@ -3195,15 +3243,33 @@ export default function App() {
     onAdded?.();
   };
 
+  const applyPostForageTimer = (encounter: any | null) => {
+    const baseTimerCost = Number(encounter?.timerBaseCost || 0);
+    if (baseTimerCost <= 0) return;
+
+    const gatheredPartCount = Math.max(0, Number(encounter?.gatheredPartCount || 0));
+    const timerCost = baseTimerCost + Math.max(0, gatheredPartCount - 1);
+    if (timerCost <= 0) return;
+
+    updateState((s: GameState) => {
+      if (!s.activeAilment) return s;
+      if (canCreateRemedyFromBag(s, s.bag)) return s;
+      return decreasePatientTimerInState(s, timerCost);
+    });
+  };
+
   const handleAddForageFindToBag = (find: ForageFind, idx: number) => {
     addPreparedReagentToInventory(find.name, 'forage_find', () => {
       setActiveForageEncounter((prev: any) => {
         if (!prev) return prev;
         const nextFinds = [...(prev.foundReagents || [])];
         nextFinds.splice(idx, 1);
-        return { ...prev, foundReagents: nextFinds };
+        return {
+          ...prev,
+          foundReagents: nextFinds,
+          gatheredPartCount: Math.max(0, Number(prev.gatheredPartCount || 0)) + 1
+        };
       });
-      handlePassHour(1); // 룰북 p.17: 발견한 약재 중 가방에 담기로 결정한 약재당 1시간씩 추가 소모
     });
   };
 
@@ -3725,6 +3791,10 @@ export default function App() {
           encText.toLowerCase().includes(phrase.toLowerCase()) ||
           encTitle.toLowerCase().includes(phrase.toLowerCase())
         );
+        const closeForageEncounter = () => {
+          applyPostForageTimer(activeForageEncounter);
+          setActiveForageEncounter(null);
+        };
 
         return (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
@@ -3843,13 +3913,13 @@ export default function App() {
                         };
                       });
                     }
-                    setActiveForageEncounter(null);
+                    closeForageEncounter();
                   }}
                   style={{ flex: 1, padding: '0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold' }}
                 >
                   저널 기록 후 조우 해결
                 </button>
-                <button onClick={() => setActiveForageEncounter(null)} style={{ padding: '0.8rem 1.2rem', background: '#eee', color: '#555', borderRadius: '8px' }}>닫기</button>
+                <button onClick={closeForageEncounter} style={{ padding: '0.8rem 1.2rem', background: '#eee', color: '#555', borderRadius: '8px' }}>닫기</button>
               </div>
             </div>
           </div>
@@ -5213,26 +5283,18 @@ function PlayView({
     const pathsTravelled = isOverEncumbered ? 1 : travelSpeed;
 
     // Waterway checks and penalty calculation
-    let lostReagentItem: BagItem | null = null;
+    let soakedDiscardedItems: BagItem[] = [];
     let lostReagentText = "";
 
-    const hasWaterwayEquipment =
-      hasTool(state, 'tool_coracle') || hasTool(state, 'coracle') || hasTool(state, '자작나무 보트') ||
-      hasTool(state, 'tool_waxed_satchel') || hasTool(state, 'waxed_satchel') || hasTool(state, '방수 가방') ||
-      !!state.wagonExpansions?.sealedCarriage ||
-      state.bio.travelStyle === '가볍고 신속하게' ||
-      (state.companions || []).some(comp => ['butterfly', 'honeybee', 'wasp', 'pond_skimmer'].includes(comp.name));
-
-    if (travelWaterway && !hasWaterwayEquipment) {
-      const reagentItems = state.bag.filter(item => item.type === 'reagent');
-      if (reagentItems.length > 0) {
-        const target = reagentItems[Math.floor(Math.random() * reagentItems.length)];
-        lostReagentItem = target;
-        alert(`🌊 수로 이동 안전 장비(자작나무 보트, 방수 가방 등)와 비행/수생 동반자가 없습니다!\n강을 헤엄쳐 건너야 하므로, 물에 젖어 가방 속의 약재 중 무작위 1개 [${target.name}]를 유실합니다.`);
-        lostReagentText = `\n\n🌊 [헤엄쳐 수로 건너기 페널티]\n수로 이동 도구가 없어 강을 헤엄쳐 건넜으며, 약재 "${target.name}" 1개를 잃었습니다.`;
+    if (travelWaterway && !hasSafeWaterwayTravel(state)) {
+      soakedDiscardedItems = state.bag.filter(isRuinedWhenSoaked);
+      if (soakedDiscardedItems.length > 0) {
+        const discardedNames = soakedDiscardedItems.map(item => item.name).join(', ');
+        alert(`🌊 수로 이동 안전 장비가 없습니다.\n가방이 젖어 룰북대로 젖은 약재/취약한 물품을 버립니다:\n${discardedNames}`);
+        lostReagentText = `\n\n🌊 [헤엄쳐 수로 건너기 페널티]\n수로 이동 도구가 없어 가방이 젖었습니다. 버린 항목: ${discardedNames}`;
       } else {
-        alert("🌊 수로 이동 안전 장비가 없습니다!\n강을 헤엄쳐 건넜으나 가방에 분실할 약재가 없었습니다.");
-        lostReagentText = "\n\n🌊 [헤엄쳐 수로 건너기 페널티]\n수로 이동 도구가 없어 강을 헤엄쳐 건넜으나 유실할 약재가 없었습니다.";
+        alert("🌊 수로 이동 안전 장비가 없습니다.\n강을 헤엄쳐 건넜지만 젖어서 버릴 약재나 취약한 물품은 없었습니다.");
+        lostReagentText = "\n\n🌊 [헤엄쳐 수로 건너기 페널티]\n수로 이동 도구가 없어 가방이 젖었지만 버릴 약재나 취약한 물품은 없었습니다.";
       }
     }
 
@@ -5301,7 +5363,7 @@ function PlayView({
 
     setActiveTravelEncounter({
       ...selectedEnc,
-      text: selectedEnc.text + braveTextExtra + socialTextExtra + taxiTextExtra + forecastTextExtra,
+      text: selectedEnc.text + braveTextExtra + socialTextExtra + taxiTextExtra + forecastTextExtra + lostReagentText,
       cardValue: cardVal === 1 ? 'Ace' : cardVal === 11 ? 'Jack' : cardVal === 12 ? 'Queen' : cardVal === 13 ? 'King' : cardVal,
       suitLabel: suitLabels[drawnSuit],
       suit: drawnSuit,
@@ -5369,18 +5431,12 @@ function PlayView({
         }
       }
 
-      // Compute next bag after potential waterway loss
+      // Compute next bag after potential waterway soaking
       let finalBag = s.bag;
       let finalCompanions = s.companions || [];
-      if (lostReagentItem) {
-        let found = false;
-        finalBag = s.bag.map(item => {
-          if (!found && item.id === lostReagentItem!.id) {
-            found = true;
-            return { ...item, qty: item.qty - 1 };
-          }
-          return item;
-        }).filter(item => item.qty > 0);
+      if (soakedDiscardedItems.length > 0) {
+        const soakedIds = new Set(soakedDiscardedItems.map(item => item.id));
+        finalBag = s.bag.filter(item => !soakedIds.has(item.id));
       }
 
       if (braveReagentToAdd) {
@@ -5566,6 +5622,11 @@ function PlayView({
       return;
     }
 
+    if (isWaterway && destRegion === 'Loch' && !hasLochStoppingGear(state)) {
+      alert("🌊 Loch 위치에 멈추려면 자작나무 보트(Bark Coracle)나 밀폐 마차(Sealed Carriage)가 필요합니다. 방수 가방은 약재가 젖는 것을 막지만, Loch 위치에 안전하게 정박하게 해주지는 않습니다.");
+      return;
+    }
+
     // Flight capability validation
     if (destRegion === 'Soar') {
       const hasFlightCapability =
@@ -5737,7 +5798,9 @@ function PlayView({
       suit: drawnSuit,
       foundReagents: foundReagents,
       region: activeRegion,
-      season: state.currentSeason
+      season: state.currentSeason,
+      timerBaseCost: overrideRegion ? 2 : 1,
+      gatheredPartCount: 0
     });
 
     // Update state: Add FP if no reagents found; or auto-spend FP if card was too low
@@ -5760,8 +5823,6 @@ function PlayView({
       };
     });
 
-    const timeSpent = overrideRegion ? 3 : 1;
-    handlePassHour(timeSpent);
   };
 
   const handleForageDraw = (e?: React.MouseEvent) => {
@@ -5832,7 +5893,9 @@ function PlayView({
       suit: drawnSuit,
       foundReagents: foundReagents,
       region: adjRegion,
-      season: state.currentSeason
+      season: state.currentSeason,
+      timerBaseCost: 0,
+      gatheredPartCount: 0
     });
 
     updateState((s: GameState) => {
@@ -5972,7 +6035,9 @@ function PlayView({
       suit: drawnSuit,
       foundReagents: foundReagents,
       region: regionName,
-      season: state.currentSeason
+      season: state.currentSeason,
+      timerBaseCost: 0,
+      gatheredPartCount: 0
     });
 
     updateState((s: GameState) => {
@@ -6665,7 +6730,6 @@ function PlayView({
       }
     }));
 
-    handlePassHour(1); // Bartering takes 1 hour
   };
 
   // Add Foraged item directly (Manual collection)
@@ -10194,8 +10258,8 @@ function PlayView({
                     onChange={(e) => setForageLocationType(e.target.value as 'current' | 'adjacent')}
                     style={{ padding: '0.3rem', borderRadius: '6px', border: '1px solid var(--glass-border)', fontSize: '0.85rem', background: '#fff', color: '#333' }}
                   >
-                    <option value="current">현재 지역 ({state.currentRegion}) (1시간 소모)</option>
-                    <option value="adjacent">인접 지역 (3시간 소모)</option>
+                    <option value="current">현재 지역 ({state.currentRegion}) (기본 1시간)</option>
+                    <option value="adjacent">인접 지역 (기본 2시간)</option>
                   </select>
 
                   {forageLocationType === 'adjacent' && (
