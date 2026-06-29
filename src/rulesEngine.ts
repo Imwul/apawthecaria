@@ -471,8 +471,8 @@ export const calculateRemedyRewards = ({
     severityLevel,
     reputationGain,
     baseTrinkets,
-    actualTrinkets: gifting ? 0 : baseTrinkets + shrewdBonus,
-    actualReputation: reputationGain + (gifting ? 2 : 0),
+    actualTrinkets: gifting && baseTrinkets > 0 ? 0 : baseTrinkets + shrewdBonus,
+    actualReputation: reputationGain + (gifting && baseTrinkets > 0 ? 2 : 0),
     fairFoulNet,
     fairFoulAdjustment,
     ruleRef: RULEBOOK_REFS.remedy

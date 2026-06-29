@@ -301,9 +301,13 @@ interface Clinic {
 interface BarterSession {
   reagentName: string;
   finalRarity: number;
+  barterLocationName?: string;
+  barterLocationType?: 'Settlement' | 'City';
+  barterLocationRegion?: string;
   socialCard: { suit: string; val: number };
   socialEncounter: { page: number; suit: string; title: string; text: string };
   dealCard?: { suit: string; val: number } | null;
+  attemptCounted?: boolean;
   phase: 'social' | 'deal' | 'result';
   journalNote: string;
 }
@@ -765,6 +769,14 @@ interface CustomMapEdge {
   createdAt?: number;
 }
 
+interface BarterLocationOption {
+  key: string;
+  name: string;
+  type: 'Settlement' | 'City';
+  region: string;
+  relation: 'current' | 'adjacent';
+}
+
 const MAP_REGION_CODES: Record<string, MapRegion> = {
   B: 'Bog',
   F: 'Forest',
@@ -993,6 +1005,61 @@ const getMapServiceEntriesWithinHops = (startName: string, maxHops: number = MAP
 
 const getMapLocationsWithinHops = (startName: string, maxHops: number = MAP_SERVICE_HOPS, customLocations: CustomMapLocation[] = [], customEdges: CustomMapEdge[] = []) =>
   getMapServiceEntriesWithinHops(startName, maxHops, customLocations, customEdges).filter(entry => entry.node.kind !== 'wild');
+
+const BARTER_CITY_LOCATION_NAMES = ['Glasswall', 'Summit', 'Spoolkeep', 'New Dam', 'Newdam', 'Vessel', 'Odoak', 'Noonhill'];
+
+const isKnownBarterCity = (key: string, node: MapLocationNode) => {
+  const normalizedCityNames = BARTER_CITY_LOCATION_NAMES.map(normalizeMapLocationName);
+  return [key, node.label, ...(node.aliases || [])].some(name => normalizedCityNames.includes(normalizeMapLocationName(name)));
+};
+
+const getBarterTypeForMapNode = (key: string, node: MapLocationNode): 'Settlement' | 'City' | '' => {
+  if (node.kind === 'city') return 'City';
+  if (node.kind === 'settlement') return 'Settlement';
+  if (node.kind === 'wild' || node.kind === 'ruin' || node.kind === 'barrow') return '';
+  if (isKnownBarterCity(key, node)) return 'City';
+  if (MAP_LOCATIONS[key] && key !== 'starting_oak_road') return 'Settlement';
+  return '';
+};
+
+const getAvailableBarterLocations = (s: GameState): BarterLocationOption[] => {
+  const options: BarterLocationOption[] = [];
+  const addOption = (option: BarterLocationOption) => {
+    if (!options.some(existing => normalizeMapLocationName(existing.name) === normalizeMapLocationName(option.name))) {
+      options.push(option);
+    }
+  };
+
+  if (s.currentLocationType === 'Settlement' || s.currentLocationType === 'City') {
+    addOption({
+      key: findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName),
+      name: s.currentLocationName,
+      type: s.currentLocationType,
+      region: s.currentRegion,
+      relation: 'current'
+    });
+  }
+
+  const graphNodes = buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || []);
+  const currentKey = findMapLocationKey(s.currentLocationName, s.customMapLocations || []);
+  if (!currentKey || !graphNodes[currentKey]) return options;
+
+  (graphNodes[currentKey].neighbors || []).forEach(neighborKey => {
+    const node = graphNodes[neighborKey];
+    if (!node) return;
+    const type = getBarterTypeForMapNode(neighborKey, node);
+    if (!type) return;
+    addOption({
+      key: neighborKey,
+      name: node.label,
+      type,
+      region: node.region || s.currentRegion,
+      relation: 'adjacent'
+    });
+  });
+
+  return options;
+};
 
 const memoryKey = (...parts: string[]) =>
   parts.join('_').toLowerCase().replace(/[^a-z0-9가-힣]+/gi, '_').replace(/^_+|_+$/g, '');
@@ -2586,6 +2653,9 @@ const hasLochStoppingGear = (s: GameState): boolean =>
   hasTool(s, 'tool_coracle') ||
   hasTool(s, 'coracle') ||
   hasTool(s, '자작나무 보트') ||
+  hasTool(s, 'tool_waxed_satchel') ||
+  hasTool(s, 'waxed_satchel') ||
+  hasTool(s, '방수 가방') ||
   !!s.wagonExpansions?.sealedCarriage;
 
 const hasSafeWaterwayTravel = (s: GameState): boolean =>
@@ -2865,9 +2935,11 @@ export default function App() {
       if (!s.activeBarter) return s;
       return {
         ...s,
+        barterCountThisAilment: s.activeBarter.attemptCounted ? s.barterCountThisAilment : s.barterCountThisAilment + 1,
         activeBarter: {
           ...s.activeBarter,
           dealCard: { suit: dealSuit, val: dealVal },
+          attemptCounted: true,
           phase: 'deal',
           journalNote: barterJournalNote
         }
@@ -2877,7 +2949,7 @@ export default function App() {
 
   const handleBarterFinalize = (isSuccess: boolean, paidTrinketsCount: number = 0, paidReputationCount: number = 0) => {
     if (!state?.activeBarter) return;
-    const { reagentName, finalRarity, socialCard, socialEncounter, dealCard, journalNote } = state.activeBarter;
+    const { reagentName, finalRarity, barterLocationName, barterLocationType, socialCard, socialEncounter, dealCard, journalNote } = state.activeBarter;
     const r = GAME_DATA.reagents.find(item => item.name === reagentName);
     if (!r) return;
 
@@ -2887,7 +2959,10 @@ export default function App() {
       let nextReputation = s.reputation;
       let journalTitle = `🤝 물꼬 거래 실패: ${reagentName}`;
       const socialTitle = polishRuleText(socialEncounter.title);
-      let journalText = `[사교 조우: ${socialTitle}]\n소감: ${journalNote || '협상에 실패했다.'}\n\n- 거래 희귀도: ${finalRarity}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (실패)`;
+      const barterLocationLine = barterLocationName
+        ? `\n- 거래 장소: ${barterLocationName} (${barterLocationType === 'City' ? '도시' : '정착지'})`
+        : '';
+      let journalText = `[사교 조우: ${socialTitle}]\n소감: ${journalNote || '협상에 실패했다.'}\n\n- 거래 희귀도: ${finalRarity}${barterLocationLine}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (실패)`;
 
       if (isSuccess) {
         // Prompt player to choose which preparation part to obtain
@@ -2904,10 +2979,10 @@ export default function App() {
           nextTrinkets = s.trinkets.slice(paidTrinketsCount);
           nextReputation = Math.max(0, s.reputation - paidReputationCount);
           journalTitle = `🤝 거래 강제 성사: ${reagentName}`;
-          journalText = `[사교 조우: ${socialTitle}]\n소감: ${journalNote || '추가 대가를 치르고 거래를 마쳤다.'}\n\n- 거래 희귀도: ${finalRarity}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (장신구 ${paidTrinketsCount}개, 길드 명성 ${paidReputationCount}점 지불 성사)\n- 획득 영약재: ${r.name} (${partText.trim()})`;
+          journalText = `[사교 조우: ${socialTitle}]\n소감: ${journalNote || '추가 대가를 치르고 거래를 마쳤다.'}\n\n- 거래 희귀도: ${finalRarity}${barterLocationLine}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (장신구 ${paidTrinketsCount}개, 길드 명성 ${paidReputationCount}점 지불 성사)\n- 획득 영약재: ${r.name} (${partText.trim()})`;
         } else {
           journalTitle = `🤝 거래 성사: ${reagentName}`;
-          journalText = `[사교 조우: ${socialTitle}]\n소감: ${journalNote || '협상에 성공했다.'}\n\n- 거래 희귀도: ${finalRarity}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (성공)\n- 획득 영약재: ${r.name} (${partText.trim()})`;
+          journalText = `[사교 조우: ${socialTitle}]\n소감: ${journalNote || '협상에 성공했다.'}\n\n- 거래 희귀도: ${finalRarity}${barterLocationLine}\n- 거래 카드: ${dealCard?.suit} ${dealCard?.val} (성공)\n- 획득 영약재: ${r.name} (${partText.trim()})`;
         }
       }
 
@@ -2923,7 +2998,7 @@ export default function App() {
         bag: nextBag,
         trinkets: nextTrinkets,
         reputation: nextReputation,
-        barterCountThisAilment: s.barterCountThisAilment + 1,
+        barterCountThisAilment: s.barterCountThisAilment + (s.activeBarter?.attemptCounted ? 0 : 1),
         activeBarter: null,
         journals: [
           {
@@ -5623,7 +5698,7 @@ function PlayView({
     }
 
     if (isWaterway && destRegion === 'Loch' && !hasLochStoppingGear(state)) {
-      alert("🌊 Loch 위치에 멈추려면 자작나무 보트(Bark Coracle)나 밀폐 마차(Sealed Carriage)가 필요합니다. 방수 가방은 약재가 젖는 것을 막지만, Loch 위치에 안전하게 정박하게 해주지는 않습니다.");
+      alert("🌊 Loch 위치에 멈추려면 자작나무 보트(Bark Coracle), 방수 가방(Waxed Satchel), 또는 밀폐 마차(Sealed Carriage)가 필요합니다.");
       return;
     }
 
@@ -5833,6 +5908,11 @@ function PlayView({
 
     const isAdjacent = forageLocationType === 'adjacent';
     const activeRegion = isAdjacent ? forageAdjacentRegion : state.currentRegion;
+    const canForageCurrentLocation = ['Wilds', 'Ruin', 'Barrow'].includes(state.currentLocationType);
+    if (!isAdjacent && !canForageCurrentLocation) {
+      alert("룰북 p.32 기준으로 현재 위치 채집은 Wilds, Titan Ruins, Barrows 위치에서만 가능합니다. 정착지/도시에 있다면 인접 위치 채집이나 물꼬 거래를 사용하세요.");
+      return;
+    }
 
     const isTitanOrBarrow = activeRegion === 'Titan' ||
                             (!isAdjacent && (state.currentLocationType === 'Barrow' || state.currentLocationType === 'Ruin'));
@@ -6687,7 +6767,7 @@ function PlayView({
   };
 
   // Bartering Resolution
-  const handleBarterAttempt = (reagentName: string) => {
+  const handleBarterAttempt = (reagentName: string, barterLocation?: BarterLocationOption) => {
     if (!state.activeAilment) return;
     const r = GAME_DATA.reagents.find(item => item.name.toLowerCase().includes(reagentName.toLowerCase()) || item.rawName.toLowerCase().includes(reagentName.toLowerCase()));
 
@@ -6696,13 +6776,27 @@ function PlayView({
       return;
     }
 
-    const barterCheck = validateBarterAttempt(state, r);
+    const availableBarterLocations = getAvailableBarterLocations(state);
+    const selectedBarterLocation = barterLocation || availableBarterLocations[0];
+    if (!selectedBarterLocation) {
+      alert("룰북 p.34 기준으로 물꼬 거래는 현재 위치 또는 인접한 정착지/도시에서만 가능합니다.");
+      return;
+    }
+
+    const barterState = {
+      ...state,
+      currentLocationName: selectedBarterLocation.name,
+      currentLocationType: selectedBarterLocation.type,
+      currentRegion: selectedBarterLocation.region || state.currentRegion
+    };
+
+    const barterCheck = validateBarterAttempt(barterState, r);
     if (!barterCheck.allowed) {
       alert(barterCheck.reason);
       return;
     }
 
-    const finalRarity = barterCheck.finalRarity || calculateBarterRarity(state, r, state.currentLocationType === 'City');
+    const finalRarity = barterCheck.finalRarity || calculateBarterRarity(barterState, r, selectedBarterLocation.type === 'City');
 
     // Step 1: Draw Social Encounter Card
     const suits = ['♥', '♦', '♣', '♠'];
@@ -6711,7 +6805,7 @@ function PlayView({
     const socialCard = { suit: socialSuit, val: socialVal };
 
     // Find in parsed_social
-    const regionName = state.currentRegion;
+    const regionName = selectedBarterLocation.region || state.currentRegion;
     const regionSocials = (parsedSocial as any)[regionName] || (parsedSocial as any)["Forest"] || [];
     const matchingSocials = regionSocials.filter((s: any) => s.suit === socialSuit);
     const socialEncounter = matchingSocials.length > 0
@@ -6723,6 +6817,9 @@ function PlayView({
       activeBarter: {
         reagentName: r.name,
         finalRarity,
+        barterLocationName: selectedBarterLocation.name,
+        barterLocationType: selectedBarterLocation.type,
+        barterLocationRegion: regionName,
         socialCard,
         socialEncounter,
         phase: 'social',
@@ -6941,10 +7038,10 @@ function PlayView({
     });
     const trinketGain = rewardPreviewBeforeGifting.baseTrinkets;
 
-    // Gifting option
-    const isGifting = confirm(
-      `보상: 장신구 ${trinketGain}개\n\n💝 Gifting: 장신구 대신 길드 평판 +2를 선택하시겠습니까?`
-    );
+    const canGiftReward = trinketGain > 0;
+    const isGifting = canGiftReward
+      ? confirm(`보상: 장신구 ${trinketGain}개\n\n💝 Gifting: 장신구 대신 길드 평판 +2를 선택하시겠습니까?`)
+      : false;
 
     // Familiar: Shrewd — +1 Trinket when trading remedy for trinkets (not gifting)
     const familiarBenefit = getActiveFamiliarBenefit(state);
@@ -7673,7 +7770,8 @@ function PlayView({
   const patientReagentCount = state.bag.filter(item => item.type === 'reagent').length;
   const maxCarry = getMaxCarry(state);
   const activeTravelSpeed = state.journeyActive ? getTravelSpeed(state, currentWeight) : state.bio.speed;
-  const barterLimit = state.activeAilment ? getBarterLimitForLocation(state.currentLocationType) : 0;
+  const barterLocations = state.activeAilment ? getAvailableBarterLocations(state) : [];
+  const barterLimit = barterLocations.reduce((max, option) => Math.max(max, getBarterLimitForLocation(option.type)), 0);
   const barterRemaining = Math.max(0, barterLimit - (state.barterCountThisAilment || 0));
   const journeyGoalDone = state.journeyActive ? checkJourneyGoalSatisfaction(state) : false;
   const hubLocation = `${state.currentRegion} · ${locationTypeLabel(state.currentLocationType)} · ${state.currentLocationName}`;
@@ -7772,12 +7870,15 @@ function PlayView({
       });
 
       if (barterLimit > 0) {
+        const barterLocationSummary = barterLocations.some(option => option.relation === 'current')
+          ? locationTypeLabel(barterLocations.find(option => option.relation === 'current')?.type || '')
+          : '인접 정착지/도시';
         addActionHubItem({
           id: 'barter-reagent',
           label: barterRemaining > 0 ? '거래로 재료 확보' : '거래 횟수 소진',
           detail: barterRemaining > 0
-            ? `${locationTypeLabel(state.currentLocationType)}에서 이 환자에게 ${barterRemaining}회 더 거래할 수 있습니다.`
-            : `${locationTypeLabel(state.currentLocationType)} 거래 한도를 모두 사용했습니다.`,
+            ? `${barterLocationSummary}에서 이 환자에게 ${barterRemaining}회 더 거래할 수 있습니다.`
+            : `${barterLocationSummary} 거래 한도를 모두 사용했습니다.`,
           targetId: 'patient-clinic-panel',
           tone: barterRemaining > 0 ? 'neutral' : 'warning',
           disabled: barterRemaining <= 0
@@ -10279,32 +10380,54 @@ function PlayView({
 
                 {/* Foraging and Bartering buttons */}
                 <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', width: '100%' }}>
-                  <button
-                    onClick={(e) => handleForageDraw(e)}
-                    style={{ flex: 1, padding: '0.7rem', background: 'var(--primary-light)', color: 'var(--primary)', border: '1.5px solid var(--primary)', borderRadius: '8px', fontWeight: 'bold' }}
-                  >
-                    🌿 {forageLocationType === 'adjacent' ? `인접 지역 [${forageAdjacentRegion}] 채집 시작` : '이 위치 채집 및 조우'}
-                  </button>
+                  {(() => {
+                    const currentForageAllowed = ['Wilds', 'Ruin', 'Barrow'].includes(state.currentLocationType);
+                    const forageDisabled = forageLocationType === 'current' && !currentForageAllowed;
+                    return (
+                      <button
+                        onClick={(e) => handleForageDraw(e)}
+                        disabled={forageDisabled}
+                        title={forageDisabled ? '현재 위치 채집은 Wilds, Titan Ruins, Barrows에서만 가능합니다.' : ''}
+                        style={{
+                          flex: 1,
+                          padding: '0.7rem',
+                          background: forageDisabled ? '#eee' : 'var(--primary-light)',
+                          color: forageDisabled ? '#999' : 'var(--primary)',
+                          border: `1.5px solid ${forageDisabled ? '#ccc' : 'var(--primary)'}`,
+                          borderRadius: '8px',
+                          fontWeight: 'bold',
+                          cursor: forageDisabled ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        🌿 {forageLocationType === 'adjacent' ? `인접 지역 [${forageAdjacentRegion}] 채집 시작` : '이 위치 채집 및 조우'}
+                      </button>
+                    );
+                  })()}
 
                   {/* Barter — show remaining attempts */}
                   {(() => {
-                    const isCity = state.currentLocationType === 'City';
-                    const isSettlement = state.currentLocationType === 'Settlement';
-                    const maxBarters = isCity ? 3 : 1;
+                    const barterOptions = getAvailableBarterLocations(state);
+                    const maxBarters = barterOptions.reduce((max, option) => Math.max(max, getBarterLimitForLocation(option.type)), 0);
                     const usedBarters = state.barterCountThisAilment;
                     const remaining = Math.max(0, maxBarters - usedBarters);
-                    const canBarter = (isCity || isSettlement) && remaining > 0;
+                    const canBarter = barterOptions.length > 0 && remaining > 0;
                     return (
                       <button
                         onClick={() => {
-                          const req = prompt("수소문하여 구매할 영약재 이름을 입력하세요 (예: 너도밤나무):");
-                          if (req) handleBarterAttempt(req);
+                          let selectedLocation = barterOptions[0];
+                          if (barterOptions.length > 1) {
+                            const choice = prompt(`거래할 정착지/도시를 선택하세요:\n${barterOptions.map((option, idx) => `${idx + 1}. ${option.name} (${option.type === 'City' ? '도시' : '정착지'}, ${option.relation === 'current' ? '현재 위치' : '인접 위치'})`).join('\n')}`);
+                            if (!choice) return;
+                            selectedLocation = barterOptions[Math.max(0, (parseInt(choice) || 1) - 1)] || barterOptions[0];
+                          }
+                          const req = prompt(`${selectedLocation.name}에서 수소문하여 구매할 영약재 이름을 입력하세요 (예: 너도밤나무):`);
+                          if (req) handleBarterAttempt(req, selectedLocation);
                         }}
                         disabled={!canBarter}
-                        title={!isCity && !isSettlement ? '정착지/도시에서만 가능' : remaining === 0 ? '거래 횟수 초과' : ''}
+                        title={barterOptions.length === 0 ? '현재 또는 인접한 정착지/도시에서만 가능' : remaining === 0 ? '거래 횟수 초과' : ''}
                         style={{ flex: 1, padding: '0.7rem', background: canBarter ? 'var(--secondary-light)' : '#eee', color: canBarter ? 'var(--secondary)' : '#aaa', border: `1.5px solid ${canBarter ? 'var(--secondary)' : '#ccc'}`, borderRadius: '8px', fontWeight: 'bold', cursor: canBarter ? 'pointer' : 'not-allowed' }}
                       >
-                        🤝 물꼬 거래 {isCity || isSettlement ? `${remaining}/${maxBarters}회 남음` : '— 정착지/도시만 가능'}
+                        🤝 물꼬 거래 {barterOptions.length > 0 ? `${remaining}/${maxBarters}회 남음` : '— 현재/인접 정착지·도시만 가능'}
                       </button>
                     );
                   })()}
@@ -12549,28 +12672,37 @@ function MapView({ state }: { state: GameState }) {
                 }
 
                 // Visual styling variables based on care, loss, or clinic status
-                let pinColor = 'rgba(107, 81, 59, 0.7)'; // brown ink
-                let textColor = 'rgba(75, 60, 45, 0.8)';
+                let pinColor = 'rgba(107, 81, 59, 0.92)'; // brown ink
+                let textColor = '#2f2419';
                 let fontW = '400';
-                let shadowBg = 'transparent';
+                let shadowBg = 'rgba(255, 248, 232, 0.58)';
+                let labelBg = 'rgba(255, 250, 236, 0.97)';
+                let labelBorder = 'rgba(92, 64, 51, 0.42)';
                 let SketchIcon = null;
 
                 if (isLoss) {
-                  pinColor = 'rgba(110, 105, 95, 0.6)'; // faded gray
-                  textColor = 'rgba(100, 95, 88, 0.75)';
+                  pinColor = 'rgba(96, 91, 84, 0.92)'; // faded gray
+                  textColor = '#4a433b';
+                  labelBg = 'rgba(248, 245, 238, 0.97)';
+                  labelBorder = 'rgba(96, 91, 84, 0.42)';
                   SketchIcon = BranchSketch;
                 }
                 if (isCare) {
-                  pinColor = 'rgba(74, 107, 72, 0.75)'; // green ink
-                  textColor = 'rgba(56, 77, 54, 0.85)';
+                  pinColor = 'rgba(47, 94, 55, 0.96)'; // green ink
+                  textColor = '#203f27';
                   fontW = '500';
-                  shadowBg = 'rgba(244, 230, 208, 0.28)';
+                  shadowBg = 'rgba(228, 245, 216, 0.62)';
+                  labelBg = 'rgba(246, 252, 238, 0.97)';
+                  labelBorder = 'rgba(47, 94, 55, 0.42)';
                   SketchIcon = HearthSketch;
                 }
                 if (isFirstClinic) {
-                  pinColor = 'rgba(176, 122, 66, 0.8)';
-                  textColor = 'rgba(120, 78, 38, 0.9)';
+                  pinColor = 'rgba(176, 96, 32, 0.98)';
+                  textColor = '#743d11';
                   fontW = '700';
+                  shadowBg = 'rgba(255, 232, 190, 0.68)';
+                  labelBg = 'rgba(255, 243, 218, 0.98)';
+                  labelBorder = 'rgba(176, 96, 32, 0.5)';
                   SketchIcon = HouseSketch;
                 }
 
@@ -12588,7 +12720,7 @@ function MapView({ state }: { state: GameState }) {
                       alignItems: 'flex-start',
                       gap: '6px',
                       fontFamily: 'var(--font-script)',
-                      fontSize: '0.82rem',
+                      fontSize: '0.94rem',
                       userSelect: 'none'
                     }}
 	                  >
@@ -12629,8 +12761,18 @@ function MapView({ state }: { state: GameState }) {
                     }} />
 
                     {/* Text Details */}
-                    <div style={{ display: 'flex', flexDirection: 'column', whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', fontWeight: fontW as any, color: textColor }}>
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      whiteSpace: 'nowrap',
+                      background: labelBg,
+                      border: `1px solid ${labelBorder}`,
+                      borderRadius: '4px',
+                      padding: '3px 7px 5px',
+                      boxShadow: '0 2px 5px rgba(44, 32, 20, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.62)',
+                      backdropFilter: 'blur(1px)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', fontWeight: fontW as any, color: textColor, textShadow: '0 1px 0 rgba(255, 255, 255, 0.88)' }}>
                         {SketchIcon && <SketchIcon />}
                         <span>{locName}</span>
                       </div>
@@ -12638,10 +12780,11 @@ function MapView({ state }: { state: GameState }) {
                         <span
                           key={idx}
                           style={{
-                            fontSize: '0.74rem',
-                            color: isLoss ? 'rgba(110, 105, 95, 0.65)' : 'rgba(120, 110, 95, 0.75)',
+                            fontSize: '0.8rem',
+                            color: isLoss ? '#5e574e' : '#594c3c',
                             fontStyle: 'italic',
-                            marginTop: '1px'
+                            marginTop: '2px',
+                            textShadow: '0 1px 0 rgba(255, 255, 255, 0.82)'
                           }}
                         >
                           {note}
