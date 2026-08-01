@@ -1,3 +1,5 @@
+import { isHouseRuleEnabled } from './rules/rulesets';
+
 export const RULEBOOK_REFS = {
   familiarBenefits: 'p.14-15',
   foragingPickup: 'p.17',
@@ -55,6 +57,7 @@ export interface RuleReagent {
 }
 
 export interface RuleState {
+  rulesetId?: string;
   bio: {
     familiarBenefit: string;
     carry?: number;
@@ -152,6 +155,7 @@ export const hasTool = (s: RuleState, toolIdOrName: string): boolean => {
 export const getFamiliarReduction = (s: RuleState, mechanic: string, defaultVal: number = 2): number => {
   const familiarMechanic = getActiveFamiliarMechanic(s);
   if (familiarMechanic !== mechanic) return 0;
+  if (!isHouseRuleEnabled(s.rulesetId, 'familiarTrustScaling')) return defaultVal;
   const trust = s.activePassenger ? 0 : ((s as any).familiarTrust || 0);
   if (trust >= 80) return defaultVal + 2;
   if (trust >= 40) return defaultVal + 1;
@@ -432,12 +436,13 @@ export const previewConcoction = (
   selectedIngredientCount: number
 ): ConcoctionPreview => {
   const validation = validateConcoction(ailment, selectedReagents, bag, s, purifyFoul);
-  const timer = previewPatientTimer(ailment, selectedIngredientCount);
+  const timeSpent = isHouseRuleEnabled(s.rulesetId, 'brewingTimePerIngredient') ? selectedIngredientCount : 0;
+  const timer = previewPatientTimer(ailment, timeSpent);
   const severityLevel = getSeverityLevel(ailment.severity);
 
   return {
     validation,
-    timeSpent: selectedIngredientCount,
+    timeSpent,
     nextTimer: timer.nextTimer,
     timedOut: timer.timedOut,
     severityLevel,

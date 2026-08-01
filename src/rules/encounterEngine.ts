@@ -1,0 +1,128 @@
+import type { EncounterRuntimeState } from './gameplay';
+import type { EncounterDefinition, RuleEffect, StructuredRuleEffect } from './types';
+
+export interface EncounterExecutionInput {
+  transactionId: string;
+  encounter: EncounterDefinition;
+  state: EncounterRuntimeState;
+  choiceId?: string;
+}
+
+export interface EncounterExecutionOutcome {
+  transactionId: string;
+  nextState: EncounterRuntimeState;
+  appliedEffectIds: string[];
+  unresolvedEffects: StructuredRuleEffect[];
+}
+
+export interface EncounterExecutionResolution {
+  status: 'resolved' | 'manual' | 'invalid';
+  value: EncounterExecutionOutcome | null;
+  messages: string[];
+}
+
+const applyEffect = (state: EncounterRuntimeState, effect: RuleEffect): EncounterRuntimeState | null => {
+  if (effect.type === 'modifyReputation') return { ...state, reputation: Math.max(0, state.reputation + effect.amount) };
+  if (effect.type === 'modifyTrinkets') return { ...state, trinkets: Math.max(0, state.trinkets + effect.amount) };
+  if (effect.type === 'markDays') return { ...state, calendarDays: Math.max(0, state.calendarDays + effect.amount) };
+  if (effect.type === 'modifyForagingPoints') return { ...state, foragingPoints: Math.max(0, state.foragingPoints + effect.amount) };
+  if (effect.type === 'addItem') {
+    return {
+      ...state,
+      inventory: [...state.inventory, {
+        id: effect.itemId,
+        name: effect.itemId,
+        type: 'item',
+        weight: 0,
+        quantity: effect.quantity
+      }]
+    };
+  }
+  if (effect.type === 'removeItem') {
+    let remaining = effect.quantity;
+    return {
+      ...state,
+      inventory: state.inventory.filter(item => {
+        if (remaining > 0 && item.id === effect.itemId) {
+          remaining -= Math.max(1, item.quantity || 1);
+          return false;
+        }
+        return true;
+      })
+    };
+  }
+  if (effect.type === 'blockMovement' || effect.type === 'requireLocalHelp') {
+    return { ...state, movementBlocked: true, conditions: [...new Set([...state.conditions, effect.reason])] };
+  }
+  if (effect.type === 'addCondition') return { ...state, conditions: [...new Set([...state.conditions, effect.conditionId])] };
+  if (effect.type === 'modifyTimer') {
+    if (!state.patient) return state;
+    const hours = Math.abs(effect.amount);
+    if (effect.amount > 0) {
+      const timers = state.patient.timers.map(timer => timer.status === 'active'
+        ? { ...timer, current: Math.min(timer.maximum, timer.current + hours) }
+        : timer);
+      return { ...state, patient: { ...state.patient, timers } };
+    }
+    const timers = state.patient.timers.map(timer => {
+      if (timer.status !== 'active') return timer;
+      const current = Math.max(0, timer.current - hours);
+      return { ...timer, current, status: current === 0 ? 'expired' as const : 'active' as const };
+    });
+    const timerById = new Map(timers.map(timer => [timer.id, timer]));
+    const ailments = state.patient.ailments.map(ailment => ailment.status === 'active'
+      && ailment.timerIds.some(timerId => timerById.get(timerId)?.status === 'expired')
+      ? { ...ailment, status: 'failed' as const }
+      : ailment);
+    return { ...state, patient: { ...state.patient, timers, ailments } };
+  }
+  if (effect.type === 'unlockEntry') return { ...state, conditions: [...new Set([...state.conditions, `unlocked:${effect.entryId}`])] };
+  return null;
+};
+
+export const executeEncounter = (input: EncounterExecutionInput): EncounterExecutionResolution => {
+  if (!input.transactionId) return { status: 'invalid', value: null, messages: ['Encounter requires a transaction ID.'] };
+  const choice = input.choiceId ? input.encounter.choices.find(candidate => candidate.id === input.choiceId) : undefined;
+  if (input.choiceId && !choice) return { status: 'invalid', value: null, messages: [`Unknown encounter choice: ${input.choiceId}`] };
+  if (input.encounter.choices.length > 0 && !choice) {
+    return { status: 'manual', value: null, messages: ['Select one printed encounter choice before resolving.'] };
+  }
+
+  const effects = [...input.encounter.mandatoryEffects, ...(choice?.effects || [])];
+  let nextState = { ...input.state, inventory: [...input.state.inventory], conditions: [...input.state.conditions], appliedEffectIds: [...input.state.appliedEffectIds] };
+  const appliedEffectIds: string[] = [];
+  const unresolvedEffects: StructuredRuleEffect[] = [];
+  effects.forEach((structured, index) => {
+    const effectId = `${input.transactionId}:${choice?.id || 'mandatory'}:${index}`;
+    if (nextState.appliedEffectIds.includes(effectId)) return;
+    if (structured.support !== 'implemented') {
+      unresolvedEffects.push(structured);
+      return;
+    }
+    const applied = applyEffect(nextState, structured.effect);
+    if (!applied) {
+      unresolvedEffects.push(structured);
+      return;
+    }
+    nextState = { ...applied, appliedEffectIds: [...applied.appliedEffectIds, effectId] };
+    appliedEffectIds.push(effectId);
+  });
+  if (input.encounter.support !== 'implemented' && unresolvedEffects.length === 0) {
+    unresolvedEffects.push({
+      support: input.encounter.support,
+      effect: {
+        type: 'customEffect',
+        code: `PRINTED_${input.encounter.id}`,
+        description: input.encounter.prompt
+      }
+    });
+  }
+
+  return {
+    status: unresolvedEffects.length > 0 ? 'manual' : 'resolved',
+    value: { transactionId: input.transactionId, nextState, appliedEffectIds, unresolvedEffects },
+    messages: unresolvedEffects.length > 0
+      ? ['Automatic effects were applied. Resolve the remaining printed effects manually.']
+      : []
+  };
+};

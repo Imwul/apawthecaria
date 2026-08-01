@@ -1,0 +1,1579 @@
+{
+  "Animal Sheddings": {
+    "type": "ANIMAL",
+    "baseRarity": 3,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Rare",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Rare",
+      "Autumn": "Common",
+      "Winter": "Rare"
+    },
+    "sourcePage": 132
+  },
+  "Beech": {
+    "type": "PLANT",
+    "baseRarity": 5,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Common",
+      "Loch": "Common",
+      "Meadow": "Rare",
+      "Mountain": "Common",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Rare",
+      "Autumn": "Rare",
+      "Winter": "Common"
+    },
+    "sourcePage": 132
+  },
+  "Beehive": {
+    "type": "INSECT",
+    "baseRarity": 5,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Rare",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Rare",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Rare",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 132
+  },
+  "Beetles": {
+    "type": "INSECT",
+    "baseRarity": 4,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Rare",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 132
+  },
+  "Behemoth Bits": {
+    "type": "ANIMAL",
+    "baseRarity": 8,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Common",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Rare"
+    },
+    "sourcePage": 133
+  },
+  "Big Fish": {
+    "type": "ANIMAL",
+    "baseRarity": 9,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Unavailable",
+      "Loch": "Common",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Rare",
+      "Autumn": "Common",
+      "Winter": "Rare"
+    },
+    "sourcePage": 133
+  },
+  "Birch Polypore": {
+    "type": "PLANT",
+    "baseRarity": 5,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Rare",
+      "Mountain": "Unavailable",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Rare",
+      "Autumn": "Rare",
+      "Winter": "Common"
+    },
+    "sourcePage": 133
+  },
+  "Bird Leavings": {
+    "type": "ANIMAL",
+    "baseRarity": 4,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Common",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Rare",
+      "Winter": "Rare"
+    },
+    "sourcePage": 133
+  },
+  "Blackcurrant": {
+    "type": "PLANT",
+    "baseRarity": 5,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Rare",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Rare",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 134
+  },
+  "Blackthorn": {
+    "type": "PLANT",
+    "baseRarity": 7,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Rare",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Common",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Rare",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 134
+  },
+  "Brambles": {
+    "type": "PLANT",
+    "baseRarity": 4,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Rare",
+      "Loch": "Unavailable",
+      "Meadow": "Rare",
+      "Mountain": "Common",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Rare"
+    },
+    "sourcePage": 134
+  },
+  "Burdock": {
+    "type": "PLANT",
+    "baseRarity": 3,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Common",
+      "Loch": "Rare",
+      "Meadow": "Common",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 134
+  },
+  "Butterfly": {
+    "type": "INSECT",
+    "baseRarity": 9,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Common",
+      "Loch": "Rare",
+      "Meadow": "Common",
+      "Mountain": "Rare",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 135
+  },
+  "Catnip": {
+    "type": "PLANT",
+    "baseRarity": 6,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 135
+  },
+  "Chalk": {
+    "type": "EARTH",
+    "baseRarity": 4,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Rare",
+      "Meadow": "Unavailable",
+      "Mountain": "Common",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 135
+  },
+  "Cherry Trees": {
+    "type": "PLANT",
+    "baseRarity": 4,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Rare",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Common",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 135
+  },
+  "Chillies": {
+    "type": "PLANT",
+    "baseRarity": 6,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Rare",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Common",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Common",
+      "Autumn": "Rare",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 135
+  },
+  "Clay": {
+    "type": "EARTH",
+    "baseRarity": 3,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Unavailable",
+      "Loch": "Common",
+      "Meadow": "Unavailable",
+      "Mountain": "Rare",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 136
+  },
+  "Coarse Grit": {
+    "type": "EARTH",
+    "baseRarity": 4,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Rare",
+      "Meadow": "Unavailable",
+      "Mountain": "Common",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 136
+  },
+  "Concocted Calm": {
+    "type": "TITAN",
+    "baseRarity": 8,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 136
+  },
+  "Crab Apples": {
+    "type": "PLANT",
+    "baseRarity": 5,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Rare",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Rare",
+      "Autumn": "Unavailable",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 136
+  },
+  "Cucumbers": {
+    "type": "PLANT",
+    "baseRarity": 6,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Rare",
+      "Meadow": "Rare",
+      "Mountain": "Common",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 136
+  },
+  "Dandelions": {
+    "type": "PLANT",
+    "baseRarity": 2,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Rare",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Common",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Rare",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 137
+  },
+  "Doused Bonfires": {
+    "type": "EARTH",
+    "baseRarity": 4,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Common",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 137
+  },
+  "False Deathcap": {
+    "type": "PLANT",
+    "baseRarity": 7,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Rare",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 137
+  },
+  "Field Blewit": {
+    "type": "PLANT",
+    "baseRarity": 4,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Rare",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Rare",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 137
+  },
+  "Fine Sand": {
+    "type": "EARTH",
+    "baseRarity": 7,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Common",
+      "Meadow": "Unavailable",
+      "Mountain": "Common",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 138
+  },
+  "Firegizzards": {
+    "type": "TITAN",
+    "baseRarity": 6,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 138
+  },
+  "Fly Agaric": {
+    "type": "PLANT",
+    "baseRarity": 5,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Rare",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Rare",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 138
+  },
+  "Forget-Me-Not": {
+    "type": "PLANT",
+    "baseRarity": 6,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Unavailable",
+      "Loch": "Common",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Common",
+      "Autumn": "Rare",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 138
+  },
+  "Frog Slime": {
+    "type": "ANIMAL",
+    "baseRarity": 5,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Unavailable",
+      "Loch": "Common",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Rare"
+    },
+    "sourcePage": 138
+  },
+  "Garden Mint": {
+    "type": "PLANT",
+    "baseRarity": 6,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Rare"
+    },
+    "sourcePage": 139
+  },
+  "Glass Silk": {
+    "type": "TITAN",
+    "baseRarity": 7,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 139
+  },
+  "Goosegrass": {
+    "type": "PLANT",
+    "baseRarity": 5,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Rare",
+      "Autumn": "Rare",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 139
+  },
+  "Haircap Moss": {
+    "type": "PLANT",
+    "baseRarity": 6,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Common",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 139
+  },
+  "Hidelendings": {
+    "type": "TITAN",
+    "baseRarity": 7,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 139
+  },
+  "Hoarhound": {
+    "type": "PLANT",
+    "baseRarity": 6,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Rare",
+      "Mountain": "Common",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 139
+  },
+  "Honeybees": {
+    "type": "INSECT",
+    "baseRarity": 5,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Common",
+      "Loch": "Rare",
+      "Meadow": "Common",
+      "Mountain": "Rare",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 140
+  },
+  "Horse Chestnuts": {
+    "type": "PLANT",
+    "baseRarity": 4,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Rare",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Rare",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 140
+  },
+  "Horsetails": {
+    "type": "PLANT",
+    "baseRarity": 4,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Common",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 140
+  },
+  "Iron Ore": {
+    "type": "EARTH",
+    "baseRarity": 7,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Common",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 140
+  },
+  "Ironslug": {
+    "type": "TITAN",
+    "baseRarity": 8,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 140
+  },
+  "Lavender": {
+    "type": "PLANT",
+    "baseRarity": 5,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Rare",
+      "Loch": "Unavailable",
+      "Meadow": "Rare",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Rare",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 141
+  },
+  "Leech": {
+    "type": "INSECT",
+    "baseRarity": 5,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Unavailable",
+      "Loch": "Common",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 141
+  },
+  "Maggots": {
+    "type": "INSECT",
+    "baseRarity": 7,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Rare",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Common",
+      "Autumn": "Rare",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 141
+  },
+  "Marigold": {
+    "type": "PLANT",
+    "baseRarity": 5,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 141
+  },
+  "Marshgold": {
+    "type": "PLANT",
+    "baseRarity": 3,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Rare",
+      "Loch": "Common",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Rare",
+      "Autumn": "Unavailable",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 142
+  },
+  "Marshmallow": {
+    "type": "PLANT",
+    "baseRarity": 6,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 142
+  },
+  "Meadow Waxcap": {
+    "type": "PLANT",
+    "baseRarity": 4,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Unavailable",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Rare",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 142
+  },
+  "Miracle Loaf": {
+    "type": "TITAN",
+    "baseRarity": 11,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 142
+  },
+  "Musk Scrapings": {
+    "type": "TITAN",
+    "baseRarity": 10,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 143
+  },
+  "Nettles": {
+    "type": "PLANT",
+    "baseRarity": 2,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Common",
+      "Loch": "Rare",
+      "Meadow": "Common",
+      "Mountain": "Common",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 143
+  },
+  "Nightshade": {
+    "type": "PLANT",
+    "baseRarity": 6,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Rare",
+      "Loch": "Unavailable",
+      "Meadow": "Rare",
+      "Mountain": "Common",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 143
+  },
+  "Oak": {
+    "type": "PLANT",
+    "baseRarity": 4,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Rare",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 144
+  },
+  "Orange Peel Fungus": {
+    "type": "PLANT",
+    "baseRarity": 3,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Common",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Unavailable",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 144
+  },
+  "Pearls": {
+    "type": "EARTH",
+    "baseRarity": 8,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Common",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 144
+  },
+  "Pox-Be-Gones": {
+    "type": "TITAN",
+    "baseRarity": 10,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 144
+  },
+  "Redsap": {
+    "type": "TITAN",
+    "baseRarity": 8,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 145
+  },
+  "Rhubarb": {
+    "type": "PLANT",
+    "baseRarity": 2,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Rare",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Common",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Rare",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 145
+  },
+  "Ribwort": {
+    "type": "PLANT",
+    "baseRarity": 5,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Rare",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Rare"
+    },
+    "sourcePage": 145
+  },
+  "Rivermint": {
+    "type": "PLANT",
+    "baseRarity": 6,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Unavailable",
+      "Loch": "Common",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Rare",
+      "Winter": "Rare"
+    },
+    "sourcePage": 145
+  },
+  "Rock Salt": {
+    "type": "EARTH",
+    "baseRarity": 7,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Common",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 146
+  },
+  "Roses": {
+    "type": "PLANT",
+    "baseRarity": 8,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Rare",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Rare",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 146
+  },
+  "Shells": {
+    "type": "ANIMAL",
+    "baseRarity": 4,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Common",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 146
+  },
+  "Silver Ore": {
+    "type": "EARTH",
+    "baseRarity": 11,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Rare",
+      "Meadow": "Unavailable",
+      "Mountain": "Common",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 147
+  },
+  "Slugs": {
+    "type": "INSECT",
+    "baseRarity": 3,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Common",
+      "Loch": "Rare",
+      "Meadow": "Common",
+      "Mountain": "Rare",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 147
+  },
+  "Small Fish": {
+    "type": "ANIMAL",
+    "baseRarity": 7,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Unavailable",
+      "Loch": "Common",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Rare"
+    },
+    "sourcePage": 147
+  },
+  "Sourchits": {
+    "type": "TITAN",
+    "baseRarity": 10,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 147
+  },
+  "Spiders": {
+    "type": "INSECT",
+    "baseRarity": 4,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Rare",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Common",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 148
+  },
+  "Strawberries": {
+    "type": "PLANT",
+    "baseRarity": 4,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Rare",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Rare",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 148
+  },
+  "Tansies": {
+    "type": "PLANT",
+    "baseRarity": 5,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Rare",
+      "Loch": "Rare",
+      "Meadow": "Common",
+      "Mountain": "Rare",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Rare",
+      "Autumn": "Rare",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 148
+  },
+  "Thistles": {
+    "type": "PLANT",
+    "baseRarity": 3,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Common",
+      "Loch": "Rare",
+      "Meadow": "Common",
+      "Mountain": "Common",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 149
+  },
+  "Titansorrel": {
+    "type": "PLANT",
+    "baseRarity": 6,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Common",
+      "Mountain": "Rare",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 149
+  },
+  "Toads": {
+    "type": "ANIMAL",
+    "baseRarity": 7,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Unavailable",
+      "Loch": "Common",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Rare"
+    },
+    "sourcePage": 149
+  },
+  "Wasps": {
+    "type": "INSECT",
+    "baseRarity": 5,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Common",
+      "Loch": "Common",
+      "Meadow": "Rare",
+      "Mountain": "Rare",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 149
+  },
+  "Waychalk": {
+    "type": "TITAN",
+    "baseRarity": 10,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 149
+  },
+  "Whiskerburner": {
+    "type": "TITAN",
+    "baseRarity": 9,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Unavailable",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Common"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 150
+  },
+  "White Willow": {
+    "type": "PLANT",
+    "baseRarity": 5,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Unavailable",
+      "Loch": "Common",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 150
+  },
+  "Wild Garlic": {
+    "type": "PLANT",
+    "baseRarity": 2,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Common",
+      "Loch": "Unavailable",
+      "Meadow": "Rare",
+      "Mountain": "Rare",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Rare",
+      "Autumn": "Unavailable",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 150
+  },
+  "Wild Violet": {
+    "type": "PLANT",
+    "baseRarity": 6,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Rare",
+      "Loch": "Common",
+      "Meadow": "Common",
+      "Mountain": "Rare",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Rare",
+      "Autumn": "Rare",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 150
+  },
+  "Woundwort": {
+    "type": "PLANT",
+    "baseRarity": 7,
+    "regions": {
+      "Bog": "Unavailable",
+      "Forest": "Unavailable",
+      "Loch": "Common",
+      "Meadow": "Rare",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Unavailable",
+      "Summer": "Rare",
+      "Autumn": "Common",
+      "Winter": "Common"
+    },
+    "sourcePage": 151
+  },
+  "Yarrow": {
+    "type": "PLANT",
+    "baseRarity": 7,
+    "regions": {
+      "Bog": "Common",
+      "Forest": "Unavailable",
+      "Loch": "Common",
+      "Meadow": "Unavailable",
+      "Mountain": "Unavailable",
+      "Titan": "Unavailable"
+    },
+    "seasons": {
+      "Spring": "Common",
+      "Summer": "Common",
+      "Autumn": "Common",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 151
+  },
+  "Yellow Wort": {
+    "type": "PLANT",
+    "baseRarity": 4,
+    "regions": {
+      "Bog": "Rare",
+      "Forest": "Unavailable",
+      "Loch": "Rare",
+      "Meadow": "Unavailable",
+      "Mountain": "Common",
+      "Titan": "Rare"
+    },
+    "seasons": {
+      "Spring": "Rare",
+      "Summer": "Common",
+      "Autumn": "Rare",
+      "Winter": "Unavailable"
+    },
+    "sourcePage": 151
+  }
+}

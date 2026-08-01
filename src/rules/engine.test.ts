@@ -1,0 +1,127 @@
+import { describe, expect, it } from 'vitest';
+import {
+  CURRENT_SCHEMA_VERSION,
+  migrateSavedRulesState,
+  resolvePatient,
+  resolveSeason,
+  resolveTimer,
+  resolveTravel
+} from './index';
+
+describe('rule engine foundation entry points', () => {
+  it('[TRAVEL-004/TABLE-001/TABLE-005] resolves exactly one encounter family from destination type', () => {
+    const wilds = resolveTravel({
+      destinationRegion: 'Forest',
+      destinationType: 'Wilds',
+      card: { val: 3, suit: '♥' },
+      season: 'Spring'
+    });
+    const settlement = resolveTravel({
+      destinationRegion: 'Forest',
+      destinationType: 'Settlement',
+      card: { val: 3, suit: '♥' },
+      season: 'Spring'
+    });
+
+    expect(wilds.value?.encounterType).toBe('travel');
+    expect(settlement.value?.encounterType).toBe('social');
+  });
+
+  it('[AILMENT-004/PATIENT-004] expands repeated ailments into separate ailment and timer records', () => {
+    const result = resolvePatient({
+      id: 'patient-one',
+      name: 'Patient One',
+      species: 'Mouse',
+      ailmentIds: ['ailment-soured-dough']
+    });
+
+    expect(result.status).toBe('resolved');
+    expect(result.value?.ailments).toHaveLength(4);
+    expect(result.value?.timers).toHaveLength(4);
+    expect(new Set(result.value?.timers.map(timer => timer.id)).size).toBe(4);
+  });
+
+  it('[PATIENT-005] reduces every active timer without mutating the input patient', () => {
+    const patientResult = resolvePatient({
+      id: 'patient-two',
+      name: 'Patient Two',
+      species: 'Hare',
+      ailmentIds: ['ailment-fight-marks']
+    });
+    const patient = patientResult.value!;
+    const before = patient.timers.map(timer => timer.current);
+    const result = resolveTimer({ patient, hours: 2 });
+
+    expect(result.value?.timers).toHaveLength(2);
+    expect(result.value?.timers.map(timer => timer.current)).toEqual(before.map(value => Math.max(0, value - 2)));
+    expect(patient.timers.map(timer => timer.current)).toEqual(before);
+  });
+
+  it('[JOURNEY-002] advances seasons through the canonical season dataset', () => {
+    expect(resolveSeason('Spring').value).toBe('Summer');
+    expect(resolveSeason('Winter').value).toBe('Spring');
+  });
+});
+
+describe('sequential save migration', () => {
+  it('[SAVE-005/PATIENT-004] migrates an unversioned single-ailment save without dropping legacy fields', () => {
+    const migrated = migrateSavedRulesState({
+      reputation: 9,
+      customCampaignField: 'preserve',
+      activeAilment: {
+        id: 'legacy-id',
+        name: 'Soured Dough',
+        severity: 'intermediate',
+        timer: 6,
+        maxTimer: 10,
+        tags: 'STOMACH 2',
+        patientName: 'Baker',
+        species: 'Vole'
+      }
+    });
+
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.rulesetId).toBe('legacy-campaign');
+    expect(migrated.customCampaignField).toBe('preserve');
+    expect(migrated.activePatientId).toBe('legacy-active-patient');
+    expect(migrated.patients[0]).toMatchObject({ name: 'Baker', species: 'Vole' });
+    expect(migrated.patients[0].ailments).toHaveLength(1);
+    expect(migrated.patients[0].timers[0]).toMatchObject({ current: 6, maximum: 10 });
+  });
+
+  it('[SAVE-005] keeps already-versioned patient graphs stable', () => {
+    const saved = {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      rulesetId: 'original-1e-3p',
+      activePatientId: null,
+      patients: [],
+      custom: 42
+    } as const;
+    expect(migrateSavedRulesState(saved)).toEqual(saved);
+  });
+
+  it('[MAP-005/SAVE-004/SAVE-005] migrates v2 gameplay state for idempotent Phase 2 transactions', () => {
+    const migrated = migrateSavedRulesState({
+      schemaVersion: 2,
+      rulesetId: 'original-1e-3p',
+      activePatientId: null,
+      patients: [],
+      visitedLocations: ['Odoak'],
+      customMapEdges: [{ from: 'odoak', to: 'oak-road' }],
+      custom: 'preserved'
+    });
+    expect(migrated).toMatchObject({
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      appliedTransactionIds: [],
+      appliedEncounterEffectIds: [],
+      pendingEncounter: null,
+      pendingForaging: null,
+      downtimeCompleted: false,
+      downtimeRequired: false,
+      saveRevision: 0,
+      visitedLocations: ['Odoak'],
+      customMapEdges: [{ from: 'odoak', to: 'oak-road' }],
+      custom: 'preserved'
+    });
+  });
+});
