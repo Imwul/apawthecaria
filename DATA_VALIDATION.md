@@ -3,7 +3,7 @@
 ## 실행 기준
 
 - 판본: *Apawthecaria*, First Edition, Third Printing (May 2023)
-- 실행일: 2026-08-02
+- 실행일: 2026-08-08
 - 명령: `npm run validate:rules`
 - Build 연결: `npm run build`가 Validator를 먼저 실행함
 - 결과: Error 0, Warning 0
@@ -66,11 +66,11 @@
 - `travel-soar-m-winter`
 - `foraging-loch-j-winter`
 
-Validator 경고가 0이라는 사실은 모든 printed effect가 자동화됐다는 뜻이 아니다. 358개 registry row 중 355개는 안전한 자동 executor가 없어 `manual`이며, `PRINTED_EFFECT_STATUS.md`에서 별도 추적한다.
+Validator 경고가 0이라는 사실은 모든 printed effect가 자동화됐다는 뜻이 아니다. 358개 registry row 중 10개는 `implemented`, 348개는 안전한 자동 executor가 없어 `manual`이며, `PRINTED_EFFECT_STATUS.md`에서 별도 추적한다.
 
 ## 자동 테스트
 
-현재 8개 Test File, 80개 Test가 다음을 고정한다.
+현재 9개 Test File, 84개 Test가 다음을 고정한다.
 
 - 83 Reagents와 189 Preparations
 - 45 Ailments, Severity, Timer, 반복/Monarch 구조
@@ -95,7 +95,8 @@ Validator 경고가 0이라는 사실은 모든 printed effect가 자동화됐�
 - 8 Barrow/17 Service/18 Tool/7 Upgrade/10 Wagon row/9 Companion/10 Agenda 수량과 source metadata
 - Wasp 10 Paths 실제 INSECT Foraging pending, Honeybee milestone, Wagon commission/Soar/Waterway
 - Rumour graph 후보, Clinic 3 Paths, Tool breakage/idempotency, Bandolier Weight
-- schema v5 migration, manual/service/tool/wagon/companion state, offline outbox/retry/conflict
+- schema v6 migration, treatment draft restore/replay 차단, Replacement provenance/중복 방지, 공통 Tool trigger idempotency
+- manual/service/tool/wagon/companion state, offline outbox/retry/conflict
 
 검증 결과는 구조와 참조 무결성을 뜻한다. `manual-only` 또는 `structured-but-not-executed` 효과가 실제 게임 상태에 자동 반영됐다는 뜻은 아니다.
 
@@ -104,9 +105,9 @@ Validator 경고가 0이라는 사실은 모든 printed effect가 자동화됐�
 | 명령 | 결과 |
 |---|---|
 | `npm run validate:rules` | Pass, 3 tests; Error 0 / Warning 0 |
-| `npm test` | Pass, 8 files / 80 tests |
+| `npm test` | Pass, 9 files / 84 tests |
 | `npx tsc --noEmit` | Pass |
-| `npm run build` | Pass; React/Firebase/canonical data/Almanack 분할, main 약 607 kB, 500 kB 경고 1건 |
+| `npm run build` | Pass; React/Firebase/canonical data/Almanack 분할, main 627.22 kB, 500 kB 경고 1건 |
 | `npm run lint` | Pass; 0 errors / 0 warnings |
 | Browser desktop/mobile | Pass; 핵심 화면 캡처, 360-1920px 문서 가로 넘침 0, 지도 라벨 판독 가능 |
 

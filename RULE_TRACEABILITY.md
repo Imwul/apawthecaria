@@ -14,7 +14,7 @@
 | Rule ID | 룰북 | 규칙 명세 | 대응 화면 | 구현 위치 | 상태 | 자동 테스트 | 문제 |
 |---|---|---|---|---|---|---|---|
 | CORE-001 | p6 | 카드 판정 → A=1, 2-10은 숫자, J=11, Q/K는 Monarch(M)=12; 표가 정한 예외 우선 | 모든 카드 판정 | `App.tsx:drawPlayingCard`, `cardRuleValue` | Partial | 없음 | 표 조회에는 M=12를 쓰지만 일부 수치 판정은 K=13을 그대로 사용한다. |
-| CORE-002 | p6 | 일반 규칙과 특정 항목 충돌 → 특정 카드·질환·도구 문구를 우선 적용 | 조우·질환·도구 | `App.tsx` 개별 핸들러 | Partial | 없음 | 특수 문구 대부분이 설명으로만 노출되고 상태 변화가 자동 적용되지 않는다. |
+| CORE-002 | p6 | 일반 규칙과 특정 항목 충돌 → 특정 카드·질환·도구 문구를 우선 적용 | 조우·질환·도구 | `printedEffects.ts`, `ailmentEffectEngine.ts`, encounter resolvers | Partial | `phase6Engine.test.ts [CORE-002]` | 10개 deterministic/structured effect는 실행 상태와 일치하고 나머지 서술·지도 후속은 명시적 manual이다. |
 | CORE-003 | p7 | 플레이어는 기록과 흐름을 자기 방식으로 조정할 수 있음; 의도적으로 규칙을 깨는 것은 선택이며 기본 판정은 원작 규칙 | 전체 | 자유 입력 UI | Partial | 없음 | 자유 입력과 앱이 강제하는 고정 보상/시간 규칙이 구분돼 있지 않다. |
 | CORE-004 | p7 | 장면과 판정 결과를 저널에 서술; 자동화는 서술 선택권을 대체하지 않음 | 저널 | 저널 편집 UI | Partial | 없음 | 저널은 있으나 다수 핵심 단계에서 기록을 건너뛰어도 진행된다. |
 | CHARACTER-001 | p10 | 새 캐릭터 → d12 성격 묘사 또는 직접 선택; 12개 항목 | 캐릭터 생성 | 생성 마법사, `gameData.ts` | Partial | 없음 | 선택지는 있으나 생성 결과와 필수 저널 연결을 검증하지 않는다. |
@@ -63,14 +63,14 @@
 | PATIENT-005 | p29 | 질환마다 Timer를 생성하고 이동·채집·흥정·시간 사용에 따라 감소 | 환자 상태 | `resolveTimer`, action adapters | Partial | `engine.test.ts [PATIENT-005]` | 복수 Timer 감소는 구현됐지만 legacy Barter/Barrow의 일부 시간 경로가 아직 adapter 밖 계산을 사용한다. |
 | AILMENT-001 | p100-115 | 명명된 질환 45개와 등급 분포 12/11/11/11을 정확히 사용 | 질환 도감·진단 | `data/ailments.ts` | Exact | `validation.test.ts [AILMENT-001]` | canonical 45개와 12/11/11/11 분포를 build에서 검증한다. |
 | AILMENT-002 | p102-103 | M 결과 → Intermediate는 Lesser 2개, Severe는 Intermediate 2개, Dire는 Severe 2개 | 진단 | `patientEngine.ts` | Exact | `gameplayEngine.test.ts [AILMENT-002]` | 하위 등급 2장과 중첩 Monarch를 재귀 처리한다. |
-| AILMENT-003 | p100-115 | 각 질환의 요구 태그·Timer·특수 성공/실패/후속 효과를 우선 적용 | 치료·조우 | `ailmentEffectEngine.ts`, `printedEffects.ts` | Partial | `phase3Engine.test.ts [AILMENT-003]` | 핵심 11개 질환의 진단·Timer·치료 예외는 구조화됐으나 45개 중 서술·지도 후속 효과 다수는 명시적 manual 상태다. |
+| AILMENT-003 | p100-115 | 각 질환의 요구 태그·Timer·특수 성공/실패/후속 효과를 우선 적용 | 치료·조우 | `ailmentEffectEngine.ts`, `printedEffects.ts` | Partial | `phase3Engine.test.ts`, `phase6Engine.test.ts [AILMENT-003]` | Brand Care, Forager's Twitch, Pinned by Pine, Quagmire's Scale, Stingshock, Wake, Wormridden 실행 상태를 registry와 일치시켰으나 서술·지도 후속 다수는 manual이다. |
 | AILMENT-004 | p100-115 | 반복 질환은 명시 횟수만큼 별도 치료/Timer를 운용 | 환자 상태 | `patientEngine.ts`, `PatientState` | Exact | `engine.test.ts`, `gameplayEngine.test.ts [AILMENT-004]` | canonical `repeatCount`만큼 독립 Ailment instance와 Timer를 생성한다. |
 | AILMENT-005 | p100-115 | 룰 텍스트의 may/must/cannot/unless와 선택 분기를 그대로 보존 | 질환 상세 | `gameData.ts`, `printedEffects.ts` | Partial | `phase3Engine.test.ts [AILMENT-003/AILMENT-005]` | 확인된 핵심 오역과 수치는 교정했으나 모든 서술형 선택 문구의 독립 원문 대조는 남아 있다. |
 | AILMENT-006 | p30-31 | 요구 태그는 AND/OR와 수치를 정확히 충족; 선택 재료만 계산 | 치료 구성 | `requirements.ts`, `treatmentEngine.ts` | Exact | `gameplayEngine.test.ts [AILMENT-006]` | 구조적 AND/OR AST, 비누적 Tag 최대값과 선택 Catalyse를 transaction 안에서 평가한다. |
 | AILMENT-007 | p36-37 | 실패 시 질환별 특수 결과 후 일반 평판 손실을 적용; 예외 우선 | 치료 결과 | failure handlers | Partial | 없음 | 일반 손실은 있으나 질환별 예외가 대부분 적용되지 않는다. |
 | REMEDY-001 | p30 | 재료 가용성 → 지역과 계절 각각 Common +0, Rare +3, Unavailable이면 획득 불가 | 채집·흥정 | `foragingEngine.ts`, `barterEngine.ts` | Exact | `gameplayEngine.test.ts`, `phase3Engine.test.ts [REMEDY-001]` | Foraging과 Barter가 동일한 canonical 3상태 Availability와 선택 Preparation을 사용한다. |
 | REMEDY-002 | p30 | Make Do → 필요한 효능보다 1 높은 대체 태그 사용 | 치료 | `createMakeDoAcquisition()`, acquisition UI | Exact | `phase3Engine.test.ts [REMEDY-002]` | 원작 모드에서 직접 생성을 금지하고 +1 Potency 조건을 저장한 뒤 실제 canonical Part 획득을 확인한다. |
-| REMEDY-003 | p30 | Replacement → BR 12, Weight 2/3; 이름·준비법을 정하고 채집/흥정으로 획득 | 치료·가방 | `createReplacementAcquisition()`, acquisition UI | Partial | `phase3Engine.test.ts [REMEDY-003]` | 직접 생성은 원작 모드에서 제거되고 pending 조건은 저장되지만 Rarity 12를 Forage/Barter transaction 안에서 자동 완료하는 단계가 남아 있다. |
+| REMEDY-003 | p30 | Replacement → BR 12, Weight 2/3; 이름·준비법을 정하고 채집/흥정으로 획득 | 치료·가방 | `createReplacementAcquisition()`, `commitAlternativeAcquisition()`, Forage/Barter success adapters | Exact | `phase3Engine.test.ts`, `phase6Engine.test.ts [REMEDY-003]` | 원작 모드에서 직접 생성하지 않으며 선택한 Forage/Barter 성공 뒤 custom metadata와 provenance를 가진 item을 한 번만 commit한다. |
 | REMEDY-004 | p31 | 충분한 재료가 모이면 Remedy는 즉시 완성; 별도 시간 판정 없음 | 치료 구성 | `treatmentEngine.ts` | Exact | `gameplayEngine.test.ts [REMEDY-004]` | 유효한 치료 transaction은 Timer 시간을 소비하지 않는다. |
 | REMEDY-005 | p31 | 준비법이 요구하는 Basic/Market Tool을 실제로 보유해야 Part를 준비 | 채집·가방 | Foraging/Treatment engines | Exact | `gameplayEngine.test.ts [REMEDY-005]` | 획득과 투여 양쪽에서 canonical required Tool을 강제한다. |
 | REMEDY-006 | p31 | Part별 Weight와 사용 횟수를 데이터대로 유지 | 가방·치료 | canonical Preparation inventory | Exact | `gameplayEngine.test.ts [REMEDY-006]` | 준비법의 Weight/Uses를 저장하고 사용 시 Uses를 1씩 차감한다. |
@@ -144,7 +144,7 @@
 | SERVICE-005 | p58-61 | Retrieval은 5 Paths 이상 떨어진 Settlement로 물품을 전달 | 서비스·가방 | `serviceEngine.ts`, pending service UI | Partial | `phase4Engine.test.ts [SERVICE-005]` | 실제 graph 5 Paths를 검증하고 placeholder 지급을 제거했으며 도착 후 수령은 저장 가능한 manual follow-up이다. |
 | TOOL-001 | p62-65 | Basic/Market Tool은 명시된 Reagent 준비법만 가능하게 함 | 채집·치료 | `foragingEngine.ts`, `toolEngine.ts` | Exact | `gameplayEngine.test.ts [REMEDY-005]` | canonical Preparation의 required Tool을 획득과 투여 양쪽에서 강제한다. |
 | TOOL-002 | p62-65 | Bandolier는 자격 있는 준비 Part의 Weight만 보정 | 가방 | `bandolierAdjustedWeight`, carry helper | Exact | `phase5Engine.test.ts [TOOL-002]` | canonical Reagent identity를 사용해 Plant/Insect Part 최대 5 Weight만 1 Weight로 계산한다. |
-| TOOL-003 | p62-65 | Tent/Comb/Instruments/Alembic 등 특수 조건과 소모/파손을 적용 | 조우·치료 | tool handlers | Partial | 없음 | 일부 버튼은 있으나 자동 억제, Comb 파손, 정확한 타이밍 등이 누락됐다. |
+| TOOL-003 | p62-65 | Tent/Comb/Instruments/Alembic 등 특수 조건과 소모/파손을 적용 | 조우·치료 | `resolveToolEffects()`, `resolveToolTrigger()` | Partial | `phase5Engine.test.ts`, `phase6Engine.test.ts [TOOL-003]` | 공통 trigger layer가 선택·파손·charge·consumed·idempotency를 처리하지만 모든 Travel/Barter/Barrow/Downtime/Season UI 진입점의 직접 연결은 남아 있다. |
 | TOOL-004 | p62-65 | Tool 효과는 원문에서 허용한 행동만 제공 | 도구 사용 | tool actions | House Rule | 없음 | Needles의 Timer 부족 무시 등 원문 밖 확정/우회 동작이 있다. |
 | TOOL-005 | p66-67 | 업그레이드 효과는 기본 Tool 상태와 저장·복원에 연결 | 가방 | `toolEngine.ts`, schema v5 | Partial | `phase5Engine.test.ts [TOOL-005]` | base Tool/Upgrade/파손/idempotency를 저장하지만 일부 legacy 행동은 trigger resolver 밖에 있다. |
 | WAGON-001 | p68-69 | Wagon은 기본 Weight/Speed/이동 제한을 적용 | 이동·가방 | wagon state | Partial | 없음 | Carry/Speed 일부만 연결되고 수로·경로 제약이 불완전하다. |
@@ -161,7 +161,7 @@
 
 | Rule ID | 룰북 | 규칙 명세 | 대응 화면 | 구현 위치 | 상태 | 자동 테스트 | 문제 |
 |---|---|---|---|---|---|---|---|
-| BARROW-001 | p116-125 | Barrow 진입 → 8개 Delve 중 해당 절차, Suit challenge mapping 사용 | Barrow | delve selector | Partial | 없음 | Suit 매핑은 맞지만 세부 진행이 대부분 수동 자기확인 방식이다. |
+| BARROW-001 | p116-125 | Barrow 진입 → 8개 Delve 중 해당 절차, Suit challenge mapping 사용 | Barrow | `barrowEngine.ts`, `BarrowPanel` | Partial | `phase4Engine.test.ts [BARROW-001]` | 8개 canonical 정의와 단계·Suit·카드·요구·진행·Timer·Flee·보상·지도 결과를 표시하지만 조작 handler 일부는 legacy adapter다. |
 | BARROW-002 | p116 | Flee → 1 day와 안전/후속 처리를 적용하고 Delve를 종료 | Barrow | `barrowEngine.ts`, legacy adapter | Partial | `phase4Engine.test.ts [BARROW-002]` | canonical state machine은 1 day·Speed 1·차단 해제를 원자 처리하지만 전체 legacy Barrow UI 교체가 남아 있다. |
 | BARROW-003 | p116-125 | Delve는 비용 없이 일반 취소할 수 없음 | Barrow | abort handler | House Rule | 없음 | 일반 중단이 상태와 Local Help 의무를 비용 없이 제거한다. |
 | BARROW-004 | p117 | Collapsed Entrance → 카드값/FP/마일스톤/보상; 완료 시 Barrow 제거 | Barrow | `barrowEngine.ts` | Partial | `phase4Engine.test.ts [BARROW-004]` | canonical engine은 M=12·마일스톤·중복 방지·지도 제거를 처리하지만 legacy UI adapter가 남아 있다. |
@@ -186,7 +186,7 @@
 | SAVE-001 | 진행 보존 | 현재 캐릭터·위치·날짜·계절·재화·가방·여정·환자를 원자적으로 저장 | 전체 | `App.tsx:store`, schema v3 | Partial | 없음 | 단일 versioned JSON snapshot은 즉시 로컬 저장하지만 실제 storage 원자성 자동 테스트가 없다. |
 | SAVE-002 | 진행 보존 | 활성 Travel Encounter를 저장하고 재개 시 같은 결과로 복원 | 이동 조우 | `pendingEncounter` | Exact | `gameplayEngine.test.ts [SAVE-002]` | 선택 카드·canonical encounter·transaction ID를 저장하고 Action Hub/모달로 재개한다. |
 | SAVE-003 | 진행 보존 | 활성 Foraging Encounter와 종료 전 Timer 비용을 저장 | 채집 조우 | `pendingForaging` | Exact | `gameplayEngine.test.ts [SAVE-003]` | 선택 단계·카드·지역·Timer 비용을 저장해 해결 전 비용 생략을 막는다. |
-| SAVE-004 | 진행 보존 | 치료 재료 선택·카드·확정 전후 결과를 저장해 중복 지급/손실 방지 | 치료 모달 | treatment transaction IDs | Partial | `engine.test.ts`, `gameplayEngine.test.ts [SAVE-004]` | commit 원자성과 중복 방지는 구현됐지만 확정 전 로컬 재료 선택은 저장하지 않는다. |
+| SAVE-004 | 진행 보존 | 치료 재료 선택·카드·확정 전후 결과를 저장해 중복 지급/손실 방지 | 치료 모달 | schema v6 `TreatmentDraft`, treatment transaction IDs | Exact | `engine.test.ts`, `gameplayEngine.test.ts`, `phase6Engine.test.ts [SAVE-004]` | 선택 Part/Preparation/Tool/FAIR/FOUL/대체 context를 복원하고 완료 transaction과 연결된 draft는 마이그레이션에서 폐기한다. |
 | SAVE-005 | 데이터 호환 | 명시적 schemaVersion과 단계별 migration으로 구버전 저장을 보존 | 불러오기 | `migrations.ts` | Exact | `engine.test.ts`, `phase3Engine.test.ts`, `phase4Engine.test.ts [SAVE-005]` | v0→v1→v2→v3→v4→v5 순차 migration과 pending gameplay/manual/service/mobility/outbox 필드를 hostile-save 입력으로 검증한다. |
 | SAVE-006 | 클라우드 동기화 | 최신 리비전·시간으로 충돌을 판정하고 여러 탭/장치 덮어쓰기 방지 | 로그인·자동 저장 | revision compare + Firebase queue | Partial | 없음 | 최신 revision 우선과 순차 쓰기는 구현됐지만 같은 revision의 동시 편집 merge는 없다. |
 | SAVE-007 | 저장 한도 | 큰 저널/사진이 있어도 로컬 진행을 보존하고 제한을 사용자에게 명확히 알림 | 저널·사진 | `store.set` | Partial | 없음 | 큰 save도 로컬에는 보존하지만 cloud 생략 알림은 console warning만 제공한다. |

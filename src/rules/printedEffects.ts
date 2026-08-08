@@ -2,6 +2,7 @@ import { AILMENTS } from './data/ailments';
 import { ENCOUNTERS } from './data/encounters';
 
 export type PrintedEffectStatus = 'implemented' | 'manual' | 'ambiguous' | 'not-applicable' | 'source-conflict';
+export type PrintedAutomationClass = 'deterministic' | 'structured-choice' | 'narrative' | 'ambiguous';
 export type PrintedTrigger = 'encounter' | 'diagnosis' | 'timer-change' | 'barter' | 'treatment-success' | 'treatment-failure' | 'leave';
 
 export interface PrintedStateChange {
@@ -42,6 +43,23 @@ export interface PrintedEffectDefinition {
   executor: string;
   testId: string | null;
 }
+
+export const classifyPrintedEffect = (effect: PrintedEffectDefinition): PrintedAutomationClass => {
+  if (effect.status === 'ambiguous' || effect.status === 'source-conflict') return 'ambiguous';
+  if (effect.optionalChoices.length > 0) return 'structured-choice';
+  if (effect.status === 'implemented' || effect.status === 'not-applicable') return 'deterministic';
+  return 'narrative';
+};
+
+export const printedAutomationLabel = (effect: PrintedEffectDefinition) => {
+  const labels: Record<PrintedAutomationClass, string> = {
+    deterministic: '자동 처리',
+    'structured-choice': '선택 필요',
+    narrative: '직접 처리',
+    ambiguous: '모호함'
+  };
+  return labels[classifyPrintedEffect(effect)];
+};
 
 const change = (id: string, category: PrintedStateChange['category'], operation: string, amount?: number, target?: string): PrintedStateChange => ({ id, category, operation, amount, target });
 
@@ -136,6 +154,7 @@ const ailmentOverrides: Record<string, Partial<PrintedEffectDefinition>> = {
     testId: 'AILMENT-003/AILMENT-007 special success'
   },
   'ailment-brand-care': {
+    status: 'implemented',
     trigger: 'diagnosis',
     optionalChoices: [
       { id: 'treat', label: 'Treat: lose 2 Reputation', effects: [change('brand-treat', 'reputation', 'add', -2)] },
@@ -150,6 +169,7 @@ const ailmentOverrides: Record<string, Partial<PrintedEffectDefinition>> = {
     testId: 'AILMENT-003/AILMENT-004 special success'
   },
   'ailment-forager-s-twitch': {
+    status: 'implemented',
     trigger: 'diagnosis',
     optionalChoices: [
       { id: 'good-trip', label: 'Heart/Diamond: requirements unchanged', effects: [] },
@@ -163,12 +183,14 @@ const ailmentOverrides: Record<string, Partial<PrintedEffectDefinition>> = {
     testId: 'AILMENT-003/AILMENT-005 special failure'
   },
   'ailment-pinned-by-pine': {
+    status: 'implemented',
     trigger: 'timer-change',
     prerequisites: ['Steel Axe or local Settlement help prevents the extra loss'],
     timerChanges: [change('pine-extra-timer', 'timer', 'decrease', 1)],
     testId: 'AILMENT-003 special timer'
   },
   'ailment-quagmire-s-scale': {
+    status: 'implemented',
     trigger: 'timer-change',
     timerChanges: [change('quagmire-threshold', 'condition', 'replace-POISON-1-with-POISON-3-at-timer-2')],
     followUpState: 'failure-forces-overstay',
@@ -180,17 +202,20 @@ const ailmentOverrides: Record<string, Partial<PrintedEffectDefinition>> = {
     testId: 'AILMENT-003/AILMENT-005 special failure'
   },
   'ailment-stingshock': {
+    status: 'implemented',
     prerequisites: ['Two complete Remedy doses'],
     reputationChanges: [change('stingshock-double-dose', 'reputation', 'add', 3)],
     testId: 'AILMENT-003/AILMENT-007 special success'
   },
   'ailment-wake': {
+    status: 'implemented',
     trigger: 'barter',
     timerChanges: [change('wake-barter', 'timer', 'increase-this-ailment', 1)],
     reputationChanges: [change('wake-cooked', 'reputation', 'add-if-cooked-remedy', 2)],
     testId: 'AILMENT-003/AILMENT-007 special success'
   },
   'ailment-wormridden': {
+    status: 'implemented',
     prerequisites: ['FOUL cancels FAIR but cannot reduce the reward below the Severity base'],
     resourceChanges: [change('wormridden-foul', 'resource', 'suppress-foul-penalty')],
     testId: 'AILMENT-003/AILMENT-007 special success'

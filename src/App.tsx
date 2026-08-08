@@ -1,4 +1,5 @@
 import { useState, useEffect, useEffectEvent, useRef, Fragment, lazy, Suspense } from "react";
+import { Archive, Cloud, Download, LogOut, Pencil, RotateCcw, Upload } from 'lucide-react';
 import { db, isFirebaseConfigured, auth, googleProvider, storage } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
@@ -36,6 +37,7 @@ import {
   createMakeDoAcquisition,
   createPatientArchiveRecord,
   createReplacementAcquisition,
+  commitAlternativeAcquisition,
   evaluateJourneyGoal,
   equipToolUpgrade,
   findJourneyDestinationCandidates,
@@ -101,10 +103,12 @@ import {
   type RulesetId,
   type ServiceMapMutation,
   type ServiceRuntimeState,
+  type TreatmentDraft,
   type TravelRegion,
   type WagonState
 } from './rules';
-import { BarrowPanel, JourneyStatusStrip, ManualEffectPanel } from './components/Phase4Panels';
+import { BarrowPanel, ManualEffectPanel } from './components/Phase4Panels';
+import { ChapterOpening, JournalNavigation, TodayOverview, type JournalTab } from './components/JournalExperience';
 import { enqueueOfflineSave, flushOfflineSaves, resolveRevisionConflict, type OfflineSaveEntry } from './persistence/saveQueue';
 
 const AlmanackPanel = lazy(() => import('./components/AlmanackPanel'));
@@ -210,6 +214,8 @@ interface BagItem {
   usesRemaining?: number;
   canonicalToolId?: string;
   ruinedWhenSoaked?: boolean;
+  customReagent?: EngineInventoryItem['customReagent'];
+  provenance?: EngineInventoryItem['provenance'];
 }
 
 interface PlayingCard {
@@ -567,7 +573,7 @@ interface GameState {
   trinketRecords: unknown[];
   legacyTrinketCount: number;
   pendingManualEffect: ManualEffectDraft | null;
-  treatmentDraft: unknown | null;
+  treatmentDraft: TreatmentDraft | null;
   manualEffectDraft: ManualEffectDraft | null;
   offlineOutbox: unknown[];
   downtimeCompleted: boolean;
@@ -1189,7 +1195,9 @@ const toEngineInventory = (bag: readonly BagItem[]): EngineInventoryItem[] => ba
   canonicalReagentId: item.canonicalReagentId,
   preparationId: item.preparationId,
   usesRemaining: item.usesRemaining,
-  ruinedWhenSoaked: item.ruinedWhenSoaked ?? item.type === 'reagent'
+  ruinedWhenSoaked: item.ruinedWhenSoaked ?? item.type === 'reagent',
+  customReagent: item.customReagent,
+  provenance: item.provenance
 }));
 
 const fromEngineInventory = (inventory: readonly EngineInventoryItem[], previous: readonly BagItem[]): BagItem[] => {
@@ -1205,8 +1213,54 @@ const fromEngineInventory = (inventory: readonly EngineInventoryItem[], previous
     canonicalReagentId: item.canonicalReagentId,
     preparationId: item.preparationId,
     usesRemaining: item.usesRemaining,
-    ruinedWhenSoaked: item.ruinedWhenSoaked
+    ruinedWhenSoaked: item.ruinedWhenSoaked,
+    customReagent: item.customReagent,
+    provenance: item.provenance
   }));
+};
+
+const commitPendingAlternativeAcquisition = (
+  state: GameState,
+  source: 'forage' | 'barter',
+  sourceTransactionId: string
+): GameState => {
+  const acquisition = state.pendingAlternativeAcquisition;
+  if (!acquisition || acquisition.kind !== 'replacement' || (acquisition.selectedSource && acquisition.selectedSource !== source)) return state;
+  const patient = state.patients.find(row => row.id === state.activePatientId);
+  if (!patient) return state;
+  const transactionId = `alternative:${acquisition.id}:${sourceTransactionId}`;
+  const result = commitAlternativeAcquisition({
+    transactionId,
+    acquisition,
+    source,
+    sourceTransactionId,
+    acquisitionSucceeded: true,
+    state: {
+      inventory: toEngineInventory(state.bag),
+      patient,
+      reputation: state.reputation,
+      trinkets: state.trinkets.length,
+      currentRegion: (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as Region,
+      adjacentRegions: [],
+      foragingPoints: state.activeAilment?.foragingPoints || 0,
+      pendingObligation: null,
+      journalEvents: [],
+      appliedTransactionIds: state.appliedTransactionIds
+    }
+  });
+  if (!result.value) return state;
+  return {
+    ...state,
+    bag: fromEngineInventory(result.value.inventory, state.bag),
+    pendingAlternativeAcquisition: null,
+    appliedTransactionIds: result.value.appliedTransactionIds,
+    journals: result.value.journalEvents.map(event => ({
+      id: event.id,
+      title: event.title,
+      text: event.text,
+      timestamp: Date.now()
+    })).concat(state.journals)
+  };
 };
 
 const findMapLocationKey = (name: string, customLocations: CustomMapLocation[] = []) => {
@@ -2555,7 +2609,7 @@ const renderSingleTagBadge = (tagContent: string) => {
         boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
         letterSpacing: '0.03em',
         textTransform: 'uppercase',
-        fontFamily: "'Pretendard', -apple-system, sans-serif",
+        fontFamily: 'var(--font-fancy)',
         whiteSpace: 'nowrap'
       }}
     >
@@ -2801,7 +2855,7 @@ const renderPreps = (prepsStr: string) => {
                 letterSpacing: '0.02em',
                 textTransform: 'uppercase',
                 transform: 'translateY(-1px)',
-                fontFamily: "'Pretendard', -apple-system, sans-serif"
+                fontFamily: 'var(--font-fancy)'
               }}
             >
               {finalTagText}
@@ -3286,7 +3340,7 @@ const isGuildServiceAvailableAtLocation = (service: any, s: GameState, bypass: b
 export default function App() {
   const [state, setState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'play' | 'bio' | 'reagents' | 'ailments' | 'almanack' | 'patientArchive' | 'livingArchive' | 'map' | 'journals'>('play');
+  const [activeTab, setActiveTab] = useState<JournalTab>('play');
   const [highlightedPatientId, setHighlightedPatientId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [activeTravelEncounter, setActiveTravelEncounter] = useState<any | null>(null);
@@ -3582,7 +3636,10 @@ export default function App() {
       alert(result.messages.join('\n'));
       return;
     }
-    updateState((s: GameState) => applyBarterRuntime(s, result.value!));
+    updateState((s: GameState) => {
+      const next = applyBarterRuntime(s, result.value!);
+      return isSuccess ? commitPendingAlternativeAcquisition(next, 'barter', transactionId) : next;
+    });
     setBarterJournalNote("");
     setBarterPaymentTrinkets(0);
     alert(isSuccess ? "거래가 완료되어 선택한 Preparation이 가방에 추가되었습니다." : "거래를 중단해 모든 활성 타이머가 1 감소했습니다.");
@@ -3823,7 +3880,6 @@ export default function App() {
   if (loading || !state) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '1.2rem', background: 'var(--bg-gradient)', color: 'var(--text-bright)' }}>
-        <div className="stamped-icon" style={{ width: '76px', height: '76px', fontSize: '0.82rem', animation: 'cute-bounce 2s infinite ease-in-out' }}>APO</div>
         <h2 style={{ letterSpacing: 0, color: 'var(--text-bright)' }}>Apawthecaria Field Journal</h2>
         <p style={{ color: 'var(--text-muted)' }}>여행 약제사의 기록장을 여는 중...</p>
       </div>
@@ -4042,7 +4098,7 @@ export default function App() {
         },
         appliedTransactionIds: [...s.appliedTransactionIds, pending.transactionId]
       };
-      return {
+      const withJourney = {
         ...nextBase,
         journey: outcome.gatheredItems.length > 0
           ? recordCanonicalJourneyEvent(nextBase, {
@@ -4051,6 +4107,9 @@ export default function App() {
           })
           : nextBase.journey
       };
+      return outcome.gatheredItems.length > 0
+        ? commitPendingAlternativeAcquisition(withJourney, 'forage', pending.transactionId)
+        : withJourney;
     });
     setActiveForageEncounter((prev: any) => prev ? {
       ...prev,
@@ -4314,17 +4373,16 @@ export default function App() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-gradient)' }}>
+    <div className="journal-app">
       {/* Header Banner */}
-      <header style={{ borderBottom: '1.5px solid var(--border-cozy)', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100, background: '#fbfaf4' }}>
+      <header className="journal-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-          <span className="stamped-icon" style={{ width: '42px', height: '42px', fontSize: '0.65rem', transform: 'rotate(-4deg)' }}>APO</span>
           <div>
             <h1 className="cute-title" style={{ margin: 0, fontSize: '1.4rem', cursor: 'pointer' }} onClick={() => setActiveTab('play')}>
               Apawthecaria Field Journal
             </h1>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
-              {state.bio.name ? `${state.bio.name}의 여행 약제사 기록` : 'guild papers, field notes, maps, and medical cases'}
+              숲을 걷는 약제사의 여행 기록
             </div>
           </div>
         </div>
@@ -4339,18 +4397,18 @@ export default function App() {
                   <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>ID</span>
                 )}
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary)' }}>{user.displayName || '약제사'}</span>
-                <button onClick={handleSignOut} style={{ padding: '0.2rem 0.4rem', border: 'none', background: 'transparent', color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}>
-                  로그아웃
+                <button className="journal-header__icon-button" onClick={handleSignOut} title="동기화 연결 해제">
+                  <LogOut aria-hidden="true" size={17} /><span>로그아웃</span>
                 </button>
               </div>
             ) : (
-              <button onClick={handleSignIn} style={{ padding: '0.4rem 0.8rem', border: '1.5px solid var(--primary)', borderRadius: '20px', background: 'transparent', color: 'var(--primary)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontWeight: 'bold' }}>
-                Google 기록 동기화
+              <button onClick={handleSignIn} className="journal-header__action" aria-label="Google 기록 동기화" title="Google 기록 동기화">
+                <Cloud aria-hidden="true" size={17} /><span>Google 기록 동기화</span>
               </button>
             )
           )}
-          <button onClick={handleReset} style={{ padding: '0.4rem 0.8rem', border: '1.5px solid var(--accent-red)', borderRadius: '20px', background: 'transparent', color: 'var(--accent-red)', fontSize: '0.85rem', fontWeight: 'bold', cursor: 'pointer' }}>
-            새 기록지 시작
+          <button onClick={handleReset} className="journal-header__action journal-header__action--reset" aria-label="새 기록지 시작" title="새 기록지 시작">
+            <RotateCcw aria-hidden="true" size={17} /><span>새 기록지 시작</span>
           </button>
           {state.manualEffectDraft && !state.pendingManualEffect && (
             <button type="button" className="pending-action-button" onClick={() => updateState(s => ({ ...s, pendingManualEffect: s.manualEffectDraft }))}>
@@ -4362,6 +4420,8 @@ export default function App() {
           </span>
         </div>
       </header>
+
+      <JournalNavigation activeTab={activeTab} onChange={setActiveTab} />
 
       <div className="grid-dashboard">
         {/* =================================================================
@@ -4480,7 +4540,13 @@ export default function App() {
         <main className="glass-panel main-content-panel">
           {activeTab === 'play' && (
             <>
-              <JourneyStatusStrip state={state} currentWeight={currentWeight} maxCarry={maxCarry} />
+              <TodayOverview
+                state={state}
+                currentWeight={currentWeight}
+                maxCarry={maxCarry}
+                onNavigate={setActiveTab}
+                onContinue={() => document.getElementById('action-hub')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              />
               <BarrowPanel delve={state.activeDelve} />
               <PlayView
                 state={state}
@@ -4506,60 +4572,76 @@ export default function App() {
               />
             </>
           )}
-          {activeTab === 'bio' && <BioView state={state} updateState={updateState} currentWeight={currentWeight} handleRetireClick={handleRetireClick} />}
-          {activeTab === 'reagents' && (
-            <ReagentsView
-              state={state}
-              updateState={updateState}
-              search={searchReagent}
-              setSearch={setSearchReagent}
-              filter={reagentFilter}
-              setFilter={setReagentFilter}
-              typeFilter={reagentTypeFilter}
-              setTypeFilter={setReagentTypeFilter}
-            />
-          )}
-          {activeTab === 'ailments' && (
-            <AilmentsView
-              state={state}
-              updateState={updateState}
-              search={searchAilment}
-              setSearch={setSearchAilment}
-              filter={ailmentFilter}
-              setFilter={setAilmentFilter}
-            />
-          )}
-          {activeTab === 'almanack' && (
-            <Suspense fallback={<div className="panel-loading" role="status">Almanack 색인을 여는 중...</div>}>
-              <AlmanackPanel
-                ownedIds={state.bag.flatMap(item => [item.canonicalReagentId, item.canonicalToolId].filter((id): id is string => Boolean(id)))}
-                discoveredIds={(state.worldAlmanac || []).map(row => row.name)}
+          {activeTab !== 'play' && (
+            <>
+              <ChapterOpening
+                tab={activeTab}
+                state={state}
+                currentWeight={currentWeight}
+                maxCarry={maxCarry}
+                onReturnToToday={() => {
+                  setActiveTab('play');
+                  window.setTimeout(() => document.getElementById('action-hub')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+                }}
               />
-            </Suspense>
-          )}
-          {activeTab === 'patientArchive' && (
-            <PatientArchiveView
-              state={state}
-              updateState={updateState}
-              highlightedPatientId={highlightedPatientId}
-              setHighlightedPatientId={setHighlightedPatientId}
-            />
-          )}
-          {activeTab === 'livingArchive' && (
-            <LivingArchiveView
-              state={state}
-              setActiveTab={setActiveTab}
-              setHighlightedPatientId={setHighlightedPatientId}
-            />
-          )}
-          {activeTab === 'map' && <MapView state={state} />}
-          {activeTab === 'journals' && (
-            <JournalsView
-              state={state}
-              updateState={updateState}
-              highlightedPatientId={highlightedPatientId}
-              setHighlightedPatientId={setHighlightedPatientId}
-            />
+              <section className={`journal-chapter journal-chapter--${activeTab}`} aria-label={`${activeTab} chapter`}>
+                {activeTab === 'bio' && <BioView state={state} updateState={updateState} currentWeight={currentWeight} handleRetireClick={handleRetireClick} />}
+                {activeTab === 'reagents' && (
+                  <ReagentsView
+                    state={state}
+                    updateState={updateState}
+                    search={searchReagent}
+                    setSearch={setSearchReagent}
+                    filter={reagentFilter}
+                    setFilter={setReagentFilter}
+                    typeFilter={reagentTypeFilter}
+                    setTypeFilter={setReagentTypeFilter}
+                  />
+                )}
+                {activeTab === 'ailments' && (
+                  <AilmentsView
+                    state={state}
+                    updateState={updateState}
+                    search={searchAilment}
+                    setSearch={setSearchAilment}
+                    filter={ailmentFilter}
+                    setFilter={setAilmentFilter}
+                  />
+                )}
+                {activeTab === 'almanack' && (
+                  <Suspense fallback={<div className="panel-loading" role="status">Almanack 색인을 여는 중...</div>}>
+                    <AlmanackPanel
+                      ownedIds={state.bag.flatMap(item => [item.canonicalReagentId, item.canonicalToolId].filter((id): id is string => Boolean(id)))}
+                      discoveredIds={(state.worldAlmanac || []).map(row => row.name)}
+                    />
+                  </Suspense>
+                )}
+                {activeTab === 'patientArchive' && (
+                  <PatientArchiveView
+                    state={state}
+                    updateState={updateState}
+                    highlightedPatientId={highlightedPatientId}
+                    setHighlightedPatientId={setHighlightedPatientId}
+                  />
+                )}
+                {activeTab === 'livingArchive' && (
+                  <LivingArchiveView
+                    state={state}
+                    setActiveTab={setActiveTab}
+                    setHighlightedPatientId={setHighlightedPatientId}
+                  />
+                )}
+                {activeTab === 'map' && <MapView state={state} />}
+                {activeTab === 'journals' && (
+                  <JournalsView
+                    state={state}
+                    updateState={updateState}
+                    highlightedPatientId={highlightedPatientId}
+                    setHighlightedPatientId={setHighlightedPatientId}
+                  />
+                )}
+              </section>
+            </>
           )}
         </main>
       </div>
@@ -5449,6 +5531,68 @@ function PlayView({
   const [selectedBagItems, setSelectedBagItems] = useState<string[]>([]);
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [usePurify, setUsePurify] = useState(false);
+
+  const persistTreatmentDraft = (nextItemIds: string[], nextToolIds: string[], nextPurify: boolean) => {
+    setSelectedBagItems(nextItemIds);
+    setSelectedTools(nextToolIds);
+    setUsePurify(nextPurify);
+    const patient = state.patients.find(row => row.id === state.activePatientId);
+    const ailment = patient?.ailments.find(row => row.status === 'active' && row.id === state.activeAilment?.id)
+      || patient?.ailments.find(row => row.status === 'active');
+    if (!patient || !ailment) return;
+    const selectedParts = nextItemIds.flatMap(itemId => {
+      const item = state.bag.find(row => row.id === itemId && row.type === 'reagent');
+      return item ? [{ itemId, reagentId: item.canonicalReagentId || null, preparationId: item.preparationId || null }] : [];
+    });
+    const preparations = selectedParts.flatMap(part => part.reagentId && part.preparationId
+      ? [REAGENT_BY_ID.get(part.reagentId)?.preparations.find(row => row.id === part.preparationId)]
+      : []).filter(Boolean);
+    const fair = preparations.reduce((sum, preparation) => sum + (preparation?.tags.filter(tag => tag.tag === 'FAIR').reduce((part, tag) => part + tag.value, 0) || 0), 0);
+    const foul = nextPurify ? 0 : preparations.reduce((sum, preparation) => sum + (preparation?.tags.filter(tag => tag.tag === 'FOUL').reduce((part, tag) => part + tag.value, 0) || 0), 0);
+    updateState((current: GameState) => {
+      const now = Date.now();
+      const previous = current.treatmentDraft?.patientId === patient.id && current.treatmentDraft.ailmentInstanceId === ailment.id
+        ? current.treatmentDraft
+        : null;
+      return {
+        ...current,
+        treatmentDraft: {
+          id: previous?.id || `treatment-draft:${patient.id}:${ailment.id}`,
+          patientId: patient.id,
+          ailmentInstanceId: ailment.id,
+          selectedParts,
+          selectedPreparationIds: selectedParts.flatMap(part => part.preparationId ? [part.preparationId] : []),
+          selectedToolIds: nextToolIds,
+          catalyse: previous?.catalyse || [],
+          fair,
+          foul,
+          purify: nextPurify,
+          replacementContext: current.pendingAlternativeAcquisition ? {
+            kind: current.pendingAlternativeAcquisition.kind,
+            targetTag: current.pendingAlternativeAcquisition.targetTag,
+            requiredPotency: current.pendingAlternativeAcquisition.requiredPotency
+          } : null,
+          status: 'draft',
+          committedTransactionId: null,
+          createdAt: previous?.createdAt || now,
+          updatedAt: now
+        }
+      };
+    });
+  };
+
+  useEffect(() => {
+    const draft = state.treatmentDraft;
+    if (!draft || draft.status !== 'draft' || draft.patientId !== state.activePatientId) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setSelectedBagItems(draft.selectedParts.map(part => part.itemId).filter(id => state.bag.some(item => item.id === id)));
+      setSelectedTools(draft.selectedToolIds.filter(id => state.bag.some(item => item.id === id)));
+      setUsePurify(draft.purify);
+    });
+    return () => { cancelled = true; };
+  }, [state.treatmentDraft, state.activePatientId, state.bag]);
 
   // Manual Card Selector State
   const [nextLocName, setNextLocName] = useState("");
@@ -8290,7 +8434,7 @@ function PlayView({
     const isMakeDo = modeInput === '1';
     if (!isHouseRuleEnabled(state.rulesetId, 'directMakeDoReplacement')) {
       const tag = choice.tag as RuleTag;
-      const acquisition = isMakeDo
+      const acquisitionBase = isMakeDo
         ? createMakeDoAcquisition(tag, choice.val)
         : createReplacementAcquisition({
           targetTag: tag,
@@ -8298,13 +8442,16 @@ function PlayView({
           name: prompt('발견할 Stand-in Reagent의 이름을 정하세요.', `${choice.tag} 대체재`) || `${choice.tag} 대체재`,
           preparation: prompt('발견할 Preparation의 이름을 정하세요.', 'Prepared Part') || 'Prepared Part'
         });
+      const sourceInput = prompt('어떤 방식으로 획득할까요?\n1. 채집(Forage)\n2. 흥정(Barter)', '1');
+      if (!sourceInput) return;
+      const acquisition = { ...acquisitionBase, selectedSource: sourceInput === '2' ? 'barter' as const : 'forage' as const };
       updateState((s: GameState) => ({
         ...s,
         pendingAlternativeAcquisition: acquisition,
         journals: [{
           id: `alternative-acquisition:${Date.now()}`,
           title: `${isMakeDo ? 'Make Do' : 'Replacement'} 탐색 시작`,
-          text: `${choice.label}을 대신할 조건을 기록했습니다. ${isMakeDo ? `${choice.tag} ${choice.val + 1} 이상의 실제 Part` : `Rarity 12, Weight 2/3의 ${acquisition.name} (${acquisition.preparation})`}를 채집 또는 흥정으로 획득해야 합니다.`,
+          text: `${choice.label}을 대신할 조건을 기록했습니다. ${isMakeDo ? `${choice.tag} ${choice.val + 1} 이상의 실제 Part` : `Rarity 12, Weight 2/3의 ${acquisition.name} (${acquisition.preparation})`}를 ${acquisition.selectedSource === 'barter' ? '흥정' : '채집'} 성공으로 획득해야 합니다.`,
           timestamp: Date.now()
         }, ...s.journals]
       }));
@@ -8313,30 +8460,33 @@ function PlayView({
     }
     const providedVal = isMakeDo ? choice.val + 1 : choice.val;
     const weight = isMakeDo ? 1/3 : 2/3;
-    const id = `replacement_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const id = `legacy-replacement:${state.saveRevision}:${choice.tag}:${selectedBagItems.length}`;
     const name = choice.tag === 'BONE'
       ? `${isMakeDo ? 'Make Do 대용 부목' : 'Replacement 대안 부목'} (Rarity 12)`
       : `${isMakeDo ? 'Make Do 대용 재료' : 'Replacement 대안 재료'} (${choice.tag} ${providedVal}, Rarity 12)`;
     const tags = choice.tag === 'BONE' ? '[BONE 1] 부목' : `[${choice.tag} ${providedVal}]`;
 
-    updateState((s: GameState) => ({
-      ...s,
-      bag: [
-        ...s.bag,
-        { id, name, weight, type: 'reagent', qty: 1, tags, preps: tags }
-      ],
-      journals: [
-        {
-          id: 'replacement_reagent_' + Date.now(),
-          title: `🧩 약재 대체: ${choice.label}`,
-          text: `${state.activeAilment?.name || '현재 질병'} 치료를 위해 ${isMakeDo ? 'Make Do' : 'Replacement'} 규칙으로 대체 재료를 만들었습니다.\n- 제공 효능: ${tags}\n- 무게: ${formatWeight(weight)}\n- 기록: 희귀도 12 대안/대용 재료로 취급`,
-          timestamp: Date.now()
-        },
-        ...s.journals
-      ]
-    }));
+    updateState((s: GameState) => {
+      const timestamp = Date.now();
+      return {
+        ...s,
+        bag: [
+          ...s.bag,
+          { id, name, weight, type: 'reagent', qty: 1, tags, preps: tags }
+        ],
+        journals: [
+          {
+            id: `replacement_reagent_${timestamp}`,
+            title: `🧩 약재 대체: ${choice.label}`,
+            text: `${state.activeAilment?.name || '현재 질병'} 치료를 위해 ${isMakeDo ? 'Make Do' : 'Replacement'} 규칙으로 대체 재료를 만들었습니다.\n- 제공 효능: ${tags}\n- 무게: ${formatWeight(weight)}\n- 기록: 희귀도 12 대안/대용 재료로 취급`,
+            timestamp
+          },
+          ...s.journals
+        ]
+      };
+    });
 
-    setSelectedBagItems(Array.from(new Set([...selectedBagItems, id])));
+    persistTreatmentDraft(Array.from(new Set([...selectedBagItems, id])), selectedTools, usePurify);
     alert(`🧩 ${name}을(를) 가방에 추가하고 조제 재료로 선택했습니다.`);
   };
 
@@ -8361,270 +8511,7 @@ function PlayView({
         timestamp: Date.now()
       }, ...s.journals]
     }));
-    setSelectedBagItems(current => Array.from(new Set([...current, itemId])));
-  };
-
-  // Concoction remedy checker
-  const handleLegacyConcoctRemedy = () => {
-    if (!state.activeAilment) return;
-
-    if (selectedBagItems.length === 0) {
-      alert("치료제로 조제할 영약재들을 가방에서 선택해주세요!");
-      return;
-    }
-
-    const selectedToolEffects = selectedToolEffectItems(state.bag, selectedTools);
-    const selectedReagents = [
-      ...state.bag.filter(item => selectedBagItems.includes(item.id)),
-      ...selectedToolEffects
-    ];
-    const concoctionPreview = previewConcoction(
-      state.activeAilment,
-      selectedReagents,
-      state.bag,
-      state,
-      usePurify,
-      selectedBagItems.length
-    );
-    const { validation, timeSpent, nextTimer, severityLevel: sevLevel, reputationLoss: loss } = concoctionPreview;
-    const { isComplete, totalFair, totalFoul, missingRequirements, statusText } = validation;
-
-    if (!isComplete && !isHouseRuleEnabled(state.rulesetId, 'incompleteRemedyAdministration')) {
-      alert('원작 ruleset에서는 요구 태그를 모두 충족한 완성 Remedy만 투여할 수 있습니다. 채집이나 흥정을 계속하세요.');
-      return;
-    }
-
-    // Confirm time cost
-    const confirmTime = confirm(`💊 치료제 조제 검토:\n- 조합 상태: ${statusText} (Fair: ${totalFair}, Foul: ${totalFoul})\n- 필요 조건: ${state.activeAilment.tags}\n- 미충족 요구사항: ${missingRequirements.join(', ') || '없음 (충족됨) ✅'}\n\n⏱️ 조제 시간: 약재 ${timeSpent}개 사용으로 ${timeSpent}시간이 경과합니다. (환자 남은 시간: ${state.activeAilment.timer}시간 → 조제 후: ${state.activeAilment.timer - timeSpent}시간)\n\n계속 진행하시겠습니까?`);
-    if (!confirmTime) return;
-
-    // 1. Time out failure
-    if (nextTimer <= 0) {
-      alert(`💥 조제하는 데 소중한 시간이 흩날려 버렸고, 탕약이 끓어오르기도 전에 그의 호흡이 멈추었습니다:\n${state.activeAilment.consequence}`);
-
-      updateState(s => {
-        const nextBag = s.bag.filter(item => !selectedBagItems.includes(item.id));
-        const nextRep = Math.max(0, s.reputation - loss);
-        const timestamp = Date.now();
-        const sourceId = 'cure_fail_' + timestamp;
-        const reagentsStr = selectedReagents.map(r => r.name.split(' (')[0]).join(', ');
-        const notes = `가방에서 꺼낸 약재 [${reagentsStr}]를 다듬으며 약을 달이려 애썼으나, 불 앞에 꼬박 지새운 ${timeSpent}시간 동안 기약된 치료의 기한이 모두 다 흘러가 버렸습니다. 미처 약이 완성되기도 전에 환자의 호흡이 가늘어졌고, 침상 위 짚더미는 무정한 추위 속에서 차갑게 식어가고 말았습니다. 끝내 환자를 구하지 못했다는 깊은 자책감이 공방의 차가운 정적 속에 어둡게 내리앉았습니다.`;
-        return {
-          ...s,
-          bag: nextBag,
-          reputation: nextRep,
-          activeAilment: null,
-          needsLocalHelpBeforeMove: false,
-          pendingPatientArchive: createPendingPatientArchive(s, sourceId, 'failure', notes, selectedReagents.map(r => r.name.split(' (')[0]), s.activeAilment!.consequence, timestamp),
-          journals: [
-            {
-              id: sourceId,
-              title: `🕯️ 짚침상에 머문 슬픔: ${s.activeAilment!.patientName || '가여운 야수'}를 기억하며`,
-              text: notes,
-              timestamp
-            },
-            ...s.journals
-          ],
-          lostPatientLegacy: {
-            name: s.activeAilment!.patientName || '이름 모를 야수',
-            species: s.activeAilment!.species || '알 수 없는 종',
-            ailmentName: s.activeAilment!.name,
-            day: s.cumulativeDays || s.calendarDays || 0,
-            consequence: s.activeAilment!.consequence
-          }
-        };
-      });
-      setSelectedBagItems([]);
-      setSelectedTools([]);
-      setUsePurify(false);
-      return;
-    }
-
-    // 2. Incomplete Remedy failure
-    if (!isComplete) {
-      const proceedIncomplete = confirm(`⚠️ 경고: 가슴 아프게도 요구하는 알맞은 성분을 이 처방전에 모두 채워 넣지 못했습니다.\n이대로 탕약을 달여 올려보내시겠습니까?`);
-      if (!proceedIncomplete) return;
-
-      alert(`💥 정성껏 달인 탕약의 효능이 모자라 차도를 보이지 못했습니다:\n${state.activeAilment.consequence}`);
-      updateState(s => {
-        const nextBag = s.bag.filter(item => !selectedBagItems.includes(item.id));
-        const nextRep = Math.max(0, s.reputation - loss);
-        const timestamp = Date.now();
-        const sourceId = 'cure_fail_incomplete_' + timestamp;
-        const reagentsStr = selectedReagents.map(r => r.name.split(' (')[0]).join(', ');
-        const notes = `병의 깊이에 맞는 효능을 온전히 이끌어내지 못하고, 불완전하게 조제된 처방약을 올리고 말았습니다. 가방에 든 [${reagentsStr}]를 조제하여 올렸으나 약효가 가닿지 못했습니다. 약을 들이킨 야수는 차도를 보이지 못한 채, 끝내 지친 몸을 이끌고 쓸쓸히 길을 떠났습니다. 약제사로서 알맞은 효능을 찾아내지 못했다는 뼈아픈 자책과 탄식이 후회와 함께 방 안에 머뭅니다.`;
-        return {
-          ...s,
-          bag: nextBag,
-          reputation: nextRep,
-          activeAilment: null,
-          needsLocalHelpBeforeMove: false,
-          pendingPatientArchive: createPendingPatientArchive(s, sourceId, 'failure', notes, selectedReagents.map(r => r.name.split(' (')[0]), s.activeAilment!.consequence, timestamp),
-          journals: [
-            {
-              id: sourceId,
-              title: `🕯️ 끝내 닿지 못한 처방: ${s.activeAilment!.patientName || '이름 모를 이'}의 쓸쓸한 길`,
-              text: notes,
-              timestamp
-            },
-            ...s.journals
-          ],
-          lostPatientLegacy: {
-            name: s.activeAilment!.patientName || '이름 모를 야수',
-            species: s.activeAilment!.species || '알 수 없는 종',
-            ailmentName: s.activeAilment!.name,
-            day: s.cumulativeDays || s.calendarDays || 0,
-            consequence: s.activeAilment!.consequence
-          }
-        };
-      });
-      setSelectedBagItems([]);
-      setSelectedTools([]);
-      setUsePurify(false);
-      return;
-    }
-
-    // 3. Successful cure (Fair / Foul Remedy)
-    // Rulebook p.36: Fair and Foul cancel first, then every 2 net points adjusts trinkets.
-    const fairInput = prompt(`🌟 Fair 점수를 입력하세요 (치료제의 [FAIR] 합계):`, String(totalFair));
-    const foulInput = prompt(`💀 Foul 점수를 입력하세요 (치료제의 [FOUL] 합계):`, String(totalFoul));
-    const fairPts = Math.max(0, parseInt(fairInput || '0') || 0);
-    const foulPts = Math.max(0, parseInt(foulInput || '0') || 0);
-
-    const rewardPreviewBeforeGifting = calculateRemedyRewards({
-      severity: state.activeAilment.severity,
-      fair: fairPts,
-      foul: foulPts,
-      gifting: false
-    });
-    const trinketGain = rewardPreviewBeforeGifting.baseTrinkets;
-
-    const canGiftReward = trinketGain > 0;
-    const isGifting = canGiftReward
-      ? confirm(`보상: 장신구 ${trinketGain}개\n\n💝 Gifting: 장신구 대신 길드 평판 +2를 선택하시겠습니까?`)
-      : false;
-
-    // Familiar: Shrewd — +1 Trinket when trading remedy for trinkets (not gifting)
-    const familiarBenefit = getActiveFamiliarBenefit(state);
-    const familiarMechanic = getActiveFamiliarMechanic(state);
-    const shrewdBonus = (!isGifting && (familiarMechanic === 'shrewd' || familiarBenefit.includes('현명한 장사꾼'))) ? 1 : 0;
-    const rewardPreview = calculateRemedyRewards({
-      severity: state.activeAilment.severity,
-      fair: fairPts,
-      foul: foulPts,
-      gifting: isGifting,
-      shrewdBonus
-    });
-
-    const actualTrinkets = rewardPreview.actualTrinkets;
-    const actualRep = rewardPreview.actualReputation;
-
-    updateState(s => {
-      const nextBag = s.bag.filter(item => !selectedBagItems.includes(item.id));
-      const earnedTrinkets = Array(actualTrinkets).fill("치료 보상 장신구 (Trinket)");
-      const nextTrinkets = [...s.trinkets, ...earnedTrinkets];
-      const nextRep = s.reputation + actualRep;
-
-      const isWilds = s.currentLocationType === 'Wilds';
-      const triggerScrounge = nextTimer > 0;
-      const canReadyPassenger = !!s.wagonExpansions?.passengerBooth &&
-        s.currentLocationType === 'Settlement' &&
-        !s.activePassenger;
-
-      // Goal 7 (의학 연구 자료) check
-      let nextGoalCounter = s.journeyGoalCounter || 0;
-      if (s.journeyActive && s.journeyGoalTitle === '의학 연구 자료') {
-         const ailmentTags = s.activeAilment?.tags || '';
-         if (ailmentTags.toUpperCase().includes('SCALE') || ailmentTags.toUpperCase().includes('FEATHER') || ailmentTags.toUpperCase().includes('FUR') || ailmentTags.includes('비늘') || ailmentTags.includes('깃털') || ailmentTags.includes('털')) {
-           nextGoalCounter += 1;
-         }
-      }
-
-      const updatedAilment = triggerScrounge ? { ...s.activeAilment!, timer: nextTimer } : null;
-
-      const nextDiscoveredRecipes = { ...(s.discoveredRecipes || {}) };
-      const ailmentNameKey = s.activeAilment!.name;
-      const reagentNames = selectedReagents.map(r => r.name.split(' (')[0]);
-      if (!nextDiscoveredRecipes[ailmentNameKey]) {
-        nextDiscoveredRecipes[ailmentNameKey] = [];
-      }
-      const exists = nextDiscoveredRecipes[ailmentNameKey].some(arr =>
-        arr.length === reagentNames.length && arr.every((val, idx) => val === reagentNames[idx])
-      );
-      if (!exists) {
-        nextDiscoveredRecipes[ailmentNameKey].push(reagentNames);
-      }
-      const cureTimestamp = Date.now();
-      const cureSourceId = 'cure_' + cureTimestamp;
-      const reagentsStr = reagentNames.join(', ');
-      const cureNotes = `${s.currentLocationName}의 고요한 방에서 약재를 가려 조제하여 온전한 탕약을 올렸습니다. [${reagentsStr}]을(를) 정성껏 달여 빚은 지 수 시간 만에, 열병으로 괴로워하던 야수의 눈빛에 맑은 총기가 깃들고 편안한 숨이 돌아왔습니다.${usePurify ? ' 산맥에서 익힌 정화 기법으로 탕약의 탁한 기운을 걷어냈습니다.' : ''} 앓던 야수는 마침내 온전히 회복하여, 고맙다는 듯이 머리를 조아린 뒤 활기차게 숲으로 돌아갔습니다. 내 가슴속에는 다시금 생명을 도왔다는 따뜻한 온기가 머무릅니다.`;
-      const KEEPSAKE_TEMPLATES = [
-        { name: '말린 엉겅퀴 씨앗 주머니 (Pouch of Dried Thistle)', story: '치료의 답례로 건네받은 작은 천 주머니. 흔들면 바스락거리는 마른 씨앗 소리가 납니다.' },
-        { name: '구멍 뚫린 매끄러운 조약돌 (A Polished Lucky Pebble)', story: '강가에서 행운을 빌며 주웠다며 수줍게 손에 쥐여준 조약돌. 만지면 아주 차갑고 매끄럽습니다.' },
-        { name: '바람에 실려온 깃털 다발 (Bundle of Crane Feathers)', story: '빛바랜 무명실로 정성껏 묶어놓은 깃털 뭉치. 만지면 포근한 온기가 느껴집니다.' },
-        { name: '조각된 도토리 껍질 피리 (Carved Acorn Whistle)', story: '마른 도토리 모자를 정성껏 깎아 만든 작은 피리. 입술에 대고 불면 맑고 가녀린 솔바람 소리가 납니다.' },
-        { name: '압착된 마가목 잎사귀 (Pressed Rowan Leaf)', story: '노트 갈피에 끼워 오랫동안 잘 말려둔 노란색 마가목 잎사귀.' },
-        { name: '솔송나무 수지 한 조각 (Hemlock Resin Fragment)', story: '숲의 깊은 향취를 그대로 머금은 채 노랗게 굳은 작은 나무진 덩어리.' },
-        { name: '민들레 솜털을 담은 작은 병 (Fluff in a Glass Vial)', story: '마치 시간이 멈춘 듯 바람 한 점 없는 투명한 유리병 속의 하얀 민들레 솜털.' },
-        { name: '투박하게 깎은 자작나무 반지 (Birch Wood Ring)', story: '칼끝으로 투박하게 깎았지만, 손가락에 끼우면 자작나무 껍질의 부드러움이 느껴지는 반지.' },
-        { name: '마른 라벤더와 가죽 끈 (Lavender Bound with Leather)', story: '말린 라벤더 꽃송이를 거친 가죽끈으로 묶은 것. 서랍 속에 넣어두면 은은한 옛 향기가 흐릅니다.' }
-      ];
-      const template = KEEPSAKE_TEMPLATES[Math.floor(Math.random() * KEEPSAKE_TEMPLATES.length)];
-      const trinketArchive = actualTrinkets > 0
-        ? addTrinketMemory(s.trinketArchive || [], {
-          sourceId: `${cureSourceId}_trinkets`,
-          name: template.name,
-          count: actualTrinkets,
-          source: `Patient: ${s.activeAilment!.patientName || 'Anonymous'} (${s.activeAilment!.species || 'unknown species'})`,
-          story: `${template.story}\n\n— ${s.currentLocationName}에서 ${s.activeAilment!.patientName || '이름 모를 야수'}의 '${s.activeAilment!.name}'를 낫게 돕고 남겨진 조각입니다.`,
-          locationName: s.currentLocationName,
-          timestamp: cureTimestamp,
-          spent: false,
-          patientCaseId: memoryKey('case', cureSourceId)
-        })
-        : (s.trinketArchive || []);
-
-      return {
-        ...s,
-        bag: nextBag,
-        trinkets: nextTrinkets,
-        trinketArchive,
-        reputation: nextRep,
-        activeAilment: updatedAilment,
-        needsLocalHelpBeforeMove: false,
-        discoveredRecipes: nextDiscoveredRecipes,
-        scroungingMode: triggerScrounge,
-        scroungingTimer: nextTimer,
-        curedAilmentInThisWilds: isWilds,
-        passengerPickupReady: canReadyPassenger ? true : s.passengerPickupReady,
-        journeyGoalCounter: nextGoalCounter,
-        pendingPatientArchive: createPendingPatientArchive(s, cureSourceId, 'success', cureNotes, reagentNames, '', cureTimestamp),
-        journals: [
-          ...(canReadyPassenger ? [{
-            id: `passenger_ready_${cureTimestamp}`,
-            title: '조수석 부스 승객 모집 가능',
-            text: `${s.currentLocationName}에서 치료제를 거래했으므로, 조수석 부스로 목적지까지 동승할 승객을 모집할 수 있습니다.`,
-            timestamp: cureTimestamp
-          }] : []),
-          {
-            id: cureSourceId,
-            title: `🌿 짚침상을 털고 일어난 야수: ${s.activeAilment!.patientName || '이름 없는 이'}`,
-            text: cureNotes,
-            timestamp: cureTimestamp
-          },
-          ...s.journals
-        ]
-      };
-    });
-
-    setSelectedBagItems([]);
-    setSelectedTools([]);
-    setUsePurify(false);
-    if (nextTimer > 0) {
-      alert(`🎉 완치 성공!\n장신구 +${actualTrinkets}개, 길드 명성 +${actualRep}점 획득!\n\n⏱️ 남은 시간(${nextTimer}시간) 동안 여분 채집(Scrounging)이 가능합니다.`);
-    } else {
-      alert(`🎉 완치 성공!\n장신구 +${actualTrinkets}개, 길드 명성 +${actualRep}점 획득!`);
-    }
+    persistTreatmentDraft(Array.from(new Set([...selectedBagItems, itemId])), selectedTools, usePurify);
   };
 
   const handleConcoctRemedy = () => {
@@ -8717,6 +8604,7 @@ function PlayView({
         reputation: outcome.nextState.reputation,
         trinkets: Array.from({ length: outcome.nextState.trinkets }, (_, index) => s.trinkets[index] || '치료 보상 장신구'),
         appliedTransactionIds: outcome.nextState.appliedTransactionIds,
+        treatmentDraft: null,
         needsLocalHelpBeforeMove: !outcome.allAilmentsResolved,
         curedAilmentInThisWilds: outcome.allAilmentsResolved && s.currentLocationType === 'Wilds',
         scroungingMode: outcome.allAilmentsResolved && remainingTime > 0,
@@ -12325,7 +12213,7 @@ function PlayView({
                                         nextSelected.push(found.id);
                                       }
                                     });
-                                    setSelectedBagItems(nextSelected);
+                                    persistTreatmentDraft(nextSelected, selectedTools, usePurify);
                                     alert(`🧪 [처방 자동 조립]\n가방 속 약재 [${recipe.join(', ')}]을(를) 조제 슬롯에 조립했습니다!`);
                                   }}
                                   disabled={!canAutoFill}
@@ -12350,7 +12238,19 @@ function PlayView({
                     );
                   })()}
 
-                  <div className="grid-2col" style={{ gap: '1.0rem' }}>
+                  {state.treatmentDraft?.status === 'draft' && state.treatmentDraft.patientId === state.activePatientId && (
+                    <div className="treatment-draft-note" role="status">
+                      <div>
+                        <span className="journal-note-label">저장된 처방 초안</span>
+                        <strong>{state.treatmentDraft.selectedParts.length}개 부위 · 도구 {state.treatmentDraft.selectedToolIds.length}개</strong>
+                      </div>
+                      <div><span>FAIR</span><strong>{state.treatmentDraft.fair}</strong></div>
+                      <div><span>FOUL</span><strong>{state.treatmentDraft.foul}</strong></div>
+                      <div><span>상태</span><strong>{state.treatmentDraft.selectedParts.length ? '조제 검토 중' : '재료 선택 전'}</strong></div>
+                    </div>
+                  )}
+
+                  <div className="grid-2col treatment-workspace" style={{ gap: '1.0rem' }}>
                     {/* Reagents selection */}
                     <div style={{ background: '#fafafa', padding: '0.8rem', borderRadius: '8px', border: '1px solid #ddd', maxHeight: '180px', overflowY: 'auto' }}>
                       <strong style={{ fontSize: '0.85rem' }}>🎒 가방 내 영약재 선택:</strong>
@@ -12364,8 +12264,8 @@ function PlayView({
                                 type="checkbox"
                                 checked={selectedBagItems.includes(item.id)}
                                 onChange={e => {
-                                  if (e.target.checked) setSelectedBagItems([...selectedBagItems, item.id]);
-                                  else setSelectedBagItems(selectedBagItems.filter(id => id !== item.id));
+                                  if (e.target.checked) persistTreatmentDraft([...selectedBagItems, item.id], selectedTools, usePurify);
+                                  else persistTreatmentDraft(selectedBagItems.filter(id => id !== item.id), selectedTools, usePurify);
                                 }}
                               />
                               {item.name}
@@ -12385,8 +12285,8 @@ function PlayView({
                               type="checkbox"
                               checked={selectedTools.includes(item.id)}
                               onChange={e => {
-                                if (e.target.checked) setSelectedTools([...selectedTools, item.id]);
-                                else setSelectedTools(selectedTools.filter(id => id !== item.id));
+                                if (e.target.checked) persistTreatmentDraft(selectedBagItems, [...selectedTools, item.id], usePurify);
+                                else persistTreatmentDraft(selectedBagItems, selectedTools.filter(id => id !== item.id), usePurify);
                               }}
                             />
                             {item.name}
@@ -12396,7 +12296,7 @@ function PlayView({
                           <input
                             type="checkbox"
                             checked={usePurify}
-                            onChange={e => setUsePurify(e.target.checked)}
+                            onChange={e => persistTreatmentDraft(selectedBagItems, selectedTools, e.target.checked)}
                           />
                           <span>
                             정화하기 [PURIFY] 적용
@@ -13083,18 +12983,18 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
 
       {/* 1. Header with custom fonts */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2.5px solid var(--border-cozy)', paddingBottom: '0.8rem', marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.8rem', margin: 0, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)' }}>📜 약제사 기록 시트</h2>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <h2 style={{ fontSize: '1.8rem', margin: 0, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)' }}>약제사 기록 시트</h2>
+        <div className="bio-page-actions" style={{ display: 'flex', gap: '0.5rem' }}>
           <button
             type="button"
             onClick={handleRetireClick}
             style={{ padding: '0.5rem 1rem', background: '#fef2f2', color: '#dc2626', border: '1px solid #fee2e2', borderRadius: '6px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 'bold' }}
           >
-            🌅 캐릭터 은퇴 및 대승계
+            <Archive aria-hidden="true" size={16} /> 은퇴 및 대승계
           </button>
           {!editing && (
             <button onClick={() => setEditing(true)} style={{ padding: '0.5rem 1rem', background: 'var(--primary)', color: '#fff', borderRadius: '6px', fontSize: '0.9rem', border: 'none', boxShadow: 'var(--shadow-sm)' }}>
-              🔧 프로필 편집
+              <Pencil aria-hidden="true" size={16} /> 프로필 편집
             </button>
           )}
         </div>
@@ -13757,7 +13657,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
 
   return (
     <div>
-      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>🌿 영약재 관찰 기록</h2>
+      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>영약재 관찰 기록</h2>
       <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)' }}>
         각 영약재 부위는 특정한 조제법(빻기, 끓이기, 바르기 등)을 통과해 질병 증상을 치료할 수 있는 고유 약효를 냅니다.
       </p>
@@ -13922,7 +13822,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
 
   return (
     <div>
-      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>🤒 병세와 처방 관찰</h2>
+      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>병세와 처방 관찰</h2>
       <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)' }}>
         약제사는 길녘에서 만나는 야수들의 다양한 병증을 살핍니다. 환자의 병명을 이 기록에서 대조하여 알맞은 탕약을 지으세요.
       </p>
@@ -14185,7 +14085,7 @@ function MapView({ state }: { state: GameState }) {
     <div style={{
       width: '100%',
       color: '#3c2f1f',
-      fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif",
+      fontFamily: 'var(--font-base)',
       boxSizing: 'border-box'
     }}>
       {/* Page Layout: Two Column */}
@@ -15514,11 +15414,11 @@ function JournalsView({
   return (
     <div>
       <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>📝 약제사 연대기 일지</span>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={handleExportData} style={{ padding: '0.4rem 0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem', border: 'none', cursor: 'pointer' }}>💾 내 데이터 백업하기</button>
+        <span>약제사 연대기 일지</span>
+        <div className="journal-document-actions" style={{ display: 'flex', gap: '0.5rem' }}>
+          <button onClick={handleExportData} style={{ padding: '0.4rem 0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem', border: 'none', cursor: 'pointer' }}><Download aria-hidden="true" size={16} /> 내 기록 백업</button>
           <label style={{ padding: '0.4rem 0.8rem', background: '#eee', color: '#333', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer' }}>
-            📥 데이터 불러오기
+            <Upload aria-hidden="true" size={16} /> 기록 불러오기
             <input type="file" accept=".json" onChange={handleImportData} style={{ display: 'none' }} />
           </label>
         </div>
@@ -15530,7 +15430,7 @@ function JournalsView({
       )}
 
       {/* Sub tabs navigation */}
-      <div style={{ display: 'flex', gap: '0.5rem', margin: '1rem 0', flexWrap: 'wrap' }}>
+      <div className="journal-subtabs" style={{ display: 'flex', gap: '0.5rem', margin: '1rem 0', flexWrap: 'wrap' }}>
         <button
           onClick={() => setSubTab('casebook')}
           style={{ padding: '0.5rem 1rem', background: subTab === 'casebook' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'casebook' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
@@ -15553,24 +15453,24 @@ function JournalsView({
           onClick={() => setSubTab('journals')}
           style={{ padding: '0.5rem 1rem', background: subTab === 'journals' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'journals' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
         >
-          📝 개인 저널 일지 ({state.journals.length})
+          개인 저널 일지 ({state.journals.length})
         </button>
         <button
           onClick={() => setSubTab('chronicles')}
           style={{ padding: '0.5rem 1rem', background: subTab === 'chronicles' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'chronicles' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
         >
-          📖 방랑 연대기 ({(state.journeyChronicles || []).length})
+          방랑 연대기 ({(state.journeyChronicles || []).length})
         </button>
         <button
           onClick={() => setSubTab('legacy')}
           style={{ padding: '0.5rem 1rem', background: subTab === 'legacy' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'legacy' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
         >
-          🏛️ 은퇴의 전당 및 약제소 망
+          은퇴의 전당 및 약제소 망
         </button>
       </div>
 
       {subTab === 'casebook' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+        <div className="journal-casebook-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
           {(state.patientCasebook || []).map(record => {
             const isFailure = record.outcome === 'failure';
             const isHighlighted = record.id === highlightedPatientId;
@@ -15995,7 +15895,7 @@ function JournalsView({
                 <h4 style={{ margin: 0, color: '#854d0e', fontSize: '1.05rem', fontWeight: 'bold' }}>{c.title}</h4>
                 <span style={{ fontSize: '0.8rem', color: '#a16207' }}>{c.date}</span>
               </div>
-              <p style={{ fontSize: '0.88rem', color: '#451a03', lineHeight: '1.8', whiteSpace: 'pre-wrap', fontFamily: 'serif', margin: 0 }}>
+              <p style={{ fontSize: '0.88rem', color: '#451a03', lineHeight: '1.8', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-base)', margin: 0 }}>
                 {c.text}
               </p>
             </div>

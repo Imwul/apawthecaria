@@ -2,6 +2,7 @@ import { getRuleCardValue, type RuleCard } from './cards';
 import { TOOL_BY_ID } from './data/tools';
 import { TOOL_UPGRADE_BY_ID, type ToolUpgradeTrigger } from './data/upgrades';
 import type { RuleTag } from './types';
+import type { RulesetId } from './types';
 
 export interface CanonicalToolState {
   instanceId: string;
@@ -79,4 +80,62 @@ export const resolveToolTrigger = (input: {
     if (rawSuit === '♠') tool = { ...tool, broken: true };
   }
   return { tool, foragingPoints, timerDelta, potencyDelta, ignoredOutcome };
+};
+
+export type ToolEffectPhase = 'travel' | 'foraging' | 'treatment' | 'barter' | 'barrow' | 'downtime' | 'season';
+
+export interface ToolEffectContext {
+  transactionId: string;
+  phase: ToolEffectPhase;
+  trigger?: ToolUpgradeTrigger | 'weather-encounter' | 'comb-remedy';
+  tools: CanonicalToolState[];
+  selectedToolInstanceIds?: string[];
+  card?: RuleCard;
+  rulesetId: RulesetId;
+}
+
+export interface ToolEffectResolution {
+  tools: CanonicalToolState[];
+  foragingPoints: number;
+  timerDelta: number;
+  potencyDelta: number;
+  ignoredOutcome: boolean;
+  appliedToolInstanceIds: string[];
+}
+
+const matchingTrigger = (tool: CanonicalToolState, trigger: ToolEffectContext['trigger']) => {
+  if (!trigger || tool.broken || tool.consumed) return false;
+  const upgrade = tool.upgradeId ? TOOL_UPGRADE_BY_ID.get(tool.upgradeId) : null;
+  return upgrade?.trigger === trigger
+    || (tool.toolId === 'canvas-tent' && trigger === 'weather-encounter')
+    || (tool.toolId === 'fine-toothed-comb' && trigger === 'comb-remedy');
+};
+
+export const resolveToolEffects = (context: ToolEffectContext): ToolEffectResolution => {
+  if (!context.transactionId) throw new Error('Tool effects require a transaction ID.');
+  const selected = new Set(context.selectedToolInstanceIds || context.tools.map(tool => tool.instanceId));
+  const appliedToolInstanceIds: string[] = [];
+  let foragingPoints = 0;
+  let timerDelta = 0;
+  let potencyDelta = 0;
+  let ignoredOutcome = false;
+  const tools = context.tools.map(tool => {
+    if (!selected.has(tool.instanceId) || !matchingTrigger(tool, context.trigger)) return tool;
+    if (tool.appliedEffectIds.includes(context.transactionId)) return tool;
+    const resolved = resolveToolTrigger({
+      transactionId: context.transactionId,
+      tool,
+      trigger: context.trigger!,
+      card: context.card
+    });
+    appliedToolInstanceIds.push(tool.instanceId);
+    foragingPoints += resolved.foragingPoints;
+    timerDelta += resolved.timerDelta;
+    potencyDelta += resolved.potencyDelta;
+    ignoredOutcome ||= resolved.ignoredOutcome;
+    if (resolved.tool.charges === null) return resolved.tool;
+    const charges = Math.max(0, resolved.tool.charges - 1);
+    return { ...resolved.tool, charges, consumed: resolved.tool.consumed || charges === 0 };
+  });
+  return { tools, foragingPoints, timerDelta, potencyDelta, ignoredOutcome, appliedToolInstanceIds };
 };

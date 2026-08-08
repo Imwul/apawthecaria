@@ -2,7 +2,7 @@ import { AILMENTS } from './data/ailments';
 import { REAGENTS } from './data/reagents';
 import { normalizeLegacyArchiveRecord } from './archiveEngine';
 import { migrateRulesetMetadata } from './rulesets';
-import { CURRENT_SCHEMA_VERSION, type PatientState } from './state';
+import { CURRENT_SCHEMA_VERSION, type PatientState, type TreatmentDraft } from './state';
 import type { AilmentSeverity, RulebookEdition, RulesetId } from './types';
 
 export interface LegacyBagItem {
@@ -273,12 +273,66 @@ const migrateV4ToV5: SaveMigration = saved => ({
   schemaVersion: 5
 });
 
+const migrateV5ToV6: SaveMigration = saved => {
+  const raw = saved.treatmentDraft && typeof saved.treatmentDraft === 'object'
+    ? saved.treatmentDraft as SaveRecord
+    : null;
+  const draft: TreatmentDraft | null = raw && typeof raw.patientId === 'string' && typeof raw.ailmentInstanceId === 'string'
+    ? {
+        id: typeof raw.id === 'string' ? raw.id : `treatment-draft:${raw.patientId}:${raw.ailmentInstanceId}`,
+        patientId: raw.patientId,
+        ailmentInstanceId: raw.ailmentInstanceId,
+        selectedParts: Array.isArray(raw.selectedParts)
+          ? raw.selectedParts.filter(row => row && typeof row === 'object').map(row => {
+              const part = row as SaveRecord;
+              return {
+                itemId: String(part.itemId || ''),
+                reagentId: typeof part.reagentId === 'string' ? part.reagentId : null,
+                preparationId: typeof part.preparationId === 'string' ? part.preparationId : null
+              };
+            }).filter(row => row.itemId)
+          : [],
+        selectedPreparationIds: Array.isArray(raw.selectedPreparationIds) ? raw.selectedPreparationIds.map(String) : [],
+        selectedToolIds: Array.isArray(raw.selectedToolIds) ? raw.selectedToolIds.map(String) : [],
+        catalyse: Array.isArray(raw.catalyse) ? raw.catalyse as TreatmentDraft['catalyse'] : [],
+        fair: Number(raw.fair || 0),
+        foul: Number(raw.foul || 0),
+        purify: Boolean(raw.purify),
+        replacementContext: raw.replacementContext && typeof raw.replacementContext === 'object'
+          ? raw.replacementContext as TreatmentDraft['replacementContext']
+          : null,
+        status: raw.status === 'committed' || raw.status === 'discarded' ? raw.status : 'draft',
+        committedTransactionId: typeof raw.committedTransactionId === 'string' ? raw.committedTransactionId : null,
+        createdAt: Number(raw.createdAt || Date.now()),
+        updatedAt: Number(raw.updatedAt || raw.createdAt || Date.now())
+      }
+    : null;
+  const applied = Array.isArray(saved.appliedTransactionIds) ? saved.appliedTransactionIds.map(String) : [];
+  const safeDraft = draft?.committedTransactionId && applied.includes(draft.committedTransactionId) ? null : draft;
+  const rawAcquisition = saved.pendingAlternativeAcquisition && typeof saved.pendingAlternativeAcquisition === 'object'
+    ? saved.pendingAlternativeAcquisition as SaveRecord
+    : null;
+  const pendingAlternativeAcquisition = rawAcquisition
+    ? {
+        ...rawAcquisition,
+        id: typeof rawAcquisition.id === 'string'
+          ? rawAcquisition.id
+          : `${String(rawAcquisition.kind || 'replacement')}:${String(rawAcquisition.targetTag || 'tag')}:${slugify(String(rawAcquisition.name || rawAcquisition.requiredPotency || 'pending'))}`,
+        selectedSource: rawAcquisition.selectedSource === 'forage' || rawAcquisition.selectedSource === 'barter'
+          ? rawAcquisition.selectedSource
+          : null
+      }
+    : null;
+  return { ...saved, treatmentDraft: safeDraft, pendingAlternativeAcquisition, schemaVersion: 6 };
+};
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   0: migrateV0ToV1,
   1: migrateV1ToV2,
   2: migrateV2ToV3,
   3: migrateV3ToV4,
-  4: migrateV4ToV5
+  4: migrateV4ToV5,
+  5: migrateV5ToV6
 };
 
 export const migrateSavedRulesState = <T extends Record<string, unknown>>(saved: T | null | undefined) => {
@@ -315,7 +369,7 @@ export const migrateSavedRulesState = <T extends Record<string, unknown>>(saved:
     trinketRecords: unknown[];
     legacyTrinketCount: number;
     pendingManualEffect: unknown | null;
-    treatmentDraft: unknown | null;
+    treatmentDraft: TreatmentDraft | null;
     manualEffectDraft: unknown | null;
     offlineOutbox: unknown[];
   };

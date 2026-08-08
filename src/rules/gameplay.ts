@@ -14,6 +14,16 @@ export interface EngineInventoryItem {
   preparationId?: string;
   usesRemaining?: number;
   ruinedWhenSoaked?: boolean;
+  customReagent?: {
+    baseRarity: number;
+    targetTag: RuleTag;
+    preparation: string;
+  };
+  provenance?: {
+    acquisitionId: string;
+    source: 'forage' | 'barter';
+    sourceTransactionId: string;
+  };
 }
 
 export interface EngineJournalEvent {

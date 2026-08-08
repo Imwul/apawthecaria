@@ -1,7 +1,7 @@
 import type { CompanionState, WagonState } from './data/mobility';
 import type { AilmentSeverity, RuleTag, RulesetId, Season, StructuredRuleEffect } from './types';
 
-export const CURRENT_SCHEMA_VERSION = 5 as const;
+export const CURRENT_SCHEMA_VERSION = 6 as const;
 
 export type PatientStatus = 'active' | 'cured' | 'failed' | 'departed';
 export type AilmentStatus = 'active' | 'treated' | 'failed';
@@ -73,6 +73,34 @@ export interface PatientState {
   journalEvents: PatientJournalEvent[];
 }
 
+export interface TreatmentDraftPart {
+  itemId: string;
+  reagentId: string | null;
+  preparationId: string | null;
+}
+
+export interface TreatmentDraft {
+  id: string;
+  patientId: string;
+  ailmentInstanceId: string;
+  selectedParts: TreatmentDraftPart[];
+  selectedPreparationIds: string[];
+  selectedToolIds: string[];
+  catalyse: Array<{ tag: RuleTag; itemIds: string[] }>;
+  fair: number;
+  foul: number;
+  purify: boolean;
+  replacementContext: {
+    kind: 'make-do' | 'replacement';
+    targetTag: RuleTag;
+    requiredPotency: number;
+  } | null;
+  status: 'draft' | 'committed' | 'discarded';
+  committedTransactionId: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface RulesApplicationState {
   schemaVersion: typeof CURRENT_SCHEMA_VERSION;
   rulesetId: RulesetId;
@@ -100,7 +128,7 @@ export interface RulesApplicationState {
   trinketRecords: unknown[];
   legacyTrinketCount: number;
   pendingManualEffect: unknown | null;
-  treatmentDraft: unknown | null;
+  treatmentDraft: TreatmentDraft | null;
   manualEffectDraft: unknown | null;
   offlineOutbox: unknown[];
   downtimeCompleted: boolean;

@@ -4,7 +4,7 @@
 
 Phase 4와 후속 Phase 5 보완을 마친 현재도 **1판 3쇄 룰북의 모든 서술형 특수 규칙을 완전 자동화한 상태는 아니다.** 다만 Services, Tools, Wagon/Companion, Rumour, Clinic, Almanack, Barrow state machine, local-first 저장이 canonical 계층에 추가됐고 잘못된 즉시 지급·자유 입력·이동 권한 경로는 원작 모드에서 제거됐다.
 
-현재 주요 잔여 위험은 Encounter/Ailment의 서술·지도 후속 printed effect, Replacement Rarity 12 획득의 UI commit, Barrow와 Tool trigger의 legacy 화면 adapter, 치료 확정 전 draft UI 연결이다. 엔진만 존재하는 항목은 `Logic-only`, legacy UI가 남은 항목은 `Partial`로 보수적으로 유지했다.
+현재 주요 잔여 위험은 Encounter/Ailment의 서술·지도 후속 printed effect, Barrow 조작부와 Tool trigger의 legacy 화면 adapter다. Replacement Rarity 12의 실제 Forage/Barter commit과 치료 확정 전 draft 저장·복원은 schema v6에서 닫혔다. 엔진만 존재하는 항목은 `Logic-only`, legacy UI가 남은 항목은 `Partial`로 보수적으로 유지했다.
 
 아래 초기 문제 설명은 감사 당시 근거를 보존한다. 현재 판정과 코드·테스트 위치의 권위 표는 `RULE_TRACEABILITY.md`다.
 
@@ -40,8 +40,8 @@ Phase 4와 후속 Phase 5 보완을 마친 현재도 **1판 3쇄 룰북의 모�
 
 | 상태 | 수 | 의미 |
 |---|---:|---|
-| Exact | 82 | 입력부터 결과까지 확인한 범위에서 원작과 일치 |
-| Partial | 59 | 일부 조건/결과만 구현됐거나 전체 흐름 보장이 없음 |
+| Exact | 84 | 입력부터 결과까지 확인한 범위에서 원작과 일치 |
+| Partial | 57 | 일부 조건/결과만 구현됐거나 전체 흐름 보장이 없음 |
 | Incorrect | 0 | 현재 추적표에서 확인된 명시적 오판정은 없음 |
 | Missing | 0 | 필요한 규칙은 최소 canonical 또는 manual 경로로 존재 |
 | Unreachable | 0 | 코드가 있으나 정상 경로에서 도달 불가인 독립 규칙은 확인되지 않음 |
@@ -107,6 +107,25 @@ Phase 4와 후속 Phase 5 보완을 마친 현재도 **1판 3쇄 룰북의 모�
 `DOWNTIME-002`, `CLINIC-003`, `ALMANACK-001/002/005/006`, `SERVICE-001/003/004/005`, `TOOL-001/002/005`, `WAGON-003`, `COMPANION-002`, `BARROW-002/004/005/007/008/009`, `SAVE-008`, `OFFLINE-001/002/003`.
 
 `Incorrect/Missing/UI-only`가 0이라는 것은 151개 규칙이 모두 자동화됐다는 뜻이 아니다. Barrow 전용 입력, Tool trigger, Floodplain 계절 UI, 모든 Trinket 지급 연결처럼 엔진 또는 manual 경로만 있는 항목을 `Partial`/`Logic-only`로 남겼고, printed effect 355개도 계속 manual이다.
+
+### Phase 6 변화
+
+| 상태 | 이전 | 현재 | 변화 |
+|---|---:|---:|---:|
+| Exact | 82 | 84 | +2 |
+| Partial | 59 | 57 | -2 |
+| Incorrect | 0 | 0 | 0 |
+| Missing | 0 | 0 | 0 |
+| UI-only | 0 | 0 | 0 |
+| Logic-only | 2 | 2 | 0 |
+| Ambiguous | 2 | 2 | 0 |
+| House Rule | 6 | 6 | 0 |
+
+상태가 변경된 Rule ID: `REMEDY-003`, `SAVE-004`.
+
+`REMEDY-003`은 이름·Preparation·BR 12·Weight 2/3·target tag·획득 출처를 저장하고 실제 Forage/Barter 성공 뒤 provenance가 있는 Inventory item을 한 번만 commit한다. `SAVE-004`는 치료 draft를 schema v6에 저장하고 완료 transaction이 다시 열리지 않게 마이그레이션한다. `TOOL-003`과 `BARROW-001-009`는 공통 resolver/전용 정보 UI가 보강됐지만 모든 조작 경로가 canonical write로 교체되지는 않아 `Partial`을 유지했다.
+
+Printed Effect는 7개 Ailment family의 기존 실행 경로를 registry 상태와 일치시켜 `implemented 3 → 10`, `manual 355 → 348`로 갱신했다. 서술·지도·대상 선택을 요구하는 348개는 자동 수치를 창작하지 않고 manual로 유지한다.
 
 ## 초기 감사 당시 Critical 문제
 

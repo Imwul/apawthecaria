@@ -4,6 +4,7 @@ import {
   BARROW_DELVES,
   CLINIC_AGENDAS,
   COMPANIONS,
+  CURRENT_SCHEMA_VERSION,
   GUILD_SERVICES,
   REAGENTS,
   TOOL_UPGRADES,
@@ -162,10 +163,10 @@ describe('Phase 4 Almanack, replacement, and schema', () => {
     expect(createTrinketRecord({ transactionId: 't', cards: [1, 8, 5], acquiredAt: 4, source: 'Treatment', journalEntryId: 'j' })).toMatchObject({ object: 'Implement or Gadget', material: 'Flint', origin: 'Handmade by owner', spent: false });
   });
 
-  it('[REMEDY-003/SAVE-001] preserves replacement BR/Weight and legacy aggregate Trinkets in schema v5', () => {
+  it('[REMEDY-003/SAVE-001] preserves replacement BR/Weight and legacy aggregate Trinkets in the current schema', () => {
     expect(createReplacementAcquisition({ targetTag: 'PAIN', requiredPotency: 2, name: 'Moon Sap', preparation: 'Brewed' })).toMatchObject({ baseRarity: 12, weight: 2 / 3 });
     const migrated = migrateSavedRulesState({ schemaVersion: 4, trinkets: ['a', 'b'], companions: [] });
-    expect(migrated.schemaVersion).toBe(5);
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(migrated.legacyTrinketCount).toBe(2);
     expect(migrated.trinketRecords).toEqual([]);
     expect(migrated.offlineOutbox).toEqual([]);

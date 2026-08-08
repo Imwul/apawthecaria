@@ -12,18 +12,20 @@
 
 | Status | Count |
 |---|---:|
-| implemented | 3 |
-| manual | 355 |
+| implemented | 10 |
+| manual | 348 |
 | ambiguous | 0 |
 | not-applicable | 0 |
 | source-conflict | 0 |
 
-## Phase 4 + Phase 5 처리 방식
+## Phase 6 처리 방식
 
-- 자동화 수는 의도적으로 `3`을 유지했다. Barrow/Service/Tool 엔진 추가를 Encounter/Ailment printed effect 자동화로 과장하지 않았다.
+- A/B/C/D 분류를 `deterministic`, `structured-choice`, `narrative`, `ambiguous`로 registry에서 계산한다.
+- 실제 Ailment 실행기가 확인된 7개 family를 `implemented`로 맞춰 `3 → 10`으로 갱신했다. 구조만 있거나 원문 서술을 요구하는 행은 올리지 않았다.
 - manual effect는 원문 요약, Rule ID, source page, 강제 조건, 선택, canonical action, 결과 요약과 journal note를 저장한다.
-- 비어 있는 결과/저널은 완료할 수 없고, 보류한 draft는 schema v5에서 재개된다.
+- 비어 있는 결과/저널은 완료할 수 없고, 보류한 draft는 schema v6에서 재개된다.
 - `resolved`와 `GM override`는 서로 다른 상태와 transaction ID로 기록된다.
+- Almanack은 같은 registry를 사용해 자동 처리, 선택 필요, 직접 처리, 모호함을 표시하고 필터링한다.
 
 ## Travel Encounters
 
@@ -378,24 +380,24 @@
 | `ailment-tickbitten-twice-shy` | manual | treatment-success | p113 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 | `ailment-waen-drops` | manual | treatment-success | p114 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 | `ailment-blocked-ears` | manual | treatment-success | p105 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-brand-care` | manual | diagnosis | p105 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003 special choice |
+| `ailment-brand-care` | implemented | diagnosis | p105 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003 special choice |
 | `ailment-crestfallen` | manual | treatment-success | p106 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-forager-s-twitch` | manual | diagnosis | p107 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003 special diagnosis |
+| `ailment-forager-s-twitch` | implemented | diagnosis | p107 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003 special diagnosis |
 | `ailment-midge-munched` | manual | treatment-success | p109 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 | `ailment-migration-migraine` | manual | treatment-success | p109 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 | `ailment-night-shift` | manual | treatment-success | p110 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 | `ailment-soured-dough` | manual | treatment-success | p112 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-005 special failure |
-| `ailment-stingshock` | manual | treatment-success | p112 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
+| `ailment-stingshock` | implemented | treatment-success | p112 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
 | `ailment-trowel-trouble` | manual | treatment-success | p114 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-wormridden` | manual | treatment-success | p115 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
+| `ailment-wormridden` | implemented | treatment-success | p115 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
 | `ailment-bad-idea` | manual | treatment-success | p104 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
 | `ailment-bite-the-hand-that-cures` | manual | treatment-success | p104 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 | `ailment-bloodthirst` | manual | treatment-success | p105 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 | `ailment-broken-beaks-and-thinning-fangs` | manual | treatment-success | p105 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 | `ailment-herbivorous-tendencies` | manual | treatment-success | p108 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 | `ailment-nervefright` | manual | treatment-success | p110 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-pinned-by-pine` | manual | timer-change | p111 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003 special timer |
-| `ailment-quagmire-s-scale` | manual | timer-change | p111 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-005 special timer |
+| `ailment-pinned-by-pine` | implemented | timer-change | p111 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003 special timer |
+| `ailment-quagmire-s-scale` | implemented | timer-change | p111 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-005 special timer |
 | `ailment-seasonshift` | manual | treatment-success | p111 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 | `ailment-smokesnout` | manual | treatment-success | p112 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 | `ailment-snail-ails` | manual | treatment-success | p113 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
@@ -408,11 +410,11 @@
 | `ailment-long-drop` | manual | treatment-success | p109 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 | `ailment-mawfoam` | manual | treatment-success | p109 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 | `ailment-titan-touched` | manual | treatment-success | p114 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-wake` | manual | barter | p115 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
+| `ailment-wake` | implemented | barter | p115 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
 | `ailment-wingbreak` | manual | treatment-success | p115 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 
 ## Manual 처리 계약
 
-각 `manual` row는 런타임 registry에 `manualResolution.reason`, 결정할 내용, 선택지, 결정 후 상태 변화, Rule ID와 source page를 보존한다. 현재 기본 전사는 owner별 source와 prompt를 연결하지만 355개 행의 고유 선택지·상태 변화 자동화는 남아 있다.
+각 `manual` row는 런타임 registry에 `manualResolution.reason`, 결정할 내용, 선택지, 결정 후 상태 변화, Rule ID와 source page를 보존한다. 현재 기본 전사는 owner별 source와 prompt를 연결하지만 348개 행의 고유 선택지·상태 변화 자동화는 남아 있다.
 
 자동화 범위와 남은 제한은 `RULE_ENGINE_STATUS.md`, 변경 근거는 `PHASE3_REPORT.md`를 따른다.

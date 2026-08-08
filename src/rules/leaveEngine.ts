@@ -121,8 +121,10 @@ export const resolveScrounge = (input: ScroungeInput): LeaveResolution => {
 };
 
 export interface AlternativeAcquisition {
+  id: string;
   kind: 'make-do' | 'replacement';
   acquisition: 'forage-or-barter';
+  selectedSource: 'forage' | 'barter' | null;
   targetTag: RuleTag;
   requiredPotency: number;
   baseRarity?: number;
@@ -133,8 +135,10 @@ export interface AlternativeAcquisition {
 }
 
 export const createMakeDoAcquisition = (targetTag: RuleTag, requiredPotency: number): AlternativeAcquisition => ({
+  id: `make-do:${targetTag}:${requiredPotency + 1}`,
   kind: 'make-do',
   acquisition: 'forage-or-barter',
+  selectedSource: null,
   targetTag,
   requiredPotency: requiredPotency + 1,
   journalPrompt: 'Journal about how the stronger substitute soothes the current Ailment.'
@@ -146,8 +150,10 @@ export const createReplacementAcquisition = (input: {
   name: string;
   preparation: string;
 }): AlternativeAcquisition => ({
+  id: `replacement:${input.targetTag}:${input.name.trim().toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-')}:${input.preparation.trim().toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-')}`,
   kind: 'replacement',
   acquisition: 'forage-or-barter',
+  selectedSource: null,
   targetTag: input.targetTag,
   requiredPotency: input.requiredPotency,
   baseRarity: 12,
@@ -168,6 +174,8 @@ export const commitAlternativeAcquisition = (input: {
   if (!input.transactionId || input.state.appliedTransactionIds.includes(input.transactionId)) return { status: 'invalid', value: null, messages: ['Acquisition transaction is missing or already applied.'] };
   if (!input.acquisitionSucceeded || !input.sourceTransactionId) return { status: 'invalid', value: null, messages: ['Replacement can only be committed after a successful Forage or Barter transaction.'] };
   const acquisition = input.acquisition;
+  if (acquisition.selectedSource && acquisition.selectedSource !== input.source) return { status: 'invalid', value: null, messages: [`This acquisition is waiting for a successful ${acquisition.selectedSource} transaction.`] };
+  if (input.state.inventory.some(item => item.provenance?.acquisitionId === acquisition.id)) return { status: 'invalid', value: null, messages: ['This Replacement acquisition is already in Inventory.'] };
   const name = acquisition.kind === 'replacement' ? acquisition.name?.trim() : `Make Do: ${acquisition.targetTag}`;
   if (!name || (acquisition.kind === 'replacement' && !acquisition.preparation?.trim())) return { status: 'invalid', value: null, messages: ['Replacement requires a custom name and preparation.'] };
   const item: EngineInventoryItem = {
@@ -176,7 +184,17 @@ export const commitAlternativeAcquisition = (input: {
     type: 'reagent',
     weight: acquisition.kind === 'replacement' ? 2 / 3 : 1 / 3,
     quantity: 1,
-    usesRemaining: 1
+    usesRemaining: 1,
+    customReagent: {
+      baseRarity: acquisition.baseRarity ?? acquisition.requiredPotency,
+      targetTag: acquisition.targetTag,
+      preparation: acquisition.preparation || 'Substitute'
+    },
+    provenance: {
+      acquisitionId: acquisition.id,
+      source: input.source,
+      sourceTransactionId: input.sourceTransactionId
+    }
   };
   return { status: 'resolved', value: { ...input.state, inventory: [...input.state.inventory, item], appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId], journalEvents: [...input.state.journalEvents, { id: `${input.transactionId}:journal`, type: 'foraging', title: acquisition.kind === 'replacement' ? 'Replacement Acquired' : 'Make Do Acquired', text: `${item.name} acquired through ${input.source}; BR ${acquisition.baseRarity ?? acquisition.requiredPotency}, Weight ${item.weight}, target ${acquisition.targetTag}, source REMEDY-003.` }] }, messages: [] };
 };
