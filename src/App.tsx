@@ -14822,7 +14822,7 @@ function MapView({ state }: { state: GameState }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
               <div style={{ background: '#fffcf7', padding: '0.8rem', borderRadius: '6px', border: '1px solid #e5dec9' }}>
                 <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#8b5a2b', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '2rem' }}>🐾</span>
+                  <img src="/symbols/paws.png" alt="도보 거리 단위" style={{ width: '48px', height: 'auto', objectFit: 'contain', flexShrink: 0 }} />
                   <span>도보</span>
                 </h3>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: '#5c4033', lineHeight: '1.4' }}>
@@ -14832,7 +14832,7 @@ function MapView({ state }: { state: GameState }) {
 
               <div style={{ background: '#fffcf7', padding: '0.8rem', borderRadius: '6px', border: '1px solid #e5dec9' }}>
                 <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#4a8ca8', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '2rem' }}>🪽</span>
+                  <img src="/symbols/wings.png" alt="날개 거리 단위" style={{ width: '48px', height: 'auto', objectFit: 'contain', flexShrink: 0 }} />
                   <span>날개</span>
                 </h3>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: '#5c4033', lineHeight: '1.4' }}>
@@ -14842,7 +14842,7 @@ function MapView({ state }: { state: GameState }) {
 
               <div style={{ background: '#fffcf7', padding: '0.8rem', borderRadius: '6px', border: '1px solid #e5dec9' }}>
                 <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#9275a8', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '2rem' }}>🦅</span>
+                  <img src="/symbols/soar.png" alt="활공 거리 단위" style={{ width: '48px', height: 'auto', objectFit: 'contain', flexShrink: 0 }} />
                   <span>활공</span>
                 </h3>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: '#5c4033', lineHeight: '1.4' }}>
@@ -14854,9 +14854,7 @@ function MapView({ state }: { state: GameState }) {
             {/* Scale ruler — manual image */}
             <div style={{ marginTop: '1.2rem' }}>
               <strong style={{ fontSize: '0.85rem', color: '#5c4033', display: 'block', marginBottom: '0.5rem' }}>거리 척도 자 비교</strong>
-              <div className="map-distance-emoji-scale" aria-label="도보보다 날개가, 날개보다 활공이 더 먼 거리를 이동합니다">
-                <span className="emoji-icon">🐾</span><b>&lt;</b><span className="emoji-icon">🪽</span><b>&lt;</b><span className="emoji-icon">🦅</span>
-              </div>
+              <img src="/symbols/scale.png" alt="도보, 날개, 활공 거리 단위 비교" style={{ width: '100%', height: 'auto', borderRadius: '4px', border: '1px solid #e5dec9' }} />
             </div>
           </div>
 
@@ -14892,7 +14890,7 @@ function MapView({ state }: { state: GameState }) {
                 </strong>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>🏙️</span>
+                    <img src="/symbols/city.png" alt="도시" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>도시</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>치료소, 길드, 번화 상점</span>
@@ -14900,7 +14898,7 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>🏡</span>
+                    <img src="/symbols/settlement.png" alt="정착지" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>정착지</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>마을, 주민 거주지, 여각</span>
@@ -14908,7 +14906,7 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>🌲</span>
+                    <img src="/symbols/wilds.png" alt="야생 구역" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>야생 구역</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>정착지 밖 채집 및 탐험지</span>
@@ -14916,7 +14914,7 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>🗿</span>
+                    <img src="/symbols/titan.png" alt="Titan 유적" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>Titan 유적</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>고대 거인의 신비한 자생 흔적</span>
@@ -14924,7 +14922,7 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>🪦</span>
+                    <img src="/symbols/barrow.png" alt="거수 고분" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>거수 고분</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>거수들의 고분군 및 위험 지대</span>
@@ -14932,7 +14930,7 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
 	                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-	                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>🏥</span>
+	                    <img src="/symbols/clinic.png" alt="약제소" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
 	                    <div style={{ display: 'flex', flexDirection: 'column' }}>
 	                      <strong style={{ fontSize: '0.85rem' }}>약제소</strong>
 	                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>플레이어 약제사의 치료 본부</span>
@@ -14940,7 +14938,10 @@ function MapView({ state }: { state: GameState }) {
 	                  </div>
 
 	                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-	                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>📍</span>
+	                    <svg width="32" height="32" viewBox="0 0 32 32" style={{ flexShrink: 0 }} aria-label="현재 위치 표식">
+	                      <circle cx="16" cy="16" r="12" fill="none" stroke="#2367b1" strokeWidth="3" />
+	                      <circle cx="16" cy="16" r="4" fill="#2367b1" />
+	                    </svg>
 	                    <div style={{ display: 'flex', flexDirection: 'column' }}>
 	                      <strong style={{ fontSize: '0.85rem' }}>현재 위치</strong>
 	                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>지금 약제사가 머무는 곳</span>
@@ -14948,7 +14949,10 @@ function MapView({ state }: { state: GameState }) {
 	                  </div>
 
 	                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-	                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>📡</span>
+	                    <svg width="32" height="32" viewBox="0 0 32 32" style={{ flexShrink: 0 }} aria-label="클리닉과 서비스 영역 표식">
+	                      <rect x="8" y="8" width="16" height="16" fill="none" stroke="#cf2d2d" strokeWidth="3" />
+	                      <ellipse cx="16" cy="16" rx="14" ry="9" fill="none" stroke="#dc2626" strokeWidth="2" strokeDasharray="4 3" />
+	                    </svg>
 	                    <div style={{ display: 'flex', flexDirection: 'column' }}>
 	                      <strong style={{ fontSize: '0.85rem' }}>클리닉과 서비스 영역</strong>
 	                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>네모는 본부, 붉은 둘레는 서비스 영역</span>
@@ -14956,7 +14960,9 @@ function MapView({ state }: { state: GameState }) {
 	                  </div>
 
 	                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-	                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>👣</span>
+	                    <svg width="32" height="20" viewBox="0 0 32 20" style={{ flexShrink: 0 }} aria-label="방문 경로 표식">
+	                      <path d="M3 15 C9 3 19 17 29 5" fill="none" stroke="#285b8b" strokeWidth="2.5" strokeDasharray="5 4" strokeLinecap="round" />
+	                    </svg>
 	                    <div style={{ display: 'flex', flexDirection: 'column' }}>
 	                      <strong style={{ fontSize: '0.85rem' }}>방문 경로</strong>
 	                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>기록된 방문지와 현재 위치를 이은 선</span>
@@ -14973,49 +14979,54 @@ function MapView({ state }: { state: GameState }) {
                 </strong>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="emoji-icon" aria-hidden="true">🟣</span>
+                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="늪지와 습지 색상"><circle cx="8" cy="8" r="6" fill="#9275a8"/></svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.8rem' }}>늪지와 습지</strong>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="emoji-icon" aria-hidden="true">🌲</span>
+                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="울창한 숲 색상"><circle cx="8" cy="8" r="6" fill="#3d6c48"/></svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.8rem' }}>울창한 숲</strong>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="emoji-icon" aria-hidden="true">🌊</span>
+                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="호수와 내해 색상"><circle cx="8" cy="8" r="6" fill="#4a8ca8"/></svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.8rem' }}>호수와 내해</strong>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="emoji-icon" aria-hidden="true">🌾</span>
+                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="초원 색상"><circle cx="8" cy="8" r="6" fill="#e5c158"/></svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.8rem' }}>초원</strong>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', gridColumn: '1 / -1' }}>
-                    <span className="emoji-icon" aria-hidden="true">🏔️</span>
+                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="고산과 바위 지대 색상"><circle cx="8" cy="8" r="6" fill="#c9524b"/></svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.8rem' }}>고산과 바위 지대</strong>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', gridColumn: '1 / -1' }}>
-                    <span className="emoji-icon" aria-hidden="true">🥾</span>
+                    <svg width="35" height="16" style={{ flexShrink: 0 }} viewBox="0 0 35 16" aria-label="연결 도로 표식">
+                      <path d="M 2,8 C 10,3 14,13 22,8 C 30,3 33,13 34,8" fill="none" stroke="#8b5a2b" strokeWidth="2" strokeDasharray="2.5,2.5"/>
+                    </svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.8rem' }}>연결 도로</strong>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', gridColumn: '1 / -1' }}>
-                    <span className="emoji-icon" aria-hidden="true">🛶</span>
+                    <svg width="35" height="16" style={{ flexShrink: 0 }} viewBox="0 0 35 16" aria-label="수로 표식">
+                      <path d="M 2,5 L 33,5 M 2,11 L 33,11" fill="none" stroke="#4a8ca8" strokeWidth="1.2"/>
+                      <path d="M 10,3 L 12,13 M 22,3 L 24,13" fill="none" stroke="#4a8ca8" strokeWidth="1.2"/>
+                    </svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.8rem' }}>수로</strong>
                     </div>

@@ -2814,22 +2814,6 @@ body {
   line-height: 1;
 }
 
-.map-distance-emoji-scale {
-  display: grid;
-  min-height: 74px;
-  grid-template-columns: auto auto auto auto auto;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  border: 1px solid rgba(37, 33, 28, 0.45);
-  background: var(--editorial-yellow);
-  font-size: 1.1rem;
-}
-
-.map-distance-emoji-scale .emoji-icon {
-  font-size: 1.9rem;
-}
-
 .journal-tab__emoji {
   grid-row: 1;
   grid-column: 1;
