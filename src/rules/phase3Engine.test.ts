@@ -19,6 +19,7 @@ import {
   normalizeLegacyArchiveRecord,
   resolveAilmentTimerEffect,
   resolveBarterEncounter,
+  resolveBarterGossip,
   resolveBarterLeave,
   resolveBarterOffer,
   resolveBarterPayment,
@@ -183,6 +184,16 @@ describe('Phase 3 canonical Barter transactions', () => {
     expect(social.value?.pendingBarter?.firstCard?.value).toBe(12);
     const offered = resolveBarterOffer({ transactionId: 'offer', state: social.value!, card: { value: 13, suit: '♦' } });
     expect(offered.value?.pendingBarter?.secondCard?.value).toBe(12);
+  });
+
+  it('[DOWNTIME-005/BARTER-006] consumes Juicy Gossip to obtain the selected Reagent while Haggling', () => {
+    const gossip: EngineInventoryItem = { id: 'gossip:1', name: 'Juicy Gossip', type: 'item', weight: 0, guildNote: { kind: 'gossip' } };
+    const started = startBarter({ ...barterState(), inventory: [gossip] }, 'settlement', 'barter-gossip');
+    const social = resolveBarterEncounter({ transactionId: 'social-gossip', state: started.value!, card: { value: 5, suit: '♥' }, encounter: socialEncounter });
+    const resolved = resolveBarterGossip({ transactionId: 'use-gossip', state: social.value!, gossipItemId: gossip.id });
+    expect(resolved.value?.pendingBarter?.status).toBe('completed');
+    expect(resolved.value?.inventory.some(item => item.id === gossip.id)).toBe(false);
+    expect(resolved.value?.inventory.some(item => item.type === 'reagent')).toBe(true);
   });
 
   it('[BARTER-006/BARTER-007/BARTER-008/REMEDY-008] supports mixed payment, all Timers, and duplicate-payment protection', () => {

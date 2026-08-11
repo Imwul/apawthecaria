@@ -1,9 +1,13 @@
 import { AILMENT_BY_ID } from './data/ailments';
+import type { RuleCard } from './cards';
 import { REAGENTS } from './data/reagents';
+import { TOOL_UPGRADES } from './data/upgrades';
+import { resolveBadIdeaOutcomeEffect, type BadIdeaOutcomeChoice } from './ailmentEffectEngine';
 import type { EngineInventoryItem, ProvidedTags, TreatmentTransactionState } from './gameplay';
 import { evaluateRequirement, type RequirementEvaluation } from './requirements';
 import type { PatientAilmentState, PatientState, TreatmentHistoryEntry } from './state';
-import type { AilmentSeverity, ReagentPreparation, RuleTag, StructuredRuleEffect } from './types';
+import { resolveToolEffects, toolWeight } from './toolEngine';
+import type { AilmentSeverity, ReagentPreparation, RequirementExpression, RuleTag, StructuredRuleEffect } from './types';
 
 const PREPARATION_BY_ID = new Map<string, { reagentId: string; preparation: ReagentPreparation }>(
   REAGENTS.flatMap(reagent => reagent.preparations.map(preparation => [
@@ -13,6 +17,29 @@ const PREPARATION_BY_ID = new Map<string, { reagentId: string; preparation: Reag
 );
 
 const severityValue = (severity: AilmentSeverity): number => ({ lesser: 1, intermediate: 2, severe: 3, dire: 4 })[severity];
+
+export interface TreatmentAilmentTagOverride {
+  ailmentId: string;
+  originalTag: RuleTag;
+  replacementTag: RuleTag;
+}
+
+const applyAilmentTagOverrides = (
+  requirement: RequirementExpression,
+  ailmentId: string,
+  overrides: readonly TreatmentAilmentTagOverride[] = []
+): RequirementExpression => {
+  const relevant = overrides.filter(row => row.ailmentId === ailmentId);
+  if (requirement.kind === 'tag') {
+    const tag = relevant.reduce((current, row) => current === row.originalTag ? row.replacementTag : current, requirement.tag);
+    return { ...requirement, tag };
+  }
+  if (requirement.kind === 'special') return requirement;
+  if (requirement.kind === 'alternatives') {
+    return { ...requirement, alternatives: requirement.alternatives.map(row => applyAilmentTagOverrides(row, ailmentId, relevant)) };
+  }
+  return { ...requirement, requirements: requirement.requirements.map(row => applyAilmentTagOverrides(row, ailmentId, relevant)) };
+};
 
 export interface CatalyseSelection {
   tag: Exclude<RuleTag, 'FAIR' | 'FOUL'>;
@@ -27,9 +54,13 @@ export interface TreatmentSuccessInput {
   selectedItemIds: string[];
   selectedToolIds: string[];
   catalyse?: CatalyseSelection[];
+  preserve?: boolean;
   gifting?: boolean;
+  trinketRewardBonus?: number;
   doseCount?: number;
   confirmedManualRequirements?: string[];
+  badIdeaOutcome?: BadIdeaOutcomeChoice;
+  toolCards?: Record<string, RuleCard>;
   journalText: string;
 }
 
@@ -48,12 +79,14 @@ export interface TreatmentEngineOutcome {
   nextState: TreatmentTransactionState;
   requirement: RequirementEvaluation | null;
   providedTags: ProvidedTags;
+  remedyFlags: Array<'PRESERVED'>;
   fair: number;
   foul: number;
   trinketReward: number;
   reputationChange: number;
   consumedItemIds: string[];
   manualEffects: StructuredRuleEffect[];
+  badIdeaOutcomeApplied: boolean;
   allAilmentsResolved: boolean;
 }
 
@@ -61,6 +94,15 @@ export interface TreatmentEngineResolution {
   status: 'resolved' | 'manual' | 'invalid';
   value: TreatmentEngineOutcome | null;
   messages: string[];
+  manualAction?: {
+    kind: 'bad-idea-inspiration';
+    upgradeTargets: Array<{
+      toolInstanceId: string;
+      toolId: string;
+      upgrades: Array<{ id: string; canonicalName: string }>;
+    }>;
+    lightenTargets: Array<{ toolInstanceId: string; toolId: string; currentWeight: number }>;
+  };
 }
 
 const toolIdsForInventory = (inventory: readonly EngineInventoryItem[], selectedToolIds: readonly string[]): Set<string> =>
@@ -86,12 +128,14 @@ const consumeItems = (inventory: readonly EngineInventoryItem[], selectedIds: re
 const collectTags = (
   selected: Array<{ item: EngineInventoryItem; preparation: ReagentPreparation }>,
   tools: Set<string>,
-  catalyse: readonly CatalyseSelection[]
+  catalyse: readonly CatalyseSelection[],
+  potencyBoost?: { itemId: string; amount: number }
 ): { tags: ProvidedTags; fair: number; foul: number; messages: string[] } => {
   const contributions = new Map<RuleTag, Array<{ itemId: string; value: number }>>();
   selected.forEach(({ item, preparation }) => preparation.tags.forEach(tag => {
     const rows = contributions.get(tag.tag) || [];
-    rows.push({ itemId: item.id, value: tag.value });
+    const boost = potencyBoost?.itemId === item.id && tag.tag !== 'FAIR' && tag.tag !== 'FOUL' ? potencyBoost.amount : 0;
+    rows.push({ itemId: item.id, value: tag.value + boost });
     contributions.set(tag.tag, rows);
   }));
   if (tools.has('fairwind-spices')) {
@@ -134,7 +178,8 @@ const collectTags = (
 export const canTreatAilmentWithInventory = (
   patient: PatientState,
   ailmentInstanceId: string,
-  inventory: readonly EngineInventoryItem[]
+  inventory: readonly EngineInventoryItem[],
+  overrides: readonly TreatmentAilmentTagOverride[] = []
 ): boolean => {
   const ailment = patient.ailments.find(row => row.id === ailmentInstanceId && row.status === 'active');
   if (!ailment?.ailmentId) return false;
@@ -166,7 +211,7 @@ export const canTreatAilmentWithInventory = (
       if (strongest.length === 2) tags[tag] = Math.max(tags[tag] || 0, strongest[0].value + strongest[1].value);
     });
   }
-  return evaluateRequirement(definition.requirements, tags).satisfied;
+  return evaluateRequirement(applyAilmentTagOverrides(definition.requirements, definition.id, overrides), tags).satisfied;
 };
 
 const updateAilment = (
@@ -207,12 +252,14 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
       nextState: input.state,
       requirement: null,
       providedTags: {},
+      remedyFlags: [],
       fair: 0,
       foul: 0,
       trinketReward: 0,
       reputationChange: 0,
       consumedItemIds: [],
       manualEffects: [],
+      badIdeaOutcomeApplied: false,
       allAilmentsResolved: input.state.patient.ailments.every(ailment => ailment.status !== 'active')
     }, messages: ['Transaction was already applied.'] };
   }
@@ -253,12 +300,14 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
         nextState,
         requirement: null,
         providedTags: {},
+        remedyFlags: [],
         fair: 0,
         foul: 0,
         trinketReward: 0,
         reputationChange: -reputationLoss,
         consumedItemIds: [],
         manualEffects: [],
+        badIdeaOutcomeApplied: false,
         allAilmentsResolved: patient.ailments.every(row => row.status !== 'active')
       },
       messages: ['Apply each printed Ailment Consequence before Moving On.']
@@ -278,18 +327,86 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
     preparation: PREPARATION_BY_ID.get(item!.preparationId!)?.preparation
   }));
   if (selected.some(row => !row.preparation)) return { status: 'invalid', value: null, messages: ['Selected Inventory contains an unknown Preparation.'] };
+  let resolvedTools = input.state.tools || [];
+  const selectedCanonicalTools = resolvedTools.filter(tool => input.selectedToolIds.includes(tool.instanceId) && !tool.broken && !tool.consumed);
   const tools = toolIdsForInventory(input.state.inventory, input.selectedToolIds);
+  selectedCanonicalTools.forEach(tool => tools.add(tool.toolId));
   const missingTool = selected.find(row => row.preparation!.requiredTools.some(tool => tool !== 'none' && !tools.has(tool)));
   if (missingTool) return { status: 'invalid', value: null, messages: [`Required Tool is not selected: ${missingTool.preparation!.requiredTools.join(', ')}`] };
+  if (input.preserve && !tools.has('big-iron-cauldron')) {
+    return { status: 'invalid', value: null, messages: ['PRESERVE requires a selected Big Iron Cauldron.'] };
+  }
+  const preservedByIngredient = selected.some(row => row.preparation!.specialRules.some(rule =>
+    rule.effect.type === 'customEffect' && rule.effect.code === 'ADDS_PRESERVED'
+  ));
+  const remedyFlags: Array<'PRESERVED'> = input.preserve || preservedByIngredient ? ['PRESERVED'] : [];
+
+  let potencyBoost: { itemId: string; amount: number } | undefined;
+  const boilOrBrew = selected.filter(row => /BOIL|BREW/i.test(row.preparation!.method));
+  const doubleBoilers = selectedCanonicalTools.filter(tool => tool.upgradeId === 'double-boiler' && !tool.broken && !tool.consumed);
+  if (doubleBoilers.length > 0 && boilOrBrew.length === 1) {
+    const resolved = resolveToolEffects({
+      transactionId: `${input.transactionId}:tool:double-boiler`,
+      phase: 'treatment', trigger: 'treatment', tools: resolvedTools,
+      selectedToolInstanceIds: doubleBoilers.map(tool => tool.instanceId), rulesetId: 'original-1e-3p'
+    });
+    resolvedTools = resolved.tools;
+    potencyBoost = { itemId: boilOrBrew[0].item.id, amount: resolved.potencyDelta };
+  }
+  const combs = selectedCanonicalTools.filter(tool => tool.toolId === 'fine-toothed-comb' && !tool.broken && !tool.consumed);
+  for (const comb of combs) {
+    const card = input.toolCards?.[comb.instanceId];
+    if (!card) return { status: 'invalid', value: null, messages: ['Fine-toothed Comb use requires its breakage card.'] };
+    const resolved = resolveToolEffects({
+      transactionId: `${input.transactionId}:tool:comb:${comb.instanceId}`,
+      phase: 'treatment', trigger: 'comb-remedy', tools: resolvedTools,
+      selectedToolInstanceIds: [comb.instanceId], card, rulesetId: 'original-1e-3p'
+    });
+    resolvedTools = resolved.tools;
+  }
 
   const collected = collectTags(
     selected as Array<{ item: EngineInventoryItem; preparation: ReagentPreparation }>,
     tools,
-    input.catalyse || []
+    input.catalyse || [],
+    potencyBoost
   );
   if (collected.messages.length > 0) return { status: 'invalid', value: null, messages: collected.messages };
   if (definition.canonicalName === 'Bad Idea' && collected.foul > 0) {
     return { status: 'invalid', value: null, messages: ['Bad Idea cannot be treated with a Remedy containing FOUL.'] };
+  }
+  const badIdeaQualifies = definition.canonicalName === 'Bad Idea'
+    && selected.some(row => row.preparation!.tags.some(tag => tag.tag !== 'FAIR' && tag.tag !== 'FOUL' && tag.value >= 3));
+  let badIdeaTools = resolvedTools;
+  let badIdeaAppliedTransactionIds = input.state.appliedTransactionIds;
+  if (badIdeaQualifies) {
+    if (!input.badIdeaOutcome) {
+      const availableTools = (input.state.tools || []).filter(tool => !tool.broken && !tool.consumed);
+      const upgradeTargets = availableTools.flatMap(tool => {
+        if (tool.upgradeId) return [];
+        const upgrades = TOOL_UPGRADES
+          .filter(upgrade => upgrade.baseToolId === tool.toolId)
+          .map(upgrade => ({ id: upgrade.id, canonicalName: upgrade.canonicalName }));
+        return upgrades.length > 0 ? [{ toolInstanceId: tool.instanceId, toolId: tool.toolId, upgrades }] : [];
+      });
+      const lightenTargets = availableTools
+        .filter(tool => toolWeight(tool) > 0)
+        .map(tool => ({ toolInstanceId: tool.instanceId, toolId: tool.toolId, currentWeight: toolWeight(tool) }));
+      return {
+        status: 'manual',
+        value: null,
+        messages: ['Choose the Bad Idea Inspiration reward and its Tool target before committing treatment.'],
+        manualAction: { kind: 'bad-idea-inspiration', upgradeTargets, lightenTargets }
+      };
+    }
+    const inspiration = resolveBadIdeaOutcomeEffect({
+      transactionId: `${input.transactionId}:bad-idea-inspiration`,
+      state: { tools: input.state.tools || [], appliedTransactionIds: input.state.appliedTransactionIds },
+      choice: input.badIdeaOutcome
+    });
+    if (!inspiration.value) return { status: 'invalid', value: null, messages: inspiration.messages };
+    badIdeaTools = inspiration.value.tools;
+    badIdeaAppliedTransactionIds = inspiration.value.appliedTransactionIds;
   }
   const additionalRequirements = Array.isArray(ailment.specialState.additionalRequirements)
     ? ailment.specialState.additionalRequirements as Array<{ tag: RuleTag; threshold: number }>
@@ -300,7 +417,10 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
   const unmetSpecial = [...additionalRequirements, ...quagmirePoison]
     .filter(row => (collected.tags[row.tag] || 0) < row.threshold)
     .map(row => `${row.tag} ${row.threshold}`);
-  const requirement = evaluateRequirement(definition.requirements, collected.tags);
+  const requirement = evaluateRequirement(
+    applyAilmentTagOverrides(definition.requirements, definition.id, input.state.ailmentTagOverrides),
+    collected.tags
+  );
   if (unmetSpecial.length > 0) return { status: 'invalid', value: null, messages: unmetSpecial };
   if (!requirement.satisfied) return { status: 'invalid', value: null, messages: requirement.missing };
   const confirmed = new Set(input.confirmedManualRequirements || []);
@@ -317,7 +437,7 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
     : collected.fair - collected.foul;
   const baseReward = Math.max(0, severityValue(definition.severity) + Math.trunc(netFair / 2));
   const gifting = Boolean(input.gifting && baseReward > 0);
-  const trinketReward = gifting ? 0 : baseReward;
+  const trinketReward = gifting ? 0 : baseReward + Math.max(0, Math.floor(input.trinketRewardBonus || 0));
   const brandCareChange = definition.canonicalName === 'Brand Care' && ailment.specialState.brandCareChoice !== 'treat' ? -2 : 0;
   const stingshockChange = definition.canonicalName === 'Stingshock' && doseCount >= 2 ? 3 : 0;
   const cookedWakeChange = definition.canonicalName === 'Wake'
@@ -329,6 +449,7 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
     ailmentInstanceIds: [ailment.id],
     preparationIds: selected.map(row => row.preparation!.id),
     providedTags: collected.tags,
+    remedyFlags,
     outcome: 'success',
     effects: definition.successEffects,
     journalEventId: `${input.transactionId}:journal`
@@ -337,6 +458,7 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
   const nextState: TreatmentTransactionState = {
     ...input.state,
     inventory: consumed.inventory,
+    tools: badIdeaTools,
     patient,
     reputation: input.state.reputation + reputationChange,
     trinkets: input.state.trinkets + trinketReward,
@@ -346,10 +468,11 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
       title: `Remedy: ${definition.canonicalName}`,
       text: input.journalText
     }],
-    appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId]
+    appliedTransactionIds: [...badIdeaAppliedTransactionIds, input.transactionId]
   };
   const manualEffects = [...definition.successEffects, ...definition.specialRules]
-    .filter(effect => effect.support !== 'implemented');
+    .filter(effect => effect.support !== 'implemented')
+    .filter(() => definition.canonicalName !== 'Bad Idea');
   return {
     status: manualEffects.length > 0 ? 'manual' : 'resolved',
     value: {
@@ -357,12 +480,14 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
       nextState,
       requirement,
       providedTags: collected.tags,
+      remedyFlags,
       fair: collected.fair,
       foul: collected.foul,
       trinketReward,
       reputationChange,
       consumedItemIds: consumed.consumedIds,
       manualEffects,
+      badIdeaOutcomeApplied: badIdeaQualifies,
       allAilmentsResolved: patient.ailments.every(row => row.status !== 'active')
     },
     messages: manualEffects.length > 0 ? ['Base treatment succeeded. Resolve any printed optional Outcome or special rule shown.'] : []

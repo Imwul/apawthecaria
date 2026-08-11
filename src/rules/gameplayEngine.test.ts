@@ -5,6 +5,8 @@ import {
   canTreatAilmentWithInventory,
   canonicalMetadata,
   resolveDowntime,
+  resolveAilmentDiagnosisEffect,
+  resolveBadIdeaOutcomeEffect,
   resolveEncounter,
   resolveForaging,
   resolvePatient,
@@ -154,6 +156,37 @@ describe('foraging and treatment transactions', () => {
     expect(new Set(result.value?.gatheredItems.map(item => item.canonicalReagentId))).toEqual(new Set([candidate.reagentId]));
   });
 
+  it('[CHARACTER-005/FORAGE-001/FORAGE-006] resolves Independent Familiar foraging with a real draw and no Encounter or Timer cost', () => {
+    const result = resolveForaging({
+      transactionId: 'forage-independent',
+      state: { season: 'Spring', currentRegion: 'Forest', currentLocationType: 'Settlement', foragingPoints: 0, inventory: [], toolIds: [] },
+      forageRegion: 'Meadow',
+      locationRelation: 'adjacent',
+      card: { value: 7, suit: '♣' },
+      source: 'familiar-independent'
+    });
+    expect(result.status).toBe('resolved');
+    expect(result.value?.encounter).toBeNull();
+    expect(result.value?.timerCostAfterEncounter).toBe(0);
+    expect(result.value?.candidates.length).toBeGreaterThan(0);
+  });
+
+  it('[FORAGE-001/MAP-002] rejects an adjacent Region that is not connected by the canonical map graph', () => {
+    const result = resolveForaging({
+      transactionId: 'forage-invalid-adjacent',
+      state: {
+        season: 'Spring', currentRegion: 'Forest', currentLocationType: 'Settlement',
+        adjacentRegions: ['Meadow'], foragingPoints: 0, inventory: [], toolIds: []
+      },
+      forageRegion: 'Bog',
+      locationRelation: 'adjacent',
+      card: 7,
+      skipEncounter: true
+    });
+    expect(result.status).toBe('invalid');
+    expect(result.value).toBeNull();
+  });
+
   it('[AILMENT-006/REMEDY-001/REMEDY-004/REMEDY-005/REMEDY-006/SAVE-004] commits a valid treatment atomically without consuming time', () => {
     const ailment = AILMENTS.find(row => row.canonicalName === 'Anxious Scratching')!;
     const patientResult = resolvePatient({ id: 'p', name: 'Patient', species: 'Mouse', ailmentIds: [ailment.id] });
@@ -176,6 +209,70 @@ describe('foraging and treatment transactions', () => {
     expect(result.value?.nextState.patient.timers[0].current).toBe(patient.timers[0].current);
     expect(result.value?.consumedItemIds.length).toBe(reagents.length);
     expect(result.value?.nextState.appliedTransactionIds).toContain('treatment-1');
+  });
+
+  it('[TOOL-003/REMEDY-004] applies Double Boiler potency inside the treatment transaction', () => {
+    const ailment = AILMENTS.find(row => row.canonicalName === 'Anxious Scratching')!;
+    const patient = resolvePatient({ id: 'double-patient', name: 'Patient', species: 'Mouse', ailmentIds: [ailment.id] }).value!;
+    const rows = REAGENTS.flatMap(reagent => reagent.preparations.map(part => ({ reagent, part })));
+    const boiledMood = rows.find(row => /BOIL|BREW/i.test(row.part.method)
+      && row.part.tags.some(tag => tag.tag === 'MOOD' && tag.value === 1)
+      && !row.part.tags.some(tag => tag.tag === 'FOUL'))!;
+    const covering = rows.find(row => !/BOIL|BREW/i.test(row.part.method)
+      && row.part.tags.some(tag => ['FUR', 'FEATHER', 'SCALE'].includes(tag.tag) && tag.value >= 1)
+      && !row.part.tags.some(tag => tag.tag === 'FOUL'))!;
+    expect(boiledMood).toBeTruthy();
+    expect(covering).toBeTruthy();
+    const ingredients: EngineInventoryItem[] = [boiledMood, covering].map(({ reagent, part }, index) => ({
+      id: `double:ingredient:${index}`, name: part.name, type: 'reagent', weight: part.weight,
+      canonicalReagentId: reagent.id, preparationId: part.id, usesRemaining: part.uses
+    }));
+    const required = [...new Set([boiledMood, covering].flatMap(row => row.part.requiredTools).filter(id => id !== 'none' && id !== 'camp-kettle'))];
+    const toolItems: EngineInventoryItem[] = [
+      { id: 'double:tool', name: 'Double Boiler', type: 'tool', weight: 1, canonicalToolId: 'camp-kettle' },
+      ...required.map(id => ({ id: `double:${id}`, name: id, type: 'tool' as const, weight: 0, canonicalToolId: id }))
+    ];
+    const result = resolveTreatment({
+      mode: 'treat', transactionId: 'double:treatment',
+      state: {
+        inventory: [...ingredients, ...toolItems], patient, reputation: 0, trinkets: 0, journalEvents: [], appliedTransactionIds: [],
+        tools: [{ instanceId: 'double:tool', toolId: 'camp-kettle', upgradeId: 'double-boiler', charges: null, broken: false, consumed: false, acquiredBy: 'test', appliedEffectIds: [] }]
+      },
+      ailmentInstanceId: patient.ailments[0].id,
+      selectedItemIds: ingredients.map(item => item.id), selectedToolIds: toolItems.map(item => item.id), journalText: 'Double boiled.'
+    });
+    expect(result.value?.providedTags.MOOD).toBe(2);
+    expect(result.value?.nextState.patient.ailments[0].status).toBe('treated');
+    expect(result.value?.nextState.tools?.[0].appliedEffectIds).toContain('double:treatment:tool:double-boiler');
+  });
+
+  it('[TOOL-003/REMEDY-004] resolves Comb contribution and breakage in the same treatment transaction', () => {
+    const ailment = AILMENTS.find(row => row.canonicalName === 'Anxious Scratching')!;
+    const patient = resolvePatient({ id: 'comb-patient', name: 'Patient', species: 'Mouse', ailmentIds: [ailment.id] }).value!;
+    const row = REAGENTS.flatMap(reagent => reagent.preparations.map(part => ({ reagent, part })))
+      .find(candidate => candidate.part.tags.some(tag => tag.tag === 'MOOD' && tag.value >= 2) && !candidate.part.tags.some(tag => tag.tag === 'FOUL'))!;
+    const ingredient: EngineInventoryItem = {
+      id: 'comb:ingredient', name: row.part.name, type: 'reagent', weight: row.part.weight,
+      canonicalReagentId: row.reagent.id, preparationId: row.part.id, usesRemaining: row.part.uses
+    };
+    const required = [...new Set(row.part.requiredTools.filter(id => id !== 'none'))];
+    const toolItems: EngineInventoryItem[] = [
+      { id: 'comb:tool', name: 'Fine-toothed Comb', type: 'tool', weight: 1 / 3, canonicalToolId: 'fine-toothed-comb' },
+      ...required.map(id => ({ id: `comb:${id}`, name: id, type: 'tool' as const, weight: 0, canonicalToolId: id }))
+    ];
+    const result = resolveTreatment({
+      mode: 'treat', transactionId: 'comb:treatment',
+      state: {
+        inventory: [ingredient, ...toolItems], patient, reputation: 0, trinkets: 0, journalEvents: [], appliedTransactionIds: [],
+        tools: [{ instanceId: 'comb:tool', toolId: 'fine-toothed-comb', upgradeId: null, charges: null, broken: false, consumed: false, acquiredBy: 'test', appliedEffectIds: [] }]
+      },
+      ailmentInstanceId: patient.ailments[0].id,
+      selectedItemIds: [ingredient.id], selectedToolIds: toolItems.map(item => item.id),
+      toolCards: { 'comb:tool': { value: 5, suit: '♠' } }, journalText: 'Combed remedy.'
+    });
+    expect(result.value?.providedTags.FUR).toBe(3);
+    expect(result.value?.nextState.patient.ailments[0].status).toBe('treated');
+    expect(result.value?.nextState.tools?.[0].broken).toBe(true);
   });
 
   it('[REMEDY-005/SAVE-004] rejects a missing preparation Tool without mutating inventory', () => {
@@ -223,6 +320,79 @@ describe('foraging and treatment transactions', () => {
     const repeated = resolveTreatment({ ...input, state: first.value!.nextState });
     expect(repeated.value?.reputationChange).toBe(0);
   });
+
+  it('[AILMENT-003/REMEDY-007/TOOL-003/SAVE-004] commits Bad Idea Inspiration as part of the treatment transaction', () => {
+    const ailment = AILMENTS.find(row => row.canonicalName === 'Bad Idea')!;
+    const patient = resolvePatient({ id: 'bad-idea-patient', name: 'Inventor', species: 'Vole', ailmentIds: [ailment.id] }).value!;
+    const selectedRows = [
+      { reagent: REAGENTS.find(row => row.canonicalName === 'Cherry Trees')!, method: 'COOKED' },
+      { reagent: REAGENTS.find(row => row.canonicalName === 'Chillies')!, method: 'DISTILLED' },
+      { reagent: REAGENTS.find(row => row.canonicalName === 'Glass Silk')!, method: 'USED' }
+    ].map(row => ({ reagent: row.reagent, part: row.reagent.preparations.find(part => part.method === row.method)! }));
+    const ingredients: EngineInventoryItem[] = selectedRows.map(({ reagent, part }) => ({
+      id: `bad-idea:${part.id}`, name: part.name, type: 'reagent', weight: part.weight,
+      canonicalReagentId: reagent.id, preparationId: part.id, usesRemaining: part.uses
+    }));
+    const requiredToolIds = [...new Set(selectedRows.flatMap(row => row.part.requiredTools).filter(id => id !== 'none'))];
+    const preparationTools: EngineInventoryItem[] = requiredToolIds.map(id => ({
+      id: `bad-idea-tool:${id}`, name: id, type: 'tool', weight: 0, canonicalToolId: id
+    }));
+    const knife: EngineInventoryItem = { id: 'bad-idea-knife', name: 'Belt Knife', type: 'tool', weight: 1 / 3, canonicalToolId: 'belt-knife' };
+    const state = {
+      inventory: [...ingredients, ...preparationTools, knife],
+      tools: [{
+        instanceId: knife.id, toolId: 'belt-knife', upgradeId: null, charges: null,
+        broken: false, consumed: false, acquiredBy: 'campaign-inventory', appliedEffectIds: []
+      }],
+      patient, reputation: 0, trinkets: 0, journalEvents: [], appliedTransactionIds: []
+    };
+    const baseInput = {
+      mode: 'treat' as const, transactionId: 'bad-idea-treatment', state,
+      ailmentInstanceId: patient.ailments[0].id,
+      selectedItemIds: ingredients.map(item => item.id),
+      selectedToolIds: preparationTools.map(item => item.id),
+      journalText: 'The invention inspired a better tool.'
+    };
+
+    const pending = resolveTreatment(baseInput);
+    expect(pending.status).toBe('manual');
+    expect(pending.value).toBeNull();
+    expect(pending.manualAction).toMatchObject({ kind: 'bad-idea-inspiration' });
+    expect(pending.manualAction?.upgradeTargets[0].upgrades.map(upgrade => upgrade.id)).toContain('silver-sickle');
+
+    const resolved = resolveTreatment({
+      ...baseInput,
+      badIdeaOutcome: { kind: 'upgrade-basic-tool', toolInstanceId: knife.id, upgradeId: 'silver-sickle' }
+    });
+    expect(resolved.status).toBe('resolved');
+    expect(resolved.value?.badIdeaOutcomeApplied).toBe(true);
+    expect(resolved.value?.nextState.tools?.[0].upgradeId).toBe('silver-sickle');
+    expect(resolved.value?.nextState.patient.ailments[0].status).toBe('treated');
+    expect(resolved.value?.nextState.appliedTransactionIds).toEqual([
+      'bad-idea-treatment:bad-idea-inspiration',
+      'bad-idea-treatment'
+    ]);
+  });
+
+  it('[AILMENT-003/TOOL-003/SAVE-004] lightens a Tool by exactly one third and rejects a repeated Inspiration transaction', () => {
+    const state = {
+      tools: [{
+        instanceId: 'light-tool', toolId: 'camp-kettle', upgradeId: null, charges: null,
+        broken: false, consumed: false, acquiredBy: 'campaign-inventory', appliedEffectIds: []
+      }],
+      appliedTransactionIds: []
+    };
+    const first = resolveBadIdeaOutcomeEffect({
+      transactionId: 'inspiration-lighten', state,
+      choice: { kind: 'lighten-tool', toolInstanceId: 'light-tool' }
+    });
+    expect(first.value?.tools[0].weightAdjustment).toBeCloseTo(-1 / 3);
+    const repeated = resolveBadIdeaOutcomeEffect({
+      transactionId: 'inspiration-lighten', state: first.value!,
+      choice: { kind: 'lighten-tool', toolInstanceId: 'light-tool' }
+    });
+    expect(repeated.status).toBe('invalid');
+  });
 });
 
 describe('patient, downtime, and season procedures', () => {
@@ -236,6 +406,43 @@ describe('patient, downtime, and season procedures', () => {
     expect(result.value?.patient.personality).toBe('Witty');
     expect(result.value?.patient.ailments).toHaveLength(2);
     expect(new Set(result.value?.patient.timers.map(timer => timer.id)).size).toBe(2);
+  });
+
+  it('[AILMENT-003/PATIENT-003/SAVE-004] resolves Brand Care and Forager\'s Twitch during diagnosis', () => {
+    const brand = AILMENTS.find(row => row.canonicalName === 'Brand Care')!;
+    const brandPatient = resolvePatient({ id: 'brand-patient', name: 'Patient', species: 'Mouse', ailmentIds: [brand.id] }).value!;
+    const treated = resolveAilmentDiagnosisEffect({
+      transactionId: 'brand-treat',
+      state: { patient: brandPatient, reputation: 5, worldConditions: [], appliedTransactionIds: [] },
+      ailmentInstanceId: brandPatient.ailments[0].id,
+      brandCareChoice: 'treat'
+    });
+    expect(treated.value?.reputation).toBe(3);
+    expect(treated.value?.patient.ailments[0].specialState.brandCareChoice).toBe('treat');
+
+    const refused = resolveAilmentDiagnosisEffect({
+      transactionId: 'brand-refuse',
+      state: { patient: brandPatient, reputation: 5, worldConditions: [], appliedTransactionIds: [] },
+      ailmentInstanceId: brandPatient.ailments[0].id,
+      brandCareChoice: 'refuse'
+    });
+    expect(refused.value?.reputation).toBe(7);
+    expect(refused.value?.patient.status).toBe('departed');
+    expect(refused.value?.patient.ailments[0].status).toBe('failed');
+
+    const twitch = AILMENTS.find(row => row.canonicalName === "Forager's Twitch")!;
+    const twitchPatient = resolvePatient({ id: 'twitch-patient', name: 'Patient', species: 'Mouse', ailmentIds: [twitch.id] }).value!;
+    const badTrip = resolveAilmentDiagnosisEffect({
+      transactionId: 'twitch-spade',
+      state: { patient: twitchPatient, reputation: 0, worldConditions: [], appliedTransactionIds: [] },
+      ailmentInstanceId: twitchPatient.ailments[0].id,
+      cardSuit: '♠'
+    });
+    expect(badTrip.value?.patient.ailments[0].specialState).toMatchObject({
+      diagnosisCardSuit: '♠',
+      trip: 'bad',
+      additionalRequirements: [{ tag: 'WOUND', threshold: 1 }]
+    });
   });
 
   it('[DOWNTIME-001/DOWNTIME-003/DOWNTIME-006/DOWNTIME-007] permits exactly one Downtime and applies automatic rewards', () => {
@@ -258,9 +465,21 @@ describe('patient, downtime, and season procedures', () => {
     expect(resolveDowntime({ transactionId: 'down-relax-again', activity: 'relax-familiar', state: relax.value!.nextState }).status).toBe('invalid');
   });
 
+  it('[DOWNTIME-007/WAGON-001/WAGON-002] charges the canonical Wagon transaction cost exactly once', () => {
+    const state = { downtimeCompleted: false, reputation: 2, trinkets: 10, journalEvents: [], appliedTransactionIds: [] };
+    const result = resolveDowntime({
+      transactionId: 'down-wagon-expansion', activity: 'commission-wagon', state, atCity: true, resourceCost: 6
+    });
+    expect(result.status).toBe('manual');
+    expect(result.value?.nextState.trinkets).toBe(4);
+    expect(resolveDowntime({
+      transactionId: 'down-wagon-expansion', activity: 'commission-wagon', state: result.value!.nextState, atCity: true, resourceCost: 6
+    }).status).toBe('invalid');
+  });
+
   it('[CLINIC-002/CLINIC-005/CLINIC-006/COMPANION-003] applies all Season boundary effects once', () => {
     const state: SeasonRuntimeState = {
-      season: 'Spring', reputation: 4, trinkets: 1,
+      season: 'Spring', completedSeasons: 0, reputation: 4, trinkets: 1,
       clinics: [{ id: 'clinic-1', locationId: 'wild', status: 'building', completesAtSeason: 'Summer', gardenReagentId: 'reagent-yarrow' }],
       agendaServices: ['hostel', 'goodwill_stand'], goodwillDonatedWeight: 2.75,
       companions: [{ id: 'cat-1', kind: 'caterpillar', seasonsTravelled: 0 }],

@@ -150,8 +150,15 @@ export const AILMENTS: AilmentDefinition[] = expectedRows.map(expected => {
   if (expected.canonicalName === 'Stingshock') {
     specialRules.push(specialRule('OPTIONAL_DOUBLE_DOSE', 'Two remedy doses grant the Emergency Averted outcome.'));
   }
+  if (expected.canonicalName === 'Seasonshift') {
+    specialRules.push(specialRule('TRIM_THICK_COAT', 'For a thick coat, you may cut the fur back to increase this Ailment Timer by 2.'));
+  }
+  if (expected.canonicalName === 'Smokesnout') {
+    specialRules.push(specialRule('FIRE_BRIGADE', 'You may decrease this Ailment Timer by 2 to help put out the fire and gain 4 Reputation.'));
+  }
   if (isMissingBite) {
     specialRules.push(specialRule('FIND_PATIENT_BR_8', 'The patient is treated as a BR 8 target before administering the remedy.'));
+    specialRules.push(specialRule('AT_LEAST_THEYRE_HOME', 'If you find the patient but fail to create a Remedy, apply the drawn Ailment consequence without losing Reputation and record how it develops.'));
   }
   return {
     id: `ailment-${slugify(expected.canonicalName)}`,
@@ -166,7 +173,7 @@ export const AILMENTS: AilmentDefinition[] = expectedRows.map(expected => {
     failureEffects: legacy?.consequence
       ? [specialRule('AILMENT_CONSEQUENCE', legacy.consequence)]
       : isMissingBite
-        ? [specialRule('LAUGHING_STOCK', 'Apply the Laughing Stock consequence from p104.')]
+        ? [specialRule('LAUGHING_STOCK', 'Laughing Stock: you cannot find the patient and become the butt of local jokes.')]
         : [],
     specialRules,
     allowsMultiple: repeatCount !== undefined,

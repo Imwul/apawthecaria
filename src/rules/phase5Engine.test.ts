@@ -23,15 +23,18 @@ const tool = (toolId: string, upgradeId: string | null = null): CanonicalToolSta
 
 const downtimeState = (): CanonicalDowntimeState => {
   const graph: Record<string, TravelGraphNode> = {
-    a: { id: 'a', name: 'A', region: 'Forest', locationType: 'Wilds', edges: [] },
-    b: { id: 'b', name: 'B', region: 'Meadow', locationType: 'City', edges: [] }
+    a: { id: 'a', name: 'A', region: 'Forest', locationType: 'Wilds', edges: [{ to: 'c', kind: 'path' }] },
+    b: { id: 'b', name: 'B', region: 'Meadow', locationType: 'City', edges: [{ to: 'c', kind: 'path' }] },
+    c: { id: 'c', name: 'C', region: 'Forest', locationType: 'Wilds', edges: [{ to: 'a', kind: 'path' }, { to: 'b', kind: 'path' }] }
   };
   return {
+    downtimeRequired: true,
     downtimeCompleted: false,
     reputation: 15,
     trinkets: 0,
     speed: 3,
     carry: 4,
+    travelStyle: 'Rambling and Ready',
     currentLocationId: 'a',
     currentSeason: 'Spring',
     inventory: [],

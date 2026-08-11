@@ -40,6 +40,9 @@ export interface ValidationReport {
     almanackTools: number;
     tags: number;
     printedEffects: number;
+    implementedPrintedEffects: number;
+    manualPrintedEffects: number;
+    completeManualEffects: number;
     barrowDelves: number;
     guildServices: number;
     toolUpgrades: number;
@@ -100,6 +103,7 @@ export const validateCanonicalData = (): ValidationReport => {
   duplicateCheck('Tools', TOOLS.map(row => row.id));
   duplicateCheck('Tags', TAG_DEFINITIONS.map(row => row.id));
   duplicateCheck('Printed Effects', PRINTED_EFFECT_REGISTRY.map(row => row.id));
+  duplicateCheck('Printed Effect Owners', PRINTED_EFFECT_REGISTRY.map(row => `${row.ownerType}:${row.ownerId}`));
   duplicateCheck('Barrow Delves', BARROW_DELVES.map(row => row.id));
   duplicateCheck('Guild Services', GUILD_SERVICES.map(row => row.id));
   duplicateCheck('Tool Upgrades', TOOL_UPGRADES.map(row => row.id));
@@ -179,12 +183,35 @@ export const validateCanonicalData = (): ValidationReport => {
       issue('error', 'INVALID_PAGE', 'Printed Effects', `Invalid source page: ${effect.sourcePage}`, effect.id);
     }
     if (!effect.executor.trim()) issue('error', 'MISSING_EXECUTOR', 'Printed Effects', 'Printed effect has no executor.', effect.id);
+    if (!effect.ownerName.trim()) issue('error', 'MISSING_OWNER_NAME', 'Printed Effects', 'Printed effect has no owner name.', effect.id);
+    if (!effect.printedText.trim()) issue('error', 'MISSING_PRINTED_TEXT', 'Printed Effects', 'Printed effect has no faithful printed text.', effect.id);
     const ownerExists = effect.ownerType === 'encounter' ? encounterIds.has(effect.ownerId) : ailmentIds.has(effect.ownerId);
     if (!ownerExists) issue('error', 'INVALID_OWNER_REFERENCE', 'Printed Effects', `Unknown ${effect.ownerType}: ${effect.ownerId}`, effect.id);
     if (effect.ruleIds.length === 0) issue('error', 'MISSING_RULE_ID', 'Printed Effects', 'Printed effect has no traceability Rule ID.', effect.id);
+    if (!effect.supportedTriggers.includes(effect.trigger)) issue('error', 'INVALID_EFFECT_TRIGGER', 'Printed Effects', 'Primary trigger is not included in supportedTriggers.', effect.id);
     if (effect.status === 'manual' && !effect.manualResolution) {
       issue('error', 'MISSING_MANUAL_RESOLUTION', 'Printed Effects', 'Manual effect must explain the decision and follow-up state.', effect.id);
     }
+    if (effect.status === 'manual') effect.supportedTriggers.forEach(trigger => {
+      const metadata = effect.manualResolutionByTrigger[trigger];
+      if (!effect.triggerText[trigger]?.trim()) issue('error', 'MISSING_TRIGGER_TEXT', 'Printed Effects', `Missing printed text for ${trigger}.`, effect.id);
+      if (!metadata) {
+        issue('error', 'MISSING_TRIGGER_RESOLUTION', 'Printed Effects', `Missing resolution metadata for ${trigger}.`, effect.id);
+        return;
+      }
+      if (!metadata.reason.trim() || !metadata.decision.trim() || !metadata.journalInstruction.trim()) {
+        issue('error', 'INCOMPLETE_MANUAL_RESOLUTION', 'Printed Effects', `${trigger} lacks reason, decision, or journal instruction.`, effect.id);
+      }
+      if (metadata.inputFields.length === 0) issue('error', 'MISSING_MANUAL_INPUT', 'Printed Effects', `${trigger} has no effect-specific input.`, effect.id);
+      if (findDuplicateIds(metadata.inputFields.map(field => field.id)).length > 0) issue('error', 'DUPLICATE_MANUAL_INPUT', 'Printed Effects', `${trigger} has duplicate input IDs.`, effect.id);
+      if (findDuplicateIds(metadata.actionTemplates.map(action => action.id)).length > 0) issue('error', 'DUPLICATE_MANUAL_ACTION', 'Printed Effects', `${trigger} has duplicate action IDs.`, effect.id);
+      if (metadata.actionTemplates.some(action => !action.label.trim() || !action.sourceText.trim())) {
+        issue('error', 'INCOMPLETE_MANUAL_ACTION', 'Printed Effects', `${trigger} has an action without a label or source sentence.`, effect.id);
+      }
+      if (/^resolve this effect manually\.?$/i.test(metadata.decision.trim())) {
+        issue('error', 'GENERIC_MANUAL_PROMPT', 'Printed Effects', `${trigger} uses a generic placeholder prompt.`, effect.id);
+      }
+    });
   });
 
   const phase4Rows: Array<[string, readonly CanonicalRuleRecord[]]> = [
@@ -215,6 +242,8 @@ export const validateCanonicalData = (): ValidationReport => {
     ['Seasons', SEASONS.length, 4],
     ['Tags', TAG_DEFINITIONS.length, 22],
     ['Printed Effects', PRINTED_EFFECT_REGISTRY.length, ENCOUNTERS.length + AILMENTS.length]
+    ,['Implemented Printed Effects', PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'implemented').length, 11]
+    ,['Manual Printed Effects', PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'manual').length, 347]
     ,['Barrow Delves', BARROW_DELVES.length, 8]
     ,['Guild Services', GUILD_SERVICES.length, 17]
     ,['Tool Upgrades', TOOL_UPGRADES.length, 7]
@@ -246,6 +275,9 @@ export const validateCanonicalData = (): ValidationReport => {
       almanackTools: ALMANACK_TOOLS.length,
       tags: TAG_DEFINITIONS.length,
       printedEffects: PRINTED_EFFECT_REGISTRY.length
+      ,implementedPrintedEffects: PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'implemented').length
+      ,manualPrintedEffects: PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'manual').length
+      ,completeManualEffects: PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'manual' && row.supportedTriggers.every(trigger => Boolean(row.manualResolutionByTrigger[trigger]))).length
       ,barrowDelves: BARROW_DELVES.length
       ,guildServices: GUILD_SERVICES.length
       ,toolUpgrades: TOOL_UPGRADES.length

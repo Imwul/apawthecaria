@@ -25,6 +25,7 @@ export interface DowntimeEngineInput {
   state: DowntimeEngineState;
   activity: DowntimeActivity;
   atCity?: boolean;
+  resourceCost?: number;
 }
 
 export interface DowntimeEngineOutcome {
@@ -58,13 +59,14 @@ export const resolveDowntime = (input: DowntimeEngineInput): {
   if (input.state.downtimeCompleted) {
     return { status: 'invalid', value: null, messages: ['Exactly one Downtime activity is allowed between Journeys.'] };
   }
-  if (input.activity === 'commission-wagon' && (!input.atCity || input.state.trinkets < 20)) {
-    return { status: 'invalid', value: null, messages: ['Commissioning a Wagon requires a City and 20 Trinkets.'] };
+  const wagonCost = input.activity === 'commission-wagon' ? input.resourceCost ?? 20 : 0;
+  if (input.activity === 'commission-wagon' && (!Number.isFinite(wagonCost) || wagonCost < 0 || !input.atCity || input.state.trinkets < wagonCost)) {
+    return { status: 'invalid', value: null, messages: [`Commissioning or expanding a Wagon requires a City and ${wagonCost} Trinkets.`] };
   }
   const reputation = input.state.reputation + (input.activity === 'lend-a-paw' ? 5 : 0);
   const trinkets = input.state.trinkets
     + (input.activity === 'general-practice' ? 5 : 0)
-    - (input.activity === 'commission-wagon' ? 20 : 0);
+    - wagonCost;
   const manualSteps = MANUAL_STEPS[input.activity];
   const event: EngineJournalEvent = {
     id: `${input.transactionId}:downtime`,

@@ -1,5 +1,7 @@
 import type { CardSuit, Season } from './types';
 import type { PatientState } from './state';
+import { TOOL_UPGRADE_BY_ID } from './data/upgrades';
+import { equipToolUpgrade, toolWeight, type CanonicalToolState } from './toolEngine';
 
 export interface AilmentEffectRuntimeState {
   patient: PatientState;
@@ -13,6 +15,59 @@ export interface AilmentEffectResolution {
   value: AilmentEffectRuntimeState | null;
   messages: string[];
 }
+
+export interface BadIdeaOutcomeRuntimeState {
+  tools: CanonicalToolState[];
+  appliedTransactionIds: string[];
+}
+
+export type BadIdeaOutcomeChoice =
+  | { kind: 'upgrade-basic-tool'; toolInstanceId: string; upgradeId: string }
+  | { kind: 'lighten-tool'; toolInstanceId: string };
+
+export interface BadIdeaOutcomeResolution {
+  status: 'resolved' | 'invalid';
+  value: BadIdeaOutcomeRuntimeState | null;
+  messages: string[];
+}
+
+export const resolveBadIdeaOutcomeEffect = (input: {
+  transactionId: string;
+  state: BadIdeaOutcomeRuntimeState;
+  choice: BadIdeaOutcomeChoice;
+}): BadIdeaOutcomeResolution => {
+  if (!input.transactionId || input.state.appliedTransactionIds.includes(input.transactionId)) {
+    return { status: 'invalid', value: null, messages: ['Bad Idea outcome transaction is missing or already applied.'] };
+  }
+  const target = input.state.tools.find(tool => tool.instanceId === input.choice.toolInstanceId && !tool.broken && !tool.consumed);
+  if (!target) return { status: 'invalid', value: null, messages: ['Choose an available Tool for Inspiration.'] };
+
+  let changed: CanonicalToolState;
+  if (input.choice.kind === 'upgrade-basic-tool') {
+    const upgrade = TOOL_UPGRADE_BY_ID.get(input.choice.upgradeId);
+    if (target.upgradeId || !upgrade || upgrade.baseToolId !== target.toolId) {
+      return { status: 'invalid', value: null, messages: ['The selected upgrade does not match an unmodified Basic Tool.'] };
+    }
+    changed = equipToolUpgrade(target, upgrade.id);
+  } else {
+    const currentWeight = toolWeight(target);
+    if (currentWeight <= 0) return { status: 'invalid', value: null, messages: ['A weightless Tool cannot be lightened further.'] };
+    changed = {
+      ...target,
+      weightAdjustment: (target.weightAdjustment || 0) - Math.min(1 / 3, currentWeight)
+    };
+  }
+  changed = { ...changed, appliedEffectIds: [...changed.appliedEffectIds, input.transactionId] };
+
+  return {
+    status: 'resolved',
+    value: {
+      tools: input.state.tools.map(tool => tool.instanceId === changed.instanceId ? changed : tool),
+      appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId]
+    },
+    messages: []
+  };
+};
 
 const updateInstance = (
   patient: PatientState,
@@ -40,7 +95,7 @@ export const resolveAilmentDiagnosisEffect = (input: {
     const badTrip = input.cardSuit === '♣' || input.cardSuit === '♠';
     patient = updateInstance(patient, instance.id, row => ({
       ...row,
-      specialState: { ...row.specialState, trip: badTrip ? 'bad' : 'good', additionalRequirements: badTrip ? [{ tag: 'WOUND', threshold: 1 }] : [] },
+      specialState: { ...row.specialState, diagnosisCardSuit: input.cardSuit, trip: badTrip ? 'bad' : 'good', additionalRequirements: badTrip ? [{ tag: 'WOUND', threshold: 1 }] : [] },
       effectIds: [...row.effectIds, input.transactionId]
     }));
   } else if (instance.ailmentId === 'ailment-brand-care') {
@@ -53,6 +108,7 @@ export const resolveAilmentDiagnosisEffect = (input: {
       effectIds: [...row.effectIds, input.transactionId]
     }));
   }
+  if (patient.ailments.every(row => row.status !== 'active')) patient = { ...patient, status: 'departed' };
   return {
     status: 'resolved',
     value: { ...input.state, patient, reputation, appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId] },

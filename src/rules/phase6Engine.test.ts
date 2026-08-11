@@ -116,6 +116,23 @@ describe('Phase 6 common Tool effects', () => {
     });
     expect(weather.ignoredOutcome).toBe(true);
     expect(weather.tools[0]).toMatchObject({ charges: 0, consumed: true, broken: false });
+
+    const travelTools = [
+      tool({ instanceId: 'stilts-1', toolId: 'stilts' }),
+      tool({ instanceId: 'instrument-1', toolId: 'instruments' }),
+      tool({ instanceId: 'instrument-2', toolId: 'instruments' })
+    ];
+    const bogMove = resolveToolEffects({
+      transactionId: 'travel:bog', phase: 'travel', trigger: 'bog-move', tools: travelTools,
+      rulesetId: 'original-1e-3p'
+    });
+    expect(bogMove.speedDelta).toBe(1);
+    const performance = resolveToolEffects({
+      transactionId: 'travel:arrival', phase: 'travel', trigger: 'settlement-arrival', tools: bogMove.tools,
+      availablePerformers: 1, rulesetId: 'original-1e-3p'
+    });
+    expect(performance.trinketsDelta).toBe(1);
+    expect(performance.appliedToolInstanceIds).toHaveLength(1);
   });
 });
 

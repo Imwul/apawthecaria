@@ -32,6 +32,7 @@ export interface RuleBagItem {
   name: string;
   weight: number;
   type: 'tool' | 'reagent' | 'trinket' | 'item';
+  canonicalToolId?: string;
   qty?: number;
   tags?: string;
   preps?: string;
@@ -71,9 +72,10 @@ export interface RuleState {
   barterCountThisAilment?: number;
   resourcefulReagent?: string;
   ingenuitiveTool?: string;
-  activePassenger?: { roleBenefit?: string } | null;
+  activePassenger?: { roleBenefit?: string; ingenuitiveToolId?: string } | null;
   companions?: Array<{ name: string }>;
   wagonExpansions?: { baseUnit?: boolean; passengerBooth?: boolean } | null;
+  wagonState?: { commissioned?: boolean; expansionIds?: string[] } | null;
 }
 
 export interface AilmentRequirement {
@@ -128,7 +130,7 @@ export const getSeverityLevel = (severity: RuleSeverity): number => {
 };
 
 export const getActiveFamiliarBenefit = (s: RuleState): string =>
-  (s.wagonExpansions?.passengerBooth && s.activePassenger?.roleBenefit)
+  ((s.wagonExpansions?.passengerBooth || s.wagonState?.expansionIds?.includes('passenger-booth')) && s.activePassenger?.roleBenefit)
     ? s.activePassenger.roleBenefit
     : s.bio.familiarBenefit;
 
@@ -137,16 +139,22 @@ export const getActiveFamiliarMechanic = (s: RuleState): string =>
 
 export const hasTool = (s: RuleState, toolIdOrName: string): boolean => {
   const target = toolIdOrName.toLowerCase();
+  const normalizedTarget = target.replace(/[^a-z0-9]+/g, '');
   const inBag = s.bag.some(item =>
     item.id === toolIdOrName ||
+    item.canonicalToolId === toolIdOrName ||
+    item.canonicalToolId?.replace(/[^a-z0-9]+/g, '') === normalizedTarget ||
     item.name.toLowerCase().includes(target)
   );
   if (inBag) return true;
 
   const familiarMechanic = getActiveFamiliarMechanic(s);
-  if (familiarMechanic === 'ingenuitive' && s.ingenuitiveTool) {
-    const toolName = s.ingenuitiveTool.toLowerCase();
-    return s.ingenuitiveTool === toolIdOrName || toolName.includes(target);
+  const ingenuitiveTool = s.activePassenger?.ingenuitiveToolId || s.ingenuitiveTool;
+  if (familiarMechanic === 'ingenuitive' && ingenuitiveTool) {
+    const toolName = ingenuitiveTool.toLowerCase();
+    return ingenuitiveTool === toolIdOrName ||
+      toolName.replace(/[^a-z0-9]+/g, '') === normalizedTarget ||
+      toolName.includes(target);
   }
 
   return false;

@@ -162,6 +162,7 @@ export interface EncounterDefinition extends CanonicalRuleRecord {
   cardKey?: string;
   title: string;
   prompt: string;
+  tags?: Array<'Weather' | 'Beast' | 'Behemoth'>;
   mandatoryEffects: StructuredRuleEffect[];
   choices: EncounterChoice[];
   support: RuleSupport;

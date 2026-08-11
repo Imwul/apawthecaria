@@ -47,6 +47,7 @@ export interface PatientCardEngineInput {
   descriptorCard: RuleCard;
   severityCard: { value: number; suit: CardSuit };
   ailmentCard: RuleCard;
+  chosenAilmentId?: string;
   multipleAilmentCards?: RuleCard[];
   reputation: number;
   timerBonus?: number;
@@ -147,6 +148,8 @@ const createPatient = (
     species: input.species,
     personality,
     descriptor,
+    foragingPoints: 0,
+    reagentsGathered: [],
     status: 'active',
     ailments,
     timers,
@@ -172,7 +175,11 @@ export const resolvePatientCards = (input: PatientCardEngineInput): PatientCardE
   const drawnSeverity = SEVERITY_BY_SUIT[input.severityCard.suit];
   const maxSeverity = maxSeverityForReputation(input.reputation);
   const appliedSeverity = SEVERITY_ORDER[Math.min(SEVERITY_ORDER.indexOf(drawnSeverity), SEVERITY_ORDER.indexOf(maxSeverity))];
-  const draw = resolveAilmentDraw(appliedSeverity, input.ailmentCard, input.multipleAilmentCards || [], { value: 0 });
+  const chosenAilment = input.chosenAilmentId ? AILMENTS.find(ailment => ailment.id === input.chosenAilmentId) : null;
+  if (input.chosenAilmentId && !chosenAilment) return { status: 'invalid', value: null, messages: ['Send a Missive selected an unknown canonical Ailment.'] };
+  const draw = chosenAilment
+    ? { ailments: [chosenAilment] }
+    : resolveAilmentDraw(appliedSeverity, input.ailmentCard, input.multipleAilmentCards || [], { value: 0 });
   if (draw.message) return { status: 'manual', value: null, messages: [draw.message] };
   const ailmentsToCreate = draw.ailments;
 

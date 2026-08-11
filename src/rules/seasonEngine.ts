@@ -50,7 +50,7 @@ export const resolveSeasonBoundary = (input: SeasonEngineInput): SeasonEngineRes
     : input.state.agendaServices.includes('taproom')
       ? activeClinicCount
       : 0;
-  const goodwillReputation = input.state.agendaServices.includes('goodwill_stand')
+  const goodwillReputation = (input.state.agendaServices.includes('goodwill-stand') || input.state.agendaServices.includes('goodwill_stand'))
     ? Math.floor(Math.max(0, input.state.goodwillDonatedWeight))
     : 0;
   const transformedCompanionIds: string[] = [];
@@ -74,6 +74,7 @@ export const resolveSeasonBoundary = (input: SeasonEngineInput): SeasonEngineRes
   const nextState: SeasonRuntimeState = {
     ...input.state,
     season: nextSeason,
+    completedSeasons: input.state.completedSeasons + 1,
     reputation: input.state.reputation + goodwillReputation,
     trinkets: input.state.trinkets + clinicIncome,
     clinics,

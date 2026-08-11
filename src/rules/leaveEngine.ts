@@ -1,4 +1,5 @@
 import { REAGENT_BY_ID } from './data/reagents';
+import { createPatientArchiveRecord, upsertPatientArchive, type CanonicalPatientArchiveRecord } from './archiveEngine';
 import type { EngineInventoryItem, EngineJournalEvent } from './gameplay';
 import type { PatientState } from './state';
 import type { Region, RuleTag } from './types';
@@ -24,6 +25,14 @@ export interface LeaveRuntimeState {
   pendingObligation: PendingLeaveObligation | null;
   journalEvents: EngineJournalEvent[];
   appliedTransactionIds: string[];
+  activePatientId?: string | null;
+  patientArchive?: CanonicalPatientArchiveRecord[];
+  archiveContext?: {
+    location: string;
+    encounteredAt: number;
+    resolvedAt: number;
+    sourceJourneyId: string | null;
+  };
 }
 
 export interface ScroungeInput {
@@ -250,6 +259,7 @@ export const resolveLeave = (input: {
   transactionId: string;
   state: LeaveRuntimeState;
   status: 'treated' | 'failed' | 'abandoned';
+  journalNote?: string;
 }): LeaveResolution => {
   if (!input.transactionId || input.state.appliedTransactionIds.includes(input.transactionId)) return { status: 'invalid', value: null, messages: ['Leave transaction is missing or already applied.'] };
   if (input.state.pendingObligation && !input.state.pendingObligation.resolved) return { status: 'invalid', value: null, messages: ['Resolve the pending Encounter or Delve before Moving On.'] };
@@ -262,22 +272,42 @@ export const resolveLeave = (input: {
     : ailment);
   const patient = {
     ...input.state.patient,
+    foragingPoints: 0,
     status: (input.status === 'treated' ? 'cured' : input.status === 'failed' ? 'failed' : 'departed') as PatientState['status'],
     ailments,
     timers: input.state.patient.timers.map(timer => timer.status === 'active' ? { ...timer, status: 'stopped' as const } : timer)
   };
+  const context = input.state.archiveContext;
+  const journalEventId = `${input.transactionId}:journal`;
+  const archiveRecord = context ? createPatientArchiveRecord({
+    caseId: patient.id,
+    patient,
+    location: context.location,
+    encounteredAt: context.encounteredAt,
+    treatedAt: context.resolvedAt,
+    treatmentResult: input.status === 'treated' ? 'success' : input.status === 'failed' ? 'failure' : 'abandoned',
+    penalty: { reputation: input.status === 'treated' ? 0 : severityLoss },
+    specialEffects: input.journalNote?.trim() ? [input.journalNote.trim()] : [],
+    journalEntryIds: [journalEventId],
+    sourceJourneyId: context.sourceJourneyId,
+    transactionIds: [input.transactionId]
+  }) : null;
   return {
     status: 'resolved',
     value: {
       ...input.state,
       patient,
+      activePatientId: null,
+      patientArchive: archiveRecord
+        ? upsertPatientArchive(input.state.patientArchive || [], archiveRecord)
+        : input.state.patientArchive,
       reputation: Math.max(0, input.state.reputation - (input.status === 'treated' ? 0 : severityLoss)),
       foragingPoints: 0,
       pendingObligation: { transactionId: input.transactionId, kind: 'move-on', source: 'leave', resolved: true },
       appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
       journalEvents: [...input.state.journalEvents, {
-        id: `${input.transactionId}:journal`, type: input.status === 'treated' ? 'treatment' : 'failure', title: 'Preparing to Leave',
-        text: failedCount > 0 ? `${failedCount} unresolved Ailments faced their Consequences.` : 'All Ailments were resolved before Moving On.'
+        id: journalEventId, type: input.status === 'treated' ? 'treatment' : 'failure', title: 'Preparing to Leave',
+        text: input.journalNote?.trim() || (failedCount > 0 ? `${failedCount} unresolved Ailments faced their Consequences.` : 'All Ailments were resolved before Moving On.')
       }]
     },
     messages: []

@@ -1,13 +1,14 @@
 {
   "name": "temp-app",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "npm run validate:rules && tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:rc": "vitest run src/rules/releaseCandidate.test.ts",
     "validate:rules": "vitest run src/rules/validation.test.ts",
     "preview": "vite preview"
   },

@@ -31,6 +31,7 @@ export * from './tags';
 export * from './types';
 export * from './validation';
 export * from './data/ailments';
+export * from './data/ailmentWording';
 export * from './data/barrows';
 export * from './data/clinics';
 export * from './data/encounters';

@@ -1,73 +1,34 @@
-# React + TypeScript + Vite
+# Apawthecaria
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Apawthecaria의 전체 캠페인을 브라우저에서 진행할 수 있도록 구성한 한국어 field journal입니다. Journey, Travel, Foraging, Patient, Treatment, Barter, Barrow, Downtime, Clinic, Guild Service, Season과 Archive를 canonical Rule Engine과 schema v8 저장 형식으로 연결합니다.
 
-Currently, two official plugins are available:
+## Release
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Prepared package version: `1.0.0`
+- Release status: packaging gate aborted; no `v1.0.0` tag or deployment was created in this run
+- Production: <https://apawthecaria.vercel.app>
+- Ruleset: 새 캠페인은 `original-1e-3p`, 기존 저장은 호환 migration 적용
+- Save schema: `v8`
+- Offline: local-first save와 cloud outbox 지원
 
-## React Compiler
+Version `1.0.0`의 검증 범위와 제한 사항은 다음 문서에 고정돼 있습니다.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- [Release notes](RELEASE_NOTES_1.0.0.md)
+- [Release baseline](RELEASE_BASELINE_1.0.0.md)
+- [Known limitations](KNOWN_LIMITATIONS.md)
+- [Certification](RELEASE_1_0_CERTIFICATION.md)
+- [Release checklist](RELEASE_CHECKLIST_1.0.0.md)
 
-## Expanding the ESLint configuration
+## Local Verification
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm ci
+npm test
+npm run validate:rules
+npx tsc -b --pretty false
+npm run lint
+npm run build
+npm run preview
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+`package.json`의 `version`이 프로젝트 버전의 canonical source입니다. Version `1.0.0`은 gameplay resolver, schema 또는 Rule 분류를 변경하지 않는 production freeze입니다.

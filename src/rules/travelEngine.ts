@@ -1,4 +1,5 @@
 import { findEncounter } from './data/encounters';
+import { REAGENT_BY_ID } from './data/reagents';
 import type { RuleCard } from './cards';
 import type { EngineInventoryItem, GameplayLocationType, PendingEncounterState, TravelGraphNode } from './gameplay';
 import type { EncounterDefinition, Season, TravelRegion } from './types';
@@ -32,6 +33,8 @@ export interface TravelEngineInput {
   route?: string[];
   mustUseFullSpeed?: boolean;
   canStopInLoch: boolean;
+  protectsFromSoaking?: boolean;
+  waterwaySpan?: number;
 }
 
 export interface TravelEngineOutcome {
@@ -53,6 +56,37 @@ export interface TravelEngineResolution {
   messages: string[];
 }
 
+export const resolveBraveTravelEffect = (input: {
+  transactionId: string;
+  inventory: EngineInventoryItem[];
+  encounter: EncounterDefinition;
+  region: Exclude<TravelRegion, 'Soar'>;
+  card: RuleCard;
+  reagentId: string;
+  preparationId: string;
+}): { status: 'resolved' | 'invalid'; inventory: EngineInventoryItem[]; ignoredNegativeOutcome: boolean; messages: string[] } => {
+  const cardSuit = typeof input.card === 'number' ? '' : input.card.suit;
+  if (!input.transactionId || !input.encounter.tags?.includes('Behemoth') || !['♥', '♦'].includes(cardSuit || '')) {
+    return { status: 'invalid', inventory: input.inventory, ignoredNegativeOutcome: false, messages: ['Brave requires a heart or diamond Travel Encounter with the Behemoth tag.'] };
+  }
+  const reagent = REAGENT_BY_ID.get(input.reagentId);
+  const preparation = reagent?.preparations.find(row => row.id === input.preparationId);
+  if (!reagent || !preparation || reagent.baseRarity > 6 || reagent.regionAvailability[input.region] === 'Unavailable') {
+    return { status: 'invalid', inventory: input.inventory, ignoredNegativeOutcome: false, messages: ['Brave requires a local Reagent with Base Rarity 6 or lower.'] };
+  }
+  const item: EngineInventoryItem = {
+    id: `${input.transactionId}:item`, name: `${reagent.canonicalName} (${preparation.name}, ${preparation.method})`,
+    type: 'reagent', weight: preparation.weight, canonicalReagentId: reagent.id,
+    preparationId: preparation.id, usesRemaining: preparation.uses, ruinedWhenSoaked: true
+  };
+  return {
+    status: 'resolved',
+    inventory: input.inventory.some(row => row.id === item.id) ? input.inventory : [...input.inventory, item],
+    ignoredNegativeOutcome: true,
+    messages: ['Brave ended the Behemoth encounter positively and gained one local Reagent.']
+  };
+};
+
 export const inventoryWeight = (inventory: readonly EngineInventoryItem[]): number =>
   inventory.reduce((total, item) => total + item.weight * Math.max(1, item.quantity || 1), 0);
 
@@ -70,30 +104,57 @@ const validateRoute = (
   );
 };
 
+const routeMovementCost = (
+  graph: Record<string, TravelGraphNode>,
+  route: readonly string[],
+  waterwaySpan: number
+): number => {
+  let cost = 0;
+  let waterwayRun = 0;
+  const flushWaterways = () => {
+    if (waterwayRun > 0) cost += Math.ceil(waterwayRun / Math.max(1, waterwaySpan));
+    waterwayRun = 0;
+  };
+  route.slice(0, -1).forEach((nodeId, index) => {
+    const kind = graph[nodeId]?.edges.find(edge => edge.to === route[index + 1])?.kind || 'path';
+    if (kind === 'waterway') waterwayRun += 1;
+    else {
+      flushWaterways();
+      cost += 1;
+    }
+  });
+  flushWaterways();
+  return cost;
+};
+
 const findRoute = (
   graph: Record<string, TravelGraphNode>,
   start: string,
   destination: string,
-  exactPaths: number | null
+  exactCost: number | null,
+  waterwaySpan: number
 ): string[] | null => {
   if (!graph[start] || !graph[destination]) return null;
   const queue: string[][] = [[start]];
   const shortestSeen = new Map<string, number>([[start, 0]]);
+  const maximumEdges = exactCost === null ? Number.POSITIVE_INFINITY : exactCost * Math.max(1, waterwaySpan);
   while (queue.length > 0) {
     const path = queue.shift()!;
     const current = path[path.length - 1];
-    const steps = path.length - 1;
-    if (current === destination && (exactPaths === null || steps === exactPaths)) return path;
-    if (exactPaths !== null && steps >= exactPaths) continue;
+    const cost = routeMovementCost(graph, path, waterwaySpan);
+    if (current === destination && (exactCost === null || cost === exactCost)) return path;
+    if (cost > (exactCost ?? Number.POSITIVE_INFINITY) || path.length - 1 >= maximumEdges) continue;
     for (const edge of graph[current]?.edges || []) {
       if (path.includes(edge.to)) continue;
-      const nextSteps = steps + 1;
-      if (exactPaths === null) {
+      const nextPath = [...path, edge.to];
+      const nextCost = routeMovementCost(graph, nextPath, waterwaySpan);
+      if (nextCost > (exactCost ?? Number.POSITIVE_INFINITY)) continue;
+      if (exactCost === null) {
         const seen = shortestSeen.get(edge.to);
-        if (seen !== undefined && seen <= nextSteps) continue;
-        shortestSeen.set(edge.to, nextSteps);
+        if (seen !== undefined && seen <= nextCost) continue;
+        shortestSeen.set(edge.to, nextCost);
       }
-      queue.push([...path, edge.to]);
+      queue.push(nextPath);
     }
   }
   return null;
@@ -114,8 +175,10 @@ export const resolveTravelEngine = (input: TravelEngineInput): TravelEngineResol
   const weight = inventoryWeight(state.inventory);
   const overEncumbered = weight > state.carry;
   const effectiveSpeed = overEncumbered ? 1 : Math.max(1, state.baseSpeed);
+  const waterwaySpan = Math.max(1, input.waterwaySpan || 1);
   let route: string[];
   let pathCount: number;
+  let movementCost: number;
   let days = 1;
   let encounterRegion: TravelRegion = input.destinationRegion;
 
@@ -131,17 +194,19 @@ export const resolveTravelEngine = (input: TravelEngineInput): TravelEngineResol
     pathCount = 0;
     encounterRegion = 'Soar';
     days = state.experimentalContraption ? 3 : 1;
+    movementCost = days;
   } else {
-    const exactPaths = input.mustUseFullSpeed === false ? null : effectiveSpeed;
-    route = input.route ? [...input.route] : findRoute(input.graph, state.currentLocationId, input.destinationId, exactPaths) || [];
+    const exactCost = input.mustUseFullSpeed === false ? null : effectiveSpeed;
+    route = input.route ? [...input.route] : findRoute(input.graph, state.currentLocationId, input.destinationId, exactCost, waterwaySpan) || [];
     if (!validateRoute(input.graph, route, state.currentLocationId, input.destinationId)) {
       return { status: 'invalid', value: null, messages: ['The supplied destination is not connected by the selected Path route.'] };
     }
     pathCount = route.length - 1;
-    if (input.mustUseFullSpeed !== false && pathCount !== effectiveSpeed) {
-      return { status: 'invalid', value: null, messages: [`Move must use ${effectiveSpeed} Paths; route uses ${pathCount}.`] };
+    movementCost = routeMovementCost(input.graph, route, waterwaySpan);
+    if (input.mustUseFullSpeed !== false && movementCost !== effectiveSpeed) {
+      return { status: 'invalid', value: null, messages: [`Move must use Speed ${effectiveSpeed}; route costs ${movementCost}.`] };
     }
-    if (input.mustUseFullSpeed === false && pathCount > effectiveSpeed) {
+    if (input.mustUseFullSpeed === false && movementCost > effectiveSpeed) {
       return { status: 'invalid', value: null, messages: [`Route exceeds Speed ${effectiveSpeed}.`] };
     }
   }
@@ -154,7 +219,7 @@ export const resolveTravelEngine = (input: TravelEngineInput): TravelEngineResol
   }
 
   const usesWaterway = input.mode === 'move' && routeUsesWaterway(input.graph, route);
-  const soakedItemIds = usesWaterway && !input.canStopInLoch
+  const soakedItemIds = usesWaterway && !input.protectsFromSoaking
     ? state.inventory.filter(item => item.type === 'reagent' || item.ruinedWhenSoaked).map(item => item.id)
     : [];
   const nextInventory = state.inventory.filter(item => !soakedItemIds.includes(item.id));
@@ -196,7 +261,7 @@ export const resolveTravelEngine = (input: TravelEngineInput): TravelEngineResol
       },
       route,
       pathCount,
-      movementCost: input.mode === 'soar' ? days : pathCount,
+      movementCost,
       effectiveSpeed,
       overEncumbered,
       soakedItemIds,

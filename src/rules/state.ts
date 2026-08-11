@@ -1,7 +1,7 @@
 import type { CompanionState, WagonState } from './data/mobility';
 import type { AilmentSeverity, RuleTag, RulesetId, Season, StructuredRuleEffect } from './types';
 
-export const CURRENT_SCHEMA_VERSION = 6 as const;
+export const CURRENT_SCHEMA_VERSION = 8 as const;
 
 export type PatientStatus = 'active' | 'cured' | 'failed' | 'departed';
 export type AilmentStatus = 'active' | 'treated' | 'failed';
@@ -47,6 +47,7 @@ export interface TreatmentHistoryEntry {
   ailmentInstanceIds: string[];
   preparationIds: string[];
   providedTags: Partial<Record<RuleTag, number>>;
+  remedyFlags?: Array<'PRESERVED'>;
   outcome: 'success' | 'failure' | 'pending';
   effects: StructuredRuleEffect[];
   journalEventId?: string;
@@ -65,6 +66,11 @@ export interface PatientState {
   species: string;
   personality?: string;
   descriptor?: string;
+  foragingPoints?: number;
+  reagentsGathered?: string[];
+  initialRememberedNote?: string;
+  startedAtDay?: number;
+  journeyTitle?: string;
   status: PatientStatus;
   ailments: PatientAilmentState[];
   timers: PatientTimerState[];
@@ -121,6 +127,7 @@ export interface RulesApplicationState {
   toolStates: unknown[];
   wagonState: WagonState | null;
   companionStates: CompanionState[];
+  companionHiveStates: CompanionState[];
   rumours: unknown[];
   clinics: unknown[];
   clinicAgendaIds: string[];
@@ -130,6 +137,10 @@ export interface RulesApplicationState {
   pendingManualEffect: unknown | null;
   treatmentDraft: TreatmentDraft | null;
   manualEffectDraft: unknown | null;
+  manualEffectQueue: unknown[];
+  manualEffectRecords: unknown[];
+  pendingManualFollowUps: unknown[];
+  manualConditions: string[];
   offlineOutbox: unknown[];
   downtimeCompleted: boolean;
   downtimeRequired: boolean;

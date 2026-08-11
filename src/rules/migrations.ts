@@ -1,6 +1,8 @@
 import { AILMENTS } from './data/ailments';
 import { REAGENTS } from './data/reagents';
 import { normalizeLegacyArchiveRecord } from './archiveEngine';
+import { normalizeLegacyManualEffectDraft } from './almanackEngine';
+import { BARROW_DELVE_BY_ID, type BarrowDelveId, type BehemothClass } from './data/barrows';
 import { migrateRulesetMetadata } from './rulesets';
 import { CURRENT_SCHEMA_VERSION, type PatientState, type TreatmentDraft } from './state';
 import type { AilmentSeverity, RulebookEdition, RulesetId } from './types';
@@ -155,6 +157,9 @@ export const migrateLegacyPatientState = (saved: SaveRecord): {
       id: patientId,
       name: first.patientName || 'Legacy Patient',
       species: first.species || '',
+      foragingPoints: typeof first.foragingPoints === 'number' ? first.foragingPoints : 0,
+      reagentsGathered: Array.isArray(first.reagentsGathered) ? first.reagentsGathered.map(String) : [],
+      initialRememberedNote: typeof first.initialRememberedNote === 'string' ? first.initialRememberedNote : undefined,
       status: 'active',
       ailments,
       timers,
@@ -258,6 +263,11 @@ const migrateV4ToV5: SaveMigration = saved => ({
     : Array.isArray(saved.companions)
       ? saved.companions.map((row, index) => ({ instanceId: String((row as SaveRecord).id || `legacy-companion-${index + 1}`), companionId: String((row as SaveRecord).name || ''), pathsTravelled: Number(saved.companionTravelPaths || 0), seasonsTravelled: Number((row as SaveRecord).seasonsTravelled || 0), usedThisJourney: false, pendingForage: null, pendingForageDraws: 0, migratedFromLegacy: true }))
       : [],
+  companionHiveStates: Array.isArray(saved.companionHiveStates)
+    ? saved.companionHiveStates
+    : Array.isArray(saved.companionHive)
+      ? saved.companionHive.map((row, index) => ({ instanceId: String((row as SaveRecord).id || `legacy-hive-companion-${index + 1}`), companionId: String((row as SaveRecord).name || ''), pathsTravelled: 0, seasonsTravelled: Number((row as SaveRecord).seasonsTravelled || 0), usedThisJourney: false, pendingForage: null, pendingForageDraws: 0, migratedFromLegacy: true }))
+      : [],
   rumours: Array.isArray(saved.rumours) ? saved.rumours : [],
   clinics: Array.isArray(saved.clinics) ? saved.clinics : [],
   clinicAgendaIds: Array.isArray(saved.clinicAgendaIds) ? saved.clinicAgendaIds : [],
@@ -326,13 +336,156 @@ const migrateV5ToV6: SaveMigration = saved => {
   return { ...saved, treatmentDraft: safeDraft, pendingAlternativeAcquisition, schemaVersion: 6 };
 };
 
+const migrateV6ToV7: SaveMigration = saved => {
+  const pending = normalizeLegacyManualEffectDraft(saved.pendingManualEffect);
+  const deferred = normalizeLegacyManualEffectDraft(saved.manualEffectDraft);
+  const queue = Array.isArray(saved.manualEffectQueue)
+    ? saved.manualEffectQueue.map(row => normalizeLegacyManualEffectDraft(row)).filter((row): row is NonNullable<typeof row> => Boolean(row))
+    : [];
+  const drafts = [pending, deferred, ...queue].filter((row): row is NonNullable<typeof row> => Boolean(row));
+  const uniqueDrafts = [...new Map(drafts.map(row => [row.effectId, row])).values()]
+    .filter(row => row.status === 'manual' || row.status === 'deferred');
+  return {
+    ...saved,
+    pendingManualEffect: pending,
+    manualEffectDraft: deferred || pending,
+    manualEffectQueue: uniqueDrafts,
+    manualEffectRecords: Array.isArray(saved.manualEffectRecords) ? saved.manualEffectRecords : [],
+    pendingManualFollowUps: Array.isArray(saved.pendingManualFollowUps) ? saved.pendingManualFollowUps : [],
+    manualConditions: Array.isArray(saved.manualConditions) ? saved.manualConditions.map(String) : [],
+    schemaVersion: 7
+  };
+};
+
+const LEGACY_DELVE_IDS: Record<string, BarrowDelveId> = {
+  UneasySleep: 'uneasy-sleep',
+  CollapsedEntrance: 'collapsed-entrance',
+  BelliesOfMany: 'bellies-of-many',
+  InsideJob: 'inside-job',
+  PotentPoison: 'potent-poison',
+  StealEverything: 'pilfer-unnoticed',
+  BuildingTrust: 'building-trust',
+  SuitableFurnishings: 'suitable-furnishings'
+};
+
+const canonicalBarrows = (saved: SaveRecord) => {
+  const rows = Array.isArray(saved.barrows) ? saved.barrows.filter(row => row && typeof row === 'object') as SaveRecord[] : [];
+  return rows.map((row, index) => ({
+    ...row,
+    id: typeof row.id === 'string' ? row.id : `legacy-barrow-${index + 1}`,
+    name: String(row.name || `Legacy Barrow ${index + 1}`),
+    behemothClass: String(row.behemothClass || 'Towering') as BehemothClass,
+    locationId: typeof row.locationId === 'string' && row.locationId
+      ? row.locationId
+      : slugify(String(row.locationName || row.name || `legacy-barrow-${index + 1}`)),
+    removed: Boolean(row.removed)
+  }));
+};
+
+const canonicalDelve = (saved: SaveRecord, barrows: ReturnType<typeof canonicalBarrows>) => {
+  if (!saved.activeDelve || typeof saved.activeDelve !== 'object') return null;
+  const raw = saved.activeDelve as SaveRecord;
+  const legacyId = typeof raw.challengeType === 'string' ? LEGACY_DELVE_IDS[raw.challengeType] : undefined;
+  const delveId = (typeof raw.delveId === 'string' ? raw.delveId : legacyId) as BarrowDelveId | undefined;
+  const definition = delveId ? BARROW_DELVE_BY_ID.get(delveId) : null;
+  if (!definition) return null;
+  const legacySuit = Array.isArray(raw.cardsDrawn) && typeof raw.cardsDrawn[0] === 'string'
+    ? raw.cardsDrawn[0]
+    : undefined;
+  const challengeSuit = ['♥', '♦', '♣', '♠'].includes(String(raw.challengeSuit || legacySuit))
+    ? String(raw.challengeSuit || legacySuit)
+    : definition.suits[0];
+  const matchingBarrow = barrows.find(row => row.id === raw.barrowId)
+    || barrows.find(row => row.name === raw.behemothName)
+    || barrows.find(row => !row.removed);
+  const legacyCards = Array.isArray(raw.cardsDrawn)
+    ? raw.cardsDrawn.slice(1).map(value => ({ value: Number(value) || undefined }))
+    : [];
+  return {
+    ...raw,
+    delveId,
+    barrowId: typeof raw.barrowId === 'string' ? raw.barrowId : matchingBarrow?.id || 'legacy-barrow',
+    sourcePage: Number(raw.sourcePage || definition.sourcePage),
+    currentStep: ['ready', 'challenge', 'awaiting-choice', 'resolved', 'failed', 'fled'].includes(String(raw.currentStep))
+      ? raw.currentStep
+      : 'challenge',
+    challengeSuit,
+    cards: Array.isArray(raw.cards) ? raw.cards : [{ suit: challengeSuit }, ...legacyCards],
+    requirements: Array.isArray(raw.requirements) ? raw.requirements : definition.requiredTags.map(row => `${row.tag} ${row.value}${row.count ? ` x${row.count}` : ''}`),
+    selectedItems: Array.isArray(raw.selectedItems) ? raw.selectedItems : [],
+    timer: Number(raw.timer ?? definition.initialTimer),
+    progress: Number(raw.progress ?? raw.points ?? 0),
+    unresolvedChoices: Array.isArray(raw.unresolvedChoices) ? raw.unresolvedChoices : [],
+    mandatoryEffects: Array.isArray(raw.mandatoryEffects) ? raw.mandatoryEffects : [],
+    reward: raw.reward && typeof raw.reward === 'object' ? raw.reward : { trinkets: 0, reputation: 0 },
+    failure: raw.failure && typeof raw.failure === 'object' ? raw.failure : null,
+    fleeState: raw.fleeState && typeof raw.fleeState === 'object' ? raw.fleeState : { available: false, costDays: 1, nextMoveSpeed: 1 },
+    appliedEffectIds: Array.isArray(raw.appliedEffectIds) ? raw.appliedEffectIds : [],
+    removedFromMap: Boolean(raw.removedFromMap),
+    journalEntries: Array.isArray(raw.journalEntries) ? raw.journalEntries : [],
+    requiredRarities: Array.isArray(raw.requiredRarities)
+      ? raw.requiredRarities.map(Number)
+      : Array.isArray(raw.requiredReagents) ? raw.requiredReagents.map(Number) : [],
+    ailmentId: typeof raw.ailmentId === 'string' ? raw.ailmentId : null
+  };
+};
+
+const canonicalToolStates = (saved: SaveRecord) => {
+  const stored = Array.isArray(saved.toolStates)
+    ? saved.toolStates.filter(row => row && typeof row === 'object') as SaveRecord[]
+    : [];
+  const byId = new Map(stored
+    .filter(row => typeof row.instanceId === 'string' && typeof row.toolId === 'string')
+    .map(row => [String(row.instanceId), {
+      ...row,
+      instanceId: String(row.instanceId),
+      toolId: String(row.toolId),
+      upgradeId: typeof row.upgradeId === 'string' ? row.upgradeId : null,
+      charges: typeof row.charges === 'number' ? row.charges : null,
+      broken: Boolean(row.broken),
+      consumed: Boolean(row.consumed),
+      acquiredBy: String(row.acquiredBy || 'legacy-campaign'),
+      appliedEffectIds: Array.isArray(row.appliedEffectIds) ? row.appliedEffectIds.map(String) : []
+    }]));
+  const bag = Array.isArray(saved.bag) ? saved.bag.filter(row => row && typeof row === 'object') as SaveRecord[] : [];
+  bag.forEach((row, index) => {
+    if (row.type !== 'tool' || typeof row.canonicalToolId !== 'string') return;
+    const instanceId = typeof row.id === 'string' && row.id ? row.id : `legacy-tool-${index + 1}`;
+    if (!byId.has(instanceId)) byId.set(instanceId, {
+      instanceId,
+      toolId: row.canonicalToolId,
+      upgradeId: null,
+      charges: null,
+      broken: false,
+      consumed: false,
+      acquiredBy: 'legacy-inventory',
+      appliedEffectIds: []
+    });
+  });
+  return [...byId.values()];
+};
+
+const migrateV7ToV8: SaveMigration = saved => {
+  const barrows = canonicalBarrows(saved);
+  return {
+    ...saved,
+    barrows,
+    activeDelve: canonicalDelve(saved, barrows),
+    toolStates: canonicalToolStates(saved),
+    nextMoveSpeedOverride: typeof saved.nextMoveSpeedOverride === 'number' ? saved.nextMoveSpeedOverride : null,
+    schemaVersion: 8
+  };
+};
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   0: migrateV0ToV1,
   1: migrateV1ToV2,
   2: migrateV2ToV3,
   3: migrateV3ToV4,
   4: migrateV4ToV5,
-  5: migrateV5ToV6
+  5: migrateV5ToV6,
+  6: migrateV6ToV7,
+  7: migrateV7ToV8
 };
 
 export const migrateSavedRulesState = <T extends Record<string, unknown>>(saved: T | null | undefined) => {
@@ -344,6 +497,27 @@ export const migrateSavedRulesState = <T extends Record<string, unknown>>(saved:
     migrated = migration(migrated);
     version = Number(migrated.schemaVersion);
   }
+  const companionHiveStates = Array.isArray(migrated.companionHiveStates)
+    ? migrated.companionHiveStates
+    : Array.isArray(migrated.companionHive)
+      ? migrated.companionHive.map((row, index) => ({
+          instanceId: String((row as SaveRecord).id || `legacy-hive-companion-${index + 1}`),
+          companionId: String((row as SaveRecord).name || ''), pathsTravelled: 0,
+          seasonsTravelled: Number((row as SaveRecord).seasonsTravelled || 0),
+          usedThisJourney: false, pendingForage: null, pendingForageDraws: 0, migratedFromLegacy: true
+        }))
+      : null;
+  migrated = {
+    ...migrated,
+    patients: Array.isArray(migrated.patients)
+      ? (migrated.patients as PatientState[]).map(patient => ({
+          ...patient,
+          foragingPoints: Number.isFinite(patient.foragingPoints) ? Math.max(0, Number(patient.foragingPoints)) : 0,
+          reagentsGathered: Array.isArray(patient.reagentsGathered) ? patient.reagentsGathered.map(String) : []
+        }))
+      : []
+  };
+  if (companionHiveStates) migrated = { ...migrated, companionHiveStates };
   return migrated as T & {
     schemaVersion: number;
     rulesetId: RulesetId;
@@ -362,6 +536,7 @@ export const migrateSavedRulesState = <T extends Record<string, unknown>>(saved:
     toolStates: unknown[];
     wagonState: unknown | null;
     companionStates: unknown[];
+    companionHiveStates: unknown[];
     rumours: unknown[];
     clinics: unknown[];
     clinicAgendaIds: string[];
@@ -371,6 +546,10 @@ export const migrateSavedRulesState = <T extends Record<string, unknown>>(saved:
     pendingManualEffect: unknown | null;
     treatmentDraft: TreatmentDraft | null;
     manualEffectDraft: unknown | null;
+    manualEffectQueue: unknown[];
+    manualEffectRecords: unknown[];
+    pendingManualFollowUps: unknown[];
+    manualConditions: string[];
     offlineOutbox: unknown[];
   };
 };

@@ -1,5 +1,6 @@
 import type { PatientState } from './state';
-import type { EncounterDefinition, RuleTag, Season, TravelRegion } from './types';
+import type { EncounterDefinition, Region, RuleTag, Season, TravelRegion } from './types';
+import type { CanonicalToolState } from './toolEngine';
 
 export type GameplayLocationType = 'Wilds' | 'Settlement' | 'City' | 'Titan Ruin' | 'Behemoth Barrow';
 
@@ -14,10 +15,16 @@ export interface EngineInventoryItem {
   preparationId?: string;
   usesRemaining?: number;
   ruinedWhenSoaked?: boolean;
+  granitePounded?: boolean;
+  craftedItemId?: 'knitted-blanket' | 'knitted-coat' | 'knitted-satchel' | 'knitted-scarf';
   customReagent?: {
     baseRarity: number;
     targetTag: RuleTag;
     preparation: string;
+  };
+  guildNote?: {
+    kind: 'ledger' | 'map' | 'gossip';
+    region?: Region;
   };
   provenance?: {
     acquisitionId: string;
@@ -41,6 +48,8 @@ export interface PendingEncounterState {
   selectedChoiceId?: string;
   unresolvedEffectCodes: string[];
   card: { value: number; suit?: string };
+  ignoreNegativeEncounterEffects?: boolean;
+  encounterProtection?: 'negative' | 'all';
 }
 
 export interface PendingForagingState {
@@ -53,7 +62,8 @@ export interface PendingForagingState {
   encounterId: string | null;
   phase: 'choose-reagent' | 'encounter' | 'timer' | 'resolved';
   reagentTypeFilter?: 'PLANT' | 'ANIMAL' | 'INSECT' | 'EARTH' | 'TITAN';
-  source?: 'standard' | 'companion-wasp';
+  source?: 'standard' | 'companion-wasp' | 'familiar-independent' | 'barrow-delve';
+  ignoreNegativeEncounterEffects?: boolean;
 }
 
 export interface TravelGraphEdge {
@@ -64,6 +74,8 @@ export interface TravelGraphEdge {
 export interface TravelGraphNode {
   id: string;
   name: string;
+  x?: number;
+  y?: number;
   region: TravelRegion;
   locationType: GameplayLocationType;
   edges: TravelGraphEdge[];
@@ -83,6 +95,12 @@ export interface EncounterRuntimeState {
 
 export interface TreatmentTransactionState {
   inventory: EngineInventoryItem[];
+  tools?: CanonicalToolState[];
+  ailmentTagOverrides?: Array<{
+    ailmentId: string;
+    originalTag: RuleTag;
+    replacementTag: RuleTag;
+  }>;
   patient: PatientState;
   reputation: number;
   trinkets: number;
@@ -106,6 +124,7 @@ export interface SeasonCompanionState {
 
 export interface SeasonRuntimeState {
   season: Season;
+  completedSeasons: number;
   reputation: number;
   trinkets: number;
   clinics: SeasonClinicState[];

@@ -6,6 +6,7 @@ export interface EncounterExecutionInput {
   encounter: EncounterDefinition;
   state: EncounterRuntimeState;
   choiceId?: string;
+  protection?: 'negative' | 'all';
 }
 
 export interface EncounterExecutionOutcome {
@@ -80,6 +81,16 @@ const applyEffect = (state: EncounterRuntimeState, effect: RuleEffect): Encounte
   return null;
 };
 
+const isNegativeEffect = (effect: RuleEffect): boolean => {
+  if (effect.type === 'modifyReputation' || effect.type === 'modifyTrinkets' || effect.type === 'modifyForagingPoints') return effect.amount < 0;
+  if (effect.type === 'markDays') return effect.amount > 0;
+  if (effect.type === 'modifyTimer') return effect.amount < 0;
+  return effect.type === 'removeItem'
+    || effect.type === 'blockMovement'
+    || effect.type === 'requireLocalHelp'
+    || effect.type === 'addCondition';
+};
+
 export const executeEncounter = (input: EncounterExecutionInput): EncounterExecutionResolution => {
   if (!input.transactionId) return { status: 'invalid', value: null, messages: ['Encounter requires a transaction ID.'] };
   const choice = input.choiceId ? input.encounter.choices.find(candidate => candidate.id === input.choiceId) : undefined;
@@ -95,6 +106,11 @@ export const executeEncounter = (input: EncounterExecutionInput): EncounterExecu
   effects.forEach((structured, index) => {
     const effectId = `${input.transactionId}:${choice?.id || 'mandatory'}:${index}`;
     if (nextState.appliedEffectIds.includes(effectId)) return;
+    if (input.protection === 'all' || (input.protection === 'negative' && isNegativeEffect(structured.effect))) {
+      nextState = { ...nextState, appliedEffectIds: [...nextState.appliedEffectIds, `${effectId}:protected`] };
+      appliedEffectIds.push(`${effectId}:protected`);
+      return;
+    }
     if (structured.support !== 'implemented') {
       unresolvedEffects.push(structured);
       return;
@@ -107,7 +123,7 @@ export const executeEncounter = (input: EncounterExecutionInput): EncounterExecu
     nextState = { ...applied, appliedEffectIds: [...applied.appliedEffectIds, effectId] };
     appliedEffectIds.push(effectId);
   });
-  if (input.encounter.support !== 'implemented' && unresolvedEffects.length === 0) {
+  if (input.protection !== 'all' && input.encounter.support !== 'implemented' && unresolvedEffects.length === 0) {
     unresolvedEffects.push({
       support: input.encounter.support,
       effect: {

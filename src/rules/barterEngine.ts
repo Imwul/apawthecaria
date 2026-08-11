@@ -1,6 +1,6 @@
 import { getRuleCardValue, type RuleCard } from './cards';
 import { REAGENT_BY_ID } from './data/reagents';
-import { canTreatAilmentWithInventory } from './treatmentEngine';
+import { canTreatAilmentWithInventory, type TreatmentAilmentTagOverride } from './treatmentEngine';
 import type { EngineInventoryItem, EngineJournalEvent } from './gameplay';
 import type { PatientState } from './state';
 import type { Availability, EncounterDefinition, Region, Season } from './types';
@@ -71,6 +71,7 @@ export interface BarterRuntimeState {
   pendingBarter: PendingBarterState | null;
   journalEvents: EngineJournalEvent[];
   appliedTransactionIds: string[];
+  ailmentTagOverrides?: TreatmentAilmentTagOverride[];
 }
 
 export interface BarterResolution {
@@ -333,9 +334,9 @@ const decrementAllActiveTimers = (patient: PatientState): PatientState => {
   return { ...patient, timers, ailments };
 };
 
-const readyForRemedy = (patient: PatientState, inventory: EngineInventoryItem[]) => patient.ailments
+const readyForRemedy = (patient: PatientState, inventory: EngineInventoryItem[], overrides: readonly TreatmentAilmentTagOverride[] = []) => patient.ailments
   .filter(ailment => ailment.status === 'active')
-  .some(ailment => canTreatAilmentWithInventory(patient, ailment.id, inventory));
+  .some(ailment => canTreatAilmentWithInventory(patient, ailment.id, inventory, overrides));
 
 const finalizeSuccessfulBarter = (
   state: BarterRuntimeState,
@@ -356,7 +357,7 @@ const finalizeSuccessfulBarter = (
     quantity: 1
   };
   const inventory = [...state.inventory, acquired];
-  const patient = readyForRemedy(state.patient, inventory) ? state.patient : decrementAllActiveTimers(state.patient);
+  const patient = readyForRemedy(state.patient, inventory, state.ailmentTagOverrides) ? state.patient : decrementAllActiveTimers(state.patient);
   return {
     ...state,
     inventory,
@@ -408,6 +409,45 @@ export const resolveBarterOffer = (input: {
       ...input.state,
       pendingBarter: nextPending,
       appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId]
+    },
+    messages: []
+  };
+};
+
+export const resolveBarterGossip = (input: {
+  transactionId: string;
+  state: BarterRuntimeState;
+  gossipItemId: string;
+}): BarterResolution => {
+  if (!input.transactionId || input.state.appliedTransactionIds.includes(input.transactionId)) {
+    return { status: 'invalid', value: null, messages: ['Gossip Barter transaction is missing or already applied.'] };
+  }
+  const pending = input.state.pendingBarter;
+  if (!pending || pending.status !== 'awaiting-second-card') {
+    return { status: 'invalid', value: null, messages: ['Juicy Gossip can only be used when Haggling after the Social Encounter.'] };
+  }
+  const gossip = input.state.inventory.find(item => item.id === input.gossipItemId);
+  if (gossip?.guildNote?.kind !== 'gossip') {
+    return { status: 'invalid', value: null, messages: ['Select a canonical Juicy Gossip note from Inventory.'] };
+  }
+  const stateWithoutGossip = {
+    ...input.state,
+    inventory: input.state.inventory.filter(item => item.id !== gossip.id)
+  };
+  const resolvedPending: PendingBarterState = {
+    ...pending,
+    secondCard: null,
+    paymentRequired: 0,
+    status: 'completed'
+  };
+  const resolved = finalizeSuccessfulBarter(stateWithoutGossip, resolvedPending, input.transactionId, { trinkets: 0, reputation: 0 });
+  return {
+    status: 'resolved',
+    value: {
+      ...resolved,
+      journalEvents: resolved.journalEvents.map(event => event.id === `${input.transactionId}:journal`
+        ? { ...event, text: `${event.text} Juicy Gossip was discarded to automatically obtain the Reagent.` }
+        : event)
     },
     messages: []
   };

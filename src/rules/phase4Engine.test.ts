@@ -23,9 +23,11 @@ import {
   migrateSavedRulesState,
   resolveGuildService,
   resolveCompanionTravel,
+  resolveCompanionTrigger,
   resolveForaging,
   resolveRumour,
   resolveWagonCapabilities,
+  resolveWagonUpgrade,
   restoreSeasonalServiceMutations,
   startBarrowDelve,
   type BarrowRuntimeState,
@@ -47,9 +49,9 @@ const graph = (): Record<string, TravelGraphNode> => {
   return rows;
 };
 
-const serviceState = (): ServiceRuntimeState => ({ currentLocationId: 'n0', currentLocationName: 'Newdam', currentLocationType: 'City', currentRegion: 'Meadow', currentSeason: 'Summer', calendarDays: 0, trinkets: 100, inventory: [], graph: graph(), mapMutations: [], pendingServices: [], usedJourneyServiceIds: [], weatherProtectionMoves: 0, travelEncounterRerolls: 0, missiveSettlementIds: [], removedThreatIds: [], appliedTransactionIds: [], journalEvents: [] });
+const serviceState = (): ServiceRuntimeState => ({ currentLocationId: 'n0', currentLocationName: 'Newdam', currentLocationType: 'City', currentRegion: 'Meadow', currentSeason: 'Summer', calendarDays: 0, trinkets: 100, inventory: [], graph: graph(), mapMutations: [], pendingServices: [], usedJourneyServiceIds: [], weatherProtectionMoves: 0, weatherProtectionActive: false, travelEncounterRerolls: 0, missiveSettlementIds: [], removedThreatIds: [], appliedTransactionIds: [], journalEvents: [] });
 
-const barrowState = (): BarrowRuntimeState => ({ currentLocationId: 'n0', calendarDays: 0, reputation: 0, trinkets: 0, carry: 4, speed: 3, inventory: [], graph: graph(), barrows: [{ id: 'b1', name: 'Barrow', behemothClass: 'Towering', locationId: 'n0', removed: false }], activeDelve: null, movementBlocked: false, needsLocalHelp: false, nextMoveSpeedOverride: null, pursuit: null, journeyEnded: false, appliedTransactionIds: [], journalEvents: [] });
+const barrowState = (): BarrowRuntimeState => ({ currentLocationId: 'n0', calendarDays: 0, reputation: 0, trinkets: 0, carry: 4, speed: 3, inventory: [], companions: [], graph: graph(), barrows: [{ id: 'b1', name: 'Barrow', behemothClass: 'Towering', locationId: 'n0', removed: false }], activeDelve: null, movementBlocked: false, needsLocalHelp: false, nextMoveSpeedOverride: null, pursuit: null, journeyEnded: false, appliedTransactionIds: [], journalEvents: [] });
 
 describe('Phase 4 canonical catalogues', () => {
   it('[BARROW-001/SERVICE-001/TOOL-001/WAGON-001/COMPANION-001/CLINIC-003] preserves exact table counts and sources', () => {
@@ -140,6 +142,43 @@ describe('Phase 4 Tools, mobility, downtime, and Clinics', () => {
     expect(waspForage.value?.candidates.every(candidate => REAGENTS.find(row => row.id === candidate.reagentId)?.type === 'INSECT')).toBe(true);
     const caterpillar = advanceCompanionSeason([{ instanceId: 'c', companionId: 'caterpillar', pathsTravelled: 0, seasonsTravelled: 0, usedThisJourney: false, pendingForage: null }], 'Summer')[0];
     expect(caterpillar.companionId).toBe('butterfly');
+  });
+
+  it('[WAGON-001/WAGON-004/SAVE-004] commits expansion cost and Coracle recycling in one Mobility transaction', () => {
+    const coracle = { id: 'coracle:1', name: 'Bark Coracle', type: 'tool' as const, weight: 1, canonicalToolId: 'bark-coracle' };
+    const result = resolveWagonUpgrade({
+      transactionId: 'wagon:sealed',
+      state: {
+        wagon: { commissioned: true, expansionIds: [], clayPotReagentId: null, clayPotMoves: 0 },
+        companions: [], storedCompanions: [], passenger: null, passengerPickupReady: false,
+        reputation: 0, trinkets: 20, inventory: [coracle], season: 'Spring',
+        appliedTransactionIds: [], journalEvents: [], downtimeRequired: true, downtimeCompleted: false
+      },
+      action: 'install', expansionId: 'sealed-carriage', locationName: 'Newdam', isCity: true,
+      recycleCoracleItemId: coracle.id
+    });
+    expect(result.value).toMatchObject({ trinkets: 15, inventory: [], downtimeRequired: false, downtimeCompleted: true });
+    expect(result.value?.wagon.expansionIds).toContain('sealed-carriage');
+    expect(result.value?.appliedTransactionIds).toContain('wagon:sealed');
+  });
+
+  it('[COMPANION-001/COMPANION-005] commits once-per-Journey use and Contraption sacrifice through Mobility', () => {
+    const state = {
+      wagon: { commissioned: false, expansionIds: [], clayPotReagentId: null, clayPotMoves: 0 },
+      companions: [
+        { instanceId: 'beetle:1', companionId: 'beetle', pathsTravelled: 0, seasonsTravelled: 0, usedThisJourney: false, pendingForage: null },
+        { instanceId: 'cranky:1', companionId: 'cranky-contraption', pathsTravelled: 0, seasonsTravelled: 0, usedThisJourney: false, pendingForage: null }
+      ],
+      storedCompanions: [], passenger: null, passengerPickupReady: false,
+      reputation: 0, trinkets: 0, inventory: [], season: 'Spring' as const,
+      appliedTransactionIds: [], journalEvents: [], behemothPursuitActive: true
+    };
+    const beetle = resolveCompanionTrigger({ transactionId: 'companion:beetle', state, trigger: 'beast' });
+    expect(beetle.value?.companions[0].usedThisJourney).toBe(true);
+    expect(resolveCompanionTrigger({ transactionId: 'companion:beetle:again', state: beetle.value!, trigger: 'beast' }).status).toBe('invalid');
+    const cranky = resolveCompanionTrigger({ transactionId: 'companion:cranky', state: beetle.value!, trigger: 'behemoth' });
+    expect(cranky.value?.companions.some(row => row.companionId === 'cranky-contraption')).toBe(false);
+    expect(cranky.value?.behemothPursuitActive).toBe(false);
   });
 
   it('[DOWNTIME-002] resolves a four-card Rumour only against a canonical map candidate', () => {

@@ -17,4 +17,19 @@ describe('canonical build validation', () => {
     expect(new Set(PRINTED_EFFECT_REGISTRY.map(row => row.id)).size).toBe(PRINTED_EFFECT_REGISTRY.length);
     expect(PRINTED_EFFECT_REGISTRY.every(row => row.ruleIds.length > 0 && row.executor.length > 0)).toBe(true);
   });
+
+  it('[CORE-002/AILMENT-003/TRAVEL-009/FORAGE-006/TABLE-004] validates every manual trigger as an in-app resolution task', () => {
+    const manual = PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'manual');
+    expect(manual).toHaveLength(347);
+    expect(manual.every(row => row.supportedTriggers.every(trigger => {
+      const metadata = row.manualResolutionByTrigger[trigger];
+      return Boolean(
+        row.triggerText[trigger]?.trim()
+        && metadata?.reason.trim()
+        && metadata.decision.trim()
+        && metadata.journalInstruction.trim()
+        && metadata.inputFields.length > 0
+      );
+    }))).toBe(true);
+  });
 });

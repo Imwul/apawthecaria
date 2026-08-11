@@ -226,6 +226,8 @@ export function resolvePatient(input: PatientResolutionInput | PatientCardEngine
       species: input.species,
       personality: input.personality,
       descriptor: input.descriptor,
+      foragingPoints: 0,
+      reagentsGathered: [],
       status: 'active',
       ailments,
       timers,

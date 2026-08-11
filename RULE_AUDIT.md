@@ -2,11 +2,23 @@
 
 ## 결론
 
-Phase 4와 후속 Phase 5 보완을 마친 현재도 **1판 3쇄 룰북의 모든 서술형 특수 규칙을 완전 자동화한 상태는 아니다.** 다만 Services, Tools, Wagon/Companion, Rumour, Clinic, Almanack, Barrow state machine, local-first 저장이 canonical 계층에 추가됐고 잘못된 즉시 지급·자유 입력·이동 권한 경로는 원작 모드에서 제거됐다.
+Phase 10을 마친 현재 **Version 1.0 Release Blocker 20개는 모두 제거됐다.** 8개 Barrow, Leave, Replenish, Reconnect뿐 아니라 Character Style/Familiar, 구간별 Waterway, Clinic Agenda, Guild Service 후속, Tool/Upgrade, Wagon/Companion과 Ailment 조건 문구가 실제 gameplay consumer에 연결됐다.
 
-현재 주요 잔여 위험은 Encounter/Ailment의 서술·지도 후속 printed effect, Barrow 조작부와 Tool trigger의 legacy 화면 adapter다. Replacement Rarity 12의 실제 Forage/Barter commit과 치료 확정 전 draft 저장·복원은 schema v6에서 닫혔다. 엔진만 존재하는 항목은 `Logic-only`, legacy UI가 남은 항목은 `Partial`로 보수적으로 유지했다.
+남은 24개 `Partial`은 Release Blocker가 아니다. A 12개는 룰북 재참조가 필요 없는 호환·증거·디지털 한계, B 11개는 원문이 플레이어의 서사 판단을 요구해 의도적으로 manual인 항목, C 1개는 Wagon 가격의 판본 내 충돌이다. Encounter/Ailment의 서술·지도 후속 printed effect 347개는 자동화하지 않았고 기존 B/C 분류를 그대로 유지한다. original 정상 플레이의 legacy Patient/Companion/Wagon write는 0이며 migration·read adapter·legacy-campaign compatibility만 남겼다.
 
 아래 초기 문제 설명은 감사 당시 근거를 보존한다. 현재 판정과 코드·테스트 위치의 권위 표는 `RULE_TRACEABILITY.md`다.
+
+Release Candidate에서는 원본 p6-213을 다시 읽고 전체 판정을 재검토했다. 독립 행동 동료의 채집과 개발용 직접 보정 경로를 수정했지만 Rule ID 전체가 닫힌 항목은 없어 집계는 `Exact 84 / Partial 57 / Incorrect 0 / Missing 0 / UI-only 0 / Logic-only 2 / Ambiguous 2 / House Rule 6`으로 유지한다. 상세 근거와 출시 권고는 `RC_REPORT.md`에 기록했다.
+
+Rulebook Replacement Step 2에서도 Rule ID 단위 집계는 바꾸지 않았다. 대신 `CORE-002`, `TRAVEL-009`, `FORAGE-006`, `AILMENT-003/005/007`, `SAVE-005`, `UX-001`의 manual 실행 근거를 보강했다. Printed Effect는 완성 메타데이터 `347/347`, 런타임 도달 불가 `0`, 전체 테스트 `11 files / 105 tests`다.
+
+Rulebook Replacement Step 3에서는 `FORAGE-001`, `DOWNTIME-003`, `BARROW-001/002/004/005/006/008/009`를 `Partial → Exact`로 승격했다. 현재 집계는 `Exact 93 / Partial 48 / Incorrect 0 / Missing 0 / UI-only 0 / Logic-only 2 / Ambiguous 2 / House Rule 6`이며, 전체 테스트는 `12 files / 124 tests`다. `BARROW-007`, `TOOL-003/005`, `LEAVE-006`, Mobility와 Save/Offline 일부는 엄격한 단일 write 기준을 충족하지 않아 유지했다.
+
+Rulebook Replacement Final Phase에서는 `BARROW-007`, `LEAVE-006`, `DOWNTIME-004/005`를 `Partial → Exact`로 승격했다. 현재 집계는 `Exact 97 / Partial 44 / Incorrect 0 / Missing 0 / UI-only 0 / Logic-only 2 / Ambiguous 2 / House Rule 6`이며, 전체 테스트는 `12 files / 131 tests`다. Tool·Wagon·Companion은 공통 transaction 연결을 확대했지만 원문 전체 고유 효과가 닫히지 않아 보수적으로 `Partial`을 유지했다.
+
+Phase 10에서는 지정된 Release Blocker 20개만 `Partial → Exact`로 승격했다. 현재 집계는 `Exact 117 / Partial 24 / Incorrect 0 / Missing 0 / UI-only 0 / Logic-only 2 / Ambiguous 2 / House Rule 6`이며, 전체 테스트는 `13 files / 139 tests`다. Printed Effect는 `358/358`, manual narrative는 `347/347`, B 11개와 C 1개는 변동 없다.
+
+Phase 11에서는 같은 20개 ID를 독립 재검증했다. 실제 graph 외 수로 덮어쓰기, Service direct write, Agenda 없는 Clinic 우회, Hive service-area 우회, Companion ID 불일치와 `PRESERVED` preparation 소비를 닫았으며 상태 집계는 변경하지 않았다. 전체 `13 files / 139 tests`, 외부 룰북 없는 canonical campaign, desktop/mobile 검증은 모두 통과했다.
 
 ## 감사 범위
 
@@ -40,8 +52,8 @@ Phase 4와 후속 Phase 5 보완을 마친 현재도 **1판 3쇄 룰북의 모�
 
 | 상태 | 수 | 의미 |
 |---|---:|---|
-| Exact | 84 | 입력부터 결과까지 확인한 범위에서 원작과 일치 |
-| Partial | 57 | 일부 조건/결과만 구현됐거나 전체 흐름 보장이 없음 |
+| Exact | 117 | 입력부터 결과까지 확인한 범위에서 원작과 일치 |
+| Partial | 24 | 출시를 막지 않는 호환·증거 한계 또는 의도적 서사/원문 모호성 |
 | Incorrect | 0 | 현재 추적표에서 확인된 명시적 오판정은 없음 |
 | Missing | 0 | 필요한 규칙은 최소 canonical 또는 manual 경로로 존재 |
 | Unreachable | 0 | 코드가 있으나 정상 경로에서 도달 불가인 독립 규칙은 확인되지 않음 |
@@ -126,6 +138,81 @@ Phase 4와 후속 Phase 5 보완을 마친 현재도 **1판 3쇄 룰북의 모�
 `REMEDY-003`은 이름·Preparation·BR 12·Weight 2/3·target tag·획득 출처를 저장하고 실제 Forage/Barter 성공 뒤 provenance가 있는 Inventory item을 한 번만 commit한다. `SAVE-004`는 치료 draft를 schema v6에 저장하고 완료 transaction이 다시 열리지 않게 마이그레이션한다. `TOOL-003`과 `BARROW-001-009`는 공통 resolver/전용 정보 UI가 보강됐지만 모든 조작 경로가 canonical write로 교체되지는 않아 `Partial`을 유지했다.
 
 Printed Effect는 7개 Ailment family의 기존 실행 경로를 registry 상태와 일치시켜 `implemented 3 → 10`, `manual 355 → 348`로 갱신했다. 서술·지도·대상 선택을 요구하는 348개는 자동 수치를 창작하지 않고 manual로 유지한다.
+
+### Release Candidate 변화
+
+| 상태 | Phase 6 | RC | 변화 |
+|---|---:|---:|---:|
+| Exact | 84 | 84 | 0 |
+| Partial | 57 | 57 | 0 |
+| Incorrect | 0 | 0 | 0 |
+| Missing | 0 | 0 | 0 |
+| UI-only | 0 | 0 | 0 |
+| Logic-only | 2 | 2 | 0 |
+| Ambiguous | 2 | 2 | 0 |
+| House Rule | 6 | 6 | 0 |
+
+재검토·보강 Rule ID: `CORE-002`, `CHARACTER-005`, `JOURNEY-001/003/004`, `FORAGE-001/006`, `AILMENT-003/005`, `REMEDY-003`, `DOWNTIME-001`, `CLINIC-001/002`, `SERVICE-001`, `BARROW-005`, `SAVE-001/005`, `UX-001/002`.
+
+독립 행동 동료는 실제 카드와 canonical Foraging transaction을 사용하고 Encounter/Timer를 생략한다. 개발용 직접 자원·시간·조우 보정 버튼은 sandbox로 제한했다. 그러나 다른 Familiar 효과, graph 인접 검증, 347개 manual Printed Effect, Barrow/Tool/Downtime adapter가 남아 관련 `Partial` 상태는 유지했다.
+
+### Rulebook Replacement Step 1 변화
+
+| 상태 | RC | Step 1 | 변화 |
+|---|---:|---:|---:|
+| Exact | 84 | 84 | 0 |
+| Partial | 57 | 57 | 0 |
+| Incorrect | 0 | 0 | 0 |
+| Missing | 0 | 0 | 0 |
+| UI-only | 0 | 0 | 0 |
+| Logic-only | 2 | 2 | 0 |
+| Ambiguous | 2 | 2 | 0 |
+| House Rule | 6 | 6 | 0 |
+
+보강 Rule ID: `CORE-002`, `AILMENT-003`, `TOOL-003`, `SAVE-004`, `UX-001`.
+
+`Bad Idea` Inspiration은 Potency 3/FOUL 조건, 업그레이드 또는 Weight 1/3 감소 선택, Inventory 차감, Patient 성공, Tool 저장을 하나의 transaction으로 처리한다. `Brand Care`와 `Forager's Twitch`는 진단 UI에서 resolver를 거쳐 Reputation, 추가 Requirement, Patient 상태, Journal에 저장된다. 이 세 규칙이 포함된 `AILMENT-003` 전체에는 아직 서술형 후속이 남아 `Partial`을 유지했다. Printed Effect 실행 상태는 `implemented 10 → 11`, `manual 348 → 347`이다.
+
+### Rulebook Replacement Step 3 변화
+
+| 상태 | Step 3 전 | Step 3 후 | 변화 |
+|---|---:|---:|---:|
+| Exact | 84 | 93 | +9 |
+| Partial | 57 | 48 | -9 |
+| Incorrect | 0 | 0 | 0 |
+| Missing | 0 | 0 | 0 |
+| UI-only | 0 | 0 | 0 |
+| Logic-only | 2 | 2 | 0 |
+| Ambiguous | 2 | 2 | 0 |
+| House Rule | 6 | 6 | 0 |
+
+상태가 변경된 Rule ID: `FORAGE-001`, `DOWNTIME-003`, `BARROW-001/002/004/005/006/008/009`.
+
+- Barrow 8종 모두 실제 UI에서 pure resolver와 transaction ID를 사용한다. 그중 7개는 reload·중복 클릭·보상·지도 결과까지 닫혔고, Building Trust가 포함된 `BARROW-007`만 Patient/legacy 포인터 결합 때문에 `Partial`이다.
+- Tool 구매·업그레이드·파손·소모는 stable instance ID를 보존하지만 모든 특수 trigger가 공통 layer를 사용하지 않아 `TOOL-003/005`는 `Partial`이다.
+- General Practice는 canonical Ailment/Tag, 평판 등급, 5 Trinket, 영구 override, 치료/흥정 소비자와 schema v8 reload까지 연결됐다.
+- 인접 채집은 normal, Independent, Scrounge 모두 실제 graph edge에서 만든 Region 후보를 engine에서 재검증한다.
+- Leave의 명시적 버튼은 `resolveLeave()`를 사용하지만 Archive 및 `activeAilment` 호환 write가 resolver 밖에 있어 `LEAVE-006`을 승격하지 않았다.
+
+### Rulebook Replacement Final Phase 변화
+
+| 상태 | 이전 | 현재 | 변화 |
+|---|---:|---:|---:|
+| Exact | 93 | 97 | +4 |
+| Partial | 48 | 44 | -4 |
+| Incorrect | 0 | 0 | 0 |
+| Missing | 0 | 0 | 0 |
+| UI-only | 0 | 0 | 0 |
+| Logic-only | 2 | 2 | 0 |
+| Ambiguous | 2 | 2 | 0 |
+| House Rule | 6 | 6 | 0 |
+
+상태가 변경된 Rule ID: `BARROW-007`, `LEAVE-006`, `DOWNTIME-004`, `DOWNTIME-005`.
+
+- Building Trust와 Leave는 Patient·Timer·Archive·Journal·Save를 resolver 결과 하나로 commit한다.
+- Replenish는 여러 Reagent/Part를 한 활동에서 선택하고, Reconnect의 Ledger/Map/Gossip은 각각 Forage/Travel/Barter consumer에 연결됐다.
+- Tool·Upgrade·Companion·Wagon은 공통 transaction 사용 범위를 넓혔지만 일부 고유 효과가 남아 관련 Rule ID는 `Partial`을 유지했다.
+- original 정상 플레이에서 legacy Patient/Companion/Wagon 필드 write는 0이며 migration·read adapter·`legacy-campaign` compatibility만 남는다.
 
 ## 초기 감사 당시 Critical 문제
 
@@ -322,10 +409,10 @@ Printed Effect는 7개 Ailment family의 기존 실행 경로를 registry 상태
 | Markdown whitespace | 통과 | `git diff --check` 오류 없음 |
 | TypeScript + production build | 통과 | `npm run build`; Vite chunk size 경고 1건만 발생 |
 | Lint | 통과 | 전체 0 errors / 0 warnings; Babel 대형 파일 정보 메시지만 존재 |
-| 단위/상태 전환 테스트 | 통과 | 8 files / 80 tests |
-| 브라우저 검증 | 통과 | 360/390/768/1024/1440/1920 폭, 지도 라벨, Almanack, 핵심 화면 확인 |
+| 단위/상태 전환 테스트 | 통과 | 13 files / 139 tests; Phase 10 blocker 8 tests와 전체 canonical campaign loop 포함 |
+| 브라우저 검증 | 통과 | desktop/mobile 첫 페이지, 문서 가로 넘침 0, 새 console error 0 |
 
-Production build는 React/Firebase/canonical data/Almanack을 분리했다. 초기 단일 1.41 MB bundle은 여러 chunk로 줄었지만 주 App chunk 약 607 kB에 대한 500 kB 경고는 비차단 잔여 과제다.
+Production build는 boot entry, React, Firebase, canonical data, rules, Almanack과 App을 분리한다. 초기 entry는 2.57 kB, gzip 1.34 kB이고 App async chunk는 551.62 kB, gzip 147.75 kB여서 500 kB 경고 한 건은 남는다.
 
 ## 관련 문서
 

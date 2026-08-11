@@ -21,9 +21,18 @@ export interface PendingGuildService {
   status: 'pending-choice' | 'pending-move' | 'pending-delivery' | 'completed' | 'cancelled';
   targetIds: string[];
   itemIds: string[];
+  selectedReagentId?: string;
+  selectedPreparationId?: string;
   journalNote: string;
   createdAtDay: number;
   sourcePage: number;
+}
+
+export interface ServiceMoveOutcome {
+  nextState: ServiceRuntimeState;
+  skipTravelEncounter: boolean;
+  protectNegativeEncounter: boolean;
+  consumedServiceId: GuildServiceId | null;
 }
 
 export interface ServiceRuntimeState {
@@ -40,6 +49,7 @@ export interface ServiceRuntimeState {
   pendingServices: PendingGuildService[];
   usedJourneyServiceIds: GuildServiceId[];
   weatherProtectionMoves: number;
+  weatherProtectionActive: boolean;
   travelEncounterRerolls: number;
   missiveSettlementIds: string[];
   removedThreatIds: string[];
@@ -75,6 +85,12 @@ export interface GuildServiceResolution {
   messages: string[];
 }
 
+export interface ServiceStateResolution {
+  status: 'resolved' | 'invalid';
+  value: ServiceRuntimeState | null;
+  messages: string[];
+}
+
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
 const isSettlement = (type: TravelGraphNode['locationType']) => type === 'Settlement' || type === 'City';
 
@@ -106,6 +122,19 @@ export const shortestPathDistance = (graph: Record<string, TravelGraphNode>, fro
     }
   }
   return null;
+};
+
+export const isNearbyMapLocation = (graph: Record<string, TravelGraphNode>, from: string, to: string): boolean => {
+  const source = graph[from];
+  const target = graph[to];
+  if (!source || !target || from === to || source.x === undefined || source.y === undefined || target.x === undefined || target.y === undefined) return false;
+  const distance = Math.hypot(target.x - source.x, target.y - source.y);
+  const nearest = Object.values(graph)
+    .filter(node => node.id !== from && node.x !== undefined && node.y !== undefined)
+    .map(node => Math.hypot(node.x! - source.x!, node.y! - source.y!))
+    .filter(value => value > 0)
+    .sort((a, b) => a - b)[0];
+  return nearest !== undefined && distance <= nearest * 1.75;
 };
 
 const cloneGraph = (graph: Record<string, TravelGraphNode>) => Object.fromEntries(Object.entries(graph).map(([id, node]) => [id, { ...node, edges: node.edges.map(edge => ({ ...edge })) }]));
@@ -145,6 +174,8 @@ const pending = (input: GuildServiceInput, definition: GuildServiceDefinition, s
   status,
   targetIds: [...(input.targetIds || [])],
   itemIds: [...(input.selectedItemIds || [])],
+  selectedReagentId: input.selectedReagentId,
+  selectedPreparationId: input.selectedPreparationId,
   journalNote: input.journalNote.trim(),
   createdAtDay: input.state.calendarDays,
   sourcePage: definition.sourcePage
@@ -194,12 +225,37 @@ export const resolveGuildService = (input: GuildServiceInput): GuildServiceResol
     if (selected.length === 0 || weight > 5) return { status: 'invalid', value: null, messages: ['Send Package requires selected items totalling no more than 5 Weight.'] };
     pendingService = pending(input, definition, 'pending-delivery');
     next = { ...next, inventory: next.inventory.filter(item => !selected.some(row => row.id === item.id)), pendingServices: [...next.pendingServices, pendingService] };
+  } else if (definition.id === 'shortcut') {
+    const target = input.targetIds?.[0];
+    const node = target ? next.graph[target] : null;
+    if (!target || !node || !isNearbyMapLocation(next.graph, next.currentLocationId, target)) {
+      return { status: 'invalid', value: null, messages: ['Shortcut requires one nearby map Location other than the current Location.'] };
+    }
+    next = {
+      ...next,
+      currentLocationId: target,
+      currentLocationName: node.name,
+      currentLocationType: node.locationType,
+      currentRegion: node.region as Region
+    };
   } else if (definition.id === 'survey-paths') {
-    const [a, b] = input.targetIds || [];
-    const graph = a && b ? appendPath(next.graph, a, b) : null;
-    if (!graph || a === b) return { status: 'invalid', value: null, messages: ['Survey Paths requires two distinct map Locations.'] };
-    const mutation: ServiceMapMutation = { id: `${input.transactionId}:map`, serviceId: definition.id, kind: 'add-path', nodeIds: [a, b], active: true, transactionId: input.transactionId };
-    next = { ...next, graph, mapMutations: [...next.mapMutations, mutation] };
+    const targets = input.targetIds || [];
+    if (targets.length === 2) {
+      const [a, b] = targets;
+      const graph = a && b ? appendPath(next.graph, a, b) : null;
+      if (!graph || a === b || !isNearbyMapLocation(next.graph, a, b)) return { status: 'invalid', value: null, messages: ['Survey Paths requires two distinct nearby map Locations.'] };
+      const mutation: ServiceMapMutation = { id: `${input.transactionId}:map`, serviceId: definition.id, kind: 'add-path', nodeIds: [a, b], active: true, transactionId: input.transactionId };
+      next = { ...next, graph, mapMutations: [...next.mapMutations, mutation] };
+    } else {
+      const [location, a, b] = targets;
+      const existingPath = Boolean(location && a && b && location !== a && location !== b && a !== b
+        && next.graph[a]?.edges.some(edge => edge.to === b));
+      const first = existingPath ? appendPath(next.graph, location, a) : null;
+      const graph = first ? appendPath(first, location, b) : null;
+      if (!graph) return { status: 'invalid', value: null, messages: ['Survey Paths can join one Location only to a real existing Path.'] };
+      const mutation: ServiceMapMutation = { id: `${input.transactionId}:map`, serviceId: definition.id, kind: 'add-path', nodeIds: [location, a, b], active: true, transactionId: input.transactionId };
+      next = { ...next, graph, mapMutations: [...next.mapMutations, mutation] };
+    }
   } else if (definition.id === 'build-a-bridge') {
     const [loch, a, b] = input.targetIds || [];
     const valid = next.graph[loch]?.region === 'Loch'
@@ -225,7 +281,7 @@ export const resolveGuildService = (input: GuildServiceInput): GuildServiceResol
     if (!target) return { status: 'invalid', value: null, messages: ['Scare Tactics requires one Behemoth-related map target.'] };
     const mutation: ServiceMapMutation = { id: `${input.transactionId}:map`, serviceId: definition.id, kind: 'remove-threat', nodeIds: [target], active: true, transactionId: input.transactionId };
     next = { ...next, removedThreatIds: [...new Set([...next.removedThreatIds, target])], mapMutations: [...next.mapMutations, mutation] };
-  } else if (['shortcut', 'hitch-a-ride', 'taxi-service', 'smithing'].includes(definition.id)) {
+  } else if (['hitch-a-ride', 'taxi-service', 'smithing'].includes(definition.id)) {
     pendingService = pending(input, definition, definition.id === 'smithing' ? 'pending-choice' : 'pending-move');
     next = { ...next, pendingServices: [...next.pendingServices, pendingService] };
   } else {
@@ -249,6 +305,191 @@ export const resolveGuildService = (input: GuildServiceInput): GuildServiceResol
   return { status: pendingService ? 'manual' : 'resolved', value: { transactionId: input.transactionId, service: definition, nextState: next, pendingService, messages }, messages };
 };
 
+export const consumeGuildServiceMove = (input: {
+  transactionId: string;
+  state: ServiceRuntimeState;
+  destinationId: string;
+  destinationRegion: Region | 'Soar';
+  mode: 'move' | 'soar';
+  pathCount: number;
+}): { status: 'resolved' | 'invalid'; value: ServiceMoveOutcome | null; messages: string[] } => {
+  if (!input.transactionId || input.state.appliedTransactionIds.includes(input.transactionId)) {
+    return { status: 'invalid', value: null, messages: ['Service Move transaction is missing or already applied.'] };
+  }
+  const pendingMove = input.state.pendingServices.find(service =>
+    service.status === 'pending-move' && ['hitch-a-ride', 'taxi-service'].includes(service.serviceId)
+  );
+  let skipTravelEncounter = false;
+  let protectNegativeEncounter = false;
+  if (pendingMove?.serviceId === 'hitch-a-ride') {
+    const target = pendingMove.targetIds[0];
+    if (target && target !== input.destinationId) return { status: 'invalid', value: null, messages: ['Hitch a Ride must end at its recorded destination.'] };
+    if (input.mode !== 'move' || input.pathCount < 1 || input.pathCount > 5 || input.destinationRegion !== 'Meadow') {
+      return { status: 'invalid', value: null, messages: ['Hitch a Ride travels up to 5 Paths and must end in a Meadow Location.'] };
+    }
+    skipTravelEncounter = true;
+  }
+  if (pendingMove?.serviceId === 'taxi-service') {
+    if (input.mode !== 'soar') return { status: 'invalid', value: null, messages: ['Taxi Service must be consumed by a Soar Move.'] };
+    protectNegativeEncounter = true;
+  }
+  const pendingServices = input.state.pendingServices.map(service => service.transactionId === pendingMove?.transactionId
+    ? { ...service, status: 'completed' as const }
+    : service);
+  const weatherProtectionActive = input.state.weatherProtectionMoves > 0;
+  const weatherProtectionMoves = Math.max(0, input.state.weatherProtectionMoves - 1);
+  const event: EngineJournalEvent = {
+    id: `${input.transactionId}:journal`, type: 'travel', title: pendingMove ? `${pendingMove.serviceId} consumed` : 'Guild Service Move',
+    text: `${pendingMove ? `${pendingMove.serviceId} completed. ` : ''}Forecast protection remaining: ${weatherProtectionMoves}.`
+  };
+  return {
+    status: 'resolved',
+    value: {
+      nextState: {
+        ...input.state,
+        pendingServices,
+        weatherProtectionMoves,
+        weatherProtectionActive,
+        appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
+        journalEvents: [...input.state.journalEvents, event]
+      },
+      skipTravelEncounter,
+      protectNegativeEncounter,
+      consumedServiceId: pendingMove?.serviceId || null
+    },
+    messages: []
+  };
+};
+
+const commitServiceState = (
+  transactionId: string,
+  state: ServiceRuntimeState,
+  title: string,
+  text: string,
+  update: Partial<ServiceRuntimeState>
+): ServiceStateResolution => {
+  if (!transactionId || state.appliedTransactionIds.includes(transactionId)) {
+    return { status: 'invalid', value: null, messages: ['Service transaction is missing or already applied.'] };
+  }
+  return {
+    status: 'resolved',
+    value: {
+      ...state,
+      ...update,
+      appliedTransactionIds: [...state.appliedTransactionIds, transactionId],
+      journalEvents: [...state.journalEvents, { id: `${transactionId}:journal`, type: 'travel', title, text }]
+    },
+    messages: []
+  };
+};
+
+export const consumeGuildServiceTravelReroll = (input: {
+  transactionId: string;
+  state: ServiceRuntimeState;
+}): ServiceStateResolution => {
+  if (input.state.travelEncounterRerolls < 1) {
+    return { status: 'invalid', value: null, messages: ['No News From The Trail choice remains.'] };
+  }
+  return commitServiceState(
+    input.transactionId,
+    input.state,
+    'News From The Trail used',
+    'Selected one of two Travel Encounter cards before reaching the Journey destination.',
+    { travelEncounterRerolls: input.state.travelEncounterRerolls - 1 }
+  );
+};
+
+export const consumeGuildServiceMissive = (input: {
+  transactionId: string;
+  state: ServiceRuntimeState;
+  settlementId: string;
+}): ServiceStateResolution => {
+  if (!input.state.missiveSettlementIds.includes(input.settlementId)) {
+    return { status: 'invalid', value: null, messages: ['This Settlement has no pending Guild Missive.'] };
+  }
+  return commitServiceState(
+    input.transactionId,
+    input.state,
+    'Send a Missive used',
+    `Selected the Ailment at ${input.state.graph[input.settlementId]?.name || input.settlementId}.`,
+    { missiveSettlementIds: input.state.missiveSettlementIds.filter(id => id !== input.settlementId) }
+  );
+};
+
+export const resolveGuildServiceJourneyStart = (input: {
+  transactionId: string;
+  state: ServiceRuntimeState;
+}): ServiceStateResolution => commitServiceState(
+  input.transactionId,
+  input.state,
+  'Guild Services ready for Journey',
+  'Reset once-per-Journey Service use while preserving purchased Move and Settlement effects.',
+  { usedJourneyServiceIds: [] }
+);
+
+export const resolveGuildServiceJourneyEnd = (input: {
+  transactionId: string;
+  state: ServiceRuntimeState;
+}): ServiceStateResolution => commitServiceState(
+  input.transactionId,
+  input.state,
+  'Journey Guild Services closed',
+  'Expired unused News From The Trail choices at the Journey destination.',
+  { travelEncounterRerolls: 0, usedJourneyServiceIds: [] }
+);
+
+export const completeGuildServiceDelivery = (input: {
+  transactionId: string;
+  state: ServiceRuntimeState;
+  serviceTransactionId: string;
+  confirmExternalDelivery?: boolean;
+}): GuildServiceResolution => {
+  if (!input.transactionId || input.state.appliedTransactionIds.includes(input.transactionId)) {
+    return { status: 'invalid', value: null, messages: ['Delivery transaction is missing or already applied.'] };
+  }
+  const delivery = input.state.pendingServices.find(service =>
+    service.transactionId === input.serviceTransactionId && service.status === 'pending-delivery'
+  );
+  if (!delivery) return { status: 'invalid', value: null, messages: ['Pending Guild delivery was not found.'] };
+  const definition = GUILD_SERVICE_BY_ID.get(delivery.serviceId);
+  if (!definition) return { status: 'invalid', value: null, messages: ['Unknown Guild delivery.'] };
+  let inventory = input.state.inventory;
+  if (delivery.serviceId === 'retrieval') {
+    if (input.state.currentLocationId !== delivery.targetIds[0]) {
+      return { status: 'invalid', value: null, messages: ['Retrieval is collected only at the recorded Settlement.'] };
+    }
+    const item = makeInventoryItem({
+      transactionId: delivery.transactionId,
+      state: input.state,
+      serviceId: delivery.serviceId,
+      selectedReagentId: delivery.selectedReagentId,
+      selectedPreparationId: delivery.selectedPreparationId,
+      journalNote: delivery.journalNote
+    });
+    if (!item) return { status: 'invalid', value: null, messages: ['Retrieval is missing its canonical Reagent and Preparation.'] };
+    if (!inventory.some(row => row.id === item.id)) inventory = [...inventory, item];
+  } else if (delivery.serviceId === 'send-package' && !input.confirmExternalDelivery) {
+    return { status: 'invalid', value: null, messages: ['Confirm that the recipient entered a Settlement or City before completing Send Package.'] };
+  }
+  const pendingServices = input.state.pendingServices.map(service => service.transactionId === delivery.transactionId
+    ? { ...service, status: 'completed' as const }
+    : service);
+  const event: EngineJournalEvent = {
+    id: `${input.transactionId}:journal`, type: 'downtime', title: `${definition.name} completed`,
+    text: delivery.serviceId === 'retrieval'
+      ? `Collected the requested item at ${input.state.currentLocationName}.`
+      : 'The recipient confirmed arrival at a Settlement or City and received the package.'
+  };
+  const nextState = {
+    ...input.state,
+    inventory,
+    pendingServices,
+    appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
+    journalEvents: [...input.state.journalEvents, event]
+  };
+  return { status: 'resolved', value: { transactionId: input.transactionId, service: definition, nextState, pendingService: null, messages: [] }, messages: [] };
+};
+
 export const restoreSeasonalServiceMutations = (state: ServiceRuntimeState, season: Season): ServiceRuntimeState => {
   if (season !== 'Spring') return state;
   const graph = cloneGraph(state.graph);
@@ -258,5 +499,11 @@ export const restoreSeasonalServiceMutations = (state: ServiceRuntimeState, seas
     if (graph[nodeId] && mutation.previousRegion) graph[nodeId] = { ...graph[nodeId], region: mutation.previousRegion };
     return { ...mutation, active: false };
   });
-  return { ...state, graph, mapMutations };
+  const restoredCurrentRegion = graph[state.currentLocationId]?.region;
+  return {
+    ...state,
+    graph,
+    mapMutations,
+    currentRegion: restoredCurrentRegion && restoredCurrentRegion !== 'Soar' ? restoredCurrentRegion : state.currentRegion
+  };
 };

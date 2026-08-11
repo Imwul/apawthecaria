@@ -17,6 +17,15 @@ const FORAGING_SEASONAL_KEYS = ['9', '10', 'J', 'M'];
 
 type LegacyEncounter = { page: number; card?: string; suit?: string; title: string; text: string };
 
+const inferEncounterTags = (title: string, prompt: string): EncounterDefinition['tags'] => {
+  const text = `${title} ${prompt}`;
+  const tags: NonNullable<EncounterDefinition['tags']> = [];
+  if (/weather|climate|storm|thunder|lightning|rain|downpour|sleet|hail|blizzard|frost|heatwave|drought|fogbank/i.test(text)) tags.push('Weather');
+  if (/behemoth/i.test(text)) tags.push('Behemoth');
+  else if (/aggressive beast|armed beast|violent beast|beast[^.]{0,30}(attack|ambush|chase|threat)|bandit|robber/i.test(text)) tags.push('Beast');
+  return tags;
+};
+
 const travelLegacy = Object.values(GAME_DATA.travelEncounters).flat() as LegacyEncounter[];
 const foragingLegacy = Object.values(GAME_DATA.foragingEncounters).flat() as LegacyEncounter[];
 const socialLegacy = Object.values(GAME_DATA.socialEncounters).flat() as LegacyEncounter[];
@@ -57,6 +66,7 @@ const sourceOnly = (
   cardKey,
   title: title || `Rulebook p${sourcePage} ${cardKey}`,
   prompt: prompt || `The source row is indexed at rulebook page ${sourcePage}. Its effect remains manual until the row transcription is independently verified.`,
+  tags: inferEncounterTags(title || '', prompt || ''),
   mandatoryEffects: prompt
     ? []
     : [{ support: 'manual-only', effect: { type: 'customEffect', code: 'SOURCE_ROW_PENDING', description: `Resolve the printed encounter on page ${sourcePage}.` } }],
@@ -81,6 +91,7 @@ const fromLegacy = (
   cardKey,
   title: row.title.trim(),
   prompt: row.text.trim(),
+  tags: inferEncounterTags(row.title, row.text),
   mandatoryEffects: [{
     support: 'manual-only',
     effect: { type: 'customEffect', code: 'ENCOUNTER_PRINTED_TEXT', description: 'Resolve mandatory instructions in the printed prompt.' }

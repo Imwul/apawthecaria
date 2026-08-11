@@ -10,20 +10,51 @@
 
 ## 상태 집계
 
+Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류, executor 또는 manual resolution behavior를 변경하지 않는다.
+
 | Status | Count |
 |---|---:|
-| implemented | 10 |
-| manual | 348 |
+| implemented | 11 |
+| manual | 347 |
 | ambiguous | 0 |
 | not-applicable | 0 |
 | source-conflict | 0 |
+
+## Release Candidate 최종 분류
+
+| Classification | Count |
+|---|---:|
+| deterministic | 7 |
+| structured-choice | 4 |
+| narrative | 347 |
+| ambiguous | 0 |
+| 합계 | 358 |
+
+룰북 대체 1단계에서 자동/선택형 11개 전부의 executor, UI, transaction, persistence, test 경로를 다시 검증했다. 실행 상태는 `implemented 11 / manual 347`이다. 숫자나 자원명이 들어간 서술이라도 조건·대상·선택·후속 카드가 구조화되지 않은 행은 억지로 자동화하지 않았다.
+
+### Rulebook Replacement Step 2
+
+- `manual` 347개 전부에 owner, source page, Rule ID, trigger별 충실한 효과 문구, 판단 이유, 실제 결정 과제, 조건, 필요한 입력, 가능한 canonical action, journal 지시를 연결했다. 완성 `347/347`, 누락 `0`이다.
+- 질병은 같은 행이라도 diagnosis, treatment-success, treatment-failure, timer-change, barter별 문구와 입력을 분리한다. 성공과 실패 지시가 한 화면에 섞이지 않는다.
+- 전용 판정 화면은 해당 효과에 필요한 입력만 표시하고 선택한 상태 변화의 미리보기를 제공한다. Resolve, Defer, Override는 서로 다른 저장 상태와 기록을 만든다.
+- 172개 행은 현재 모델이 안전하게 표현할 수 있는 Reputation, Trinket, Day, Foraging Point, Timer, Inventory, Condition 변화 후보를 제공한다. 원문이 플레이어 선택을 요구하므로 실제 발생한 변화만 선택해 적용한다.
+- 90개 행의 후속 카드, 다음 이동/타이머, 장기 조건은 별도 pending follow-up으로 저장되고 모든 장 상단에서 완료할 수 있다.
+- Travel 103, Foraging 144, Social 66, Named Ailment 45의 registry/runtime 연결을 전수 실행했다. 도달 불가 행은 `0`이다.
+- schema v7은 v6 저장에 manual queue, partial draft, selected action/target, resolution record, override, pending follow-up을 additive migration으로 추가한다.
+
+### Rulebook Replacement Step 1
+
+- `Bad Idea`의 Potency 3·FOUL 금지 조건과 Inspiration 두 선택을 치료 transaction에 결합했다.
+- 기본 도구 업그레이드와 도구 Weight 1/3 감소는 가능한 대상만 구조화해 반환하며, 선택 전에는 Inventory를 차감하지 않는다.
+- `Brand Care`와 `Forager's Twitch`의 진단 선택/후속 카드를 환자 생성 UI, Reputation, Requirement, Journal, Save에 연결했다.
+- 자동/선택형 11개와 서술형 347개의 분류 합계는 그대로 358이며, 서술형 항목은 계속 명시적 manual이다.
 
 ## Phase 6 처리 방식
 
 - A/B/C/D 분류를 `deterministic`, `structured-choice`, `narrative`, `ambiguous`로 registry에서 계산한다.
 - 실제 Ailment 실행기가 확인된 7개 family를 `implemented`로 맞춰 `3 → 10`으로 갱신했다. 구조만 있거나 원문 서술을 요구하는 행은 올리지 않았다.
 - manual effect는 원문 요약, Rule ID, source page, 강제 조건, 선택, canonical action, 결과 요약과 journal note를 저장한다.
-- 비어 있는 결과/저널은 완료할 수 없고, 보류한 draft는 schema v6에서 재개된다.
+- 비어 있는 필수 입력/결과/저널은 완료할 수 없고, 보류한 draft는 schema v7에서 재개된다. v6 저장은 자동 이관된다.
 - `resolved`와 `GM override`는 서로 다른 상태와 transaction ID로 기록된다.
 - Almanack은 같은 registry를 사용해 자동 처리, 선택 필요, 직접 처리, 모호함을 표시하고 필터링한다.
 
@@ -390,7 +421,7 @@
 | `ailment-stingshock` | implemented | treatment-success | p112 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
 | `ailment-trowel-trouble` | manual | treatment-success | p114 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 | `ailment-wormridden` | implemented | treatment-success | p115 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
-| `ailment-bad-idea` | manual | treatment-success | p104 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
+| `ailment-bad-idea` | implemented | treatment-success | p104 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
 | `ailment-bite-the-hand-that-cures` | manual | treatment-success | p104 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 | `ailment-bloodthirst` | manual | treatment-success | p105 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 | `ailment-broken-beaks-and-thinning-fangs` | manual | treatment-success | p105 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
@@ -415,6 +446,6 @@
 
 ## Manual 처리 계약
 
-각 `manual` row는 런타임 registry에 `manualResolution.reason`, 결정할 내용, 선택지, 결정 후 상태 변화, Rule ID와 source page를 보존한다. 현재 기본 전사는 owner별 source와 prompt를 연결하지만 348개 행의 고유 선택지·상태 변화 자동화는 남아 있다.
+각 `manual` row는 런타임 registry에 trigger별 `manualResolution`, 결정할 내용, 필요한 입력, 선택 가능한 상태 변화, 후속 판정, journal 지시, Rule ID와 source page를 보존한다. 347개는 자동화되지 않았지만 모두 앱 안에서 해결 가능하다. 서사적 판단을 플레이어에게 남기는 것은 의도된 원작 충실성이다.
 
 자동화 범위와 남은 제한은 `RULE_ENGINE_STATUS.md`, 변경 근거는 `PHASE3_REPORT.md`를 따른다.
