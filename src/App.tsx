@@ -211,7 +211,13 @@ const ManualEffectPanel = lazy(() => import('./components/ManualEffectPanel'));
 
 const suitLabels: { [key: string]: string } = { '♥': '하트 ♥', '♦': '다이아 ♦', '♣': '클로버 ♣', '♠': '스페이드 ♠' };
 
-const showAlert = (message: unknown) => window.alert(localizeGameplayMessage(String(message)));
+const APP_NOTICE_EVENT = 'apawthecaria:notice';
+
+const showAlert = (message: unknown) => {
+  window.dispatchEvent(new CustomEvent<string>(APP_NOTICE_EVENT, {
+    detail: localizeGameplayMessage(String(message))
+  }));
+};
 
 const createClientTransaction = (prefix: string) => {
   const at = Date.now();
@@ -3973,6 +3979,7 @@ export default function App() {
   const [controlledPrompt, setControlledPrompt] = useState<ControlledPromptRequest | null>(null);
   const [controlledPromptValue, setControlledPromptValue] = useState('');
   const [controlledPromptResolver, setControlledPromptResolver] = useState<((value: string | null) => void) | null>(null);
+  const [noticeQueue, setNoticeQueue] = useState<string[]>([]);
 
   const requestControlledPrompt = useCallback((request: ControlledPromptRequest) => new Promise<string | null>(resolve => {
     setControlledPromptResolver(() => resolve);
@@ -3986,6 +3993,20 @@ export default function App() {
     setControlledPrompt(null);
     resolve?.(value);
   }, [controlledPromptResolver]);
+
+  useEffect(() => {
+    const handleNotice = (event: Event) => {
+      const message = (event as CustomEvent<string>).detail;
+      if (message) setNoticeQueue(queue => [...queue, message]);
+    };
+
+    window.addEventListener(APP_NOTICE_EVENT, handleNotice);
+    return () => window.removeEventListener(APP_NOTICE_EVENT, handleNotice);
+  }, []);
+
+  const dismissNotice = useCallback(() => {
+    setNoticeQueue(queue => queue.slice(1));
+  }, []);
 
   // Seasoned & Titanwise familiar benefit states
   const [seasonedDraws, setSeasonedDraws] = useState<Array<{ suit: string; val: number }>>([]);
@@ -6115,6 +6136,10 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {noticeQueue[0] && (
+        <NoticeDialog message={noticeQueue[0]} onDismiss={dismissNotice} />
+      )}
     </div>
   );
 }
@@ -6180,6 +6205,33 @@ interface ControlledPromptRequest {
   label?: string;
   inputMode?: 'text' | 'number' | 'multiline';
   kicker?: string;
+}
+
+function NoticeDialog({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  return (
+    <div
+      className="phase4-modal-backdrop controlled-prompt-backdrop"
+      role="presentation"
+      onKeyDown={event => {
+        if (event.key === 'Escape') onDismiss();
+      }}
+    >
+      <section
+        className="phase4-modal controlled-prompt"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="app-notice-title"
+        aria-describedby="app-notice-message"
+      >
+        <div className="document-kicker">여행 기록 안내</div>
+        <h2 id="app-notice-title">확인해 주세요</h2>
+        <p id="app-notice-message" style={{ whiteSpace: 'pre-wrap' }}>{message}</p>
+        <div className="controlled-prompt__actions">
+          <button type="button" autoFocus onClick={onDismiss}>확인</button>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function ControlledPromptDialog({
