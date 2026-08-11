@@ -3467,3 +3467,261 @@ button,
     font-size: 1.9rem;
   }
 }
+
+/* Wide-monitor reading scale: the owner's ultrawide is treated as a
+   reading desk, not as empty margin around a tablet-sized page. */
+@media (min-width: 1800px) {
+  html {
+    font-size: 20px;
+  }
+
+  body {
+    font-size: 18px;
+  }
+
+  .journal-header {
+    min-height: 300px;
+    padding: 4.5rem 4rem 2.4rem;
+  }
+
+  .journal-brand {
+    width: min(1900px, 100%);
+  }
+
+  .journal-header .journal-brand__title {
+    font-size: 8.5rem !important;
+  }
+
+  .journal-brand__eyebrow,
+  .journal-brand__edition {
+    font-size: 0.84rem;
+  }
+
+  .journal-header__utilities {
+    top: 1.4rem;
+    right: 3rem;
+  }
+
+  .journal-header__action,
+  .journal-header__icon-button,
+  .pending-action-button,
+  .save-state {
+    font-size: 0.78rem;
+  }
+
+  .journal-tabs {
+    min-height: 70px;
+    gap: 1.45rem;
+  }
+
+  .journal-tab {
+    min-width: 118px;
+    min-height: 68px;
+    font-size: 0.8rem;
+  }
+
+  .journal-tab__emoji {
+    font-size: 1.15rem;
+  }
+
+  .journal-tab__index {
+    font-size: 0.62rem;
+  }
+
+  .grid-dashboard {
+    width: calc(100% - 6rem);
+    max-width: 2200px;
+    padding: 2.75rem 0 8rem;
+  }
+
+  .today-scene {
+    min-height: 510px;
+    grid-template-columns: minmax(0, 1.7fr) minmax(380px, 0.68fr);
+  }
+
+  .today-scene__copy {
+    padding: 3.6rem;
+  }
+
+  .today-scene__copy h2 {
+    font-size: 4.6rem;
+  }
+
+  .today-scene::after {
+    padding: 3rem;
+    font-size: 3.4rem;
+  }
+
+  .today-scene__mark {
+    right: 2.5rem;
+    font-size: 10.5rem;
+  }
+
+  .today-story article {
+    min-height: 300px;
+    padding: 2rem;
+  }
+
+  .today-story h3 {
+    font-size: 1.4rem;
+  }
+
+  .today-story p,
+  .today-story li,
+  .today-story dt,
+  .today-story dd {
+    font-size: 0.88rem;
+  }
+
+  .chapter-opening {
+    min-height: 520px;
+  }
+
+  .chapter-opening__copy {
+    min-height: 520px;
+    max-width: 74%;
+    padding: 4rem 4.5rem;
+  }
+
+  .chapter-opening__copy h2 {
+    font-size: 4.4rem;
+  }
+
+  .chapter-opening__body {
+    font-size: 0.96rem;
+  }
+
+  .chapter-opening__mark {
+    right: 3rem;
+    font-size: 9.5rem;
+  }
+
+  .journal-chapter,
+  .almanack {
+    max-width: 1900px;
+  }
+
+  .journal-chapter--map {
+    max-width: 2100px;
+  }
+
+  .journal-chapter > div > h2:first-child,
+  .journal-chapter > .parchment-panel > div:first-child h2 {
+    font-size: 2.15rem !important;
+  }
+
+  .action-step,
+  .action-step--primary,
+  .action-step--warning,
+  .action-step--done {
+    min-height: 138px;
+    padding: 1.3rem;
+  }
+}
+
+@media (min-width: 2600px) {
+  html {
+    font-size: 22px;
+  }
+
+  body {
+    font-size: 20px;
+  }
+
+  .journal-header {
+    min-height: 360px;
+    padding-top: 5.4rem;
+  }
+
+  .journal-brand {
+    width: min(2400px, 100%);
+  }
+
+  .journal-header .journal-brand__title {
+    font-size: 10rem !important;
+  }
+
+  .journal-tabs {
+    min-height: 78px;
+    gap: 1.8rem;
+  }
+
+  .journal-tab {
+    min-width: 138px;
+    min-height: 76px;
+    font-size: 0.84rem;
+  }
+
+  .grid-dashboard {
+    width: calc(100% - 8rem);
+    max-width: 2800px;
+    padding-top: 3.5rem;
+  }
+
+  .today-scene {
+    min-height: 650px;
+    grid-template-columns: minmax(0, 1.75fr) minmax(480px, 0.65fr);
+  }
+
+  .today-scene__copy {
+    padding: 4.5rem;
+  }
+
+  .today-scene__copy h2 {
+    font-size: 5.4rem;
+  }
+
+  .today-scene::after {
+    padding: 3.8rem;
+    font-size: 4rem;
+  }
+
+  .today-scene__mark {
+    right: 3.5rem;
+    bottom: 10rem;
+    font-size: 13rem;
+  }
+
+  .today-story article {
+    min-height: 350px;
+    padding: 2.4rem;
+  }
+
+  .today-story h3 {
+    font-size: 1.55rem;
+  }
+
+  .today-story p,
+  .today-story li,
+  .today-story dt,
+  .today-story dd {
+    font-size: 0.92rem;
+  }
+
+  .chapter-opening {
+    min-height: 620px;
+  }
+
+  .chapter-opening__copy {
+    min-height: 620px;
+    padding: 5rem 5.5rem;
+  }
+
+  .chapter-opening__copy h2 {
+    font-size: 5.2rem;
+  }
+
+  .chapter-opening__mark {
+    right: 4rem;
+    font-size: 12rem;
+  }
+
+  .journal-chapter,
+  .almanack {
+    max-width: 2400px;
+  }
+
+  .journal-chapter--map {
+    max-width: 2600px;
+  }
+}
