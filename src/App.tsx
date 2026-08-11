@@ -1,5 +1,4 @@
 import { useState, useEffect, useEffectEvent, useRef, useCallback, Fragment, lazy, Suspense } from "react";
-import { Archive, Cloud, Download, LogOut, Pencil, RotateCcw, Upload } from 'lucide-react';
 import { db, isFirebaseConfigured, auth, googleProvider, storage } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
@@ -5242,21 +5241,16 @@ export default function App() {
   };
 
   return (
-    <div className="journal-app">
+    <div className={`journal-app journal-app--${activeTab}`}>
       {/* Header Banner */}
       <header className="journal-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-          <button type="button" className="journal-brand" onClick={() => changeActiveTab('play')} aria-label="오늘의 여행 첫 페이지로 돌아가기">
-            <h1 className="cute-title" style={{ margin: 0, fontSize: '1.4rem' }}>
-              Apawthecaria 들녘 일지
-            </h1>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
-              숲을 걷는 약제사의 여행 기록
-            </div>
-          </button>
-        </div>
+        <button type="button" className="journal-brand" onClick={() => changeActiveTab('play')} aria-label="오늘의 여행 첫 페이지로 돌아가기">
+          <span className="journal-brand__eyebrow">Bristley Woods · A travelling apothecary's field notes</span>
+          <h1 className="journal-brand__title"><span>APAW</span><span>THECARIA</span></h1>
+          <span className="journal-brand__edition">들녘 일지 · 제1권</span>
+        </button>
 
-        <div style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
+        <div className="journal-header__utilities">
           {isFirebaseConfigured && auth && (
             user ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.3rem 0.8rem', background: 'var(--primary-light)', borderRadius: '20px', border: '1.5px solid var(--glass-border)' }}>
@@ -5267,17 +5261,17 @@ export default function App() {
                 )}
                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary)' }}>{user.displayName || '약제사'}</span>
                 <button className="journal-header__icon-button" onClick={handleSignOut} title="동기화 연결 해제">
-                  <LogOut aria-hidden="true" size={17} /><span>로그아웃</span>
+                  <span className="emoji-icon" aria-hidden="true">🚪</span><span>로그아웃</span>
                 </button>
               </div>
             ) : (
               <button onClick={handleSignIn} className="journal-header__action" aria-label="Google 기록 동기화" title="Google 기록 동기화">
-                <Cloud aria-hidden="true" size={17} /><span>Google 기록 동기화</span>
+                <span className="emoji-icon" aria-hidden="true">☁️</span><span>Google 기록 동기화</span>
               </button>
             )
           )}
           <button onClick={handleReset} className="journal-header__action journal-header__action--reset" aria-label="새 기록지 시작" title="새 기록지 시작">
-            <RotateCcw aria-hidden="true" size={17} /><span>새 기록지 시작</span>
+            <span className="emoji-icon" aria-hidden="true">🔄</span><span>새 기록지 시작</span>
           </button>
           {state.manualEffectQueue.length > 0 && !state.pendingManualEffect && (
             <button type="button" className="pending-action-button" onClick={() => updateState(s => ({ ...s, pendingManualEffect: s.manualEffectQueue[0] || null, manualEffectDraft: s.manualEffectQueue[0] || null }))}>
@@ -13396,11 +13390,11 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
             onClick={handleRetireClick}
             style={{ padding: '0.5rem 1rem', background: '#fef2f2', color: '#dc2626', border: '1px solid #fee2e2', borderRadius: '6px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 'bold' }}
           >
-            <Archive aria-hidden="true" size={16} /> 은퇴 및 대승계
+            <span className="emoji-icon" aria-hidden="true">🍂</span> 은퇴 및 대승계
           </button>
           {!editing && (
             <button onClick={() => setEditing(true)} style={{ padding: '0.5rem 1rem', background: 'var(--primary)', color: '#fff', borderRadius: '6px', fontSize: '0.9rem', border: 'none', boxShadow: 'var(--shadow-sm)' }}>
-              <Pencil aria-hidden="true" size={16} /> 프로필 편집
+              <span className="emoji-icon" aria-hidden="true">✏️</span> 프로필 편집
             </button>
           )}
         </div>
@@ -14351,24 +14345,15 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
 // 9. MAP VIEW COMPONENT (Cartographer’s Margins Pass)
 // =================================================================
 const HouseSketch = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" style={{ opacity: 0.75, marginRight: '4px', verticalAlign: 'middle', display: 'inline-block' }}>
-    <path d="M3 10l9-7 9 7v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />
-    <path d="M9 22V12h6v10" />
-  </svg>
+  <span className="emoji-icon" aria-hidden="true" style={{ marginRight: '4px' }}>🏠</span>
 );
 
 const HearthSketch = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" style={{ opacity: 0.75, marginRight: '4px', verticalAlign: 'middle', display: 'inline-block' }}>
-    <path d="M12 2c0 4-3 6-3 10a3 3 0 0 0 6 0c0-4-3-6-3-10z" />
-    <path d="M5 21h14M8 18h8" />
-  </svg>
+  <span className="emoji-icon" aria-hidden="true" style={{ marginRight: '4px' }}>🔥</span>
 );
 
 const BranchSketch = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" style={{ opacity: 0.65, marginRight: '4px', verticalAlign: 'middle', display: 'inline-block' }}>
-    <path d="M3 12c4 0 8 3 13 1" />
-    <path d="M9 11c1-2 2-3 4-3M13 12c1-2 3-2 4-4M16 13c1-2 2-2 3-3" />
-  </svg>
+  <span className="emoji-icon" aria-hidden="true" style={{ marginRight: '4px' }}>🍂</span>
 );
 
 function MapView({ state }: { state: GameState }) {
@@ -14837,7 +14822,7 @@ function MapView({ state }: { state: GameState }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
               <div style={{ background: '#fffcf7', padding: '0.8rem', borderRadius: '6px', border: '1px solid #e5dec9' }}>
                 <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#8b5a2b', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <img src="/symbols/paws.png" alt="도보 거리 단위" style={{ width: '48px', height: 'auto', objectFit: 'contain', flexShrink: 0 }} />
+                  <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '2rem' }}>🐾</span>
                   <span>도보</span>
                 </h3>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: '#5c4033', lineHeight: '1.4' }}>
@@ -14847,7 +14832,7 @@ function MapView({ state }: { state: GameState }) {
 
               <div style={{ background: '#fffcf7', padding: '0.8rem', borderRadius: '6px', border: '1px solid #e5dec9' }}>
                 <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#4a8ca8', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <img src="/symbols/wings.png" alt="날개 거리 단위" style={{ width: '48px', height: 'auto', objectFit: 'contain', flexShrink: 0 }} />
+                  <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '2rem' }}>🪽</span>
                   <span>날개</span>
                 </h3>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: '#5c4033', lineHeight: '1.4' }}>
@@ -14857,7 +14842,7 @@ function MapView({ state }: { state: GameState }) {
 
               <div style={{ background: '#fffcf7', padding: '0.8rem', borderRadius: '6px', border: '1px solid #e5dec9' }}>
                 <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#9275a8', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <img src="/symbols/soar.png" alt="활공 거리 단위" style={{ width: '48px', height: 'auto', objectFit: 'contain', flexShrink: 0 }} />
+                  <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '2rem' }}>🦅</span>
                   <span>활공</span>
                 </h3>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: '#5c4033', lineHeight: '1.4' }}>
@@ -14869,7 +14854,9 @@ function MapView({ state }: { state: GameState }) {
             {/* Scale ruler — manual image */}
             <div style={{ marginTop: '1.2rem' }}>
               <strong style={{ fontSize: '0.85rem', color: '#5c4033', display: 'block', marginBottom: '0.5rem' }}>거리 척도 자 비교</strong>
-              <img src="/symbols/scale.png" alt="도보, 날개, 활공 거리 단위 비교" style={{ width: '100%', height: 'auto', borderRadius: '4px', border: '1px solid #e5dec9' }} />
+              <div className="map-distance-emoji-scale" aria-label="도보보다 날개가, 날개보다 활공이 더 먼 거리를 이동합니다">
+                <span className="emoji-icon">🐾</span><b>&lt;</b><span className="emoji-icon">🪽</span><b>&lt;</b><span className="emoji-icon">🦅</span>
+              </div>
             </div>
           </div>
 
@@ -14905,7 +14892,7 @@ function MapView({ state }: { state: GameState }) {
                 </strong>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <img src="/symbols/city.png" alt="도시" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
+                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>🏙️</span>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>도시</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>치료소, 길드, 번화 상점</span>
@@ -14913,7 +14900,7 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <img src="/symbols/settlement.png" alt="정착지" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
+                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>🏡</span>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>정착지</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>마을, 주민 거주지, 여각</span>
@@ -14921,7 +14908,7 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <img src="/symbols/wilds.png" alt="야생 구역" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
+                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>🌲</span>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>야생 구역</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>정착지 밖 채집 및 탐험지</span>
@@ -14929,7 +14916,7 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <img src="/symbols/titan.png" alt="Titan 유적" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
+                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>🗿</span>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>Titan 유적</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>고대 거인의 신비한 자생 흔적</span>
@@ -14937,7 +14924,7 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <img src="/symbols/barrow.png" alt="거수 고분" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
+                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>🪦</span>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.85rem' }}>거수 고분</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>거수들의 고분군 및 위험 지대</span>
@@ -14945,7 +14932,7 @@ function MapView({ state }: { state: GameState }) {
                   </div>
 
 	                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-	                    <img src="/symbols/clinic.png" alt="약제소" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
+	                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>🏥</span>
 	                    <div style={{ display: 'flex', flexDirection: 'column' }}>
 	                      <strong style={{ fontSize: '0.85rem' }}>약제소</strong>
 	                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>플레이어 약제사의 치료 본부</span>
@@ -14953,10 +14940,7 @@ function MapView({ state }: { state: GameState }) {
 	                  </div>
 
 	                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-	                    <svg width="32" height="32" viewBox="0 0 32 32" style={{ flexShrink: 0 }}>
-	                      <circle cx="16" cy="16" r="12" fill="none" stroke="#2367b1" strokeWidth="3" />
-	                      <circle cx="16" cy="16" r="4" fill="#2367b1" />
-	                    </svg>
+	                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>📍</span>
 	                    <div style={{ display: 'flex', flexDirection: 'column' }}>
 	                      <strong style={{ fontSize: '0.85rem' }}>현재 위치</strong>
 	                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>지금 약제사가 머무는 곳</span>
@@ -14964,10 +14948,7 @@ function MapView({ state }: { state: GameState }) {
 	                  </div>
 
 	                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-	                    <svg width="32" height="32" viewBox="0 0 32 32" style={{ flexShrink: 0 }}>
-	                      <rect x="8" y="8" width="16" height="16" fill="none" stroke="#cf2d2d" strokeWidth="3" />
-	                      <ellipse cx="16" cy="16" rx="14" ry="9" fill="none" stroke="#dc2626" strokeWidth="2" strokeDasharray="4 3" />
-	                    </svg>
+	                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>📡</span>
 	                    <div style={{ display: 'flex', flexDirection: 'column' }}>
 	                      <strong style={{ fontSize: '0.85rem' }}>클리닉과 서비스 영역</strong>
 	                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>네모는 본부, 붉은 둘레는 서비스 영역</span>
@@ -14975,9 +14956,7 @@ function MapView({ state }: { state: GameState }) {
 	                  </div>
 
 	                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-	                    <svg width="32" height="20" viewBox="0 0 32 20" style={{ flexShrink: 0 }}>
-	                      <path d="M3 15 C9 3 19 17 29 5" fill="none" stroke="#285b8b" strokeWidth="2.5" strokeDasharray="5 4" strokeLinecap="round" />
-	                    </svg>
+	                    <span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.55rem' }}>👣</span>
 	                    <div style={{ display: 'flex', flexDirection: 'column' }}>
 	                      <strong style={{ fontSize: '0.85rem' }}>방문 경로</strong>
 	                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>기록된 방문지와 현재 위치를 이은 선</span>
@@ -14994,54 +14973,49 @@ function MapView({ state }: { state: GameState }) {
                 </strong>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <svg width="16" height="16" style={{ flexShrink: 0 }}><circle cx="8" cy="8" r="6" fill="#9275a8"/></svg>
+                    <span className="emoji-icon" aria-hidden="true">🟣</span>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.8rem' }}>늪지와 습지</strong>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <svg width="16" height="16" style={{ flexShrink: 0 }}><circle cx="8" cy="8" r="6" fill="#3d6c48"/></svg>
+                    <span className="emoji-icon" aria-hidden="true">🌲</span>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.8rem' }}>울창한 숲</strong>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <svg width="16" height="16" style={{ flexShrink: 0 }}><circle cx="8" cy="8" r="6" fill="#4a8ca8"/></svg>
+                    <span className="emoji-icon" aria-hidden="true">🌊</span>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.8rem' }}>호수와 내해</strong>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <svg width="16" height="16" style={{ flexShrink: 0 }}><circle cx="8" cy="8" r="6" fill="#e5c158"/></svg>
+                    <span className="emoji-icon" aria-hidden="true">🌾</span>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.8rem' }}>초원</strong>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', gridColumn: '1 / -1' }}>
-                    <svg width="16" height="16" style={{ flexShrink: 0 }}><circle cx="8" cy="8" r="6" fill="#c9524b"/></svg>
+                    <span className="emoji-icon" aria-hidden="true">🏔️</span>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.8rem' }}>고산과 바위 지대</strong>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', gridColumn: '1 / -1' }}>
-                    <svg width="35" height="16" style={{ flexShrink: 0 }} viewBox="0 0 35 16">
-                      <path d="M 2,8 C 10,3 14,13 22,8 C 30,3 33,13 34,8" fill="none" stroke="#8b5a2b" strokeWidth="2" strokeDasharray="2.5,2.5"/>
-                    </svg>
+                    <span className="emoji-icon" aria-hidden="true">🥾</span>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.8rem' }}>연결 도로</strong>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', gridColumn: '1 / -1' }}>
-                    <svg width="35" height="16" style={{ flexShrink: 0 }} viewBox="0 0 35 16">
-                      <path d="M 2,5 L 33,5 M 2,11 L 33,11" fill="none" stroke="#4a8ca8" strokeWidth="1.2"/>
-                      <path d="M 10,3 L 12,13 M 22,3 L 24,13" fill="none" stroke="#4a8ca8" strokeWidth="1.2"/>
-                    </svg>
+                    <span className="emoji-icon" aria-hidden="true">🛶</span>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <strong style={{ fontSize: '0.8rem' }}>수로</strong>
                     </div>
@@ -15821,9 +15795,9 @@ function JournalsView({
       <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>약제사 연대기 일지</span>
         <div className="journal-document-actions" style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={handleExportData} style={{ padding: '0.4rem 0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem', border: 'none', cursor: 'pointer' }}><Download aria-hidden="true" size={16} /> 내 기록 백업</button>
+          <button onClick={handleExportData} style={{ padding: '0.4rem 0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem', border: 'none', cursor: 'pointer' }}><span className="emoji-icon" aria-hidden="true">📥</span> 내 기록 백업</button>
           <label style={{ padding: '0.4rem 0.8rem', background: '#eee', color: '#333', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer' }}>
-            <Upload aria-hidden="true" size={16} /> 기록 불러오기
+            <span className="emoji-icon" aria-hidden="true">📤</span> 기록 불러오기
             <input type="file" accept=".json" onChange={handleImportData} style={{ display: 'none' }} />
           </label>
         </div>

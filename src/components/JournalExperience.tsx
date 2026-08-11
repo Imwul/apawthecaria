@@ -1,19 +1,4 @@
 import { lazy, Suspense } from 'react';
-import {
-  Backpack,
-  BookHeart,
-  BookOpen,
-  Compass,
-  Feather,
-  Flower2,
-  Images,
-  LibraryBig,
-  Map,
-  NotebookTabs,
-  Stethoscope,
-  SunMedium,
-  UserRound
-} from 'lucide-react';
 import { localizeLocationTypeLabel, localizeRegionLabel, localizeSavedJourneyText } from '../localization/gameplayKo';
 import { localizeGameplayMessage } from '../localization/engineMessagesKo';
 
@@ -24,22 +9,21 @@ export type JournalTab = 'play' | 'bio' | 'reagents' | 'ailments' | 'almanack' |
 type ChapterTab = Exclude<JournalTab, 'play'>;
 
 const NAVIGATION = [
-  { id: 'play', label: '오늘의 여행', icon: BookOpen },
-  { id: 'ailments', label: '진료 수첩', icon: Stethoscope },
-  { id: 'reagents', label: '약초 도감', icon: Flower2 },
-  { id: 'bio', label: '배낭과 약제사', icon: Backpack },
-  { id: 'map', label: '접어둔 지도', icon: Map },
-  { id: 'almanack', label: '자연사 색인', icon: LibraryBig },
-  { id: 'patientArchive', label: '환자 기록장', icon: BookHeart },
-  { id: 'livingArchive', label: '표본과 기억', icon: Images },
-  { id: 'journals', label: '들녘의 일지', icon: Feather }
+  { id: 'play', label: '오늘의 여행', emoji: '📖' },
+  { id: 'ailments', label: '진료 수첩', emoji: '🩺' },
+  { id: 'reagents', label: '약초 도감', emoji: '🌿' },
+  { id: 'bio', label: '배낭과 약제사', emoji: '🎒' },
+  { id: 'map', label: '접어둔 지도', emoji: '🗺️' },
+  { id: 'almanack', label: '자연사 색인', emoji: '📚' },
+  { id: 'patientArchive', label: '환자 기록장', emoji: '🗂️' },
+  { id: 'livingArchive', label: '표본과 기억', emoji: '🪻' },
+  { id: 'journals', label: '들녘의 일지', emoji: '✒️' }
 ] as const;
 
 export function JournalNavigation({ activeTab, onChange }: { activeTab: JournalTab; onChange: (tab: JournalTab) => void }) {
   return (
     <nav className="journal-tabs" aria-label="여행 일지 책갈피">
-      {NAVIGATION.map(item => {
-        const Icon = item.icon;
+      {NAVIGATION.map((item, index) => {
         return (
           <button
             key={item.id}
@@ -49,7 +33,8 @@ export function JournalNavigation({ activeTab, onChange }: { activeTab: JournalT
             title={item.label}
             onClick={() => onChange(item.id)}
           >
-            <Icon aria-hidden="true" size={18} strokeWidth={1.7} />
+            <span className="journal-tab__index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+            <span className="journal-tab__emoji emoji-icon" aria-hidden="true">{item.emoji}</span>
             <span>{item.label}</span>
           </button>
         );
@@ -58,15 +43,15 @@ export function JournalNavigation({ activeTab, onChange }: { activeTab: JournalT
   );
 }
 
-const CHAPTER_ICONS = {
-  ailments: Stethoscope,
-  reagents: Flower2,
-  bio: Backpack,
-  map: Map,
-  almanack: LibraryBig,
-  patientArchive: BookHeart,
-  livingArchive: Images,
-  journals: Feather
+const CHAPTER_EMOJIS = {
+  ailments: '🩺',
+  reagents: '🌿',
+  bio: '🎒',
+  map: '🗺️',
+  almanack: '📚',
+  patientArchive: '🗂️',
+  livingArchive: '🪻',
+  journals: '✒️'
 };
 
 const seasonLabel = (season: string | undefined) => ({ Spring: '봄', Summer: '여름', Autumn: '가을', Winter: '겨울' } as Record<string, string>)[season || ''] || season || '계절 미기록';
@@ -150,11 +135,12 @@ export function ChapterOpening({
   };
 
   const chapter = content[tab];
-  const ChapterIcon = CHAPTER_ICONS[tab];
+  const chapterEmoji = CHAPTER_EMOJIS[tab];
 
   return (
     <header className={`chapter-opening chapter-opening--${tab}`} aria-labelledby={`chapter-title-${tab}`}>
-      <ChapterIcon className="chapter-opening__mark" aria-hidden="true" strokeWidth={1.15} />
+      <span className="chapter-opening__mark emoji-icon" aria-hidden="true">{chapterEmoji}</span>
+      <span className="chapter-opening__folio" aria-hidden="true">FIELD NOTE / {String(NAVIGATION.findIndex(item => item.id === tab) + 1).padStart(2, '0')}</span>
       <div className="chapter-opening__copy">
         <p className="chapter-opening__kicker">{chapter.kicker}</p>
         <h2 id={`chapter-title-${tab}`}>{chapter.title}</h2>
@@ -164,7 +150,7 @@ export function ChapterOpening({
         </ul>
         {tab === 'ailments' && patientName ? (
           <button type="button" onClick={onReturnToToday}>
-            <BookOpen aria-hidden="true" size={17} /> 현재 진료로 돌아가기
+            <span className="emoji-icon" aria-hidden="true">📖</span> 현재 진료로 돌아가기
           </button>
         ) : null}
       </div>
@@ -202,20 +188,25 @@ export function TodayOverview({
   const ailmentName = legacyAilment?.name || ailment?.legacyName || '살펴볼 병증이 없습니다';
   const requirements = requirementWords(legacyAilment?.tags || ailment?.requirementSnapshot || '');
   const recentJournal = state.journals?.[0];
-  const dayTitle = state.journeyActive
-    ? `${state.journeyDestination || '다음 마을'}로 향하는 날`
-    : `${state.currentLocationName}에 머무는 날`;
+  const dayPlace = state.journeyActive
+    ? state.journeyDestination || '다음 마을'
+    : state.currentLocationName;
+  const dayPhrase = state.journeyActive ? '로 향하는 날' : '에 머무는 날';
 
   return (
     <section className="today-overview" aria-labelledby="today-title">
       <div className="today-scene">
-        <Compass className="today-scene__mark" aria-hidden="true" strokeWidth={1.05} />
+        <span className="today-scene__mark emoji-icon" aria-hidden="true">🧭</span>
+        <span className="today-scene__folio" aria-hidden="true">FIELD NOTE / 01</span>
         <div className="today-scene__copy">
-          <span className="today-scene__season"><SunMedium aria-hidden="true" size={17} /> {seasonLabel(state.currentSeason)}</span>
+          <span className="today-scene__season"><span className="emoji-icon" aria-hidden="true">🌤️</span> {seasonLabel(state.currentSeason)}</span>
           <p>오늘의 들녘 기록</p>
-          <h2 id="today-title">{dayTitle}</h2>
+          <h2 id="today-title">
+            <span className="today-title__place">{dayPlace}</span>
+            <span className="today-title__phrase">{dayPhrase}</span>
+          </h2>
           <button type="button" onClick={onContinue}>
-            <Compass aria-hidden="true" size={18} /> 이어서 걷기
+            <span className="emoji-icon" aria-hidden="true">🧭</span> 이어서 걷기
           </button>
         </div>
       </div>
@@ -232,7 +223,7 @@ export function TodayOverview({
             </dl>
           ) : null}
           <button type="button" className="journal-text-action" onClick={() => onNavigate('ailments')}>
-            <Stethoscope aria-hidden="true" size={17} /> 진료 수첩 펼치기
+            <span className="emoji-icon" aria-hidden="true">🩺</span> 진료 수첩 펼치기
           </button>
         </article>
 
@@ -245,7 +236,7 @@ export function TodayOverview({
             <p>환자를 만나면 필요한 효능이 이곳에 적힙니다.</p>
           )}
           <button type="button" className="journal-text-action" onClick={() => onNavigate('reagents')}>
-            <Flower2 aria-hidden="true" size={17} /> 약초 도감 살피기
+            <span className="emoji-icon" aria-hidden="true">🌿</span> 약초 도감 살피기
           </button>
         </article>
 
@@ -254,7 +245,7 @@ export function TodayOverview({
           <h3>{state.currentLocationName}</h3>
           <p>{localizeRegionLabel(state.currentRegion)} · {localizeLocationTypeLabel(state.currentLocationType)} · {seasonLabel(state.currentSeason)}</p>
           <button type="button" className="journal-text-action" onClick={() => onNavigate('map')}>
-            <Map aria-hidden="true" size={17} /> 지도에 짚어보기
+            <span className="emoji-icon" aria-hidden="true">🗺️</span> 지도에 짚어보기
           </button>
         </article>
 
@@ -264,7 +255,7 @@ export function TodayOverview({
           <p>영약재 {state.bag?.filter((item: any) => item.type === 'reagent').length || 0} · 도구 {state.bag?.filter((item: any) => item.type === 'tool').length || 0}</p>
           <div className="today-bag__line"><span style={{ width: `${Math.min(100, (currentWeight / Math.max(1, maxCarry)) * 100)}%` }} /></div>
           <button type="button" className="journal-text-action" onClick={() => onNavigate('bio')}>
-            <Backpack aria-hidden="true" size={17} /> 배낭 정리하기
+            <span className="emoji-icon" aria-hidden="true">🎒</span> 배낭 정리하기
           </button>
         </article>
 
@@ -273,7 +264,7 @@ export function TodayOverview({
           <h3>{recentJournal?.title ? <Suspense fallback={localizeGameplayMessage(recentJournal.title)}><LocalizedManualEffectText kind="journal-title" text={localizeGameplayMessage(recentJournal.title)} /></Suspense> : '아직 적힌 이야기가 없습니다'}</h3>
           <p>{recentJournal?.text ? <Suspense fallback={localizeGameplayMessage(localizeSavedJourneyText(recentJournal.text)).slice(0, 180)}><LocalizedManualEffectText kind="journal-text" text={localizeGameplayMessage(localizeSavedJourneyText(recentJournal.text))} maxLength={180} /></Suspense> : '첫 여행을 떠나면 이곳에 작은 기억이 남습니다.'}</p>
           <button type="button" className="journal-text-action" onClick={() => onNavigate('journals')}>
-            <NotebookTabs aria-hidden="true" size={17} /> 지난 기록 읽기
+            <span className="emoji-icon" aria-hidden="true">✒️</span> 지난 기록 읽기
           </button>
         </article>
       </div>
