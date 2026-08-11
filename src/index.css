@@ -488,6 +488,7 @@ button:active {
   border: 2px solid rgba(155, 63, 54, 0.45);
   border-radius: 50%;
   transform: rotate(9deg);
+  pointer-events: none;
 }
 
 .journey-record::after {

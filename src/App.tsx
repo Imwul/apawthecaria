@@ -11383,6 +11383,7 @@ function PlayView({
                 출발한 지 <strong>{state.calendarDays}일째</strong>, 남은 시간은 <strong>{Math.max(0, state.calendarMaxDays - state.calendarDays)}일</strong>.
               </div>
               <button
+                type="button"
                 onClick={handleEndJourney}
                 style={{ padding: '0.4rem 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '20px', fontSize: '0.82rem', whiteSpace: 'nowrap', flexShrink: 0 }}
               >

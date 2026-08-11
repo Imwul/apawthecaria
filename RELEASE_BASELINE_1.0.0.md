@@ -7,7 +7,7 @@
 | Metric | Version 1.0.0 |
 |---|---:|
 | Save schema | v8 |
-| Full tests | 13 files / 139 tests |
+| Full tests | 16 files / 154 tests |
 | Printed Effects | 358/358 |
 | Intentional manual Printed Effects | 347/347 |
 | Release Blockers | 0 |
@@ -21,8 +21,8 @@
 
 | Asset | Raw | Gzip |
 |---|---:|---:|
-| Initial entry | 2.57 kB | 1.34 kB |
-| App async chunk | 554.13 kB | 148.51 kB |
+| Initial entry | 2.60 kB | 1.36 kB |
+| App async chunk | 609.34 kB | 165.03 kB |
 
 Vite의 500 kB warning은 App async chunk 1건이다. Version `1.0.0`의 Release Blocker가 아니며, packaging 과정에서 chunk refactor를 수행하지 않는다.
 
@@ -43,4 +43,4 @@ Vite의 500 kB warning은 App async chunk 1건이다. Version `1.0.0`의 Release
 
 ## Packaging Status
 
-Gameplay certification baseline은 PASS다. Patient native `prompt()` blocker는 제거됐지만 active Journey의 save/reload 후 ending UI가 열리지 않아 packaging certification은 여전히 `RELEASE ABORTED`다. Release candidate는 사용자 요청으로 production에 배포했으며, `v1.0.0` tag는 보류했다. 자세한 gate 결과는 `RELEASE_CHECKLIST_1.0.0.md`에 있다.
+Gameplay certification baseline은 PASS다. Patient native `prompt()`와 active Journey save/reload 후 ending UI blocker는 모두 제거됐다. Packaging certification은 uninterrupted clean UI campaign, mobile rerun, post-deploy functional smoke를 다시 완료할 때까지 열어 두며 `v1.0.0` tag는 보류한다. 자세한 gate 결과는 `RELEASE_CHECKLIST_1.0.0.md`에 있다.

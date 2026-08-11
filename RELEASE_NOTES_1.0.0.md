@@ -2,7 +2,7 @@
 
 Version `1.0.0`은 인증된 canonical gameplay를 고정하는 production release package다. 이번 release packaging에서는 Rule Engine, Rule 분류, save semantics, narrative 처리 또는 UI 디자인을 변경하지 않았다.
 
-> Packaging status: release candidate는 production에 배포됐지만, clean campaign의 active Journey save/reload gate가 남아 있어 `v1.0.0` tag는 보류한다.
+> Packaging status: active Journey save/reload ending blocker는 제거됐다. uninterrupted clean UI campaign, mobile rerun, post-deploy functional smoke가 모두 닫힐 때까지 release candidate로 유지하고 `v1.0.0` tag는 보류한다.
 
 ## Core Campaign
 
@@ -34,7 +34,7 @@ Version `1.0.0`은 인증된 canonical gameplay를 고정하는 production relea
 
 ## Verification
 
-- Full suite: `13 files / 139 tests`
+- Full suite: `16 files / 154 tests`
 - Rule Validator: PASS
 - TypeScript: PASS
 - ESLint: `0 errors / 0 warnings`

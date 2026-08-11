@@ -17,8 +17,8 @@
 | ESLint | PASS | 0 errors / 0 warnings |
 | Production Build | PASS | Vite 8.0.16 production build |
 | Migration regression | PASS | 8 files / 99 tests; legacy and current schema coverage |
-| Clean campaign smoke | FAIL | Patient controlled input, Travel, Forage, Treatment, Manual Effect, Barter, Save and Reload passed. After reload, the active Journey cannot open its ending transaction, so Barrow, Downtime, Season and final Archive were not completed in one clean UI campaign. |
-| Existing campaign compatibility | FAIL | schema v8 data reloads, but an active Journey resumed from storage cannot be ended through the UI in the observed clean campaign. |
+| Clean campaign smoke | PARTIAL | Patient controlled input, Travel, Forage, Treatment, Manual Effect, Barter, Save, Reload and the resumed Journey ending transaction pass. Barrow, Downtime, Season and final Archive were not repeated in one uninterrupted clean UI run after the interaction fix. |
+| Existing campaign compatibility | PASS | A stored schema v8 campaign resumed at its canonical Destination, completed a pending follow-up, opened the Journey ending flow and committed its ending transaction. |
 | Desktop | PASS | all 9 tabs have balanced content gutters, no document-level horizontal overflow and no console error |
 | Mobile | NOT RE-RUN | the responsive gutter is bounded to `1rem`; the full mobile campaign was not repeated after the final CSS-only change |
 | Production smoke | PARTIAL | production URL, deployed gutter and console-zero load passed; the full production Patient/Treatment/save loop was not repeated |
@@ -51,12 +51,12 @@
 | Asset | Raw | Gzip |
 |---|---:|---:|
 | Initial entry | 2.60 kB | 1.36 kB |
-| App async chunk | 609.33 kB | 165.03 kB |
+| App async chunk | 609.34 kB | 165.03 kB |
 
 The existing Vite 500 kB warning remains one App async chunk and did not regress from the certified baseline.
 
 ## Packaging Decision
 
-**RELEASE ABORTED**
+**RELEASE TAG WITHHELD**
 
-The gameplay-critical Patient `prompt()` dependency is removed and the console-zero gate now passes. The actual UI campaign still cannot finish an active Journey after save/reload, so the `v1.0.0` tag remains withheld. At the user's explicit request, release-candidate commit `7d38f28` was pushed to `main` and deployed to production for further validation; this deployment is not a completed Version 1.0 certification.
+The gameplay-critical Patient `prompt()` dependency is removed and the console-zero gate passes. The stored Journey ending blocker was a decorative seal intercepting pointer input; the seal is now inert and the resumed canonical ending transaction passes. The `v1.0.0` tag remains withheld until the uninterrupted clean UI campaign, mobile rerun and post-deploy functional smoke are all repeated. Release-candidate builds may be pushed and deployed for that validation, but they are not a completed Version 1.0 certification.

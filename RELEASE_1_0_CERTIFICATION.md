@@ -92,18 +92,18 @@ Journey → Travel → Forage → Patient → Treatment → Printed Effect → B
 
 | Check | Result |
 |---|---|
-| Full tests | PASS, 13 files / 139 tests |
+| Full tests | PASS, 16 files / 154 tests |
 | Phase 10 blockers | PASS, 8/8 tests |
 | Rule validator | PASS, 4/4 tests |
 | TypeScript | PASS |
 | Lint | PASS, errors 0 / warnings 0 |
 | Build | PASS |
-| Migration/save regression | PASS, 5 files / 55 tests |
+| Migration/save regression | PASS, 8 files / 99 tests |
 | Desktop | PASS, document overflow 0, fresh console errors 0 |
 | Mobile | PASS, document overflow 0; bookmarks use intentional horizontal scroll |
 | Long campaign replay | PASS, 5/5 RC scenarios |
 
-Initial entry는 2.57 kB (gzip 1.34 kB), App async chunk는 554.13 kB (gzip 148.51 kB)다. 500 kB 초과 경고 한 건은 남지만 Release Blocker는 아니다.
+Initial entry는 2.60 kB (gzip 1.36 kB), App async chunk는 609.34 kB (gzip 165.03 kB)다. 500 kB 초과 경고 한 건은 남지만 Release Blocker는 아니다.
 
 ## Final Recommendation
 
@@ -113,4 +113,4 @@ Initial entry는 2.57 kB (gzip 1.34 kB), App async chunk는 554.13 kB (gzip 148.
 
 ## Production Packaging Status
 
-Gameplay certification은 유지된다. Patient의 gameplay-critical native `prompt()`는 controlled input으로 교체됐지만, actual-UI clean campaign에서 active Journey를 저장 후 다시 열면 ending transaction을 시작할 수 없는 문제가 남았다. 사용자 요청에 따라 release candidate는 `main`과 production에 배포했으며, `v1.0.0` tag는 만들지 않았다. 상세 결과는 `RELEASE_CHECKLIST_1.0.0.md`에 기록한다.
+Gameplay certification은 유지된다. Patient의 gameplay-critical native `prompt()`는 controlled input으로 교체됐고, 저장 후 재개한 active Journey의 ending transaction도 장식 레이어의 pointer interception을 제거해 실제 UI에서 완료된다. 다만 uninterrupted clean UI campaign, mobile rerun, post-deploy functional smoke를 모두 다시 마치기 전까지 `v1.0.0` tag는 만들지 않는다. 상세 결과는 `RELEASE_CHECKLIST_1.0.0.md`에 기록한다.

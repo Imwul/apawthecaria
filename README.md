@@ -5,7 +5,7 @@ Apawthecaria의 전체 캠페인을 브라우저에서 진행할 수 있도록 �
 ## Release
 
 - Prepared package version: `1.0.0`
-- Release status: release-candidate commit `7d38f28` deployed; `v1.0.0` tag is withheld while the clean-campaign resume gate remains open
+- Release status: active Journey resume ending is repaired in the current release candidate; `v1.0.0` tag is withheld until the remaining uninterrupted UI and post-deploy smoke gates are repeated
 - Production: <https://apawthecaria.vercel.app>
 - Ruleset: 새 캠페인은 `original-1e-3p`, 기존 저장은 호환 migration 적용
 - Save schema: `v8`
