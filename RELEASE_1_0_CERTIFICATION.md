@@ -113,4 +113,4 @@ Initial entry는 2.57 kB (gzip 1.34 kB), App async chunk는 554.13 kB (gzip 148.
 
 ## Production Packaging Status
 
-Gameplay certification은 유지된다. 별도 Version `1.0.0` packaging run은 actual-UI clean campaign에서 native `prompt()`를 지원하지 않는 in-app test browser 제한 때문에 release gate를 전부 PASS로 증명하지 못했다. 이에 따라 release commit, `v1.0.0` tag, push와 production deployment는 생성하지 않았다. 상세 결과는 `RELEASE_CHECKLIST_1.0.0.md`에 기록한다.
+Gameplay certification은 유지된다. Patient의 gameplay-critical native `prompt()`는 controlled input으로 교체됐지만, actual-UI clean campaign에서 active Journey를 저장 후 다시 열면 ending transaction을 시작할 수 없는 문제가 남았다. 사용자 요청에 따라 release candidate는 `main`과 production에 배포했으며, `v1.0.0` tag는 만들지 않았다. 상세 결과는 `RELEASE_CHECKLIST_1.0.0.md`에 기록한다.

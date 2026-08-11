@@ -2,7 +2,7 @@
 
 Version `1.0.0`은 인증된 canonical gameplay를 고정하는 production release package다. 이번 release packaging에서는 Rule Engine, Rule 분류, save semantics, narrative 처리 또는 UI 디자인을 변경하지 않았다.
 
-> Packaging status: production release는 `RELEASE_CHECKLIST_1.0.0.md`의 모든 gate가 PASS일 때만 tag된다. 현재 packaging run은 clean campaign browser gate 미통과로 중단됐다.
+> Packaging status: release candidate는 production에 배포됐지만, clean campaign의 active Journey save/reload gate가 남아 있어 `v1.0.0` tag는 보류한다.
 
 ## Core Campaign
 

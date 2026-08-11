@@ -11,18 +11,18 @@
 
 | Gate | Status | Evidence |
 |---|---|---|
-| Full test suite | PASS | 13 files / 139 tests |
+| Full test suite | PASS | 16 files / 154 tests |
 | Rule Validator | PASS | 1 file / 4 tests |
 | TypeScript | PASS | `npx tsc -b --pretty false` |
 | ESLint | PASS | 0 errors / 0 warnings |
 | Production Build | PASS | Vite 8.0.16 production build |
-| Migration regression | PASS | 5 files / 52 tests; legacy, schema v6/v7/v8 and current schema coverage |
-| Clean campaign smoke | FAIL | Journey, 3-Path Travel, manual effect, Save and Reload passed; Patient creation could not run because the in-app test browser rejects native `prompt()` |
-| Existing campaign compatibility | PASS | a new tab restored Aspengrace, active Journey and the resolved Bridges journal with no console error |
-| Desktop | PASS | no horizontal overflow; map asset, modal, Almanack 80 rows and Archive rendered |
-| Mobile | PASS | no horizontal overflow at the constrained viewport; map controls, forms, Almanack and Archive remained usable |
-| Production smoke | FAIL | not run because the pre-deploy clean campaign gate failed |
-| Console errors | FAIL | normal production-preview load/reload had 0; Patient attempts produced `prompt() is not supported` in the in-app test browser |
+| Migration regression | PASS | 8 files / 99 tests; legacy and current schema coverage |
+| Clean campaign smoke | FAIL | Patient controlled input, Travel, Forage, Treatment, Manual Effect, Barter, Save and Reload passed. After reload, the active Journey cannot open its ending transaction, so Barrow, Downtime, Season and final Archive were not completed in one clean UI campaign. |
+| Existing campaign compatibility | FAIL | schema v8 data reloads, but an active Journey resumed from storage cannot be ended through the UI in the observed clean campaign. |
+| Desktop | PASS | all 9 tabs have balanced content gutters, no document-level horizontal overflow and no console error |
+| Mobile | NOT RE-RUN | the responsive gutter is bounded to `1rem`; the full mobile campaign was not repeated after the final CSS-only change |
+| Production smoke | PARTIAL | production URL, deployed gutter and console-zero load passed; the full production Patient/Treatment/save loop was not repeated |
+| Console errors | PASS | local clean flow and production load both reported 0 errors and 0 warnings |
 | Release Blockers | PASS | `0` in certification |
 
 ## Production Hygiene
@@ -43,14 +43,15 @@
 - Certification: `RELEASE_1_0_CERTIFICATION.md`
 - Baseline: `RELEASE_BASELINE_1.0.0.md`
 - Production URL: <https://apawthecaria.vercel.app>
-- Release commit and annotated tag: not created because the release gate failed
+- Release-candidate commit: `7d38f28`
+- Annotated tag: not created because the release gate remains open
 
 ## Performance
 
 | Asset | Raw | Gzip |
 |---|---:|---:|
-| Initial entry | 2.57 kB | 1.34 kB |
-| App async chunk | 554.13 kB | 148.51 kB |
+| Initial entry | 2.60 kB | 1.36 kB |
+| App async chunk | 609.33 kB | 165.03 kB |
 
 The existing Vite 500 kB warning remains one App async chunk and did not regress from the certified baseline.
 
@@ -58,4 +59,4 @@ The existing Vite 500 kB warning remains one App async chunk and did not regress
 
 **RELEASE ABORTED**
 
-The clean campaign and console-zero gates are not PASS in the available production-preview browser because native `prompt()` is unsupported there. Automated canonical campaign tests and the previous gameplay certification remain PASS, but they do not replace the required actual-UI clean campaign gate. No release commit, tag, push or production deployment was created.
+The gameplay-critical Patient `prompt()` dependency is removed and the console-zero gate now passes. The actual UI campaign still cannot finish an active Journey after save/reload, so the `v1.0.0` tag remains withheld. At the user's explicit request, release-candidate commit `7d38f28` was pushed to `main` and deployed to production for further validation; this deployment is not a completed Version 1.0 certification.

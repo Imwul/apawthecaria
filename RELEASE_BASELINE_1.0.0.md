@@ -43,4 +43,4 @@ Vite의 500 kB warning은 App async chunk 1건이다. Version `1.0.0`의 Release
 
 ## Packaging Status
 
-Gameplay certification baseline은 PASS다. 현재 production packaging run은 native `prompt()`를 지원하지 않는 in-app test browser에서 clean campaign UI를 끝까지 재생하지 못해 `RELEASE ABORTED`로 종료됐다. 자세한 gate 결과는 `RELEASE_CHECKLIST_1.0.0.md`에 있다.
+Gameplay certification baseline은 PASS다. Patient native `prompt()` blocker는 제거됐지만 active Journey의 save/reload 후 ending UI가 열리지 않아 packaging certification은 여전히 `RELEASE ABORTED`다. Release candidate는 사용자 요청으로 production에 배포했으며, `v1.0.0` tag는 보류했다. 자세한 gate 결과는 `RELEASE_CHECKLIST_1.0.0.md`에 있다.
