@@ -1900,6 +1900,56 @@ body {
   color: var(--berry) !important;
 }
 
+.bio-page-header,
+.bio-page-actions {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.bio-page-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.encounter-dialog,
+.card-choice-dialog,
+.card-choice-options,
+.card-choice-option {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.encounter-dialog-actions,
+.card-choice-options {
+  flex-wrap: wrap;
+}
+
+.downtime-season-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px dashed var(--border-cozy);
+}
+
+.downtime-season-action > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.downtime-season-action span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.downtime-season-action button {
+  flex: 0 0 auto;
+}
+
 .journal-chapter--patientArchive,
 .journal-chapter--journals {
   max-width: 940px;
@@ -2166,6 +2216,29 @@ body {
   font-family: var(--font-fancy);
   font-size: 0.67rem;
   font-weight: 700;
+}
+
+.tag-badge-list,
+.tag-choice-group {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ailment-card,
+.ailment-card__header,
+.ailment-card__requirements,
+.ailment-card__outcomes,
+.ailment-card__outcomes > div {
+  min-width: 0;
+}
+
+.ailment-card__header > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .barrow-field-note {
@@ -2495,6 +2568,61 @@ body {
 
   .main-content-panel header:not(.journal-header) {
     padding: 0 !important;
+  }
+
+  .ailment-card__header {
+    align-items: flex-start !important;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .ailment-card__outcomes {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .bio-page-header {
+    align-items: flex-start !important;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .bio-page-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .encounter-dialog-backdrop,
+  .card-choice-backdrop {
+    padding: 0.75rem !important;
+  }
+
+  .encounter-dialog,
+  .card-choice-dialog {
+    max-height: calc(100dvh - 1.5rem) !important;
+    overflow: auto;
+    padding: 1rem !important;
+  }
+
+  .encounter-dialog-actions {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .card-choice-options {
+    gap: 0.75rem !important;
+  }
+
+  .card-choice-option {
+    width: min(120px, 100%) !important;
+  }
+
+  .downtime-season-action {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .downtime-season-action button {
+    width: 100%;
   }
 }
 

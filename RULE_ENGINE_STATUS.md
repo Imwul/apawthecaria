@@ -91,11 +91,11 @@
 
 ## Version 1.0 검증 결과
 
-- `npm test`: 13 files / 139 tests 통과.
+- `npm test`: 19 files / 165 tests 통과. Golden Save, Rule Registry, Printed Effect snapshot과 responsive/reachable-action regression guard를 포함한다.
 - `npm run test:rc`: 5개 시나리오 통과. Journey → Travel → Forage → Patient → Treatment → Manual → Barter → Barrow → Downtime → Season → Archive → Reload → Continue 전체 loop 포함.
 - `npm run validate:rules`: Error 0 / Warning 0.
 - `npm run lint`: Error 0 / Warning 0.
-- `npm run build`: 성공. 초기 entry 2.57 kB/gzip 1.34 kB, App async 554.13 kB/gzip 148.51 kB이며 500 kB 경고 한 건은 남는다.
+- `npm run build`: 성공. 초기 entry 2.60 kB/gzip 1.36 kB, App async 611.56 kB/gzip 165.49 kB이며 500 kB 경고 한 건은 남는다.
 - desktop/mobile browser smoke: 가로 overflow 0, 지도 라벨 겹침 0, 첫 페이지·도감·지도 가독성과 console error 0을 확인했다.
 
 ## Version 1.0 판정

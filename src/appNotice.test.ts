@@ -12,4 +12,10 @@ describe('application notice dialog', () => {
     expect(appSource).toContain("const APP_NOTICE_EVENT = 'apawthecaria:notice'");
     expect(appSource).toContain('role="alertdialog"');
   });
+
+  it('localizes season names in visible transition records and notices', () => {
+    expect(appSource).toContain('localizeSeasonLabel(outcome.previousSeason)');
+    expect(appSource).toContain('localizeSeasonLabel(outcome.nextSeason)');
+    expect(appSource).not.toContain('showAlert(`${outcome.nextSeason}');
+  });
 });

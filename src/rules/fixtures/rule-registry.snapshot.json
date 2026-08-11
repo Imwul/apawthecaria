@@ -1,0 +1,989 @@
+[
+  {
+    "id": "AILMENT-001",
+    "sourcePage": "p100-115",
+    "executor": "data/ailments.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "AILMENT-002",
+    "sourcePage": "p102-103",
+    "executor": "patientEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "AILMENT-003",
+    "sourcePage": "p100-115",
+    "executor": "ailmentEffectEngine.ts, printedEffects.ts, manual resolution queue",
+    "status": "Partial",
+    "classification": "intentional-narrative"
+  },
+  {
+    "id": "AILMENT-004",
+    "sourcePage": "p100-115",
+    "executor": "patientEngine.ts, PatientState",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "AILMENT-005",
+    "sourcePage": "p100-115",
+    "executor": "data/ailmentWording.ts, ailment/foraging/manual consumers",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "AILMENT-006",
+    "sourcePage": "p30-31",
+    "executor": "requirements.ts, treatmentEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "AILMENT-007",
+    "sourcePage": "p36-37",
+    "executor": "failure handlers",
+    "status": "Partial",
+    "classification": "intentional-narrative"
+  },
+  {
+    "id": "ALMANACK-001",
+    "sourcePage": "p54-71",
+    "executor": "AlmanackPanel.tsx, canonical catalogues",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "ALMANACK-003",
+    "sourcePage": "p54-71",
+    "executor": "compendium/inventory state",
+    "status": "Partial",
+    "classification": "intentional-narrative"
+  },
+  {
+    "id": "ALMANACK-004",
+    "sourcePage": "p58-61",
+    "executor": "data/services.ts, serviceEngine.ts, Service UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "ALMANACK-005",
+    "sourcePage": "p62-65",
+    "executor": "data/tools.ts, toolEngine.ts, gameplay consumers",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "ALMANACK-006",
+    "sourcePage": "p66-67",
+    "executor": "data/upgrades.ts, toolEngine.ts, Foraging/Treatment/Patient consumers",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "ARCHIVE-001",
+    "sourcePage": "기록 보존",
+    "executor": "archiveEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "ARCHIVE-002",
+    "sourcePage": "기록 보존",
+    "executor": "createPatientArchiveRecord()",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "ARCHIVE-003",
+    "sourcePage": "기록 보존",
+    "executor": "normalizeLegacyArchiveRecord(), upsertPatientArchive()",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "ARCHIVE-004",
+    "sourcePage": "기록 보존",
+    "executor": "schema v4 migration, archive normalizers",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "BARROW-001",
+    "sourcePage": "p116-125",
+    "executor": "barrowEngine.ts, canonical Barrow UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "BARROW-002",
+    "sourcePage": "p116",
+    "executor": "barrowEngine.ts, canonical Barrow UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "BARROW-004",
+    "sourcePage": "p117",
+    "executor": "barrowEngine.ts, canonical Barrow UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "BARROW-005",
+    "sourcePage": "p118",
+    "executor": "barrowEngine.ts, canonical Barrow UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "BARROW-006",
+    "sourcePage": "p119",
+    "executor": "barrowEngine.ts, canonical Barrow UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "BARROW-007",
+    "sourcePage": "p120-121",
+    "executor": "barrowEngine.ts, canonical Barrow UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "BARROW-008",
+    "sourcePage": "p122-123",
+    "executor": "barrowEngine.ts, canonical Barrow UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "BARROW-009",
+    "sourcePage": "p124-125",
+    "executor": "barrowEngine.ts, canonical Barrow UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "BARTER-001",
+    "sourcePage": "p34",
+    "executor": "resolveBarterStart()",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "BARTER-002",
+    "sourcePage": "p34",
+    "executor": "attempt counters",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "BARTER-003",
+    "sourcePage": "p34",
+    "executor": "calculateBarterBR()",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "BARTER-005",
+    "sourcePage": "p35",
+    "executor": "resolveBarterEncounter(), resolveBarterOffer()",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "BARTER-006",
+    "sourcePage": "p35",
+    "executor": "resolveBarterPayment()",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "BARTER-007",
+    "sourcePage": "p35",
+    "executor": "resolveBarterLeave()",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "BARTER-008",
+    "sourcePage": "p35",
+    "executor": "getRuleCardValue(..., 'barter')",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "CHARACTER-001",
+    "sourcePage": "p10",
+    "executor": "생성 마법사, gameData.ts",
+    "status": "Partial",
+    "classification": "intentional-narrative"
+  },
+  {
+    "id": "CHARACTER-002",
+    "sourcePage": "p11",
+    "executor": "캐릭터 생성, canonical Downtime, Travel adapter",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "CHARACTER-003",
+    "sourcePage": "p12",
+    "executor": "생성 마법사, inventory state",
+    "status": "Partial",
+    "classification": "intentional-evidence-limit"
+  },
+  {
+    "id": "CHARACTER-004",
+    "sourcePage": "p13",
+    "executor": "reputation state",
+    "status": "Partial",
+    "classification": "intentional-evidence-limit"
+  },
+  {
+    "id": "CHARACTER-005",
+    "sourcePage": "p14-15",
+    "executor": "familiar data, Foraging/Travel/Barter/Patient consumers",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "CHARACTER-007",
+    "sourcePage": "p16",
+    "executor": "relationship options",
+    "status": "Partial",
+    "classification": "intentional-narrative"
+  },
+  {
+    "id": "CLINIC-001",
+    "sourcePage": "p44-45",
+    "executor": "clinicEngine.ts, clinic panel",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "CLINIC-002",
+    "sourcePage": "p45",
+    "executor": "seasonEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "CLINIC-003",
+    "sourcePage": "p45",
+    "executor": "clinicEngine.ts, MAP_SERVICE_HOPS",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "CLINIC-004",
+    "sourcePage": "p46-47",
+    "executor": "agenda union",
+    "status": "Partial",
+    "classification": "intentional-evidence-limit"
+  },
+  {
+    "id": "CLINIC-005",
+    "sourcePage": "p46-47",
+    "executor": "resolveClinicAgendaAction(), Season/Patient consumers",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "CLINIC-006",
+    "sourcePage": "p46-47",
+    "executor": "seasonEngine.ts, canonical inventory",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "COMPANION-001",
+    "sourcePage": "p70-71",
+    "executor": "mobilityEngine.ts, Foraging/Travel/Season consumers",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "COMPANION-002",
+    "sourcePage": "p70-71",
+    "executor": "mobilityEngine.ts, pending Foraging UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "COMPANION-003",
+    "sourcePage": "p70-71",
+    "executor": "seasonEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "COMPANION-005",
+    "sourcePage": "p70-71",
+    "executor": "resolveCompanionTrigger(), Journey/Travel consumers",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "CORE-001",
+    "sourcePage": "p6",
+    "executor": "App.tsx:drawPlayingCard, cardRuleValue",
+    "status": "Partial",
+    "classification": "intentional-evidence-limit"
+  },
+  {
+    "id": "CORE-002",
+    "sourcePage": "p6",
+    "executor": "printedEffects.ts, almanackEngine.ts, encounter/ailment resolvers",
+    "status": "Partial",
+    "classification": "intentional-narrative"
+  },
+  {
+    "id": "CORE-003",
+    "sourcePage": "p7",
+    "executor": "자유 입력 UI",
+    "status": "Partial",
+    "classification": "intentional-narrative"
+  },
+  {
+    "id": "CORE-004",
+    "sourcePage": "p7",
+    "executor": "저널 편집 UI",
+    "status": "Partial",
+    "classification": "intentional-narrative"
+  },
+  {
+    "id": "DOWNTIME-001",
+    "sourcePage": "p40",
+    "executor": "downtimeEngine.ts, action hub",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "DOWNTIME-002",
+    "sourcePage": "p40",
+    "executor": "rumourEngine.ts, canonical map selector",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "DOWNTIME-003",
+    "sourcePage": "p41",
+    "executor": "canonicalDowntimeEngine.ts, treatment/barter consumers",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "DOWNTIME-004",
+    "sourcePage": "p41",
+    "executor": "canonicalDowntimeEngine.ts, replenish UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "DOWNTIME-005",
+    "sourcePage": "p41-42",
+    "executor": "canonicalDowntimeEngine.ts, graph-backed activity UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "DOWNTIME-006",
+    "sourcePage": "p42",
+    "executor": "downtimeEngine.ts, relax UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "DOWNTIME-007",
+    "sourcePage": "p42-43",
+    "executor": "downtimeEngine.ts, mobilityEngine.ts",
+    "status": "Partial",
+    "classification": "intentional-ambiguous"
+  },
+  {
+    "id": "ENDING-001",
+    "sourcePage": "p38",
+    "executor": "resolveJourneyEnding()",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "ENDING-002",
+    "sourcePage": "p38",
+    "executor": "resolveJourneyEnding() ruleset branch",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "ENDING-003",
+    "sourcePage": "p39",
+    "executor": "Ending journal transaction",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "FORAGE-001",
+    "sourcePage": "p32",
+    "executor": "foragingEngine.ts, graph-backed UI candidates",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "FORAGE-002",
+    "sourcePage": "p32",
+    "executor": "foragingEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "FORAGE-003",
+    "sourcePage": "p32",
+    "executor": "foragingEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "FORAGE-004",
+    "sourcePage": "p32",
+    "executor": "foragingEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "FORAGE-005",
+    "sourcePage": "p32",
+    "executor": "foragingEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "FORAGE-006",
+    "sourcePage": "p33",
+    "executor": "Foraging/Encounter engines, manual resolution queue",
+    "status": "Partial",
+    "classification": "intentional-narrative"
+  },
+  {
+    "id": "FORAGE-007",
+    "sourcePage": "p33",
+    "executor": "Foraging/Treatment/Timer engines",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "FORAGE-008",
+    "sourcePage": "p152-187",
+    "executor": "data/encounters.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "JOURNEY-001",
+    "sourcePage": "p18",
+    "executor": "journeyEngine.ts, App.tsx:handleStartJourney",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "JOURNEY-002",
+    "sourcePage": "p18",
+    "executor": "default state",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "JOURNEY-003",
+    "sourcePage": "p19",
+    "executor": "findJourneyDestinationCandidates()",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "JOURNEY-004",
+    "sourcePage": "p20-21",
+    "executor": "JOURNEY_GOALS, evaluateJourneyGoal()",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "JOURNEY-005",
+    "sourcePage": "p21",
+    "executor": "handleStartJourney, day state",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "JOURNEY-006",
+    "sourcePage": "p21, p116",
+    "executor": "resolveJourneyStart()",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "LEAVE-001",
+    "sourcePage": "p37",
+    "executor": "resolveScrounge()",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "LEAVE-002",
+    "sourcePage": "p37",
+    "executor": "resolveScrounge(), resolveForaging()",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "LEAVE-003",
+    "sourcePage": "p37",
+    "executor": "resolveScrounge()",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "LEAVE-004",
+    "sourcePage": "p37",
+    "executor": "fail patient",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "LEAVE-005",
+    "sourcePage": "p37",
+    "executor": "calculatePawnReward(), resolvePawn()",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "LEAVE-006",
+    "sourcePage": "p37",
+    "executor": "resolveLeave(), canonical abandon/treated UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "MAP-002",
+    "sourcePage": "p22",
+    "executor": "travelEngine.ts, executeCanonicalTravelMove",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "MAP-003",
+    "sourcePage": "p22",
+    "executor": "travelEngine.ts:validateRoute",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "MAP-004",
+    "sourcePage": "편의 기능",
+    "executor": "pointer handlers",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "MAP-005",
+    "sourcePage": "저장 요구",
+    "executor": "schema v3 persisted state",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "OFFLINE-001",
+    "sourcePage": "오프라인",
+    "executor": "bundled canonical data, local-first store",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "OFFLINE-002",
+    "sourcePage": "동기화",
+    "executor": "saveQueue.ts, Firebase adapter",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "OFFLINE-003",
+    "sourcePage": "재현성",
+    "executor": "pending transactions, schema v5",
+    "status": "Partial",
+    "classification": "intentional-evidence-limit"
+  },
+  {
+    "id": "PATIENT-001",
+    "sourcePage": "p28",
+    "executor": "patientEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "PATIENT-002",
+    "sourcePage": "p29",
+    "executor": "patientEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "PATIENT-003",
+    "sourcePage": "p29, p102-103",
+    "executor": "patientEngine.ts:resolveAilmentDraw",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "PATIENT-004",
+    "sourcePage": "p29-31",
+    "executor": "PatientState graph",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "PATIENT-005",
+    "sourcePage": "p29",
+    "executor": "resolveTimer, action adapters",
+    "status": "Partial",
+    "classification": "intentional-evidence-limit"
+  },
+  {
+    "id": "REMEDY-001",
+    "sourcePage": "p30",
+    "executor": "foragingEngine.ts, barterEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "REMEDY-002",
+    "sourcePage": "p30",
+    "executor": "createMakeDoAcquisition(), acquisition UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "REMEDY-003",
+    "sourcePage": "p30",
+    "executor": "createReplacementAcquisition(), commitAlternativeAcquisition(), Forage/Barter success adapters",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "REMEDY-004",
+    "sourcePage": "p31",
+    "executor": "treatmentEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "REMEDY-005",
+    "sourcePage": "p31",
+    "executor": "Foraging/Treatment engines",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "REMEDY-006",
+    "sourcePage": "p31",
+    "executor": "canonical Preparation inventory",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "REMEDY-007",
+    "sourcePage": "p31",
+    "executor": "treatmentEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "REMEDY-008",
+    "sourcePage": "p31",
+    "executor": "Timer/Treatment engines",
+    "status": "Partial",
+    "classification": "intentional-narrative"
+  },
+  {
+    "id": "REMEDY-009",
+    "sourcePage": "p36",
+    "executor": "treatmentEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "REMEDY-010",
+    "sourcePage": "p36",
+    "executor": "treatmentEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "SAVE-001",
+    "sourcePage": "진행 보존",
+    "executor": "App.tsx:store, schema v8",
+    "status": "Partial",
+    "classification": "intentional-evidence-limit"
+  },
+  {
+    "id": "SAVE-002",
+    "sourcePage": "진행 보존",
+    "executor": "pendingEncounter",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "SAVE-003",
+    "sourcePage": "진행 보존",
+    "executor": "pendingForaging",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "SAVE-004",
+    "sourcePage": "진행 보존",
+    "executor": "schema v8 TreatmentDraft, treatment transaction IDs",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "SAVE-005",
+    "sourcePage": "데이터 호환",
+    "executor": "migrations.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "SAVE-006",
+    "sourcePage": "클라우드 동기화",
+    "executor": "revision compare + Firebase queue",
+    "status": "Partial",
+    "classification": "intentional-evidence-limit"
+  },
+  {
+    "id": "SAVE-007",
+    "sourcePage": "저장 한도",
+    "executor": "store.set",
+    "status": "Partial",
+    "classification": "intentional-evidence-limit"
+  },
+  {
+    "id": "SAVE-008",
+    "sourcePage": "쓰기 순서",
+    "executor": "saveQueue.ts, saveRevision",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "SERVICE-001",
+    "sourcePage": "p59",
+    "executor": "serviceEngine.ts, Travel/Foraging consumers",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "SERVICE-002",
+    "sourcePage": "p58-61",
+    "executor": "serviceEngine.ts, graph-backed Service/Travel UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "SERVICE-004",
+    "sourcePage": "p58-61",
+    "executor": "serviceEngine.ts, cards.ts",
+    "status": "Partial",
+    "classification": "intentional-evidence-limit"
+  },
+  {
+    "id": "SERVICE-005",
+    "sourcePage": "p58-61",
+    "executor": "serviceEngine.ts, pending service UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TABLE-001",
+    "sourcePage": "p72-99",
+    "executor": "data/encounters.ts, printed overrides",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TABLE-002",
+    "sourcePage": "p100-115",
+    "executor": "data/ailments.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TABLE-003",
+    "sourcePage": "p126-151",
+    "executor": "data/reagents.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TABLE-004",
+    "sourcePage": "p152-187",
+    "executor": "data/encounters.ts, printed overrides",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TABLE-005",
+    "sourcePage": "p188-213",
+    "executor": "data/encounters.ts, selector",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TABLE-006",
+    "sourcePage": "p10-21, p28, p40",
+    "executor": "canonical character/patient/journey/rumour data",
+    "status": "Partial",
+    "classification": "intentional-evidence-limit"
+  },
+  {
+    "id": "TOOL-001",
+    "sourcePage": "p62-65",
+    "executor": "foragingEngine.ts, toolEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TOOL-002",
+    "sourcePage": "p62-65",
+    "executor": "bandolierAdjustedWeight, carry helper",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TOOL-003",
+    "sourcePage": "p62-65",
+    "executor": "resolveToolEffects(), Tool transactions, gameplay consumers",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TOOL-005",
+    "sourcePage": "p66-67",
+    "executor": "toolEngine.ts, schema v5, action resolvers",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TRAVEL-001",
+    "sourcePage": "p22",
+    "executor": "travelEngine.ts:resolveTravelEngine",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TRAVEL-002",
+    "sourcePage": "p22",
+    "executor": "travelEngine.ts, graph-backed travel adapter",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TRAVEL-004",
+    "sourcePage": "p22-25",
+    "executor": "travelEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TRAVEL-005",
+    "sourcePage": "p25",
+    "executor": "travelEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TRAVEL-006",
+    "sourcePage": "p25",
+    "executor": "travelEngine.ts, action hub",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TRAVEL-007",
+    "sourcePage": "p24-25",
+    "executor": "travelEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TRAVEL-008",
+    "sourcePage": "p25",
+    "executor": "canonical encounter selector",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "TRAVEL-009",
+    "sourcePage": "p25",
+    "executor": "encounterEngine.ts, manual resolution queue",
+    "status": "Partial",
+    "classification": "intentional-narrative"
+  },
+  {
+    "id": "TRAVEL-010",
+    "sourcePage": "p38",
+    "executor": "resolveJourneyEnding()",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "UX-001",
+    "sourcePage": "규칙 가시성",
+    "executor": "engine result flows, Action Hub, ManualEffectPanel",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "UX-002",
+    "sourcePage": "지도 가시성",
+    "executor": "map overlay styles",
+    "status": "Partial",
+    "classification": "intentional-evidence-limit"
+  },
+  {
+    "id": "UX-003",
+    "sourcePage": "복구 UX",
+    "executor": "Action Hub + pending state",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "WAGON-001",
+    "sourcePage": "p68-69",
+    "executor": "mobilityEngine.ts, travelEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "WAGON-002",
+    "sourcePage": "p68-69",
+    "executor": "mobilityEngine.ts, Wagon/Travel/Foraging UI",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "WAGON-003",
+    "sourcePage": "p25, p68-69",
+    "executor": "mobilityEngine.ts, travelEngine.ts",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
+    "id": "WAGON-004",
+    "sourcePage": "p68-69",
+    "executor": "Mobility capabilities and Travel transaction",
+    "status": "Exact",
+    "classification": "exact"
+  }
+]

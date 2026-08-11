@@ -1,8 +1,6 @@
 # Apawthecaria 1.0.0
 
-Version `1.0.0`은 인증된 canonical gameplay를 고정하는 production release package다. 이번 release packaging에서는 Rule Engine, Rule 분류, save semantics, narrative 처리 또는 UI 디자인을 변경하지 않았다.
-
-> Packaging status: active Journey save/reload ending blocker는 제거됐다. uninterrupted clean UI campaign, mobile rerun, post-deploy functional smoke가 모두 닫힐 때까지 release candidate로 유지하고 `v1.0.0` tag는 보류한다.
+Version `1.0.0`은 인증된 canonical gameplay를 고정한 Golden Master production release다. Release gate에서 막힌 모바일 reflow와 휴식기 계절 전환 진입점을 고쳤으며 Rule Engine 결과, Rule 분류, save semantics와 narrative 처리는 변경하지 않았다.
 
 ## Core Campaign
 
@@ -34,7 +32,7 @@ Version `1.0.0`은 인증된 canonical gameplay를 고정하는 production relea
 
 ## Verification
 
-- Full suite: `16 files / 154 tests`
+- Full suite: `19 files / 165 tests`
 - Rule Validator: PASS
 - TypeScript: PASS
 - ESLint: `0 errors / 0 warnings`
@@ -42,6 +40,7 @@ Version `1.0.0`은 인증된 canonical gameplay를 고정하는 production relea
 - Migration regression: PASS
 - Desktop/Mobile: PASS
 - Canonical campaign replay: PASS
+- Production smoke and console: PASS
 
 ## Known Limitations
 

@@ -8,6 +8,7 @@
     "build": "npm run validate:rules && tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:golden": "vitest run src/rules/goldenMaster.test.ts src/mobileLayout.test.ts",
     "test:rc": "vitest run src/rules/releaseCandidate.test.ts",
     "validate:rules": "vitest run src/rules/validation.test.ts",
     "preview": "vite preview"

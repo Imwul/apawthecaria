@@ -2,61 +2,59 @@
 
 ## Freeze
 
-- [x] `package.json` is the canonical version source and reads `1.0.0`.
+- [x] `package.json` version is `1.0.0`.
 - [x] Save schema remains `v8`.
-- [x] Rule Engine, gameplay resolver, Rule classification and UI design are unchanged by release packaging.
-- [x] Remaining Partial stays at 24 and Release Blockers stay at 0.
+- [x] Rule coverage remains Exact 117 / intentional Partial 24 / blocker 0.
+- [x] Printed Effects remain 358 total / 347 intentional manual.
+- [x] New House Rules 0; new narrative automation 0.
 
-## Release Gate
+## Final Release Gates
 
-| Gate | Status | Evidence |
-|---|---|---|
-| Full test suite | PASS | 16 files / 154 tests |
-| Rule Validator | PASS | 1 file / 4 tests |
-| TypeScript | PASS | `npx tsc -b --pretty false` |
-| ESLint | PASS | 0 errors / 0 warnings |
-| Production Build | PASS | Vite 8.0.16 production build |
-| Migration regression | PASS | 8 files / 99 tests; legacy and current schema coverage |
-| Clean campaign smoke | PARTIAL | Patient controlled input, Travel, Forage, Treatment, Manual Effect, Barter, Save, Reload and the resumed Journey ending transaction pass. Barrow, Downtime, Season and final Archive were not repeated in one uninterrupted clean UI run after the interaction fix. |
-| Existing campaign compatibility | PASS | A stored schema v8 campaign resumed at its canonical Destination, completed a pending follow-up, opened the Journey ending flow and committed its ending transaction. |
-| Desktop | PASS | all 9 tabs have balanced content gutters, no document-level horizontal overflow and no console error |
-| Mobile | NOT RE-RUN | the responsive gutter is bounded to `1rem`; the full mobile campaign was not repeated after the final CSS-only change |
-| Production smoke | PARTIAL | production URL, deployed gutter and console-zero load passed; the full production Patient/Treatment/save loop was not repeated |
-| Console errors | PASS | local clean flow and production load both reported 0 errors and 0 warnings |
-| Release Blockers | PASS | `0` in certification |
-
-## Production Hygiene
-
-| Check | Status |
-|---|---|
-| No private credential in tracked bundle source | PASS; Firebase public client configuration is not a private credential |
-| No development-only control in normal production campaign | PASS; sandbox controls require the sandbox ruleset and are absent from original gameplay |
-| No debug logging in normal production flow | PASS; no `console.log`, `console.debug` or `console.info` call in production source |
-| No local source path in UI | PASS |
-| No broken production asset | PASS; 5 entry references present and observed map asset loaded at natural width 1754 |
-| Dependency audit recorded | PASS; 1 moderate production advisory and 3 high development-tool advisories retained without a freeze-time upgrade |
-
-## Release Artifacts
-
-- Release notes: `RELEASE_NOTES_1.0.0.md`
-- Known limitations: `KNOWN_LIMITATIONS.md`
-- Certification: `RELEASE_1_0_CERTIFICATION.md`
-- Baseline: `RELEASE_BASELINE_1.0.0.md`
-- Production URL: <https://apawthecaria.vercel.app>
-- Release-candidate commit: `7d38f28`
-- Annotated tag: not created because the release gate remains open
+| # | Gate | Status | Evidence |
+|---:|---|---|---|
+| 1 | Baseline diff audit | PASS | `408510b..d87212a` is the verified application-notice UX fix; current freeze changes are regression/UI/documentation only. |
+| 2 | Release safety | PASS | No unverified Rule, resolver, save or migration change. |
+| 3 | Working tree safety | PASS | Release files explicitly staged; user-owned `tmp/` excluded. |
+| 4 | Full automated tests | PASS | 19 files / 165 tests. |
+| 5 | Rule Validator | PASS | 1 file / 4 tests. |
+| 6 | TypeScript | PASS | `npx tsc -b --pretty false`. |
+| 7 | ESLint | PASS | Errors 0; existing Babel size notice only. |
+| 8 | Production build | PASS | Vite 8.0.16. |
+| 9 | Migration regression | PASS | 9 files / 106 tests, including Golden v6/v7/v8/final fixtures. |
+| 10 | Release Blockers | PASS | 0. |
+| 11 | Rule integrity | PASS | Exact/Partial classification and 347 manual effects unchanged. |
+| 12 | Clean full UI campaign | PASS | Journey, Travel, Forage, Patient, Treatment, Printed Effect, Manual, Barter, Downtime, Season, Archive, Reload, Continue. |
+| 13 | Journey regression | PASS | Active save, reload, resume, partial conclusion, canonical close, subsequent downtime. |
+| 14 | Manual Printed Effect UI | PASS | Open, input, defer, reload, reopen, finalize and follow-up close. |
+| 15 | Idempotency | PASS | Treatment and downtime duplicate attempts did not apply twice; automated transaction suite passed. |
+| 16 | Decorative overlay audit | PASS | Major overlays and ornaments do not create document overflow or block controls. |
+| 17 | Desktop | PASS | 9 tabs, document overflow 0, console issues 0. |
+| 18 | Mobile | PASS | 9 tabs at 375 px, document overflow 0; conditional modal reflow guards pass. |
+| 19 | Production revision | PASS | Production deployment matches the certified commit. |
+| 20 | Production smoke | PASS | Boot, navigation, Almanack, Map, Archive and gameplay entry controls. |
+| 21 | Production save/reload | PASS | Schema v8 campaign state survives reload. |
+| 22 | Production Journey conclusion | PASS | Resume and canonical ending close. |
+| 23 | Production console | PASS | Application errors, uncaught exceptions, unhandled rejections and failed gameplay chunks: 0. |
 
 ## Performance
 
 | Asset | Raw | Gzip |
 |---|---:|---:|
 | Initial entry | 2.60 kB | 1.36 kB |
-| App async chunk | 609.34 kB | 165.03 kB |
+| App async chunk | 611.56 kB | 165.49 kB |
 
-The existing Vite 500 kB warning remains one App async chunk and did not regress from the certified baseline.
+The existing Vite 500 kB App chunk warning is documented and non-blocking.
 
-## Packaging Decision
+## Release Artifacts
 
-**RELEASE TAG WITHHELD**
+- Production: <https://apawthecaria.vercel.app>
+- Golden Master: `GOLDEN_MASTER.md`
+- Known limitations: `KNOWN_LIMITATIONS.md`
+- Source ambiguities: `SOURCE_AMBIGUITIES.md`
+- Migration notes: `MIGRATION_NOTES.md`
+- Maintenance policy: `MAINTENANCE_POLICY.md`
+- Annotated tag: `v1.0.0`
 
-The gameplay-critical Patient `prompt()` dependency is removed and the console-zero gate passes. The stored Journey ending blocker was a decorative seal intercepting pointer input; the seal is now inert and the resumed canonical ending transaction passes. The `v1.0.0` tag remains withheld until the uninterrupted clean UI campaign, mobile rerun and post-deploy functional smoke are all repeated. Release-candidate builds may be pushed and deployed for that validation, but they are not a completed Version 1.0 certification.
+## Decision
+
+**APAWTHECARIA v1.0.0 RELEASED**

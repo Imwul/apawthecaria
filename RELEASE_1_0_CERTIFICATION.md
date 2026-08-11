@@ -92,18 +92,18 @@ Journey → Travel → Forage → Patient → Treatment → Printed Effect → B
 
 | Check | Result |
 |---|---|
-| Full tests | PASS, 16 files / 154 tests |
+| Full tests | PASS, 19 files / 165 tests |
 | Phase 10 blockers | PASS, 8/8 tests |
 | Rule validator | PASS, 4/4 tests |
 | TypeScript | PASS |
 | Lint | PASS, errors 0 / warnings 0 |
 | Build | PASS |
-| Migration/save regression | PASS, 8 files / 99 tests |
+| Migration/save regression | PASS, 9 files / 106 tests |
 | Desktop | PASS, document overflow 0, fresh console errors 0 |
 | Mobile | PASS, document overflow 0; bookmarks use intentional horizontal scroll |
 | Long campaign replay | PASS, 5/5 RC scenarios |
 
-Initial entry는 2.60 kB (gzip 1.36 kB), App async chunk는 609.34 kB (gzip 165.03 kB)다. 500 kB 초과 경고 한 건은 남지만 Release Blocker는 아니다.
+Initial entry는 2.60 kB (gzip 1.36 kB), App async chunk는 611.56 kB (gzip 165.49 kB)다. 500 kB 초과 경고 한 건은 남지만 Release Blocker는 아니다.
 
 ## Final Recommendation
 
@@ -113,4 +113,4 @@ Initial entry는 2.60 kB (gzip 1.36 kB), App async chunk는 609.34 kB (gzip 165.
 
 ## Production Packaging Status
 
-Gameplay certification은 유지된다. Patient의 gameplay-critical native `prompt()`는 controlled input으로 교체됐고, 저장 후 재개한 active Journey의 ending transaction도 장식 레이어의 pointer interception을 제거해 실제 UI에서 완료된다. 다만 uninterrupted clean UI campaign, mobile rerun, post-deploy functional smoke를 모두 다시 마치기 전까지 `v1.0.0` tag는 만들지 않는다. 상세 결과는 `RELEASE_CHECKLIST_1.0.0.md`에 기록한다.
+23개 Gate, uninterrupted UI campaign, mobile/desktop 전 화면, production save/reload/Journey conclusion과 console-zero smoke를 통과했다. `v1.0.0` annotated tag가 인증 commit을 고정하며 상세 결과는 `RELEASE_CHECKLIST_1.0.0.md`에 기록한다.

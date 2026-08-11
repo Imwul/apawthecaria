@@ -1,0 +1,67 @@
+name: Apawthecaria bug report
+description: Report a rule, engine, save, UX, cosmetic, or source-ambiguity problem.
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Rule Fidelity Bug
+        - Engine Bug
+        - UX Bug
+        - Cosmetic Bug
+        - Source Ambiguity
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: 1.0.0
+    validations:
+      required: true
+  - type: input
+    id: schema
+    attributes:
+      label: Save schema
+      placeholder: v8
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and device
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: input
+    id: rule
+    attributes:
+      label: Rule ID and source page
+      placeholder: TRAVEL-002, p.22 (when relevant)
+  - type: checkboxes
+    id: persistence
+    attributes:
+      label: Persistence and duplication
+      options:
+        - label: Save or reload is involved.
+        - label: A transaction may have been applied more than once.
