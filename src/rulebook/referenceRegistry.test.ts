@@ -111,7 +111,7 @@ describe('personal rulebook transplant registry', () => {
     expect(drawerSource).toContain("event.key !== 'Tab'");
     expect(almanackSource).toContain("querySelector('#rulebook-reference-detail > header')");
     expect(almanackSource).toContain("behavior: 'instant', block: 'center'");
-    expect(almanackSource).toContain('}, [selectedId]);');
+    expect(almanackSource).toContain('}, [pageResults.length, selectedId]);');
     expect(almanackSource).toContain('개인 참고 기록 정말 비우기');
     expect(cssSource).toMatch(/@media \(max-width: 820px\)[\s\S]*?\.rulebook-drawer\s*\{[\s\S]*?width:\s*100vw/);
     expect(cssSource).toContain('@media (prefers-reduced-motion: reduce)');

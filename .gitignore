@@ -26,3 +26,5 @@ dist-ssr
 # Large game files
 *.pdf
 *HQ.jpg
+.vercel
+.env*

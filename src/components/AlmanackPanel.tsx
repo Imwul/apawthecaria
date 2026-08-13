@@ -120,7 +120,7 @@ export default function AlmanackPanel({
   useEffect(() => {
     if (!selectedId) return;
     document.querySelector('#rulebook-reference-detail > header')?.scrollIntoView({ behavior: 'instant', block: 'center' });
-  }, [selectedId]);
+  }, [pageResults.length, selectedId]);
 
   const openEntry = (id: string) => {
     setSelectedId(id);

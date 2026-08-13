@@ -71,7 +71,7 @@ The Manual UI now exposes its canonical owner, source page, printed constraints,
 - Contextual Journey and map references opened the correct source context without executing an encounter or changing the campaign.
 - Drawer Escape close returned keyboard focus to its trigger.
 - Browser console errors, warnings, uncaught exceptions, and unhandled rejections: `0`.
-- A reproduced mobile defect where the long-entry detail close action could hit the sticky navigation was repaired. Detail headers now move into view immediately after render, and closing preserves the Almanack tab.
+- A reproduced mobile defect where the long-entry detail close action could hit the sticky navigation was repaired. Detail headers now move into view after render and after asynchronous source results arrive, and closing preserves the Almanack tab.
 
 ## Personal Library Preservation
 
@@ -119,6 +119,7 @@ The in-app personal consultation log remains available for future real sessions.
 - Lint: PASS.
 - Direct production-browser verification: PASS.
 - Personal-state migration and isolation tests: PASS (`2` tests).
+- Production deployment and post-deploy Rulebook Hub smoke at <https://apawthecaria.vercel.app>: PASS.
 
 ## Remaining Transplant Gaps
 
