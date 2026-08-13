@@ -3709,3 +3709,396 @@ button,
     max-width: 2600px;
   }
 }
+
+/* Personal rulebook transplant: one searchable field-guide layer, loaded on demand. */
+.chapter-opening__reference,
+.today-scene__reference,
+.map-reference-button {
+  margin-left: 0.55rem;
+  border-color: rgba(37, 33, 28, 0.46) !important;
+  background: rgba(247, 241, 228, 0.46) !important;
+  color: var(--editorial-ink) !important;
+}
+
+.rulebook-hub {
+  display: grid;
+  gap: 2rem;
+  max-width: 100%;
+}
+
+.rulebook-hub__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2rem;
+  align-items: end;
+  padding: 0 0 1.4rem !important;
+  border-bottom: var(--editorial-rule);
+}
+
+.rulebook-hub__header p {
+  max-width: 76ch;
+  line-height: 1.75;
+}
+
+.rulebook-coverage-strip {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  border-top: 1px solid rgba(37, 33, 28, 0.38);
+  border-bottom: 1px solid rgba(37, 33, 28, 0.38);
+  scrollbar-width: thin;
+}
+
+.rulebook-coverage-strip span {
+  min-width: max-content;
+  padding: 0.75rem 1rem;
+  border-right: 1px solid rgba(37, 33, 28, 0.22);
+  color: rgba(37, 33, 28, 0.72);
+  font-size: 0.76rem;
+}
+
+.rulebook-coverage-strip strong {
+  color: var(--editorial-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.rulebook-index-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem 1.4rem;
+  color: rgba(37, 33, 28, 0.68);
+  font-size: 0.76rem;
+}
+
+.rulebook-hub .almanack__index {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-bottom: 1px solid rgba(37, 33, 28, 0.3);
+}
+
+.rulebook-hub .almanack-entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr);
+  min-width: 0;
+  padding: 0;
+  border-top: 1px solid rgba(37, 33, 28, 0.3);
+  border-right: 1px solid rgba(37, 33, 28, 0.22);
+  background: rgba(255, 253, 246, 0.34);
+}
+
+.rulebook-hub .almanack-entry:nth-child(even) {
+  border-right: 0;
+}
+
+.rulebook-hub .almanack-entry--selected {
+  background: color-mix(in srgb, var(--page-tint) 68%, var(--editorial-paper));
+}
+
+.rulebook-hub .almanack-entry__favorite {
+  align-self: start;
+  width: 2.2rem;
+  min-height: 2.75rem;
+  border: 0;
+  background: transparent;
+  color: #8a6a20;
+}
+
+.almanack-entry__open {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  padding: 1.15rem 1rem 1.25rem 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--editorial-ink);
+  text-align: left;
+}
+
+.almanack-entry__open:hover,
+.almanack-entry__open:focus-visible {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.almanack-entry__body {
+  min-width: 0;
+}
+
+.almanack-entry__body h3,
+.almanack-entry__body p {
+  overflow-wrap: anywhere;
+}
+
+.rulebook-reference-detail {
+  scroll-margin-top: 5rem;
+  border-top: 3px double rgba(37, 33, 28, 0.65);
+  border-bottom: 1px solid rgba(37, 33, 28, 0.36);
+  background: color-mix(in srgb, var(--page-tint) 42%, var(--editorial-paper));
+}
+
+.rulebook-reference-detail > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 2rem !important;
+}
+
+.rulebook-reference-detail > header h3 {
+  margin: 0.3rem 0;
+  font-family: var(--font-display);
+  font-size: 2rem;
+}
+
+.rulebook-reference-detail__layers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid rgba(37, 33, 28, 0.3);
+  border-bottom: 1px solid rgba(37, 33, 28, 0.3);
+}
+
+.rulebook-reference-detail__layers > section {
+  min-width: 0;
+  padding: 1.4rem;
+  border-right: 1px solid rgba(37, 33, 28, 0.25);
+}
+
+.rulebook-reference-detail__layers > section:last-child {
+  border-right: 0;
+}
+
+.rulebook-reference-detail__layers > section > span {
+  color: rgba(37, 33, 28, 0.62);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.rulebook-reference-detail dl,
+.rulebook-drawer dl,
+.manual-effect__rulebook-context dl {
+  margin: 0.8rem 0 0;
+}
+
+.rulebook-reference-detail dl > div,
+.rulebook-drawer dl > div,
+.manual-effect__rulebook-context dl > div {
+  display: grid;
+  grid-template-columns: minmax(7rem, 0.42fr) minmax(0, 1fr);
+  gap: 0.7rem;
+  padding: 0.45rem 0;
+  border-top: 1px dotted rgba(37, 33, 28, 0.3);
+}
+
+.rulebook-reference-detail dt,
+.rulebook-drawer dt,
+.manual-effect__rulebook-context dt {
+  color: rgba(37, 33, 28, 0.64);
+  font-size: 0.75rem;
+}
+
+.rulebook-reference-detail dd,
+.rulebook-drawer dd,
+.manual-effect__rulebook-context dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.rulebook-source-text {
+  padding: 1.5rem 2rem 2rem;
+}
+
+.rulebook-source-text pre,
+.manual-effect__rulebook-context pre {
+  max-height: 34rem;
+  margin: 0.8rem 0 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #352e25;
+  font: 400 0.87rem/1.78 var(--font-base);
+}
+
+.rulebook-crosslinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 1.2rem 2rem;
+  border-top: 1px solid rgba(37, 33, 28, 0.26);
+}
+
+.rulebook-crosslinks strong {
+  width: 100%;
+}
+
+.rulebook-crosslinks button {
+  border: 0;
+  border-bottom: 1px solid rgba(37, 33, 28, 0.45);
+  border-radius: 0;
+  background: transparent;
+}
+
+.rulebook-personal-layer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid rgba(37, 33, 28, 0.3);
+}
+
+.rulebook-personal-layer > div {
+  display: grid;
+  align-content: start;
+  gap: 0.65rem;
+  padding: 1.5rem 2rem 2rem;
+}
+
+.rulebook-personal-layer > div + div {
+  border-left: 1px solid rgba(37, 33, 28, 0.3);
+}
+
+.manual-effect__rulebook-context {
+  padding: 1rem 1.2rem;
+  border-left: 3px solid #807159;
+  background: rgba(232, 225, 205, 0.5);
+}
+
+.manual-effect__rulebook-context summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.manual-effect__intent {
+  max-width: 76ch;
+  line-height: 1.65;
+}
+
+.manual-effect__context-loading {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.rulebook-drawer-backdrop {
+  position: fixed;
+  z-index: 1800;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(37, 33, 28, 0.46);
+}
+
+.rulebook-drawer {
+  width: min(48rem, 92vw);
+  height: 100dvh;
+  overflow-y: auto;
+  border-left: 2px solid var(--editorial-ink);
+  background: var(--editorial-paper);
+  box-shadow: -1.2rem 0 3rem rgba(37, 33, 28, 0.18);
+}
+
+.rulebook-drawer--loading {
+  display: grid;
+  place-items: center;
+}
+
+.rulebook-drawer > header {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+  border-bottom: var(--editorial-rule);
+  background: color-mix(in srgb, var(--page-tint) 70%, var(--editorial-paper));
+}
+
+.rulebook-drawer > header h2 {
+  margin: 0.25rem 0 0;
+  font-family: var(--font-display);
+  font-size: 2rem;
+}
+
+.rulebook-drawer > nav {
+  display: flex;
+  overflow-x: auto;
+  border-bottom: 1px solid rgba(37, 33, 28, 0.3);
+}
+
+.rulebook-drawer > nav button {
+  display: grid;
+  min-width: 12rem;
+  gap: 0.3rem;
+  padding: 0.85rem 1rem;
+  border: 0;
+  border-right: 1px solid rgba(37, 33, 28, 0.25);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.rulebook-drawer > nav button.is-active {
+  background: var(--page-tint);
+}
+
+.rulebook-drawer__context {
+  padding: 1.6rem 2rem 0;
+}
+
+.rulebook-drawer__context > span {
+  color: rgba(37, 33, 28, 0.62);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+@media (max-width: 820px) {
+  .rulebook-hub__header,
+  .rulebook-reference-detail__layers,
+  .rulebook-personal-layer,
+  .rulebook-hub .almanack__index {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rulebook-hub .almanack-entry {
+    border-right: 0;
+  }
+
+  .rulebook-reference-detail__layers > section,
+  .rulebook-personal-layer > div + div {
+    border-right: 0;
+    border-left: 0;
+    border-top: 1px solid rgba(37, 33, 28, 0.25);
+  }
+
+  .rulebook-drawer {
+    width: 100vw;
+    border-left: 0;
+  }
+
+  .rulebook-drawer > header,
+  .rulebook-source-text,
+  .rulebook-drawer__context,
+  .rulebook-personal-layer > div,
+  .rulebook-reference-detail > header {
+    padding-right: 1rem !important;
+    padding-left: 1rem !important;
+  }
+
+  .almanack-entry__open {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .almanack-entry__meta {
+    align-items: flex-start;
+  }
+
+  .chapter-opening__reference,
+  .today-scene__reference {
+    margin: 0.45rem 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rulebook-reference-detail {
+    scroll-behavior: auto;
+  }
+}

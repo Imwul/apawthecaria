@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import type { ManualEffectDraft } from '../rules';
 import {
   localizeManualEffectLine,
@@ -6,6 +7,8 @@ import {
   localizeManualEffectTrigger,
   localizeManualEffectValue
 } from '../localization/manualEffectKo';
+
+const RulebookSourceContext = lazy(() => import('./RulebookSourceContext'));
 
 export default function ManualEffectPanel({
   draft,
@@ -49,6 +52,9 @@ export default function ManualEffectPanel({
       <p>{localizedPrintedText}</p>
       {hasLocalizedPrintedText && <details><summary>영문 원문 보기</summary><p>{draft.printedText}</p></details>}
     </div>
+    <Suspense fallback={<p className="manual-effect__context-loading">원문 맥락을 준비하는 중...</p>}>
+      <RulebookSourceContext ownerId={draft.ownerId} page={draft.sourcePage} />
+    </Suspense>
     <div className="manual-effect__resolve"><h3>해야 할 일</h3><p>{localizeManualEffectValue(draft.resolutionInstruction)}</p></div>
     {draft.mandatoryConditions.length > 0 && <div><h3>확인할 조건</h3><ul>{draft.mandatoryConditions.map((row, index) => <li key={`${index}:${row}`}>{localizeManualEffectLine(row)}</li>)}</ul></div>}
 

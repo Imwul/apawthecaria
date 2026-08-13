@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { localizeLocationTypeLabel, localizeRegionLabel, localizeSavedJourneyText } from '../localization/gameplayKo';
 import { localizeGameplayMessage } from '../localization/engineMessagesKo';
+import { referenceForJournalTab } from '../rulebook/context';
+import type { RulebookReferenceRequest } from '../rulebook/types';
 
 const LocalizedManualEffectText = lazy(() => import('./LocalizedManualEffectText'));
 
@@ -61,13 +63,15 @@ export function ChapterOpening({
   state,
   currentWeight,
   maxCarry,
-  onReturnToToday
+  onReturnToToday,
+  onOpenReference
 }: {
   tab: ChapterTab;
   state: any;
   currentWeight: number;
   maxCarry: number;
   onReturnToToday: () => void;
+  onOpenReference: (request: RulebookReferenceRequest) => void;
 }) {
   const patient = state.patients?.find((row: any) => row.id === state.activePatientId);
   const ailment = patient?.ailments?.find((row: any) => row.status === 'active');
@@ -153,6 +157,9 @@ export function ChapterOpening({
             <span className="emoji-icon" aria-hidden="true">📖</span> 현재 진료로 돌아가기
           </button>
         ) : null}
+        <button type="button" className="chapter-opening__reference" onClick={() => onOpenReference(referenceForJournalTab(tab, state))}>
+          <span className="emoji-icon" aria-hidden="true">📚</span> 이 장의 룰북 맥락
+        </button>
       </div>
     </header>
   );
@@ -174,13 +181,15 @@ export function TodayOverview({
   currentWeight,
   maxCarry,
   onNavigate,
-  onContinue
+  onContinue,
+  onOpenReference
 }: {
   state: any;
   currentWeight: number;
   maxCarry: number;
   onNavigate: (tab: JournalTab) => void;
   onContinue: () => void;
+  onOpenReference: (request: RulebookReferenceRequest) => void;
 }) {
   const patient = state.patients?.find((row: any) => row.id === state.activePatientId);
   const ailment = patient?.ailments?.find((row: any) => row.status === 'active');
@@ -207,6 +216,9 @@ export function TodayOverview({
           </h2>
           <button type="button" onClick={onContinue}>
             <span className="emoji-icon" aria-hidden="true">🧭</span> 이어서 걷기
+          </button>
+          <button type="button" className="today-scene__reference" onClick={() => onOpenReference(referenceForJournalTab('play', state))}>
+            <span className="emoji-icon" aria-hidden="true">📚</span> 현재 절차 확인
           </button>
         </div>
       </div>

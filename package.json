@@ -5,12 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run validate:rules && tsc -b && vite build",
+    "build": "npm run validate:rules && npm run validate:reference && tsc -b && vite build",
+    "extract:rulebook": "python3 scripts/extract_rulebook_reference.py",
+    "audit:rulebook": "python3 scripts/build_rulebook_transplant_audit.py",
     "lint": "eslint .",
     "test": "vitest run",
     "test:golden": "vitest run src/rules/goldenMaster.test.ts src/mobileLayout.test.ts",
     "test:rc": "vitest run src/rules/releaseCandidate.test.ts",
     "validate:rules": "vitest run src/rules/validation.test.ts",
+    "validate:reference": "vitest run src/rulebook/referenceRegistry.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {

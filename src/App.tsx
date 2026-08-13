@@ -203,10 +203,13 @@ import {
 } from './localization/gameplayKo';
 import { localizeGameplayMessage } from './localization/engineMessagesKo';
 import { enqueueOfflineSave, flushOfflineSaves, resolveRevisionConflict, type OfflineSaveEntry } from './persistence/saveQueue';
+import type { RulebookReferenceRequest } from './rulebook/types';
+import { referenceForJournalTab } from './rulebook/context';
 
 const AlmanackPanel = lazy(() => import('./components/AlmanackPanel'));
 const LocalizedManualEffectText = lazy(() => import('./components/LocalizedManualEffectText'));
 const ManualEffectPanel = lazy(() => import('./components/ManualEffectPanel'));
+const RulebookReferenceDrawer = lazy(() => import('./components/RulebookReferenceDrawer'));
 
 const suitLabels: { [key: string]: string } = { '♥': '하트 ♥', '♦': '다이아 ♦', '♣': '클로버 ♣', '♠': '스페이드 ♠' };
 
@@ -3977,6 +3980,7 @@ export default function App() {
   const [controlledPromptValue, setControlledPromptValue] = useState('');
   const [controlledPromptResolver, setControlledPromptResolver] = useState<((value: string | null) => void) | null>(null);
   const [noticeQueue, setNoticeQueue] = useState<string[]>([]);
+  const [rulebookRequest, setRulebookRequest] = useState<RulebookReferenceRequest | null>(null);
 
   const requestControlledPrompt = useCallback((request: ControlledPromptRequest) => new Promise<string | null>(resolve => {
     setControlledPromptResolver(() => resolve);
@@ -5240,6 +5244,12 @@ export default function App() {
     });
   };
 
+  const currentRulebookRequest = activeTravelEncounter
+    ? { entryId: activeTravelEncounter.id ? `encounter:${activeTravelEncounter.id}` : undefined, page: activeTravelEncounter.sourcePage, query: activeTravelEncounter.title, title: '현재 Travel Encounter' }
+    : activeForageEncounter
+      ? { entryId: activeForageEncounter.id ? `encounter:${activeForageEncounter.id}` : undefined, page: activeForageEncounter.sourcePage, query: activeForageEncounter.title, title: '현재 Foraging Encounter' }
+      : referenceForJournalTab(activeTab, state);
+
   return (
     <div className={`journal-app journal-app--${activeTab}`}>
       {/* Header Banner */}
@@ -5251,6 +5261,9 @@ export default function App() {
         </button>
 
         <div className="journal-header__utilities">
+          <button type="button" className="journal-header__action" onClick={() => setRulebookRequest(currentRulebookRequest)} aria-label="현재 페이지의 룰북 맥락 열기" title="현재 페이지의 룰북 맥락">
+            <span className="emoji-icon" aria-hidden="true">📚</span><span>룰북</span>
+          </button>
           {isFirebaseConfigured && auth && (
             user ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.3rem 0.8rem', background: 'var(--primary-light)', borderRadius: '20px', border: '1.5px solid var(--glass-border)' }}>
@@ -5422,6 +5435,7 @@ export default function App() {
                 maxCarry={maxCarry}
                 onNavigate={setActiveTab}
                 onContinue={() => document.getElementById('action-hub')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                onOpenReference={setRulebookRequest}
               />
               <BarrowPanel delve={state.activeDelve} />
               <PlayView
@@ -5462,6 +5476,7 @@ export default function App() {
                   setActiveTab('play');
                   window.setTimeout(() => document.getElementById('action-hub')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
                 }}
+                onOpenReference={setRulebookRequest}
               />
               <section
                 className={`journal-chapter journal-chapter--${activeTab}`}
@@ -5524,7 +5539,7 @@ export default function App() {
                     setHighlightedPatientId={setHighlightedPatientId}
                   />
                 )}
-                {activeTab === 'map' && <MapView state={state} />}
+                {activeTab === 'map' && <MapView state={state} onOpenReference={setRulebookRequest} />}
                 {activeTab === 'journals' && (
                   <JournalsView
                     state={state}
@@ -5538,6 +5553,12 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {rulebookRequest && (
+        <Suspense fallback={<div className="rulebook-drawer-backdrop"><div className="rulebook-drawer rulebook-drawer--loading" role="status">룰북 맥락을 여는 중...</div></div>}>
+          <RulebookReferenceDrawer request={rulebookRequest} onClose={() => setRulebookRequest(null)} />
+        </Suspense>
+      )}
 
       {controlledPrompt && (
         <ControlledPromptDialog
@@ -14356,7 +14377,7 @@ const BranchSketch = () => (
   <span className="emoji-icon" aria-hidden="true" style={{ marginRight: '4px' }}>🍂</span>
 );
 
-function MapView({ state }: { state: GameState }) {
+function MapView({ state, onOpenReference }: { state: GameState; onOpenReference: (request: RulebookReferenceRequest) => void }) {
   const [mapWidth, setMapWidth] = useState(1600);
   const handleZoomOut = () => setMapWidth((w: number) => Math.max(800, w - 200));
   const handleZoomIn = () => setMapWidth((w: number) => Math.min(3000, w + 200));
@@ -14492,6 +14513,7 @@ function MapView({ state }: { state: GameState }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <span style={{ fontWeight: 'bold', fontSize: '1rem', color: '#5c4033' }}>Bristley Woods 지도 후면</span>
             <div className="map-zoom-controls" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <button type="button" className="map-reference-button" onClick={() => onOpenReference({ entryId: `region:${state.currentRegion}`, page: 23, title: `${localizeRegionLabel(state.currentRegion)} 이동 규칙`, context: [{ label: '현재 위치', value: state.currentLocationName || '미기록' }, { label: '현재 계절', value: localizeSeasonLabel(state.currentSeason) }] })}>📚 현재 지역</button>
               <button onClick={handleZoomOut} style={{ padding: '0.2rem 0.5rem', background: '#e8e2d5', border: '1px solid #5c4033', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}>축소</button>
               <input
                 type="range"
@@ -14622,6 +14644,7 @@ function MapView({ state }: { state: GameState }) {
 	              {allLocNames.map(locName => {
 	                const { x, y } = getCoordinatesForLocation(locName);
 	                const locKey = findMapLocationKey(locName, customMapLocations);
+	                const locationRegion = locKey ? mapGraphNodes[locKey]?.region || state.currentRegion : state.currentRegion;
 	                const successes = (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'success');
 	                const failures = (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'failure');
 	                const isFirstClinic = !!firstClinic && (firstClinic.locationName === locName || (!!locKey && findMapLocationKey(firstClinic.locationName, customMapLocations) === locKey));
@@ -14706,7 +14729,7 @@ function MapView({ state }: { state: GameState }) {
                       top: `${y}%`,
                       transformOrigin: 'top left',
                       transform: `translate(-10px, -10px) rotate(${(locName.length % 3) - 1.5}deg)`,
-                      pointerEvents: 'none',
+                      pointerEvents: 'auto',
                       display: 'flex',
                       alignItems: 'flex-start',
                       gap: '6px',
@@ -14763,7 +14786,7 @@ function MapView({ state }: { state: GameState }) {
                       padding: '3px 7px 5px',
                       boxShadow: '0 2px 5px rgba(44, 32, 20, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.62)',
                       backdropFilter: 'blur(1px)'
-                    }}>
+                    }} role="button" tabIndex={0} aria-label={`${locName} 관련 룰북 맥락 열기`} onMouseDown={event => event.stopPropagation()} onClick={() => onOpenReference({ entryId: `region:${locationRegion}`, page: 23, title: `${locName} · ${localizeRegionLabel(locationRegion)}`, context: [{ label: '지도 위치', value: locName }, { label: '현재 계절', value: localizeSeasonLabel(state.currentSeason) }] })} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpenReference({ entryId: `region:${locationRegion}`, page: 23, title: `${locName} · ${localizeRegionLabel(locationRegion)}`, context: [{ label: '지도 위치', value: locName }, { label: '현재 계절', value: localizeSeasonLabel(state.currentSeason) }] }); } }}>
                       <div style={{ display: 'flex', alignItems: 'center', fontWeight: fontW as any, color: textColor, textShadow: '0 1px 0 rgba(255, 255, 255, 0.88)' }}>
                         {SketchIcon && <SketchIcon />}
                         <span>{locName}</span>
