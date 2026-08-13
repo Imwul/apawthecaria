@@ -102,12 +102,17 @@ describe('personal rulebook transplant registry', () => {
 
   it('keeps the lazy contextual drawer keyboard and mobile accessible', () => {
     const appSource = readFileSync('src/App.tsx', 'utf8');
+    const almanackSource = readFileSync('src/components/AlmanackPanel.tsx', 'utf8');
     const drawerSource = readFileSync('src/components/RulebookReferenceDrawer.tsx', 'utf8');
     const cssSource = readFileSync('src/index.css', 'utf8');
     expect(appSource).toContain("lazy(() => import('./components/RulebookReferenceDrawer'))");
     expect(drawerSource).toContain('aria-modal="true"');
     expect(drawerSource).toContain("event.key === 'Escape'");
     expect(drawerSource).toContain("event.key !== 'Tab'");
+    expect(almanackSource).toContain("querySelector('#rulebook-reference-detail > header')");
+    expect(almanackSource).toContain("behavior: 'instant', block: 'center'");
+    expect(almanackSource).toContain('}, [selectedId]);');
+    expect(almanackSource).toContain('개인 참고 기록 정말 비우기');
     expect(cssSource).toMatch(/@media \(max-width: 820px\)[\s\S]*?\.rulebook-drawer\s*\{[\s\S]*?width:\s*100vw/);
     expect(cssSource).toContain('@media (prefers-reduced-motion: reduce)');
   });

@@ -3764,10 +3764,28 @@ button,
 
 .rulebook-index-summary {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 0.7rem 1.4rem;
   color: rgba(37, 33, 28, 0.68);
   font-size: 0.76rem;
+}
+
+.rulebook-personal-clear,
+.rulebook-personal-clear-confirm button {
+  min-height: 2.5rem;
+  padding: 0.35rem 0;
+  border: 0;
+  border-bottom: 1px solid rgba(37, 33, 28, 0.45);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+}
+
+.rulebook-personal-clear-confirm {
+  display: inline-flex;
+  gap: 0.75rem;
 }
 
 .rulebook-hub .almanack__index {
@@ -3941,7 +3959,7 @@ button,
 
 .rulebook-personal-layer {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-top: 1px solid rgba(37, 33, 28, 0.3);
 }
 
@@ -3954,6 +3972,15 @@ button,
 
 .rulebook-personal-layer > div + div {
   border-left: 1px solid rgba(37, 33, 28, 0.3);
+}
+
+.rulebook-personal-layer__house-rule {
+  background: rgba(217, 222, 196, 0.42);
+}
+
+.rulebook-personal-layer__house-rule h4::before {
+  content: '\1F4CC';
+  margin-right: 0.4rem;
 }
 
 .manual-effect__rulebook-context {

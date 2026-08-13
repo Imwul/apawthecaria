@@ -3,8 +3,8 @@
 ## Golden Master Protection
 
 - Work branch: `codex/v1.1-personal-rulebook-transplant`
-- Frozen tag: `v1.0.0` remains at `9ec38b301c46d2fb2807345ffb61f4a4e22888a3`
-- No tag move, overwrite, force push or production deployment was performed.
+- Frozen tag: `v1.0.0` remains at `d69e93ecb0fa05912b1e1760f1520203ae243930`
+- No tag move, overwrite, force push or Golden Master rewrite was performed. The requested v1.1 deployment remains independent of the frozen v1.0.0 tag.
 - Gameplay engine, campaign schema and migration semantics are unchanged.
 
 ## Rulebook Transplant Coverage
@@ -55,8 +55,31 @@ The Manual UI now exposes its canonical owner, source page, printed constraints,
 - Reference pages are generated mechanically from the source PDF and loaded on demand outside the initial JavaScript bundle.
 - Ailments cross-link to Treatment, Printed Effects, Tags and matching Remedies.
 - Regions cross-link to encounters, seasons and region-specific tables.
-- Personal notes, bookmarks and consultation logs use `apawthecaria_personal_rulebook_v1`, separate from campaign save schema v8.
+- Personal notes, House Rule notes, bookmarks and consultation logs use `apawthecaria_personal_rulebook_v1`, separate from campaign save schema v8.
+- House Rule notes have their own data field and visual treatment. They record personal interpretation without overriding the canonical engine.
+- The two-step personal-reference reset clears only the personal Rulebook key; campaign state survives reload unchanged.
 - Reference controls never execute a roll or mutate canonical gameplay state.
+
+## Browser Evidence
+
+- Production preview: PASS.
+- Viewports: `360`, `390`, `768`, `1440`, and `1920` px all passed with zero document-level horizontal overflow.
+- The 360 px critical flow passed search, filters, source detail, long Manual text, bookmarks, personal and House Rule note inputs, close, and contextual drawer interaction.
+- Full-text searches passed for Journey, Foul, Bad Idea, Brand Care, Forager's Twitch, PRESERVED, Wagon, Companion, Clinic, and Barrow.
+- Exact page searches passed for p.10, p.22, p.102, p.116, p.126, p.154, p.171, and p.190.
+- Representative Travel, Foraging, Social, Ailment, Printed Effect, Remedy, Ingredient, Tag, Tool, Service, Clinic, Wagon, Companion, and Barrow entries exposed their source page and canonical consumer.
+- Contextual Journey and map references opened the correct source context without executing an encounter or changing the campaign.
+- Drawer Escape close returned keyboard focus to its trigger.
+- Browser console errors, warnings, uncaught exceptions, and unhandled rejections: `0`.
+- A reproduced mobile defect where the long-entry detail close action could hit the sticky navigation was repaired. Detail headers now move into view immediately after render, and closing preserves the Almanack tab.
+
+## Personal Library Preservation
+
+- Three representative bookmarks persisted across reload: a procedure, Ailment, and encounter.
+- Personal Note and House Rule Note each persisted independently, accepted edits, and were removed by the personal-reference reset.
+- A PDF consultation record persisted in personal storage and was removed by the same reset.
+- Campaign snapshot before reference mutations, after reference mutations, and after personal-reference reset: identical.
+- Canonical gameplay mutations caused by the reference layer: `0`.
 
 ## PDF Consultations
 
@@ -80,20 +103,22 @@ The in-app personal consultation log remains available for future real sessions.
 
 - Frozen branch baseline App chunk: `606.41 kB` minified (`162.94 kB` gzip).
 - Private transplant App chunk: `610.13 kB` minified (`164.09 kB` gzip), a `3.72 kB` minified / `1.15 kB` gzip integration-shell increase.
-- Rulebook UI is lazy-loaded as separate Almanack, drawer, source-context and source-loader chunks.
+- Rulebook UI is lazy-loaded as separate Almanack, drawer, source-context and source-loader chunks. Initial gameplay observation contained none of these assets; they appeared only after the Rulebook UI was opened.
 - The `319 kB` extracted source payload is a static JSON request and is not embedded in the initial JavaScript bundle.
+- After the production preview network was stopped, the already-loaded p.171 source page could still be searched and reopened without console errors.
 - Existing large App chunk warning remains. No gameplay-oriented split was attempted in this private transplant phase.
 
 ## Verification
 
-- Full test suite: PASS (`20` files, `171` tests).
+- Full test suite: PASS (`21` files, `173` tests).
 - Rule validator: PASS.
 - Rulebook drift validator: PASS.
 - Release Candidate canonical campaign: PASS (`5` scenarios, including 15-Path Journey and two full years).
 - Golden Master and migration fixtures: PASS (`9` tests across Golden Master and mobile layout guards).
 - TypeScript and production build: PASS.
 - Lint: PASS.
-- Direct interactive browser capture: NOT EXECUTED because the desktop browser-control runtime could not initialize; this is a verification limitation, not a known gameplay failure.
+- Direct production-browser verification: PASS.
+- Personal-state migration and isolation tests: PASS (`2` tests).
 
 ## Remaining Transplant Gaps
 
@@ -104,6 +129,7 @@ Non-blocking boundaries:
 - PDF illustrations and exact print typography are not reproduced; searchable source text and canonical data are provided instead.
 - Blank printed pages and character-sheet artwork are indexed as source pages but remain reference-only.
 - Narrative and ambiguous outcomes remain intentionally manual.
+- The existing `610.13 kB` App chunk warning remains; the integrated reference surfaces and source payload are already lazy-loaded.
 
 ## Final Assessment
 
@@ -113,4 +139,8 @@ Can the private v1.1 build function as both the complete Apawthecaria campaign e
 
 **APAWTHECARIA PERSONAL RULEBOOK TRANSPLANT COMPLETE**
 
-No v1.1 tag or production deployment was created.
+**APAWTHECARIA v1.1 PERSONAL RULEBOOK — PRESERVATION VERIFIED**
+
+**BROWSER EVIDENCE COMPLETE**
+
+The v1.0.0 tag and schema v8 remain unchanged. No new v1.1 tag was created.

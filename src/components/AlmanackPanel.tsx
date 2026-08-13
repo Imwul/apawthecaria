@@ -7,7 +7,7 @@ import {
   searchReferenceEntries
 } from '../rulebook/referenceRegistry';
 import { CHAPTER_FOR_PAGE } from '../rulebook/chapters';
-import { loadPersonalRulebookState, savePersonalRulebookState } from '../rulebook/personalState';
+import { EMPTY_PERSONAL_RULEBOOK_STATE, loadPersonalRulebookState, savePersonalRulebookState } from '../rulebook/personalState';
 import { loadRulebookPage, searchRulebookPages } from '../rulebook/sourceLoader';
 import type {
   PersonalRulebookState,
@@ -64,6 +64,7 @@ export default function AlmanackPanel({
   const [personal, setPersonal] = useState<PersonalRulebookState>(() => loadPersonalRulebookState());
   const [consultationCategory, setConsultationCategory] = useState<PersonalRulebookState['consultations'][number]['category']>('rule wording');
   const [consultationReason, setConsultationReason] = useState('');
+  const [confirmClearPersonal, setConfirmClearPersonal] = useState(false);
 
   const persistPersonal = useCallback((next: PersonalRulebookState) => {
     setPersonal(next);
@@ -116,14 +117,26 @@ export default function AlmanackPanel({
     return () => { cancelled = true; };
   }, [selected]);
 
+  useEffect(() => {
+    if (!selectedId) return;
+    document.querySelector('#rulebook-reference-detail > header')?.scrollIntoView({ behavior: 'instant', block: 'center' });
+  }, [selectedId]);
+
   const openEntry = (id: string) => {
     setSelectedId(id);
-    window.setTimeout(() => document.getElementById('rulebook-reference-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
   };
 
   const bookmarked = selected ? personal.bookmarks.includes(selected.id) : false;
   const note = selected ? personal.notes[selected.id] || '' : '';
+  const houseRule = selected ? personal.houseRules[selected.id] || '' : '';
   const sourceLoading = Boolean(selected && sourcePage?.page !== selected.sourcePage);
+
+  const updatePersonalText = (field: 'notes' | 'houseRules', id: string, value: string) => {
+    const next = { ...personal[field] };
+    if (value) next[id] = value;
+    else delete next[id];
+    persistPersonal({ ...personal, [field]: next });
+  };
 
   return (
     <section className="almanack rulebook-hub" aria-labelledby="almanack-title">
@@ -155,6 +168,14 @@ export default function AlmanackPanel({
         <span>검색 결과 {visible.length}개</span>
         <span>책갈피 {personal.bookmarks.length}개</span>
         <span>PDF 확인 기록 {personal.consultations.length}회</span>
+        {confirmClearPersonal ? (
+          <span className="rulebook-personal-clear-confirm">
+            <button type="button" onClick={() => { persistPersonal(EMPTY_PERSONAL_RULEBOOK_STATE); setConfirmClearPersonal(false); }}>개인 참고 기록 정말 비우기</button>
+            <button type="button" onClick={() => setConfirmClearPersonal(false)}>취소</button>
+          </span>
+        ) : (
+          <button type="button" className="rulebook-personal-clear" onClick={() => setConfirmClearPersonal(true)}>개인 참고 기록 비우기</button>
+        )}
       </div>
 
       <div className="almanack__index" role="list">
@@ -195,8 +216,9 @@ export default function AlmanackPanel({
           {selected.relatedIds.length > 0 && <nav className="rulebook-crosslinks" aria-label="관련 룰북 항목"><strong>함께 읽기</strong>{selected.relatedIds.slice(0, 20).map(id => { const related = RULEBOOK_REFERENCE_BY_ID.get(id); return related ? <button type="button" key={id} onClick={() => openEntry(id)}>{related.title} · p.{related.sourcePage}</button> : null; })}</nav>}
 
           <div className="rulebook-personal-layer">
-            <div><h4>Personal Note</h4><p>이 메모는 canonical engine과 campaign save를 바꾸지 않습니다.</p><textarea aria-label={`${selected.title} 개인 메모`} rows={4} value={note} onChange={event => persistPersonal({ ...personal, notes: { ...personal.notes, [selected.id]: event.target.value } })} /></div>
-            <div><h4>PDF Consultation Log</h4><select aria-label="PDF 확인 분류" value={consultationCategory} onChange={event => setConsultationCategory(event.target.value as typeof consultationCategory)}>{consultationCategories.map(value => <option key={value} value={value}>{value}</option>)}</select><input aria-label="PDF를 다시 연 이유" value={consultationReason} onChange={event => setConsultationReason(event.target.value)} placeholder="PDF를 따로 확인한 이유" /><button type="button" disabled={!consultationReason.trim()} onClick={() => { persistPersonal({ ...personal, consultations: [{ id: `consultation:${Date.now()}`, page: selected.sourcePage, category: consultationCategory, reason: consultationReason.trim(), referenceId: selected.id, createdAt: Date.now() }, ...personal.consultations] }); setConsultationReason(''); }}>PDF 확인 기록 추가</button></div>
+            <div><h4>개인 메모</h4><p>이 메모는 canonical engine과 campaign save를 바꾸지 않습니다.</p><textarea aria-label={`${selected.title} 개인 메모`} rows={4} value={note} onChange={event => updatePersonalText('notes', selected.id, event.target.value)} /></div>
+            <div className="rulebook-personal-layer__house-rule"><h4>House Rule 메모</h4><p>개인 해석을 기록할 뿐 canonical engine을 덮어쓰거나 campaign save를 바꾸지 않습니다.</p><textarea aria-label={`${selected.title} House Rule 메모`} rows={4} value={houseRule} onChange={event => updatePersonalText('houseRules', selected.id, event.target.value)} /></div>
+            <div><h4>PDF 확인 기록</h4><select aria-label="PDF 확인 분류" value={consultationCategory} onChange={event => setConsultationCategory(event.target.value as typeof consultationCategory)}>{consultationCategories.map(value => <option key={value} value={value}>{value}</option>)}</select><input aria-label="PDF를 다시 연 이유" value={consultationReason} onChange={event => setConsultationReason(event.target.value)} placeholder="PDF를 따로 확인한 이유" /><button type="button" disabled={!consultationReason.trim()} onClick={() => { persistPersonal({ ...personal, consultations: [{ id: `consultation:${Date.now()}`, page: selected.sourcePage, category: consultationCategory, reason: consultationReason.trim(), referenceId: selected.id, createdAt: Date.now() }, ...personal.consultations] }); setConsultationReason(''); }}>PDF 확인 기록 추가</button></div>
           </div>
         </article>
       )}

@@ -65,6 +65,7 @@ export interface RulebookReferenceRequest {
 export interface PersonalRulebookState {
   bookmarks: string[];
   notes: Record<string, string>;
+  houseRules: Record<string, string>;
   consultations: Array<{
     id: string;
     page: number;
