@@ -5480,6 +5480,26 @@ export default function App() {
                         fallbackAction.focus({ preventScroll: true });
                         return true;
                       }
+
+                      const fallbackPanels = !state.journeyActive
+                        ? ['journey-start-panel', 'downtime-panel']
+                        : (() => {
+                          const panels = [];
+                          if (state.pendingPatientArchive) panels.push('pending-archive-panel');
+                          if (state.pendingEncounter || state.pendingForaging) panels.push('travel-panel');
+                          if (state.activeDelve || ((state.barrows || []).some(b => !b.removed && b.locationName === state.currentLocationName)) || state.needsLocalHelpBeforeMove) panels.push('barrow-panel');
+                          if (state.activeAilment || state.scroungingMode || state.pursuedByBehemoth) panels.push('patient-clinic-panel');
+                          if (!state.pursuedByBehemoth && !state.needsLocalHelpBeforeMove) panels.push('travel-panel');
+                          return panels;
+                        })();
+
+                      for (const panelId of fallbackPanels) {
+                        const panel = document.getElementById(panelId);
+                        if (panel) {
+                          panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          return true;
+                        }
+                      }
                     }
                     return false;
                   };
