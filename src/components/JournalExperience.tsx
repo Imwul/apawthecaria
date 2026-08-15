@@ -200,7 +200,7 @@ export function TodayOverview({
   const dayPlace = state.journeyActive
     ? localizeLocationName(state.journeyDestination)
     : localizeLocationName(state.currentLocationName);
-  const dayPhrase = state.journeyActive ? '로 향하는 날' : '에 머무는 날';
+  const dayPhrase = state.journeyActive ? '목적지를 향해 걷는 날' : '이곳에 머무는 날';
 
   return (
     <section className="today-overview" aria-labelledby="today-title">

@@ -3962,15 +3962,18 @@ body {
 }
 
 .today-title__place {
+  display: block;
   font-family: 'Fraunces', serif;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .today-title__phrase {
+  display: block;
+  margin-top: 0.12em;
   font-family: 'Gowun Batang', 'Noto Serif KR', serif;
   font-size: 0.78em;
   font-weight: 700;
-  white-space: nowrap;
 }
 
 .today-scene__copy p {
