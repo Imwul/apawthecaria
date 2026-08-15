@@ -52,7 +52,7 @@ describe('printed effect Korean reading layer', () => {
   });
 
   it('localizes manual conditions and legacy pending journal entries', () => {
-    expect(localizeManualEffectLine('Region: Forest')).toBe('지역: 숲');
+    expect(localizeManualEffectLine('Region: Forest')).toBe('지역: Forest');
     expect(localizeManualEffectLine('Season: Spring')).toBe('계절: 봄');
     expect(localizeManualJournalTitle('판정 대기: Memories A pleasant wind blows through the trees')).toBe('판정 대기: Memories');
     expect(localizeManualJournalText('[p.79] . You feel your thoughts drift back, reflecting on your past. What moment do you recall?\n\n전용 직접 판정에서 선택과 상태 변화를 완료해야 합니다.')).toContain('어떤 순간이 생각나나요?');
@@ -60,11 +60,10 @@ describe('printed effect Korean reading layer', () => {
     expect(localizeManualEffectOption('Senior')).toBe('숙련자 (숙련된 채집꾼)');
   });
 
-  it('translates generic Region words while preserving printed proper names', () => {
+  it('keeps Region names in English while preserving printed proper names', () => {
     const bridges = PRINTED_EFFECT_REGISTRY.find(effect => effect.ownerName === 'Bridges')!;
     const translated = localizeManualEffectText(bridges.ownerName, bridges.printedText);
-    expect(translated).toContain('숲');
-    expect(translated).not.toMatch(/\bForest\b/);
+    expect(translated).toMatch(/\bForest\b/);
     expect(localizeManualEffectValue('Mountain Rescue')).toBe('Mountain Rescue');
   });
 

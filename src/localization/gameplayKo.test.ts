@@ -20,8 +20,8 @@ import {
 
 describe('gameplay presentation localization', () => {
   it('translates canonical state labels without changing their stored values', () => {
-    expect(localizeRegionLabel('Forest')).toBe('숲');
-    expect(localizeRegionList('Bog, Forest')).toBe('늪지, 숲');
+    expect(localizeRegionLabel('Forest')).toBe('Forest');
+    expect(localizeRegionList('Bog, Forest')).toBe('Bog, Forest');
     expect(localizeDirectionLabel('North')).toBe('북쪽');
     expect(localizeCharacterDescriptor('Burrowing')).toBe('땅을 파는 포유류');
     expect(localizeTravelStyle('Rambling and Ready')).toBe('방랑하며 든든하게');
@@ -44,7 +44,7 @@ describe('gameplay presentation localization', () => {
 
   it('translates generic rule wording while preserving proper names and rule tags', () => {
     expect(localizeJourneyGoalText('Journal in Bog, Forest, Loch, Meadow, and Mountain.'))
-      .toBe('늪지, 숲, 호수, 초원, 산맥 각 지역에서 일지를 기록합니다.');
+      .toBe('Bog, Forest, Loch, Meadow, Mountain 각 지역에서 일지를 기록합니다.');
     expect(localizeJourneyGoalText('End the 여정 with 5 more Guild 길드 명성 than at its start.'))
       .toBe('출발할 때보다 길드 명성을 5 이상 높인 채 여정을 마칩니다.');
     expect(localizeAilmentPresentationText('Steel Axe가 필요하며 하루를 소모(Mark 1 Day)합니다.'))

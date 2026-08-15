@@ -138,18 +138,12 @@ const polishGenericRuleTerms = (text: string, names: string[] = protectedRuleNam
     .replace(/\bMove On\b/g, '다음 장소로 이동')
     .replace(/\bBase Rarity\b/g, '기본 희귀도')
     .replace(/\bRarity\b/g, '희귀도')
-    .replace(/\bSoar\b/g, '활공')
     .replace(/\bBehemoth\b/g, '거수')
     .replace(/\bBarrow\b/g, '고분')
     .replace(/\bUpstanding\b/g, '신망 있음')
     .replace(/\bTowering\b/g, '거대한')
     .replace(/\bMany\b/g, '다수의')
-    .replace(/\bnon-Loch\b|비Loch/g, '호수가 아닌')
-    .replace(/\bForest\b/g, '숲')
-    .replace(/\bMeadow\b/g, '초원')
-    .replace(/\bLoch\b/g, '호수')
-    .replace(/\bBog\b/g, '늪지')
-    .replace(/\bMountain\b/g, '산맥');
+    .replace(/\bnon-Loch\b|비Loch/g, 'non-Loch');
   return protectedNames.reduce((current, name, index) => current.replaceAll(`\uE000${index}\uE001`, name), polished);
 };
 const normalizeTranslationKey = (text: string): string => text

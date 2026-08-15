@@ -1,4 +1,4 @@
-import { useState, useEffect, useEffectEvent, useRef, useCallback, Fragment, lazy, Suspense } from "react";
+import { useState, useEffect, useEffectEvent, useRef, useCallback, useMemo, Fragment, lazy, Suspense } from "react";
 import { db, isFirebaseConfigured, auth, googleProvider, storage } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
@@ -574,6 +574,50 @@ interface JournalEntry {
   photos?: JournalPhoto[];
 }
 
+type PlayInterfaceMode = 'guided' | 'field';
+
+interface TravelReceipt {
+  id: string;
+  from: string;
+  to: string;
+  region: string;
+  locationType: string;
+  pathCount: number;
+  movementCost: number;
+  daysBefore: number;
+  daysAfter: number;
+  encounterTitle: string;
+  encounterSkipped: boolean;
+  encounterProtected: boolean;
+  timestamp: number;
+}
+
+interface EncounterReceipt {
+  id: string;
+  title: string;
+  choiceLabel?: string;
+  changes: string[];
+  manualPending: boolean;
+  timestamp: number;
+}
+
+interface LocationMemoryRecord {
+  note: string;
+  photos: JournalPhoto[];
+  updatedAt: number;
+}
+
+interface JourneyReplayRecord {
+  id: string;
+  title: string;
+  origin: string;
+  destination: string;
+  events: string[];
+  stopNames: string[];
+  outcome: 'success' | 'partial' | 'failure' | 'abandoned';
+  timestamp: number;
+}
+
 interface GameState {
   schemaVersion: number;
   rulebookEdition: RulebookEdition;
@@ -604,6 +648,14 @@ interface GameState {
   calendarDays: number;
   calendarMaxDays: number;
   calendarHistory: string[];
+  journeyPlannedStopIds?: string[];
+  favoriteMapLocationIds?: string[];
+  favoriteJourneyRoutes?: { id: string; name: string; stopIds: string[] }[];
+  playInterfaceMode?: PlayInterfaceMode;
+  lastTravelReceipt?: TravelReceipt | null;
+  lastEncounterReceipt?: EncounterReceipt | null;
+  locationMemories?: Record<string, LocationMemoryRecord>;
+  journeyReplayArchive?: JourneyReplayRecord[];
 
   // Ongoing patient
   activeAilment: ActiveAilment | null;
@@ -778,6 +830,14 @@ const INITIAL_STATE: GameState = {
   calendarDays: 0,
   calendarMaxDays: 12,
   calendarHistory: [],
+  journeyPlannedStopIds: [],
+  favoriteMapLocationIds: [],
+  favoriteJourneyRoutes: [],
+  playInterfaceMode: 'guided',
+  lastTravelReceipt: null,
+  lastEncounterReceipt: null,
+  locationMemories: {},
+  journeyReplayArchive: [],
   activeAilment: null,
   activeAilments: [],
   activePatientId: null,
@@ -1125,13 +1185,13 @@ const MAP_REGION_CODES: Record<string, MapRegion> = {
 };
 
 const MAP_REGION_LABELS: Record<MapRegion, string> = {
-  Bog: '수렁',
-  Forest: '숲',
-  Loch: '호수/강',
-  Meadow: '초원',
-  Mountain: '산맥',
-  Titan: '티탄 유적',
-  Wilds: '야생'
+  Bog: 'Bog',
+  Forest: 'Forest',
+  Loch: 'Loch',
+  Meadow: 'Meadow',
+  Mountain: 'Mountain',
+  Titan: 'Titan',
+  Wilds: 'Wilds'
 };
 
 const MAP_REGION_COLORS: Record<MapRegion, string> = {
@@ -1503,6 +1563,24 @@ const getBarterTypeForMapNode = (key: string, node: MapLocationNode): 'Settlemen
   if (isKnownBarterCity(key, node)) return 'City';
   if (MAP_LOCATIONS[key] && key !== 'starting_oak_road') return 'Settlement';
   return '';
+};
+
+const inferMapNodeRegion = (node: MapLocationNode, fallback: MapRegion = 'Forest'): MapRegion => {
+  if (node.region && node.region !== 'Wilds') return node.region;
+  const nearest = MAP_WILD_LOCATIONS.reduce<{ region: MapRegion; distance: number } | null>((best, location) => {
+    const distance = Math.hypot(location.x - node.x, location.y - node.y);
+    return !best || distance < best.distance ? { region: location.region, distance } : best;
+  }, null);
+  return nearest?.region || fallback;
+};
+
+const mapNodeGameplayType = (key: string, node: MapLocationNode): string => {
+  const barterType = getBarterTypeForMapNode(key, node);
+  if (barterType) return barterType;
+  if (node.kind === 'ruin') return 'Ruin';
+  if (node.kind === 'barrow') return 'Barrow';
+  if (node.kind === 'clinic') return 'Settlement';
+  return 'Wilds';
 };
 
 const getAvailableBarterLocations = (s: GameState): BarterLocationOption[] => {
@@ -3328,12 +3406,12 @@ const parseLocs = (locsStr: string) => {
   const seasons: string[] = [];
 
   const regMap: { [key: string]: string } = {
-    'b': '늪지',
+    'b': 'Bog',
     'f': '숲',
     'l': '호수',
-    'g': '초원',
-    'm': '산맥',
-    't': '티탄유적'
+    'g': 'Meadow',
+    'm': 'Mountain',
+    't': 'Titan'
   };
 
   const seasonMap: { [key: string]: string } = {
@@ -3469,6 +3547,14 @@ const migrateState = (s: any): GameState => {
     journeyOrigin: s.journeyOrigin || "",
     journey: s.journey || null,
     pendingEnding: s.pendingEnding || null,
+    journeyPlannedStopIds: Array.isArray(s.journeyPlannedStopIds) ? s.journeyPlannedStopIds.map(String) : [],
+    favoriteMapLocationIds: Array.isArray(s.favoriteMapLocationIds) ? s.favoriteMapLocationIds.map(String) : [],
+    favoriteJourneyRoutes: Array.isArray(s.favoriteJourneyRoutes) ? s.favoriteJourneyRoutes : [],
+    playInterfaceMode: s.playInterfaceMode === 'field' ? 'field' : 'guided',
+    lastTravelReceipt: s.lastTravelReceipt || null,
+    lastEncounterReceipt: s.lastEncounterReceipt || null,
+    locationMemories: s.locationMemories && typeof s.locationMemories === 'object' ? s.locationMemories : {},
+    journeyReplayArchive: Array.isArray(s.journeyReplayArchive) ? s.journeyReplayArchive : [],
     activeBarter: s.activeBarter || null,
     pendingBarter: s.pendingBarter || null,
     pendingLeaveObligation: s.pendingLeaveObligation || null,
@@ -3903,7 +3989,7 @@ const GUILD_SERVICES_DB = [
   { id: 'smithing', name: '철공 개조 (Smithing)', cost: 3, places: 'Mountain Settlements', desc: '보유한 기본 도구 하나를 룰북 66쪽의 호환 업그레이드로 교체합니다.' },
   { id: 'forecast', name: '날씨 예보 (Forecast)', cost: 1, places: 'Bog Settlement', desc: '다음 3번 이동 동안 Weather 태그 채집 조우의 부정적 효과를 무시합니다.' },
   { id: 'shortcut', name: '숨은 지름길 (Shortcut)', cost: 2, places: 'Forest Settlement', desc: '안전한 숲길로 근처 위치까지 즉시 이동하고 지도 경로를 남깁니다.' },
-  { id: 'hitch_ride', name: '농부 마차 얻어타기 (Hitch a Ride)', cost: 2, places: 'Meadow Settlement', desc: '초원 위치까지 최대 5경로 이동하고 이동 조우를 생략합니다.' },
+  { id: 'hitch_ride', name: '농부 마차 얻어타기 (Hitch a Ride)', cost: 2, places: 'Meadow Settlement', desc: 'Meadow 위치까지 최대 5경로 이동하고 이동 조우를 생략합니다.' },
   { id: 'catch_day_small', name: '오늘의 작은 물고기 (Catch of the Day)', cost: 1, places: 'Loch Settlement', desc: 'Small Fish 부위 1개를 얻습니다.' },
   { id: 'catch_day_big', name: '오늘의 큰 물고기 (Catch of the Day)', cost: 2, places: 'Loch Settlement', desc: 'Big Fish 부위 1개를 얻습니다.' },
   { id: 'take_clippings', name: '온실 꺾꽂이 (Take Clippings)', cost: 5, places: 'Glasswall', desc: '원하는 식물 영약재 부위 1개를 얻습니다.' },
@@ -5094,6 +5180,7 @@ export default function App() {
       })
       : null;
     const printedEffect = PRINTED_EFFECT_BY_OWNER.get(pending.encounter.id);
+    const selectedChoiceLabel = activeTravelEncounter?.choices?.find((choice: any) => choice.id === activeTravelEncounter?.selectedChoiceId)?.label;
     if (manualDraft && note.trim()) manualDraft = { ...manualDraft, resultSummary: note.trim(), journalNote: note.trim() };
     if ((pending.encounterProtection || pending.ignoreNegativeEncounterEffects) && manualDraft) manualDraft = {
       ...manualDraft,
@@ -5116,6 +5203,30 @@ export default function App() {
         patients,
         appliedEncounterEffectIds: runtime.appliedEffectIds,
         pendingEncounter: null,
+        lastEncounterReceipt: (() => {
+          const before = activeTravelEncounter?.stateBefore || {
+            reputation: s.reputation,
+            trinkets: s.trinkets.length,
+            calendarDays: s.calendarDays,
+            bagItems: s.bag.length,
+            foragingPoints: s.activeAilment?.foragingPoints ?? null
+          };
+          const changes: string[] = [];
+          if (before.reputation !== runtime.reputation) changes.push(`명성 ${before.reputation} → ${runtime.reputation}`);
+          if (before.trinkets !== runtime.trinkets) changes.push(`장신구 ${before.trinkets} → ${runtime.trinkets}`);
+          if (before.calendarDays !== runtime.calendarDays) changes.push(`일정 ${before.calendarDays}일 → ${runtime.calendarDays}일`);
+          if (before.bagItems !== runtime.inventory.length) changes.push(`가방 물품 ${before.bagItems} → ${runtime.inventory.length}`);
+          if (before.foragingPoints !== null && before.foragingPoints !== runtime.foragingPoints) changes.push(`채집 포인트 ${before.foragingPoints} → ${runtime.foragingPoints}`);
+          if (changes.length === 0) changes.push(manualDraft ? '자동 반영 전 직접 판정이 남았습니다.' : '기록 가능한 수치 변화 없음');
+          return {
+            id: `${pending.transactionId}:receipt`,
+            title: printedEffect?.ownerName || pending.encounter.title,
+            choiceLabel: selectedChoiceLabel,
+            changes,
+            manualPending: Boolean(manualDraft),
+            timestamp: Date.now()
+          };
+        })(),
         journals: [{
           id: `${pending.transactionId}:${manualDraft ? 'pending-manual' : 'resolved'}`,
           title: `${manualDraft ? '판정 대기' : '여정 조우'}: ${printedEffect?.ownerName || pending.encounter.title}`,
@@ -5462,6 +5573,11 @@ export default function App() {
                 handleBarterProgressToDeal={handleBarterProgressToDeal}
                 handleBarterFinalize={handleBarterFinalize}
                 requestControlledPrompt={requestControlledPrompt}
+                onOpenMap={() => changeActiveTab('map')}
+                onResumeTravelEncounter={() => {
+                  setDeferredEncounterId(null);
+                  setActiveTravelEncounter(null);
+                }}
               />
             </>
           )}
@@ -5539,7 +5655,7 @@ export default function App() {
                     setHighlightedPatientId={setHighlightedPatientId}
                   />
                 )}
-                {activeTab === 'map' && <MapView state={state} onOpenReference={setRulebookRequest} />}
+                {activeTab === 'map' && <MapView state={state} updateState={updateState} onOpenReference={setRulebookRequest} />}
                 {activeTab === 'journals' && (
                   <JournalsView
                     state={state}
@@ -5698,7 +5814,15 @@ export default function App() {
 
         return (
           <div className="encounter-dialog-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
-            <div className="glass-panel encounter-dialog" style={{ maxWidth: '600px', width: '100%', padding: '2rem', background: '#fff', position: 'relative', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', borderRadius: '20px', maxHeight: '92vh', overflowY: 'auto' }}>
+            <div className="glass-panel encounter-dialog encounter-dialog--journey-map" style={{ maxWidth: '1180px', width: '100%', padding: 0, background: '#fff', position: 'relative', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', borderRadius: '20px', maxHeight: '92vh', overflow: 'hidden' }}>
+              <div className="encounter-dialog__map-pane">
+                <JourneyMapBoard
+                  state={state}
+                  contextLabel="조우 중인 현재 여정"
+                  variant="encounter"
+                />
+              </div>
+              <div className="encounter-dialog__content-pane">
 
               {/* Card header */}
               <div style={{ textAlign: 'center', marginBottom: '1.2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -5740,6 +5864,29 @@ export default function App() {
                   ))}
                 </div>
               )}
+
+              <section className="encounter-checklist" aria-label="조우 해결 체크리스트">
+                <div className="encounter-checklist__header">
+                  <strong>해결 순서</strong>
+                  <span>계속을 누르면 효과와 일지가 함께 반영됩니다.</span>
+                </div>
+                <ol>
+                  <li className="is-done"><span>✓</span><div><strong>카드와 지문 확인</strong><small>{activeTravelEncounter.suitLabel} {activeTravelEncounter.cardValue} · p.{activeTravelEncounter.page}</small></div></li>
+                  <li className={!activeTravelEncounter.choices?.length || activeTravelEncounter.selectedChoiceId ? 'is-done' : 'is-current'}><span>{!activeTravelEncounter.choices?.length || activeTravelEncounter.selectedChoiceId ? '✓' : '2'}</span><div><strong>선택지 결정</strong><small>{!activeTravelEncounter.choices?.length ? '선택지 없음' : activeTravelEncounter.selectedChoiceId ? '선택 완료' : '아래 선택지를 먼저 고르세요'}</small></div></li>
+                  <li className="is-done"><span>✓</span><div><strong>보호 효과 확인</strong><small>{protectionNotice ? '보호 적용됨' : '별도 보호 없음'}</small></div></li>
+                  <li><span>4</span><div><strong>상태 변화 적용</strong><small>계속 버튼에서 자동 처리</small></div></li>
+                  <li><span>5</span><div><strong>여행 일지 기록</strong><small>적용 결과 영수증 생성</small></div></li>
+                </ol>
+                {activeTravelEncounter.stateBefore && (
+                  <div className="encounter-checklist__before">
+                    <span>판정 전</span>
+                    <strong>명성 {activeTravelEncounter.stateBefore.reputation}</strong>
+                    <strong>장신구 {activeTravelEncounter.stateBefore.trinkets}</strong>
+                    <strong>일정 {activeTravelEncounter.stateBefore.calendarDays}일</strong>
+                    <strong>가방 {activeTravelEncounter.stateBefore.bagItems}</strong>
+                  </div>
+                )}
+              </section>
 
               {/* Secondary draw guidance */}
               {hasSecondaryDraw && (
@@ -5805,7 +5952,9 @@ export default function App() {
               <div className="encounter-dialog-actions" style={{ marginTop: '1.25rem', display: 'flex', gap: '0.5rem' }}>
                 <button
                   onClick={() => resolveCanonicalEncounter('')}
-                  style={{ flex: 1, padding: '0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}
+                  disabled={Boolean(activeTravelEncounter.choices?.length && !activeTravelEncounter.selectedChoiceId)}
+                  title={activeTravelEncounter.choices?.length && !activeTravelEncounter.selectedChoiceId ? '선택지를 먼저 골라야 합니다.' : '효과를 적용하고 일지에 기록합니다.'}
+                  style={{ flex: 1, padding: '0.8rem', background: activeTravelEncounter.choices?.length && !activeTravelEncounter.selectedChoiceId ? '#b9b4aa' : 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold', border: 'none', cursor: activeTravelEncounter.choices?.length && !activeTravelEncounter.selectedChoiceId ? 'not-allowed' : 'pointer' }}
                 >
                   조우 판정 계속
                 </button>
@@ -5815,6 +5964,7 @@ export default function App() {
                 }} style={{ padding: '0.8rem 1.2rem', background: '#eee', color: '#555', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>나중에 계속</button>
               </div>
 
+              </div>
             </div>
           </div>
         );
@@ -6054,7 +6204,7 @@ export default function App() {
           <div className="glass-panel card-choice-dialog" style={{ maxWidth: '500px', width: '100%', padding: '2rem', background: '#fff', borderRadius: '20px', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', textAlign: 'center' }}>
             <h3 style={{ color: 'var(--primary)', margin: '0 0 1rem 0' }}>🏛️ 유적/고분 마스터 (Titanwise) 채집 선택</h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-              티탄 유적이나 고분에서 2장의 카드 중 채집에 적용할 카드를 선택합니다.
+              Titan이나 고분에서 2장의 카드 중 채집에 적용할 카드를 선택합니다.
             </p>
             <div className="card-choice-options" style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', marginBottom: '1.8rem' }}>
               {titanwiseDraws.map((card, idx) => {
@@ -6192,6 +6342,388 @@ const locationTypeLabel = (type: string) => {
   return labels[type] || type || '미정';
 };
 
+const shortestMapPath = (graph: Record<string, MapLocationNode>, startId: string, destinationId: string): string[] => {
+  if (!startId || !destinationId || !graph[startId] || !graph[destinationId]) return [];
+  if (startId === destinationId) return [startId];
+
+  const previous = new Map<string, string | null>([[startId, null]]);
+  const queue = [startId];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const neighbor of graph[current]?.neighbors || []) {
+      if (previous.has(neighbor)) continue;
+      previous.set(neighbor, current);
+      if (neighbor === destinationId) {
+        const path: string[] = [destinationId];
+        let cursor: string | null = current;
+        while (cursor) {
+          path.unshift(cursor);
+          cursor = previous.get(cursor) || null;
+        }
+        return path;
+      }
+      queue.push(neighbor);
+    }
+  }
+  return [];
+};
+
+const shortestMapPathAvoidingEdge = (
+  graph: Record<string, MapLocationNode>,
+  startId: string,
+  destinationId: string,
+  blockedFrom: string,
+  blockedTo: string
+): string[] => {
+  if (!graph[startId] || !graph[destinationId]) return [];
+  const previous = new Map<string, string | null>([[startId, null]]);
+  const queue = [startId];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const neighbor of graph[current]?.neighbors || []) {
+      if ((current === blockedFrom && neighbor === blockedTo) || (current === blockedTo && neighbor === blockedFrom)) continue;
+      if (previous.has(neighbor)) continue;
+      previous.set(neighbor, current);
+      if (neighbor === destinationId) {
+        const path = [destinationId];
+        let cursor: string | null = current;
+        while (cursor) {
+          path.unshift(cursor);
+          cursor = previous.get(cursor) || null;
+        }
+        return path;
+      }
+      queue.push(neighbor);
+    }
+  }
+  return [];
+};
+
+const alternativeMapPath = (graph: Record<string, MapLocationNode>, startId: string, destinationId: string, primaryPath: string[]): string[] => {
+  if (primaryPath.length < 2) return [];
+  const candidates = primaryPath.slice(1).flatMap((to, index) => {
+    const from = primaryPath[index];
+    const candidate = shortestMapPathAvoidingEdge(graph, startId, destinationId, from, to);
+    return candidate.length > 0 && candidate.join('|') !== primaryPath.join('|') ? [candidate] : [];
+  });
+  return candidates.sort((a, b) => a.length - b.length)[0] || [];
+};
+
+const pathWaterwayCount = (pathIds: string[], graph: Record<string, MapLocationNode>, customEdges: CustomMapEdge[] = []) =>
+  pathIds.slice(1).filter((id, index) => mapEdgeKind(pathIds[index], id, graph, customEdges) === 'waterway').length;
+
+const journeyTrailNames = (state: GameState): string[] => {
+  if (!state.journeyActive) return state.currentLocationName ? [state.currentLocationName] : [];
+  const names = [state.journeyOrigin || state.currentLocationName];
+  (state.calendarHistory || []).forEach(entry => {
+    const match = entry.match(/\d+일째:\s*(.+?)으로\s+\d+구간/);
+    if (match?.[1]) names.push(match[1].trim());
+  });
+  names.push(state.currentLocationName);
+
+  const seen = new Set<string>();
+  return names.filter(name => {
+    const key = normalizeMapLocationName(name || '');
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+type JourneyMapBoardProps = {
+  state: GameState;
+  plannedDestinationName?: string;
+  plannedRegion?: string;
+  plannedType?: string;
+  plannedStopIds?: string[];
+  comparisonPathIds?: string[];
+  trailLocationNames?: string[];
+  selectable?: boolean;
+  selectableNodeIds?: string[];
+  selectedNodeId?: string;
+  onSelectDestination?: (selection: { id: string; node: MapLocationNode; region: MapRegion; locationType: string }) => void;
+  contextLabel?: string;
+  variant?: 'travel' | 'encounter' | 'planning';
+  onOpenMap?: () => void;
+};
+
+function JourneyMapBoard({
+  state,
+  plannedDestinationName,
+  plannedRegion,
+  plannedType,
+  plannedStopIds = [],
+  comparisonPathIds = [],
+  trailLocationNames,
+  selectable = false,
+  selectableNodeIds,
+  selectedNodeId,
+  onSelectDestination,
+  contextLabel,
+  variant = 'travel',
+  onOpenMap
+}: JourneyMapBoardProps) {
+  const [zoom, setZoom] = useState(1);
+  const graph = useMemo(
+    () => buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || []),
+    [state.customMapLocations, state.customMapEdges]
+  );
+  const currentId = findGraphLocationKey(state.currentLocationName, graph);
+  const destinationName = plannedDestinationName?.trim() || (state.journeyActive ? state.journeyDestination : '');
+  const destinationId = destinationName ? findGraphLocationKey(destinationName, graph) : '';
+  const plannedTargets = [...plannedStopIds, destinationId]
+    .filter((id, index, values) => Boolean(id && graph[id]) && values.indexOf(id) === index && id !== currentId);
+  const plannedPathIds = plannedTargets.reduce<string[]>((path, targetId) => {
+    const startId = path.at(-1) || currentId;
+    const segment = shortestMapPath(graph, startId, targetId);
+    if (segment.length === 0) return path;
+    return path.length === 0 ? segment : [...path, ...segment.slice(1)];
+  }, []);
+  const plannedPath = plannedPathIds.map(id => ({ id, node: graph[id] })).filter(row => row.node);
+  const actualTrailNames = trailLocationNames || journeyTrailNames(state);
+  const actualTrail = actualTrailNames.flatMap(name => {
+    const id = findGraphLocationKey(name, graph);
+    return id && graph[id] ? [{ id, node: graph[id] }] : [];
+  });
+  const displayDestinationId = plannedTargets.at(-1) || destinationId;
+  const destinationNode = displayDestinationId ? graph[displayDestinationId] : null;
+  const currentNode = currentId ? graph[currentId] : null;
+  const pathCount = Math.max(0, plannedPathIds.length - 1);
+  const currentWeight = state.bag.reduce((sum, item) => sum + item.weight * Math.max(1, item.qty || 1), 0);
+  const moveSpeed = getTravelSpeed(state, currentWeight);
+  const waterwayCount = plannedPathIds.slice(1).filter((id, index) =>
+    mapEdgeKind(plannedPathIds[index], id, graph, state.customMapEdges || []) === 'waterway'
+  ).length;
+  const destinationRegion = (plannedRegion || (destinationNode ? inferMapNodeRegion(destinationNode) : '')) as MapRegion | '';
+  const destinationKind = plannedType || (displayDestinationId && destinationNode ? mapNodeGameplayType(displayDestinationId, destinationNode) : '') || destinationNode?.kind || '';
+  const routeMilestones = [...journeyTrailNames(state)];
+  plannedTargets.forEach(id => {
+    const stopName = graph[id]?.label;
+    if (stopName && normalizeMapLocationName(routeMilestones.at(-1) || '') !== normalizeMapLocationName(stopName)) routeMilestones.push(stopName);
+  });
+  if (plannedTargets.length === 0 && destinationName && normalizeMapLocationName(routeMilestones.at(-1) || '') !== normalizeMapLocationName(destinationName)) routeMilestones.push(destinationName);
+  const compactMilestones = routeMilestones.length <= 6
+    ? routeMilestones.map((name, index) => ({ key: `${name}:${index}`, name }))
+    : [
+        ...routeMilestones.slice(0, 2).map((name, index) => ({ key: `${name}:${index}`, name })),
+        { key: 'ellipsis', name: `중간 ${routeMilestones.length - 5}곳` },
+        ...routeMilestones.slice(-3).map((name, index) => ({ key: `${name}:tail:${index}`, name }))
+      ];
+  const currentColor = MAP_REGION_COLORS[(state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as MapRegion] || MAP_REGION_COLORS.Wilds;
+  const destinationColor = destinationRegion ? MAP_REGION_COLORS[destinationRegion] : '#6b513b';
+  const plannedPoints = plannedPath.map(({ node }) => `${node.x},${node.y}`).join(' ');
+  const actualPoints = actualTrail.map(({ node }) => `${node.x},${node.y}`).join(' ');
+  const comparisonPoints = comparisonPathIds.flatMap(id => graph[id] ? [graph[id]] : []).map(node => `${node.x},${node.y}`).join(' ');
+  const anchorFor = (x: number) => x > 78 ? 'end' : x < 22 ? 'start' : 'middle';
+  const labelX = (x: number) => x > 78 ? x - 1.8 : x < 22 ? x + 1.8 : x;
+  const context = contextLabel || (state.journeyActive ? '현재 여정 지도' : '여정 경로 미리보기');
+
+  return (
+    <section className={`journey-map-board journey-map-board--${variant}${selectable ? ' is-selectable' : ''}`} aria-label={context}>
+      <header className="journey-map-board__header">
+        <div>
+          <span className="journey-map-board__kicker">{context}</span>
+          <h3>{state.journeyActive ? `${state.journeyOrigin || '출발지'} → ${state.journeyDestination || '목적지'}` : 'Bristley Woods 경로 계획'}</h3>
+        </div>
+        <div className="journey-map-board__tools" aria-label="지도 보기 조절">
+          <button type="button" onClick={() => setZoom(value => Math.max(1, Number((value - 0.35).toFixed(2))))} disabled={zoom <= 1} aria-label="지도 축소">−</button>
+          <span>{Math.round(zoom * 100)}%</span>
+          <button type="button" onClick={() => setZoom(value => Math.min(2.05, Number((value + 0.35).toFixed(2))))} disabled={zoom >= 2.05} aria-label="지도 확대">＋</button>
+          {onOpenMap && <button type="button" className="journey-map-board__open" onClick={onOpenMap}>큰 지도</button>}
+        </div>
+      </header>
+
+      <div className="journey-map-board__body">
+        <div className="journey-map-board__viewport">
+          <div className="journey-map-board__map-content" style={{ width: `${zoom * 100}%` }}>
+            <img src="/Apawthecaria Map Back.jpg" alt="Bristley Woods 전체 지도" draggable={false} />
+            <svg className="journey-map-board__overlay" viewBox="0 0 100 100" aria-hidden={selectable ? undefined : true}>
+              {plannedPoints && plannedPath.length > 1 && (
+                <polyline className="journey-map-board__planned-path" points={plannedPoints} />
+              )}
+              {comparisonPoints && comparisonPathIds.length > 1 && (
+                <polyline className="journey-map-board__comparison-path" points={comparisonPoints} />
+              )}
+              {actualPoints && actualTrail.length > 1 && (
+                <polyline className="journey-map-board__travelled-path" points={actualPoints} />
+              )}
+              {plannedPath.slice(1, -1).map(({ id, node }) => (
+                <circle key={`planned:${id}`} cx={node.x} cy={node.y} r="0.55" className="journey-map-board__path-dot" />
+              ))}
+              {actualTrail.map(({ id, node }, index) => (
+                <circle key={`travelled:${id}:${index}`} cx={node.x} cy={node.y} r={index === 0 ? 0.9 : 0.62} className="journey-map-board__travelled-dot" />
+              ))}
+              {destinationNode && displayDestinationId !== currentId && (
+                <g className="journey-map-board__destination-marker">
+                  {destinationKind === 'City' || destinationKind === 'city' ? (
+                    <rect x={destinationNode.x - 1.15} y={destinationNode.y - 1.15} width="2.3" height="2.3" fill={destinationColor} />
+                  ) : destinationKind === 'Settlement' || destinationKind === 'settlement' ? (
+                    <path d={`M ${destinationNode.x} ${destinationNode.y - 1.45} L ${destinationNode.x + 1.45} ${destinationNode.y + 1.1} L ${destinationNode.x - 1.45} ${destinationNode.y + 1.1} Z`} fill={destinationColor} />
+                  ) : (
+                    <circle cx={destinationNode.x} cy={destinationNode.y} r="1.25" fill={destinationColor} />
+                  )}
+                  <circle cx={destinationNode.x} cy={destinationNode.y} r="2.25" className="journey-map-board__destination-ring" />
+                  <text x={labelX(destinationNode.x)} y={Math.max(3.5, destinationNode.y - 3.1)} textAnchor={anchorFor(destinationNode.x)}>{destinationNode.label}</text>
+                </g>
+              )}
+              {selectable && Object.entries(graph)
+                .filter(([id]) => !selectableNodeIds || selectableNodeIds.includes(id))
+                .map(([id, node]) => {
+                  const isSelected = id === (selectedNodeId || destinationId);
+                  const region = inferMapNodeRegion(node, (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as MapRegion);
+                  const locationType = mapNodeGameplayType(id, node);
+                  const choose = () => onSelectDestination?.({ id, node, region, locationType });
+                  return (
+                    <g
+                      key={`selectable:${id}`}
+                      className={`journey-map-board__selectable-node${isSelected ? ' is-selected' : ''}`}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`${node.label} 선택 · ${localizeRegionLabel(region)} · ${locationTypeLabel(locationType)}`}
+                      onClick={choose}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          choose();
+                        }
+                      }}
+                    >
+                      <circle cx={node.x} cy={node.y} r={node.kind === 'wild' ? 0.56 : 0.84} />
+                      <circle className="journey-map-board__node-hit" cx={node.x} cy={node.y} r={node.kind === 'wild' ? 1.15 : 1.55} />
+                    </g>
+                  );
+                })}
+              {currentNode && (
+                <g className="journey-map-board__current-marker">
+                  <circle cx={currentNode.x} cy={currentNode.y} r="2.55" />
+                  <circle cx={currentNode.x} cy={currentNode.y} r="1.1" fill={currentColor} />
+                  <text x={labelX(currentNode.x)} y={Math.min(97, currentNode.y + 4.25)} textAnchor={anchorFor(currentNode.x)}>{state.currentLocationName}</text>
+                </g>
+              )}
+            </svg>
+          </div>
+        </div>
+
+        <aside className="journey-map-board__route" aria-label="여정 경로 요약">
+          <div className="journey-map-board__location-pair">
+            <div>
+              <span>현재 위치</span>
+              <strong>{state.currentLocationName}</strong>
+              <small><i style={{ background: currentColor }} />{localizeRegionLabel(state.currentRegion)} · {locationTypeLabel(state.currentLocationType)}</small>
+            </div>
+            <span className="journey-map-board__route-arrow" aria-hidden="true">→</span>
+            <div>
+              <span>{plannedTargets.length > 1 ? '계획의 마지막 위치' : plannedDestinationName?.trim() ? '선택한 다음 위치' : '여정 목적지'}</span>
+              <strong>{destinationNode?.label || destinationName || '목적지를 선택하세요'}</strong>
+              <small><i style={{ background: destinationColor }} />{destinationNode || destinationName ? `${destinationRegion ? localizeRegionLabel(destinationRegion) : '지역 미확인'} · ${locationTypeLabel(destinationKind || 'named')}` : '지도에서 경로를 고릅니다'}</small>
+            </div>
+          </div>
+
+          <div className="journey-map-board__path-status">
+            <strong>{(destinationName || plannedTargets.length > 0) && plannedPath.length === 0 ? '연결 경로 없음' : destinationName || plannedTargets.length > 0 ? `계획 ${pathCount}경로` : '경로 대기'}</strong>
+            <span>현재 1회 이동 {moveSpeed}경로{pathCount > 0 ? ` · ${pathCount <= moveSpeed ? '이번 이동권 안' : `약 ${Math.ceil(pathCount / moveSpeed)}회 이동`}` : ''}</span>
+            {waterwayCount > 0 && !hasSafeWaterwayTravel(state) && <em>물길 {waterwayCount}구간 — 정차 가능 도구를 확인하세요.</em>}
+          </div>
+
+          <ol className="journey-map-board__milestones">
+            {compactMilestones.map((stop, index) => {
+              const normalized = normalizeMapLocationName(stop.name);
+              const isCurrent = normalized === normalizeMapLocationName(state.currentLocationName);
+              const isDestination = destinationName && normalized === normalizeMapLocationName(destinationName);
+              return (
+                <li key={stop.key} className={stop.key === 'ellipsis' ? 'is-ellipsis' : isCurrent ? 'is-current' : isDestination ? 'is-destination' : ''}>
+                  <span>{stop.key === 'ellipsis' ? '…' : index + 1}</span>
+                  <div><strong>{stop.name}</strong>{isCurrent && <small>현재</small>}{isDestination && !isCurrent && <small>목적지</small>}</div>
+                </li>
+              );
+            })}
+          </ol>
+
+          <div className="journey-map-board__legend" aria-label="지도 표식 범례">
+            <span><i className="is-travelled" />지나온 길</span>
+            <span><i className="is-planned" />계획 경로</span>
+            {comparisonPathIds.length > 1 && <span><i className="is-comparison" />비교 경로 B</span>}
+            <span><i className="is-current" />현재 위치</span>
+          </div>
+        </aside>
+      </div>
+    </section>
+  );
+}
+
+function JourneyReplayPanel({ state }: { state: GameState }) {
+  const activeReplay: JourneyReplayRecord | null = state.journeyActive ? {
+    id: 'active',
+    title: `진행 중 · ${state.journeyDestination || '열린 여정'}`,
+    origin: state.journeyOrigin || state.currentLocationName,
+    destination: state.journeyDestination,
+    events: [...state.calendarHistory],
+    stopNames: [state.journeyOrigin || state.currentLocationName, ...state.calendarHistory.flatMap(line => {
+      const match = line.match(/\d+일째:\s*(.+?)으로\s+\d+구간/);
+      return match?.[1] ? [match[1].trim()] : [];
+    })],
+    outcome: 'partial',
+    timestamp: Date.now()
+  } : null;
+  const records = [...(activeReplay ? [activeReplay] : []), ...(state.journeyReplayArchive || [])];
+  const [selectedReplayId, setSelectedReplayId] = useState(records[0]?.id || '');
+  const [step, setStep] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const replay = records.find(record => record.id === selectedReplayId) || records[0];
+  const maxStep = Math.max(0, (replay?.stopNames.length || 1) - 1);
+
+  useEffect(() => {
+    if (!records.some(record => record.id === selectedReplayId)) setSelectedReplayId(records[0]?.id || '');
+  }, [records, selectedReplayId]);
+
+  useEffect(() => {
+    setStep(0);
+    setPlaying(false);
+  }, [selectedReplayId]);
+
+  useEffect(() => {
+    if (!playing || !replay) return;
+    const timer = window.setInterval(() => {
+      setStep(current => {
+        if (current >= maxStep) {
+          setPlaying(false);
+          return current;
+        }
+        return current + 1;
+      });
+    }, 900);
+    return () => window.clearInterval(timer);
+  }, [playing, replay, maxStep]);
+
+  if (!replay) return null;
+  const visibleStops = replay.stopNames.slice(0, step + 1);
+  const eventText = step === 0 ? `출발: ${replay.origin}` : replay.events.find(line => line.includes(replay.stopNames[step])) || replay.events[step - 1] || replay.stopNames[step];
+
+  return (
+    <details className="journey-replay">
+      <summary><span>JOURNEY REPLAY</span><strong>지도에서 여정 다시 보기</strong><em>{records.length}개 기록</em></summary>
+      <div className="journey-replay__toolbar">
+        <select value={replay.id} onChange={event => setSelectedReplayId(event.target.value)} aria-label="재생할 여정 선택">
+          {records.map(record => <option key={record.id} value={record.id}>{record.title}</option>)}
+        </select>
+        <button type="button" onClick={() => setStep(0)}>|◀</button>
+        <button type="button" onClick={() => setPlaying(value => !value)}>{playing ? '일시정지' : '재생'}</button>
+        <button type="button" onClick={() => setStep(maxStep)}>▶|</button>
+        <span>{step + 1} / {maxStep + 1}</span>
+      </div>
+      <input className="journey-replay__range" type="range" min="0" max={maxStep} value={step} onChange={event => { setPlaying(false); setStep(Number(event.target.value)); }} />
+      <JourneyMapBoard
+        state={state}
+        trailLocationNames={visibleStops}
+        plannedDestinationName={replay.destination}
+        contextLabel="여정 리플레이"
+        variant="planning"
+      />
+      <div className="journey-replay__caption"><strong>{visibleStops.at(-1) || replay.origin}</strong><span>{eventText}</span></div>
+    </details>
+  );
+}
+
 const patientPersonalityLabel = (personality: string) => ({
   Witty: '재치 있는', Passionate: '열정적인', Snide: '빈정대는',
   Soft: '부드러운', Stoic: '묵묵한', Cruel: '잔인한',
@@ -6225,25 +6757,30 @@ interface ControlledPromptRequest {
 function NoticeDialog({ message, onDismiss }: { message: string; onDismiss: () => void }) {
   return (
     <div
-      className="phase4-modal-backdrop controlled-prompt-backdrop"
+      className="phase4-modal-backdrop controlled-prompt-backdrop app-dialog-backdrop"
       role="presentation"
       onKeyDown={event => {
         if (event.key === 'Escape') onDismiss();
       }}
     >
       <section
-        className="phase4-modal controlled-prompt"
+        className="phase4-modal controlled-prompt app-dialog app-dialog--notice"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="app-notice-title"
         aria-describedby="app-notice-message"
       >
-        <div className="document-kicker">여행 기록 안내</div>
-        <h2 id="app-notice-title">확인해 주세요</h2>
-        <p id="app-notice-message" style={{ whiteSpace: 'pre-wrap' }}>{message}</p>
-        <div className="controlled-prompt__actions">
-          <button type="button" autoFocus onClick={onDismiss}>확인</button>
-        </div>
+        <header className="app-dialog__header">
+          <span className="app-dialog__mark" aria-hidden="true">i</span>
+          <div>
+            <span className="app-dialog__kicker">여행 기록</span>
+            <h2 id="app-notice-title">안내</h2>
+          </div>
+        </header>
+        <p id="app-notice-message" className="app-dialog__message">{message}</p>
+        <footer className="controlled-prompt__actions app-dialog__actions">
+          <button className="app-dialog__primary" type="button" autoFocus onClick={onDismiss}>확인</button>
+        </footer>
       </section>
     </div>
   );
@@ -6264,14 +6801,14 @@ function ControlledPromptDialog({
 }) {
   return (
     <div
-      className="phase4-modal-backdrop controlled-prompt-backdrop"
+      className="phase4-modal-backdrop controlled-prompt-backdrop app-dialog-backdrop"
       role="presentation"
       onKeyDown={event => {
         if (event.key === 'Escape') onCancel();
       }}
     >
       <form
-        className="phase4-modal controlled-prompt"
+        className="phase4-modal controlled-prompt app-dialog app-dialog--prompt"
         role="dialog"
         aria-modal="true"
         aria-labelledby="controlled-prompt-title"
@@ -6281,42 +6818,49 @@ function ControlledPromptDialog({
           onConfirm();
         }}
       >
-        <div className="document-kicker">{request.kicker || '여행 기록 선택'}</div>
-        <h2 id="controlled-prompt-title">{request.title}</h2>
-        <p id="controlled-prompt-message">{request.message}</p>
-        <label htmlFor="controlled-prompt-input">{request.label || '선택'}</label>
-        {request.options ? (
-          <select
-            id="controlled-prompt-input"
-            value={value}
-            onChange={event => onChange(event.target.value)}
-            autoFocus
-          >
-            {request.options.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        ) : request.inputMode === 'multiline' ? (
-          <textarea
-            id="controlled-prompt-input"
-            value={value}
-            onChange={event => onChange(event.target.value)}
-            rows={4}
-            autoFocus
-          />
-        ) : (
-          <input
-            id="controlled-prompt-input"
-            type={request.inputMode === 'number' ? 'number' : 'text'}
-            value={value}
-            onChange={event => onChange(event.target.value)}
-            autoFocus
-          />
-        )}
-        <div className="controlled-prompt__actions">
-          <button type="button" onClick={onCancel}>취소</button>
-          <button type="submit">선택 확정</button>
+        <header className="app-dialog__header">
+          <span className="app-dialog__mark app-dialog__mark--choice" aria-hidden="true">→</span>
+          <div>
+            <span className="app-dialog__kicker">{request.kicker || '여행 기록 선택'}</span>
+            <h2 id="controlled-prompt-title">{request.title}</h2>
+          </div>
+        </header>
+        <p id="controlled-prompt-message" className="app-dialog__message">{request.message}</p>
+        <div className="app-dialog__field">
+          <label htmlFor="controlled-prompt-input">{request.label || '선택'}</label>
+          {request.options ? (
+            <select
+              id="controlled-prompt-input"
+              value={value}
+              onChange={event => onChange(event.target.value)}
+              autoFocus
+            >
+              {request.options.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          ) : request.inputMode === 'multiline' ? (
+            <textarea
+              id="controlled-prompt-input"
+              value={value}
+              onChange={event => onChange(event.target.value)}
+              rows={4}
+              autoFocus
+            />
+          ) : (
+            <input
+              id="controlled-prompt-input"
+              type={request.inputMode === 'number' ? 'number' : 'text'}
+              value={value}
+              onChange={event => onChange(event.target.value)}
+              autoFocus
+            />
+          )}
         </div>
+        <footer className="controlled-prompt__actions app-dialog__actions">
+          <button type="button" onClick={onCancel}>취소</button>
+          <button className="app-dialog__primary" type="submit">선택 확정</button>
+        </footer>
       </form>
     </div>
   );
@@ -6345,7 +6889,9 @@ function PlayView({
   handlePassHour,
   handleBarterProgressToDeal,
   handleBarterFinalize,
-  requestControlledPrompt
+  requestControlledPrompt,
+  onOpenMap,
+  onResumeTravelEncounter
 }: {
   state: GameState;
   updateState: any;
@@ -6370,6 +6916,8 @@ function PlayView({
   handleBarterProgressToDeal: () => void;
   handleBarterFinalize: (isSuccess: boolean, paidTrinketsCount?: number, paidReputationCount?: number) => void;
   requestControlledPrompt: (request: ControlledPromptRequest) => Promise<string | null>;
+  onOpenMap: () => void;
+  onResumeTravelEncounter: () => void;
 }) {
   const [destName, setDestName] = useState("");
   const [journeyReason, setJourneyReason] = useState("");
@@ -6463,6 +7011,14 @@ function PlayView({
 
   // Manual Card Selector State
   const [nextLocName, setNextLocName] = useState("");
+  const [travelFormUndo, setTravelFormUndo] = useState<{ name: string; region: string; type: string } | null>(null);
+  const [showSessionResume, setShowSessionResume] = useState(true);
+  const travelFormRef = useRef<HTMLFormElement>(null);
+  const destinationInputRef = useRef<HTMLInputElement>(null);
+  const travelMapNodes = useMemo(
+    () => buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || []),
+    [state.customMapLocations, state.customMapEdges]
+  );
   const [travelCardMode, setTravelCardMode] = useState<'random' | 'manual'>('random');
   const [selectedTravelSuit, setSelectedTravelSuit] = useState('♥');
   const [selectedTravelValue, setSelectedTravelValue] = useState(1);
@@ -6474,6 +7030,85 @@ function PlayView({
   const [forageDrawCard, setForageDrawCard] = useState<PlayingCard | null>(null);
   const [forageLocationType, setForageLocationType] = useState<'current' | 'adjacent'>('current');
   const [forageAdjacentRegion, setForageAdjacentRegion] = useState<string>('Forest');
+
+  const rememberTravelForm = () => setTravelFormUndo({ name: nextLocName, region: destRegion, type: destType });
+  const applyTravelDestination = ({ node, region, locationType }: { id: string; node: MapLocationNode; region: MapRegion; locationType: string }, remember = true) => {
+    if (remember) rememberTravelForm();
+    setNextLocName(node.label);
+    setDestRegion(region);
+    setDestType(locationType);
+  };
+  const undoTravelDestination = () => {
+    if (!travelFormUndo) return;
+    setNextLocName(travelFormUndo.name);
+    setDestRegion(travelFormUndo.region);
+    setDestType(travelFormUndo.type);
+    setTravelFormUndo(null);
+  };
+  const selectedTravelDestinationId = findGraphLocationKey(nextLocName, travelMapNodes);
+  const toggleFavoriteDestination = () => {
+    if (!selectedTravelDestinationId) return;
+    updateState((current: GameState) => {
+      const favorites = current.favoriteMapLocationIds || [];
+      return {
+        ...current,
+        favoriteMapLocationIds: favorites.includes(selectedTravelDestinationId)
+          ? favorites.filter(id => id !== selectedTravelDestinationId)
+          : [...favorites, selectedTravelDestinationId]
+      };
+    });
+  };
+  const addSelectedDestinationToPlan = () => {
+    if (!selectedTravelDestinationId || selectedTravelDestinationId === findGraphLocationKey(state.currentLocationName, travelMapNodes)) return;
+    updateState((current: GameState) => ({
+      ...current,
+      journeyPlannedStopIds: (current.journeyPlannedStopIds || []).includes(selectedTravelDestinationId)
+        ? current.journeyPlannedStopIds
+        : [...(current.journeyPlannedStopIds || []), selectedTravelDestinationId]
+    }));
+  };
+  const removeDestinationFromPlan = (id: string) => updateState((current: GameState) => ({
+    ...current,
+    journeyPlannedStopIds: (current.journeyPlannedStopIds || []).filter(stopId => stopId !== id)
+  }));
+  const saveFavoriteRoute = () => {
+    const stopIds = [...(state.journeyPlannedStopIds || []), selectedTravelDestinationId]
+      .filter((id, index, values) => Boolean(id && travelMapNodes[id]) && values.indexOf(id) === index);
+    if (stopIds.length === 0) return;
+    const name = stopIds.map(id => travelMapNodes[id].label).join(' → ');
+    updateState((current: GameState) => {
+      const routes = current.favoriteJourneyRoutes || [];
+      const existing = routes.find(route => route.stopIds.join('|') === stopIds.join('|'));
+      return existing ? current : {
+        ...current,
+        favoriteJourneyRoutes: [...routes, { id: `route:${Date.now()}`, name, stopIds }]
+      };
+    });
+  };
+  const loadFavoriteRoute = (route: { id: string; name: string; stopIds: string[] }) => {
+    const stopIds = route.stopIds.filter(id => travelMapNodes[id]);
+    updateState((current: GameState) => ({ ...current, journeyPlannedStopIds: stopIds }));
+    const firstId = stopIds[0];
+    const firstNode = firstId ? travelMapNodes[firstId] : null;
+    if (firstNode) applyTravelDestination({ id: firstId, node: firstNode, region: inferMapNodeRegion(firstNode), locationType: mapNodeGameplayType(firstId, firstNode) });
+  };
+  const removeFavoriteRoute = (routeId: string) => updateState((current: GameState) => ({
+    ...current,
+    favoriteJourneyRoutes: (current.favoriteJourneyRoutes || []).filter(route => route.id !== routeId)
+  }));
+
+  useEffect(() => {
+    if (!state.journeyActive || state.pendingEncounter || nextLocName.trim()) return;
+    const nextStopId = (state.journeyPlannedStopIds || [])[0];
+    const node = nextStopId ? travelMapNodes[nextStopId] : null;
+    if (!node) return;
+    applyTravelDestination({
+      id: nextStopId,
+      node,
+      region: inferMapNodeRegion(node, (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as MapRegion),
+      locationType: mapNodeGameplayType(nextStopId, node)
+    }, false);
+  }, [state.journeyActive, state.pendingEncounter, state.journeyPlannedStopIds, state.currentRegion, nextLocName, travelMapNodes]);
 
   const [barrowJournalNote, setBarrowJournalNote] = useState('');
   const [barrowSelectedItemIds, setBarrowSelectedItemIds] = useState<string[]>([]);
@@ -6752,7 +7387,7 @@ function PlayView({
     const behemothClasses = { '♥': 'Towering', '♦': 'Many', '♣': 'Violent', '♠': 'Demanding' };
     const behemothLabels = { '♥': '거대한 야수', '♦': '무리를 이룬 야수', '♣': '폭력적인 야수', '♠': '까다로운 야수' };
     const directions = { '♥': '북쪽', '♦': '남쪽', '♣': '동쪽', '♠': '서쪽' };
-    const regions = { '♥': '숲', '♦': '산맥', '♣': '늪지', '♠': '초원' };
+    const regions = { '♥': 'Forest', '♦': 'Mountain', '♣': 'Bog', '♠': 'Meadow' };
     const distances = { '♥': '경로 1-2개', '♦': '경로 4-5개', '♣': '경로 7-10개', '♠': '경로 15개 이상' };
 
     const c1 = drawn[0].suit as '♥' | '♦' | '♣' | '♠';
@@ -7049,7 +7684,7 @@ function PlayView({
       targetIds.push(chosen);
     } else if (serviceId === 'hitch-a-ride') {
       const candidates = nodes.filter(row => graph[row.id].region === 'Meadow' && (shortestPathDistance(graph, currentLocationId, row.id) || Infinity) <= 5);
-      const chosen = chooseOne('경로 5개 이내의 초원 목적지를 선택하세요.', candidates);
+      const chosen = chooseOne('경로 5개 이내의 Meadow 목적지를 선택하세요.', candidates);
       if (!chosen) return;
       targetIds.push(chosen);
     } else if (serviceId === 'survey-paths') {
@@ -7073,14 +7708,14 @@ function PlayView({
         targetIds.push(first, second);
       }
     } else if (serviceId === 'build-a-bridge') {
-      const loch = chooseOne('다리를 놓을 호수 위치를 선택하세요.', nodes.filter(row => graph[row.id].region === 'Loch'));
+      const loch = chooseOne('다리를 놓을 Loch 위치를 선택하세요.', nodes.filter(row => graph[row.id].region === 'Loch'));
       if (!loch) return;
       const neighbors = graph[loch].edges.filter(edge => graph[edge.to]?.region !== 'Loch').map(edge => ({ id: edge.to, label: graph[edge.to].name }));
       const banks = chooseMany('양쪽 둑 위치 두 곳을 선택하세요.', neighbors, 2);
       if (!banks || banks.length !== 2) return;
       targetIds.push(loch, ...banks);
     } else if (serviceId === 'floodplain') {
-      const chosen = chooseOne('다음 봄까지 호수가 될 야생 위치를 선택하세요.', nodes.filter(row => graph[row.id].locationType === 'Wilds' && graph[row.id].region !== 'Loch'));
+      const chosen = chooseOne('다음 봄까지 Loch가 될 Wilds 위치를 선택하세요.', nodes.filter(row => graph[row.id].locationType === 'Wilds' && graph[row.id].region !== 'Loch'));
       if (!chosen) return;
       targetIds.push(chosen);
     } else if (serviceId === 'retrieval') {
@@ -7176,7 +7811,7 @@ function PlayView({
 
   const handleUpgradeTool = () => {
     if (state.currentLocationType !== 'City' && !(state.currentLocationType === 'Settlement' && state.currentRegion === 'Mountain') && !bypassShopRules) {
-      showAlert("도구 개조는 산맥 정착지 또는 도시에서만 가능합니다.");
+      showAlert("도구 개조는 Mountain 정착지 또는 도시에서만 가능합니다.");
       return;
     }
     if (state.trinkets.length < 3) {
@@ -7424,6 +8059,9 @@ function PlayView({
         calendarHistory: [`여정 시작: ${destination.name}로 출발 (목적지 ${randomSuit} ${cardDisplayValue(cardVal)}, 목표 ${goalCard.suit} ${cardDisplayValue(goalCard.value)}, Urgency ${canonicalJourney.urgency.days}일, 이유: ${journeyReason.trim()})`],
         journeyGoalCounter: 0,
         journeyGoalChecklist: [],
+        journeyPlannedStopIds: [],
+        lastTravelReceipt: null,
+        lastEncounterReceipt: null,
         journeyStartReputation: s.reputation,
         companionTravelPaths: 0,
         taxiSoarActive: false,
@@ -7650,7 +8288,14 @@ function PlayView({
       suit: drawnSuit,
       region: destRegion,
       locName: outcome.nextState.currentLocationName,
-      transactionId: outcome.pendingEncounter.transactionId
+      transactionId: outcome.pendingEncounter.transactionId,
+      stateBefore: {
+        reputation: state.reputation,
+        trinkets: state.trinkets.length,
+        calendarDays: outcome.nextState.calendarDays,
+        bagItems: outcome.nextState.inventory.length,
+        foragingPoints: state.activeAilment?.foragingPoints ?? null
+      }
     });
     updateState(s => {
       const mobility = resolveMobilityTravel({
@@ -7699,6 +8344,27 @@ function PlayView({
       },
       appliedTransactionIds: Array.from(new Set([...next.appliedTransactionIds, ...toolProtectionAppliedTransactionIds])),
       calendarHistory: [...s.calendarHistory, `${outcome.nextState.calendarDays}일째: ${outcome.nextState.currentLocationName}으로 ${outcome.pathCount}구간 이동 (이동 비용 ${outcome.movementCost}).`],
+      journeyPlannedStopIds: (() => {
+        const stops = [...(s.journeyPlannedStopIds || [])];
+        const index = stops.indexOf(destinationId);
+        if (index >= 0) stops.splice(index, 1);
+        return stops;
+      })(),
+      lastTravelReceipt: {
+        id: `${transactionId}:receipt`,
+        from: s.currentLocationName,
+        to: outcome.nextState.currentLocationName,
+        region: destRegion,
+        locationType: destType,
+        pathCount: outcome.pathCount,
+        movementCost: outcome.movementCost,
+        daysBefore: s.calendarDays,
+        daysAfter: outcome.nextState.calendarDays,
+        encounterTitle: encounterSkipped ? '조우 생략' : outcome.encounter.title,
+        encounterSkipped,
+        encounterProtected,
+        timestamp: Date.now()
+      },
       journals: [{
         id: `${transactionId}:journal`,
         title: `이동: ${outcome.nextState.currentLocationName}`,
@@ -8173,7 +8839,7 @@ function PlayView({
     const activeRegion = isAdjacent ? forageAdjacentRegion : state.currentRegion;
     const canForageCurrentLocation = ['Wilds', 'Ruin', 'Barrow'].includes(state.currentLocationType);
     if (!isAdjacent && !canForageCurrentLocation) {
-      showAlert("룰북 p.32 기준으로 현재 위치 채집은 야생 구역, Titan 유적, 거수 고분에서만 가능합니다. 정착지나 도시에 있다면 인접 위치 채집이나 물꼬 거래를 사용하세요.");
+      showAlert("룰북 p.32 기준으로 현재 위치 채집은 Wilds, Titan, 거수 고분에서만 가능합니다. 정착지나 도시에 있다면 인접 위치 채집이나 물꼬 거래를 사용하세요.");
       return;
     }
     if (isAdjacent && !scroungeAdjacentRegions.includes(toRuleRegion(activeRegion))) {
@@ -8561,7 +9227,7 @@ function PlayView({
   const handleAddMappedSettlement = () => {
     const settlementName = prompt("지도에 추가할 정착지 이름을 입력하세요:")?.trim();
     if (!settlementName) return;
-    const regionName = prompt("정착지 지역을 입력하세요: 숲(Forest), 초원(Meadow), 호수(Loch), 늪지(Bog), 산맥(Mountain), Titan 유적", state.currentRegion)?.trim() || state.currentRegion;
+    const regionName = prompt("정착지 Region을 입력하세요: Forest, Meadow, Loch, Bog, Mountain, Titan", state.currentRegion)?.trim() || state.currentRegion;
     const sourceNote = prompt("이 정착지가 생긴 이유나 특징을 적어주세요:", "여정의 영구적 결과로 생긴 정착지")?.trim() || "여정의 영구적 결과로 생긴 정착지";
 
     updateState((s: GameState) => ({
@@ -9554,10 +10220,24 @@ function PlayView({
       journeyActive: false,
       downtimeCompleted: false,
       journeyOrigin: '',
+      journeyPlannedStopIds: [],
       needsLocalHelpBeforeMove: false,
       pursuedByBehemoth: null,
       calendarDays: 0,
-      journeyChronicles: [newChronicle, ...(s.journeyChronicles || [])]
+      journeyChronicles: [newChronicle, ...(s.journeyChronicles || [])],
+      journeyReplayArchive: [{
+        id: `${transactionId}:replay`,
+        title: newChronicle.title,
+        origin: s.journeyOrigin || '출발지',
+        destination: s.journeyDestination,
+        events: [...s.calendarHistory],
+        stopNames: [s.journeyOrigin || s.currentLocationName, ...s.calendarHistory.flatMap(line => {
+          const match = line.match(/\d+일째:\s*(.+?)으로\s+\d+구간/);
+          return match?.[1] ? [match[1].trim()] : [];
+        })],
+        outcome,
+        timestamp: Date.now()
+      }, ...(s.journeyReplayArchive || [])]
       };
     });
     showAlert(`여정이 ${outcome === 'success' ? '성공' : outcome === 'partial' ? '부분 성공' : outcome === 'failure' ? '실패' : '포기'}으로 기록되었습니다.${state.rulesetId === 'original-1e-3p' ? ' 원작 규칙에는 고정 명성 증감이 없습니다.' : ''}`);
@@ -9929,8 +10609,105 @@ function PlayView({
     }
   };
 
+  const currentTravelLocationId = findGraphLocationKey(state.currentLocationName, travelMapNodes);
+  const travelPreviewPathIds = selectedTravelDestinationId
+    ? shortestMapPath(travelMapNodes, currentTravelLocationId, selectedTravelDestinationId)
+    : [];
+  const travelAlternativePathIds = selectedTravelDestinationId
+    ? alternativeMapPath(travelMapNodes, currentTravelLocationId, selectedTravelDestinationId, travelPreviewPathIds)
+    : [];
+  const travelPreviewPathCount = Math.max(0, travelPreviewPathIds.length - 1);
+  const travelPreviewWaterways = pathWaterwayCount(travelPreviewPathIds, travelMapNodes, state.customMapEdges || []);
+  const travelAlternativePathCount = Math.max(0, travelAlternativePathIds.length - 1);
+  const travelAlternativeWaterways = pathWaterwayCount(travelAlternativePathIds, travelMapNodes, state.customMapEdges || []);
+  const travelPlanTargetIds = [...(state.journeyPlannedStopIds || []), selectedTravelDestinationId]
+    .filter((id, index, values) => Boolean(id && travelMapNodes[id]) && values.indexOf(id) === index && id !== currentTravelLocationId);
+  const travelPlanPathIds = travelPlanTargetIds.reduce<string[]>((path, targetId) => {
+    const startId = path.at(-1) || currentTravelLocationId;
+    const segment = shortestMapPath(travelMapNodes, startId, targetId);
+    return segment.length === 0 ? path : path.length === 0 ? segment : [...path, ...segment.slice(1)];
+  }, []);
+  const travelPlanPathCount = Math.max(0, travelPlanPathIds.length - 1);
+  const travelPlanWaterways = pathWaterwayCount(travelPlanPathIds, travelMapNodes, state.customMapEdges || []);
+  const travelPlanMoves = travelPlanPathCount > 0 ? Math.max(1, Math.ceil(travelPlanPathCount / Math.max(1, activeTravelSpeed))) : 0;
+  const travelBlockingReasons = [
+    !state.journeyActive ? '진행 중인 여정이 없습니다.' : '',
+    state.pendingEncounter ? '현재 이동 조우를 먼저 해결해야 합니다.' : '',
+    state.needsLocalHelpBeforeMove ? '이 지역의 환자 또는 고분 문제를 먼저 마쳐야 합니다.' : '',
+    !nextLocName.trim() ? '지도나 입력창에서 다음 위치를 선택하세요.' : '',
+    nextLocName.trim() && !selectedTravelDestinationId ? '지도에 연결된 실제 장소 이름이 아닙니다.' : '',
+    selectedTravelDestinationId && selectedTravelDestinationId === currentTravelLocationId ? '현재 위치와 다른 장소를 선택하세요.' : '',
+    selectedTravelDestinationId && travelPreviewPathIds.length === 0 ? '현재 위치에서 이어지는 경로가 없습니다.' : '',
+    destRegion === 'Loch' && !['Settlement', 'City'].includes(destType) && !hasLochStoppingGear(state) ? 'Loch Wilds에 정차할 도구가 없습니다.' : ''
+  ].filter(Boolean);
+  const travelAdvisories = [
+    travelPreviewPathCount > 0 && travelPreviewPathCount !== activeTravelSpeed
+      ? `선택 경로 ${travelPreviewPathCount}, 현재 이동력 ${activeTravelSpeed} — 룰 판정에서 정확한 경로 수를 확인합니다.`
+      : '',
+    travelPreviewWaterways > 0 && !hasSafeWaterwayTravel(state)
+      ? `물길 ${travelPreviewWaterways}구간: 수영하면 일부 물품과 영약재가 젖을 수 있습니다.`
+      : ''
+  ].filter(Boolean);
+  const travelSubmitDisabled = travelBlockingReasons.length > 0;
+  const travelExpectedDays = destRegion === 'Soar' ? 3 : 1;
+  const activePatientTimer = state.patients
+    .find(patient => patient.id === state.activePatientId)?.timers
+    .filter(timer => timer.status === 'active')
+    .reduce((minimum, timer) => Math.min(minimum, timer.current), Infinity) ?? Infinity;
+  const soakRiskItems = travelPlanWaterways > 0 && !hasSafeWaterwayTravel(state)
+    ? state.bag.filter(item => item.type === 'reagent' || item.type === 'item')
+    : [];
+  const readinessWarnings = [
+    currentWeight > maxCarry ? `가방이 ${formatWeight(currentWeight - maxCarry)}만큼 소지 한도를 넘었습니다.` : '',
+    travelPreviewWaterways > 0 && !hasSafeWaterwayTravel(state) ? '안전한 물길 이동 도구가 없어 젖음 위험이 있습니다.' : '',
+    travelPreviewPathCount > 0 && travelPreviewPathCount !== activeTravelSpeed ? '경로 수와 현재 이동력이 일치하지 않습니다.' : '',
+    Number.isFinite(activePatientTimer) ? `진행 중인 환자 타이머가 ${activePatientTimer}시간 남았습니다.` : ''
+  ].filter(Boolean);
+  const readinessTone = travelBlockingReasons.length > 0 ? 'blocked' : readinessWarnings.length > 0 ? 'warning' : 'ready';
+  const routeRuleEvidence = [
+    { label: '이동력', value: `${activeTravelSpeed}경로`, source: 'Travelling · p.24–25' },
+    { label: '선택 경로', value: `${travelPreviewPathCount || 0}경로`, source: '지도 최단 연결 계산' },
+    { label: '물길', value: `${travelPreviewWaterways}구간`, source: 'Waterways · p.24' },
+    { label: '정차', value: destRegion === 'Loch' && !['Settlement', 'City'].includes(destType) ? hasLochStoppingGear(state) ? '가능' : '불가능' : '제한 없음', source: 'Loch stopping rule · p.24' },
+    { label: '일정', value: `예상 +${travelExpectedDays}일`, source: destRegion === 'Soar' ? 'Soar 이동 판정' : '일반 Move 판정' }
+  ];
+  const pendingServiceProcedures = ((state.pendingServices || []) as ServiceRuntimeState['pendingServices'])
+    .filter(service => service.status === 'pending-choice' || service.status === 'pending-delivery');
+  const pendingProcedureCount = Number(Boolean(state.pendingEncounter))
+    + Number(Boolean(state.pendingForaging))
+    + state.manualEffectQueue.length
+    + state.pendingManualFollowUps.filter(row => row.status === 'pending').length
+    + Number(Boolean(state.pendingPatientArchive))
+    + pendingServiceProcedures.length;
+  const latestSessionActions = state.journals.slice(0, 3);
+
+  useEffect(() => {
+    const handlePlayShortcut = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      const editing = Boolean(target?.closest('input, textarea, select, [contenteditable="true"]'));
+      if (editing && event.key !== 'Escape') return;
+      const key = event.key.toLowerCase();
+      if (key === 'm') {
+        event.preventDefault();
+        onOpenMap();
+      } else if (key === '/') {
+        event.preventDefault();
+        destinationInputRef.current?.focus();
+      } else if (key === 'u' && travelFormUndo) {
+        event.preventDefault();
+        undoTravelDestination();
+      } else if (event.key === 'Enter' && state.journeyActive && !travelSubmitDisabled) {
+        event.preventDefault();
+        travelFormRef.current?.requestSubmit();
+      }
+    };
+    window.addEventListener('keydown', handlePlayShortcut);
+    return () => window.removeEventListener('keydown', handlePlayShortcut);
+  }, [onOpenMap, state.journeyActive, travelFormUndo, travelSubmitDisabled]);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className={`play-view play-view--${state.playInterfaceMode || 'guided'}`} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
       {state.pendingPatientArchive && (
         <div id="pending-archive-panel" style={{ position: 'fixed', right: '1.2rem', bottom: '1.2rem', zIndex: 1100, width: 'min(420px, calc(100vw - 2.4rem))' }}>
@@ -9990,11 +10767,69 @@ function PlayView({
         </div>
       )}
 
-      <section className="action-hub" aria-label="현재 진행판">
+      {showSessionResume && (state.journeyActive || pendingProcedureCount > 0 || latestSessionActions.length > 0) && (
+        <section className="session-resume" aria-label="세션 재개 요약">
+          <header>
+            <div>
+              <span>SESSION RESUME</span>
+              <h2>{state.journeyActive ? `${state.journeyDestination || '목적지'}로 가는 여정` : '지난 기록에서 계속'}</h2>
+              <p>{localizeRegionLabel(state.currentRegion)} · {state.currentLocationName} · {state.journeyActive ? `${state.calendarDays}/${state.calendarMaxDays}일` : '휴식기'}</p>
+            </div>
+            <button type="button" aria-label="세션 재개 요약 닫기" onClick={() => setShowSessionResume(false)}>×</button>
+          </header>
+          <div className="session-resume__grid">
+            <div><span>다음 경유지</span><strong>{travelMapNodes[(state.journeyPlannedStopIds || [])[0]]?.label || nextLocName || '아직 계획하지 않음'}</strong></div>
+            <div><span>미해결 절차</span><strong>{pendingProcedureCount}건</strong></div>
+            <div><span>환자 타이머</span><strong>{Number.isFinite(activePatientTimer) ? `${activePatientTimer}시간` : '진행 중인 환자 없음'}</strong></div>
+            <div><span>최근 결과</span><strong>{state.lastEncounterReceipt?.title || state.lastTravelReceipt?.to || '기록 없음'}</strong></div>
+          </div>
+          {latestSessionActions.length > 0 && (
+            <ol className="session-resume__actions">
+              {latestSessionActions.map(entry => <li key={entry.id}><time>{new Date(entry.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</time><span>{entry.title}</span></li>)}
+            </ol>
+          )}
+          <button type="button" className="session-resume__continue" onClick={() => {
+            if (state.pendingEncounter) onResumeTravelEncounter();
+            else document.getElementById(pendingProcedureCount > 0 ? 'pending-procedures' : 'action-hub')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}>여기서 계속</button>
+        </section>
+      )}
+
+      {pendingProcedureCount > 0 && (
+        <section id="pending-procedures" className="pending-procedures" aria-label="판정 보류함">
+          <header><div><span>PENDING</span><h2>판정 보류함</h2></div><strong>{pendingProcedureCount}건</strong></header>
+          <div className="pending-procedures__list">
+            {state.pendingEncounter && <button type="button" onClick={onResumeTravelEncounter}><span>이동 Encounter</span><strong>{state.pendingEncounter.encounter.title}</strong><small>p.{state.pendingEncounter.encounter.sourcePage} · 선택과 효과 적용 대기</small></button>}
+            {state.pendingForaging && <button type="button" onClick={() => setActiveForageEncounter(null)}><span>채집 판정</span><strong>{localizeRegionLabel(state.pendingForaging.region)} 채집</strong><small>{state.pendingForaging.phase === 'choose-reagent' ? '영약재와 부위 선택 대기' : 'Encounter 해결 대기'}</small></button>}
+            {state.manualEffectQueue.map(draft => <button key={draft.effectId} type="button" onClick={() => updateState((current: GameState) => ({ ...current, pendingManualEffect: draft, manualEffectDraft: draft }))}><span>직접 판정</span><strong>{draft.summary}</strong><small>p.{draft.sourcePage} · 인쇄 효과 확인 필요</small></button>)}
+            {state.pendingManualFollowUps.filter(row => row.status === 'pending').map(row => <div key={row.id}><span>후속 확인</span><strong>{PRINTED_EFFECT_BY_OWNER.get(row.ownerId)?.ownerName || row.ownerId}</strong><small>{row.description}</small></div>)}
+            {pendingServiceProcedures.map(service => <div key={service.transactionId}><span>외부/서비스 확인</span><strong>{GUILD_SERVICE_BY_ID.get(service.serviceId)?.name || service.serviceId}</strong><small>p.{service.sourcePage} · {service.status === 'pending-delivery' ? '전달 완료 확인 대기' : '대상과 선택 확인 대기'}</small></div>)}
+            {state.pendingPatientArchive && <button type="button" onClick={() => document.getElementById('pending-archive-panel')?.scrollIntoView({ behavior: 'smooth' })}><span>진료 기록</span><strong>{state.pendingPatientArchive.patientName || '이름 모를 환자'} · {state.pendingPatientArchive.ailmentName}</strong><small>맺음말과 보관 여부 확인 대기</small></button>}
+          </div>
+        </section>
+      )}
+
+      <section id="action-hub" className="action-hub" aria-label="현재 진행판">
         <div className="action-hub__header">
           <div>
             <div className="document-kicker">진행판</div>
             <h2>지금 이어갈 일</h2>
+          </div>
+          <div className="play-mode-switch" aria-label="화면 정보량 선택">
+            <button
+              type="button"
+              className={(state.playInterfaceMode || 'guided') === 'guided' ? 'is-active' : ''}
+              onClick={() => updateState((current: GameState) => ({ ...current, playInterfaceMode: 'guided' }))}
+            >
+              안내형
+            </button>
+            <button
+              type="button"
+              className={state.playInterfaceMode === 'field' ? 'is-active' : ''}
+              onClick={() => updateState((current: GameState) => ({ ...current, playInterfaceMode: 'field' }))}
+            >
+              현장형
+            </button>
           </div>
           <div className="action-hub__status" aria-label="현재 상태">
             {actionHubStatus.map(item => (
@@ -10023,7 +10858,15 @@ function PlayView({
             </button>
           ))}
         </div>
+        <div className="play-shortcuts field-mode-hide" aria-label="키보드 단축키">
+          <span><kbd>M</kbd> 큰 지도</span>
+          <span><kbd>/</kbd> 목적지 입력</span>
+          <span><kbd>U</kbd> 입력 되돌리기</span>
+          <span><kbd>Enter</kbd> 이동 실행</span>
+        </div>
       </section>
+
+      {(state.journeyActive || (state.journeyReplayArchive || []).length > 0) && <JourneyReplayPanel state={state} />}
 
       {canonicalWagonFromState(state).expansionIds.includes('passenger-booth') && (
         <div className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--border-cozy)', borderRadius: '7px', padding: '1rem' }}>
@@ -10755,12 +11598,12 @@ function PlayView({
                   <div>
                     <label style={{ fontWeight: 'bold' }}>노트의 적용 지역 (장부/지도 선택 시에만 필요):</label>
                     <select id="reconnect_region_select" style={{ width: '100%', padding: '0.4rem', marginTop: '0.2rem' }}>
-                      <option value="Forest">숲</option>
-                      <option value="Meadow">초원</option>
-                      <option value="Loch">호수</option>
-                      <option value="Bog">수렁</option>
-                      <option value="Mountain">산맥</option>
-                      <option value="Titan">Titan 유적</option>
+                      <option value="Forest">Forest</option>
+                      <option value="Meadow">Meadow</option>
+                      <option value="Loch">Loch</option>
+                      <option value="Bog">Bog</option>
+                      <option value="Mountain">Mountain</option>
+                      <option value="Titan">Titan</option>
                     </select>
                   </div>
                   <div>
@@ -11152,12 +11995,12 @@ function PlayView({
               <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)', padding: '1rem' }}>
                 <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🛠️ 철공소 도구 업그레이드</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
-                  산맥 정착지나 모든 도시에서 <strong>장신구 3개</strong>를 지불하고 기본 도구를 업그레이드합니다.
+                  Mountain 정착지나 모든 도시에서 <strong>장신구 3개</strong>를 지불하고 기본 도구를 업그레이드합니다.
                 </p>
 
                 {state.currentLocationType !== 'City' && !(state.currentLocationType === 'Settlement' && state.currentRegion === 'Mountain') && !bypassShopRules ? (
                   <div style={{ fontStyle: 'italic', color: 'var(--accent-red)', fontSize: '0.85rem' }}>
-                    ⚠️ 현재 위치가 도시나 산맥 구역이 아니어서 대장간 이용이 불가능합니다.
+                    ⚠️ 현재 위치가 도시나 Mountain 구역이 아니어서 대장간 이용이 불가능합니다.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.85rem' }}>
@@ -11393,7 +12236,7 @@ function PlayView({
           {downtimeTab === 'start' && (
             <div id="journey-start-panel" className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem' }}>
               <h2 style={{ color: 'var(--secondary)', margin: '0 0 0.4rem 0', fontFamily: 'var(--font-fancy)' }}>새로운 여정 떠나기</h2>
-              <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 1.2rem 0' }}>
+              <p className="field-mode-hide" style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 1.2rem 0' }}>
                 Bristley Woods 지도를 열고 어디로 가야할 지, 이번 여행의 목적지는 어디일지 의도를 설정합니다.
               </p>
 
@@ -11423,8 +12266,24 @@ function PlayView({
                   </select>
                 </div>
 
+                <JourneyMapBoard
+                  state={state}
+                  plannedDestinationName={journeyDestinationCandidates.find(candidate => candidate.id === destName)?.name || ''}
+                  plannedRegion={destName ? journeyGraph[destName]?.region : undefined}
+                  plannedType={destName ? journeyGraph[destName]?.locationType : undefined}
+                  selectable={Boolean(journeyDestinationCard && journeyDestinationCandidates.length > 0)}
+                  selectableNodeIds={journeyDestinationCandidates.map(candidate => candidate.id)}
+                  selectedNodeId={destName}
+                  onSelectDestination={({ id }) => {
+                    if (journeyDestinationCandidates.some(candidate => candidate.id === id)) setDestName(id);
+                  }}
+                  contextLabel="출발 전 경로 계획"
+                  variant="planning"
+                  onOpenMap={onOpenMap}
+                />
+
                 <div style={{ display: 'grid', gap: '0.75rem', padding: '0.85rem', background: '#fffdf8', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                  <div className="field-mode-hide" style={{ fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
                     룰북 p.18-21 순서: 출발지와 계절을 확인한 뒤, 목적지/거리 카드와 목표 카드를 뽑아 여정 기록을 시작합니다.
                   </div>
                   <CardDrawSlot
@@ -11649,6 +12508,149 @@ function PlayView({
 
           {/* Current location and movement form */}
           <div id="travel-panel" className="cute-card">
+            <JourneyMapBoard
+              state={state}
+              plannedDestinationName={nextLocName}
+              plannedRegion={nextLocName.trim() ? destRegion : undefined}
+              plannedType={nextLocName.trim() ? destType : undefined}
+              plannedStopIds={state.journeyPlannedStopIds || []}
+              comparisonPathIds={travelAlternativePathIds}
+              selectable
+              selectedNodeId={selectedTravelDestinationId}
+              onSelectDestination={applyTravelDestination}
+              contextLabel="이동과 조우를 위한 여정 지도"
+              variant="travel"
+              onOpenMap={onOpenMap}
+            />
+            <div className="journey-assist-bar">
+              <div className="journey-assist-bar__actions">
+                <button type="button" onClick={addSelectedDestinationToPlan} disabled={!selectedTravelDestinationId || selectedTravelDestinationId === currentTravelLocationId}>＋ 경유지에 추가</button>
+                <button type="button" onClick={toggleFavoriteDestination} disabled={!selectedTravelDestinationId}>
+                  {selectedTravelDestinationId && (state.favoriteMapLocationIds || []).includes(selectedTravelDestinationId) ? '★ 즐겨찾기 해제' : '☆ 장소 즐겨찾기'}
+                </button>
+                <button type="button" onClick={saveFavoriteRoute} disabled={!selectedTravelDestinationId && !(state.journeyPlannedStopIds || []).length}>☆ 현재 경로 저장</button>
+                <button type="button" onClick={undoTravelDestination} disabled={!travelFormUndo}>↶ 입력 되돌리기</button>
+              </div>
+              {(state.favoriteMapLocationIds || []).length > 0 && (
+                <div className="journey-quick-list">
+                  <span>즐겨찾기</span>
+                  {(state.favoriteMapLocationIds || []).flatMap(id => travelMapNodes[id] ? [{ id, node: travelMapNodes[id] }] : []).map(({ id, node }) => (
+                    <button key={id} type="button" onClick={() => applyTravelDestination({ id, node, region: inferMapNodeRegion(node), locationType: mapNodeGameplayType(id, node) })}>{node.label}</button>
+                  ))}
+                </div>
+              )}
+              {(state.journeyPlannedStopIds || []).length > 0 && (
+                <ol className="journey-plan-queue" aria-label="예정된 경유지">
+                  {(state.journeyPlannedStopIds || []).map((id, index) => {
+                    const node = travelMapNodes[id];
+                    if (!node) return null;
+                    return (
+                      <li key={id}>
+                        <span>{index + 1}</span>
+                        <button type="button" onClick={() => applyTravelDestination({ id, node, region: inferMapNodeRegion(node), locationType: mapNodeGameplayType(id, node) }, false)}>{node.label}</button>
+                        <button type="button" aria-label={`${node.label} 경유지 제거`} onClick={() => removeDestinationFromPlan(id)}>×</button>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+              {(state.favoriteJourneyRoutes || []).length > 0 && (
+                <div className="journey-favorite-routes">
+                  <span>저장 경로</span>
+                  {(state.favoriteJourneyRoutes || []).map(route => (
+                    <div key={route.id}>
+                      <button type="button" title={route.name} onClick={() => loadFavoriteRoute(route)}>{route.name}</button>
+                      <button type="button" aria-label={`${route.name} 저장 경로 삭제`} onClick={() => removeFavoriteRoute(route.id)}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {(nextLocName.trim() || travelBlockingReasons.length > 0) && (
+              <section className={`travel-preview${travelSubmitDisabled ? ' has-blocker' : ''}`} aria-label="이동 예상 결과">
+                <div className="travel-preview__heading">
+                  <div><span>이동 예상</span><strong>{nextLocName || '목적지 미선택'}</strong></div>
+                  <em>{travelSubmitDisabled ? '실행 전 확인 필요' : '이동 가능'}</em>
+                </div>
+                <div className="travel-preview__facts">
+                  <span><strong>{travelPreviewPathCount || '—'}</strong>경로</span>
+                  <span><strong>{activeTravelSpeed}</strong>이동력</span>
+                  <span><strong>{travelPreviewWaterways}</strong>물길</span>
+                  <span><strong>{destRegion === 'Soar' ? 3 : 1}</strong>예상 일수</span>
+                  <span><strong>{localizeRegionLabel(destRegion)}</strong>지역</span>
+                  <span><strong>{locationTypeLabel(destType)}</strong>시설</span>
+                </div>
+                {travelPreviewPathIds.length > 1 && (
+                  <div className="route-comparison" aria-label="경로 A와 B 비교">
+                    <article className="is-primary">
+                      <header><strong>Route A</strong><span>최단 경로</span></header>
+                      <div><span>{travelPreviewPathCount} paths</span><span>{travelPreviewWaterways} waterways</span><span>{Math.max(1, Math.ceil(travelPreviewPathCount / Math.max(1, activeTravelSpeed)))} moves</span></div>
+                      <small>{travelPreviewPathIds.map(id => travelMapNodes[id]?.label).filter(Boolean).join(' → ')}</small>
+                    </article>
+                    <article className={travelAlternativePathIds.length > 1 ? '' : 'is-empty'}>
+                      <header><strong>Route B</strong><span>우회 경로</span></header>
+                      {travelAlternativePathIds.length > 1 ? <>
+                        <div><span>{travelAlternativePathCount} paths</span><span>{travelAlternativeWaterways} waterways</span><span>{Math.max(1, Math.ceil(travelAlternativePathCount / Math.max(1, activeTravelSpeed)))} moves</span></div>
+                        <small>{travelAlternativePathIds.map(id => travelMapNodes[id]?.label).filter(Boolean).join(' → ')}</small>
+                      </> : <small>서로 다른 연결 경로를 찾지 못했습니다.</small>}
+                    </article>
+                  </div>
+                )}
+                {travelBlockingReasons.length > 0 && <ul className="travel-preview__reasons">{travelBlockingReasons.map(reason => <li key={reason}>{reason}</li>)}</ul>}
+                {travelAdvisories.length > 0 && <ul className="travel-preview__advisories">{travelAdvisories.map(reason => <li key={reason}>{reason}</li>)}</ul>}
+                <details className="travel-rule-reason">
+                  <summary>왜 이렇게 판정되나요?</summary>
+                  <dl>{routeRuleEvidence.map(row => <Fragment key={row.label}><dt>{row.label}</dt><dd><strong>{row.value}</strong><small>{row.source}</small></dd></Fragment>)}</dl>
+                </details>
+              </section>
+            )}
+            {nextLocName.trim() && (
+              <section className={`departure-readiness is-${readinessTone}`} aria-label="출발 준비와 자원 예보">
+                <header><div><span>DEPARTURE CHECK</span><h3>{readinessTone === 'ready' ? '준비 완료' : readinessTone === 'warning' ? '출발 전 주의' : '현재 출발 불가'}</h3></div><strong>{readinessTone === 'ready' ? 'READY' : readinessTone === 'warning' ? 'CAUTION' : 'BLOCKED'}</strong></header>
+                <div className="departure-readiness__columns">
+                  <div>
+                    <h4>준비 점검</h4>
+                    <ul>
+                      <li className={travelPreviewPathCount === activeTravelSpeed ? 'is-ok' : 'is-warn'}><span>{travelPreviewPathCount === activeTravelSpeed ? '✓' : '!'}</span>이동력 {activeTravelSpeed} / 계획 {travelPreviewPathCount}</li>
+                      <li className={travelPreviewWaterways === 0 || hasSafeWaterwayTravel(state) ? 'is-ok' : 'is-warn'}><span>{travelPreviewWaterways === 0 || hasSafeWaterwayTravel(state) ? '✓' : '!'}</span>물길 도구 {travelPreviewWaterways === 0 ? '불필요' : hasSafeWaterwayTravel(state) ? '준비됨' : '없음'}</li>
+                      <li className={currentWeight <= maxCarry ? 'is-ok' : 'is-warn'}><span>{currentWeight <= maxCarry ? '✓' : '!'}</span>가방 {formatWeight(currentWeight)} / {maxCarry}</li>
+                      <li className={!travelSubmitDisabled ? 'is-ok' : 'is-warn'}><span>{!travelSubmitDisabled ? '✓' : '!'}</span>{travelSubmitDisabled ? travelBlockingReasons[0] : '필수 이동 조건 충족'}</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4>여행 자원 예보</h4>
+                    <dl>
+                      <div><dt>전체 계획</dt><dd>{travelPlanPathCount} paths · 약 {travelPlanMoves} moves</dd></div>
+                      <div><dt>일정</dt><dd>약 +{destRegion === 'Soar' ? travelExpectedDays : travelPlanMoves}일 · 이후 {state.calendarDays + (destRegion === 'Soar' ? travelExpectedDays : travelPlanMoves)}/{state.calendarMaxDays}일</dd></div>
+                      <div><dt>가방 여유</dt><dd>{formatWeight(Math.max(0, maxCarry - currentWeight))}</dd></div>
+                      <div><dt>젖음 위험</dt><dd>{soakRiskItems.length > 0 ? `${soakRiskItems.length}개 물품` : '없음'}</dd></div>
+                      <div><dt>Clay Pots</dt><dd>{canonicalWagonFromState(state).expansionIds.includes('clay-pots') ? `${Math.min(2, canonicalWagonFromState(state).clayPotMoves + travelPlanMoves)}/2 moves` : '미설치'}</dd></div>
+                      <div><dt>동반자 누적</dt><dd>{(state.companionStates || []).length > 0 ? (state.companionStates || []).map(companion => `${COMPANIONS_DB.find(row => canonicalCompanionId(row.id) === canonicalCompanionId(companion.companionId))?.name.split(' (')[0] || companion.companionId} ${companion.pathsTravelled + travelPlanPathCount}/10`).join(' · ') : '동행 없음'}</dd></div>
+                      <div><dt>환자 타이머</dt><dd>{Number.isFinite(activePatientTimer) ? `${activePatientTimer}시간 남음` : '충돌 없음'}</dd></div>
+                    </dl>
+                  </div>
+                </div>
+                {readinessWarnings.length > 0 && <footer>{readinessWarnings.join(' · ')}</footer>}
+              </section>
+            )}
+            {(state.lastTravelReceipt || state.lastEncounterReceipt) && (
+              <section className="travel-receipts" aria-label="최근 이동 결과">
+                {state.lastTravelReceipt && (
+                  <article>
+                    <span>최근 이동</span>
+                    <strong>{state.lastTravelReceipt.from} → {state.lastTravelReceipt.to}</strong>
+                    <small>{state.lastTravelReceipt.pathCount}경로 · 일정 {state.lastTravelReceipt.daysBefore}→{state.lastTravelReceipt.daysAfter}일 · {state.lastTravelReceipt.encounterTitle}{state.lastTravelReceipt.encounterProtected ? ' · 보호됨' : ''}</small>
+                  </article>
+                )}
+                {state.lastEncounterReceipt && (
+                  <article>
+                    <span>최근 조우 판정</span>
+                    <strong>{state.lastEncounterReceipt.title}</strong>
+                    <small>{state.lastEncounterReceipt.choiceLabel ? `선택: ${state.lastEncounterReceipt.choiceLabel} · ` : ''}{state.lastEncounterReceipt.changes.join(' · ')}</small>
+                  </article>
+                )}
+              </section>
+            )}
             <div className="prose-summary" style={{ marginBottom: '0.8rem' }}>
               📍 <strong>{localizeRegionLabel(state.currentRegion)}</strong> 지역 {state.currentLocationType === 'City' ? '도시' : state.currentLocationType === 'Settlement' ? '정착지' : state.currentLocationType === 'Wilds' ? '야생' : state.currentLocationType === 'Ruin' ? '유적지' : state.currentLocationType === 'Barrow' ? '야수 고분' : state.currentLocationType} <strong>{state.currentLocationName}</strong>에 머무는 중.
             </div>
@@ -11700,14 +12702,16 @@ function PlayView({
                 </button>
               </div>
             )}
-            <form onSubmit={handleTravelMove} className="grid-travel-form" style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '1rem' }}>
+            <form ref={travelFormRef} onSubmit={handleTravelMove} className="grid-travel-form" style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '1rem' }}>
               <input
+                ref={destinationInputRef}
                 name="locName"
                 type="text"
                 list="map-destination-options"
                 placeholder="이동해 도달할 새 장소 이름..."
                 value={nextLocName}
                 onChange={e => setNextLocName(e.target.value)}
+                onFocus={rememberTravelForm}
               />
               <datalist id="map-destination-options">
                 {Object.entries(buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || [])).map(([key, node]) => (
@@ -11715,17 +12719,17 @@ function PlayView({
                 ))}
               </datalist>
 
-              <select value={destRegion} onChange={e => setDestRegion(e.target.value)}>
-                <option value="Forest">🌿 숲</option>
-                <option value="Meadow">🌾 초원</option>
-                <option value="Loch">💧 호수/강</option>
-                <option value="Bog">🪵 수렁</option>
-                <option value="Mountain">🏔️ 산맥</option>
-                <option value="Titan">⚙️ Titan 유적</option>
+              <select value={destRegion} onFocus={rememberTravelForm} onChange={e => setDestRegion(e.target.value)}>
+                <option value="Forest">🌿 Forest</option>
+                <option value="Meadow">🌾 Meadow</option>
+                <option value="Loch">💧 Loch</option>
+                <option value="Bog">🪵 Bog</option>
+                <option value="Mountain">🏔️ Mountain</option>
+                <option value="Titan">⚙️ Titan</option>
                 <option value="Soar">🦅 활공</option>
               </select>
 
-              <select value={destType} onChange={e => setDestType(e.target.value)}>
+              <select value={destType} onFocus={rememberTravelForm} onChange={e => setDestType(e.target.value)}>
                 <option value="Wilds">야생 구역</option>
                 <option value="Settlement">정착지</option>
                 <option value="City">대도시</option>
@@ -11733,9 +12737,11 @@ function PlayView({
                 <option value="Barrow">거수 고분</option>
               </select>
 
-              <button type="submit" disabled={state.needsLocalHelpBeforeMove} style={{ background: state.needsLocalHelpBeforeMove ? '#d8d1c4' : 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold', cursor: state.needsLocalHelpBeforeMove ? 'not-allowed' : 'pointer' }}>
-                {state.needsLocalHelpBeforeMove ? '현지 일을 마친 뒤 이동 가능' : '🚶‍♂️ 경로 이동 및 카드 조우'}
+              <button type="submit" disabled={travelSubmitDisabled} title={travelBlockingReasons.join('\n') || '예상 경로대로 이동 판정을 시작합니다.'} style={{ background: travelSubmitDisabled ? '#d8d1c4' : 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold', cursor: travelSubmitDisabled ? 'not-allowed' : 'pointer' }}>
+                {travelSubmitDisabled ? '이동 조건을 확인하세요' : '🚶‍♂️ 경로 이동 및 카드 조우'}
               </button>
+
+              {travelSubmitDisabled && <div className="travel-button-reason" role="status">{travelBlockingReasons[0]}</div>}
 
               <div style={{ gridColumn: 'span 4', display: 'grid', gap: '0.75rem', fontSize: '0.85rem', background: '#faf8f5', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)', marginTop: '0.4rem' }}>
                 <CardDrawSlot
@@ -12722,7 +13728,7 @@ function PlayView({
                           <span>
                             정화하기 [PURIFY] 적용
                             <small style={{ display: 'block', color: 'var(--text-muted)', lineHeight: 1.35 }}>
-                              산맥의 특별 조제법을 사용해 이 치료제의 [FOUL]을 0으로 계산합니다.
+                              Mountain의 특별 조제법을 사용해 이 치료제의 [FOUL]을 0으로 계산합니다.
                             </small>
                           </span>
                         </label>
@@ -14150,7 +15156,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
                     <div style={{ display: 'flex', gap: '0.2rem' }}>
                       {r.regions.map((reg, idx) => {
                         const koReg: { [key: string]: string } = {
-                          'Bog': '늪지', 'Forest': '숲', 'Loch': '호수', 'Meadow': '초원', 'Mountain': '산맥', 'Titan': '티탄유적'
+                          'Bog': 'Bog', 'Forest': 'Forest', 'Loch': 'Loch', 'Meadow': 'Meadow', 'Mountain': 'Mountain', 'Titan': 'Titan'
                         };
                         return (
                           <span key={idx} style={{ fontSize: '0.78rem', background: 'var(--primary-light)', color: 'var(--primary)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 'bold' }}>
@@ -14377,11 +15383,66 @@ const BranchSketch = () => (
   <span className="emoji-icon" aria-hidden="true" style={{ marginRight: '4px' }}>🍂</span>
 );
 
-function MapView({ state, onOpenReference }: { state: GameState; onOpenReference: (request: RulebookReferenceRequest) => void }) {
+function MapView({ state, updateState, onOpenReference }: { state: GameState; updateState: any; onOpenReference: (request: RulebookReferenceRequest) => void }) {
   const [mapWidth, setMapWidth] = useState(1600);
+  const [mapLayers, setMapLayers] = useState({
+    regions: true,
+    route: true,
+    visited: true,
+    patients: true,
+    clinics: true,
+    barrows: true,
+    favorites: true
+  });
+  const [selectedLocationName, setSelectedLocationName] = useState(state.currentLocationName);
+  const selectedMemoryKey = findMapLocationKey(selectedLocationName, state.customMapLocations || []) || normalizeMapLocationName(selectedLocationName);
+  const [locationNoteDraft, setLocationNoteDraft] = useState(state.locationMemories?.[selectedMemoryKey]?.note || '');
   const handleZoomOut = () => setMapWidth((w: number) => Math.max(800, w - 200));
   const handleZoomIn = () => setMapWidth((w: number) => Math.min(3000, w + 200));
   const handleReset = () => setMapWidth(1600);
+
+  useEffect(() => {
+    setLocationNoteDraft(state.locationMemories?.[selectedMemoryKey]?.note || '');
+  }, [selectedMemoryKey, state.locationMemories]);
+
+  const saveLocationNote = () => updateState((current: GameState) => ({
+    ...current,
+    locationMemories: {
+      ...(current.locationMemories || {}),
+      [selectedMemoryKey]: {
+        note: locationNoteDraft.trim(),
+        photos: current.locationMemories?.[selectedMemoryKey]?.photos || [],
+        updatedAt: Date.now()
+      }
+    }
+  }));
+
+  const addLocationPhotos = async (files: FileList | null) => {
+    const photos = await prepareJournalPhotos(files);
+    if (photos.length === 0) return;
+    updateState((current: GameState) => {
+      const existing = current.locationMemories?.[selectedMemoryKey] || { note: locationNoteDraft.trim(), photos: [], updatedAt: Date.now() };
+      return {
+        ...current,
+        locationMemories: {
+          ...(current.locationMemories || {}),
+          [selectedMemoryKey]: { ...existing, photos: [...existing.photos, ...photos], updatedAt: Date.now() }
+        }
+      };
+    });
+  };
+
+  const removeLocationPhoto = (photoId: string) => updateState((current: GameState) => {
+    const existing = current.locationMemories?.[selectedMemoryKey];
+    if (!existing) return current;
+    return {
+      ...current,
+      locationMemories: {
+        ...(current.locationMemories || {}),
+        [selectedMemoryKey]: { ...existing, photos: existing.photos.filter(photo => photo.id !== photoId), updatedAt: Date.now() }
+      }
+    };
+  });
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -14420,6 +15481,7 @@ function MapView({ state, onOpenReference }: { state: GameState; onOpenReference
   const patientLocs = (state.patientCasebook || []).map(r => r.locationName).filter(Boolean) as string[];
 	  const clinicLocs = (state.clinics || []).map(c => c.locationName).filter(Boolean) as string[];
 	  const scrapbookLocs = (state.travelScrapbook || []).map(s => s.locationName).filter(Boolean) as string[];
+	  const barrowLocs = (state.barrows || []).filter(row => !row.removed).map(row => row.locationName).filter(Boolean);
 	  const currentLoc = state.currentLocationName;
 	  const customMapLocations = state.customMapLocations || [];
 	  const customMapEdges = state.customMapEdges || [];
@@ -14427,12 +15489,16 @@ function MapView({ state, onOpenReference }: { state: GameState; onOpenReference
 	  const clinicServiceLocs = (state.clinics || []).flatMap(c =>
 	    getMapLocationsWithinHops(c.locationName, MAP_SERVICE_HOPS, customMapLocations, customMapEdges).map(entry => entry.node.label)
 	  );
+	  const favoriteLocs = (state.favoriteMapLocationIds || []).flatMap(id => mapGraphNodes[id]?.label ? [mapGraphNodes[id].label] : []);
+	  const specialEventLocs = ((state.serviceMapMutations || []) as ServiceMapMutation[]).filter(mutation => mutation.active).flatMap(mutation => mutation.nodeIds.flatMap(id => mapGraphNodes[id]?.label ? [mapGraphNodes[id].label] : []));
 
 	  const locCandidates = [
-	    ...visitedLocs,
-	    ...patientLocs,
-	    ...clinicLocs,
-	    ...clinicServiceLocs,
+	    ...(mapLayers.visited ? visitedLocs : []),
+	    ...(mapLayers.patients ? patientLocs : []),
+	    ...(mapLayers.clinics ? clinicLocs : []),
+	    ...(mapLayers.clinics ? clinicServiceLocs : []),
+	    ...(mapLayers.barrows ? [...barrowLocs, ...specialEventLocs] : []),
+	    ...(mapLayers.favorites ? favoriteLocs : []),
 	    ...scrapbookLocs,
 	    ...customMapLocations.map(location => location.label),
 	    currentLoc
@@ -14444,7 +15510,7 @@ function MapView({ state, onOpenReference }: { state: GameState; onOpenReference
 	    seenLocKeys.add(key);
 	    return true;
 	  });
-  const routeStops = [...new Set([...(state.visitedLocations || []), currentLoc].filter(Boolean))];
+	  const routeStops = mapLayers.route ? [...new Set([...(state.visitedLocations || []), currentLoc].filter(Boolean))] : [];
 
 	  // Hashing mapper for positioning pins on the map
 	  const getCoordinatesForLocation = (name: string) => {
@@ -14496,6 +15562,28 @@ function MapView({ state, onOpenReference }: { state: GameState; onOpenReference
       mostLivedInLoc = loc;
     }
   });
+  const matchesSelectedLocation = (name: string) => {
+    const key = findMapLocationKey(name, customMapLocations) || normalizeMapLocationName(name);
+    return key === selectedMemoryKey;
+  };
+  const selectedLocationNode = mapGraphNodes[selectedMemoryKey];
+  const selectedLocationRegion = selectedLocationNode
+    ? inferMapNodeRegion(selectedLocationNode, (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as MapRegion)
+    : (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as MapRegion;
+  const selectedCases = (state.patientCasebook || []).filter(record => matchesSelectedLocation(record.locationName));
+  const selectedScrapbook = (state.travelScrapbook || []).filter(record => matchesSelectedLocation(record.locationName)).slice(0, 6);
+  const selectedAlmanac = (state.worldAlmanac || []).filter(record => matchesSelectedLocation(record.locationName)).slice(0, 6);
+  const selectedClinic = (state.clinics || []).find(record => matchesSelectedLocation(record.locationName));
+  const selectedBarrows = (state.barrows || []).filter(record => !record.removed && matchesSelectedLocation(record.locationName));
+  const selectedSpecialEvents = ((state.serviceMapMutations || []) as ServiceMapMutation[]).filter(mutation => mutation.active && mutation.nodeIds.includes(selectedMemoryKey));
+  const selectedMemory = state.locationMemories?.[selectedMemoryKey];
+  const selectedVisitCount = (state.visitedLocations || []).filter(matchesSelectedLocation).length;
+  const selectedLastSeen = Math.max(0,
+    ...selectedCases.map(record => record.timestamp),
+    ...selectedScrapbook.map(record => record.timestamp),
+    ...selectedAlmanac.map(record => record.lastSeen),
+    selectedMemory?.updatedAt || 0
+  );
 
   return (
     <div style={{
@@ -14528,6 +15616,15 @@ function MapView({ state, onOpenReference }: { state: GameState; onOpenReference
               <button onClick={handleReset} style={{ padding: '0.2rem 0.5rem', background: '#e8e2d5', border: '1px solid #5c4033', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}>기본</button>
               <span style={{ fontSize: '0.85rem', color: '#6b5c4b', minWidth: '45px', textAlign: 'right' }}>{Math.round((mapWidth / 1600) * 100)}%</span>
             </div>
+          </div>
+
+          <div className="map-layer-controls" aria-label="지도 레이어">
+            <span>MAP LAYERS</span>
+            {(Object.entries({ regions: 'Regions', route: 'Route', visited: 'Visited', patients: 'Patients', clinics: 'Clinics', barrows: 'Barrows & Rumours', favorites: 'Favorites' }) as Array<[keyof typeof mapLayers, string]>).map(([key, label]) => (
+              <button key={key} type="button" className={mapLayers[key] ? 'is-active' : ''} aria-pressed={mapLayers[key]} onClick={() => setMapLayers(current => ({ ...current, [key]: !current[key] }))}>
+                <i />{label}
+              </button>
+            ))}
           </div>
 
           {/* Scrollable Map Container */}
@@ -14573,7 +15670,7 @@ function MapView({ state, onOpenReference }: { state: GameState; onOpenReference
 	                preserveAspectRatio="none"
 	                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}
 	              >
-	                {MAP_WILD_LOCATIONS.map((location, idx) => (
+	                {mapLayers.regions && MAP_WILD_LOCATIONS.map((location, idx) => (
 	                  <circle
 	                    key={`map_wild_location_${idx}`}
 	                    cx={location.x}
@@ -14597,7 +15694,7 @@ function MapView({ state, onOpenReference }: { state: GameState; onOpenReference
 	                    strokeDasharray="1.4 1.1"
 	                  />
 		                )}
-		                {(state.clinics || []).map((clinic, idx) => {
+		                {mapLayers.clinics && (state.clinics || []).map((clinic, idx) => {
 		                  const serviceEntries = getMapServiceEntriesWithinHops(clinic.locationName, MAP_SERVICE_HOPS, customMapLocations, customMapEdges);
 		                  const servicePoints = serviceEntries.length > 0
 		                    ? serviceEntries.map(entry => ({ x: entry.node.x, y: entry.node.y }))
@@ -14644,14 +15741,16 @@ function MapView({ state, onOpenReference }: { state: GameState; onOpenReference
 	              {allLocNames.map(locName => {
 	                const { x, y } = getCoordinatesForLocation(locName);
 	                const locKey = findMapLocationKey(locName, customMapLocations);
-	                const locationRegion = locKey ? mapGraphNodes[locKey]?.region || state.currentRegion : state.currentRegion;
-	                const successes = (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'success');
-	                const failures = (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'failure');
-	                const isFirstClinic = !!firstClinic && (firstClinic.locationName === locName || (!!locKey && findMapLocationKey(firstClinic.locationName, customMapLocations) === locKey));
-	                const hasClinic = (state.clinics || []).some(c => c.locationName === locName || (!!locKey && findMapLocationKey(c.locationName, customMapLocations) === locKey));
+	                const successes = mapLayers.patients ? (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'success') : [];
+	                const failures = mapLayers.patients ? (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'failure') : [];
+	                const isFirstClinic = mapLayers.clinics && !!firstClinic && (firstClinic.locationName === locName || (!!locKey && findMapLocationKey(firstClinic.locationName, customMapLocations) === locKey));
+	                const hasClinic = mapLayers.clinics && (state.clinics || []).some(c => c.locationName === locName || (!!locKey && findMapLocationKey(c.locationName, customMapLocations) === locKey));
 	                const isCurrent = currentLoc === locName || (!!locKey && findMapLocationKey(currentLoc, customMapLocations) === locKey);
 	                const isMostLivedIn = mostLivedInLoc === locName && maxCount >= 2;
 	                const keepsakeRecords = (state.trinketArchive || []).filter(t => t.locationName === locName && !t.spent);
+	                const isBarrow = mapLayers.barrows && (state.barrows || []).some(row => !row.removed && (row.locationName === locName || (!!locKey && findMapLocationKey(row.locationName, customMapLocations) === locKey)));
+	                const isSpecialEvent = mapLayers.barrows && ((state.serviceMapMutations || []) as ServiceMapMutation[]).some(mutation => mutation.active && mutation.nodeIds.includes(locKey || ''));
+	                const isFavorite = mapLayers.favorites && (state.favoriteMapLocationIds || []).includes(locKey || '');
 
                 let isLoss = failures.length > 0;
                 let isCare = successes.length > 0 || hasClinic;
@@ -14660,6 +15759,8 @@ function MapView({ state, onOpenReference }: { state: GameState; onOpenReference
 	                if (isCurrent) {
 	                  notes.push('현재 위치 — 이곳에서 머무는 중.');
 	                }
+	                if (isFavorite) notes.push('즐겨찾기에 표시한 장소.');
+	                if (isBarrow || isSpecialEvent) notes.push('고분 소문 또는 특수 사건이 남아 있음.');
 	                if (isFirstClinic) {
 	                  notes.push('첫 약제소 — 이곳에서 오래 머물렀다.');
 	                } else if (isMostLivedIn) {
@@ -14718,6 +15819,15 @@ function MapView({ state, onOpenReference }: { state: GameState; onOpenReference
                   labelBg = 'rgba(255, 243, 218, 0.98)';
                   labelBorder = 'rgba(176, 96, 32, 0.5)';
                   SketchIcon = HouseSketch;
+                }
+                if (isBarrow || isSpecialEvent) {
+                  pinColor = 'rgba(113, 68, 135, 0.98)';
+                  textColor = '#5a2f6d';
+                  labelBorder = 'rgba(113, 68, 135, 0.5)';
+                }
+                if (isFavorite) {
+                  shadowBg = 'rgba(247, 201, 92, 0.42)';
+                  labelBorder = 'rgba(173, 123, 25, 0.65)';
                 }
 
                 return (
@@ -14786,7 +15896,7 @@ function MapView({ state, onOpenReference }: { state: GameState; onOpenReference
                       padding: '3px 7px 5px',
                       boxShadow: '0 2px 5px rgba(44, 32, 20, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.62)',
                       backdropFilter: 'blur(1px)'
-                    }} role="button" tabIndex={0} aria-label={`${locName} 관련 룰북 맥락 열기`} onMouseDown={event => event.stopPropagation()} onClick={() => onOpenReference({ entryId: `region:${locationRegion}`, page: 23, title: `${locName} · ${localizeRegionLabel(locationRegion)}`, context: [{ label: '지도 위치', value: locName }, { label: '현재 계절', value: localizeSeasonLabel(state.currentSeason) }] })} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpenReference({ entryId: `region:${locationRegion}`, page: 23, title: `${locName} · ${localizeRegionLabel(locationRegion)}`, context: [{ label: '지도 위치', value: locName }, { label: '현재 계절', value: localizeSeasonLabel(state.currentSeason) }] }); } }}>
+                    }} role="button" tabIndex={0} aria-label={`${locName} 위치 기억 열기`} onMouseDown={event => event.stopPropagation()} onClick={() => setSelectedLocationName(locName)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedLocationName(locName); } }}>
                       <div style={{ display: 'flex', alignItems: 'center', fontWeight: fontW as any, color: textColor, textShadow: '0 1px 0 rgba(255, 255, 255, 0.88)' }}>
                         {SketchIcon && <SketchIcon />}
                         <span>{locName}</span>
@@ -14827,6 +15937,39 @@ function MapView({ state, onOpenReference }: { state: GameState; onOpenReference
           flexDirection: 'column',
           gap: '1.5rem'
         }}>
+          <section className="location-memory-card" aria-label={`${selectedLocationName} 위치 기억`}>
+            <header>
+              <div><span>LOCATION MEMORY</span><h2>{selectedLocationName}</h2><p>{localizeRegionLabel(selectedLocationRegion)} · {selectedLocationNode ? locationTypeLabel(mapNodeGameplayType(selectedMemoryKey, selectedLocationNode)) : '기록된 장소'} · 마지막 기록 {selectedLastSeen ? new Date(selectedLastSeen).toLocaleDateString('ko-KR') : '없음'}</p></div>
+              <button type="button" onClick={() => onOpenReference({ entryId: `region:${selectedLocationRegion}`, page: 23, title: `${selectedLocationName} · ${localizeRegionLabel(selectedLocationRegion)}`, context: [{ label: '지도 위치', value: selectedLocationName }, { label: '현재 계절', value: localizeSeasonLabel(state.currentSeason) }] })}>규칙 p.23</button>
+            </header>
+            <div className="location-memory-card__stats">
+              <div><span>방문</span><strong>{selectedVisitCount}회</strong></div>
+              <div><span>환자</span><strong>{selectedCases.length}건</strong></div>
+              <div><span>클리닉</span><strong>{selectedClinic ? '있음' : '없음'}</strong></div>
+              <div><span>고분/사건</span><strong>{selectedBarrows.length + selectedSpecialEvents.length}건</strong></div>
+            </div>
+            {(selectedCases.length > 0 || selectedScrapbook.length > 0 || selectedAlmanac.length > 0) && (
+              <div className="location-memory-card__history">
+                {selectedCases.slice(0, 3).map(record => <div key={record.id}><span>{record.outcome === 'success' ? '치료 완료' : '치료 실패'}</span><strong>{record.patientName || '이름 모를 환자'} · {record.ailmentName}</strong></div>)}
+                {selectedScrapbook.slice(0, 3).map(record => <div key={record.id}><span>{record.kind}</span><strong>{record.title}</strong></div>)}
+                {selectedAlmanac.slice(0, 2).map(record => <div key={record.id}><span>{record.category}</span><strong>{record.name}</strong></div>)}
+              </div>
+            )}
+            <label className="location-memory-card__note">
+              <span>개인 메모</span>
+              <textarea rows={3} value={locationNoteDraft} onChange={event => setLocationNoteDraft(event.target.value)} placeholder="이곳에서 기억할 것, 다음 방문에 할 일을 적으세요." />
+            </label>
+            <div className="location-memory-card__actions">
+              <button type="button" onClick={saveLocationNote}>메모 저장</button>
+              <label>사진 추가<input type="file" accept="image/*" multiple onChange={event => { void addLocationPhotos(event.target.files); event.currentTarget.value = ''; }} /></label>
+            </div>
+            {(selectedMemory?.photos || []).length > 0 && (
+              <div className="location-memory-card__photos">
+                {(selectedMemory?.photos || []).map(photo => <figure key={photo.id}><JournalPhotoImage photo={photo} alt={`${selectedLocationName} 기록 사진`} /><button type="button" aria-label={`${photo.name} 삭제`} onClick={() => removeLocationPhoto(photo.id)}>×</button></figure>)}
+              </div>
+            )}
+          </section>
+
           {/* Section: Distance scales */}
           <div>
             <h2 style={{
@@ -14937,9 +16080,9 @@ function MapView({ state, onOpenReference }: { state: GameState; onOpenReference
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <img src="/symbols/titan.png" alt="Titan 유적" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
+                    <img src="/symbols/titan.png" alt="Titan" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.85rem' }}>Titan 유적</strong>
+                      <strong style={{ fontSize: '0.85rem' }}>Titan</strong>
                       <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>고대 거인의 신비한 자생 흔적</span>
                     </div>
                   </div>
@@ -15002,37 +16145,37 @@ function MapView({ state, onOpenReference }: { state: GameState; onOpenReference
                 </strong>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="늪지와 습지 색상"><circle cx="8" cy="8" r="6" fill="#9275a8"/></svg>
+                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="Bog 색상"><circle cx="8" cy="8" r="6" fill="#9275a8"/></svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.8rem' }}>늪지와 습지</strong>
+                      <strong style={{ fontSize: '0.8rem' }}>Bog</strong>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="울창한 숲 색상"><circle cx="8" cy="8" r="6" fill="#3d6c48"/></svg>
+                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="Forest 색상"><circle cx="8" cy="8" r="6" fill="#3d6c48"/></svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.8rem' }}>울창한 숲</strong>
+                      <strong style={{ fontSize: '0.8rem' }}>Forest</strong>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="호수와 내해 색상"><circle cx="8" cy="8" r="6" fill="#4a8ca8"/></svg>
+                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="Loch 색상"><circle cx="8" cy="8" r="6" fill="#4a8ca8"/></svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.8rem' }}>호수와 내해</strong>
+                      <strong style={{ fontSize: '0.8rem' }}>Loch</strong>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="초원 색상"><circle cx="8" cy="8" r="6" fill="#e5c158"/></svg>
+                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="Meadow 색상"><circle cx="8" cy="8" r="6" fill="#e5c158"/></svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.8rem' }}>초원</strong>
+                      <strong style={{ fontSize: '0.8rem' }}>Meadow</strong>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', gridColumn: '1 / -1' }}>
-                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="고산과 바위 지대 색상"><circle cx="8" cy="8" r="6" fill="#c9524b"/></svg>
+                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="Mountain 색상"><circle cx="8" cy="8" r="6" fill="#c9524b"/></svg>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.8rem' }}>고산과 바위 지대</strong>
+                      <strong style={{ fontSize: '0.8rem' }}>Mountain</strong>
                     </div>
                   </div>
 

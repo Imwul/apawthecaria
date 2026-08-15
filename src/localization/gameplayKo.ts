@@ -123,7 +123,7 @@ const journeyGoalText: Record<string, string> = {
   'Bring 3 Reagents sharing the same Tag.': '같은 태그를 공유하는 영약재 3개를 가져갑니다.',
   'Journal about one personal conflict 3 or more times.': '하나의 개인적 갈등을 일지에 3회 이상 기록합니다.',
   'Bring a Reagent with ELSEWHERE 2 or more.': 'ELSEWHERE 2 이상을 가진 영약재를 가져갑니다.',
-  'Journal in Bog, Forest, Loch, Meadow, and Mountain.': '늪지, 숲, 호수, 초원, 산맥 각 지역에서 일지를 기록합니다.',
+  'Journal in Bog, Forest, Loch, Meadow, and Mountain.': 'Bog, Forest, Loch, Meadow, Mountain 각 지역에서 일지를 기록합니다.',
   'Three Beast or Behemoth Encounter journal entries': '야수 또는 거수 조우 일지 3건',
   'Three Familiar journal entries': '길동무 일지 3건',
   'Guild Reputation increased by 5': '길드 명성 5 증가',
@@ -274,13 +274,15 @@ export const localizeInventoryItemName = (value: string): string => {
 };
 
 export const localizeRegionLabel = (value: string | undefined): string => ({
-  Bog: '늪지',
-  Forest: '숲',
-  Loch: '호수',
-  Meadow: '초원',
-  Mountain: '산맥',
-  Soar: '활공',
-  Titan: 'Titan 유적'
+  Bog: 'Bog',
+  Forest: 'Forest',
+  Loch: 'Loch',
+  Meadow: 'Meadow',
+  Mountain: 'Mountain',
+  Soar: 'Soar',
+  Titan: 'Titan',
+  Wilds: 'Wilds',
+  Barrow: 'Barrow'
 } as Record<string, string>)[value || ''] || value || '지역 미기록';
 
 export const localizeRegionList = (value: string | undefined): string =>
@@ -307,11 +309,11 @@ export const localizeAvailabilityLabel = (value: string | undefined): string => 
   Any: '모든 장소',
   'Any City': '모든 도시',
   'Any Settlement or City': '모든 정착지와 도시',
-  'Bog Settlement': '늪지 정착지',
-  'Forest Settlement': '숲 정착지',
-  'Loch Settlement': '호수 정착지',
-  'Meadow Settlement': '초원 정착지',
-  'Mountain Settlements': '산맥 정착지'
+  'Bog Settlement': 'Bog 정착지',
+  'Forest Settlement': 'Forest 정착지',
+  'Loch Settlement': 'Loch 정착지',
+  'Meadow Settlement': 'Meadow 정착지',
+  'Mountain Settlements': 'Mountain 정착지'
 } as Record<string, string>)[value || ''] || value || '장소 미기록';
 
 export const localizeSeasonLabel = (value: string | undefined): string => ({

@@ -40,4 +40,29 @@ describe('mobile layout regression guards', () => {
     expect(appSource).toContain('const handleAdvanceSeason = () =>');
     expect(cssSource).toMatch(/\.downtime-season-action\s*\{[\s\S]*?justify-content:\s*space-between/);
   });
+
+  it('keeps the journey map visible for planning, travel, and encounter resolution', () => {
+    expect(appSource.match(/<JourneyMapBoard/g)).toHaveLength(4);
+    expect(appSource).toContain('className="glass-panel encounter-dialog encounter-dialog--journey-map"');
+    expect(cssSource).toMatch(/\.encounter-dialog--journey-map\s*\{[\s\S]*?grid-template-columns:/);
+    expect(cssSource).toMatch(/@media \(max-width: 980px\)[\s\S]*?\.encounter-dialog--journey-map\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/);
+  });
+
+  it('turns the journey map into a complete intermediate-player planning surface', () => {
+    expect(appSource).toContain('journeyPlannedStopIds');
+    expect(appSource).toContain('favoriteMapLocationIds');
+    expect(appSource).toContain('onSelectDestination={applyTravelDestination}');
+    expect(appSource).toContain('className="travel-preview__facts"');
+    expect(appSource).toContain('className="travel-receipts"');
+    expect(cssSource).toMatch(/\.journey-map-board\.is-selectable\s+\.journey-map-board__overlay\s*\{[\s\S]*?pointer-events:\s*auto/);
+  });
+
+  it('offers guided and field modes plus an encounter resolution checklist', () => {
+    expect(appSource).toContain("type PlayInterfaceMode = 'guided' | 'field'");
+    expect(appSource).toContain('className="play-mode-switch"');
+    expect(appSource).toContain('className="encounter-checklist"');
+    expect(appSource).toContain("key === 'u'");
+    expect(cssSource).toMatch(/\.play-view--field\s+\.field-mode-hide/);
+    expect(cssSource).toMatch(/\.encounter-checklist\s+ol\s*\{[\s\S]*?grid-template-columns:\s*repeat\(5/);
+  });
 });
