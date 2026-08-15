@@ -3410,8 +3410,8 @@ const migrateState = (s: any): GameState => {
   if (!s) return INITIAL_STATE;
   s = migrateLegacyTerminology(migrateSavedRulesState(s));
   const migratedCurrentLocationName = typeof s.currentLocationName === 'string' ? s.currentLocationName.trim() : '';
-  const fallbackCurrentLocation = migratedCurrentLocationName || INITIAL_STATE.currentLocationName;
   const visitedLocations = normalizeLocationEntries(s.visitedLocations);
+  const fallbackCurrentLocation = migratedCurrentLocationName || visitedLocations[0] || INITIAL_STATE.currentLocationName;
   const dedupedCurrentLocation = normalizeLocationEntries([migratedCurrentLocationName])[0] || fallbackCurrentLocation;
   const mergedVisitedLocations = visitedLocations.length > 0 ? visitedLocations : [fallbackCurrentLocation];
   return syncWorldMemory({
