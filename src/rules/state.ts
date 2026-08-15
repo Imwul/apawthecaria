@@ -1,7 +1,7 @@
 import type { CompanionState, WagonState } from './data/mobility';
 import type { AilmentSeverity, RuleTag, RulesetId, Season, StructuredRuleEffect } from './types';
 
-export const CURRENT_SCHEMA_VERSION = 8 as const;
+export const CURRENT_SCHEMA_VERSION = 9 as const;
 
 export type PatientStatus = 'active' | 'cured' | 'failed' | 'departed';
 export type AilmentStatus = 'active' | 'treated' | 'failed';
@@ -124,6 +124,7 @@ export interface RulesApplicationState {
   activeDelve: unknown | null;
   pendingServices: unknown[];
   serviceMapMutations: unknown[];
+  encounterMapMutations: unknown[];
   toolStates: unknown[];
   wagonState: WagonState | null;
   companionStates: CompanionState[];
@@ -134,6 +135,7 @@ export interface RulesApplicationState {
   ailmentTagOverrides: unknown[];
   trinketRecords: unknown[];
   legacyTrinketCount: number;
+  knittingProject: unknown | null;
   pendingManualEffect: unknown | null;
   treatmentDraft: TreatmentDraft | null;
   manualEffectDraft: unknown | null;

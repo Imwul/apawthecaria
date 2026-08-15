@@ -14,7 +14,7 @@
 | Rule ID | 룰북 | 규칙 명세 | 대응 화면 | 구현 위치 | 상태 | 자동 테스트 | 문제 |
 |---|---|---|---|---|---|---|---|
 | CORE-001 | p6 | 카드 판정 → A=1, 2-10은 숫자, J=11, Q/K는 Monarch(M)=12; 표가 정한 예외 우선 | 모든 카드 판정 | `App.tsx:drawPlayingCard`, `cardRuleValue` | Partial | 없음 | 표 조회에는 M=12를 쓰지만 일부 수치 판정은 K=13을 그대로 사용한다. |
-| CORE-002 | p6 | 일반 규칙과 특정 항목 충돌 → 특정 카드·질환·도구 문구를 우선 적용 | 조우·질환·도구 | `printedEffects.ts`, `almanackEngine.ts`, encounter/ailment resolvers | Partial | `phase6Engine.test.ts`, `gameplayEngine.test.ts`, `manualResolution.test.ts [CORE-002]` | 23개 자동/선택형은 실행되고 335개 서술형은 trigger별 원문·입력·상태 변화·후속 판정을 갖춘 직접 처리 경로를 사용한다. |
+| CORE-002 | p6 | 일반 규칙과 특정 항목 충돌 → 특정 카드·질환·도구 문구를 우선 적용 | 조우·질환·도구 | `printedEffects.ts`, `almanackEngine.ts`, encounter/ailment resolvers | Partial | `phase6Engine.test.ts`, `gameplayEngine.test.ts`, `manualResolution.test.ts [CORE-002]` | 22개 자동/선택형은 실행되고 336개 직접 판정형은 trigger별 원문·입력·상태 변화·후속 판정을 갖춘 처리 경로를 사용한다. |
 | CORE-003 | p7 | 플레이어는 기록과 흐름을 자기 방식으로 조정할 수 있음; 의도적으로 규칙을 깨는 것은 선택이며 기본 판정은 원작 규칙 | 전체 | 자유 입력 UI | Partial | 없음 | 자유 입력과 앱이 강제하는 고정 보상/시간 규칙이 구분돼 있지 않다. |
 | CORE-004 | p7 | 장면과 판정 결과를 저널에 서술; 자동화는 서술 선택권을 대체하지 않음 | 저널 | 저널 편집 UI | Partial | 없음 | 저널은 있으나 다수 핵심 단계에서 기록을 건너뛰어도 진행된다. |
 | CHARACTER-001 | p10 | 새 캐릭터 → d12 성격 묘사 또는 직접 선택; 12개 항목 | 캐릭터 생성 | 생성 마법사, `gameData.ts` | Partial | 없음 | 선택지는 있으나 생성 결과와 필수 저널 연결을 검증하지 않는다. |
@@ -49,7 +49,7 @@
 | TRAVEL-006 | p25 | Local Beasts 도움 필요 결과 → 해결 전 다음 Move 불가 | 이동·조우 | `travelEngine.ts`, action hub | Exact | `gameplayEngine.test.ts [TRAVEL-006]` | Move 결과가 도움 의무를 세우며 다음 engine Move를 차단한다. |
 | TRAVEL-007 | p24-25 | Soar → 방문한 위치로 직선 이동; 미방문 Ruin/Barrow 불가; 해당 계절 Soar 조우; 과적/일반 Wagon 불가 | 이동 | `travelEngine.ts` | Exact | `gameplayEngine.test.ts [TRAVEL-007]` | Carry, 방문 Titan/Barrow, 일반 Wagon, Soar encounter와 Contraption 3일을 엔진이 검증한다. |
 | TRAVEL-008 | p25 | 현재 계절에 맞는 지역/Soar 조우를 카드 규칙대로 선택 | 이동·조우 | canonical encounter selector | Exact | `gameplayEngine.test.ts`, `phase3Engine.test.ts [TRAVEL-008]` | 103개 행의 지역·계절·카드 key를 원문 기준으로 선택하며 Bog/Forest의 같은 쪽 다중 계절 행도 계절 아이콘에 맞춰 교정했다. Printed effect 실행 완전성은 `TRAVEL-009`에서 별도 추적한다. |
-| TRAVEL-009 | p25 | 조우의 강제 효과·선택·자원 변화를 해소한 뒤 다음 단계 | 조우 모달 | `encounterEngine.ts`, manual resolution queue | Partial | `gameplayEngine.test.ts`, `manualResolution.test.ts [TRAVEL-009]` | 103개 행 모두 런타임에 도달한다. p75-84의 순수 서사 8행과 Busy Work, On The Path, Go Ape, Lost-And-Found를 자동/선택 처리하고 지도·후속 카드가 필요한 결과만 직접 판정으로 남긴다. |
+| TRAVEL-009 | p25 | 조우의 강제 효과·선택·자원 변화를 해소한 뒤 다음 단계 | 조우 모달 | `encounterEngine.ts`, `encounterSupportEngine.ts`, manual resolution queue | Partial | `gameplayEngine.test.ts`, `manualResolution.test.ts [TRAVEL-009]`, `playerSupportEngine.test.ts` | 103개 행 모두 런타임에 도달한다. p75-84의 수치·선택 효과에 더해 최단 Location 이동, Path 추가, 계절 봉쇄, 현재 Location 한정 Rarity 보정과 단일·다중 후속 카드가 실제 지도·채집·저장 상태에 반영된다. 서사·NPC 선택과 원문에 없는 동률 판정은 플레이어가 확정한다. |
 | TRAVEL-010 | p38 | 목적지 도착 후에만 여정 결말 절차 진행 | 여정 종료 | `resolveJourneyEnding()` | Exact | `phase3Engine.test.ts [TRAVEL-010/ENDING-001]` | 실제 graph location ID가 Destination과 같지 않으면 Ending transaction을 거부한다. |
 
 ## 환자, 질환, 치료
@@ -132,7 +132,7 @@
 | Rule ID | 룰북 | 규칙 명세 | 대응 화면 | 구현 위치 | 상태 | 자동 테스트 | 문제 |
 |---|---|---|---|---|---|---|---|
 | ALMANACK-001 | p54-71 | Almanack의 서비스·도구·업그레이드·왜건·동료 표를 참고 정보로 제공 | 연감 | `AlmanackPanel.tsx`, canonical catalogues | Exact | `phase4Engine.test.ts` | 누락 없는 표를 검색·분류·source page와 함께 제공하고 긴 목록은 단계 렌더링한다. |
-| ALMANACK-002 | p56-57 | Trinket을 받을 때마다 3장 표로 물건/재질/유래를 정해 저널에 기록 | 보상·저널 | `almanackEngine.ts`, schema v5 | Logic-only | `phase4Engine.test.ts [ALMANACK-002]` | 3장 생성기와 개별 record 저장은 있으나 모든 보상 지급 경로가 아직 이를 호출하지 않는다. |
+| ALMANACK-002 | p56-57 | 한 번에 Trinket을 몇 개 받더라도 그중 하나를 3장 표로 물건/재질/유래를 정해 저널에 기록 | 보상·저널 | `almanackEngine.ts`, `trinketLedger.ts`, schema v9 | Exact | `phase4Engine.test.ts [ALMANACK-002]`, `playerSupportEngine.test.ts` | 중앙 상태 갱신이 획득 묶음마다 대표 Object/Material/Origin 기록 하나를 만들고 나머지는 이름 없는 수량으로 보존한다. 대표 Trinket을 직접 고르면 해당 canonical record를 우선 사용 처리한다. |
 | ALMANACK-003 | p54-71 | 발견/현재 보유/참고 정보는 서로 구분하고 저장 | 연감·가방 | compendium/inventory state | Partial | 없음 | 일부 발견 상태는 있으나 완전한 잠금·사용 이력·중복 ID 검증이 없다. |
 | ALMANACK-004 | p58-61 | Guild Service 17종의 조건·비용·효과를 정확히 적용 | 서비스 | `data/services.ts`, `serviceEngine.ts`, Service UI | Exact | `phase4Engine.test.ts`, `phase10ReleaseBlockers.test.ts [ALMANACK-004/SERVICE-001/SERVICE-002/SERVICE-005]` | 17종 모두 비용·위치·대상·기간을 검증하며 Smithing의 Mountain Settlement/any City 조건과 Catch of the Day의 Small/Big Fish 선택까지 엔진 경계에서 강제한다. |
 | ALMANACK-005 | p62-65 | Tool 18종과 획득 제한·준비법·효과를 정확히 적용 | 상점·가방 | `data/tools.ts`, `toolEngine.ts`, gameplay consumers | Exact | `phase4Engine.test.ts`, `phase10ReleaseBlockers.test.ts [ALMANACK-005/ALMANACK-006/TOOL-003/TOOL-005]` | 18종의 준비·보관·파손·소모·이동·조우·공연·뜨개 효과가 해당 canonical 행동에서 실행된다. |
@@ -145,7 +145,7 @@
 | TOOL-001 | p62-65 | Basic/Market Tool은 명시된 Reagent 준비법만 가능하게 함 | 채집·치료 | `foragingEngine.ts`, `toolEngine.ts` | Exact | `gameplayEngine.test.ts [REMEDY-005]` | canonical Preparation의 required Tool을 획득과 투여 양쪽에서 강제한다. |
 | TOOL-002 | p62-65 | Bandolier는 자격 있는 준비 Part의 Weight만 보정 | 가방 | `bandolierAdjustedWeight`, carry helper | Exact | `phase5Engine.test.ts [TOOL-002]` | canonical Reagent identity를 사용해 Plant/Insect Part 최대 5 Weight만 1 Weight로 계산한다. |
 | TOOL-003 | p62-65 | Tent/Comb/Instruments/Alembic 등 특수 조건과 소모/파손을 적용 | 조우·치료 | `resolveToolEffects()`, Tool transactions, gameplay consumers | Exact | `phase5Engine.test.ts`, `phase6Engine.test.ts`, `phase10ReleaseBlockers.test.ts [ALMANACK-005/ALMANACK-006/TOOL-003/TOOL-005]` | Canvas Tent, Comb, Instruments, Crossbow/Bolts, Stilts, Knitting과 준비 도구를 해당 행동의 resolver에서 파손·소모·중복 방지와 함께 처리한다. |
-| TOOL-004 | p62-65 | Tool 효과는 원문에서 허용한 행동만 제공 | 도구 사용 | tool actions | House Rule | 없음 | Needles의 Timer 부족 무시 등 원문 밖 확정/우회 동작이 있다. |
+| TOOL-004 | p62-65 | Tool 효과는 원문에서 허용한 행동만 제공 | 도구 사용 | `toolEngine.ts`, tool actions, schema v9 | Exact | `playerSupportEngine.test.ts` | Knitting Needles는 모든 Timer가 0보다 클 때만 사용하고 프로젝트 시간을 여러 Preparing to Leave에 누적한다. 완성 전 교체를 막고 완성 기록 또는 포기 이력을 요구한다. |
 | TOOL-005 | p66-67 | 업그레이드 효과는 기본 Tool 상태와 저장·복원에 연결 | 가방 | `toolEngine.ts`, schema v5, action resolvers | Exact | `phase5Engine.test.ts [TOOL-005]`, `phase10ReleaseBlockers.test.ts [ALMANACK-005/ALMANACK-006/TOOL-003/TOOL-005]` | Upgrade identity를 보존하며 Granite POUND와 나머지 여섯 trigger를 Inventory 직접 변경 없이 canonical resolver로 적용한다. |
 | WAGON-001 | p68-69 | Wagon은 기본 Weight/Speed/이동 제한을 적용 | 이동·가방 | `mobilityEngine.ts`, `travelEngine.ts` | Exact | `phase10ReleaseBlockers.test.ts [TRAVEL-002/WAGON-001/WAGON-004]` | Base/Brackets의 Carry·Speed, Sealed 수로, Pedal 연속 수로 비용과 Experimental Soar 3 Days가 Travel 입력과 결과를 결정한다. |
 | WAGON-002 | p68-69 | Expansion 10종의 슬롯·비용·효과를 정확히 적용 | 왜건 | `mobilityEngine.ts`, Wagon/Travel/Foraging UI | Exact | `phase10ReleaseBlockers.test.ts [WAGON-002/COMPANION-001/COMPANION-005]` | 10종의 설치 조건·비용·능력과 Passenger·Clay Pots의 Journey/Move/수확 수명주기를 canonical transaction으로 유지한다. |
@@ -161,7 +161,7 @@
 
 | Rule ID | 룰북 | 규칙 명세 | 대응 화면 | 구현 위치 | 상태 | 자동 테스트 | 문제 |
 |---|---|---|---|---|---|---|---|
-| BARROW-001 | p116-125 | Barrow 진입 → 8개 Delve 중 해당 절차, Suit challenge mapping 사용 | Barrow | `barrowEngine.ts`, canonical Barrow UI | Exact | `step3Canonical.test.ts [BARROW-001-009]` | UI의 진입·시작·진행·완료가 8개 canonical Delve resolver와 transaction ID만 사용하며 중간 상태는 schema v8로 복원된다. |
+| BARROW-001 | p116-125 | Barrow 진입 → 8개 Delve 중 해당 절차, Suit challenge mapping 사용 | Barrow | `barrowEngine.ts`, canonical Barrow UI | Exact | `step3Canonical.test.ts [BARROW-001-009]` | UI의 진입·시작·진행·완료가 8개 canonical Delve resolver와 transaction ID만 사용하며 중간 상태는 현재 schema v9로 복원된다. |
 | BARROW-002 | p116 | Flee → 1 day와 안전/후속 처리를 적용하고 Delve를 종료 | Barrow | `barrowEngine.ts`, canonical Barrow UI | Exact | `step3Canonical.test.ts [BARROW-002/BARROW-003/SAVE-001]` | Challenge 전 Flee만 허용하고 1 day·다음 Move Speed 1·차단 해제·journal을 한 idempotent transaction으로 적용한다. |
 | BARROW-003 | p116-125 | Delve는 비용 없이 일반 취소할 수 없음 | Barrow | abort handler | House Rule | 없음 | 일반 중단이 상태와 Local Help 의무를 비용 없이 제거한다. |
 | BARROW-004 | p117 | Collapsed Entrance → 카드값/FP/마일스톤/보상; 완료 시 Barrow 제거 | Barrow | `barrowEngine.ts`, canonical Barrow UI | Exact | `step3Canonical.test.ts [BARROW-004/CORE-001]` | M=12 카드, 마일스톤, 중간 reload, 중복 방지, reward와 실제 graph/Barrow 제거를 resolver가 원자 적용한다. |
@@ -183,11 +183,11 @@
 
 | Rule ID | 근거 | 무결성 명세 | 대응 화면 | 구현 위치 | 상태 | 자동 테스트 | 문제 |
 |---|---|---|---|---|---|---|---|
-| SAVE-001 | 진행 보존 | 현재 캐릭터·위치·날짜·계절·재화·가방·여정·환자를 원자적으로 저장 | 전체 | `App.tsx:store`, schema v8 | Partial | `releaseCandidate.test.ts`, `manualResolution.test.ts`, `step3Canonical.test.ts [SAVE-001]` | Barrow·Tool·Downtime·Leave transaction의 직렬화와 중복 방지는 검증했지만 실제 browser storage write 중단을 주입하는 원자성 테스트는 없다. |
+| SAVE-001 | 진행 보존 | 현재 캐릭터·위치·날짜·계절·재화·가방·여정·환자를 원자적으로 저장 | 전체 | `App.tsx:store`, schema v9 | Partial | `releaseCandidate.test.ts`, `manualResolution.test.ts`, `step3Canonical.test.ts [SAVE-001]` | Barrow·Tool·Downtime·Leave transaction의 직렬화와 중복 방지는 검증했지만 실제 browser storage write 중단을 주입하는 원자성 테스트는 없다. |
 | SAVE-002 | 진행 보존 | 활성 Travel Encounter를 저장하고 재개 시 같은 결과로 복원 | 이동 조우 | `pendingEncounter` | Exact | `gameplayEngine.test.ts [SAVE-002]` | 선택 카드·canonical encounter·transaction ID를 저장하고 Action Hub/모달로 재개한다. |
 | SAVE-003 | 진행 보존 | 활성 Foraging Encounter와 종료 전 Timer 비용을 저장 | 채집 조우 | `pendingForaging` | Exact | `gameplayEngine.test.ts [SAVE-003]` | 선택 단계·카드·지역·Timer 비용을 저장해 해결 전 비용 생략을 막는다. |
-| SAVE-004 | 진행 보존 | 치료 재료 선택·카드·확정 전후 결과를 저장해 중복 지급/손실 방지 | 치료 모달 | schema v8 `TreatmentDraft`, treatment transaction IDs | Exact | `engine.test.ts`, `gameplayEngine.test.ts`, `phase6Engine.test.ts [SAVE-004]` | v6에서 도입된 선택 Part/Preparation/Tool/FAIR/FOUL/대체 context를 v8까지 보존하고 완료 transaction과 연결된 draft는 마이그레이션에서 폐기한다. |
-| SAVE-005 | 데이터 호환 | 명시적 schemaVersion과 단계별 migration으로 구버전 저장을 보존 | 불러오기 | `migrations.ts` | Exact | `engine.test.ts`, `phase3Engine.test.ts`, `phase4Engine.test.ts`, `releaseCandidate.test.ts`, `manualResolution.test.ts`, `step3Canonical.test.ts [SAVE-005]` | v0→…→v8 순차 migration이 Barrow 진행, stable Tool instance, Downtime override, manual draft/follow-up와 미지 캠페인 필드를 보존한다. |
+| SAVE-004 | 진행 보존 | 치료 재료 선택·카드·확정 전후 결과를 저장해 중복 지급/손실 방지 | 치료 모달 | schema v9 `TreatmentDraft`, treatment transaction IDs | Exact | `engine.test.ts`, `gameplayEngine.test.ts`, `phase6Engine.test.ts [SAVE-004]` | v6에서 도입된 선택 Part/Preparation/Tool/FAIR/FOUL/대체 context를 v9까지 보존하고 완료 transaction과 연결된 draft는 마이그레이션에서 폐기한다. |
+| SAVE-005 | 데이터 호환 | 명시적 schemaVersion과 단계별 migration으로 구버전 저장을 보존 | 불러오기 | `migrations.ts` | Exact | `engine.test.ts`, `phase3Engine.test.ts`, `phase4Engine.test.ts`, `releaseCandidate.test.ts`, `manualResolution.test.ts`, `step3Canonical.test.ts [SAVE-005]` | v0→…→v9 순차 migration이 Barrow 진행, stable Tool instance, Downtime override, manual draft/follow-up, Encounter 지도 상태, Knitting 진행과 Trinket 원장을 보존한다. |
 | SAVE-006 | 클라우드 동기화 | 최신 리비전·시간으로 충돌을 판정하고 여러 탭/장치 덮어쓰기 방지 | 로그인·자동 저장 | revision compare + Firebase queue | Partial | 없음 | 최신 revision 우선과 순차 쓰기는 구현됐지만 같은 revision의 동시 편집 merge는 없다. |
 | SAVE-007 | 저장 한도 | 큰 저널/사진이 있어도 로컬 진행을 보존하고 제한을 사용자에게 명확히 알림 | 저널·사진 | `store.set` | Partial | 없음 | 큰 save도 로컬에는 보존하지만 cloud 생략 알림은 console warning만 제공한다. |
 | SAVE-008 | 쓰기 순서 | 연속 상태 변경은 생성 순서대로 저장되고 오래된 요청이 최신 상태를 덮지 않음 | 전체 | `saveQueue.ts`, `saveRevision` | Exact | `saveQueue.test.ts [SAVE-008]` | local-first queue가 revision별 최신 항목을 유지하고 지연·실패·재시도를 자동 테스트한다. |
@@ -304,3 +304,11 @@
 ## Version 1.0 Freeze
 
 Version `1.0.0` release packaging은 Rule ID, 상태, resolver와 test mapping을 변경하지 않는다. 공식 baseline은 `Exact 117 / Partial 24 / Incorrect 0 / Missing 0 / UI-only 0 / Logic-only 2 / Ambiguous 2 / House Rule 6`이며 24개 Partial의 분류와 사유는 `KNOWN_LIMITATIONS.md`에 고정한다.
+
+## 2026-08-15 p.55–84 후속 구현
+
+- `ALMANACK-002`: 각 Trinket 획득 묶음을 p.56의 대표 Object/Material/Origin 한 건과 이름 없는 잔여 수량에 연결해 `Logic-only → Exact`로 올렸다.
+- `TOOL-004`: Knitting의 Timer 부족 우회를 제거하고, 여러 Preparing to Leave에 걸친 누적 진행·교체 방지·완성 Journal·포기를 구현해 `House Rule → Exact`로 올렸다.
+- `TRAVEL-009`: Partial 분류는 서사·NPC 선택 때문에 유지하지만, p.75–84의 후속 카드, 최단 Location 이동, Path 추가, 계절 봉쇄, Rarity 보정은 더 이상 미구현 사유가 아니다.
+- 현재 Golden Master의 실행 상태 집계는 `Exact 119 / Partial 24`; 신규 Exact 2개를 포함한 143개 Exact/Partial Rule ID를 고정한다.
+- 공유 Guild save 기반 멀티플레이 전달 원장은 사용자 결정에 따라 제품 범위에서 제외한다.

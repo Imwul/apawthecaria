@@ -8,8 +8,8 @@ import type {
 } from './printedEffects';
 import type { PatientState } from './state';
 
-const OBJECTS = ['Implement or Gadget', 'Container', 'Accessory', 'Clothing or Equipment', 'Book', 'Toy / Animal / Entertainment', 'Instrument', 'Tchotchke', 'Pilgrimage Memento', 'Local Souvenir', 'Food / Delicacy', 'Seedling / Potted Plant'] as const;
-const MATERIALS = ['Titanesque', 'Hardwood', 'Bone', 'Iron', 'Silver', 'Repurposed', 'Copper', 'Flint', 'Grasses / Plant Fibres', 'Pretty Stone', 'Glass', 'Softwood'] as const;
+const OBJECTS = ['Implement or Gadget', 'Container', 'Accessory', 'Clothing or Equipment', 'Book', 'Toy / Entertainment', 'Instrument', 'Tchotchke', 'Pilgrimage Memento', 'Local Souvenir', 'Food / Delicacy', 'Seedling / Potted Plant'] as const;
+const MATERIALS = ['Titanesque', 'Hardwood', 'Bone', 'Iron', 'Silver', 'Animal / Repurposed', 'Copper', 'Flint', 'Grasses / Plant Fibres', 'Pretty Stone', 'Glass', 'Softwood'] as const;
 const ORIGINS = ['Unwanted Gift', 'Tattered & sentimental', 'Inherited from family', 'Discovered by roadside', 'Handmade by owner', 'Part of a collection', 'Traded from faraway', 'Survived spring cleaning', 'Imported from the west coast', 'Permanently borrowed', 'Too big or small for the original owner', 'A friend’s (they went Elsewhere)'] as const;
 const uniqueRows = <T,>(rows: T[]): T[] => [...new Set(rows)];
 
@@ -277,7 +277,7 @@ export const resolveManualEffectTransaction = (input: {
   const resolvedFollowUp = String(input.draft.inputValues['follow-up-result'] || '').trim();
   const pendingDescriptions = resolvedFollowUp ? [] : input.draft.followUpRequirements;
   for (const action of selectedActions as PrintedCanonicalActionTemplate[]) {
-    if (action.kind === 'gain-inventory' || action.kind === 'record-map-change' || action.kind === 'record-movement') {
+    if (action.kind === 'gain-inventory') {
       pendingDescriptions.push(input.draft.actionTargets[action.id] || action.sourceText);
     }
   }

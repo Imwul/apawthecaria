@@ -75,7 +75,7 @@ describe('personal rulebook transplant registry', () => {
     GUILD_SERVICES.forEach(service => expect(detailsFor(`service:${service.id}`).Duration).toBe(service.duration));
 
     const manual = PRINTED_EFFECT_REGISTRY.filter(effect => effect.status !== 'implemented');
-    expect(manual).toHaveLength(335);
+    expect(manual).toHaveLength(336);
     manual.forEach(effect => {
       const entry = RULEBOOK_REFERENCE_BY_ID.get(`printed-effect:${effect.id}`);
       const detail = detailsFor(`printed-effect:${effect.id}`);

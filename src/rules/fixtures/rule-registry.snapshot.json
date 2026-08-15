@@ -56,6 +56,13 @@
     "classification": "exact"
   },
   {
+    "id": "ALMANACK-002",
+    "sourcePage": "p56-57",
+    "executor": "almanackEngine.ts, trinketLedger.ts, schema v9",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
     "id": "ALMANACK-003",
     "sourcePage": "p54-71",
     "executor": "compendium/inventory state",
@@ -723,7 +730,7 @@
   {
     "id": "SAVE-001",
     "sourcePage": "진행 보존",
-    "executor": "App.tsx:store, schema v8",
+    "executor": "App.tsx:store, schema v9",
     "status": "Partial",
     "classification": "intentional-evidence-limit"
   },
@@ -744,7 +751,7 @@
   {
     "id": "SAVE-004",
     "sourcePage": "진행 보존",
-    "executor": "schema v8 TreatmentDraft, treatment transaction IDs",
+    "executor": "schema v9 TreatmentDraft, treatment transaction IDs",
     "status": "Exact",
     "classification": "exact"
   },
@@ -868,6 +875,13 @@
     "classification": "exact"
   },
   {
+    "id": "TOOL-004",
+    "sourcePage": "p62-65",
+    "executor": "toolEngine.ts, tool actions, schema v9",
+    "status": "Exact",
+    "classification": "exact"
+  },
+  {
     "id": "TOOL-005",
     "sourcePage": "p66-67",
     "executor": "toolEngine.ts, schema v5, action resolvers",
@@ -926,7 +940,7 @@
   {
     "id": "TRAVEL-009",
     "sourcePage": "p25",
-    "executor": "encounterEngine.ts, manual resolution queue",
+    "executor": "encounterEngine.ts, encounterSupportEngine.ts, manual resolution queue",
     "status": "Partial",
     "classification": "intentional-narrative"
   },

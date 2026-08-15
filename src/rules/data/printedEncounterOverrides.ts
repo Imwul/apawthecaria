@@ -148,9 +148,21 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
   'travel-loch-3-4': {
     title: 'Muddy Waters',
     prompt: 'Something brushes against you beneath the water. Draw a card, then journal about the Titan wreck or natural formation you discover.',
-    mandatoryEffects: [],
+    mandatoryEffects: [manual('MUDDY_WATERS_DRAW', 'Draw a card. J or M reveals a Titan wreck; Ace through 10 reveals a natural formation.')],
     choices: [],
-    support: 'implemented'
+    support: 'manual-only'
+  },
+  'travel-loch-5-6': {
+    title: 'Carpe Carp-ey',
+    prompt: 'A great fish breaks the surface. Let it go, or draw one card for yourself and one for the fish to see which is higher.',
+    mandatoryEffects: [],
+    choices: [
+      { id: 'let-it-go', label: 'Let it go: continue without grabbing the fish', effects: [] },
+      { id: 'grabby-paws', label: 'Grabby Paws: draw one card for you and one for the Big Fish', effects: [
+        manual('CARPE_CARPEY_CONTEST', 'Compare both cards. Win to gain every Big Fish Part; lose to drop one Item from your Bags.')
+      ] }
+    ],
+    support: 'manual-only'
   },
   'travel-loch-9-10-spring': {
     title: 'Less Than Titanic',
@@ -185,6 +197,26 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
       { id: 'leave-it', label: 'Leave It: draw a card and resolve whether Hornweed spreads', effects: [
         manual('HORNWEED_SPREAD_DRAW', 'Draw a card. On Clubs or Spades, all Reagents have +3 Rarity in this Location until Winter.')
       ] }
+    ],
+    support: 'manual-only'
+  },
+  'travel-loch-j-spring': {
+    title: 'Need For Speed',
+    prompt: 'A showboating water bird challenges you. Refuse and alter a Journal page, or race by drawing two cards for the bird and one for yourself.',
+    mandatoryEffects: [],
+    choices: [
+      { id: 'refuse', label: 'Refuse: record how the splashed Journal page was altered', effects: [manual('NEED_FOR_SPEED_REFUSAL', 'Record the page or words altered by the water bird.')] },
+      { id: 'race', label: 'Race: draw two cards for the bird and one for you', effects: [manual('NEED_FOR_SPEED_RACE', 'Compare the highest value. Win to gain 1 Trinket; lose the race to gain 1 Reputation for good sportsmanship.')] }
+    ],
+    support: 'manual-only'
+  },
+  'travel-loch-j-summer': {
+    title: 'Pi-rats!',
+    prompt: 'Pirates demand your business. Treat their patient under the Parley rules, or fight Ship-to-Ship by drawing one card for yourself (two with a Crossbow) and two for the Pirates.',
+    mandatoryEffects: [],
+    choices: [
+      { id: 'parley', label: 'Parley: Help a Local Pirate under the printed patient and prisoner rules', effects: [manual('PIRATE_PATIENT', 'Replace Local Beast rewards with Trinkets and become Taken Prisoner if the Remedy fails.')] },
+      { id: 'ship-combat', label: 'Ship-to-Ship Combat: compare your total with two Pirate cards', effects: [manual('PIRATE_COMBAT', 'Use a Coracle or adapted Wagon. Draw a second player card only with a Crossbow; escape adjacent on a win or become Taken Prisoner on a loss.')] }
     ],
     support: 'manual-only'
   },

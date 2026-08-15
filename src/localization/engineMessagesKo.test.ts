@@ -44,7 +44,7 @@ const auditedEngineStrings = () => {
 
 describe('gameplay message Korean presentation layer', () => {
   it('covers every audited fixed engine message', () => {
-    expect(ENGINE_MESSAGE_TRANSLATION_COUNT).toBe(352);
+    expect(ENGINE_MESSAGE_TRANSLATION_COUNT).toBe(364);
   });
 
   it('preserves proper names while translating surrounding instructions', () => {

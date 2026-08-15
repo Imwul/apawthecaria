@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import type { ManualEffectDraft } from '../rules';
+import { drawDeterministicFollowUpCard, resolveFollowUpCard, resolveFollowUpCardSet, type CardSuit, type ManualEffectDraft } from '../rules';
 import {
   localizeManualEffectLine,
   localizeManualEffectOption,
@@ -14,6 +14,7 @@ export default function ManualEffectPanel({
   draft,
   inventoryItems = [],
   timers = [],
+  locationOptions = [],
   onChange,
   onDefer,
   onResolve
@@ -21,12 +22,42 @@ export default function ManualEffectPanel({
   draft: ManualEffectDraft;
   inventoryItems?: Array<{ id: string; name: string }>;
   timers?: Array<{ id: string; label: string }>;
+  locationOptions?: Array<{ id: string; label: string; detail?: string }>;
   onChange: (draft: ManualEffectDraft) => void;
   onDefer: () => void;
   onResolve: (override: boolean) => void;
 }) {
   const update = (patch: Partial<ManualEffectDraft>) => onChange({ ...draft, ...patch });
   const updateInput = (id: string, value: string | number | boolean) => update({ inputValues: { ...draft.inputValues, [id]: value } });
+  const cardFields = draft.inputFields.filter(field => field.type === 'card-reference');
+  const cardsFromValues = (values: ManualEffectDraft['inputValues']) => Object.fromEntries(cardFields.flatMap(field => {
+    const suit = String(values[`${field.id}-suit`] || (field.id === 'follow-up-card' ? values['follow-up-suit'] : '')) as CardSuit;
+    const value = Number(values[`${field.id}-value`] || (field.id === 'follow-up-card' ? values['follow-up-value'] : 0));
+    return suit && value > 0 ? [[field.id, { suit, value }]] : [];
+  }));
+  const applyFollowUpCard = (fieldId: string, suit: CardSuit, value: number) => {
+    const resolved = resolveFollowUpCard(draft, { suit, value });
+    const inputValues = {
+      ...draft.inputValues,
+      [fieldId]: resolved.label,
+      [`${fieldId}-suit`]: suit,
+      [`${fieldId}-value`]: value
+    };
+    if (fieldId === 'follow-up-card') {
+      inputValues['follow-up-suit'] = suit;
+      inputValues['follow-up-value'] = value;
+    }
+    inputValues['follow-up-result'] = resolveFollowUpCardSet(draft, cardsFromValues(inputValues)) || resolved.outcome;
+    update({ inputValues });
+  };
+  const clearFollowUpCard = (fieldId: string) => {
+    const inputValues = { ...draft.inputValues };
+    delete inputValues[fieldId];
+    delete inputValues[`${fieldId}-suit`];
+    delete inputValues[`${fieldId}-value`];
+    inputValues['follow-up-result'] = resolveFollowUpCardSet(draft, cardsFromValues(inputValues));
+    update({ inputValues });
+  };
   const requiredComplete = draft.inputFields.every(field => !field.required || draft.inputValues[field.id] === true || String(draft.inputValues[field.id] ?? '').trim().length > 0);
   const selectedActions = draft.actionTemplates.filter(action => draft.selectedActionIds.includes(action.id));
   const localizedPrintedText = localizeManualEffectText(draft.summary, draft.printedText);
@@ -65,6 +96,12 @@ export default function ManualEffectPanel({
         if (field.type === 'choice') return <label key={field.id}><span>{localizeManualEffectValue(field.label)}{field.required ? ' *' : ''}</span><select value={String(value ?? '')} onChange={event => updateInput(field.id, event.target.value)}><option value="">선택하지 않음</option>{(field.options || []).map(option => <option key={option} value={option}>{localizeManualEffectOption(option)}</option>)}</select></label>;
         if (field.type === 'number') return <label key={field.id}><span>{localizeManualEffectValue(field.label)}{field.required ? ' *' : ''}</span><input type="number" value={typeof value === 'number' ? value : ''} onChange={event => updateInput(field.id, Number(event.target.value))} /></label>;
         if (field.type === 'condition') return <label key={field.id} className="manual-effect__check"><input type="checkbox" checked={value === true} onChange={event => updateInput(field.id, event.target.checked)} /><span>{localizeManualEffectValue(field.label)}{field.required ? ' *' : ''}</span></label>;
+        if (field.type === 'card-reference') {
+          const suit = String(draft.inputValues[`${field.id}-suit`] || (field.id === 'follow-up-card' ? draft.inputValues['follow-up-suit'] : '') || '♥') as CardSuit;
+          const cardValue = Number(draft.inputValues[`${field.id}-value`] || (field.id === 'follow-up-card' ? draft.inputValues['follow-up-value'] : 0) || (field.required ? 1 : 0));
+          const isLastCard = cardFields.at(-1)?.id === field.id;
+          return <fieldset key={field.id} className="manual-effect__card-wizard"><legend>{localizeManualEffectValue(field.label)}{field.required ? ' *' : ''}</legend><p>앱에서 뽑거나 실제 카드의 문양과 값을 선택하세요. Q와 K는 룰북의 M(12)로 판정합니다.</p><div><select aria-label={`${field.label} 문양`} value={suit} onChange={event => applyFollowUpCard(field.id, event.target.value as CardSuit, Math.max(1, cardValue))}>{['♥', '♦', '♣', '♠'].map(row => <option key={row} value={row}>{row}</option>)}</select><select aria-label={`${field.label} 값`} value={cardValue} onChange={event => Number(event.target.value) > 0 ? applyFollowUpCard(field.id, suit, Number(event.target.value)) : clearFollowUpCard(field.id)}>{!field.required && <option value={0}>사용하지 않음</option>}{Array.from({ length: 13 }, (_, index) => index + 1).map(row => <option key={row} value={row}>{row === 1 ? 'A' : row === 11 ? 'J' : row >= 12 ? `M (${row === 12 ? 'Q' : 'K'})` : row}</option>)}</select><button type="button" onClick={() => { const card = drawDeterministicFollowUpCard(`${draft.effectId}:${field.id}:${Date.now()}`); applyFollowUpCard(field.id, card.suit, card.value); }}>카드 뽑기</button></div>{value && <strong>기록된 카드: {String(value)}</strong>}{isLastCard && draft.inputValues['follow-up-result'] && <output>{localizeManualEffectLine(String(draft.inputValues['follow-up-result']))}</output>}</fieldset>;
+        }
         return <label key={field.id}><span>{localizeManualEffectValue(field.label)}{field.required ? ' *' : ''}</span>{field.type === 'free-text' ? <textarea rows={3} value={String(value ?? '')} onChange={event => updateInput(field.id, event.target.value)} /> : <input value={String(value ?? '')} onChange={event => updateInput(field.id, event.target.value)} placeholder={field.helpText ? localizeManualEffectValue(field.helpText) : undefined} />}</label>;
       })}
     </div>
@@ -77,7 +114,8 @@ export default function ManualEffectPanel({
         <small>{localizeManualEffectLine(action.sourceText)}</small>
         {selected && action.targetType === 'inventory-item' && <select aria-label={`${localizeManualEffectValue(action.label)} 대상`} value={target} onChange={event => update({ actionTargets: { ...draft.actionTargets, [action.id]: event.target.value } })}><option value="">가방에서 선택</option>{inventoryItems.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}
         {selected && action.targetType === 'timer' && <select aria-label={`${localizeManualEffectValue(action.label)} 대상`} value={target} onChange={event => update({ actionTargets: { ...draft.actionTargets, [action.id]: event.target.value } })}><option value="">모든 활성 타이머</option>{timers.map(timer => <option key={timer.id} value={timer.id}>{timer.label}</option>)}</select>}
-        {selected && (action.targetType === 'location' || action.targetType === 'free-text') && <input aria-label={`${localizeManualEffectValue(action.label)} 대상 또는 결과`} value={target} onChange={event => update({ actionTargets: { ...draft.actionTargets, [action.id]: event.target.value } })} placeholder="원문이 지정한 대상이나 결과" />}
+        {selected && action.targetType === 'location' && <select aria-label={`${localizeManualEffectValue(action.label)} 지도 대상`} value={target} onChange={event => update({ actionTargets: { ...draft.actionTargets, [action.id]: event.target.value } })}><option value="">지도에서 Location 선택</option>{locationOptions.map(option => <option key={option.id} value={`location:${option.id}`}>{option.label}{option.detail ? ` · ${option.detail}` : ''}</option>)}</select>}
+        {selected && action.targetType === 'free-text' && <input aria-label={`${localizeManualEffectValue(action.label)} 대상 또는 결과`} value={target} onChange={event => update({ actionTargets: { ...draft.actionTargets, [action.id]: event.target.value } })} placeholder="원문이 지정한 대상이나 결과" />}
       </div>;
     })}{selectedActions.length > 0 && <div className="manual-effect__preview"><strong>적용 미리보기</strong><ul>{selectedActions.map(action => <li key={action.id}>{localizeManualEffectValue(action.label)}{draft.actionTargets[action.id] ? ` · ${draft.actionTargets[action.id]}` : ''}</li>)}</ul></div>}</div>}
 

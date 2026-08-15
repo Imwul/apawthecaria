@@ -477,6 +477,22 @@ const migrateV7ToV8: SaveMigration = saved => {
   };
 };
 
+const migrateV8ToV9: SaveMigration = saved => {
+  const trinketRecords = Array.isArray(saved.trinketRecords) ? saved.trinketRecords : [];
+  const recordedActiveCount = trinketRecords.filter(record => record && typeof record === 'object' && !(record as { spent?: boolean }).spent).length;
+  const totalTrinkets = Array.isArray(saved.trinkets) ? saved.trinkets.length : 0;
+  return {
+    ...saved,
+    encounterMapMutations: Array.isArray(saved.encounterMapMutations) ? saved.encounterMapMutations : [],
+    knittingProject: saved.knittingProject && typeof saved.knittingProject === 'object' ? saved.knittingProject : null,
+    trinketRecords,
+    legacyTrinketCount: Number.isInteger(saved.legacyTrinketCount)
+      ? Math.max(0, Number(saved.legacyTrinketCount))
+      : Math.max(0, totalTrinkets - recordedActiveCount),
+    schemaVersion: 9
+  };
+};
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   0: migrateV0ToV1,
   1: migrateV1ToV2,
@@ -485,7 +501,8 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   4: migrateV4ToV5,
   5: migrateV5ToV6,
   6: migrateV6ToV7,
-  7: migrateV7ToV8
+  7: migrateV7ToV8,
+  8: migrateV8ToV9
 };
 
 export const migrateSavedRulesState = <T extends Record<string, unknown>>(saved: T | null | undefined) => {
@@ -533,6 +550,7 @@ export const migrateSavedRulesState = <T extends Record<string, unknown>>(saved:
     activeDelve: unknown | null;
     pendingServices: unknown[];
     serviceMapMutations: unknown[];
+    encounterMapMutations: unknown[];
     toolStates: unknown[];
     wagonState: unknown | null;
     companionStates: unknown[];
@@ -543,6 +561,7 @@ export const migrateSavedRulesState = <T extends Record<string, unknown>>(saved:
     ailmentTagOverrides: unknown[];
     trinketRecords: unknown[];
     legacyTrinketCount: number;
+    knittingProject: unknown | null;
     pendingManualEffect: unknown | null;
     treatmentDraft: TreatmentDraft | null;
     manualEffectDraft: unknown | null;

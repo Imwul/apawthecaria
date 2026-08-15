@@ -4444,8 +4444,8 @@
     "id": "printed:travel-loch-3-4",
     "ownerId": "travel-loch-3-4",
     "sourcePage": 82,
-    "status": "implemented",
-    "classification": "deterministic",
+    "status": "manual",
+    "classification": "narrative",
     "executor": "executeEncounter",
     "ruleIds": [
       "CORE-002",
@@ -4460,7 +4460,7 @@
     "ownerId": "travel-loch-5-6",
     "sourcePage": 82,
     "status": "manual",
-    "classification": "narrative",
+    "classification": "structured-choice",
     "executor": "executeEncounter",
     "ruleIds": [
       "CORE-002",
@@ -4580,7 +4580,7 @@
     "ownerId": "travel-loch-j-spring",
     "sourcePage": 83,
     "status": "manual",
-    "classification": "narrative",
+    "classification": "structured-choice",
     "executor": "executeEncounter",
     "ruleIds": [
       "CORE-002",
@@ -4595,7 +4595,7 @@
     "ownerId": "travel-loch-j-summer",
     "sourcePage": 84,
     "status": "manual",
-    "classification": "narrative",
+    "classification": "structured-choice",
     "executor": "executeEncounter",
     "ruleIds": [
       "CORE-002",

@@ -62,8 +62,8 @@ if (updateSnapshots) {
 const frozenRuleSnapshot = JSON.parse(readFileSync(fixtureFile('rule-registry.snapshot.json'), 'utf8'));
 const frozenPrintedEffectSnapshot = JSON.parse(readFileSync(fixtureFile('printed-effects.snapshot.json'), 'utf8'));
 
-describe('v1.0.0 Golden Master regression contract', () => {
-  it('[SAVE-001] preserves every synthetic campaign fixture at schema v8', () => {
+describe('Golden Master regression contract', () => {
+  it('[SAVE-001] preserves every synthetic campaign fixture in the current schema', () => {
     expect(Object.keys(GOLDEN_SAVE_FIXTURES).sort()).toEqual([
       'activeBarrow', 'activeJourney', 'activePatient', 'archiveHeavy', 'clinicAndService', 'freshCampaign',
       'midDowntime', 'pendingManualResolution', 'postSeason', 'toolAndUpgrade', 'wagonAndCompanion'
@@ -98,8 +98,8 @@ describe('v1.0.0 Golden Master regression contract', () => {
 
   it('freezes Rule IDs, status, source page, executor, and intentional classification', () => {
     expect(currentRuleSnapshot).toEqual(frozenRuleSnapshot);
-    expect(currentRuleSnapshot).toHaveLength(141);
-    expect(currentRuleSnapshot.filter(rule => rule.status === 'Exact')).toHaveLength(117);
+    expect(currentRuleSnapshot).toHaveLength(143);
+    expect(currentRuleSnapshot.filter(rule => rule.status === 'Exact')).toHaveLength(119);
     expect(currentRuleSnapshot.filter(rule => rule.status === 'Partial')).toHaveLength(24);
     expect(currentRuleSnapshot.filter(rule => rule.classification === 'unclassified-partial')).toHaveLength(0);
   });
@@ -109,8 +109,8 @@ describe('v1.0.0 Golden Master regression contract', () => {
     expect(currentPrintedEffectSnapshot).toHaveLength(358);
     expect(new Set(currentPrintedEffectSnapshot.map(effect => effect.id)).size).toBe(358);
     expect(new Set(currentPrintedEffectSnapshot.map(effect => effect.ownerId)).size).toBe(358);
-    expect(currentPrintedEffectSnapshot.filter(effect => effect.status === 'implemented')).toHaveLength(23);
-    expect(currentPrintedEffectSnapshot.filter(effect => effect.status === 'manual')).toHaveLength(335);
+    expect(currentPrintedEffectSnapshot.filter(effect => effect.status === 'implemented')).toHaveLength(22);
+    expect(currentPrintedEffectSnapshot.filter(effect => effect.status === 'manual')).toHaveLength(336);
     expect(currentPrintedEffectSnapshot.every(effect => effect.sourcePage >= 6 && effect.sourcePage <= 213)).toBe(true);
     expect(currentPrintedEffectSnapshot.every(effect => effect.executor && effect.ruleIds.length > 0 && effect.triggers.length > 0)).toBe(true);
   });

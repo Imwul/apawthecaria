@@ -247,5 +247,12 @@ describe('Phase 4 Almanack, replacement, and schema', () => {
     expect(migrated.legacyTrinketCount).toBe(2);
     expect(migrated.trinketRecords).toEqual([]);
     expect(migrated.offlineOutbox).toEqual([]);
+
+    const recorded = migrateSavedRulesState({
+      schemaVersion: 8,
+      trinkets: ['a', 'b'],
+      trinketRecords: [{ trinketId: 'recorded', spent: false }]
+    });
+    expect(recorded.legacyTrinketCount).toBe(1);
   });
 });

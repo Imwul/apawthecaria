@@ -291,7 +291,7 @@ const DOWNTIME_ENTRIES = [createEntry({
 const GUIDANCE_ENTRIES = [
   createEntry({ id: 'guidance:specific-overrides-general', kind: 'guidance', title: 'Specific Overrides General', summary: '두 규칙이 충돌하면 더 구체적인 규칙이 우선합니다.', sourcePage: 6, ruleIds: ['CORE-001'], runtimeStatus: 'reference-only', details: [detail('Source type', 'Player guidance')], relatedIds: ['chapter:introduction'] }),
   createEntry({ id: 'guidance:journaling', kind: 'guidance', title: 'Journaling', summary: 'Journal prompt는 글, 말, 그림 등 원하는 형식으로 멈춰 생각하는 지시입니다.', sourcePage: 7, ruleIds: [], runtimeStatus: 'reference-only', details: [detail('Source type', 'Player guidance')], relatedIds: ['chapter:introduction'] }),
-  createEntry({ id: 'guidance:manual-is-intentional', kind: 'guidance', title: 'Manual Resolution은 누락이 아닙니다', summary: '원문이 선택, 서술 또는 후속 판단을 플레이어에게 맡긴 경우 앱은 결론을 만들지 않고 필요한 맥락과 기록 수단을 제공합니다.', sourcePage: 7, ruleIds: [], runtimeStatus: 'reference-only', details: [detail('335개 Manual', '원작의 player choice / narrative / follow-up을 보존')], relatedIds: [] })
+  createEntry({ id: 'guidance:manual-is-intentional', kind: 'guidance', title: 'Manual Resolution은 누락이 아닙니다', summary: '원문이 선택, 서술 또는 후속 판단을 플레이어에게 맡긴 경우 앱은 결론을 만들지 않고 필요한 맥락과 기록 수단을 제공합니다.', sourcePage: 7, ruleIds: [], runtimeStatus: 'reference-only', details: [detail('336개 Manual', '원작의 player choice / narrative / follow-up을 보존')], relatedIds: [] })
 ];
 
 const EXAMPLE_ENTRIES = [

@@ -116,7 +116,7 @@ import {
   repairCanonicalTool,
   resolveCrossbowProtection,
   resolveGraniteMortarPound,
-  resolveKnittingProject,
+  advanceKnittingProject,
   resolveKnittedBlanket,
   upgradeCanonicalTool,
   resolvePawn,
@@ -135,6 +135,11 @@ import {
   getPatientPersonalityChoices,
   isHouseRuleEnabled,
   migrateSavedRulesState,
+  enrichEncounterSupportDraft,
+  encounterLocationConditions,
+  expireEncounterMapMutations,
+  reconcileTrinketLedger,
+  resolveEncounterMapConsequences,
   upsertPatientArchive,
   type BarterMapNode,
   type BarterRuntimeState,
@@ -153,11 +158,13 @@ import {
   type ClinicAgendaRuntimeState,
   type DowntimeEngineOutcome,
   type EngineInventoryItem,
+  type EncounterMapMutation,
   type GameplayLocationType,
   type GuildServiceId,
   type JourneyMapNode,
   type JourneyRuntimeState,
   type JourneyState,
+  type KnittingProjectProgress,
   type LeaveRuntimeState,
   type ManualEffectDraft,
   type ManualEffectRecord,
@@ -176,6 +183,7 @@ import {
   type ServiceMapMutation,
   type ServiceRuntimeState,
   type TreatmentDraft,
+  type TrinketRecord,
   type TravelRegion,
   type WagonState
 } from './rules';
@@ -239,6 +247,13 @@ const showAlert = (message: unknown) => {
 const createClientTransaction = (prefix: string) => {
   const at = Date.now();
   return { at, id: `${prefix}:${at}:${Math.random().toString(36).slice(2, 8)}` };
+};
+
+const KNITTING_PROJECT_LABELS: Record<KnittingProjectProgress['projectId'], string> = {
+  'knitted-blanket': 'Knitted Blanket',
+  'knitted-coat': 'Knitted Coat',
+  'knitted-satchel': 'Knitted Satchel',
+  'knitted-scarf': 'Knitted Scarf'
 };
 
 const requirementRuleTags = (requirement: RequirementExpression): RuleTag[] => {
@@ -508,6 +523,10 @@ interface TrinketMemoryRecord {
   timestamp: number;
   spent: boolean;
   patientCaseId?: string;
+  object?: string;
+  material?: string;
+  origin?: string;
+  canonicalTrinketId?: string;
 }
 
 interface PursuedByBehemoth {
@@ -763,6 +782,7 @@ interface GameState {
   appliedEncounterEffectIds: string[];
   pendingServices: unknown[];
   serviceMapMutations: unknown[];
+  encounterMapMutations: EncounterMapMutation[];
   toolStates: unknown[];
   wagonState: WagonState | null;
   companionStates: CompanionState[];
@@ -771,8 +791,9 @@ interface GameState {
   rumourHeardForJourneyId?: string;
   clinicAgendaIds: string[];
   ailmentTagOverrides: AilmentTagOverride[];
-  trinketRecords: unknown[];
+  trinketRecords: TrinketRecord[];
   legacyTrinketCount: number;
+  knittingProject: KnittingProjectProgress | null;
   pendingManualEffect: ManualEffectDraft | null;
   treatmentDraft: TreatmentDraft | null;
   manualEffectDraft: ManualEffectDraft | null;
@@ -939,6 +960,7 @@ const INITIAL_STATE: GameState = {
   appliedEncounterEffectIds: [],
   pendingServices: [],
   serviceMapMutations: [],
+  encounterMapMutations: [],
   toolStates: [],
   wagonState: null,
   companionStates: [],
@@ -949,6 +971,7 @@ const INITIAL_STATE: GameState = {
   ailmentTagOverrides: [],
   trinketRecords: [],
   legacyTrinketCount: 1,
+  knittingProject: null,
   pendingManualEffect: null,
   treatmentDraft: null,
   manualEffectDraft: null,
@@ -1853,6 +1876,99 @@ const resizeTrinkets = (current: string[], count: number, label: string) => coun
   ? current.slice(0, count)
   : [...current, ...Array(count - current.length).fill(label)];
 
+const syncTrinketProvenance = (previous: GameState, next: GameState): GameState => {
+  const previousCount = previous.trinkets.length;
+  const nextCount = next.trinkets.length;
+  if (previousCount === nextCount) return next;
+  const source = nextCount > previousCount
+    ? String(next.trinkets[previousCount] || 'Gameplay reward')
+    : 'Trinket spent';
+  const transactionId = `trinket:auto:${previous.saveRevision + 1}:${previousCount}:${nextCount}`;
+  const remainingNames = [...next.trinkets];
+  const removedNames = previous.trinkets.filter(name => {
+    const match = remainingNames.indexOf(name);
+    if (match >= 0) {
+      remainingNames.splice(match, 1);
+      return false;
+    }
+    return true;
+  });
+  const preferredSpentRecordIds: string[] = [];
+  removedNames.forEach(name => {
+    const record = (next.trinketRecords || []).find(row => !row.spent && !preferredSpentRecordIds.includes(row.trinketId) && `${row.object} · ${row.material}` === name);
+    if (record) preferredSpentRecordIds.push(record.trinketId);
+  });
+  const ledger = reconcileTrinketLedger({
+    previousCount,
+    nextCount,
+    records: Array.isArray(next.trinketRecords) ? next.trinketRecords : [],
+    legacyCount: Number.isInteger(next.legacyTrinketCount) ? next.legacyTrinketCount : previousCount,
+    transactionId,
+    acquiredAt: next.calendarDays,
+    source,
+    journalEntryId: `${transactionId}:journal`,
+    preferredSpentRecordIds
+  });
+  let trinketArchive = [...(next.trinketArchive || [])];
+  const provenanceBaseTimestamp = [...(next.journals || []).map(row => row.timestamp), ...trinketArchive.map(row => row.timestamp)]
+    .reduce((latest, timestamp) => Math.max(latest, Number(timestamp) || 0), 1) + 1;
+  ledger.createdRecords.forEach(record => {
+    trinketArchive = addTrinketMemory(trinketArchive, {
+      sourceId: record.trinketId,
+      name: `${record.object} · ${record.material}`,
+      count: 1,
+      source: record.source,
+      story: `${record.origin}. p.56의 세 장 카드 기록으로 자동 생성되었습니다.`,
+      locationName: next.currentLocationName,
+      timestamp: provenanceBaseTimestamp + ledger.createdRecords.indexOf(record),
+      spent: false,
+      object: record.object,
+      material: record.material,
+      origin: record.origin,
+      canonicalTrinketId: record.trinketId
+    });
+  });
+  if (nextCount < previousCount) {
+    const spentIds = new Set(ledger.spentRecordIds);
+    let genericRemaining = Math.max(0, previousCount - nextCount - spentIds.size);
+    let splitIndex = 0;
+    trinketArchive = trinketArchive.flatMap(record => {
+      if (record.spent || record.canonicalTrinketId || genericRemaining <= 0) return [record];
+      const availableCount = Math.max(1, record.count);
+      const spentCount = Math.min(availableCount, genericRemaining);
+      genericRemaining -= spentCount;
+      if (spentCount === availableCount) {
+        return [{ ...record, spent: true, story: `${record.story}\n${next.currentLocationName}에서 사용했습니다.` }];
+      }
+      const spentSourceId = `${record.sourceId}:spent:${transactionId}:${splitIndex++}`;
+      return [{
+        ...record,
+        id: memoryKey('trinket', spentSourceId),
+        sourceId: spentSourceId,
+        count: spentCount,
+        timestamp: provenanceBaseTimestamp + ledger.createdRecords.length + splitIndex,
+        spent: true,
+        story: `${record.story}\n${next.currentLocationName}에서 사용했습니다.`
+      }, { ...record, count: availableCount - spentCount }];
+    });
+    trinketArchive = trinketArchive.map(record => {
+      if (record.spent || !spentIds.has(record.canonicalTrinketId || '')) return record;
+      return { ...record, spent: true, story: `${record.story}\n${next.currentLocationName}에서 사용했습니다.` };
+    });
+  }
+  const generatedNames = ledger.createdRecords.map(record => `${record.object} · ${record.material}`);
+  const acquiredNames = next.trinkets.slice(previousCount).map((name, index) => generatedNames[index] || name);
+  return {
+    ...next,
+    trinkets: nextCount > previousCount
+      ? [...next.trinkets.slice(0, previousCount), ...acquiredNames]
+      : next.trinkets,
+    trinketRecords: ledger.records,
+    legacyTrinketCount: ledger.legacyCount,
+    trinketArchive
+  };
+};
+
 const createPrintedManualDraft = (
   ownerId: string,
   trigger: Parameters<typeof createManualEffectDraft>[1],
@@ -2369,7 +2485,11 @@ const normalizeTrinketRecord = (record: any): TrinketMemoryRecord => ({
   locationName: record.locationName || '',
   timestamp: record.timestamp || Date.now(),
   spent: !!record.spent,
-  patientCaseId: record.patientCaseId || ''
+  patientCaseId: record.patientCaseId || '',
+  object: record.object || '',
+  material: record.material || '',
+  origin: record.origin || '',
+  canonicalTrinketId: record.canonicalTrinketId || record.trinketId || ''
 });
 
 const addTrinketMemory = (
@@ -3617,6 +3737,7 @@ const migrateState = (s: any): GameState => {
     appliedEncounterEffectIds: s.appliedEncounterEffectIds || [],
     pendingServices: s.pendingServices || [],
     serviceMapMutations: s.serviceMapMutations || [],
+    encounterMapMutations: Array.isArray(s.encounterMapMutations) ? s.encounterMapMutations : [],
     toolStates: s.toolStates || [],
     wagonState: s.wagonState || null,
     companionStates: s.companionStates || [],
@@ -3625,8 +3746,9 @@ const migrateState = (s: any): GameState => {
     rumourHeardForJourneyId: typeof s.rumourHeardForJourneyId === 'string' ? s.rumourHeardForJourneyId : '',
     clinicAgendaIds: s.clinicAgendaIds || [],
     ailmentTagOverrides: s.ailmentTagOverrides || [],
-    trinketRecords: s.trinketRecords || [],
+    trinketRecords: Array.isArray(s.trinketRecords) ? s.trinketRecords : [],
     legacyTrinketCount: Number.isInteger(s.legacyTrinketCount) ? s.legacyTrinketCount : 0,
+    knittingProject: s.knittingProject && typeof s.knittingProject === 'object' ? s.knittingProject : null,
     pendingManualEffect: normalizeLegacyManualEffectDraft(s.pendingManualEffect),
     treatmentDraft: s.treatmentDraft || null,
     manualEffectDraft: normalizeLegacyManualEffectDraft(s.manualEffectDraft),
@@ -3806,7 +3928,7 @@ const getTravelSpeed = (s: GameState, weight: number): number => {
   return base;
 };
 
-const canonicalForagingModifiers = (s: GameState) => {
+const canonicalForagingModifiers = (s: GameState, includeCurrentLocationEncounterEffects = true) => {
   const mechanic = getActiveFamiliarMechanic(s);
   const plantCompanion = (s.companionStates || []).some(row => row.companionId === 'butterfly')
     && (s.currentSeason === 'Spring' || s.currentSeason === 'Summer');
@@ -3814,12 +3936,19 @@ const canonicalForagingModifiers = (s: GameState) => {
   const resourceful = mechanic === 'resourceful'
     ? REAGENTS.find(row => row.displayName === s.resourcefulReagent || row.canonicalName === s.resourcefulReagent)?.id
     : undefined;
+  const currentLocationId = findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName);
+  const encounterRarityModifier = includeCurrentLocationEncounterEffects
+    ? encounterLocationConditions(s.encounterMapMutations || [], currentLocationId)
+      .filter(row => row.kind === 'rarity-modifier')
+      .reduce((sum, row) => sum + (row.amount || 0), 0)
+    : 0;
   return {
     typeRarityModifiers: {
       PLANT: (mechanic === 'brushwise' ? -2 : 0) + (plantCompanion ? -1 : 0),
       INSECT: insectCompanion ? -1 : 0,
       TITAN: mechanic === 'titanwise' ? -2 : 0
     },
+    rarityModifiers: encounterRarityModifier,
     alwaysAvailableReagentIds: resourceful ? [resourceful] : [],
     weatherProtectionActive: Boolean(s.forecastActiveAtLocation)
   };
@@ -4297,7 +4426,7 @@ export default function App() {
       card: pending.card,
       reagentTypeFilter: pending.reagentTypeFilter,
       source: pending.source,
-      ...canonicalForagingModifiers(state),
+      ...canonicalForagingModifiers(state, pending.locationRelation === 'current'),
       weatherProtectionActive: pending.ignoreNegativeEncounterEffects || state.forecastActiveAtLocation
     });
     if (!result.value) return;
@@ -4330,6 +4459,11 @@ export default function App() {
     setState(prev => {
       if (!prev) return prev;
       let next = updater(withCanonicalPatientView(prev));
+      next = syncTrinketProvenance(prev, next);
+      if (prev.currentSeason !== next.currentSeason) next = {
+        ...next,
+        encounterMapMutations: expireEncounterMapMutations(next.encounterMapMutations || [], prev.currentSeason, next.currentSeason)
+      };
       next = {
         ...withoutLegacyPatientWrite(next),
         schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -4980,7 +5114,7 @@ export default function App() {
       parts: [{ preparationId: preparation.id, quantity }],
       spendForagingPoints: spendGap,
       gatherTimerId,
-      ...canonicalForagingModifiers(state),
+      ...canonicalForagingModifiers(state, pending.locationRelation === 'current'),
       weatherProtectionActive: pending.ignoreNegativeEncounterEffects || state.forecastActiveAtLocation
     });
     if (!result.value) {
@@ -5259,6 +5393,7 @@ export default function App() {
       : null;
     const printedEffect = PRINTED_EFFECT_BY_OWNER.get(pending.encounter.id);
     const selectedChoiceLabel = activeTravelEncounter?.choices?.find((choice: any) => choice.id === activeTravelEncounter?.selectedChoiceId)?.label;
+    if (manualDraft) manualDraft = enrichEncounterSupportDraft(manualDraft, selectedChoiceLabel || '');
     if (manualDraft && note.trim()) manualDraft = { ...manualDraft, resultSummary: note.trim(), journalNote: note.trim() };
     if ((pending.encounterProtection || pending.ignoreNegativeEncounterEffects) && manualDraft) manualDraft = {
       ...manualDraft,
@@ -5376,6 +5511,7 @@ export default function App() {
         continuation: 'foraging'
       })
       : null;
+    if (manualDraft) manualDraft = enrichEncounterSupportDraft(manualDraft);
     if (manualDraft && note.trim()) manualDraft = { ...manualDraft, resultSummary: note.trim(), journalNote: note.trim() };
     if (pending.ignoreNegativeEncounterEffects && manualDraft) manualDraft = {
       ...manualDraft,
@@ -5814,6 +5950,7 @@ export default function App() {
               draft={state.pendingManualEffect}
               inventoryItems={state.bag.map(item => ({ id: item.id, name: localizeInventoryItemName(item.name) }))}
               timers={(state.patients.find(patient => patient.id === state.pendingManualEffect?.context.patientId) || state.patients.find(patient => patient.id === state.activePatientId))?.timers.filter(timer => timer.status === 'active').map(timer => ({ id: timer.id, label: `${timer.ailmentInstanceId} · ${timer.current}/${timer.maximum}` })) || []}
+              locationOptions={Object.values(toServiceMapGraph(state)).map(node => ({ id: node.id, label: node.name, detail: `${node.region} · ${locationTypeLabel(node.locationType)}` }))}
               onChange={draft => updateState(s => ({ ...s, pendingManualEffect: draft, manualEffectDraft: draft, manualEffectQueue: s.manualEffectQueue.map(row => row.effectId === draft.effectId ? draft : row) }))}
               onDefer={() => updateState(s => {
                 if (!s.pendingManualEffect) return s;
@@ -5825,6 +5962,19 @@ export default function App() {
                 const transaction = createClientTransaction('manual-effect');
                 const draft = state.pendingManualEffect!;
                 const patient = state.patients.find(row => row.id === draft.context.patientId) || state.patients.find(row => row.id === state.activePatientId) || null;
+                const currentLocationId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
+                const mapResolution = resolveEncounterMapConsequences({
+                  draft,
+                  transactionId: transaction.id,
+                  currentLocationId,
+                  currentSeason: state.currentSeason,
+                  graph: toServiceMapGraph(state),
+                  existingMutations: state.encounterMapMutations || []
+                });
+                if (!mapResolution.value) {
+                  showAlert(mapResolution.messages.join('\n'));
+                  return;
+                }
                 const resolved = resolveManualEffectTransaction({
                   draft,
                   transactionId: transaction.id,
@@ -5877,6 +6027,49 @@ export default function App() {
                       text: `[${draft.ruleIds.join(', ')} · p.${draft.sourcePage}]\n${outcome.record.resultSummary}\n\n${outcome.record.journalNote}${override ? `\n\n예외 처리 사유: ${outcome.record.overrideReason}` : ''}`,
                       timestamp: transaction.at
                     }, ...s.journals]
+                  };
+
+                  const mapOutcome = mapResolution.value!;
+                  const mapGraph = toServiceMapGraph(s);
+                  const destinationNode = mapGraph[mapOutcome.currentLocationId];
+                  const knownMutationIds = new Set((s.encounterMapMutations || []).map(row => row.id));
+                  const newMapMutations = mapOutcome.mutations.filter(row => !knownMutationIds.has(row.id));
+                  const newEdges = newMapMutations.filter(row => row.kind === 'add-path' && row.nodeIds.length >= 2).map(row => ({
+                    id: row.id,
+                    from: row.nodeIds[0],
+                    to: row.nodeIds[1],
+                    kind: 'path' as const,
+                    label: `Encounter · ${draft.summary}`,
+                    createdAt: transaction.at
+                  }));
+                  const resolutionChanges = (s.lastEncounterReceipt?.changes || []).filter(change => change !== '자동 반영 전 직접 판정이 남았습니다.');
+                  if (destinationNode && destinationNode.name !== s.currentLocationName) resolutionChanges.push(`Location ${s.currentLocationName} → ${destinationNode.name}`);
+                  newMapMutations.forEach(mutation => {
+                    const names = mutation.nodeIds.map(id => mapGraph[id]?.name || id);
+                    if (mutation.kind === 'add-path') resolutionChanges.push(`Path 추가: ${names.join(' ↔ ')}`);
+                    if (mutation.kind === 'block-location') resolutionChanges.push(`${names[0]} 봉쇄 · ${mutation.createdSeason} 종료까지`);
+                    if (mutation.kind === 'rarity-modifier') resolutionChanges.push(`${names[0]} Reagent Rarity +${mutation.amount || 0} · Winter까지`);
+                  });
+                  const resolvedCards = draft.inputFields.filter(field => field.type === 'card-reference' && draft.inputValues[field.id]).map(field => `${field.label} ${String(draft.inputValues[field.id])}`);
+                  if (resolvedCards.length > 0) resolutionChanges.push(`후속 카드: ${resolvedCards.join(' · ')}`);
+                  if (draft.inputValues['follow-up-result']) resolutionChanges.push(String(draft.inputValues['follow-up-result']));
+                  if (resolutionChanges.length === 0) resolutionChanges.push(outcome.record.resultSummary || '직접 판정 기록 완료');
+                  next = {
+                    ...next,
+                    encounterMapMutations: mapOutcome.mutations,
+                    customMapEdges: [...(next.customMapEdges || []), ...newEdges.filter(edge => !(next.customMapEdges || []).some(existing => existing.id === edge.id))],
+                    currentLocationName: destinationNode?.name || next.currentLocationName,
+                    currentLocationType: destinationNode ? canonicalLocationType(destinationNode.locationType) : next.currentLocationType,
+                    currentRegion: destinationNode?.region || next.currentRegion,
+                    visitedLocations: destinationNode ? Array.from(new Set([...(next.visitedLocations || []), destinationNode.name])) : next.visitedLocations,
+                    lastEncounterReceipt: {
+                      id: `${transaction.id}:receipt`,
+                      title: draft.summary,
+                      choiceLabel: String(draft.inputValues['printed-choice'] || '') || undefined,
+                      changes: Array.from(new Set(resolutionChanges)),
+                      manualPending: queue.some(row => row.context.encounterTransactionId === draft.context.encounterTransactionId),
+                      timestamp: transaction.at
+                    }
                   };
 
                   const serviceTransactionId = draft.effectId.startsWith('service-followup:') ? draft.effectId.slice('service-followup:'.length) : null;
@@ -8941,6 +9134,11 @@ function PlayView({
     source: PendingForagingState['source'] = 'standard'
   ) => {
     const region = (overrideRegion || state.currentRegion) as Exclude<TravelRegion, 'Soar'>;
+    const forageLocationId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
+    if (!overrideRegion && encounterLocationConditions(state.encounterMapMutations || [], forageLocationId).some(row => row.kind === 'block-location')) {
+      showAlert('이 Location은 Encounter 효과로 계절이 끝날 때까지 채집할 수 없습니다.');
+      return;
+    }
     const transactionId = `forage:${Date.now()}`;
     const locationRelation = overrideRegion ? 'adjacent' as const : 'current' as const;
     const result = resolveForaging({
@@ -8960,7 +9158,7 @@ function PlayView({
       locationRelation,
       card: { value: cardVal, suit: drawnSuit },
       source,
-      ...canonicalForagingModifiers(state)
+      ...canonicalForagingModifiers(state, locationRelation === 'current')
     });
     if (!result.value) {
       showAlert(result.messages.join('\n'));
@@ -9152,7 +9350,7 @@ function PlayView({
       forageRegion: toRuleRegion(regionName),
       locationRelation: relation,
       card: { suit: drawnSuit, value: cardVal },
-      ...canonicalForagingModifiers(state)
+      ...canonicalForagingModifiers(state, relation === 'current')
     });
     if (!result.value) {
       showAlert(result.messages.join('\n'));
@@ -9359,7 +9557,7 @@ function PlayView({
     setPawnItemIds([]);
   };
 
-  const handleKnitProject = () => {
+  const handleKnitProject = async () => {
     if (!hasTool(state, 'tool_needles') && !hasTool(state, '뜨개바늘') && !hasTool(state, 'Knitting Needles')) {
       showAlert("뜨개바늘이 필요합니다.");
       return;
@@ -9370,23 +9568,51 @@ function PlayView({
       '3': { id: 'knitted-satchel', name: '뜨개 가방 (Knitted Satchel)', hours: 10 },
       '4': { id: 'knitted-scarf', name: '뜨개 목도리 (Knitted Scarf)', hours: 5 }
     };
-    const choice = prompt("뜨개 프로젝트 선택:\n1. 담요 20시간\n2. 코트 15시간\n3. 가방 10시간\n4. 목도리 5시간", "4") || '4';
+    const activeProject = state.knittingProject;
+    const choice = activeProject
+      ? Object.entries(projects).find(([, project]) => project.id === activeProject.projectId)?.[0] || '4'
+      : await requestControlledPrompt({
+          title: '뜨개 프로젝트 선택',
+          message: '한 프로젝트를 시작하면 완성하거나 포기할 때까지 다른 프로젝트로 바꿀 수 없습니다.',
+          defaultValue: '4',
+          kicker: 'Knitting Needles · p.64',
+          options: Object.entries(projects).map(([value, project]) => ({ value, label: `${project.name} · ${project.hours}시간` }))
+        });
+    if (!choice) return;
     const project = projects[choice] || projects['4'];
-    const availableTimer = state.scroungingTimer || state.activeAilment?.timer || 0;
+    const activePatient = getActivePatient(state);
+    const activeTimerValues = (activePatient?.timers || []).filter(timer => timer.status === 'active').map(timer => timer.current);
+    const availableTimer = activeTimerValues.length > 0
+      ? Math.min(...activeTimerValues)
+      : state.scroungingTimer || state.activeAilment?.timer || 0;
     if (availableTimer <= 0) {
       showAlert("줄일 수 있는 타이머가 0이면 뜨개질을 진행할 수 없습니다.");
       return;
     }
-    if (availableTimer < project.hours) {
-      if (state.rulesetId !== 'sandbox') {
-        showAlert(`${project.name} 완성에는 ${project.hours}시간이 필요합니다. 현재 타이머는 ${availableTimer}시간입니다.`);
-        return;
-      }
-      if (!confirm(`현재 추적 중인 타이머가 ${availableTimer}시간뿐입니다. 복구용 샌드박스에서 ${project.name}을 완성 처리할까요?`)) return;
-    }
+    const completedHours = activeProject?.hoursCompleted || 0;
+    const remainingHours = project.hours - completedHours;
+    const hoursInput = await requestControlledPrompt({
+      title: `${project.name} 뜨기`,
+      message: `누적 ${completedHours}/${project.hours}시간 · 현재 사용할 수 있는 타이머 ${availableTimer}시간`,
+      defaultValue: String(Math.min(remainingHours, availableTimer)),
+      kicker: 'Preparing to Leave',
+      label: '이번에 뜰 시간'
+    });
+    if (hoursInput === null) return;
+    const hoursToSpend = Math.min(remainingHours, availableTimer, Math.max(1, parseInt(hoursInput, 10) || 1));
+    const completing = completedHours + hoursToSpend >= project.hours;
+    const journalNote = completing ? await requestControlledPrompt({
+      title: '완성한 뜨개 물건 기록',
+      message: '어떤 무늬를 짰고 무엇을 생각했는지 기록하세요.',
+      defaultValue: '',
+      kicker: 'Knitting Journal · p.64',
+      label: '완성 기록',
+      inputMode: 'multiline'
+    }) : '';
+    if (completing && !journalNote?.trim()) return;
 
     const transaction = createClientTransaction('tool:knitting');
-    const result = resolveKnittingProject({
+    const result = advanceKnittingProject({
       transactionId: transaction.id,
       state: {
         trinkets: state.trinkets.length,
@@ -9395,15 +9621,21 @@ function PlayView({
         appliedTransactionIds: state.appliedTransactionIds,
         journalEvents: []
       },
+      activeProject,
       projectId: project.id,
-      availableHours: availableTimer
+      hoursToSpend,
+      availableHours: availableTimer,
+      currentDay: state.calendarDays,
+      anyTimerAtZero: activeTimerValues.some(value => value === 0),
+      journalNote: journalNote || undefined
     });
     if (!result.value) return showAlert(result.messages.join('\n'));
     updateState((s: GameState) => {
-      const nextScroungingTimer = s.scroungingTimer ? Math.max(0, s.scroungingTimer - project.hours) : s.scroungingTimer;
+      const hoursSpent = result.hoursSpent || 0;
+      const nextScroungingTimer = s.scroungingTimer ? Math.max(0, s.scroungingTimer - hoursSpent) : s.scroungingTimer;
       const patient = getActivePatient(s);
       const nextPatient = patient && !s.scroungingTimer
-        ? resolveTimer({ patient, hours: project.hours }).value
+        ? resolveTimer({ patient, hours: hoursSpent }).value
         : null;
       return {
         ...s,
@@ -9411,10 +9643,22 @@ function PlayView({
         patients: nextPatient ? replacePatient(s.patients, nextPatient) : s.patients,
         bag: fromEngineInventory(result.value!.inventory, s.bag),
         toolStates: result.value!.tools,
+        knittingProject: result.project === undefined ? s.knittingProject : result.project,
         appliedTransactionIds: result.value!.appliedTransactionIds,
         journals: appendEngineJournals(s.journals, result.value!.journalEvents)
       };
     });
+    showAlert(result.project ? `${project.name}: ${result.project.hoursCompleted}/${result.project.hoursRequired}시간 진행했습니다.` : `${project.name}을 완성해 가방에 넣었습니다.`);
+  };
+
+  const handleAbandonKnittingProject = () => {
+    if (!state.knittingProject || !confirm('현재 뜨개 프로젝트의 누적 진행을 포기할까요?')) return;
+    const transaction = createClientTransaction('tool:knitting-abandon');
+    updateState(s => ({
+      ...s,
+      knittingProject: null,
+      journals: [{ id: transaction.id, title: '뜨개 프로젝트 포기', text: `${s.knittingProject?.projectId}의 누적 진행을 포기했습니다.`, timestamp: transaction.at }, ...s.journals]
+    }));
   };
 
   const handleExploreNewPath = () => {
@@ -10906,6 +11150,8 @@ function PlayView({
     !nextLocName.trim() ? '지도나 입력창에서 다음 위치를 선택하세요.' : '',
     nextLocName.trim() && !selectedTravelDestinationId ? '지도에 연결된 실제 장소 이름이 아닙니다.' : '',
     selectedTravelDestinationId && selectedTravelDestinationId === currentTravelLocationId ? '현재 위치와 다른 장소를 선택하세요.' : '',
+    selectedTravelDestinationId && encounterLocationConditions(state.encounterMapMutations || [], selectedTravelDestinationId).some(row => row.kind === 'block-location') ? 'Encounter 효과로 이번 계절에는 들어갈 수 없는 Location입니다.' : '',
+    travelPreviewPathIds.some(id => encounterLocationConditions(state.encounterMapMutations || [], id).some(row => row.kind === 'block-location')) ? '계절 종료 전까지 통과할 수 없는 Encounter 봉쇄 Location이 경로에 있습니다.' : '',
     selectedTravelDestinationId && travelPreviewPathIds.length === 0 ? '현재 위치에서 이어지는 경로가 없습니다.' : '',
     previewIsSoar && !previewCanSoar ? 'Swift and Soaring 이동 방식이나 활공 도구가 필요합니다.' : '',
     previewIsSoar && currentWeight > maxCarry ? '소지 한도를 넘긴 상태에서는 Soar할 수 없습니다.' : '',
@@ -13173,6 +13419,19 @@ function PlayView({
             <div className="prose-summary" style={{ marginBottom: '0.8rem' }}>
               📍 <strong>{localizeRegionLabel(state.currentRegion)}</strong> 지역 {state.currentLocationType === 'City' ? '도시' : state.currentLocationType === 'Settlement' ? '정착지' : state.currentLocationType === 'Wilds' ? '야생' : state.currentLocationType === 'Ruin' ? '유적지' : state.currentLocationType === 'Barrow' ? '야수 고분' : state.currentLocationType} <strong>{state.currentLocationName}</strong>에 머무는 중.
             </div>
+            {(() => {
+              const locationId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
+              const graph = toServiceMapGraph(state);
+              const conditions = encounterLocationConditions(state.encounterMapMutations || [], locationId);
+              if (conditions.length === 0) return null;
+              return <aside className="encounter-condition-strip" aria-label="현재 Location의 Encounter 효과">
+                <header><span>ENCOUNTER EFFECTS</span><strong>현재 Location에 남은 효과</strong></header>
+                <ul>{conditions.map(condition => <li key={condition.id}>
+                  <i className={`is-${condition.kind}`} />
+                  <div><strong>{condition.kind === 'add-path' ? '새 Path' : condition.kind === 'block-location' ? 'Location 봉쇄' : `Reagent Rarity +${condition.amount || 0}`}</strong><small>{condition.kind === 'add-path' ? condition.nodeIds.map(id => graph[id]?.name || id).join(' ↔ ') : condition.kind === 'block-location' ? `${condition.createdSeason} 종료까지 이동·통과·채집 불가` : 'Winter가 시작될 때 해제'}</small></div>
+                </li>)}</ul>
+              </aside>;
+            })()}
             <div style={{ display: 'flex', gap: '1rem', fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
               <span>계절:
                 <select
@@ -14036,14 +14295,24 @@ function PlayView({
                   {(hasTool(state, 'tool_needles') || hasTool(state, '뜨개바늘') || hasTool(state, 'Knitting Needles')) && (
                     <div style={{ marginTop: '0.65rem', paddingTop: '0.55rem', borderTop: '1px dashed #d6c8a8' }}>
                       <strong style={{ color: '#7c5a2a' }}>🧶 뜨개질 프로젝트 (Knitting Needles, p.64)</strong>
-                      <div style={{ marginTop: '0.35rem' }}>
+                      <div className={`knitting-project-card${state.knittingProject ? ' is-active' : ''}`}>
+                        <div className="knitting-project-card__status">
+                          <span>{state.knittingProject ? '진행 중' : '시작 전'}</span>
+                          <strong>{state.knittingProject ? KNITTING_PROJECT_LABELS[state.knittingProject.projectId] : '프로젝트를 골라 여러 출발 준비에 나눠 뜰 수 있습니다.'}</strong>
+                        </div>
+                        {state.knittingProject && <>
+                          <progress aria-label={`${KNITTING_PROJECT_LABELS[state.knittingProject.projectId]} 뜨개 진행률`} max={state.knittingProject.hoursRequired} value={state.knittingProject.hoursCompleted} />
+                          <div className="knitting-project-card__meta"><span>{state.knittingProject.hoursCompleted}시간 완료</span><span>{state.knittingProject.hoursRequired - state.knittingProject.hoursCompleted}시간 남음</span></div>
+                        </>}
+                        <div className="knitting-project-card__actions">
                         <button
                           type="button"
                           onClick={handleKnitProject}
-                          style={{ padding: '0.35rem 0.6rem', background: '#fffaf0', border: '1px solid #d8b16c', borderRadius: '6px', color: '#7c5a2a', fontSize: '0.78rem', fontWeight: 'bold', cursor: 'pointer' }}
                         >
-                          담요/코트/가방/목도리 완성
+                          {state.knittingProject ? '이 프로젝트 계속 뜨기' : '새 뜨개 프로젝트 시작'}
                         </button>
+                        {state.knittingProject && <button type="button" className="is-quiet" onClick={handleAbandonKnittingProject}>진행 포기</button>}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -14865,21 +15134,10 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
   const handleAddTrinket = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTrinket.trim()) return;
-    const timestamp = Date.now();
     const trinketName = newTrinket.trim();
     updateState(s => ({
       ...s,
-      trinkets: [...s.trinkets, trinketName],
-      trinketArchive: addTrinketMemory(s.trinketArchive || [], {
-        sourceId: memoryKey('manual_trinket', trinketName, String(timestamp)),
-        name: trinketName,
-        count: 1,
-        source: '손으로 적은 장신구 메모',
-        story: `${s.currentLocationName}에서 장신구 보관함에 넣었습니다.`,
-        locationName: s.currentLocationName,
-        timestamp,
-        spent: false
-      })
+      trinkets: [...s.trinkets, trinketName]
     }));
     setNewTrinket("");
   };
@@ -15377,17 +15635,8 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                           if (confirm("이 장신구를 물꼬 거래나 조력에 소모하시겠습니까?")) {
                             updateState((s: any) => {
                               const next = [...s.trinkets];
-                              const spentName = next[idx];
                               next.splice(idx, 1);
-                              let marked = false;
-                              const trinketArchive = (s.trinketArchive || []).map((record: TrinketMemoryRecord) => {
-                                if (!marked && !record.spent && record.name === spentName) {
-                                  marked = true;
-                                  return { ...record, spent: true, story: `${record.story}\n${s.currentLocationName}에서 주머니로부터 꺼내 사용했습니다.` };
-                                }
-                                return record;
-                              });
-                              return { ...s, trinkets: next, trinketArchive };
+                              return { ...s, trinkets: next };
                             });
                           }
                         }}
@@ -16009,7 +16258,10 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
 	    getMapLocationsWithinHops(c.locationName, MAP_SERVICE_HOPS, customMapLocations, customMapEdges).map(entry => entry.node.label)
 	  );
 	  const favoriteLocs = (state.favoriteMapLocationIds || []).flatMap(id => mapGraphNodes[id]?.label ? [mapGraphNodes[id].label] : []);
-	  const specialEventLocs = ((state.serviceMapMutations || []) as ServiceMapMutation[]).filter(mutation => mutation.active).flatMap(mutation => mutation.nodeIds.flatMap(id => mapGraphNodes[id]?.label ? [mapGraphNodes[id].label] : []));
+	  const specialEventLocs = [
+	    ...((state.serviceMapMutations || []) as ServiceMapMutation[]).filter(mutation => mutation.active).flatMap(mutation => mutation.nodeIds.flatMap(id => mapGraphNodes[id]?.label ? [mapGraphNodes[id].label] : [])),
+	    ...(state.encounterMapMutations || []).filter(mutation => mutation.active).flatMap(mutation => mutation.nodeIds.flatMap(id => mapGraphNodes[id]?.label ? [mapGraphNodes[id].label] : []))
+	  ];
 
 	  const locCandidates = [
 	    ...(mapLayers.visited ? visitedLocs : []),
@@ -16093,10 +16345,17 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
     : (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as MapRegion;
   const selectedCases = (state.patientCasebook || []).filter(record => matchesSelectedLocation(record.locationName));
   const selectedScrapbook = (state.travelScrapbook || []).filter(record => matchesSelectedLocation(record.locationName)).slice(0, 6);
-  const selectedAlmanac = (state.worldAlmanac || []).filter(record => matchesSelectedLocation(record.locationName)).slice(0, 6);
+  const selectedAlmanac = (state.worldAlmanac || [])
+    .filter(record => matchesSelectedLocation(record.locationName))
+    .filter((record, index, records) => records.findIndex(candidate =>
+      candidate.category === record.category
+      && localizeLocationName(candidate.name).toLowerCase() === localizeLocationName(record.name).toLowerCase()
+    ) === index)
+    .slice(0, 6);
   const selectedClinic = (state.clinics || []).find(record => matchesSelectedLocation(record.locationName));
   const selectedBarrows = (state.barrows || []).filter(record => !record.removed && matchesSelectedLocation(record.locationName));
   const selectedSpecialEvents = ((state.serviceMapMutations || []) as ServiceMapMutation[]).filter(mutation => mutation.active && mutation.nodeIds.includes(selectedMemoryKey));
+  const selectedEncounterConditions = encounterLocationConditions(state.encounterMapMutations || [], selectedMemoryKey);
   const selectedMemory = state.locationMemories?.[selectedMemoryKey];
   const selectedVisitCount = (state.visitedLocations || []).filter(matchesSelectedLocation).length;
   const selectedLastSeen = Math.max(0,
@@ -16467,13 +16726,14 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
               <div><span>방문</span><strong>{selectedVisitCount}회</strong></div>
               <div><span>환자</span><strong>{selectedCases.length}건</strong></div>
               <div><span>클리닉</span><strong>{selectedClinic ? '있음' : '없음'}</strong></div>
-              <div><span>고분/사건</span><strong>{selectedBarrows.length + selectedSpecialEvents.length}건</strong></div>
+              <div><span>고분/사건</span><strong>{selectedBarrows.length + selectedSpecialEvents.length + selectedEncounterConditions.length}건</strong></div>
             </div>
-            {(selectedCases.length > 0 || selectedScrapbook.length > 0 || selectedAlmanac.length > 0) && (
+            {(selectedCases.length > 0 || selectedScrapbook.length > 0 || selectedAlmanac.length > 0 || selectedEncounterConditions.length > 0) && (
               <div className="location-memory-card__history">
                 {selectedCases.slice(0, 3).map(record => <div key={record.id}><span>{record.outcome === 'success' ? '치료 완료' : '치료 실패'}</span><strong>{record.patientName || '이름 모를 환자'} · {record.ailmentName}</strong></div>)}
                 {selectedScrapbook.slice(0, 3).map(record => <div key={record.id}><span>{record.kind}</span><strong>{record.title}</strong></div>)}
-                {selectedAlmanac.slice(0, 2).map(record => <div key={record.id}><span>{record.category}</span><strong>{record.name}</strong></div>)}
+                {selectedAlmanac.slice(0, 2).map(record => <div key={record.id}><span>{record.category}</span><strong>{localizeLocationName(record.name)}</strong></div>)}
+                {selectedEncounterConditions.map(record => <div key={record.id}><span>Encounter 상태</span><strong>{record.kind === 'block-location' ? '이번 계절 이동·채집 봉쇄' : record.kind === 'rarity-modifier' ? `영약재 희귀도 +${record.amount || 0}` : '새 Path'} · p.{record.sourcePage}</strong></div>)}
               </div>
             )}
             <label className="location-memory-card__note">
@@ -17012,6 +17272,7 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
                     <div style={{ fontSize: '0.74rem', color: '#8c7a6b', marginTop: '0.25rem', fontStyle: 'italic' }}>
                       {getLocalizedSource(record.source)} {record.locationName ? ` / ${getLocalizedLocationName(record.locationName)}` : ''}
                     </div>
+                    {(record.object || record.material || record.origin) && <div style={{ marginTop: '0.4rem', padding: '0.4rem 0.5rem', border: '1px dashed #d8c8b5', background: 'rgba(255,255,255,0.55)', fontSize: '0.74rem', color: '#6e5d4f' }}><strong>p.56 카드 기록</strong><br />Object · {record.object || '—'}<br />Material · {record.material || '—'}<br />Origin · {record.origin || '—'}</div>}
                     <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.83rem', marginTop: '0.45rem', color: record.spent ? 'var(--text-dim)' : 'var(--text-muted)', lineHeight: '1.45' }}>
                       {getLocalizedStory(originalStory)}
                     </div>

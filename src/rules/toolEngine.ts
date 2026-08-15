@@ -252,11 +252,81 @@ export const resolveGraniteMortarPound = (input: {
 
 export type KnittingProjectId = NonNullable<EngineInventoryItem['craftedItemId']>;
 
+export interface KnittingProjectProgress {
+  projectId: KnittingProjectId;
+  hoursRequired: number;
+  hoursCompleted: number;
+  startedAtDay: number;
+  updatedAtDay: number;
+}
+
 const KNITTING_PROJECTS: Record<KnittingProjectId, { name: string; hours: number; weight: number }> = {
   'knitted-blanket': { name: 'Knitted Blanket', hours: 20, weight: 1 },
   'knitted-coat': { name: 'Knitted Coat', hours: 15, weight: 2 / 3 },
   'knitted-satchel': { name: 'Knitted Satchel', hours: 10, weight: 0 },
   'knitted-scarf': { name: 'Knitted Scarf', hours: 5, weight: 1 / 3 }
+};
+
+export const advanceKnittingProject = (input: {
+  transactionId: string;
+  state: ToolTransactionState;
+  activeProject: KnittingProjectProgress | null;
+  projectId: KnittingProjectId;
+  hoursToSpend: number;
+  availableHours: number;
+  currentDay: number;
+  anyTimerAtZero?: boolean;
+  journalNote?: string;
+}): ToolTransactionResolution & { hoursSpent?: number; project?: KnittingProjectProgress | null; completedItem?: EngineInventoryItem | null } => {
+  const error = toolTransactionError(input.transactionId, input.state);
+  if (error) return { status: 'invalid', value: null, messages: [error] };
+  const needles = input.state.tools.find(tool => tool.toolId === 'knitting-needles' && !tool.broken && !tool.consumed);
+  const definition = KNITTING_PROJECTS[input.projectId];
+  if (!needles || !definition) return { status: 'invalid', value: null, messages: ['Knitting requires intact Knitting Needles and a canonical project.'] };
+  if (input.activeProject && input.activeProject.projectId !== input.projectId) return { status: 'invalid', value: null, messages: ['Finish or abandon the active Knitting project before starting another one.'] };
+  if (input.anyTimerAtZero) return { status: 'invalid', value: null, messages: ['You cannot Knit while any Timer is at 0.'] };
+  const current = input.activeProject || {
+    projectId: input.projectId,
+    hoursRequired: definition.hours,
+    hoursCompleted: 0,
+    startedAtDay: input.currentDay,
+    updatedAtDay: input.currentDay
+  };
+  const remaining = Math.max(0, current.hoursRequired - current.hoursCompleted);
+  const hoursSpent = Math.min(Math.floor(input.hoursToSpend), Math.floor(input.availableHours), remaining);
+  if (hoursSpent <= 0) return { status: 'invalid', value: null, messages: ['Choose at least 1 available Timer hour for Knitting.'] };
+  const hoursCompleted = current.hoursCompleted + hoursSpent;
+  const complete = hoursCompleted >= current.hoursRequired;
+  if (complete && !input.journalNote?.trim()) return { status: 'invalid', value: null, messages: ['Journal about the patterns and thoughts woven into the completed project.'] };
+  const item: EngineInventoryItem | null = complete ? {
+    id: `${input.transactionId}:${input.projectId}`,
+    name: definition.name,
+    type: 'item',
+    weight: definition.weight,
+    quantity: 1,
+    craftedItemId: input.projectId
+  } : null;
+  const project = complete ? null : { ...current, hoursCompleted, updatedAtDay: input.currentDay };
+  return {
+    status: 'resolved',
+    value: {
+      ...input.state,
+      inventory: item ? [...input.state.inventory, item] : [...input.state.inventory],
+      appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
+      journalEvents: [...input.state.journalEvents, {
+        id: `${input.transactionId}:journal`,
+        type: 'downtime',
+        title: complete ? `Knitted ${definition.name}` : `Knitting ${definition.name}`,
+        text: complete
+          ? `Completed ${definition.name} after ${hoursCompleted} accumulated Timer hours. ${input.journalNote!.trim()}`
+          : `Knitted for ${hoursSpent} hours while Preparing to Leave (${hoursCompleted}/${current.hoursRequired}).`
+      }]
+    },
+    hoursSpent,
+    project,
+    completedItem: item,
+    messages: []
+  };
 };
 
 export const resolveKnittingProject = (input: {
@@ -265,36 +335,18 @@ export const resolveKnittingProject = (input: {
   projectId: KnittingProjectId;
   availableHours: number;
 }): ToolTransactionResolution & { hoursSpent?: number } => {
-  const error = toolTransactionError(input.transactionId, input.state);
-  if (error) return { status: 'invalid', value: null, messages: [error] };
-  const needles = input.state.tools.find(tool => tool.toolId === 'knitting-needles' && !tool.broken && !tool.consumed);
   const project = KNITTING_PROJECTS[input.projectId];
-  if (!needles || !project) return { status: 'invalid', value: null, messages: ['Knitting requires intact Knitting Needles and a canonical project.'] };
+  if (!project) return { status: 'invalid', value: null, messages: ['Unknown canonical Knitting project.'] };
   if (input.availableHours <= 0 || input.availableHours < project.hours) {
     return { status: 'invalid', value: null, messages: [`${project.name} requires ${project.hours} Timer hours, and no Timer may already be 0.`] };
   }
-  const item: EngineInventoryItem = {
-    id: `${input.transactionId}:${input.projectId}`,
-    name: project.name,
-    type: 'item',
-    weight: project.weight,
-    quantity: 1,
-    craftedItemId: input.projectId
-  };
-  return {
-    status: 'resolved',
-    value: {
-      ...input.state,
-      inventory: [...input.state.inventory, item],
-      appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
-      journalEvents: [...input.state.journalEvents, {
-        id: `${input.transactionId}:journal`, type: 'downtime', title: `Knitted ${project.name}`,
-        text: `Reduced all eligible Timers by ${project.hours} hours while Preparing to Leave.`
-      }]
-    },
-    hoursSpent: project.hours,
-    messages: []
-  };
+  return advanceKnittingProject({
+    ...input,
+    activeProject: null,
+    hoursToSpend: project.hours,
+    currentDay: 0,
+    journalNote: 'Recorded the patterns and thoughts woven into the completed project.'
+  });
 };
 
 export const resolveKnittedBlanket = (input: {
