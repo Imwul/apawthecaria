@@ -5814,15 +5814,14 @@ button,
 }
 
 .journey-map-board__selectable-node {
-  color: rgba(255, 253, 246, 0.9);
+  color: rgba(37, 33, 28, 0.88);
   cursor: pointer;
   outline: none;
 }
 
 .journey-map-board__selectable-node > circle:first-child {
-  fill: currentColor;
-  stroke: rgba(37, 33, 28, 0.9);
-  stroke-width: 0.24;
+  fill: rgba(37, 33, 28, 0.2);
+  stroke: transparent;
   transition: r 120ms ease, fill 120ms ease;
 }
 
@@ -5834,14 +5833,12 @@ button,
 .journey-map-board__selectable-node:hover > circle:first-child,
 .journey-map-board__selectable-node:focus-visible > circle:first-child,
 .journey-map-board__selectable-node.is-selected > circle:first-child {
-  fill: #f7c95c;
-  stroke: #25211c;
-  stroke-width: 0.48;
+  fill: rgba(255, 253, 246, 0.85);
 }
 
 .journey-map-board__selectable-node:focus-visible .journey-map-board__node-hit {
-  stroke: #fffdf6;
-  stroke-width: 0.38;
+  stroke: rgba(37, 33, 28, 0.85);
+  stroke-width: 0.34;
 }
 
 .journey-map-board__planned-path,
@@ -5852,50 +5849,63 @@ button,
   stroke-linejoin: round;
 }
 
+.journey-map-board__comparison-path {
+  stroke: #7d603a;
+  stroke-width: 1.55px;
+  stroke-opacity: 0.34;
+  stroke-dasharray: 3 3;
+}
+
 .journey-map-board__planned-path {
-  stroke: #9b3f36;
-  stroke-width: 2.5px;
-  stroke-dasharray: 6 5;
+  stroke: #8b5a2b;
+  stroke-width: 1.6px;
+  stroke-opacity: 0.34;
 }
 
 .journey-map-board__travelled-path {
   stroke: #285b8b;
-  stroke-width: 3px;
+  stroke-width: 1.55px;
+  stroke-opacity: 0.34;
+}
+
+.journey-map-board__node-label {
+  fill: #30271d;
+  font-size: 1.75px;
+  line-height: 1.1;
+  font-weight: 600;
 }
 
 .journey-map-board__path-dot {
-  fill: #fffdf6;
-  stroke: #9b3f36;
-  stroke-width: 0.32;
+  fill: rgba(255, 253, 246, 0.85);
+  stroke: rgba(139, 90, 43, 0.55);
+  stroke-width: 0.18;
 }
 
 .journey-map-board__travelled-dot {
   fill: #285b8b;
-  stroke: #fffdf6;
-  stroke-width: 0.28;
+  stroke: rgba(255, 253, 246, 0.72);
+  stroke-width: 0.22;
 }
 
 .journey-map-board__destination-ring {
   fill: rgba(255, 253, 246, 0.16);
-  stroke: #9b3f36;
+  stroke: #8b5a2b;
   stroke-width: 0.48;
   stroke-dasharray: 1.2 0.65;
 }
 
 .journey-map-board__current-marker > circle:first-child {
-  fill: rgba(255, 253, 246, 0.54);
-  stroke: #285b8b;
-  stroke-width: 0.55;
+  fill: rgba(40, 91, 139, 0.24);
+  stroke: rgba(40, 91, 139, 0.54);
+  stroke-width: 0.36;
 }
 
 .journey-map-board__current-marker text,
 .journey-map-board__destination-marker text {
-  fill: #25211c;
-  stroke: #fffdf6;
-  stroke-width: 0.72;
-  paint-order: stroke;
-  font-size: 2.35px;
-  font-weight: 800;
+  fill: #2d2418;
+  stroke: none;
+  font-size: 1.8px;
+  font-weight: 600;
 }
 
 .journey-map-board__route {
@@ -6220,6 +6230,115 @@ button,
   border-color: rgba(37, 33, 28, 0.46) !important;
   background: rgba(247, 241, 228, 0.46) !important;
   color: var(--editorial-ink) !important;
+}
+
+.map-route-segment {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke: #9a683e;
+  stroke-opacity: 0.36;
+  stroke-width: 1.28;
+}
+
+.map-route-status {
+  position: absolute;
+  left: 0.55rem;
+  top: auto;
+  bottom: 0.55rem;
+  z-index: 3;
+  color: rgba(45, 39, 28, 0.9);
+  background: rgba(255, 253, 246, 0.84);
+  border: 1px solid rgba(37, 33, 28, 0.22);
+  border-radius: 5px;
+  padding: 0.24rem 0.45rem;
+  font-size: 0.64rem;
+  pointer-events: none;
+  max-width: 44%;
+  backdrop-filter: blur(1px);
+}
+
+.map-location-pin {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.map-location-pin__button {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  margin: 0;
+  border-radius: 50%;
+  border: none;
+  background: var(--map-pin-fill);
+  padding: 0;
+  pointer-events: auto;
+  cursor: pointer;
+  appearance: none;
+  box-shadow: none;
+  outline: none;
+  touch-action: none;
+}
+
+.map-location-pin__button::before {
+  content: '';
+  position: absolute;
+  inset: -11px;
+  border-radius: 999px;
+  pointer-events: auto;
+  background: transparent;
+}
+
+.map-location-pin__button.is-current {
+  width: 9px;
+  height: 9px;
+}
+
+.map-location-pin__clinic-badge {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: 4px;
+  margin-left: 4px;
+  transform: translate(-50%, -50%) rotate(16deg);
+  border: 1px solid rgba(207, 45, 45, 0.74);
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.map-location-pin__current-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(35, 103, 177, 0.48);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.map-location-pin__label {
+  position: absolute;
+  left: 16px;
+  top: -2px;
+  display: flex;
+  flex-direction: column;
+  white-space: nowrap;
+  pointer-events: none;
+  color: rgba(44, 32, 20, 0.95);
+  font-size: 0.72rem;
+  line-height: 1.2;
+  background: rgba(255, 253, 246, 0.96);
+  border: 1px solid rgba(37, 33, 28, 0.22);
+  border-radius: 4px;
+  padding: 2px 6px 3px;
+  max-width: 210px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rulebook-hub {

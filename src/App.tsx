@@ -20,6 +20,11 @@ import {
   splitReagentPreparations,
   validateConcoction
 } from "./rulesEngine";
+import {
+  type RoadNetworkWaypointGeometry,
+  ROAD_NETWORK_WAYPOINT_GEOMETRIES,
+  ROAD_NETWORK_WAYPOINT_GEOMETRY_META
+} from "./data/roadNetworkGeometry";
 import parsedPrepsList from "../parsed_preps_list.json";
 import {
   CURRENT_SCHEMA_VERSION,
@@ -1220,6 +1225,7 @@ interface CustomMapEdge {
   to: string;
   kind?: 'path' | 'waterway';
   label?: string;
+  geometry?: Array<{ x: number; y: number }>;
   createdAt?: number;
 }
 
@@ -1341,6 +1347,327 @@ const MAP_WILD_LOCATIONS = MAP_WAYPOINTS.map(([x, y], index) => {
     neighbors: []
   };
 });
+
+type WaypointIndex = number;
+type RouteGeometryPoint = [number, number];
+type RouteSegmentGeometry = {
+  from: string;
+  to: string;
+  points: RouteGeometryPoint[];
+  mapped: boolean;
+};
+
+const MAP_ROAD_ANCHOR_COUNT = 4;
+const MAP_ROAD_ANCHOR_LIMIT = 7;
+
+const routeLength = (points: RouteGeometryPoint[]) => {
+  if (points.length < 2) return 0;
+  return points.slice(1).reduce((sum, point, index) => sum + waypointDistance({ x: points[index][0], y: points[index][1] }, { x: point[0], y: point[1] }), 0);
+};
+
+const MAKE_MAP_WAYPOINT_EDGE_KEY = (from: WaypointIndex, to: WaypointIndex) => from < to ? `${from}:${to}` : `${to}:${from}`;
+
+const ROAD_WAYPOINT_GEOMETRY_BY_KEY = new Map<string, RouteGeometryPoint[]>();
+const MAP_WAYPOINT_GRAPH: Array<Array<{ to: WaypointIndex; distance: number }>> = (() => {
+  const graph: Array<Array<{ to: WaypointIndex; distance: number }>> = Array.from({ length: MAP_WILD_LOCATIONS.length }, () => []);
+  const seen = new Set<string>();
+
+  for (const edge of ROAD_NETWORK_WAYPOINT_GEOMETRIES) {
+    const key = MAKE_MAP_WAYPOINT_EDGE_KEY(edge.from, edge.to);
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const forward: RouteGeometryPoint[] = edge.points.map(([x, y]) => [x, y] as RouteGeometryPoint);
+    const reverse: RouteGeometryPoint[] = [...edge.points].reverse().map(([x, y]) => [x, y] as RouteGeometryPoint);
+
+    ROAD_WAYPOINT_GEOMETRY_BY_KEY.set(`${edge.from}:${edge.to}`, forward);
+    ROAD_WAYPOINT_GEOMETRY_BY_KEY.set(`${edge.to}:${edge.from}`, reverse);
+
+    const distance = routeLength(forward);
+    if (!Number.isFinite(distance) || distance <= 0) continue;
+    graph[edge.from].push({ to: edge.to, distance });
+    graph[edge.to].push({ to: edge.from, distance });
+  }
+
+  return graph;
+})();
+
+const MAP_WAYPOINT_EDGE_CACHE = new Map<string, WaypointIndex[]>();
+const MAP_WAYPOINT_ANCHOR_CACHE = new Map<string, { index: WaypointIndex; distance: number }[]>();
+const MAP_ROUTE_EDGE_GEOMETRY_CACHE = new Map<string, RouteSegmentGeometry | null>();
+
+const waypointDistance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
+
+const makeWaypointEdgeKey = (from: WaypointIndex, to: WaypointIndex) => from < to ? `${from}:${to}` : `${to}:${from}`;
+
+const getWaypointShortestPath = (from: WaypointIndex, to: WaypointIndex): WaypointIndex[] => {
+  if (from === to) return [from];
+  const cacheKey = makeWaypointEdgeKey(from, to);
+  const cached = MAP_WAYPOINT_EDGE_CACHE.get(cacheKey);
+  if (cached) return cached;
+
+  const total = MAP_WILD_LOCATIONS.length;
+  const dist = Array(total).fill(Infinity);
+  const prev = Array(total).fill(-1);
+  const visited = Array(total).fill(false);
+
+  dist[from] = 0;
+
+  for (let step = 0; step < total; step++) {
+    let current = -1;
+    let best = Infinity;
+    for (let i = 0; i < total; i++) {
+      if (visited[i] || dist[i] >= best) continue;
+      best = dist[i];
+      current = i;
+    }
+    if (current === -1) break;
+    if (current === to) break;
+
+    visited[current] = true;
+    for (const edge of MAP_WAYPOINT_GRAPH[current]) {
+      const next = edge.to;
+      const candidate = dist[current] + edge.distance;
+      if (candidate < dist[next]) {
+        dist[next] = candidate;
+        prev[next] = current;
+      }
+    }
+  }
+
+  if (!Number.isFinite(dist[to])) {
+    MAP_WAYPOINT_EDGE_CACHE.set(cacheKey, []);
+    return [];
+  }
+
+  const path: WaypointIndex[] = [];
+  let cursor = to;
+  while (cursor !== -1) {
+    path.unshift(cursor);
+    if (cursor === from) break;
+    cursor = prev[cursor];
+    if (cursor === -1) break;
+  }
+  if (path[0] !== from) {
+    MAP_WAYPOINT_EDGE_CACHE.set(cacheKey, []);
+    return [];
+  }
+
+  MAP_WAYPOINT_EDGE_CACHE.set(cacheKey, path);
+  return path;
+};
+
+const getWaypointAnchorCandidates = (x: number, y: number, nodeId = '') => {
+  const cacheKey = `${nodeId || ''}:${x.toFixed(3)}_${y.toFixed(3)}`;
+  const cached = MAP_WAYPOINT_ANCHOR_CACHE.get(cacheKey);
+  if (cached) return cached;
+
+  const candidates = MAP_WILD_LOCATIONS
+    .map((point, index) => ({ index, distance: waypointDistance({ x, y }, point) }))
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, MAP_ROAD_ANCHOR_COUNT);
+
+  const exactWildNodeMatch = /^loc_(\d+)$/.exec(nodeId);
+  if (exactWildNodeMatch) {
+    const exactIndex = Number(exactWildNodeMatch[1]);
+    if (Number.isInteger(exactIndex) && exactIndex >= 0 && exactIndex < MAP_WILD_LOCATIONS.length) {
+      candidates.unshift({ index: exactIndex, distance: waypointDistance({ x, y }, MAP_WILD_LOCATIONS[exactIndex]) });
+    }
+  }
+
+  const deduped = new Map<number, number>();
+  candidates.forEach(candidate => {
+    if (!deduped.has(candidate.index) || candidate.distance < deduped.get(candidate.index)!) {
+      deduped.set(candidate.index, candidate.distance);
+    }
+  });
+  const selected = Array.from(deduped.entries())
+    .map(([index, distance]) => ({ index, distance }))
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, MAP_ROAD_ANCHOR_COUNT);
+
+  MAP_WAYPOINT_ANCHOR_CACHE.set(cacheKey, selected);
+  return selected;
+};
+
+const routeSegmentKey = (graph: Record<string, MapLocationNode>, from: string, to: string, geometrySignature = '') => {
+  const fromNode = graph[from];
+  const toNode = graph[to];
+  return `${geometrySignature || 'calc'}:${from}:${fromNode?.x ?? 'none'},${fromNode?.y ?? 'none'}:${to}:${toNode?.x ?? 'none'},${toNode?.y ?? 'none'}`;
+};
+
+const customEdgeGeometryFrom = (
+  from: string,
+  to: string,
+  customEdges: CustomMapEdge[] = []
+) => {
+  const edge = customEdges.find(row =>
+    (row.from === from && row.to === to) || (row.from === to && row.to === from)
+  );
+  if (!edge?.geometry || edge.geometry.length < 2) return undefined;
+  return edge.geometry.map(point => [point.x, point.y] as RouteGeometryPoint);
+};
+
+const buildRouteSegmentGeometry = (
+  graph: Record<string, MapLocationNode>,
+  from: string,
+  to: string,
+  customMapEdges: CustomMapEdge[] = []
+): RouteSegmentGeometry => {
+  if (from === to) {
+    const node = graph[from];
+    if (!node) return { from, to, points: [], mapped: false };
+    return { from, to, points: [[node.x, node.y]], mapped: true };
+  }
+
+  const customGeometry = customEdgeGeometryFrom(from, to, customMapEdges);
+  const geometrySignature = customGeometry
+    ? customGeometry.map(([x, y]) => `${x.toFixed(3)}:${y.toFixed(3)}`).join('|')
+    : '';
+  const key = routeSegmentKey(graph, from, to, geometrySignature);
+  const cached = MAP_ROUTE_EDGE_GEOMETRY_CACHE.get(key);
+  if (cached) return cached;
+
+  const fromNode = graph[from];
+  const toNode = graph[to];
+  if (!fromNode || !toNode) {
+    const fallback = { from, to, points: [], mapped: false };
+    MAP_ROUTE_EDGE_GEOMETRY_CACHE.set(key, fallback);
+    return fallback;
+  }
+
+  if (customGeometry) {
+    const points: RouteGeometryPoint[] = [
+      [fromNode.x, fromNode.y],
+      ...customGeometry,
+      [toNode.x, toNode.y]
+    ];
+    const mappedResult = { from, to, points, mapped: true };
+    MAP_ROUTE_EDGE_GEOMETRY_CACHE.set(key, mappedResult);
+    return mappedResult;
+  }
+
+  const fromAnchors = getWaypointAnchorCandidates(fromNode.x, fromNode.y, from);
+  const toAnchors = getWaypointAnchorCandidates(toNode.x, toNode.y, to);
+
+  let best: RouteSegmentGeometry | null = null;
+  let bestScore = Infinity;
+  const routeLengthWithAnchors = (candidatePoints: RouteGeometryPoint[]) =>
+    routeLength(candidatePoints);
+
+  fromAnchors.forEach(fromAnchor => {
+    if (fromAnchor.distance > MAP_ROAD_ANCHOR_LIMIT) return;
+    toAnchors.forEach(toAnchor => {
+      if (toAnchor.distance > MAP_ROAD_ANCHOR_LIMIT) return;
+
+      let waypointPath: WaypointIndex[] = [];
+      if (fromAnchor.index === toAnchor.index) waypointPath = [fromAnchor.index];
+      else waypointPath = getWaypointShortestPath(fromAnchor.index, toAnchor.index);
+      if (waypointPath.length === 0) return;
+
+      let waypointGeometry: RouteGeometryPoint[] = [];
+      for (let index = 0; index < waypointPath.length - 1; index++) {
+        const segment = ROAD_WAYPOINT_GEOMETRY_BY_KEY.get(`${waypointPath[index]}:${waypointPath[index + 1]}`) || [];
+        if (segment.length < 2) {
+          waypointGeometry = [];
+          break;
+        }
+        if (waypointGeometry.length === 0) {
+          waypointGeometry.push(...segment);
+        } else {
+          const tail = waypointGeometry[waypointGeometry.length - 1];
+          const head = segment[0];
+          if (tail[0] !== head[0] || tail[1] !== head[1]) {
+            waypointGeometry.push(...segment);
+          } else {
+            waypointGeometry.push(...segment.slice(1));
+          }
+        }
+      }
+
+      if (waypointGeometry.length < 2) return;
+
+      const points: RouteGeometryPoint[] = [];
+      points.push([fromNode.x, fromNode.y]);
+      const startWaypoint = waypointGeometry[0];
+      if (points[0][0] !== startWaypoint[0] || points[0][1] !== startWaypoint[1]) {
+        points.push(startWaypoint);
+      }
+      if (waypointGeometry.length > 1) {
+        points.push(...waypointGeometry.slice(1));
+      }
+      const endWaypoint = waypointGeometry[waypointGeometry.length - 1];
+      const targetPoint = points[points.length - 1];
+      if (targetPoint[0] !== toNode.x || targetPoint[1] !== toNode.y) {
+        points.push([toNode.x, toNode.y]);
+      } else if (endWaypoint[0] !== toNode.x || endWaypoint[1] !== toNode.y) {
+        points.push([toNode.x, toNode.y]);
+      }
+
+      const score = routeLengthWithAnchors(points) + (fromAnchor.distance + toAnchor.distance);
+      if (score < bestScore) {
+        bestScore = score;
+        best = { from, to, points, mapped: true };
+      }
+    });
+  });
+
+  if (!best) {
+    best = { from, to, points: [], mapped: false };
+  }
+
+  MAP_ROUTE_EDGE_GEOMETRY_CACHE.set(key, best);
+  return best;
+};
+
+type RoutePathGeometry = {
+  segments: RouteSegmentGeometry[];
+  missingPairs: Array<{ from: string; to: string }>;
+  total: number;
+};
+
+const buildPathGeometrySegments = (
+  path: string[],
+  graph: Record<string, MapLocationNode>,
+  customMapEdges: CustomMapEdge[] = []
+): RouteSegmentGeometry[] => {
+  return buildPathGeometrySegmentsWithStats(path, graph, customMapEdges).segments;
+};
+
+const buildPathGeometrySegmentsWithStats = (
+  path: string[],
+  graph: Record<string, MapLocationNode>,
+  customMapEdges: CustomMapEdge[] = []
+): RoutePathGeometry => {
+  if (path.length < 2) {
+    return {
+      segments: [],
+      missingPairs: [],
+      total: 0
+    };
+  }
+  const segments: RouteSegmentGeometry[] = [];
+  const missingPairs: Array<{ from: string; to: string }> = [];
+
+  path.forEach((fromId, index) => {
+    const toId = path[index + 1];
+    if (!toId) return;
+    const segment = buildRouteSegmentGeometry(graph, fromId, toId, customMapEdges);
+    if (segment.mapped && segment.points.length >= 2) {
+      segments.push(segment);
+      return;
+    }
+    missingPairs.push({ from: fromId, to: toId });
+  });
+
+  return {
+    segments,
+    missingPairs,
+    total: Math.max(0, path.length - 1)
+  };
+};
+
+const pointsToPolyString = (points: RouteGeometryPoint[]) => points.map(([x, y]) => `${x},${y}`).join(' ');
 
 const MAP_SERVICE_HOPS = 3;
 
@@ -6841,6 +7168,7 @@ function JourneyMapBoard({
   onOpenMap
 }: JourneyMapBoardProps) {
   const [zoom, setZoom] = useState(1);
+  const [hoveredSelectableNodeId, setHoveredSelectableNodeId] = useState('');
   const graph = useMemo(
     () => buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || []),
     [state.customMapLocations, state.customMapEdges]
@@ -6889,11 +7217,25 @@ function JourneyMapBoard({
       ];
   const currentColor = MAP_REGION_COLORS[(state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as MapRegion] || MAP_REGION_COLORS.Wilds;
   const destinationColor = destinationRegion ? MAP_REGION_COLORS[destinationRegion] : '#6b513b';
-  const plannedPoints = plannedPath.map(({ node }) => `${node.x},${node.y}`).join(' ');
-  const actualPoints = actualTrail.map(({ node }) => `${node.x},${node.y}`).join(' ');
-  const comparisonPoints = comparisonPathIds.flatMap(id => graph[id] ? [graph[id]] : []).map(node => `${node.x},${node.y}`).join(' ');
-  const anchorFor = (x: number) => x > 78 ? 'end' : x < 22 ? 'start' : 'middle';
-  const labelX = (x: number) => x > 78 ? x - 1.8 : x < 22 ? x + 1.8 : x;
+  const plannedPathGeometry = useMemo(
+    () => buildPathGeometrySegmentsWithStats(plannedPathIds, graph, state.customMapEdges || []),
+    [plannedPathIds, graph, state.customMapEdges]
+  );
+  const actualTrailGeometry = useMemo(
+    () => buildPathGeometrySegmentsWithStats(actualTrail.map(({ id }) => id), graph),
+    [actualTrail, graph]
+  );
+  const comparisonPathGeometry = useMemo(
+    () => buildPathGeometrySegmentsWithStats(comparisonPathIds, graph, state.customMapEdges || []),
+    [comparisonPathIds, graph, state.customMapEdges]
+  );
+  const plannedPathMissingCount = plannedPathGeometry.missingPairs.length;
+  const actualPathMissingCount = actualTrailGeometry.missingPairs.length;
+  const comparisonPathMissingCount = comparisonPathGeometry.missingPairs.length;
+  const routeMissingCount = plannedPathMissingCount + actualPathMissingCount;
+  const plannedGeometryMappedCount = plannedPathGeometry.segments.length;
+  const actualGeometryMappedCount = actualTrailGeometry.segments.length;
+  const comparisonGeometryMappedCount = comparisonPathGeometry.segments.length;
   const context = contextLabel || (state.journeyActive ? '현재 여정 지도' : '여정 경로 미리보기');
 
   return (
@@ -6914,16 +7256,32 @@ function JourneyMapBoard({
       <div className="journey-map-board__body">
         <div className="journey-map-board__viewport">
           <div className="journey-map-board__map-content" style={{ width: `${zoom * 100}%` }}>
-            <img src="/Apawthecaria Map Back.jpg" alt="Bristley Woods 전체 지도" draggable={false} />
+            <img src="/Apawthecaria%20Map%20Back.jpg" alt="Bristley Woods 전체 지도" draggable={false} />
             <svg className="journey-map-board__overlay" viewBox="0 0 100 100" aria-hidden={selectable ? undefined : true}>
-              {plannedPoints && plannedPath.length > 1 && (
-                <polyline className="journey-map-board__planned-path" points={plannedPoints} />
+              {plannedPathGeometry.segments.length > 0 && plannedPathGeometry.segments.map((segment, index) => (
+                <polyline
+                  key={`planned-path-${index}`}
+                  className="journey-map-board__planned-path"
+                  points={pointsToPolyString(segment.points)}
+                />
+              ))}
+              {!directFlight && comparisonPathGeometry.segments.length > 0 && (
+                comparisonPathGeometry.segments.map((segment, index) => (
+                  <polyline
+                    key={`comparison-path-${index}`}
+                    className="journey-map-board__comparison-path"
+                    points={pointsToPolyString(segment.points)}
+                  />
+                ))
               )}
-              {!directFlight && comparisonPoints && comparisonPathIds.length > 1 && (
-                <polyline className="journey-map-board__comparison-path" points={comparisonPoints} />
-              )}
-              {actualPoints && actualTrail.length > 1 && (
-                <polyline className="journey-map-board__travelled-path" points={actualPoints} />
+              {actualTrailGeometry.segments.length > 0 && (
+                actualTrailGeometry.segments.map((segment, index) => (
+                  <polyline
+                    key={`actual-trail-${index}`}
+                    className="journey-map-board__travelled-path"
+                    points={pointsToPolyString(segment.points)}
+                  />
+                ))
               )}
               {plannedPath.slice(1, -1).map(({ id, node }) => (
                 <circle key={`planned:${id}`} cx={node.x} cy={node.y} r="0.55" className="journey-map-board__path-dot" />
@@ -6933,21 +7291,23 @@ function JourneyMapBoard({
               ))}
               {destinationNode && displayDestinationId !== currentId && (
                 <g className="journey-map-board__destination-marker">
-                  {destinationKind === 'City' || destinationKind === 'city' ? (
-                    <rect x={destinationNode.x - 1.15} y={destinationNode.y - 1.15} width="2.3" height="2.3" fill={destinationColor} />
-                  ) : destinationKind === 'Settlement' || destinationKind === 'settlement' ? (
-                    <path d={`M ${destinationNode.x} ${destinationNode.y - 1.45} L ${destinationNode.x + 1.45} ${destinationNode.y + 1.1} L ${destinationNode.x - 1.45} ${destinationNode.y + 1.1} Z`} fill={destinationColor} />
-                  ) : (
-                    <circle cx={destinationNode.x} cy={destinationNode.y} r="1.25" fill={destinationColor} />
+                  <circle cx={destinationNode.x} cy={destinationNode.y} r="1.2" fill={destinationColor} opacity="0.22" />
+                  {hoveredSelectableNodeId === displayDestinationId && (
+                    <text
+                      className="journey-map-board__node-label"
+                      x={destinationNode.x + 0.6}
+                      y={Math.max(2.8, destinationNode.y - 1.9)}
+                    >
+                      {destinationNode.label}
+                    </text>
                   )}
-                  <circle cx={destinationNode.x} cy={destinationNode.y} r="2.25" className="journey-map-board__destination-ring" />
-                  <text x={labelX(destinationNode.x)} y={Math.max(3.5, destinationNode.y - 3.1)} textAnchor={anchorFor(destinationNode.x)}>{destinationNode.label}</text>
                 </g>
               )}
               {selectable && Object.entries(graph)
                 .filter(([id]) => !selectableNodeIds || selectableNodeIds.includes(id))
                 .map(([id, node]) => {
                   const isSelected = id === (selectedNodeId || destinationId);
+                  const showNodeLabel = hoveredSelectableNodeId === id || isSelected || id === currentId || id === displayDestinationId;
                   const region = inferMapNodeRegion(node, (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as MapRegion);
                   const locationType = mapNodeGameplayType(id, node);
                   const choose = () => onSelectDestination?.({ id, node, region, locationType });
@@ -6965,20 +7325,35 @@ function JourneyMapBoard({
                           choose();
                         }
                       }}
+                      onMouseEnter={() => setHoveredSelectableNodeId(id)}
+                      onMouseLeave={() => setHoveredSelectableNodeId('')}
+                      onFocus={() => setHoveredSelectableNodeId(id)}
+                      onBlur={() => setHoveredSelectableNodeId('')}
                     >
-                      <circle cx={node.x} cy={node.y} r={node.kind === 'wild' ? 0.56 : 0.84} />
+                      <circle cx={node.x} cy={node.y} r={node.kind === 'wild' ? 0.45 : 0.64} />
                       <circle className="journey-map-board__node-hit" cx={node.x} cy={node.y} r={node.kind === 'wild' ? 1.15 : 1.55} />
+                      {showNodeLabel && <text className="journey-map-board__node-label" x={node.x + 0.48} y={node.y - 0.97}>{node.label}</text>}
                     </g>
                   );
                 })}
               {currentNode && (
                 <g className="journey-map-board__current-marker">
-                  <circle cx={currentNode.x} cy={currentNode.y} r="2.55" />
-                  <circle cx={currentNode.x} cy={currentNode.y} r="1.1" fill={currentColor} />
-                  <text x={labelX(currentNode.x)} y={Math.min(97, currentNode.y + 4.25)} textAnchor={anchorFor(currentNode.x)}>{state.currentLocationName}</text>
+                  <circle cx={currentNode.x} cy={currentNode.y} r="0.95" fill={currentColor} opacity="0.25" />
+                  {(hoveredSelectableNodeId === currentId || (displayDestinationId || '').length === 0) && (
+                    <text className="journey-map-board__node-label" x={currentNode.x + 0.48} y={currentNode.y - 0.97}>
+                      {state.currentLocationName}
+                    </text>
+                  )}
                 </g>
               )}
             </svg>
+            {routeMissingCount > 0 && (
+              <div className="journey-map-board__route-gaps" role="status">
+                {plannedPathMissingCount > 0 && <span>계획 경로: {plannedPathMissingCount} 구간은 도로 기하가 없어 미표시</span>}
+                {actualPathMissingCount > 0 && <span>실제 이동: {actualPathMissingCount} 구간은 도로 기하가 없어 미표시</span>}
+                {comparisonPathMissingCount > 0 && <span>비교 경로: {comparisonPathMissingCount} 구간은 도로 기하가 없어 미표시</span>}
+              </div>
+            )}
           </div>
         </div>
 
@@ -16417,6 +16792,10 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
 	    if (segment.length <= 1) return path;
 	    return [...path, ...segment.slice(1)];
 	  }, [] as string[]) : [];
+  const routePathGeometry = useMemo(
+    () => buildPathGeometrySegmentsWithStats(routePathIds, mapGraphNodes, customMapEdges),
+    [routePathIds, mapGraphNodes, customMapEdges]
+  );
 
 	  // Hashing mapper for positioning pins on the map
 	  const getCoordinatesForLocation = (name: string) => {
@@ -16562,7 +16941,7 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
               transition: isDragging ? 'none' : 'width 0.2s ease-out'
             }}>
               <img
-                src="/Apawthecaria Map Back.jpg"
+                src="/Apawthecaria%20Map%20Back.jpg"
                 alt="Bristley Woods 지도 후면"
                 onDragStart={e => e.preventDefault()}
                 style={{
@@ -16590,19 +16969,14 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
                     opacity="0.07"
                   />
                 ))}
-                {routePathIds.length > 1 && (
-                  <polyline
-                    points={routePathIds.map(locId => {
-                      const point = getCoordinatesForLocationId(locId);
-                      return point ? `${point.x},${point.y}` : null;
-                    }).filter(Boolean).join(' ')}
-                    fill="none"
-                    stroke="rgba(108, 84, 56, 0.72)"
-                    strokeWidth="0.56"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeDasharray="1.4 1.05"
-                  />
+                {routePathGeometry.segments.length > 0 && (
+                  routePathGeometry.segments.map((segment, index) => (
+                    <polyline
+                      key={`map-route-${index}`}
+                      className="map-route-segment"
+                      points={segment.points.map(([x, y]) => `${x},${y}`).join(' ')}
+                    />
+                  ))
                 )}
                 {mapLayers.clinics && (state.clinics || []).map((clinic, idx) => {
                   const serviceEntries = getMapServiceEntriesWithinHops(clinic.locationName, MAP_SERVICE_HOPS, customMapLocations, customMapEdges);
@@ -16667,8 +17041,8 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
                 const isSpecialEvent = mapLayers.barrows && ((state.serviceMapMutations || []) as ServiceMapMutation[]).some(mutation => mutation.active && mutation.nodeIds.includes(locKey || ''));
                 const isFavorite = mapLayers.favorites && (state.favoriteMapLocationIds || []).includes(locKey || '');
 
-                let isLoss = failures.length > 0;
-                let isCare = successes.length > 0 || hasClinic;
+                const isLoss = failures.length > 0;
+                const isCare = successes.length > 0 || hasClinic;
 
                 const compactNote = isCurrent
                   ? '현재 위치'
@@ -16684,42 +17058,19 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
                             ? '의료 접근 포인트'
                             : isFavorite
                               ? '즐겨찾기'
-                              : '';
+                                : '';
 
-                let pinColor = 'rgba(107, 81, 59, 0.92)';
-                let textColor = '#2f2419';
-                let pinShadow = 'rgba(255, 248, 232, 0.58)';
-                let labelBg = 'rgba(255, 255, 255, 0.9)';
-                let markerRing = 'rgba(107, 81, 59, 0.32)';
-
-                if (isLoss) {
-                  pinColor = 'rgba(96, 91, 84, 0.92)';
-                  textColor = '#4a433b';
-                  labelBg = 'rgba(248, 245, 238, 0.97)';
-                  markerRing = 'rgba(96, 91, 84, 0.28)';
-                }
-                if (isCare) {
-                  pinColor = 'rgba(47, 94, 55, 0.96)';
-                  textColor = '#203f27';
-                  pinShadow = 'rgba(228, 245, 216, 0.62)';
-                  labelBg = 'rgba(246, 252, 238, 0.97)';
-                  markerRing = 'rgba(47, 94, 55, 0.5)';
-                }
-                if (isFirstClinic) {
-                  pinColor = 'rgba(176, 96, 32, 0.98)';
-                  textColor = '#743d11';
-                  labelBg = 'rgba(255, 243, 218, 0.98)';
-                  markerRing = 'rgba(176, 96, 32, 0.62)';
-                }
-                if (isBarrow || isSpecialEvent) {
-                  pinColor = 'rgba(113, 68, 135, 0.98)';
-                  textColor = '#5a2f6d';
-                  markerRing = 'rgba(113, 68, 135, 0.5)';
-                }
-                if (isFavorite) {
-                  labelBg = 'rgba(255, 250, 236, 0.98)';
-                  markerRing = 'rgba(173, 123, 25, 0.65)';
-                }
+                const mapPinFill = isCurrent
+                  ? 'rgba(35, 103, 177, 0.16)'
+                  : isFirstClinic
+                    ? 'rgba(176, 96, 32, 0.08)'
+                    : isLoss
+                      ? 'rgba(74, 67, 59, 0.08)'
+                      : isBarrow || isSpecialEvent
+                        ? 'rgba(113, 68, 135, 0.08)'
+                        : isCare
+                          ? 'rgba(47, 94, 55, 0.08)'
+                          : 'rgba(255, 255, 255, 0.7)';
 
                 const mapPinKey = locKey || normalizeMapLocationName(locName);
                 const showLabel = isCurrent || mapPinKey === selectedMemoryKey || hoveredMapPinKey === mapPinKey;
@@ -16730,61 +17081,23 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
                 return (
                   <div
                     key={mapPinKey}
+                    className="map-location-pin"
                     style={{
                       position: 'absolute',
                       left: `${x}%`,
                       top: `${y}%`,
                       transformOrigin: 'top left',
                       transform: 'translate(-50%, -50%)',
-                      pointerEvents: 'none',
-                      zIndex: hoveredMapPinKey === mapPinKey ? 2 : 1,
-                      fontFamily: 'var(--font-base)',
-                      fontSize: '0.82rem',
-                      fontWeight: 700,
+                      pointerEvents: 'auto',
+                      zIndex: hoveredMapPinKey === mapPinKey ? 3 : 1,
                       userSelect: 'none'
                     }}
                   >
-                    {hasClinic && (
-                      <span style={{
-                        position: 'absolute',
-                        left: '50%',
-                        top: '50%',
-                        width: '18px',
-                        height: '18px',
-                        border: '2px solid rgba(207, 45, 45, 0.85)',
-                        borderRadius: '2px',
-                        transform: `rotate(${locName.length % 2 === 0 ? '3deg' : '-4deg'}) translate(-50%, -50%)`,
-                        pointerEvents: 'none',
-                        boxShadow: '0 0 0 2px rgba(255, 246, 232, 0.35)'
-                      }} />
-                    )}
-                    {isCurrent && (
-                      <span style={{
-                        position: 'absolute',
-                        left: '50%',
-                        top: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        width: '30px',
-                        height: '30px',
-                        border: '3px solid rgba(35, 103, 177, 0.85)',
-                        borderRadius: '999px',
-                        boxShadow: '0 0 0 5px rgba(35, 103, 177, 0.12)',
-                        pointerEvents: 'none'
-                      }} />
-                    )}
-
                     <button
                       type="button"
+                      className={`map-location-pin__button ${isCurrent ? 'is-current' : ''} ${hasClinic ? 'is-clinic' : ''}`}
                       style={{
-                        width: '11px',
-                        height: '11px',
-                        borderRadius: '50%',
-                        border: `2px solid ${markerRing}`,
-                        background: pinColor,
-                        boxShadow: pinShadow !== 'transparent' ? `0 0 10px 4px ${pinShadow}` : 'none',
-                        padding: 0,
-                        pointerEvents: 'auto',
-                        cursor: 'pointer'
+                        ['--map-pin-fill' as any]: mapPinFill
                       }}
                       aria-label={`${locName} 위치 기억 열기`}
                       onMouseEnter={() => setHoveredMapPinKey(mapPinKey)}
@@ -16792,45 +17105,30 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
                       onFocus={() => setHoveredMapPinKey(mapPinKey)}
                       onBlur={() => setHoveredMapPinKey('')}
                       onClick={() => selectLocationMemory(locName)}
-                    >
-                    </button>
+                    />
+
+                    {isCurrent && <span className="map-location-pin__current-ring" aria-hidden="true" />}
+                    {hasClinic && <span className="map-location-pin__clinic-badge" aria-hidden="true" />}
 
                     {showLabel && (
-                      <span style={{
-                        position: 'absolute',
-                        left: '50%',
-                        top: '-4px',
-                        transform: 'translate(9px, -100%)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        whiteSpace: 'nowrap',
-                        background: labelBg,
-                        border: `1px solid ${markerRing}`,
-                        borderRadius: '4px',
-                        padding: '3px 7px 5px',
-                        boxShadow: '0 2px 5px rgba(44, 32, 20, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.62)',
-                        backdropFilter: 'blur(1px)',
-                        pointerEvents: 'none'
-                      }}>
-                        <span style={{ display: 'flex', alignItems: 'center', color: textColor, gap: '0.25rem', fontWeight: 600 }}>
-                          <span>{locName}</span>
-                          {isCurrent && <span style={{ color: '#3d7197', fontStyle: 'italic' }}>(현재)</span>}
-                        </span>
-                        {mapLocationLabel && (
-                          <span style={{ fontSize: '0.74rem', color: isLoss ? '#5e574e' : '#594c3c', fontStyle: 'italic' }}>
-                            {mapLocationLabel}
-                          </span>
-                        )}
+                      <span className="map-location-pin__label">
+                        <span>{locName}{isCurrent && <em>(현재)</em>}</span>
+                        {mapLocationLabel && <span>{mapLocationLabel}</span>}
                       </span>
                     )}
                   </div>
                 );
               })}
 
+              {routePathGeometry.missingPairs.length > 0 && (
+                <div className="map-route-status" role="status">
+                  미표시 구간: {routePathGeometry.missingPairs.length}곳 · 도로 기하가 없어 경로가 보이지 않습니다.
+                </div>
+              )}
+
               </div>
             </div>
           </div>
-
         {/* Right Side: Map Key & Distance Scales Sidebar */}
         <div style={{
           maxHeight: '730px',
