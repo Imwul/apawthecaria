@@ -4093,6 +4093,16 @@ const migrateState = (s: any): GameState => {
   });
 };
 
+const safeMigrateState = (raw: any): GameState => {
+  try {
+    return migrateState(raw);
+  } catch (error) {
+    console.error('게임 저장 데이터 마이그레이션 실패, 초깃값으로 초기화합니다.', error);
+    try { localStorage.removeItem('apawthecaria_rpg_state'); } catch {}
+    return syncWorldMemory(INITIAL_STATE);
+  }
+};
+
 const isJourneyGoal = (title: string | undefined, ...names: string[]) => names.includes(title || '');
 
 const getJourneyGoalEvaluation = (s: GameState) => s.journey
@@ -4673,14 +4683,14 @@ export default function App() {
                   || (cloudRevision === localRevision && localRevision === 0
                     && confirm("구글 클라우드에 백업된 아포테카리아 데이터를 발견했습니다. 불러오시겠습니까?\n(불러오면 현재 진행 중인 로컬 데이터는 덮어씌워집니다.)"));
                 if (shouldLoadCloud) {
-                  const migrated = migrateState(parsed);
+                  const migrated = safeMigrateState(parsed);
                   setState(migrated);
                   localStorage.setItem('apawthecaria_rpg_state', JSON.stringify(migrated));
                 } else if (localRevision > cloudRevision) {
                   await setDoc(userDocRef, { 'apawthecaria_rpg_state': localStr }, { merge: true });
                 }
               } else {
-                const migrated = migrateState(parsed);
+                const migrated = safeMigrateState(parsed);
                 setState(migrated);
                 localStorage.setItem('apawthecaria_rpg_state', JSON.stringify(migrated));
               }
@@ -4704,7 +4714,7 @@ export default function App() {
     const loadSave = async () => {
       const loaded = await store.load('apawthecaria_rpg_state', null);
       if (loaded) {
-        setState(migrateState(loaded));
+        setState(safeMigrateState(loaded));
       } else {
         setState(syncWorldMemory(INITIAL_STATE));
       }
@@ -5167,7 +5177,7 @@ export default function App() {
         await signOut(auth);
         const loaded = await store.load('apawthecaria_rpg_state', null);
         if (loaded) {
-          setState(migrateState(loaded));
+          setState(safeMigrateState(loaded));
         } else {
           setState(syncWorldMemory(INITIAL_STATE));
         }
@@ -18162,7 +18172,7 @@ function JournalsView({
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (parsed.bio && parsed.bag) {
-          updateState(() => migrateState(parsed));
+          updateState(() => safeMigrateState(parsed));
           setImportNotice({ kind: 'success', text: '세이브 파일을 성공적으로 가져왔습니다.' });
         } else {
           setImportNotice({ kind: 'error', text: '유효하지 않은 아포테카리아 세이브 파일입니다.' });
