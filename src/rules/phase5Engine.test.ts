@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bandolierAdjustedWeight,
   installWagonExpansion,
+  repairCanonicalTool,
   resolveCanonicalDowntime,
   resolveCompanionTravel,
   resolveToolTrigger,
@@ -59,6 +60,23 @@ describe('Phase 5 canonical closure', () => {
     const tent = resolveToolTrigger({ transactionId: 'tent:1', tool: tool('canvas-tent'), trigger: 'weather-encounter', card: { value: 6, suit: '♣' } });
     expect(tent).toMatchObject({ ignoredOutcome: true, tool: { broken: true } });
     expect(() => resolveToolTrigger({ transactionId: 'tent:1', tool: tent.tool, trigger: 'weather-encounter', card: 4 })).toThrow();
+  });
+
+  it('[TOOL-003] repairs only the Canvas Tent named by the p62 repair rule', () => {
+    const state = {
+      trinkets: 4,
+      inventory: [],
+      tools: [
+        { ...tool('canvas-tent'), broken: true },
+        { ...tool('fine-toothed-comb'), broken: true }
+      ],
+      appliedTransactionIds: [],
+      journalEvents: []
+    };
+    const tent = repairCanonicalTool({ transactionId: 'repair-tent', state, toolInstanceId: 'tool:canvas-tent', currentLocationType: 'Settlement' });
+    expect(tent.value?.trinkets).toBe(2);
+    expect(tent.value?.tools.find(row => row.toolId === 'canvas-tent')?.broken).toBe(false);
+    expect(repairCanonicalTool({ transactionId: 'repair-comb', state, toolInstanceId: 'tool:fine-toothed-comb', currentLocationType: 'Settlement' }).status).toBe('invalid');
   });
 
   it('[WAGON-002/WAGON-004] installs Sealed Carriage only on a commissioned Wagon and applies the Coracle discount', () => {

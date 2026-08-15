@@ -165,8 +165,9 @@ export const repairCanonicalTool = (input: {
   if (!['Settlement', 'City'].includes(input.currentLocationType) || input.state.trinkets < 2) {
     return { status: 'invalid', value: null, messages: ['Repair requires a Settlement or City and 2 Trinkets.'] };
   }
-  const index = input.state.tools.findIndex(tool => tool.instanceId === input.toolInstanceId && tool.broken && !tool.consumed);
-  if (index < 0) return { status: 'invalid', value: null, messages: ['Broken canonical Tool was not found.'] };
+  const index = input.state.tools.findIndex(tool => tool.instanceId === input.toolInstanceId
+    && tool.toolId === 'canvas-tent' && tool.broken && !tool.consumed);
+  if (index < 0) return { status: 'invalid', value: null, messages: ['Only a broken Canvas Tent can be repaired by this rule.'] };
   const tools = [...input.state.tools];
   tools[index] = { ...tools[index], broken: false };
   return {

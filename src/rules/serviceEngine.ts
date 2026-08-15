@@ -103,6 +103,12 @@ const locationError = (definition: GuildServiceDefinition, state: ServiceRuntime
       ? null
       : `This Service requires a ${requirement.region} Settlement.`;
   }
+  if (requirement.kind === 'region-settlement-or-any-city') {
+    return state.currentLocationType === 'City'
+      || (state.currentLocationType === 'Settlement' && state.currentRegion === requirement.region)
+      ? null
+      : `This Service requires a ${requirement.region} Settlement or any City.`;
+  }
   return normalize(state.currentLocationName) === normalize(requirement.location)
     ? null
     : `This Service is only available in ${requirement.location}.`;
@@ -290,6 +296,10 @@ export const resolveGuildService = (input: GuildServiceInput): GuildServiceResol
       if (!item) return { status: 'invalid', value: null, messages: ['Select a canonical Reagent and Preparation.'] };
       const reagent = REAGENT_BY_ID.get(item.canonicalReagentId!);
       if (definition.id === 'rug-of-wonders' && (reagent!.baseRarity > 9 || reagent!.type === 'TITAN')) return { status: 'invalid', value: null, messages: ['Rug of Wonders is limited to non-Titan Reagents with Base Rarity 9 or lower.'] };
+      if (definition.id === 'catch-of-the-day') {
+        const expected = input.option === 'big' ? 'Big Fish' : 'Small Fish';
+        if (reagent!.canonicalName !== expected) return { status: 'invalid', value: null, messages: [`Catch of the Day (${input.option === 'big' ? '2' : '1'} Trinket) requires a ${expected} Part.`] };
+      }
       if (definition.id === 'take-clippings' && reagent!.type !== 'PLANT') return { status: 'invalid', value: null, messages: ['Take Clippings requires a Plant Reagent.'] };
       if (definition.id === 'pick-of-the-deep') {
         const value = input.card ? getRuleCardValue(input.card, 'table') : null;

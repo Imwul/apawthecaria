@@ -24,6 +24,7 @@ export type ServiceLocationRequirement =
   | { kind: 'any-settlement-or-city' }
   | { kind: 'any-city' }
   | { kind: 'region-settlement'; region: Region }
+  | { kind: 'region-settlement-or-any-city'; region: Region }
   | { kind: 'named'; location: string };
 
 export interface GuildServiceDefinition extends CanonicalRuleRecord {
@@ -49,7 +50,7 @@ export const GUILD_SERVICES: readonly GuildServiceDefinition[] = [
   service({ id: 'send-package', name: 'Send Package', provider: 'Noonmessengers', cost: 2, locationRequirement: { kind: 'any-settlement-or-city' }, target: 'external-player', duration: 'pending-delivery', mapEffect: 'none', followUp: 'Recipient receives up to 5 Weight on next entering a Settlement or City.', page: 58, ruleIds: ['ALMANACK-004', 'SERVICE-005'] }),
   service({ id: 'rug-of-wonders', name: 'Rug of Wonders', provider: 'Griph, the Travelling Merchant', cost: 1, locationRequirement: { kind: 'any-settlement-or-city' }, target: 'reagent', duration: 'once-per-journey', mapEffect: 'none', followUp: 'Gain one Part from a non-Titan Reagent with Base Rarity 9 or lower.', page: 58, ruleIds: ['ALMANACK-004'] }),
   service({ id: 'news-from-the-trail', name: 'News From The Trail', provider: 'Chatty Beasts', cost: 2, locationRequirement: { kind: 'any-settlement-or-city' }, target: 'journey', duration: 'until-destination', mapEffect: 'none', followUp: 'Redraw one Travel Encounter and choose until reaching the Journey destination.', page: 58, ruleIds: ['ALMANACK-004'] }),
-  service({ id: 'smithing', name: 'Smithing', provider: 'Guild of Orebeaters', cost: 3, locationRequirement: { kind: 'region-settlement', region: 'Mountain' }, target: 'upgrade', duration: 'instant', mapEffect: 'none', followUp: 'Upgrade one eligible Basic Tool using a page 66 Upgrade.', page: 59, ruleIds: ['ALMANACK-004', 'TOOL-005'] }),
+  service({ id: 'smithing', name: 'Smithing', provider: 'Guild of Orebeaters', cost: 3, locationRequirement: { kind: 'region-settlement-or-any-city', region: 'Mountain' }, target: 'upgrade', duration: 'instant', mapEffect: 'none', followUp: 'Upgrade one eligible Basic Tool using a page 66 Upgrade.', page: 59, ruleIds: ['ALMANACK-004', 'TOOL-005'] }),
   service({ id: 'forecast', name: 'Forecast', provider: 'Lodge of Weatherwarts', cost: [1, 2], locationRequirement: { kind: 'region-settlement', region: 'Bog' }, target: 'journey', duration: 'three-moves', mapEffect: 'none', followUp: 'Ignore negative Weather Foraging Encounter effects for the next 3 Moves.', page: 59, ruleIds: ['SERVICE-001'] }),
   service({ id: 'catch-of-the-day', name: 'Catch of the Day', provider: 'Guild of Fishfinders', cost: [1, 2], locationRequirement: { kind: 'region-settlement', region: 'Loch' }, target: 'reagent', duration: 'instant', mapEffect: 'none', followUp: 'Gain a Small Fish Part for 1 Trinket or Big Fish Part for 2.', page: 59, ruleIds: ['ALMANACK-004'] }),
   service({ id: 'shortcut', name: 'Shortcut', provider: 'Underbrush Beasts', cost: 2, locationRequirement: { kind: 'region-settlement', region: 'Forest' }, target: 'move', duration: 'instant', mapEffect: 'none', followUp: 'Move immediately to a nearby Location without requiring a connecting Path.', page: 59, ruleIds: ['SERVICE-002'] }),

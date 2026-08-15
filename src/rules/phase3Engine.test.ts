@@ -109,6 +109,35 @@ describe('Phase 3 printed effects and Ailments', () => {
     expect(executeEncounter({ transactionId: 'bad-choice', encounter, state: runtime, choiceId: 'invented' }).status).toBe('invalid');
   });
 
+  it('[TRAVEL-008/TRAVEL-009] corrects seasonal rows and applies deterministic p75-84 Travel choices', () => {
+    expect(ENCOUNTERS.find(row => row.id === 'travel-bog-j-autumn')?.title).toBe('Fungi Founder');
+    expect(ENCOUNTERS.find(row => row.id === 'travel-bog-j-winter')?.title).toBe('Chilled To The Core');
+    expect(ENCOUNTERS.find(row => row.id === 'travel-forest-j-spring')?.title).toBe('Danger Ahead');
+    expect(ENCOUNTERS.find(row => row.id === 'travel-forest-j-summer')?.title).toBe('Freshly Grilled');
+
+    const runtime = { reputation: 2, trinkets: 1, calendarDays: 7, foragingPoints: 0, inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: [] };
+    const busyWork = ENCOUNTERS.find(row => row.id === 'travel-bog-m-summer')!;
+    const soaked = executeEncounter({ transactionId: 'busy-work', encounter: busyWork, state: runtime, choiceId: 'sit-and-soak' });
+    expect(soaked.status).toBe('resolved');
+    expect(soaked.value?.nextState).toMatchObject({ calendarDays: 8, trinkets: 2 });
+
+    const goApe = ENCOUNTERS.find(row => row.id === 'travel-forest-m-summer')!;
+    expect(executeEncounter({ transactionId: 'go-ape', encounter: goApe, state: runtime }).value?.nextState.calendarDays).toBe(6);
+
+    const found = ENCOUNTERS.find(row => row.id === 'travel-forest-m-autumn')!;
+    expect(executeEncounter({ transactionId: 'lost-found', encounter: found, state: runtime, choiceId: 'right-thing' }).value?.nextState.reputation).toBe(3);
+
+    const chilled = ENCOUNTERS.find(row => row.id === 'travel-bog-j-winter')!;
+    const warmth = executeEncounter({ transactionId: 'chilled', encounter: chilled, state: runtime, choiceId: 'passing-warmth' });
+    expect(warmth.status).toBe('manual');
+    expect(warmth.value?.nextState).toMatchObject({ calendarDays: 8, reputation: 3 });
+
+    const hornweed = ENCOUNTERS.find(row => row.id === 'travel-loch-9-10-autumn')!;
+    const culled = executeEncounter({ transactionId: 'hornweed', encounter: hornweed, state: runtime, choiceId: 'cull' });
+    expect(culled.status).toBe('manual');
+    expect(culled.value?.nextState).toMatchObject({ calendarDays: 8, reputation: 4 });
+  });
+
   it('[AILMENT-003/AILMENT-005] applies Pinned by Pine and Quagmire timer exceptions before generic failure', () => {
     const pinned = patient('ailment-pinned-by-pine');
     const pinnedResult = resolveAilmentTimerEffect({

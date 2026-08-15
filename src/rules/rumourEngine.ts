@@ -36,8 +36,8 @@ const TABLE = {
 
 const inRange = (distance: CanonicalRumour['distance'], paths: number) => distance === '1-2' ? paths >= 1 && paths <= 2 : distance === '4-5' ? paths >= 4 && paths <= 5 : distance === '7-10' ? paths >= 7 && paths <= 10 : paths >= 15;
 
-export const resolveRumour = (input: { transactionId: string; reputation: number; atCity: boolean; downtimeCompleted: boolean; cards: [RuleCard, RuleCard, RuleCard, RuleCard]; candidates: RumourCandidate[]; targetLocationId: string }) => {
-  if (!input.transactionId || input.reputation < 15 || !input.atCity || input.downtimeCompleted) throw new Error('Rumour requires Reputation 15+, a City Journey ending, and an unused Downtime activity.');
+export const resolveRumour = (input: { transactionId: string; reputation: number; atCity: boolean; inDowntime: boolean; alreadyHeard: boolean; cards: readonly [RuleCard, RuleCard, RuleCard, RuleCard]; candidates: RumourCandidate[]; targetLocationId: string }) => {
+  if (!input.transactionId || input.reputation < 15 || !input.atCity || !input.inDowntime || input.alreadyHeard) throw new Error('Rumour requires Reputation 15+, an ended City Journey in Downtime, and may be heard once per Journey.');
   const suits = input.cards.map(suitOf) as [CardSuit, CardSuit, CardSuit, CardSuit];
   const behemoth = TABLE[suits[0]].behemoth;
   const direction = TABLE[suits[1]].direction;

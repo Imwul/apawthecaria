@@ -80,6 +80,20 @@ describe('travel and encounter execution', () => {
       season: 'Spring', canStopInLoch: false
     });
     expect(unvisited.status).toBe('invalid');
+
+    const soaring = resolveTravel({
+      transactionId: 'soar-one-day', state: { ...state, ridingWagon: false, visitedLocationIds: ['start', 'end'] }, graph: graph(), destinationId: 'end',
+      destinationRegion: 'Titan', destinationType: 'Wilds', mode: 'soar', card: 3,
+      season: 'Spring', canStopInLoch: false
+    });
+    expect(soaring.value).toMatchObject({ pathCount: 0, movementCost: 1, nextState: { calendarDays: 1, currentRegion: 'Titan' } });
+
+    const contraption = resolveTravel({
+      transactionId: 'soar-contraption', state: { ...state, experimentalContraption: true, visitedLocationIds: ['start', 'end'] }, graph: graph(), destinationId: 'end',
+      destinationRegion: 'Titan', destinationType: 'Wilds', mode: 'soar', card: 3,
+      season: 'Spring', canStopInLoch: false
+    });
+    expect(contraption.value).toMatchObject({ pathCount: 0, movementCost: 3, nextState: { calendarDays: 3, currentRegion: 'Titan' } });
   });
 
   it('[TRAVEL-002/TRAVEL-005] limits an overencumbered move to one path and soaks vulnerable inventory on a waterway', () => {

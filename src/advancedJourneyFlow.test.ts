@@ -63,6 +63,17 @@ describe('advanced journey flow', () => {
     expect(gameplayKoSource).toContain("Meadow: 'Meadow'");
     expect(gameplayKoSource).toContain("Mountain: 'Mountain'");
     expect(gameplayKoSource).toContain("Titan: 'Titan'");
+    expect(appSource).toContain('<option value="Soar">🦅 Soar</option>');
+  });
+
+  it('keeps map metadata canonical and previews Soar as a direct Flightpath', () => {
+    expect(appSource).toContain('handleTravelDestinationNameChange');
+    expect(appSource).toContain('setDestRegion(inferMapNodeRegion(node))');
+    expect(appSource).toContain("const directFlight = plannedRegion === 'Soar'");
+    expect(appSource).toContain("previewIsSoar ? '직선 Flightpath / 1회 Soar'");
+    expect(appSource).toContain('const travelExpectedDays = previewIsSoar && previewWagonCapabilities.canSoar ? 3 : 1');
+    expect(appSource).toContain('currentRegion: outcome.nextState.currentRegion');
+    expect(appSource).toContain("s.currentRegion === 'Soar' && migratedLocationId");
   });
 
   it('continues through the first actionable step and keeps built-in location names in English', () => {

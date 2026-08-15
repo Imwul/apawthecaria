@@ -160,6 +160,7 @@ describe('Phase 10 release blocker elimination', () => {
       canonicalReagentId: plant.id, preparationId: plant.preparations[0].id, usesRemaining: 1 };
     const agendaState: ClinicAgendaRuntimeState = {
       season: 'Spring', reputation: 15, trinkets: 20, inventory: [item], patient: null,
+      atClinic: true,
       clinics: [{ ...commissioned.clinics[0], status: 'active' }], agendaIds: ['gardens', 'mailbox'], goodwillWeight: 0,
       soddenReagentId: null, appliedTransactionIds: [], journalEvents: []
     };
@@ -176,6 +177,11 @@ describe('Phase 10 release blocker elimination', () => {
       action: { kind: 'donate-goodwill', itemId: 'stack' }
     });
     expect(donated.goodwillWeight).toBe(2);
+    expect(() => resolveClinicAgendaAction({
+      transactionId: 'p11:goodwill-away',
+      state: { ...agendaState, atClinic: false, agendaIds: ['goodwill-stand'] },
+      action: { kind: 'donate-goodwill', itemId: item.id }
+    })).toThrow(/while at a Clinic/);
   });
 
   it('[ALMANACK-004/SERVICE-001/SERVICE-002/SERVICE-005] closes Service duration, movement, and delivery consumers', () => {

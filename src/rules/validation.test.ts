@@ -20,7 +20,7 @@ describe('canonical build validation', () => {
 
   it('[CORE-002/AILMENT-003/TRAVEL-009/FORAGE-006/TABLE-004] validates every manual trigger as an in-app resolution task', () => {
     const manual = PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'manual');
-    expect(manual).toHaveLength(347);
+    expect(manual).toHaveLength(335);
     expect(manual.every(row => row.supportedTriggers.every(trigger => {
       const metadata = row.manualResolutionByTrigger[trigger];
       return Boolean(

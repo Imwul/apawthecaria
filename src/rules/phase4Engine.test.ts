@@ -110,6 +110,37 @@ describe('Phase 4 Services', () => {
     expect(resolveGuildService({ transactionId: 'near', state: vessel, serviceId: 'retrieval', targetIds: ['n1'], journalNote: 'Fetch.' }).status).toBe('invalid');
     expect(resolveGuildService({ transactionId: 'far', state: vessel, serviceId: 'retrieval', targetIds: ['n6'], journalNote: 'Fetch.' }).status).toBe('manual');
   });
+
+  it('[ALMANACK-004/TOOL-005] permits Smithing in any City and enforces the selected Catch of the Day fish', () => {
+    const citySmithing = resolveGuildService({
+      transactionId: 'smithing-city', state: serviceState(), serviceId: 'smithing', journalNote: 'Met an Orebeater.'
+    });
+    expect(citySmithing.status).toBe('manual');
+    const forestSettlement = {
+      ...serviceState(), currentLocationType: 'Settlement' as const, currentRegion: 'Forest' as const, currentLocationName: 'Forest Rest'
+    };
+    expect(resolveGuildService({
+      transactionId: 'smithing-wrong-settlement', state: forestSettlement, serviceId: 'smithing', journalNote: 'No forge here.'
+    }).status).toBe('invalid');
+
+    const lochSettlement = {
+      ...serviceState(), currentLocationType: 'Settlement' as const, currentRegion: 'Loch' as const, currentLocationName: 'Loch Rest'
+    };
+    const smallFish = REAGENTS.find(row => row.canonicalName === 'Small Fish')!;
+    const bigFish = REAGENTS.find(row => row.canonicalName === 'Big Fish')!;
+    expect(resolveGuildService({
+      transactionId: 'catch-small', state: lochSettlement, serviceId: 'catch-of-the-day', option: 'small',
+      selectedReagentId: smallFish.id, selectedPreparationId: smallFish.preparations[0].id, journalNote: 'Bought the small catch.'
+    }).status).toBe('resolved');
+    expect(resolveGuildService({
+      transactionId: 'catch-mismatch', state: lochSettlement, serviceId: 'catch-of-the-day', option: 'big',
+      selectedReagentId: smallFish.id, selectedPreparationId: smallFish.preparations[0].id, journalNote: 'Asked for the big catch.'
+    }).status).toBe('invalid');
+    expect(resolveGuildService({
+      transactionId: 'catch-big', state: lochSettlement, serviceId: 'catch-of-the-day', option: 'big',
+      selectedReagentId: bigFish.id, selectedPreparationId: bigFish.preparations[0].id, journalNote: 'Bought the big catch.'
+    }).value?.nextState.trinkets).toBe(98);
+  });
 });
 
 describe('Phase 4 Tools, mobility, downtime, and Clinics', () => {
@@ -182,9 +213,12 @@ describe('Phase 4 Tools, mobility, downtime, and Clinics', () => {
   });
 
   it('[DOWNTIME-002] resolves a four-card Rumour only against a canonical map candidate', () => {
-    const resolved = resolveRumour({ transactionId: 'rumour', reputation: 15, atCity: true, downtimeCompleted: false, cards: [{ value: 1, suit: '♥' }, { value: 1, suit: '♣' }, { value: 1, suit: '♣' }, { value: 1, suit: '♥' }], candidates: [{ locationId: 'east-bog', region: 'Bog', direction: 'East', pathDistance: 2 }], targetLocationId: 'east-bog' });
+    const input = { transactionId: 'rumour', reputation: 15, atCity: true, inDowntime: true, alreadyHeard: false, cards: [{ value: 1, suit: '♥' }, { value: 1, suit: '♣' }, { value: 1, suit: '♣' }, { value: 1, suit: '♥' }] as const, candidates: [{ locationId: 'east-bog', region: 'Bog' as const, direction: 'East' as const, pathDistance: 2 }], targetLocationId: 'east-bog' };
+    const resolved = resolveRumour(input);
     expect(resolved.status).toBe('resolved');
     expect(resolved.rumour?.behemoth).toBe('Towering');
+    expect(() => resolveRumour({ ...input, alreadyHeard: true })).toThrow(/once per Journey/);
+    expect(() => resolveRumour({ ...input, inDowntime: false })).toThrow(/ended City Journey/);
   });
 
   it('[CLINIC-001/CLINIC-003] commissions for next Season and uses graph distance 3', () => {
@@ -194,6 +228,10 @@ describe('Phase 4 Tools, mobility, downtime, and Clinics', () => {
     const active = { ...next, clinics: [{ ...next.clinics[0], status: 'active' as const }] };
     expect(clinicServiceArea(active, next.clinics[0].id)).toEqual(expect.arrayContaining(['n0', 'n5']));
     expect(clinicServiceArea(active, next.clinics[0].id)).not.toContain('n6');
+
+    const withoutAgenda = commissionClinic({ transactionId: 'clinic-no-agenda', state: { ...state, trinkets: 30 }, locationId: 'n3', name: 'Quiet House', locationType: 'Wild', curedHere: true });
+    expect(withoutAgenda.clinics[0].name).toBe('Quiet House');
+    expect(withoutAgenda.agendaIds).toEqual([]);
   });
 });
 

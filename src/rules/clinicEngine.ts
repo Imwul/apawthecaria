@@ -35,6 +35,7 @@ export interface ClinicAgendaRuntimeState {
   season: Season;
   reputation: number;
   trinkets: number;
+  atClinic?: boolean;
   inventory: EngineInventoryItem[];
   patient: PatientState | null;
   clinics: CanonicalClinicState[];
@@ -74,15 +75,17 @@ export const commissionClinic = (input: { transactionId: string; state: ClinicRu
   if (input.state.completedSeasons < 4 || input.locationType !== 'Wild' || !input.curedHere || input.state.trinkets < 15) throw new Error('Clinic requires four completed Seasons, a successful Wild Ailment, and 15 Trinkets.');
   if (!input.state.graph[input.locationId] || input.state.clinics.some(row => row.locationId === input.locationId)) throw new Error('Clinic Location is invalid or already occupied.');
   if (!input.name.trim()) throw new Error('Clinic requires a name.');
-  if (!input.agendaId || !CLINIC_AGENDA_BY_ID.has(input.agendaId)) throw new Error('Clinic commissioning requires one canonical Agenda.');
-  const agendaError = clinicAgendaRequirementError(input.state, input.agendaId);
-  if (agendaError) throw new Error(agendaError);
+  if (input.agendaId && !CLINIC_AGENDA_BY_ID.has(input.agendaId)) throw new Error('Clinic commissioning requires a canonical Agenda when one is selected.');
+  if (input.agendaId) {
+    const agendaError = clinicAgendaRequirementError(input.state, input.agendaId);
+    if (agendaError) throw new Error(agendaError);
+  }
   const clinic: CanonicalClinicState = { id: `clinic:${input.transactionId}`, name: input.name.trim(), locationId: input.locationId, commissionedSeason: input.state.currentSeason, completesAtSeason: seasonAfter(input.state.currentSeason), status: 'building', gardenReagentId: null, gardenHarvestedAilmentIds: [] };
   return {
     ...input.state,
     trinkets: input.state.trinkets - 15,
     clinics: [...input.state.clinics, clinic],
-    agendaIds: !input.state.agendaIds.includes(input.agendaId) ? [...input.state.agendaIds, input.agendaId] : input.state.agendaIds,
+    agendaIds: input.agendaId && !input.state.agendaIds.includes(input.agendaId) ? [...input.state.agendaIds, input.agendaId] : input.state.agendaIds,
     appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
     journalEvents: [...input.state.journalEvents, { id: `${input.transactionId}:journal`, type: 'downtime' as const, title: 'Clinic Commissioned', text: `${clinic.name} will be completed at the start of ${clinic.completesAtSeason}.` }]
   };
@@ -207,6 +210,7 @@ export const resolveClinicAgendaAction = (input: {
   } else if (input.action.kind === 'donate-goodwill') {
     const action = input.action;
     if (!next.agendaIds.includes('goodwill-stand')) throw new Error('Donation requires the Goodwill Stand Agenda.');
+    if (!next.atClinic) throw new Error('Items may only be left at a Goodwill Stand while at a Clinic.');
     const item = next.inventory.find(row => row.id === action.itemId);
     if (!item) throw new Error('The donated Item is not in Inventory.');
     const donatedWeight = item.weight * Math.max(1, item.quantity || 1);

@@ -10,9 +10,9 @@
 | Canonical Downtime resolver | Implemented | General Practice, 다중 Replenish, Explore, Self Improvement, Reconnect와 Ledger/Map/Gossip 소비를 1회 transaction으로 처리 | `DOWNTIME-003-005` |
 | `resolveLeave()` | Implemented | Patient·모든 Timer·Archive·Reputation·obligation·journal을 한 transaction으로 처리 | `LEAVE-006` |
 | Mobility resolvers | Implemented | Wagon commission/upgrade/capability, Passenger, Clay Pots, Companion 입양·보관·Journey/Move/season trigger를 transaction으로 처리 | `WAGON-001-004`, `COMPANION-001-005` |
-| `resolveRumour()` | Implemented + UI | 네 장 표, actual graph 방향·Region·Path 후보, redraw, Downtime 1회 | `DOWNTIME-002` |
+| `resolveRumour()` | Implemented + UI | 네 장 표, actual graph 방향·Region·Path 후보, redraw, City에서 끝낸 Journey당 1회(별도 Downtime Activity는 소비하지 않음) | `DOWNTIME-002` |
 | Clinic resolvers | Implemented | completed-Season commission, next Season, 3 Paths service area, 10 global Agenda action/Income/Patient consumers | `CLINIC-001-006` |
-| Almanack/manual resolvers | Implemented | trigger별 347개 직접 판정 task, effect-specific input, canonical preview/commit, Defer/Override, pending follow-up | `CORE-002`, `TRAVEL-009`, `FORAGE-006`, `AILMENT-003/005/007`, `UX-001` |
+| Almanack/manual resolvers | Implemented | trigger별 335개 직접 판정 task, effect-specific input, canonical preview/commit, Defer/Override, pending follow-up | `CORE-002`, `TRAVEL-009`, `FORAGE-006`, `AILMENT-003/005/007`, `UX-001` |
 | Save queue | Implemented | schema v8, v7 additive Barrow/Tool/Downtime migration, treatment/manual draft, resolution/override/follow-up, local-first outbox | `SAVE-001/004/005/006-008`, `OFFLINE-001-003` |
 
 ## Release Candidate 보강
@@ -34,7 +34,7 @@
 | Clinic/Guild Service | Implemented | 완료 계절, 10 Agenda, 17 Service의 Move/Delivery/Spring 후속 consumer가 transaction으로 종료됨 |
 | Tool/Upgrade | Implemented | 18 Tool과 7 Upgrade의 조건부 trigger, Granite POUND, Knitting, 파손·소모가 canonical state를 사용함 |
 | Wagon/Companion | Implemented | 10 Expansion, Passenger 목적지, Clay Pots 2 Move, 9 Companion의 주기·보상·제약이 Mobility transaction을 사용함 |
-| Ailment wording | Implemented concordance | p104-115 gameplay 조건절을 구조화하고 자동/선택/manual consumer를 연결하며 기존 347 manual 분류를 유지함 |
+| Ailment wording | Implemented concordance | p104-115 gameplay 조건절을 구조화하고 자동/선택/manual consumer를 연결하며 전체 335 manual 분류를 유지함 |
 
 ## Phase 3 기반 엔진
 
@@ -62,8 +62,8 @@
 
 - Encounter 313개와 Named Ailment 45개, 총 358개 owner에 고유 registry row가 있다.
 - 각 row는 trigger, prerequisites, 상태 변화 범주, follow-up, journal, manual 이유, source page, Rule ID, executor, test를 가진다.
-- 현재 자동 완료는 실행기와 테스트가 확인된 11개 행이며 347개는 `manual`이다. Registry 등록이나 구조 필드만으로 자동 구현 완료로 간주하지 않는다.
-- 347개 manual 행은 모두 trigger별 해결 메타데이터와 전용 UI를 가진다. 완성 `347/347`, 도달 불가 `0`; 172개는 canonical action 후보, 90개는 저장되는 후속 판정을 가진다.
+- 현재 자동 완료는 실행기와 테스트가 확인된 23개 행이며 335개는 `manual`이다. Registry 등록이나 구조 필드만으로 자동 구현 완료로 간주하지 않는다.
+- 335개 manual 행은 모두 trigger별 해결 메타데이터와 전용 UI를 가진다. 완성 `335/335`, 도달 불가 `0`; 164개는 canonical action 후보, 88개는 저장되는 후속 판정을 가진다.
 - 원문 경고 10행은 제목·페이지·계절·상태를 다시 대조했다. 자동화가 안전하지 않은 후속 카드, 지도 표식, 아이템 선택은 구체적인 manual decision으로 남겼다.
 - Bad Idea, Brand Care, Forager's Twitch, Pinned by Pine, Quagmire's Scale, Stingshock, Wake, Wormridden을 포함한 실행 가능한 Ailment 예외는 registry 상태와 실제 실행기를 맞췄다. 나머지 서술·지도·후속 환자 결과는 manual이다.
 
@@ -85,7 +85,7 @@
 
 ## 남은 Stub 또는 Manual
 
-- 347개 printed effect row는 자동 executor가 아닌 명시적 manual 상태다. 지도 생성, 후속 카드, 장기 NPC 상태는 앱이 결론을 만들지 않고 플레이어 판정과 pending follow-up으로 보존한다.
+- 335개 printed effect row는 자동 executor가 아닌 명시적 manual 상태다. 지도 생성, 후속 카드, 장기 NPC 상태는 앱이 결론을 만들지 않고 플레이어 판정과 pending follow-up으로 보존한다.
 - 24개 남은 Partial은 Release Blocker가 아니다. A 12개는 호환·검증·디지털 한계, B 11개는 의도적 narrative/player choice, C 1개는 p43/p68 Wagon 가격 충돌이다.
 - same-revision 충돌은 local 보존과 알림으로 처리하며 자동 field merge는 하지 않는다.
 
@@ -102,5 +102,5 @@
 
 - Release Blocker: `20 → 0`.
 - 외부 룰북 참조: `0회`.
-- Printed Effect: `358/358`; manual narrative `347/347` 유지.
+- Printed Effect: `358/358`; automatic/structured `23`, manual `335/335`.
 - Version 1.0: **Ready, with documented non-blocking limitations.**
