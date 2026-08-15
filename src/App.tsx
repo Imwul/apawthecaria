@@ -5431,7 +5431,26 @@ export default function App() {
                 currentWeight={currentWeight}
                 maxCarry={maxCarry}
                 onNavigate={setActiveTab}
-                onContinue={() => document.getElementById('action-hub')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                onContinue={() => {
+                  const primaryActionButton = document.querySelector<HTMLButtonElement>('[data-play-primary-action="true"]');
+                  if (primaryActionButton) {
+                    primaryActionButton.click();
+                    primaryActionButton.focus({ preventScroll: true });
+                    return;
+                  }
+
+                  const fallbackAction = document.querySelector<HTMLButtonElement>('#action-hub .action-step:not(:disabled)');
+                  if (fallbackAction) {
+                    fallbackAction.click();
+                    fallbackAction.focus({ preventScroll: true });
+                    return;
+                  }
+
+                  const actionHub = document.getElementById('action-hub');
+                  const pendingArea = document.getElementById('pending-procedures');
+                  (pendingArea || actionHub)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                onOpenReference={setRulebookRequest}
               />
               <BarrowPanel delve={state.activeDelve} />
               <PlayView
