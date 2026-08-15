@@ -5450,7 +5450,6 @@ export default function App() {
                   const pendingArea = document.getElementById('pending-procedures');
                   (pendingArea || actionHub)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
-                onOpenReference={setRulebookRequest}
               />
               <BarrowPanel delve={state.activeDelve} />
               <PlayView
