@@ -3399,9 +3399,21 @@ const migrateGuildNotes = (bag: BagItem[] = []): BagItem[] => bag.map(item => {
   return item;
 });
 
+const normalizeLocationEntries = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value
+    .map(raw => (typeof raw === 'string' ? raw.trim() : ''))
+    .filter((name): name is string => Boolean(name)))];
+};
+
 const migrateState = (s: any): GameState => {
   if (!s) return INITIAL_STATE;
   s = migrateLegacyTerminology(migrateSavedRulesState(s));
+  const migratedCurrentLocationName = typeof s.currentLocationName === 'string' ? s.currentLocationName.trim() : '';
+  const fallbackCurrentLocation = migratedCurrentLocationName || INITIAL_STATE.currentLocationName;
+  const visitedLocations = normalizeLocationEntries(s.visitedLocations);
+  const dedupedCurrentLocation = normalizeLocationEntries([migratedCurrentLocationName])[0] || fallbackCurrentLocation;
+  const mergedVisitedLocations = visitedLocations.length > 0 ? visitedLocations : [fallbackCurrentLocation];
   return syncWorldMemory({
     ...INITIAL_STATE,
     ...s,
@@ -3446,7 +3458,8 @@ const migrateState = (s: any): GameState => {
     scroungingMode: s.scroungingMode || false,
     scroungingTimer: s.scroungingTimer || 0,
     independentUsedThisAilment: s.independentUsedThisAilment || false,
-    visitedLocations: s.visitedLocations || ["오크 길"],
+    currentLocationName: dedupedCurrentLocation,
+    visitedLocations: mergedVisitedLocations,
     curedAilmentInThisWilds: s.curedAilmentInThisWilds || false,
     needsLocalHelpBeforeMove: s.needsLocalHelpBeforeMove || false,
     lastForageCardValue: s.lastForageCardValue || 0,
@@ -5431,7 +5444,6 @@ export default function App() {
                 currentWeight={currentWeight}
                 maxCarry={maxCarry}
                 onNavigate={setActiveTab}
-                onRestart={handleReset}
                 onContinue={() => {
                   const focusContinueTarget = () => {
                     const encounterDialog = document.querySelector<HTMLElement>('.encounter-dialog-backdrop .encounter-dialog');
