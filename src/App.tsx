@@ -5457,6 +5457,8 @@ export default function App() {
                     if (!state.journeyActive) {
                       preferredActionIds.push('start-journey', 'downtime-activities', 'downtime-shop');
                     } else {
+                      if (state.pendingEncounter) preferredActionIds.push('pending-encounter');
+                      if (state.pendingForaging) preferredActionIds.push('pending-foraging');
                       if (state.pendingPatientArchive) preferredActionIds.push('archive-patient');
                       if (state.pursuedByBehemoth) preferredActionIds.push('behemoth-chase');
                       else if (state.activeDelve) preferredActionIds.push('active-delve');
