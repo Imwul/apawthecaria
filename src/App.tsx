@@ -5412,7 +5412,7 @@ export default function App() {
            ================================================================= */}
         <main className="glass-panel main-content-panel">
           {state.pendingManualFollowUps.some(row => row.status === 'pending') && (
-            <section className="pending-follow-ups" aria-labelledby="pending-follow-ups-title">
+            <section id="pending-follow-ups" className="pending-follow-ups" aria-labelledby="pending-follow-ups-title">
               <header><span className="document-kicker">잊지 말아야 할 일</span><h2 id="pending-follow-ups-title">남은 후속 판정</h2></header>
               <div className="pending-follow-ups__list">
                 {state.pendingManualFollowUps.filter(row => row.status === 'pending').map(row => (
@@ -5432,23 +5432,60 @@ export default function App() {
                 maxCarry={maxCarry}
                 onNavigate={setActiveTab}
                 onContinue={() => {
-                  const primaryActionButton = document.querySelector<HTMLButtonElement>('[data-play-primary-action="true"]');
-                  if (primaryActionButton) {
-                    primaryActionButton.click();
-                    primaryActionButton.focus({ preventScroll: true });
-                    return;
-                  }
+                  const focusContinueTarget = () => {
+                    const encounterDialog = document.querySelector<HTMLElement>('.encounter-dialog-backdrop .encounter-dialog');
+                    if (state.pendingEncounter || activeTravelEncounter || state.pendingForaging || activeForageEncounter) {
+                      encounterDialog?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      encounterDialog?.focus();
+                      return true;
+                    }
 
-                  const fallbackAction = document.querySelector<HTMLButtonElement>('#action-hub .action-step:not(:disabled)');
-                  if (fallbackAction) {
-                    fallbackAction.click();
-                    fallbackAction.focus({ preventScroll: true });
-                    return;
-                  }
+                    const clickActionById = (ids: string[]) => {
+                      for (const id of ids) {
+                        const actionButton = document.querySelector<HTMLButtonElement>(`#action-hub .action-step[data-play-action-id="${id}"]:not(:disabled)`);
+                        if (!actionButton) continue;
+                        actionButton.click();
+                        actionButton.focus({ preventScroll: true });
+                        return true;
+                      }
+                      return false;
+                    };
+
+                    const currentBarrow = (state.barrows || []).find(b => !b.removed && b.locationName === state.currentLocationName);
+
+                    const preferredActionIds: string[] = [];
+                    if (!state.journeyActive) {
+                      preferredActionIds.push('start-journey', 'downtime-activities', 'downtime-shop');
+                    } else {
+                      if (state.pendingPatientArchive) preferredActionIds.push('archive-patient');
+                      if (state.pursuedByBehemoth) preferredActionIds.push('behemoth-chase');
+                      else if (state.activeDelve) preferredActionIds.push('active-delve');
+                      else if (currentBarrow) preferredActionIds.push('barrow-here');
+                      if (state.scroungingMode) preferredActionIds.push('scrounging');
+                      if (state.needsLocalHelpBeforeMove && !state.activeAilment && !state.scroungingMode) preferredActionIds.push('local-help');
+                      if (!state.needsLocalHelpBeforeMove && !state.pursuedByBehemoth) preferredActionIds.push('travel-next');
+                      if (state.activeAilment) {
+                        preferredActionIds.push('active-patient', 'barter-reagent', 'clinic-open');
+                      } else {
+                        preferredActionIds.push('clinic-open');
+                      }
+                    }
+
+                    if (!clickActionById(preferredActionIds)) {
+                      const fallbackAction = document.querySelector<HTMLButtonElement>('#action-hub .action-step:not(:disabled)');
+                      if (fallbackAction) {
+                        fallbackAction.click();
+                        fallbackAction.focus({ preventScroll: true });
+                        return true;
+                      }
+                    }
+                    return false;
+                  };
 
                   const actionHub = document.getElementById('action-hub');
-                  const pendingArea = document.getElementById('pending-procedures');
-                  (pendingArea || actionHub)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  const pendingFollowUps = document.getElementById('pending-follow-ups');
+                  if (focusContinueTarget()) return;
+                  (pendingFollowUps || actionHub)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
               />
               <BarrowPanel delve={state.activeDelve} />
@@ -10013,14 +10050,15 @@ function PlayView({
           </div>
         </div>
         <div className="action-hub__grid">
-          {actionHubItems.map((item, index) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`action-step action-step--${item.tone || 'neutral'}`}
-              onClick={() => handleActionHubItem(item)}
-              disabled={item.disabled}
-            >
+                {actionHubItems.map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`action-step action-step--${item.tone || 'neutral'}`}
+                  data-play-action-id={item.id}
+                  onClick={() => handleActionHubItem(item)}
+                  disabled={item.disabled}
+                >
               <span className="action-step__index">{index + 1}</span>
               <span className="action-step__body">
                 <strong>{item.label}</strong>
