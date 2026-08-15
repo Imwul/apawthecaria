@@ -513,14 +513,14 @@
   {
     "id": "JOURNEY-004",
     "sourcePage": "p20-21",
-    "executor": "JOURNEY_GOALS, evaluateJourneyGoal()",
+    "executor": "JOURNEY_GOALS, getJourneyGoalForCard(), evaluateJourneyGoal()",
     "status": "Exact",
     "classification": "exact"
   },
   {
     "id": "JOURNEY-005",
     "sourcePage": "p21",
-    "executor": "handleStartJourney, day state",
+    "executor": "getJourneyUrgency(), day state",
     "status": "Exact",
     "classification": "exact"
   },

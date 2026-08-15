@@ -47,7 +47,7 @@
 | `resolvePatient()` | Implemented | Personality/Descriptor, Severity, Reputation cap, Monarch 복수 질환과 반복 instance/Timer | `PATIENT-001-004`, `AILMENT-002/004` |
 | `resolveSeason()` / `resolveDowntime()` | Implemented core + manual activities | Downtime 1회, Clinic/Garden/Income/Companion 계절 경계와 서술 활동 분리 | `DOWNTIME-001/003-007`, `CLINIC-002/005/006` |
 | `resolveBarterStart/Encounter/Offer/Payment/Leave()` | Implemented | graph 위치·시도, canonical BR, Social pending, M=12, 혼합 결제, 모든 Timer 비용과 중복 방지 | `BARTER-001-008`, `REMEDY-001/008` |
-| `resolveJourneyStart()` | Implemented | Destination 카드의 방향·거리·유형을 graph 후보에 강제하고 Reason/Goal/Urgency/Justice Evidence 저장 | `JOURNEY-001/003/004/006` |
+| `resolveJourneyStart()` | Implemented | Destination 카드의 방향·거리·유형을 graph 후보에 강제하고 Origin·Season·Reason·Goal 맥락·Urgency 저널과 Justice Evidence를 저장 | `JOURNEY-001/003/004/005/006` |
 | `evaluateJourneyGoal()` / `recordJourneyProgress()` | Implemented | 12 Goal의 Inventory·Location·Treatment·Journal 근거와 서술 선언을 분리해 추적 | `JOURNEY-004` |
 | `resolveJourneyEnding()` | Implemented | 목적지·Goal·pending·환자 확인, 성공/부분/실패/중단, 회고, Downtime과 ruleset별 stakes | `TRAVEL-010`, `ENDING-001-003` |
 | `resolveScrounge()` / `resolvePawn()` / `resolveLeave()` | Implemented core | 복수 Timer 비용, graph 인접 채집, Potency 2 보장 Part, Weight Pawn, Move 전 obligation | `LEAVE-001-006`, `REMEDY-008` |
@@ -71,7 +71,7 @@
 
 ## UI와 Persistence 연결
 
-- Journey Setup은 자유 텍스트 Destination을 받지 않고 실제 지도 후보만 제공한다.
+- Journey Setup은 두 카드 칸을 먼저 보여주고 Destination의 거리·방향·후보 및 Goal의 Purpose·완료 조건·맞춤 기록 질문을 즉시 해석한다. 자유 텍스트 Destination을 받지 않고 실제 지도 후보만 제공한다.
 - Barter 모달은 Social → 두 번째 카드 → 혼합 결제/포기의 pending 단계를 표시하고 각 카드를 저장한다.
 - Ending은 목적지와 상태 근거를 보여주고 원작 모드에서 고정 Reputation을 적용하지 않는다.
 - Scrounge/Pawn/Archive는 canonical Patient와 Inventory를 소비하며 결과를 UI에 표시한다.
@@ -92,12 +92,12 @@
 
 ## Version 1.0 검증 결과
 
-- `npm test`: 26 files / 203 tests 통과. Golden Save, Rule Registry, Printed Effect snapshot, Encounter 지도·단일·다중 후속 카드, 누적 Knitting, 획득 묶음별 Trinket provenance와 responsive/reachable-action regression guard를 포함한다.
+- `npm test`: 26 files / 205 tests 통과. Golden Save, Rule Registry, Printed Effect snapshot, 13개 실물 카드값의 Goal 대응, 네 Urgency 구간, Encounter 지도·단일·다중 후속 카드, 누적 Knitting, 획득 묶음별 Trinket provenance와 responsive/reachable-action regression guard를 포함한다.
 - `npm run test:rc`: 5개 시나리오 통과. Journey → Travel → Forage → Patient → Treatment → Manual → Barter → Barrow → Downtime → Season → Archive → Reload → Continue 전체 loop 포함.
 - `npm run validate:rules`: Error 0 / Warning 0.
 - `npm run lint`: Error 0 / Warning 0.
-- `npm run build`: 성공. App async 693.69 kB/gzip 188.34 kB이며 500 kB 경고 한 건은 남는다.
-- desktop/mobile browser smoke: 1280px/390px에서 문서 가로 overflow 0, 지도 레이어와 영어 Region 표기, `이어서 걷기`의 여정 작성 화면 전환, console warning/error 0을 확인했다.
+- `npm run build`: 성공. App async 698.99 kB/gzip 189.83 kB이며 500 kB 경고 한 건은 남는다.
+- desktop/mobile browser smoke: 기본 데스크톱/390px에서 Goal 카드의 Purpose·완료 조건·준비물·맞춤 기록 질문, 영어 Region 표기와 문서 가로 overflow 0, console warning/error 0을 확인했다.
 
 ## Version 1.0 판정
 

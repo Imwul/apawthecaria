@@ -12,7 +12,7 @@ describe('advanced journey flow', () => {
   it('compares two routes and shares the result with readiness and resource forecasts', () => {
     expect(appSource).toContain('const alternativeMapPath =');
     expect(appSource).toContain('const exactCostMapPath =');
-    expect(appSource).toContain("route: destRegion === 'Soar' || isTaxiMove ? undefined : travelPreviewPathIds");
+    expect(appSource).toContain("route: destRegion === 'Soar' || isTaxiMove ? undefined : travelRoute");
     expect(appSource).toContain('현재 이동력 ${activeTravelSpeed}으로 정확히 도달할 수 없습니다.');
     expect(appSource).toContain('className="route-comparison"');
     expect(appSource).toContain('className={`departure-readiness is-${readinessTone}`}');

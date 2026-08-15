@@ -130,6 +130,9 @@ import {
   resolveTravel,
   resolveTreatmentTransaction,
   findEncounter,
+  getDestinationRequirements,
+  getJourneyGoalForCard,
+  getJourneyUrgency,
   getRuleCardLabel,
   getRuleCardValue,
   getPatientPersonalityChoices,
@@ -7027,34 +7030,27 @@ function JourneyMapBoard({
 }
 
 function JourneyReplayPanel({ state }: { state: GameState }) {
-  const activeReplay: JourneyReplayRecord | null = state.journeyActive ? {
-    id: 'active',
-    title: `진행 중 · ${state.journeyDestination || '열린 여정'}`,
-    origin: state.journeyOrigin || state.currentLocationName,
-    destination: state.journeyDestination,
-    events: [...state.calendarHistory],
-    stopNames: [state.journeyOrigin || state.currentLocationName, ...state.calendarHistory.flatMap(line => {
-      const match = line.match(/\d+일째:\s*(.+?)으로\s+\d+구간/);
-      return match?.[1] ? [match[1].trim()] : [];
-    })],
-    outcome: 'partial',
-    timestamp: Date.now()
-  } : null;
-  const records = [...(activeReplay ? [activeReplay] : []), ...(state.journeyReplayArchive || [])];
+  const records = useMemo<JourneyReplayRecord[]>(() => {
+    const activeReplay: JourneyReplayRecord | null = state.journeyActive ? {
+      id: 'active',
+      title: `진행 중 · ${state.journeyDestination || '열린 여정'}`,
+      origin: state.journeyOrigin || state.currentLocationName,
+      destination: state.journeyDestination,
+      events: [...state.calendarHistory],
+      stopNames: [state.journeyOrigin || state.currentLocationName, ...state.calendarHistory.flatMap(line => {
+        const match = line.match(/\d+일째:\s*(.+?)으로\s+\d+구간/);
+        return match?.[1] ? [match[1].trim()] : [];
+      })],
+      outcome: 'partial',
+      timestamp: state.journey?.startDate || 0
+    } : null;
+    return [...(activeReplay ? [activeReplay] : []), ...(state.journeyReplayArchive || [])];
+  }, [state.journeyActive, state.journeyDestination, state.journeyOrigin, state.currentLocationName, state.calendarHistory, state.journeyReplayArchive, state.journey?.startDate]);
   const [selectedReplayId, setSelectedReplayId] = useState(records[0]?.id || '');
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
   const replay = records.find(record => record.id === selectedReplayId) || records[0];
   const maxStep = Math.max(0, (replay?.stopNames.length || 1) - 1);
-
-  useEffect(() => {
-    if (!records.some(record => record.id === selectedReplayId)) setSelectedReplayId(records[0]?.id || '');
-  }, [records, selectedReplayId]);
-
-  useEffect(() => {
-    setStep(0);
-    setPlaying(false);
-  }, [selectedReplayId]);
 
   useEffect(() => {
     if (!playing || !replay) return;
@@ -7078,7 +7074,7 @@ function JourneyReplayPanel({ state }: { state: GameState }) {
     <details className="journey-replay">
       <summary><span>JOURNEY REPLAY</span><strong>지도에서 여정 다시 보기</strong><em>{records.length}개 기록</em></summary>
       <div className="journey-replay__toolbar">
-        <select value={replay.id} onChange={event => setSelectedReplayId(event.target.value)} aria-label="재생할 여정 선택">
+        <select value={replay.id} onChange={event => { setSelectedReplayId(event.target.value); setStep(0); setPlaying(false); }} aria-label="재생할 여정 선택">
           {records.map(record => <option key={record.id} value={record.id}>{record.title}</option>)}
         </select>
         <button type="button" onClick={() => setStep(0)}>|◀</button>
@@ -7296,6 +7292,10 @@ function PlayView({
 }) {
   const [destName, setDestName] = useState("");
   const [journeyReason, setJourneyReason] = useState("");
+  const [journeyOriginMeaning, setJourneyOriginMeaning] = useState("");
+  const [journeySeasonFeeling, setJourneySeasonFeeling] = useState("");
+  const [journeyUrgencyRelation, setJourneyUrgencyRelation] = useState("");
+  const [journeyGoalContext, setJourneyGoalContext] = useState("");
   const [destRegion, setDestRegion] = useState("Forest");
   const [destType, setDestType] = useState("Wilds");
   const [journeyDestinationCard, setJourneyDestinationCard] = useState<PlayingCard | null>(null);
@@ -7306,6 +7306,11 @@ function PlayView({
   const journeyDestinationCandidates = journeyDestinationCard
     ? findJourneyDestinationCandidates({ graph: journeyGraph, originId: journeyOriginId, card: journeyDestinationCard as PlayingCard & { suit: CardSuit } })
     : [];
+  const journeyDestinationPreview = journeyDestinationCard
+    ? getDestinationRequirements(journeyDestinationCard as PlayingCard & { suit: CardSuit })
+    : null;
+  const journeyGoalPreview = journeyGoalCard ? getJourneyGoalForCard(journeyGoalCard) : null;
+  const journeyUrgencyPreview = getJourneyUrgency(state.reputation);
   const scroungeAdjacentRegions = adjacentRuleRegions(state);
 
   const [newAilmentName, setNewAilmentName] = useState("");
@@ -7411,15 +7416,13 @@ function PlayView({
   const [forageAdjacentRegion, setForageAdjacentRegion] = useState<string>('Forest');
 
   useEffect(() => {
-    setSessionHandoffDraft(state.sessionHandoffNote || '');
-    setSessionCloseDraft(state.sessionHandoffNote || '');
-  }, [state.sessionHandoffNote]);
-
-  useEffect(() => {
-    const openSessionClose = () => setShowSessionClose(true);
+    const openSessionClose = () => {
+      setSessionCloseDraft(state.sessionHandoffNote || '');
+      setShowSessionClose(true);
+    };
     window.addEventListener('apawthecaria:open-session-close', openSessionClose);
     return () => window.removeEventListener('apawthecaria:open-session-close', openSessionClose);
-  }, []);
+  }, [state.sessionHandoffNote]);
 
   const rememberTravelForm = () => setTravelFormUndo({ name: nextLocName, region: destRegion, type: destType });
   const applyTravelDestination = ({ node, region, locationType }: { id: string; node: MapLocationNode; region: MapRegion; locationType: string }, remember = true) => {
@@ -7435,6 +7438,7 @@ function PlayView({
     setDestType(travelFormUndo.type);
     setTravelFormUndo(null);
   };
+  const undoTravelDestinationEvent = useEffectEvent(undoTravelDestination);
   const selectedTravelDestinationId = findGraphLocationKey(nextLocName, travelMapNodes);
   const selectedTravelDestinationNode = selectedTravelDestinationId ? travelMapNodes[selectedTravelDestinationId] : null;
   const selectedTravelMapRegion = selectedTravelDestinationNode ? inferMapNodeRegion(selectedTravelDestinationNode) : null;
@@ -7503,12 +7507,14 @@ function PlayView({
     const nextStopId = (state.journeyPlannedStopIds || [])[0];
     const node = nextStopId ? travelMapNodes[nextStopId] : null;
     if (!node) return;
-    applyTravelDestination({
-      id: nextStopId,
-      node,
-      region: inferMapNodeRegion(node, (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as MapRegion),
-      locationType: mapNodeGameplayType(nextStopId, node)
-    }, false);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setNextLocName(node.label);
+      setDestRegion(inferMapNodeRegion(node, (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as MapRegion));
+      setDestType(mapNodeGameplayType(nextStopId, node));
+    });
+    return () => { cancelled = true; };
   }, [state.journeyActive, state.pendingEncounter, state.journeyPlannedStopIds, state.currentRegion, nextLocName, travelMapNodes]);
 
   const [barrowJournalNote, setBarrowJournalNote] = useState('');
@@ -8381,6 +8387,10 @@ function PlayView({
       showAlert('이번 여정을 떠나는 이유를 기록해주세요.');
       return;
     }
+    if (!journeyOriginMeaning.trim() || !journeySeasonFeeling.trim() || !journeyGoalContext.trim() || !journeyUrgencyRelation.trim()) {
+      showAlert('출발지, 계절, Goal 맥락, Urgency 기록을 모두 작성해주세요.');
+      return;
+    }
     if (state.downtimeRequired) {
       showAlert('이전 여정을 마친 뒤 다운타임 활동 하나를 먼저 완료해야 합니다.');
       return;
@@ -8403,6 +8413,12 @@ function PlayView({
       destinationId: destName,
       goalCard,
       reason: journeyReason,
+      setupJournal: {
+        originMeaning: journeyOriginMeaning,
+        seasonFeeling: journeySeasonFeeling,
+        urgencyRelation: journeyUrgencyRelation,
+        goalContext: journeyGoalContext
+      },
       startDate: transaction.at,
       rulesetId: state.rulesetId
     });
@@ -8491,6 +8507,10 @@ function PlayView({
 
     setDestName("");
     setJourneyReason("");
+    setJourneyOriginMeaning("");
+    setJourneySeasonFeeling("");
+    setJourneyUrgencyRelation("");
+    setJourneyGoalContext("");
     setJourneyDestinationCard(null);
     setJourneyGoalCard(null);
   };
@@ -8553,6 +8573,17 @@ function PlayView({
       selectedToolInstanceIds: stilts.map(tool => tool.instanceId),
       rulesetId: state.rulesetId
     }) : null;
+    const moveSpeed = (isHitchMove ? 5 : (state.nextMoveSpeedOverride ?? getTravelSpeed(state, currentWeight))) + (travelStartTools?.speedDelta || 0);
+    const directRoute = shortestMapPath(mapNodes, currentLocationId, destinationId);
+    const exactRoute = isHitchMove ? directRoute : exactCostMapPath(
+      mapNodes,
+      currentLocationId,
+      destinationId,
+      moveSpeed,
+      state.customMapEdges || [],
+      wagonCapabilities.waterwaySpan
+    );
+    const travelRoute = exactRoute.length > 0 ? exactRoute : directRoute;
     const result = resolveTravel({
       transactionId,
       state: {
@@ -8560,7 +8591,7 @@ function PlayView({
         currentLocationName: state.currentLocationName,
         currentRegion: (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as TravelRegion,
         currentLocationType: canonicalLocationType(state.currentLocationType),
-        baseSpeed: (isHitchMove ? 5 : (state.nextMoveSpeedOverride ?? getTravelSpeed(state, currentWeight))) + (travelStartTools?.speedDelta || 0),
+        baseSpeed: moveSpeed,
         carry: getMaxCarry(state),
         inventory: toEngineInventory(state.bag),
         calendarDays: state.calendarDays,
@@ -8577,7 +8608,7 @@ function PlayView({
       destinationRegion: destinationMapRegion as TravelRegion,
       destinationType,
       mode: destRegion === 'Soar' || isTaxiMove ? 'soar' : 'move',
-      route: destRegion === 'Soar' || isTaxiMove ? undefined : travelPreviewPathIds,
+      route: destRegion === 'Soar' || isTaxiMove ? undefined : travelRoute,
       card: { suit: drawnSuit, value: cardVal },
       season: state.currentSeason,
       canStopInLoch: hasLochStoppingGear(state),
@@ -11338,7 +11369,8 @@ function PlayView({
       return;
     }
     if (issue.id === 'map-location' || issue.id === 'duplicate-bag') {
-      issue.id === 'map-location' ? onOpenMap() : window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+      if (issue.id === 'map-location') onOpenMap();
+      else window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
       return;
     }
     if (issue.targetId) document.getElementById(issue.targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -11346,28 +11378,30 @@ function PlayView({
 
   const finishSession = () => {
     const savedAt = new Date().toISOString();
-    const timestamp = Date.now();
     onCreateUndoCheckpoint('세션 마감 기록', state);
-    updateState((current: GameState) => ({
-      ...current,
-      sessionHandoffNote: sessionCloseDraft.trim(),
-      sessionHandoffActionId: primaryAction?.id || '',
-      sessionHandoffSavedAt: savedAt,
-      journeyTimeline: [{
-        id: `session-close:${timestamp}`,
-        title: '세션 마감',
-        meta: `${current.currentLocationName} · ${primaryAction?.label || '진행판 확인'}`,
-        detail: sessionCloseDraft.trim() || `${pendingProcedureCount}건의 미해결 절차와 다음 행동을 저장했습니다.`,
-        timestamp,
-        tone: 'session'
-      }, ...(current.journeyTimeline || [])],
-      journals: [{
-        id: `session-close:${timestamp}:journal`,
-        title: '세션 마감 기록',
-        text: `${current.currentLocationName}에서 기록을 덮었습니다. 다음 행동: ${primaryAction?.label || '현재 진행판 확인'}.${sessionCloseDraft.trim() ? `\n\n중단 메모: ${sessionCloseDraft.trim()}` : ''}`,
-        timestamp
-      }, ...current.journals]
-    }));
+    updateState((current: GameState) => {
+      const timestamp = Date.now();
+      return {
+        ...current,
+        sessionHandoffNote: sessionCloseDraft.trim(),
+        sessionHandoffActionId: primaryAction?.id || '',
+        sessionHandoffSavedAt: savedAt,
+        journeyTimeline: [{
+          id: `session-close:${timestamp}`,
+          title: '세션 마감',
+          meta: `${current.currentLocationName} · ${primaryAction?.label || '진행판 확인'}`,
+          detail: sessionCloseDraft.trim() || `${pendingProcedureCount}건의 미해결 절차와 다음 행동을 저장했습니다.`,
+          timestamp,
+          tone: 'session'
+        }, ...(current.journeyTimeline || [])],
+        journals: [{
+          id: `session-close:${timestamp}:journal`,
+          title: '세션 마감 기록',
+          text: `${current.currentLocationName}에서 기록을 덮었습니다. 다음 행동: ${primaryAction?.label || '현재 진행판 확인'}.${sessionCloseDraft.trim() ? `\n\n중단 메모: ${sessionCloseDraft.trim()}` : ''}`,
+          timestamp
+        }, ...current.journals]
+      };
+    });
     setSessionHandoffDraft(sessionCloseDraft.trim());
     setShowSessionClose(false);
     showAlert('중단 메모와 다음 행동을 저장했습니다. 다음 접속에서 저장 지점 이어서로 돌아올 수 있습니다.');
@@ -11388,7 +11422,7 @@ function PlayView({
         destinationInputRef.current?.focus();
       } else if (key === 'u' && travelFormUndo) {
         event.preventDefault();
-        undoTravelDestination();
+        undoTravelDestinationEvent();
       } else if (key === 'n') {
         const primaryButton = document.querySelector<HTMLButtonElement>('[data-play-primary-action="true"]');
         if (primaryButton) {
@@ -12998,18 +13032,75 @@ function PlayView({
               </p>
 
               <form onSubmit={handleStartJourney} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>여정을 떠나는 이유</label>
-                  <textarea
-                    rows={2}
-                    placeholder="왜 지금 이 길을 떠나는지 기록하세요."
-                    value={journeyReason}
-                    onChange={e => setJourneyReason(e.target.value)}
-                    style={{ padding: '0.55rem', border: '1px solid #ccc', borderRadius: '4px', resize: 'vertical' }}
-                  />
+                <div className="journey-card-stage">
+                  <div className="field-mode-hide" style={{ fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: 1.45, gridColumn: '1 / -1' }}>
+                    먼저 두 카드를 놓으세요. 카드 값이 아래의 Destination 조건과 Goal 항목으로 바로 해석됩니다.
+                  </div>
+                  <section className="journey-card-stage__column" aria-label="목적지 카드">
+                    <CardDrawSlot
+                      label="Destination · 거리와 방향 (p.19)"
+                      helper="값: A–6 Near, 7–9 Far, 10/J/M Over Horizon · 문양: 방향"
+                      card={journeyDestinationCard}
+                      onCard={(card: PlayingCard) => { setJourneyDestinationCard(card); setDestName(''); }}
+                    />
+                    {journeyDestinationPreview ? (
+                      <div className="journey-card-result" data-testid="journey-destination-result">
+                        <div className="journey-card-result__eyebrow">{journeyDestinationCard?.suit} {journeyDestinationCard ? getRuleCardLabel(journeyDestinationCard) : ''} → Destination</div>
+                        <strong>
+                          {journeyDestinationPreview.distanceBand === 'near' ? 'Near' : journeyDestinationPreview.distanceBand === 'far' ? 'Far' : 'Over Horizon'} · {journeyDestinationPreview.locationType}
+                        </strong>
+                        <span>
+                          {journeyDestinationPreview.minimumPaths}{journeyDestinationPreview.maximumPaths === null ? '+' : `–${journeyDestinationPreview.maximumPaths}`} Paths · {{ north: '북쪽', south: '남쪽', east: '동쪽', west: '서쪽' }[journeyDestinationPreview.direction]}
+                        </span>
+                        <small>현재 지도에서 조건에 맞는 후보 {journeyDestinationCandidates.length}곳</small>
+                      </div>
+                    ) : (
+                      <div className="journey-card-result journey-card-result--empty">카드를 놓으면 거리·방향·장소 유형을 보여줍니다.</div>
+                    )}
+                  </section>
+
+                  <section className="journey-card-stage__column" aria-label="Goal 카드">
+                    <CardDrawSlot
+                      label="Goal · 여행 목적 (p.20–21)"
+                      helper="카드 값으로 12개 Goal 중 하나를 찾습니다. Q/K는 Monarch(M)입니다."
+                      card={journeyGoalCard}
+                      onCard={(card: PlayingCard) => { setJourneyGoalCard(card); setJourneyGoalContext(''); }}
+                    />
+                    {journeyGoalPreview ? (
+                      <div className="journey-card-result journey-card-result--goal" data-testid="journey-goal-result">
+                        <div className="journey-card-result__eyebrow">{getRuleCardLabel(journeyGoalCard!)} → Goal</div>
+                        <strong>{journeyGoalPreview.title}</strong>
+                        <span>{localizeJourneyGoalText(journeyGoalPreview.purpose)}</span>
+                        <div className="journey-card-result__requirement">
+                          <b>완료 조건</b> · {localizeJourneyGoalText(journeyGoalPreview.requiredState)}
+                        </div>
+                        {journeyGoalPreview.inventoryRequirements.map(requirement => (
+                          <small key={requirement}>준비물 · {localizeJourneyGoalText(requirement)}</small>
+                        ))}
+                        {journeyGoalPreview.specialRules.map(rule => (
+                          <small key={rule}>주의 · {localizeJourneyGoalText(rule)}</small>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="journey-card-result journey-card-result--empty">카드를 놓으면 Goal 이름·서사·완료 조건을 보여줍니다.</div>
+                    )}
+                    <label className="journey-journal-field">
+                      <span>이 Goal의 구체적인 맥락</span>
+                      <small>{journeyGoalPreview ? localizeJourneyGoalText(journeyGoalPreview.setupPrompt) : 'Goal 카드를 먼저 놓으세요.'}</small>
+                      <textarea
+                        rows={3}
+                        required
+                        disabled={!journeyGoalPreview}
+                        placeholder={journeyGoalPreview ? '이번 여정에 맞는 인물·사건·바람을 기록하세요.' : '카드 결과에 맞는 기록 칸이 여기에 열립니다.'}
+                        value={journeyGoalContext}
+                        onChange={e => setJourneyGoalContext(e.target.value)}
+                      />
+                    </label>
+                  </section>
                 </div>
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>카드 조건에 맞는 목적지</label>
+                  <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>카드 조건에 맞는 Destination</label>
                   <select
                     value={destName}
                     onChange={e => setDestName(e.target.value)}
@@ -13018,7 +13109,7 @@ function PlayView({
                   >
                     <option value="">{!journeyDestinationCard ? '먼저 목적지 카드를 뽑으세요' : journeyDestinationCandidates.length === 0 ? '조건에 맞는 목적지 없음 · 다시 뽑기' : '목적지를 선택하세요'}</option>
                     {journeyDestinationCandidates.map(candidate => (
-                      <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.paths}경로 · {locationTypeLabel(candidate.locationType)}</option>
+                      <option key={candidate.id} value={candidate.id}>{localizeLocationName(candidate.name)} · {candidate.paths}경로 · {locationTypeLabel(candidate.locationType)}</option>
                     ))}
                   </select>
                 </div>
@@ -13039,23 +13130,37 @@ function PlayView({
                   onOpenMap={onOpenMap}
                 />
 
-                <div style={{ display: 'grid', gap: '0.75rem', padding: '0.85rem', background: '#fffdf8', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
-                  <div className="field-mode-hide" style={{ fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                    룰북 p.18-21 순서: 출발지와 계절을 확인한 뒤, 목적지/거리 카드와 목표 카드를 뽑아 여정 기록을 시작합니다.
-                  </div>
-                  <CardDrawSlot
-                    label="목적지와 방향 카드 (p.19)"
-                    helper="값은 거리(A-6 가까움, 7-9 멂, 10/J/M 지평선 너머), 문양은 방향을 정합니다."
-                    card={journeyDestinationCard}
-                    onCard={(card: PlayingCard) => { setJourneyDestinationCard(card); setDestName(''); }}
-                  />
-                  <CardDrawSlot
-                    label="여정 목표 카드 (p.20-21)"
-                    helper="값으로 목표 표를 찾습니다. Q/K는 Monarch(M) 목표로 처리합니다."
-                    card={journeyGoalCard}
-                    onCard={setJourneyGoalCard}
-                  />
+                <div className="journey-context-grid">
+                  <label className="journey-journal-field">
+                    <span>Origin · {localizeLocationName(state.currentLocationName)}</span>
+                    <small>이 출발지는 당신에게 어떤 의미인가요?</small>
+                    <textarea rows={3} required value={journeyOriginMeaning} onChange={e => setJourneyOriginMeaning(e.target.value)} placeholder="장소와의 관계나 떠나는 마음을 기록하세요." />
+                  </label>
+                  <label className="journey-journal-field">
+                    <span>Season · {localizeSeasonLabel(state.currentSeason)}</span>
+                    <small>이 계절은 당신을 어떻게 느끼게 하나요?</small>
+                    <textarea rows={3} required value={journeySeasonFeeling} onChange={e => setJourneySeasonFeeling(e.target.value)} placeholder="날씨, 몸의 감각, 기억을 기록하세요." />
+                  </label>
                 </div>
+
+                <label className="journey-journal-field">
+                  <span>Reason · 여정을 떠나는 이유</span>
+                  <small>왜 지금 이 길을 떠나나요?</small>
+                  <textarea rows={3} required value={journeyReason} onChange={e => setJourneyReason(e.target.value)} placeholder="이번 여정이 필요한 이유를 기록하세요." />
+                </label>
+
+                <section className="journey-urgency-note">
+                  <div>
+                    <span>Urgency · Guild Reputation {state.reputation}</span>
+                    <strong>{journeyUrgencyPreview.label} · {journeyUrgencyPreview.days} Days</strong>
+                  </div>
+                  <p>기한을 넘겨도 여정은 끝나지 않습니다. 계속 날짜를 표시하고 이동하되, 결말이 뜻밖이거나 부정적으로 달라질 수 있습니다.</p>
+                  <label className="journey-journal-field">
+                    <span>Urgency와 Goal의 관계</span>
+                    <small>왜 이 일을 {journeyUrgencyPreview.days}일 안에 마쳐야 하나요?</small>
+                    <textarea rows={3} required value={journeyUrgencyRelation} onChange={e => setJourneyUrgencyRelation(e.target.value)} placeholder="시간이 Goal에 주는 압박과 위험을 기록하세요." />
+                  </label>
+                </section>
 
                 <button
                   type="submit"
@@ -13097,6 +13202,19 @@ function PlayView({
                 {checkJourneyGoalSatisfaction(state) ? '✅ 조건 충족됨' : '⚠️ 미달성'} · {localizeJourneyGoalText(state.journeyGoalProgress)}
               </div>
             </div>
+
+            {state.journey?.setupJournal && (
+              <details className="journey-setup-summary">
+                <summary>출발 때 적은 여정 기록</summary>
+                <dl>
+                  <div><dt>Origin · {localizeLocationName(state.journeyOrigin)}</dt><dd>{state.journey.setupJournal.originMeaning}</dd></div>
+                  <div><dt>Season · {localizeSeasonLabel(state.journey.season)}</dt><dd>{state.journey.setupJournal.seasonFeeling}</dd></div>
+                  <div><dt>Reason</dt><dd>{state.journey.reason}</dd></div>
+                  <div><dt>Goal · {state.journeyGoalTitle}</dt><dd>{state.journey.setupJournal.goalContext}</dd></div>
+                  <div><dt>Urgency · {state.journey.urgency.label}</dt><dd>{state.journey.setupJournal.urgencyRelation}</dd></div>
+                </dl>
+              </details>
+            )}
 
             {/* Canonical Journey Goal evidence */}
             {state.journey && (() => {
@@ -16168,10 +16286,11 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
   const handleZoomOut = () => setMapWidth((w: number) => Math.max(800, w - 200));
   const handleZoomIn = () => setMapWidth((w: number) => Math.min(3000, w + 200));
   const handleReset = () => setMapWidth(1600);
-
-  useEffect(() => {
-    setLocationNoteDraft(state.locationMemories?.[selectedMemoryKey]?.note || '');
-  }, [selectedMemoryKey, state.locationMemories]);
+  const selectLocationMemory = (locationName: string) => {
+    const memoryKey = findMapLocationKey(locationName, state.customMapLocations || []) || normalizeMapLocationName(locationName);
+    setSelectedLocationName(locationName);
+    setLocationNoteDraft(state.locationMemories?.[memoryKey]?.note || '');
+  };
 
   const saveLocationNote = () => updateState((current: GameState) => ({
     ...current,
@@ -16676,7 +16795,7 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
                       padding: '3px 7px 5px',
                       boxShadow: '0 2px 5px rgba(44, 32, 20, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.62)',
                       backdropFilter: 'blur(1px)'
-                    }} role="button" tabIndex={0} aria-label={`${locName} 위치 기억 열기`} onMouseDown={event => event.stopPropagation()} onClick={() => setSelectedLocationName(locName)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedLocationName(locName); } }}>
+                    }} role="button" tabIndex={0} aria-label={`${locName} 위치 기억 열기`} onMouseDown={event => event.stopPropagation()} onClick={() => selectLocationMemory(locName)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectLocationMemory(locName); } }}>
                       <div style={{ display: 'flex', alignItems: 'center', fontWeight: fontW as any, color: textColor, textShadow: '0 1px 0 rgba(255, 255, 255, 0.88)' }}>
                         {SketchIcon && <SketchIcon />}
                         <span>{locName}</span>

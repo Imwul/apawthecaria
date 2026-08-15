@@ -15,6 +15,8 @@ import {
   evaluateJourneyGoal,
   executeEncounter,
   findJourneyDestinationCandidates,
+  getJourneyGoalForCard,
+  getJourneyUrgency,
   migrateSavedRulesState,
   normalizeLegacyArchiveRecord,
   resolveAilmentTimerEffect,
@@ -64,6 +66,13 @@ const barterState = (activePatient = patient()): BarterRuntimeState => ({
   inventory: [], patient: activePatient, reputation: 10, trinkets: 30,
   attemptHistory: {}, pendingBarter: null, journalEvents: [], appliedTransactionIds: []
 });
+
+const journeySetupJournal = {
+  originMeaning: 'Home is where I learned the craft.',
+  seasonFeeling: 'Spring makes the road feel possible.',
+  urgencyRelation: 'The truth must arrive before the hearing.',
+  goalContext: 'A disputed case in the northern settlement.'
+};
 
 const socialEncounter: EncounterDefinition = {
   id: 'phase3-social', encounterType: 'social', region: 'Forest', isSettlement: true, isTitan: false,
@@ -301,15 +310,42 @@ describe('Phase 3 Journey, Goal, and Ending engines', () => {
   it('[JOURNEY-001/JOURNEY-003/JOURNEY-004] requires Reason and starts Justice with Weight 1 Evidence', () => {
     const invalid = resolveJourneyStart({
       transactionId: 'journey-invalid', state: journeyRuntime(), graph: journeyGraph(), originId: 'origin', season: 'Spring',
-      destinationCard: { value: 1, suit: '♥' }, destinationId: 'north-5', goalCard: 8, reason: '', startDate: 1, rulesetId: 'original-1e-3p'
+      destinationCard: { value: 1, suit: '♥' }, destinationId: 'north-5', goalCard: 8, reason: '', setupJournal: journeySetupJournal, startDate: 1, rulesetId: 'original-1e-3p'
     });
     expect(invalid.status).toBe('invalid');
     const started = resolveJourneyStart({
       transactionId: 'journey-start', state: journeyRuntime(), graph: journeyGraph(), originId: 'origin', season: 'Spring',
-      destinationCard: { value: 1, suit: '♥' }, destinationId: 'north-5', goalCard: 8, reason: 'Carry the truth', startDate: 1, rulesetId: 'original-1e-3p'
+      destinationCard: { value: 1, suit: '♥' }, destinationId: 'north-5', goalCard: 8, reason: 'Carry the truth', setupJournal: journeySetupJournal, startDate: 1, rulesetId: 'original-1e-3p'
     });
     expect(started.value?.journey?.reason).toBe('Carry the truth');
+    expect(started.value?.journey?.setupJournal).toEqual(journeySetupJournal);
     expect(started.value?.inventory.find(row => row.name === 'Evidence')?.weight).toBe(1);
+
+    const missingGoalContext = resolveJourneyStart({
+      transactionId: 'journey-missing-context', state: journeyRuntime(), graph: journeyGraph(), originId: 'origin', season: 'Spring',
+      destinationCard: { value: 1, suit: '♥' }, destinationId: 'north-5', goalCard: 8, reason: 'Carry the truth',
+      setupJournal: { ...journeySetupJournal, goalContext: '' }, startDate: 1, rulesetId: 'original-1e-3p'
+    });
+    expect(missingGoalContext).toMatchObject({ status: 'invalid', messages: ['Journey setup journal entry is required: goalContext.'] });
+  });
+
+  it('[JOURNEY-004] resolves every physical card value to a defined printed Goal', () => {
+    const expected = [
+      'self-discovery', 'partnership', 'responsibility', 'survey', 'injury', 'inspiration',
+      'knowledge', 'justice', 'restock', 'closure', 'finality', 'wanderlust', 'wanderlust'
+    ];
+    expect(expected.map((goalId, index) => ({ value: index + 1, goalId: getJourneyGoalForCard(index + 1).id })))
+      .toEqual(expected.map((goalId, index) => ({ value: index + 1, goalId })));
+    expect(JOURNEY_GOALS.every(goal => goal.purpose.trim() && goal.setupPrompt.trim() && goal.requiredState.trim())).toBe(true);
+  });
+
+  it('[JOURNEY-005] derives every printed Urgency band from starting Guild Reputation', () => {
+    expect([0, 15, 25, 35].map(getJourneyUrgency)).toEqual([
+      { label: 'Relaxed', days: 12 },
+      { label: 'Important', days: 9 },
+      { label: 'Urgent', days: 6 },
+      { label: 'Dire', days: 3 }
+    ]);
   });
 
   it('[JOURNEY-004] defines all 12 printed Goals and evaluates state evidence instead of a free counter', () => {

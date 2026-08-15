@@ -82,6 +82,7 @@ export interface JourneyState {
   destinationRequirements: JourneyDestinationRequirements;
   destinationId: string;
   reason: string;
+  setupJournal?: JourneySetupJournal;
   goalId: JourneyGoalId;
   goalState: JourneyGoalState;
   urgency: { label: 'Relaxed' | 'Important' | 'Urgent' | 'Dire'; days: number };
@@ -98,10 +99,19 @@ export interface JourneyState {
   };
 }
 
+export interface JourneySetupJournal {
+  originMeaning: string;
+  seasonFeeling: string;
+  urgencyRelation: string;
+  goalContext: string;
+}
+
 export interface JourneyGoalDefinition extends CanonicalRuleRecord {
   id: JourneyGoalId;
   cardKey: string;
   title: string;
+  purpose: string;
+  setupPrompt: string;
   requiredState: string;
   progressEvents: JourneyProgressEvent['type'][];
   inventoryRequirements: string[];
@@ -129,6 +139,8 @@ const goal = (
   id: JourneyGoalId,
   cardKey: string,
   title: string,
+  purpose: string,
+  setupPrompt: string,
   requiredState: string,
   progressEvents: JourneyProgressEvent['type'][],
   inventoryRequirements: string[] = [],
@@ -137,23 +149,23 @@ const goal = (
   specialRules: string[] = [],
   sourcePage = 20
 ): JourneyGoalDefinition => ({
-  id, cardKey, title, requiredState, progressEvents, inventoryRequirements,
+  id, cardKey, title, purpose, setupPrompt, requiredState, progressEvents, inventoryRequirements,
   locationRequirements, treatmentRequirements, specialRules, ...canonicalMetadata(sourcePage)
 });
 
 export const JOURNEY_GOALS: JourneyGoalDefinition[] = [
-  goal('self-discovery', 'A', 'Self Discovery', 'Journal about 3 Encounters with Beasts and/or Behemoths.', ['journal', 'encounter']),
-  goal('partnership', '2', 'Partnership', 'Journal about your Familiar 3 or more times.', ['journal']),
-  goal('responsibility', '3', 'Responsibility', 'End the Journey with 5 more Guild Reputation than at its start.', ['inventory']),
-  goal('survey', '4', 'Survey', 'Journal at 3 Locations of the same Region type.', ['journal', 'visit'], [], ['Three locations in one Region']),
-  goal('injury', '5', 'Injury', 'Bring a Reagent with WOUND, INFECTION, or SLEEP 3 to the Destination.', ['inventory'], ['WOUND/INFECTION/SLEEP 3']),
-  goal('inspiration', '6', 'Inspiration', 'Gather a Plant Reagent Part from every Region.', ['forage'], ['Plant Part from each Region']),
-  goal('knowledge', '7', 'Knowledge', 'Resolve 3 or more Ailments requiring SCALE, FEATHER, or FUR.', ['treatment'], [], [], ['Three matching Ailments']),
-  goal('justice', '8', 'Justice', 'Bring the starting Evidence to the Destination.', ['inventory'], ['Evidence, Weight 1'], [], [], ['Evidence is ruined if Soaked.']),
-  goal('restock', '9', 'Restock', 'Bring 3 Reagents sharing the same Tag.', ['inventory'], ['Three Parts with one shared Tag'], [], [], [], 21),
-  goal('closure', '10', 'Closure', 'Journal about one personal conflict 3 or more times.', ['journal'], [], [], [], ['Narrative entries remain player-authored.'], 21),
-  goal('finality', 'J', 'Finality', 'Bring a Reagent with ELSEWHERE 2 or more.', ['inventory'], ['ELSEWHERE 2'], [], [], [], 21),
-  goal('wanderlust', 'M', 'Wanderlust', 'Journal in Bog, Forest, Loch, Meadow, and Mountain.', ['journal', 'visit'], [], ['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain'], [], [], 21)
+  goal('self-discovery', 'A', 'Self Discovery', 'Something about you changed; the road may help you process it through new places and encounters.', 'What changed in you, and what do you hope the road will clarify?', 'Journal about 3 Encounters with Beasts and/or Behemoths.', ['journal', 'encounter']),
+  goal('partnership', '2', 'Partnership', 'You and your Familiar have grown apart; use this Journey to reconnect.', 'How have you and your Familiar grown apart, and how might you reconnect?', 'Journal about your Familiar 3 or more times.', ['journal']),
+  goal('responsibility', '3', 'Responsibility', 'The Guild supported you; now it is your turn to strengthen its standing.', 'What do you owe the Guild, and whose trust do you hope to earn?', 'End the Journey with 5 more Guild Reputation than at its start.', ['inventory']),
+  goal('survey', '4', 'Survey', 'A guildmate needs local conditions examined and compared.', 'What conditions were you asked to survey, and for whom?', 'Journal at 3 Locations of the same Region type.', ['journal', 'visit'], [], ['Three locations in one Region']),
+  goal('injury', '5', 'Injury', 'A severe injury left a beast in dire need of a Reagent.', 'Who was injured, what happened, and what help do they need?', 'Bring a Reagent with WOUND, INFECTION, or SLEEP 3 to the Destination.', ['inventory'], ['WOUND/INFECTION/SLEEP 3']),
+  goal('inspiration', '6', 'Inspiration', 'A stagnant home needs new life gathered from across the Bristley Woods.', 'Which home needs revitalising, and what has become dull or neglected?', 'Gather a Plant Reagent Part from every Region.', ['forage'], ['Plant Part from each Region']),
+  goal('knowledge', '7', 'Knowledge', 'A curious Stitcher wants patient sketches to study diverse anatomy.', 'Who requested the knowledge, and what do they hope to understand?', 'Resolve 3 or more Ailments requiring SCALE, FEATHER, or FUR.', ['treatment'], [], [], ['Three matching Ailments']),
+  goal('justice', '8', 'Justice', 'You must convey evidence in a Branding case to the Destination.', 'What is the case, who was condemned, and whom does the Evidence favour?', 'Bring the starting Evidence to the Destination.', ['inventory'], ['Evidence, Weight 1'], [], [], ['Evidence is ruined if Soaked.']),
+  goal('restock', '9', 'Restock', 'A retired Guild associate needs their essential herbs and cures restocked.', 'Who needs restocking, and why are they vital to their community?', 'Bring 3 Reagents sharing the same Tag.', ['inventory'], ['Three Parts with one shared Tag'], [], [], [], 21),
+  goal('closure', '10', 'Closure', 'An old unresolved problem has been gnawing at you.', 'What personal conflict remains unresolved?', 'Journal about one personal conflict 3 or more times.', ['journal'], [], [], [], ['Narrative entries remain player-authored.'], 21),
+  goal('finality', 'J', 'Finality', 'Someone you know is preparing for their final Journey.', 'Who is preparing to leave, and what farewell do you hope to give?', 'Bring a Reagent with ELSEWHERE 2 or more.', ['inventory'], ['ELSEWHERE 2'], [], [], [], 21),
+  goal('wanderlust', 'M', 'Wanderlust', 'A feral wind has stirred your need to explore the Bristley Woods.', 'What has awakened your wanderlust, and what do you hope to discover?', 'Journal in Bog, Forest, Loch, Meadow, and Mountain.', ['journal', 'visit'], [], ['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain'], [], [], 21)
 ];
 
 export const JOURNEY_GOAL_BY_ID = new Map(JOURNEY_GOALS.map(row => [row.id, row]));
@@ -209,18 +221,18 @@ export const findJourneyDestinationCandidates = (input: {
     .map(({ node, paths }) => ({ id: node.id, name: node.name, paths, region: node.region, locationType: node.locationType }));
 };
 
-const urgencyFor = (reputation: number): JourneyState['urgency'] => {
+export const getJourneyUrgency = (reputation: number): JourneyState['urgency'] => {
   if (reputation >= 35) return { label: 'Dire', days: 3 };
   if (reputation >= 25) return { label: 'Urgent', days: 6 };
   if (reputation >= 15) return { label: 'Important', days: 9 };
   return { label: 'Relaxed', days: 12 };
 };
 
-const goalIdFromCard = (card: RuleCard): JourneyGoalId => {
+export const getJourneyGoalForCard = (card: RuleCard): JourneyGoalDefinition => {
   const key = getRuleCardLabel(card);
   const found = JOURNEY_GOALS.find(row => row.cardKey === key);
   if (!found) throw new Error(`No Journey Goal for ${key}.`);
-  return found.id;
+  return found;
 };
 
 const itemTags = (item: EngineInventoryItem): Partial<Record<RuleTag, number>> => {
@@ -292,6 +304,7 @@ export const resolveJourneyStart = (input: {
   destinationId: string;
   goalCard: RuleCard;
   reason: string;
+  setupJournal: JourneySetupJournal;
   startDate: number;
   rulesetId: RulesetId;
 }): { status: 'resolved' | 'invalid'; value: JourneyRuntimeState | null; messages: string[] } => {
@@ -299,9 +312,11 @@ export const resolveJourneyStart = (input: {
   if (input.state.journey?.status === 'active') return { status: 'invalid', value: null, messages: ['End the active Journey first.'] };
   if (input.state.downtimeRequired) return { status: 'invalid', value: null, messages: ['Complete one Downtime activity first.'] };
   if (!input.reason.trim()) return { status: 'invalid', value: null, messages: ['Journey Reason is required.'] };
+  const missingSetupEntry = (Object.entries(input.setupJournal) as Array<[keyof JourneySetupJournal, string]>).find(([, value]) => !value.trim());
+  if (missingSetupEntry) return { status: 'invalid', value: null, messages: [`Journey setup journal entry is required: ${missingSetupEntry[0]}.`] };
   const candidates = findJourneyDestinationCandidates({ graph: input.graph, originId: input.originId, card: input.destinationCard });
   if (!candidates.some(row => row.id === input.destinationId)) return { status: 'invalid', value: null, messages: ['Choose a legal destination candidate for the drawn card. Redraw when no candidate exists.'] };
-  const goalId = goalIdFromCard(input.goalCard);
+  const goalId = getJourneyGoalForCard(input.goalCard).id;
   const baseJourney: JourneyState = {
     journeyId: input.transactionId,
     originId: input.originId,
@@ -310,9 +325,15 @@ export const resolveJourneyStart = (input: {
     destinationRequirements: getDestinationRequirements(input.destinationCard),
     destinationId: input.destinationId,
     reason: input.reason.trim(),
+    setupJournal: {
+      originMeaning: input.setupJournal.originMeaning.trim(),
+      seasonFeeling: input.setupJournal.seasonFeeling.trim(),
+      urgencyRelation: input.setupJournal.urgencyRelation.trim(),
+      goalContext: input.setupJournal.goalContext.trim()
+    },
     goalId,
     goalState: { events: [], playerDeclaredComplete: false, gmOverride: false, evaluation: { goalId, complete: false, automaticComplete: false, evidence: [], manualConfirmationRequired: false } },
-    urgency: urgencyFor(input.state.reputation),
+    urgency: getJourneyUrgency(input.state.reputation),
     startDate: input.startDate,
     status: 'active',
     journalPrompts: ['What does your Origin mean to you?', 'How does this Season make you feel?', 'Why are you travelling?', 'How does the Urgency relate to your Goal?'],
@@ -335,7 +356,14 @@ export const resolveJourneyStart = (input: {
       appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
       journalEvents: [...input.state.journalEvents, {
         id: `${input.transactionId}:journal`, type: 'travel', title: 'Journey started',
-        text: `${input.originId} to ${input.destinationId}. Reason: ${input.reason.trim()}. Goal: ${JOURNEY_GOAL_BY_ID.get(goalId)?.title}.`
+        text: [
+          `${input.originId} to ${input.destinationId}.`,
+          `Origin: ${input.setupJournal.originMeaning.trim()}.`,
+          `Season: ${input.setupJournal.seasonFeeling.trim()}.`,
+          `Reason: ${input.reason.trim()}.`,
+          `Goal: ${JOURNEY_GOAL_BY_ID.get(goalId)?.title} — ${input.setupJournal.goalContext.trim()}.`,
+          `Urgency: ${input.setupJournal.urgencyRelation.trim()}.`
+        ].join(' ')
       }]
     },
     messages: []

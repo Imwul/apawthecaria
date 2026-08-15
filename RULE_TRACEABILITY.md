@@ -30,11 +30,11 @@
 
 | Rule ID | 룰북 | 규칙 명세 | 대응 화면 | 구현 위치 | 상태 | 자동 테스트 | 문제 |
 |---|---|---|---|---|---|---|---|
-| JOURNEY-001 | p18 | 여정 시작 → Origin, Season, Destination, Reason, Goal, Urgency를 정하고 기록 | 여정 시작 | `journeyEngine.ts`, `App.tsx:handleStartJourney` | Exact | `phase3Engine.test.ts [JOURNEY-001]` | 여섯 항목을 시작 transaction과 저널에 함께 저장하며 Reason이 없으면 시작을 거부한다. |
+| JOURNEY-001 | p18 | 여정 시작 → Origin, Season, Destination, Reason, Goal, Urgency를 정하고 기록 | 여정 시작 | `journeyEngine.ts`, `App.tsx:handleStartJourney` | Exact | `phase3Engine.test.ts [JOURNEY-001]` | 여섯 항목과 Origin·Season·Goal 맥락·Urgency 저널 답변을 시작 transaction에 함께 저장하며 필수 기록이 비면 시작을 거부한다. |
 | JOURNEY-002 | p18 | 첫 세션은 Odoak/Spring 권장일 뿐 강제가 아님 | 초기 설정 | default state | Exact | 없음 | 앱 기본값은 다르지만 권장 규칙이므로 결과 위반은 아니다. |
 | JOURNEY-003 | p19 | 목적지 카드 → 값으로 정착지 규모/거리, 무늬로 방향 결정; 지도에서 조건에 맞는 실제 목적지 선택 | 여정 시작·지도 | `findJourneyDestinationCandidates()` | Exact | `phase3Engine.test.ts [JOURNEY-003]` | 카드 방향·거리·위치 유형에 맞는 실제 graph 후보만 선택할 수 있다. |
-| JOURNEY-004 | p20-21 | Goal → 12개 표에서 추첨/선택; 목표별 완료 조건 사용 | 여정·종료 | `JOURNEY_GOALS`, `evaluateJourneyGoal()` | Exact | `phase3Engine.test.ts [JOURNEY-004]` | 12개 Goal을 상태 근거로 판정하고 서술형 Goal은 근거와 플레이어 선언을 함께 보존한다. |
-| JOURNEY-005 | p21 | Urgency → 평판 구간에 따라 12/9/6/3일; 0이 돼도 여정은 계속 | 여정 상태 | `handleStartJourney`, day state | Exact | 없음 | 핵심 수치와 0 이후 지속은 구현돼 있다. |
+| JOURNEY-004 | p20-21 | Goal → 12개 표에서 추첨/선택; 목표별 완료 조건 사용 | 여정·종료 | `JOURNEY_GOALS`, `getJourneyGoalForCard()`, `evaluateJourneyGoal()` | Exact | `phase3Engine.test.ts [JOURNEY-004]` | A–J/M 카드값을 12개 Goal에 고정하고 Q/K를 M으로 처리한다. 시작 화면은 추첨 즉시 Purpose·완료 조건·Goal별 기록 질문을 표시하며 답변을 여정과 함께 보존한다. |
+| JOURNEY-005 | p21 | Urgency → 평판 구간에 따라 12/9/6/3일; 0이 돼도 여정은 계속 | 여정 상태 | `getJourneyUrgency()`, day state | Exact | `phase3Engine.test.ts [JOURNEY-005]` | 네 평판 구간 수치를 고정 테스트하고, 시작 화면에 기한 초과 후에도 날짜를 계속 표시하며 결말이 달라질 수 있다는 규칙과 Goal 연계 기록을 제공한다. |
 | JOURNEY-006 | p21, p116 | Justice Goal → Evidence를 들고 귀환; Evidence Weight 1 | 가방·목표 | `resolveJourneyStart()` | Exact | `phase3Engine.test.ts [JOURNEY-001/JOURNEY-006]` | Justice 시작 transaction이 Weight 1 Evidence를 canonical Inventory에 추가한다. |
 | MAP-001 | p19, 지도 | 목적지·이동 선택은 인쇄 지도 경로와 지역/위치 유형을 사용 | 지도 | map data/render | Ambiguous | 없음 | 시각 지도 전체 좌표·경로를 원본 지도 이미지와 기계적으로 대조할 원천 구조가 없다. |
 | MAP-002 | p22 | 일반 이동 → 현재 위치와 경로로 연결된 다음 위치만 선택 | 이동 폼 | `travelEngine.ts`, `executeCanonicalTravelMove` | Exact | `gameplayEngine.test.ts [MAP-002]` | 지도 graph에 없는 목적지와 연결되지 않은 route를 엔진이 거부한다. |

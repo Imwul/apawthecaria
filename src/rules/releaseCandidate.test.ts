@@ -86,6 +86,13 @@ const journeyRuntime = (): JourneyRuntimeState => ({
   appliedTransactionIds: []
 });
 
+const journeySetupJournal = {
+  originMeaning: 'A familiar threshold.',
+  seasonFeeling: 'Spring invites movement.',
+  urgencyRelation: 'Delay would change the outcome.',
+  goalContext: 'A concrete reason tied to the drawn Goal.'
+};
+
 const remedyInventory = (prefix: string) => {
   const ingredients: EngineInventoryItem[] = REAGENTS.flatMap(reagent => reagent.preparations.map((part, index) => ({
     id: `${prefix}:${reagent.id}:${index}`,
@@ -129,6 +136,7 @@ describe('Release Candidate rulebook closure', () => {
       destinationId: 'east-15',
       goalCard: 8,
       reason: 'Deliver evidence to the distant guildhall.',
+      setupJournal: journeySetupJournal,
       startDate: 1,
       rulesetId: 'original-1e-3p'
     });
@@ -271,7 +279,7 @@ describe('Release Candidate rulebook closure', () => {
     const started = resolveJourneyStart({
       transactionId: 'rc:loop:journey', state: journeyRuntime(), graph: journeyGraph(), originId: 'origin',
       season: 'Spring', destinationCard: { value: 8, suit: '♣' }, destinationId: 'east-15', goalCard: 8,
-      reason: 'Carry a guild record east.', startDate: 1, rulesetId: 'original-1e-3p'
+      reason: 'Carry a guild record east.', setupJournal: journeySetupJournal, startDate: 1, rulesetId: 'original-1e-3p'
     }).value!;
     const travelled = resolveTravel({
       transactionId: 'rc:loop:travel',
@@ -421,7 +429,7 @@ describe('Release Candidate rulebook closure', () => {
     const continued = resolveJourneyStart({
       transactionId: 'rc:loop:continue', state: { ...journeyRuntime(), reputation: reloaded.reputation }, graph: journeyGraph(),
       originId: 'origin', season: reloaded.currentSeason, destinationCard: { value: 8, suit: '♣' },
-      destinationId: 'east-15', goalCard: 3, reason: 'Begin the next chapter.', startDate: 25, rulesetId: reloaded.rulesetId
+      destinationId: 'east-15', goalCard: 3, reason: 'Begin the next chapter.', setupJournal: journeySetupJournal, startDate: 25, rulesetId: reloaded.rulesetId
     });
     expect(continued.status).toBe('resolved');
     expect(continued.value?.journey?.status).toBe('active');
