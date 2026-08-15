@@ -16337,6 +16337,7 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
   const [startY, setStartY] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
+  const [hoveredMapPinKey, setHoveredMapPinKey] = useState('');
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!mapContainerRef.current) return;
@@ -16400,24 +16401,34 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
 	    seenLocKeys.add(key);
 	    return true;
 	  });
-	  const routeStops = mapLayers.route ? [...new Set([...(state.visitedLocations || []), currentLoc].filter(Boolean))] : [];
+	  const routeStops = mapLayers.route
+	    ? [...(state.visitedLocations || []), currentLoc].filter(Boolean)
+	    : [];
+	  const routeStopIds = routeStops.map(name => findGraphLocationKey(name, mapGraphNodes)).filter(Boolean);
+	  const contiguousRouteStopIds = routeStopIds.reduce((acc, id) => {
+	    if (acc.length === 0 || acc[acc.length - 1] !== id) acc.push(id);
+	    return acc;
+	  }, [] as string[]);
+	  const routePathIds = mapLayers.route ? contiguousRouteStopIds.reduce((path, stopId, index) => {
+	    if (index === 0) return stopId ? [stopId] : [];
+	    const startId = path.at(-1) || '';
+	    if (!startId || !stopId || startId === stopId) return path;
+	    const segment = shortestMapPath(mapGraphNodes, startId, stopId);
+	    if (segment.length <= 1) return path;
+	    return [...path, ...segment.slice(1)];
+	  }, [] as string[]) : [];
 
 	  // Hashing mapper for positioning pins on the map
 	  const getCoordinatesForLocation = (name: string) => {
 	    const structuredKey = findMapLocationKey(name, customMapLocations);
-	    if (structuredKey) {
-	      const node = mapGraphNodes[structuredKey];
-	      return { x: node.x, y: node.y };
-	    }
+	    const node = structuredKey ? mapGraphNodes[structuredKey] : null;
+	    return node ? { x: node.x, y: node.y } : null;
+	  };
 
-	    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const x = 18 + Math.abs(hash % 64);
-    const y = 18 + Math.abs((hash >> 8) % 64);
-    return { x, y };
-  };
+	  const getCoordinatesForLocationId = (locId: string) => {
+	    const node = locId ? mapGraphNodes[locId] : null;
+	    return node ? { x: node.x, y: node.y } : null;
+	  };
 
   // Find First Patient
   const casesSortedAsc = [...(state.patientCasebook || [])].sort((a, b) => a.timestamp - b.timestamp);
@@ -16569,37 +16580,40 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
 	                preserveAspectRatio="none"
 	                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}
 	              >
-	                {mapLayers.regions && MAP_WILD_LOCATIONS.map((location, idx) => (
-	                  <circle
-	                    key={`map_wild_location_${idx}`}
-	                    cx={location.x}
-	                    cy={location.y}
-	                    r="0.18"
-	                    fill={MAP_REGION_COLORS[location.region]}
-	                    opacity="0.34"
-	                  />
-	                ))}
-	                {routeStops.length > 1 && (
-	                  <polyline
-	                    points={routeStops.map(loc => {
-	                      const { x, y } = getCoordinatesForLocation(loc);
-	                      return `${x},${y}`;
-	                    }).join(' ')}
-	                    fill="none"
-	                    stroke="rgba(40, 91, 139, 0.72)"
-	                    strokeWidth="0.42"
-	                    strokeLinecap="round"
-	                    strokeLinejoin="round"
-	                    strokeDasharray="1.4 1.1"
-	                  />
-		                )}
-		                {mapLayers.clinics && (state.clinics || []).map((clinic, idx) => {
-		                  const serviceEntries = getMapServiceEntriesWithinHops(clinic.locationName, MAP_SERVICE_HOPS, customMapLocations, customMapEdges);
-		                  const servicePoints = serviceEntries.length > 0
-		                    ? serviceEntries.map(entry => ({ x: entry.node.x, y: entry.node.y }))
-		                    : [getCoordinatesForLocation(clinic.locationName)];
-		                  const xs = servicePoints.map(p => p.x);
-		                  const ys = servicePoints.map(p => p.y);
+                {mapLayers.regions && MAP_WILD_LOCATIONS.map((location, idx) => (
+                  <circle
+                    key={`map_wild_location_${idx}`}
+                    cx={location.x}
+                    cy={location.y}
+                    r="0.10"
+                    fill={MAP_REGION_COLORS[location.region]}
+                    opacity="0.07"
+                  />
+                ))}
+                {routePathIds.length > 1 && (
+                  <polyline
+                    points={routePathIds.map(locId => {
+                      const point = getCoordinatesForLocationId(locId);
+                      return point ? `${point.x},${point.y}` : null;
+                    }).filter(Boolean).join(' ')}
+                    fill="none"
+                    stroke="rgba(108, 84, 56, 0.72)"
+                    strokeWidth="0.56"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeDasharray="1.4 1.05"
+                  />
+                )}
+                {mapLayers.clinics && (state.clinics || []).map((clinic, idx) => {
+                  const serviceEntries = getMapServiceEntriesWithinHops(clinic.locationName, MAP_SERVICE_HOPS, customMapLocations, customMapEdges);
+                  const servicePoints = serviceEntries.length > 0
+                    ? serviceEntries.map(entry => ({ x: entry.node.x, y: entry.node.y }))
+                    : getCoordinatesForLocation(clinic.locationName)
+                      ? [getCoordinatesForLocation(clinic.locationName) as { x: number; y: number }]
+                      : [];
+                  if (servicePoints.length === 0) return null;
+                  const xs = servicePoints.map(p => p.x);
+                  const ys = servicePoints.map(p => p.y);
 		                  const minX = Math.min(...xs);
 		                  const maxX = Math.max(...xs);
 		                  const minY = Math.min(...ys);
@@ -16637,191 +16651,185 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
 	              </svg>
 
 	              {/* Dynamic location pins & annotations */}
-	              {allLocNames.map(locName => {
-	                const { x, y } = getCoordinatesForLocation(locName);
-	                const locKey = findMapLocationKey(locName, customMapLocations);
-	                const successes = mapLayers.patients ? (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'success') : [];
-	                const failures = mapLayers.patients ? (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'failure') : [];
-	                const isFirstClinic = mapLayers.clinics && !!firstClinic && (firstClinic.locationName === locName || (!!locKey && findMapLocationKey(firstClinic.locationName, customMapLocations) === locKey));
-	                const hasClinic = mapLayers.clinics && (state.clinics || []).some(c => c.locationName === locName || (!!locKey && findMapLocationKey(c.locationName, customMapLocations) === locKey));
-	                const isCurrent = currentLoc === locName || (!!locKey && findMapLocationKey(currentLoc, customMapLocations) === locKey);
-	                const isMostLivedIn = mostLivedInLoc === locName && maxCount >= 2;
-	                const keepsakeRecords = (state.trinketArchive || []).filter(t => t.locationName === locName && !t.spent);
-	                const isBarrow = mapLayers.barrows && (state.barrows || []).some(row => !row.removed && (row.locationName === locName || (!!locKey && findMapLocationKey(row.locationName, customMapLocations) === locKey)));
-	                const isSpecialEvent = mapLayers.barrows && ((state.serviceMapMutations || []) as ServiceMapMutation[]).some(mutation => mutation.active && mutation.nodeIds.includes(locKey || ''));
-	                const isFavorite = mapLayers.favorites && (state.favoriteMapLocationIds || []).includes(locKey || '');
+              {allLocNames.map(locName => {
+                const pinPoint = getCoordinatesForLocation(locName);
+                if (!pinPoint) return null;
+                const { x, y } = pinPoint;
+                const locKey = findMapLocationKey(locName, customMapLocations);
+                const successes = mapLayers.patients ? (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'success') : [];
+                const failures = mapLayers.patients ? (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'failure') : [];
+                const isFirstClinic = mapLayers.clinics && !!firstClinic && (firstClinic.locationName === locName || (!!locKey && findMapLocationKey(firstClinic.locationName, customMapLocations) === locKey));
+                const hasClinic = mapLayers.clinics && (state.clinics || []).some(c => c.locationName === locName || (!!locKey && findMapLocationKey(c.locationName, customMapLocations) === locKey));
+                const isCurrent = currentLoc === locName || (!!locKey && findMapLocationKey(currentLoc, customMapLocations) === locKey);
+                const isMostLivedIn = mostLivedInLoc === locName && maxCount >= 2;
+                const keepsakeRecords = (state.trinketArchive || []).filter(t => t.locationName === locName && !t.spent);
+                const isBarrow = mapLayers.barrows && (state.barrows || []).some(row => !row.removed && (row.locationName === locName || (!!locKey && findMapLocationKey(row.locationName, customMapLocations) === locKey)));
+                const isSpecialEvent = mapLayers.barrows && ((state.serviceMapMutations || []) as ServiceMapMutation[]).some(mutation => mutation.active && mutation.nodeIds.includes(locKey || ''));
+                const isFavorite = mapLayers.favorites && (state.favoriteMapLocationIds || []).includes(locKey || '');
 
                 let isLoss = failures.length > 0;
                 let isCare = successes.length > 0 || hasClinic;
 
-	                const notes: string[] = [];
-	                if (isCurrent) {
-	                  notes.push('현재 위치 — 이곳에서 머무는 중.');
-	                }
-	                if (isFavorite) notes.push('즐겨찾기에 표시한 장소.');
-	                if (isBarrow || isSpecialEvent) notes.push('고분 소문 또는 특수 사건이 남아 있음.');
-	                if (isFirstClinic) {
-	                  notes.push('첫 약제소 — 이곳에서 오래 머물렀다.');
-	                } else if (isMostLivedIn) {
-                  notes.push('자주 돌아오던 곳. 오래 머문 자리.');
-                }
+                const compactNote = isCurrent
+                  ? '현재 위치'
+                  : isMostLivedIn
+                    ? '자주 방문한 곳'
+                    : isFirstClinic
+                      ? '첫 약제소'
+                      : isLoss
+                        ? '사건 기록이 남은 곳'
+                        : isBarrow || isSpecialEvent
+                          ? '고분/이벤트 흔적'
+                          : isCare
+                            ? '의료 접근 포인트'
+                            : isFavorite
+                              ? '즐겨찾기'
+                              : '';
 
-                if (keepsakeRecords.length > 0) {
-                  notes.push(`이곳에서 ${keepsakeRecords[0].name}을(를) 선물받았다.`);
-                } else if (isCare && !isFirstClinic && !isMostLivedIn) {
-                  if (successes.length >= 2) {
-                    notes.push('이곳에서 여러 야수를 돌보았다.');
-                  } else {
-                    notes.push('여행자들이 자주 도움을 청하던 곳.');
-                  }
-                }
-
-                if (isLoss) {
-                  const lossPhrases = [
-                    '돌아오지 못한 이를 기억하며.',
-                    '한동안 빈 침상이 남아 있었다.',
-                    '숲은 그 이름을 오래 품고 있었다.'
-                  ];
-                  notes.push(lossPhrases[locName.length % lossPhrases.length]);
-                }
-
-                // Visual styling variables based on care, loss, or clinic status
-                let pinColor = 'rgba(107, 81, 59, 0.92)'; // brown ink
+                let pinColor = 'rgba(107, 81, 59, 0.92)';
                 let textColor = '#2f2419';
-                let fontW = '400';
-                let shadowBg = 'rgba(255, 248, 232, 0.58)';
-                let labelBg = 'rgba(255, 250, 236, 0.97)';
-                let labelBorder = 'rgba(92, 64, 51, 0.42)';
-                let SketchIcon = null;
+                let pinShadow = 'rgba(255, 248, 232, 0.58)';
+                let labelBg = 'rgba(255, 255, 255, 0.9)';
+                let markerRing = 'rgba(107, 81, 59, 0.32)';
 
                 if (isLoss) {
-                  pinColor = 'rgba(96, 91, 84, 0.92)'; // faded gray
+                  pinColor = 'rgba(96, 91, 84, 0.92)';
                   textColor = '#4a433b';
                   labelBg = 'rgba(248, 245, 238, 0.97)';
-                  labelBorder = 'rgba(96, 91, 84, 0.42)';
-                  SketchIcon = BranchSketch;
+                  markerRing = 'rgba(96, 91, 84, 0.28)';
                 }
                 if (isCare) {
-                  pinColor = 'rgba(47, 94, 55, 0.96)'; // green ink
+                  pinColor = 'rgba(47, 94, 55, 0.96)';
                   textColor = '#203f27';
-                  fontW = '500';
-                  shadowBg = 'rgba(228, 245, 216, 0.62)';
+                  pinShadow = 'rgba(228, 245, 216, 0.62)';
                   labelBg = 'rgba(246, 252, 238, 0.97)';
-                  labelBorder = 'rgba(47, 94, 55, 0.42)';
-                  SketchIcon = HearthSketch;
+                  markerRing = 'rgba(47, 94, 55, 0.5)';
                 }
                 if (isFirstClinic) {
                   pinColor = 'rgba(176, 96, 32, 0.98)';
                   textColor = '#743d11';
-                  fontW = '700';
-                  shadowBg = 'rgba(255, 232, 190, 0.68)';
                   labelBg = 'rgba(255, 243, 218, 0.98)';
-                  labelBorder = 'rgba(176, 96, 32, 0.5)';
-                  SketchIcon = HouseSketch;
+                  markerRing = 'rgba(176, 96, 32, 0.62)';
                 }
                 if (isBarrow || isSpecialEvent) {
                   pinColor = 'rgba(113, 68, 135, 0.98)';
                   textColor = '#5a2f6d';
-                  labelBorder = 'rgba(113, 68, 135, 0.5)';
+                  markerRing = 'rgba(113, 68, 135, 0.5)';
                 }
                 if (isFavorite) {
-                  shadowBg = 'rgba(247, 201, 92, 0.42)';
-                  labelBorder = 'rgba(173, 123, 25, 0.65)';
+                  labelBg = 'rgba(255, 250, 236, 0.98)';
+                  markerRing = 'rgba(173, 123, 25, 0.65)';
                 }
+
+                const mapPinKey = locKey || normalizeMapLocationName(locName);
+                const showLabel = isCurrent || mapPinKey === selectedMemoryKey || hoveredMapPinKey === mapPinKey;
+                const mapLocationLabel = keepsakeRecords.length > 0
+                  ? '이곳의 유물: ' + keepsakeRecords[0].name
+                  : compactNote;
 
                 return (
                   <div
-                    key={locName}
+                    key={mapPinKey}
                     style={{
                       position: 'absolute',
                       left: `${x}%`,
                       top: `${y}%`,
                       transformOrigin: 'top left',
-                      transform: `translate(-10px, -10px) rotate(${(locName.length % 3) - 1.5}deg)`,
-                      pointerEvents: 'auto',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '6px',
+                      transform: 'translate(-50%, -50%)',
+                      pointerEvents: 'none',
+                      zIndex: hoveredMapPinKey === mapPinKey ? 2 : 1,
                       fontFamily: 'var(--font-base)',
-                      fontSize: '0.92rem',
+                      fontSize: '0.82rem',
                       fontWeight: 700,
                       userSelect: 'none'
                     }}
-	                  >
-	                    {hasClinic && (
-	                      <div style={{
-	                        position: 'absolute',
-	                        left: '-6px',
-	                        top: '-3px',
-	                        width: '20px',
-	                        height: '20px',
-	                        border: '3px solid rgba(207, 45, 45, 0.9)',
-	                        borderRadius: '2px',
-	                        transform: `rotate(${locName.length % 2 === 0 ? '3deg' : '-4deg'})`,
-	                        boxShadow: '0 0 0 2px rgba(255, 246, 232, 0.35)'
-	                      }} />
-	                    )}
-	                    {isCurrent && (
-	                      <div style={{
-	                        position: 'absolute',
-	                        left: '-13px',
-	                        top: '-10px',
-	                        width: '34px',
-	                        height: '34px',
-	                        border: '3px solid rgba(35, 103, 177, 0.85)',
-	                        borderRadius: '999px',
-	                        boxShadow: '0 0 0 5px rgba(35, 103, 177, 0.12)'
-	                      }} />
-	                    )}
-	                    {/* Pin Dot */}
-	                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: pinColor,
-                      marginTop: '6px',
-                      boxShadow: shadowBg !== 'transparent' ? `0 0 12px 6px ${shadowBg}` : 'none',
-                      flexShrink: 0
-                    }} />
+                  >
+                    {hasClinic && (
+                      <span style={{
+                        position: 'absolute',
+                        left: '50%',
+                        top: '50%',
+                        width: '18px',
+                        height: '18px',
+                        border: '2px solid rgba(207, 45, 45, 0.85)',
+                        borderRadius: '2px',
+                        transform: `rotate(${locName.length % 2 === 0 ? '3deg' : '-4deg'}) translate(-50%, -50%)`,
+                        pointerEvents: 'none',
+                        boxShadow: '0 0 0 2px rgba(255, 246, 232, 0.35)'
+                      }} />
+                    )}
+                    {isCurrent && (
+                      <span style={{
+                        position: 'absolute',
+                        left: '50%',
+                        top: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: '30px',
+                        height: '30px',
+                        border: '3px solid rgba(35, 103, 177, 0.85)',
+                        borderRadius: '999px',
+                        boxShadow: '0 0 0 5px rgba(35, 103, 177, 0.12)',
+                        pointerEvents: 'none'
+                      }} />
+                    )}
 
-                    {/* Text Details */}
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      whiteSpace: 'nowrap',
-                      background: labelBg,
-                      border: `1px solid ${labelBorder}`,
-                      borderRadius: '4px',
-                      padding: '3px 7px 5px',
-                      boxShadow: '0 2px 5px rgba(44, 32, 20, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.62)',
-                      backdropFilter: 'blur(1px)'
-                    }} role="button" tabIndex={0} aria-label={`${locName} 위치 기억 열기`} onMouseDown={event => event.stopPropagation()} onClick={() => selectLocationMemory(locName)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectLocationMemory(locName); } }}>
-                      <div style={{ display: 'flex', alignItems: 'center', fontWeight: fontW as any, color: textColor, textShadow: '0 1px 0 rgba(255, 255, 255, 0.88)' }}>
-                        {SketchIcon && <SketchIcon />}
-                        <span>{locName}</span>
-                      </div>
-                      {notes.map((note, idx) => (
-                        <span
-                          key={idx}
-                          style={{
-                            fontSize: '0.8rem',
-                            color: isLoss ? '#5e574e' : '#594c3c',
-                            fontStyle: 'italic',
-                            marginTop: '2px',
-                            textShadow: '0 1px 0 rgba(255, 255, 255, 0.82)'
-                          }}
-                        >
-                          {note}
+                    <button
+                      type="button"
+                      style={{
+                        width: '11px',
+                        height: '11px',
+                        borderRadius: '50%',
+                        border: `2px solid ${markerRing}`,
+                        background: pinColor,
+                        boxShadow: pinShadow !== 'transparent' ? `0 0 10px 4px ${pinShadow}` : 'none',
+                        padding: 0,
+                        pointerEvents: 'auto',
+                        cursor: 'pointer'
+                      }}
+                      aria-label={`${locName} 위치 기억 열기`}
+                      onMouseEnter={() => setHoveredMapPinKey(mapPinKey)}
+                      onMouseLeave={() => setHoveredMapPinKey('')}
+                      onFocus={() => setHoveredMapPinKey(mapPinKey)}
+                      onBlur={() => setHoveredMapPinKey('')}
+                      onClick={() => selectLocationMemory(locName)}
+                    >
+                    </button>
+
+                    {showLabel && (
+                      <span style={{
+                        position: 'absolute',
+                        left: '50%',
+                        top: '-4px',
+                        transform: 'translate(9px, -100%)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        whiteSpace: 'nowrap',
+                        background: labelBg,
+                        border: `1px solid ${markerRing}`,
+                        borderRadius: '4px',
+                        padding: '3px 7px 5px',
+                        boxShadow: '0 2px 5px rgba(44, 32, 20, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.62)',
+                        backdropFilter: 'blur(1px)',
+                        pointerEvents: 'none'
+                      }}>
+                        <span style={{ display: 'flex', alignItems: 'center', color: textColor, gap: '0.25rem', fontWeight: 600 }}>
+                          <span>{locName}</span>
+                          {isCurrent && <span style={{ color: '#3d7197', fontStyle: 'italic' }}>(현재)</span>}
                         </span>
-                      ))}
-                    </div>
+                        {mapLocationLabel && (
+                          <span style={{ fontSize: '0.74rem', color: isLoss ? '#5e574e' : '#594c3c', fontStyle: 'italic' }}>
+                            {mapLocationLabel}
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </div>
                 );
               })}
 
+              </div>
             </div>
           </div>
-        </div>
 
         {/* Right Side: Map Key & Distance Scales Sidebar */}
         <div style={{
