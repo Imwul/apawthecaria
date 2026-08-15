@@ -10056,7 +10056,7 @@ function PlayView({
         </div>
       )}
 
-      <section className="action-hub" aria-label="현재 진행판">
+        <section id="action-hub" className="action-hub" aria-label="현재 진행판">
         <div className="action-hub__header">
           <div>
             <div className="document-kicker">진행판</div>
