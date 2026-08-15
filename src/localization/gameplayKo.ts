@@ -285,6 +285,35 @@ export const localizeRegionLabel = (value: string | undefined): string => ({
   Barrow: 'Barrow'
 } as Record<string, string>)[value || ''] || value || '지역 미기록';
 
+const ENGLISH_LOCATION_NAMES: Record<string, string> = {
+  'starting oak road': 'Oak Road',
+  'oak road': 'Oak Road',
+  '오크 길': 'Oak Road',
+  'bristley woods': 'Bristley Woods',
+  '브리슬리 숲': 'Bristley Woods',
+  noonhill: 'Noonhill',
+  '눈힐': 'Noonhill',
+  odoak: 'Odoak',
+  '오도악': 'Odoak',
+  newdam: 'New Dam',
+  'new dam': 'New Dam',
+  '뉴댐': 'New Dam',
+  vessel: 'Vessel',
+  '베셀': 'Vessel',
+  summit: 'Summit',
+  '서밋': 'Summit',
+  spoolkeep: 'Spoolkeep',
+  '스풀킵': 'Spoolkeep',
+  glasswall: 'Glasswall',
+  '글래스월': 'Glasswall'
+};
+
+export const localizeLocationName = (value: string | undefined): string => {
+  const clean = value?.trim();
+  if (!clean) return 'Unknown Location';
+  return ENGLISH_LOCATION_NAMES[clean.toLowerCase()] || clean;
+};
+
 export const localizeRegionList = (value: string | undefined): string =>
   value
     ? value.split(',').map(region => localizeRegionLabel(region.trim())).join(', ')

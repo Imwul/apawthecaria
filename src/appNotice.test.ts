@@ -24,6 +24,7 @@ describe('application notice dialog', () => {
     expect(appSource).toContain('app-dialog app-dialog--notice');
     expect(appSource).toContain('app-dialog app-dialog--prompt');
     expect(appSource).toContain('className="app-dialog__message"');
+    expect(appSource).not.toContain('app-dialog__mark');
     expect(cssSource).toMatch(/\.phase4-modal\.controlled-prompt\.app-dialog\s*\{[\s\S]*?box-shadow:\s*0 14px 36px/);
     expect(cssSource).not.toContain("[role='alertdialog'] > div");
   });

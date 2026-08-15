@@ -7,6 +7,7 @@ import {
   localizeInventoryItemName,
   localizeJourneyGoalText,
   localizeDirectionLabel,
+  localizeLocationName,
   localizePreparationMethod,
   localizePreparationName,
   localizeReagentType,
@@ -22,6 +23,9 @@ describe('gameplay presentation localization', () => {
   it('translates canonical state labels without changing their stored values', () => {
     expect(localizeRegionLabel('Forest')).toBe('Forest');
     expect(localizeRegionList('Bog, Forest')).toBe('Bog, Forest');
+    expect(localizeLocationName('오크 길')).toBe('Oak Road');
+    expect(localizeLocationName('뉴댐')).toBe('New Dam');
+    expect(localizeLocationName('Whitebirch')).toBe('Whitebirch');
     expect(localizeDirectionLabel('North')).toBe('북쪽');
     expect(localizeCharacterDescriptor('Burrowing')).toBe('땅을 파는 포유류');
     expect(localizeTravelStyle('Rambling and Ready')).toBe('방랑하며 든든하게');

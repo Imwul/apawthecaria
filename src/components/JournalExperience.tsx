@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { localizeLocationTypeLabel, localizeRegionLabel, localizeSavedJourneyText } from '../localization/gameplayKo';
+import { localizeLocationName, localizeLocationTypeLabel, localizeRegionLabel, localizeSavedJourneyText } from '../localization/gameplayKo';
 import { localizeGameplayMessage } from '../localization/engineMessagesKo';
 import { referenceForJournalTab } from '../rulebook/context';
 import type { RulebookReferenceRequest } from '../rulebook/types';
@@ -198,8 +198,8 @@ export function TodayOverview({
   const requirements = requirementWords(legacyAilment?.tags || ailment?.requirementSnapshot || '');
   const recentJournal = state.journals?.[0];
   const dayPlace = state.journeyActive
-    ? state.journeyDestination || '다음 마을'
-    : state.currentLocationName;
+    ? localizeLocationName(state.journeyDestination)
+    : localizeLocationName(state.currentLocationName);
   const dayPhrase = state.journeyActive ? '로 향하는 날' : '에 머무는 날';
 
   return (
@@ -254,7 +254,7 @@ export function TodayOverview({
 
         <article className="today-place">
           <span className="journal-note-label">지금 머무는 곳</span>
-          <h3>{state.currentLocationName}</h3>
+          <h3>{localizeLocationName(state.currentLocationName)}</h3>
           <p>{localizeRegionLabel(state.currentRegion)} · {localizeLocationTypeLabel(state.currentLocationType)} · {seasonLabel(state.currentSeason)}</p>
           <button type="button" className="journal-text-action" onClick={() => onNavigate('map')}>
             <span className="emoji-icon" aria-hidden="true">🗺️</span> 지도에 짚어보기

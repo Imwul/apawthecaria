@@ -65,4 +65,10 @@ describe('mobile layout regression guards', () => {
     expect(cssSource).toMatch(/\.play-view--field\s+\.field-mode-hide/);
     expect(cssSource).toMatch(/\.encounter-checklist\s+ol\s*\{[\s\S]*?grid-template-columns:\s*repeat\(5/);
   });
+
+  it('reflows the play navigator and keeps field mode concise', () => {
+    expect(appSource).toContain('<PlayNavigator');
+    expect(cssSource).toMatch(/@media \(max-width: 520px\)[\s\S]*?\.play-navigator__header\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
+    expect(cssSource).toMatch(/\.play-view--field \.play-navigator__body/);
+  });
 });

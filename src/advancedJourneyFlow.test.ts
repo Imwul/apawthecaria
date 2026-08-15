@@ -32,6 +32,15 @@ describe('advanced journey flow', () => {
     expect(appSource).toContain('journeyReplayArchive');
   });
 
+  it('adds a state-aware play navigator with exact handoff recovery', () => {
+    expect(appSource).toContain('<PlayNavigator');
+    expect(appSource).toContain('playNavigatorSignals');
+    expect(appSource).toContain('sessionHandoffActionId');
+    expect(appSource).toContain('saveSessionHandoff');
+    expect(appSource).toContain('[data-play-primary-action="true"]');
+    expect(cssSource).toMatch(/\.play-navigator__body\s*\{[\s\S]*?grid-template-columns:/);
+  });
+
   it('keeps canonical region names in English', () => {
     expect(gameplayKoSource).toContain("Bog: 'Bog'");
     expect(gameplayKoSource).toContain("Forest: 'Forest'");
@@ -39,5 +48,14 @@ describe('advanced journey flow', () => {
     expect(gameplayKoSource).toContain("Meadow: 'Meadow'");
     expect(gameplayKoSource).toContain("Mountain: 'Mountain'");
     expect(gameplayKoSource).toContain("Titan: 'Titan'");
+  });
+
+  it('continues through the first actionable step and keeps built-in location names in English', () => {
+    expect(appSource).toContain("#action-hub .action-step:not(:disabled)");
+    expect(appSource).toContain('nextAction.click()');
+    expect(appSource).toContain('currentLocationName: "Oak Road"');
+    expect(appSource).toContain("label: 'Oak Road'");
+    expect(appSource).toContain('region: toRuleRegion(inferMapNodeRegion');
+    expect(gameplayKoSource).toContain("'오크 길': 'Oak Road'");
   });
 });

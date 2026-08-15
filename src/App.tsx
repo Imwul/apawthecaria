@@ -181,6 +181,7 @@ import {
 } from './rules';
 import { BarrowPanel } from './components/Phase4Panels';
 import { ChapterOpening, JournalNavigation, TodayOverview, type JournalTab } from './components/JournalExperience';
+import { PlayNavigator, type PlayNavigatorSignal } from './components/PlayNavigator';
 import {
   localizeCharacterChoiceLabel,
   localizeCharacterDescriptor,
@@ -190,6 +191,7 @@ import {
   localizeDirectionLabel,
   localizeInventoryItemName,
   localizeJourneyGoalText,
+  localizeLocationName,
   localizePreparationMethod,
   localizePreparationName,
   localizeReagentType,
@@ -656,6 +658,9 @@ interface GameState {
   lastEncounterReceipt?: EncounterReceipt | null;
   locationMemories?: Record<string, LocationMemoryRecord>;
   journeyReplayArchive?: JourneyReplayRecord[];
+  sessionHandoffNote?: string;
+  sessionHandoffActionId?: string;
+  sessionHandoffSavedAt?: string | null;
 
   // Ongoing patient
   activeAilment: ActiveAilment | null;
@@ -810,7 +815,7 @@ const INITIAL_STATE: GameState = {
   rulesetId: 'original-1e-3p',
   bio: INITIAL_BIO,
   reputation: 5,
-  currentLocationName: "오크 길",
+  currentLocationName: "Oak Road",
   currentLocationType: "Wilds",
   currentRegion: "Forest",
   currentSeason: "Spring",
@@ -838,6 +843,9 @@ const INITIAL_STATE: GameState = {
   lastEncounterReceipt: null,
   locationMemories: {},
   journeyReplayArchive: [],
+  sessionHandoffNote: '',
+  sessionHandoffActionId: '',
+  sessionHandoffSavedAt: null,
   activeAilment: null,
   activeAilments: [],
   activePatientId: null,
@@ -874,7 +882,7 @@ const INITIAL_STATE: GameState = {
   scroungingMode: false,
   scroungingTimer: 0,
   independentUsedThisAilment: false,
-  visitedLocations: ["오크 길"],
+  visitedLocations: ["Oak Road"],
   curedAilmentInThisWilds: false,
   needsLocalHelpBeforeMove: false,
   lastForageCardValue: 0,
@@ -1264,7 +1272,7 @@ const MAP_LOCATIONS: Record<string, MapLocationNode> = {
   screens: { label: 'Screens', x: 88, y: 8, neighbors: ['spoolkeep', 'skimslim'] },
   skimslim: { label: 'Skimslim', x: 74, y: 5, neighbors: ['screens', 'blueberry_pond'] },
   crowless: { label: 'Crowless', x: 96, y: 9, neighbors: ['spoolkeep', 'screens'] },
-  starting_oak_road: { label: '오크 길', x: 26, y: 34, aliases: ['Starting Oak Road', 'Oak Road', '오크 길'], neighbors: ['whitebirch', 'spoutneck'] }
+  starting_oak_road: { label: 'Oak Road', x: 26, y: 34, region: 'Forest', aliases: ['Starting Oak Road', '오크 길'], neighbors: ['whitebirch', 'spoutneck'] }
 };
 
 const MAP_WAYPOINTS = `77.96,3.81;48.38,4.34;82.68,4.78;54.52,5.04;51.24,5.17;3.95,5.34;47.85,5.83;61.54,6.12;85.58,6.23;7.30,6.32;44.97,6.34;57.71,6.45;76.58,6.49;72.81,6.92;90.75,6.80;84.35,7.21;14.61,7.41;88.68,7.40;65.77,7.49;43.25,7.89;76.97,8.20;63.67,8.44;82.11,8.36;51.24,8.72;7.60,8.92;33.59,8.99;36.50,9.19;69.52,9.25;21.31,9.41;92.50,9.93;61.26,10.02;4.25,10.13;63.78,10.40;71.82,10.39;26.38,10.76;9.47,11.08;29.41,11.15;16.21,11.45;12.33,12.09;67.41,12.04;38.96,12.34;77.32,12.40;49.35,12.83;95.11,12.86;3.64,13.38;30.31,13.46;36.12,13.63;57.04,14.17;64.86,13.92;14.78,13.99;83.44,14.14;23.20,14.61;31.18,15.22;80.77,15.21;74.68,15.32;28.89,15.61;68.89,15.54;34.59,15.86;86.57,15.83;18.64,16.17;65.83,16.55;5.63,16.63;37.53,16.72;44.56,17.11;14.47,17.17;29.04,17.21;96.62,17.35;65.03,17.82;33.03,17.79;77.19,17.94;22.91,18.04;87.43,18.02;39.68,18.17;93.68,18.63;90.03,18.78;36.71,18.82;84.21,18.97;44.61,19.05;4.77,19.22;70.66,19.56;60.19,19.47;16.07,19.78;28.15,19.81;40.41,20.04;25.26,20.39;76.37,20.38;12.75,20.47;38.59,20.56;70.52,20.64;36.63,20.73;20.27,21.13;9.16,21.80;50.37,22.17;46.63,22.15;96.51,22.39;62.74,22.50;17.38,22.88;19.43,23.03;67.68,23.07;15.96,23.19;49.46,23.28;23.47,23.53;41.65,23.82;75.38,23.96;27.90,24.15;77.92,24.33;93.80,24.46;37.98,24.67;57.78,24.75;35.95,24.84;2.85,24.87;15.89,24.98;53.11,25.23;64.47,25.20;60.96,25.53;72.93,25.56;95.52,25.66;69.92,25.82;21.93,26.32;92.94,26.55;65.79,27.73;42.94,27.82;58.70,27.84;28.25,27.84;8.11,27.99;83.90,27.94;40.93,28.10;33.31,28.21;61.73,28.44;5.32,28.69;32.83,29.27;72.04,29.25;86.80,29.78;21.67,29.85;56.14,29.91;36.34,29.97;64.77,30.15;33.28,30.35;18.38,30.61;75.96,31.05;15.33,31.89;79.03,32.02;52.05,32.46;81.97,32.41;58.62,32.59;89.90,32.69;2.81,32.77;41.69,32.76;55.04,32.83;9.47,33.05;32.09,33.08;62.67,33.40;27.11,33.48;85.40,33.57;15.48,33.90;20.37,34.07;47.94,34.45;73.45,34.70;45.83,34.85;5.05,35.42;79.30,35.53;16.45,35.66;28.63,35.65;86.87,35.69;24.82,36.16;55.02,36.65;12.71,36.47;57.84,36.52;30.83,36.60;61.03,37.06;42.26,37.28;55.98,37.21;94.81,37.48;65.63,37.84;87.15,38.07;18.33,38.07;28.07,38.11;34.15,38.17;69.39,38.10;23.46,38.20;45.58,38.19;11.59,38.67;5.55,38.78;20.14,38.79;37.26,38.96;76.87,39.18;62.68,39.37;35.27,39.46;22.15,39.61;54.94,39.94;97.05,39.94;50.06,40.14;27.28,40.26;32.70,40.55;58.59,40.47;21.13,40.81;64.42,40.85;78.55,40.94;24.80,41.25;74.77,41.31;52.75,41.37;15.64,41.93;88.11,41.89;54.80,41.97;22.33,42.22;84.34,42.24;80.28,42.40;56.49,42.95;94.75,42.39;69.39,42.89;37.76,42.98;30.57,43.20;40.36,43.38;55.71,43.60;93.32,43.71;90.84,43.84;96.44,43.84;36.09,44.05;73.11,44.01;65.25,44.18;55.73,44.48;33.19,44.67;18.82,44.87;67.38,45.81;23.01,45.89;97.14,45.90;45.11,46.15;27.06,46.36;5.47,46.65;92.24,46.82;15.75,46.94;86.49,47.02;36.04,47.34;51.95,47.87;95.75,47.94;39.72,48.39;69.44,48.45;48.43,48.68;90.13,48.64;33.11,48.91;26.14,49.15;9.25,49.30;86.81,49.97;96.63,49.94;72.54,50.29;15.57,50.48;36.10,50.57;91.71,50.68;31.70,51.00;28.98,51.16;57.41,51.36;33.93,51.44;44.94,51.72;95.62,51.81;41.97,51.97;89.15,51.96;39.66,52.20;83.78,52.20;77.16,52.49;68.50,52.69;86.55,52.67;93.35,52.82;91.54,52.89;47.67,53.06;18.05,53.15;39.06,53.13;25.73,53.19;30.66,53.82;84.94,54.15;63.77,54.35;73.82,54.34;10.30,54.64;75.76,55.56;61.18,55.66;34.97,55.85;7.24,56.10;84.01,56.68;31.18,56.94;66.62,57.07;82.20,57.21;87.38,57.48;18.29,57.50;63.54,57.49;51.69,57.89;75.59,58.11;9.43,59.05;54.78,59.02;14.61,59.25;79.52,59.69;70.09,59.81;73.00,60.10;48.53,60.28;58.41,60.39;20.27,61.21;46.55,61.31;90.53,61.58;7.83,61.62;76.55,61.75;28.95,62.48;17.15,62.43;55.27,62.52;61.68,62.56;37.77,63.01;45.16,63.15;69.82,63.35;4.82,63.64;83.63,63.63;89.58,64.22;74.35,64.51;62.67,64.82;19.66,65.38;42.42,65.49;81.48,66.02;4.78,66.10;77.93,66.87;57.95,67.16;27.65,67.24;82.94,67.32;68.96,67.40;73.46,67.78;85.21,68.00;92.97,68.29;13.82,68.82;9.23,68.96;78.29,69.78;44.18,70.61;66.54,70.59;21.27,70.88;55.47,71.20;83.21,71.25;6.45,71.36;71.79,72.93;51.87,73.20;80.53,74.41;13.53,75.13;75.20,75.65;58.14,76.32;5.92,76.05;38.02,76.00;77.36,76.19;62.09,76.09;77.78,77.83;34.37,78.32;61.39,78.56;18.01,79.10;89.08,79.18;60.24,79.59;5.85,79.88;57.55,80.23;61.60,80.71;78.97,81.13;93.38,81.10;10.27,81.75;29.45,82.46;91.28,82.79;50.68,83.22;68.49,83.20;12.53,83.90;3.81,83.97;8.21,84.15;80.86,84.17;19.75,84.38;93.55,84.59;39.14,84.86;91.14,85.06;35.93,85.91;63.32,86.24;76.98,86.32;85.58,86.60;32.93,86.63;95.47,87.29;53.93,87.41;91.80,87.41;41.28,87.67;12.57,87.84;8.23,88.03;4.25,88.09;72.71,88.21;44.95,88.95;87.64,89.45;91.19,89.55;37.78,90.05;69.30,90.09;59.15,90.12;48.53,90.41;95.26,90.79;31.52,90.93;35.66,91.31;82.58,92.16;75.99,92.43;51.28,92.40;39.43,92.86;53.89,92.98;4.24,93.13;8.48,93.24;15.85,93.25;42.51,93.28;59.73,93.33;34.02,93.56;86.75,94.04;24.39,94.30;93.97,95.40;57.60,96.28;19.68,96.37;39.69,96.45;8.65,96.72;12.46,96.74;4.35,96.82;26.78,97.28`
@@ -1276,7 +1284,7 @@ const MAP_WILD_REGION_CODES = `RRRLMMRRRRRRMRRRBRBRLBRLRLLMRRBRBMMLLMLMMFBMBRMTF
 const MAP_WILD_LOCATIONS = MAP_WAYPOINTS.map(([x, y], index) => {
   const region = MAP_REGION_CODES[MAP_WILD_REGION_CODES[index]] || 'Wilds';
   return {
-    label: `${MAP_REGION_LABELS[region]} 위치 ${index + 1}`,
+    label: `${MAP_REGION_LABELS[region]} Wilds ${index + 1}`,
     x,
     y,
     region,
@@ -1640,7 +1648,7 @@ const toRuleMapGraph = (s: GameState): Record<string, JourneyMapNode> => {
       name: node.label,
       x: node.x,
       y: node.y,
-      region: toRuleRegion(node.region, s.currentRegion),
+      region: toRuleRegion(inferMapNodeRegion(node, toRuleRegion(s.currentRegion)), s.currentRegion),
       locationType,
       neighbors: [...node.neighbors]
     }];
@@ -2190,19 +2198,7 @@ const findReagentMemoryDefinition = (name: string) => {
 };
 
 const getLocalizedLocationName = (name: string): string => {
-  if (!name) return '이름 모를 곳';
-  const clean = name.trim();
-  const lower = clean.toLowerCase();
-  if (lower === 'starting oak road' || lower === 'oak road') return '오크 길';
-  if (lower === 'bristley woods') return '브리슬리 숲';
-  if (lower === 'noonhill') return '눈힐';
-  if (lower === 'odoak') return '오도악';
-  if (lower === 'newdam') return '뉴댐';
-  if (lower === 'vessel') return '베셀';
-  if (lower === 'summit') return '서밋';
-  if (lower === 'spoolkeep') return '스풀킵';
-  if (lower === 'glasswall') return '글래스월';
-  return clean;
+  return localizeLocationName(name);
 };
 
 const getLocalizedSource = (source: string): string => {
@@ -3527,7 +3523,8 @@ const migrateState = (s: any): GameState => {
     scroungingMode: s.scroungingMode || false,
     scroungingTimer: s.scroungingTimer || 0,
     independentUsedThisAilment: s.independentUsedThisAilment || false,
-    visitedLocations: s.visitedLocations || ["오크 길"],
+    currentLocationName: localizeLocationName(s.currentLocationName || INITIAL_STATE.currentLocationName),
+    visitedLocations: (s.visitedLocations || ["Oak Road"]).map((name: string) => localizeLocationName(name)),
     curedAilmentInThisWilds: s.curedAilmentInThisWilds || false,
     needsLocalHelpBeforeMove: s.needsLocalHelpBeforeMove || false,
     lastForageCardValue: s.lastForageCardValue || 0,
@@ -3544,7 +3541,8 @@ const migrateState = (s: any): GameState => {
     journeyGoalCounter: s.journeyGoalCounter || 0,
     journeyGoalChecklist: s.journeyGoalChecklist || [],
     journeyStartReputation: s.journeyStartReputation !== undefined ? s.journeyStartReputation : (s.reputation || 5),
-    journeyOrigin: s.journeyOrigin || "",
+    journeyOrigin: s.journeyOrigin ? localizeLocationName(s.journeyOrigin) : "",
+    journeyDestination: s.journeyDestination ? localizeLocationName(s.journeyDestination) : "",
     journey: s.journey || null,
     pendingEnding: s.pendingEnding || null,
     journeyPlannedStopIds: Array.isArray(s.journeyPlannedStopIds) ? s.journeyPlannedStopIds.map(String) : [],
@@ -3555,6 +3553,9 @@ const migrateState = (s: any): GameState => {
     lastEncounterReceipt: s.lastEncounterReceipt || null,
     locationMemories: s.locationMemories && typeof s.locationMemories === 'object' ? s.locationMemories : {},
     journeyReplayArchive: Array.isArray(s.journeyReplayArchive) ? s.journeyReplayArchive : [],
+    sessionHandoffNote: typeof s.sessionHandoffNote === 'string' ? s.sessionHandoffNote : '',
+    sessionHandoffActionId: typeof s.sessionHandoffActionId === 'string' ? s.sessionHandoffActionId : '',
+    sessionHandoffSavedAt: typeof s.sessionHandoffSavedAt === 'string' ? s.sessionHandoffSavedAt : null,
     activeBarter: s.activeBarter || null,
     pendingBarter: s.pendingBarter || null,
     pendingLeaveObligation: s.pendingLeaveObligation || null,
@@ -5545,7 +5546,15 @@ export default function App() {
                 currentWeight={currentWeight}
                 maxCarry={maxCarry}
                 onNavigate={setActiveTab}
-                onContinue={() => document.getElementById('action-hub')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                onContinue={() => {
+                  const nextAction = document.querySelector<HTMLButtonElement>('#action-hub .action-step:not(:disabled)');
+                  if (nextAction) {
+                    nextAction.click();
+                    nextAction.focus({ preventScroll: true });
+                  } else {
+                    document.getElementById('action-hub')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }}
                 onOpenReference={setRulebookRequest}
               />
               <BarrowPanel delve={state.activeDelve} />
@@ -6771,7 +6780,6 @@ function NoticeDialog({ message, onDismiss }: { message: string; onDismiss: () =
         aria-describedby="app-notice-message"
       >
         <header className="app-dialog__header">
-          <span className="app-dialog__mark" aria-hidden="true">i</span>
           <div>
             <span className="app-dialog__kicker">여행 기록</span>
             <h2 id="app-notice-title">안내</h2>
@@ -6819,7 +6827,6 @@ function ControlledPromptDialog({
         }}
       >
         <header className="app-dialog__header">
-          <span className="app-dialog__mark app-dialog__mark--choice" aria-hidden="true">→</span>
           <div>
             <span className="app-dialog__kicker">{request.kicker || '여행 기록 선택'}</span>
             <h2 id="controlled-prompt-title">{request.title}</h2>
@@ -7013,6 +7020,7 @@ function PlayView({
   const [nextLocName, setNextLocName] = useState("");
   const [travelFormUndo, setTravelFormUndo] = useState<{ name: string; region: string; type: string } | null>(null);
   const [showSessionResume, setShowSessionResume] = useState(true);
+  const [sessionHandoffDraft, setSessionHandoffDraft] = useState(state.sessionHandoffNote || '');
   const travelFormRef = useRef<HTMLFormElement>(null);
   const destinationInputRef = useRef<HTMLInputElement>(null);
   const travelMapNodes = useMemo(
@@ -7030,6 +7038,10 @@ function PlayView({
   const [forageDrawCard, setForageDrawCard] = useState<PlayingCard | null>(null);
   const [forageLocationType, setForageLocationType] = useState<'current' | 'adjacent'>('current');
   const [forageAdjacentRegion, setForageAdjacentRegion] = useState<string>('Forest');
+
+  useEffect(() => {
+    setSessionHandoffDraft(state.sessionHandoffNote || '');
+  }, [state.sessionHandoffNote]);
 
   const rememberTravelForm = () => setTravelFormUndo({ name: nextLocName, region: destRegion, type: destType });
   const applyTravelDestination = ({ node, region, locationType }: { id: string; node: MapLocationNode; region: MapRegion; locationType: string }, remember = true) => {
@@ -10680,6 +10692,52 @@ function PlayView({
     + Number(Boolean(state.pendingPatientArchive))
     + pendingServiceProcedures.length;
   const latestSessionActions = state.journals.slice(0, 3);
+  const primaryAction = actionHubItems.find(item => !item.disabled);
+  const savedHandoffAction = actionHubItems.find(item => item.id === state.sessionHandoffActionId && !item.disabled);
+  const resumeAction = savedHandoffAction || primaryAction;
+  const journeyDaysRemaining = Math.max(0, state.calendarMaxDays - state.calendarDays);
+  const carryRemaining = maxCarry - currentWeight;
+  const playNavigatorSignals: PlayNavigatorSignal[] = [
+    {
+      label: '일정',
+      value: state.journeyActive ? `${journeyDaysRemaining}일` : '휴식기',
+      detail: state.journeyActive ? `${state.calendarDays}/${state.calendarMaxDays}일 진행` : '출발 전 정비 가능',
+      tone: state.journeyActive && journeyDaysRemaining <= 2 ? 'urgent' : state.journeyActive && journeyDaysRemaining <= 5 ? 'watch' : 'stable'
+    },
+    {
+      label: '환자',
+      value: Number.isFinite(activePatientTimer) ? `${activePatientTimer}시간` : '없음',
+      detail: Number.isFinite(activePatientTimer) ? '가장 짧은 치료 타이머' : '진행 중인 치료 없음',
+      tone: Number.isFinite(activePatientTimer) && activePatientTimer <= 2 ? 'urgent' : Number.isFinite(activePatientTimer) && activePatientTimer <= 5 ? 'watch' : 'stable'
+    },
+    {
+      label: '보류',
+      value: `${pendingProcedureCount}건`,
+      detail: pendingProcedureCount > 0 ? '먼저 해결하면 흐름이 열립니다' : '미해결 판정 없음',
+      tone: pendingProcedureCount > 0 ? 'urgent' : 'stable'
+    },
+    {
+      label: '가방',
+      value: carryRemaining >= 0 ? `${formatWeight(carryRemaining)} 여유` : `${formatWeight(Math.abs(carryRemaining))} 초과`,
+      detail: `${formatWeight(currentWeight)} / ${maxCarry} 사용`,
+      tone: carryRemaining < 0 ? 'urgent' : carryRemaining < 1 ? 'watch' : 'stable'
+    }
+  ];
+
+  const activateNavigatorAction = (actionId: string) => {
+    const action = actionHubItems.find(item => item.id === actionId && !item.disabled);
+    if (action) handleActionHubItem(action);
+  };
+
+  const saveSessionHandoff = () => {
+    const savedAt = new Date().toISOString();
+    updateState((current: GameState) => ({
+      ...current,
+      sessionHandoffNote: sessionHandoffDraft.trim(),
+      sessionHandoffActionId: primaryAction?.id || '',
+      sessionHandoffSavedAt: savedAt
+    }));
+  };
 
   useEffect(() => {
     const handlePlayShortcut = (event: KeyboardEvent) => {
@@ -10697,6 +10755,12 @@ function PlayView({
       } else if (key === 'u' && travelFormUndo) {
         event.preventDefault();
         undoTravelDestination();
+      } else if (key === 'n') {
+        const primaryButton = document.querySelector<HTMLButtonElement>('[data-play-primary-action="true"]');
+        if (primaryButton) {
+          event.preventDefault();
+          primaryButton.click();
+        }
       } else if (event.key === 'Enter' && state.journeyActive && !travelSubmitDisabled) {
         event.preventDefault();
         travelFormRef.current?.requestSubmit();
@@ -10767,7 +10831,7 @@ function PlayView({
         </div>
       )}
 
-      {showSessionResume && (state.journeyActive || pendingProcedureCount > 0 || latestSessionActions.length > 0) && (
+      {showSessionResume && (state.journeyActive || pendingProcedureCount > 0 || latestSessionActions.length > 0 || Boolean(state.sessionHandoffSavedAt)) && (
         <section className="session-resume" aria-label="세션 재개 요약">
           <header>
             <div>
@@ -10788,12 +10852,32 @@ function PlayView({
               {latestSessionActions.map(entry => <li key={entry.id}><time>{new Date(entry.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</time><span>{entry.title}</span></li>)}
             </ol>
           )}
+          {state.sessionHandoffSavedAt && (
+            <aside className="session-resume__handoff">
+              <span>내가 남긴 중단 메모</span>
+              <p>{state.sessionHandoffNote || '메모 없이 다음 행동만 저장했습니다.'}</p>
+              <small>{new Date(state.sessionHandoffSavedAt).toLocaleString('ko-KR')} · {resumeAction?.label || '현재 진행판'}</small>
+            </aside>
+          )}
           <button type="button" className="session-resume__continue" onClick={() => {
-            if (state.pendingEncounter) onResumeTravelEncounter();
+            setShowSessionResume(false);
+            if (resumeAction) handleActionHubItem(resumeAction);
             else document.getElementById(pendingProcedureCount > 0 ? 'pending-procedures' : 'action-hub')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }}>여기서 계속</button>
+          }}>{state.sessionHandoffSavedAt ? '저장 지점 이어서' : '여기서 계속'}</button>
         </section>
       )}
+
+      <PlayNavigator
+        actions={actionHubItems}
+        primaryActionId={primaryAction?.id}
+        signals={playNavigatorSignals}
+        handoffNote={sessionHandoffDraft}
+        savedHandoffNote={state.sessionHandoffNote || ''}
+        handoffSavedAt={state.sessionHandoffSavedAt}
+        onActivate={activateNavigatorAction}
+        onHandoffNoteChange={setSessionHandoffDraft}
+        onSaveHandoff={saveSessionHandoff}
+      />
 
       {pendingProcedureCount > 0 && (
         <section id="pending-procedures" className="pending-procedures" aria-label="판정 보류함">
@@ -10813,7 +10897,7 @@ function PlayView({
         <div className="action-hub__header">
           <div>
             <div className="document-kicker">진행판</div>
-            <h2>지금 이어갈 일</h2>
+            <h2>다음 행동 전체 보기</h2>
           </div>
           <div className="play-mode-switch" aria-label="화면 정보량 선택">
             <button
@@ -10859,6 +10943,7 @@ function PlayView({
           ))}
         </div>
         <div className="play-shortcuts field-mode-hide" aria-label="키보드 단축키">
+          <span><kbd>N</kbd> 지금 행동</span>
           <span><kbd>M</kbd> 큰 지도</span>
           <span><kbd>/</kbd> 목적지 입력</span>
           <span><kbd>U</kbd> 입력 되돌리기</span>
@@ -15567,7 +15652,9 @@ function MapView({ state, updateState, onOpenReference }: { state: GameState; up
     return key === selectedMemoryKey;
   };
   const selectedLocationNode = mapGraphNodes[selectedMemoryKey];
-  const selectedLocationRegion = selectedLocationNode
+  const selectedLocationRegion = matchesSelectedLocation(state.currentLocationName)
+    ? (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as MapRegion
+    : selectedLocationNode
     ? inferMapNodeRegion(selectedLocationNode, (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as MapRegion)
     : (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as MapRegion;
   const selectedCases = (state.patientCasebook || []).filter(record => matchesSelectedLocation(record.locationName));
