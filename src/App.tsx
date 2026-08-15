@@ -5431,6 +5431,7 @@ export default function App() {
                 currentWeight={currentWeight}
                 maxCarry={maxCarry}
                 onNavigate={setActiveTab}
+                onRestart={handleReset}
                 onContinue={() => {
                   const focusContinueTarget = () => {
                     const encounterDialog = document.querySelector<HTMLElement>('.encounter-dialog-backdrop .encounter-dialog');

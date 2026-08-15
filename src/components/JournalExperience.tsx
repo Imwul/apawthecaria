@@ -174,13 +174,15 @@ export function TodayOverview({
   currentWeight,
   maxCarry,
   onNavigate,
-  onContinue
+  onContinue,
+  onRestart
 }: {
   state: any;
   currentWeight: number;
   maxCarry: number;
   onNavigate: (tab: JournalTab) => void;
   onContinue: () => void;
+  onRestart: () => void;
 }) {
   const patient = state.patients?.find((row: any) => row.id === state.activePatientId);
   const ailment = patient?.ailments?.find((row: any) => row.status === 'active');
@@ -205,9 +207,17 @@ export function TodayOverview({
             <span className="today-title__place">{dayPlace}</span>
             <span className="today-title__phrase">{dayPhrase}</span>
           </h2>
-          <button type="button" onClick={onContinue}>
-            <span className="emoji-icon" aria-hidden="true">🧭</span> 이어서 걷기
-          </button>
+          <div className="today-scene__actions">
+            <button type="button" onClick={onContinue}>
+              <span className="emoji-icon" aria-hidden="true">🧭</span> 이어서 걷기
+            </button>
+            <button type="button" className="today-scene__restart" onClick={onRestart}>
+              <span className="emoji-icon" aria-hidden="true">🕘</span> 여정 다시 시작하기
+            </button>
+            <button type="button" className="today-scene__map-preview" onClick={() => onNavigate('map')}>
+              <span className="emoji-icon" aria-hidden="true">🗺️</span> 지도에 짚어보기
+            </button>
+          </div>
         </div>
       </div>
 
