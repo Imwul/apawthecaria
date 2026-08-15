@@ -183,6 +183,19 @@ import { BarrowPanel } from './components/Phase4Panels';
 import { ChapterOpening, JournalNavigation, TodayOverview, type JournalTab } from './components/JournalExperience';
 import { PlayNavigator, type PlayNavigatorSignal } from './components/PlayNavigator';
 import {
+  DepartureGate,
+  FlowUndoBanner,
+  QuickCommandPalette,
+  SessionCloseAssistant,
+  StateIntegrityPanel,
+  TravelTimeline,
+  type FlowCheck,
+  type FlowCommand,
+  type IntegrityIssue,
+  type OutcomeDelta,
+  type TravelTimelineEntry
+} from './components/PlayerFlowTools';
+import {
   localizeCharacterChoiceLabel,
   localizeCharacterDescriptor,
   localizeAilmentPresentationText,
@@ -603,6 +616,12 @@ interface EncounterReceipt {
   timestamp: number;
 }
 
+interface UndoCheckpoint {
+  label: string;
+  state: GameState;
+  createdAt: number;
+}
+
 interface LocationMemoryRecord {
   note: string;
   photos: JournalPhoto[];
@@ -661,6 +680,7 @@ interface GameState {
   sessionHandoffNote?: string;
   sessionHandoffActionId?: string;
   sessionHandoffSavedAt?: string | null;
+  journeyTimeline?: TravelTimelineEntry[];
 
   // Ongoing patient
   activeAilment: ActiveAilment | null;
@@ -846,6 +866,7 @@ const INITIAL_STATE: GameState = {
   sessionHandoffNote: '',
   sessionHandoffActionId: '',
   sessionHandoffSavedAt: null,
+  journeyTimeline: [],
   activeAilment: null,
   activeAilments: [],
   activePatientId: null,
@@ -3556,6 +3577,7 @@ const migrateState = (s: any): GameState => {
     sessionHandoffNote: typeof s.sessionHandoffNote === 'string' ? s.sessionHandoffNote : '',
     sessionHandoffActionId: typeof s.sessionHandoffActionId === 'string' ? s.sessionHandoffActionId : '',
     sessionHandoffSavedAt: typeof s.sessionHandoffSavedAt === 'string' ? s.sessionHandoffSavedAt : null,
+    journeyTimeline: Array.isArray(s.journeyTimeline) ? s.journeyTimeline : [],
     activeBarter: s.activeBarter || null,
     pendingBarter: s.pendingBarter || null,
     pendingLeaveObligation: s.pendingLeaveObligation || null,
@@ -4068,6 +4090,9 @@ export default function App() {
   const [controlledPromptResolver, setControlledPromptResolver] = useState<((value: string | null) => void) | null>(null);
   const [noticeQueue, setNoticeQueue] = useState<string[]>([]);
   const [rulebookRequest, setRulebookRequest] = useState<RulebookReferenceRequest | null>(null);
+  const [lastUndoCheckpoint, setLastUndoCheckpoint] = useState<UndoCheckpoint | null>(null);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState('');
 
   const requestControlledPrompt = useCallback((request: ControlledPromptRequest) => new Promise<string | null>(resolve => {
     setControlledPromptResolver(() => resolve);
@@ -4090,6 +4115,18 @@ export default function App() {
 
     window.addEventListener(APP_NOTICE_EVENT, handleNotice);
     return () => window.removeEventListener(APP_NOTICE_EVENT, handleNotice);
+  }, []);
+
+  useEffect(() => {
+    const openCommandPalette = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCommandQuery('');
+        setCommandPaletteOpen(true);
+      }
+    };
+    window.addEventListener('keydown', openCommandPalette);
+    return () => window.removeEventListener('keydown', openCommandPalette);
   }, []);
 
   const dismissNotice = useCallback(() => {
@@ -4291,6 +4328,33 @@ export default function App() {
       return next;
     });
   };
+
+  const createUndoCheckpoint = useCallback((label: string, snapshot: GameState) => {
+    setLastUndoCheckpoint({
+      label,
+      state: JSON.parse(JSON.stringify(snapshot)) as GameState,
+      createdAt: Date.now()
+    });
+  }, []);
+
+  const undoLastAction = useCallback(() => {
+    if (!lastUndoCheckpoint) return;
+    setState(previous => {
+      const restored = migrateState(lastUndoCheckpoint.state);
+      const next = {
+        ...restored,
+        saveRevision: (previous?.saveRevision || restored.saveRevision || 0) + 1
+      };
+      store.set('apawthecaria_rpg_state', next);
+      return next;
+    });
+    setActiveTravelEncounter(null);
+    window.setTimeout(() => document.getElementById('travel-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+    setActiveForageEncounter(null);
+    setDeferredEncounterId(null);
+    setLastUndoCheckpoint(null);
+    showAlert(`되돌림 완료: ${lastUndoCheckpoint.label}`);
+  }, [lastUndoCheckpoint]);
 
   const openPendingWaspForage = useEffectEvent(() => {
     updateState(s => {
@@ -5189,6 +5253,7 @@ export default function App() {
       mandatoryConditions: [`보호 효과 적용: ${pending.encounterProtection === 'all' ? '조우 효과 전체' : '부정적 결과'}를 적용하지 않는다.`, ...manualDraft.mandatoryConditions],
       canonicalActions: ['Encounter protection committed', ...manualDraft.canonicalActions]
     };
+    createUndoCheckpoint(`조우 판정 · ${printedEffect?.ownerName || pending.encounter.title}`, state);
     updateState(s => {
       const patients = runtime.patient
         ? s.patients.map(patient => patient.id === runtime.patient!.id
@@ -5228,6 +5293,14 @@ export default function App() {
             timestamp: Date.now()
           };
         })(),
+        journeyTimeline: [{
+          id: `${pending.transactionId}:encounter-timeline`,
+          title: printedEffect?.ownerName || pending.encounter.title,
+          meta: `${state.currentLocationName} · Encounter 해결`,
+          detail: selectedChoiceLabel ? `선택: ${selectedChoiceLabel}` : manualDraft ? '직접 판정 후속 절차 있음' : '인쇄된 효과 적용 완료',
+          timestamp: Date.now(),
+          tone: 'encounter'
+        }, ...(s.journeyTimeline || [])],
         journals: [{
           id: `${pending.transactionId}:${manualDraft ? 'pending-manual' : 'resolved'}`,
           title: `${manualDraft ? '판정 대기' : '여정 조우'}: ${printedEffect?.ownerName || pending.encounter.title}`,
@@ -5238,6 +5311,7 @@ export default function App() {
       return enqueueManualDrafts(manualDraft ? next : applyArrivalInstrumentEffects(next, pending.transactionId), [manualDraft]);
     });
     setActiveTravelEncounter(null);
+    window.setTimeout(() => document.getElementById('travel-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
   };
 
   const resolveCanonicalForageEncounter = (note: string): boolean => {
@@ -5362,6 +5436,26 @@ export default function App() {
       ? { entryId: activeForageEncounter.id ? `encounter:${activeForageEncounter.id}` : undefined, page: activeForageEncounter.sourcePage, query: activeForageEncounter.title, title: '현재 Foraging Encounter' }
       : referenceForJournalTab(activeTab, state);
 
+  const openFlowTarget = (tab: JournalTab, targetId?: string, clickSelector?: string) => {
+    changeActiveTab(tab);
+    window.setTimeout(() => {
+      if (clickSelector) document.querySelector<HTMLButtonElement>(clickSelector)?.click();
+      document.getElementById(targetId || '')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  };
+  const flowCommands: FlowCommand[] = [
+    { id: 'now', label: '지금 행동 실행', detail: 'Play Navigator의 현재 행동을 바로 엽니다.', group: '진행', keywords: 'next now 이어서', onSelect: () => openFlowTarget('play', 'action-hub', '[data-play-primary-action="true"]') },
+    { id: 'travel', label: '이동 계획 열기', detail: '지도와 출발 점검으로 이동합니다.', group: '여행', keywords: 'move route 경로', disabled: !state.journeyActive, onSelect: () => openFlowTarget('play', 'travel-panel') },
+    { id: 'map', label: '큰 지도 열기', detail: '전체 지도와 위치 기록을 확인합니다.', group: '여행', keywords: 'location region', onSelect: () => changeActiveTab('map') },
+    { id: 'patient', label: '환자 진료 열기', detail: '현재 환자와 치료 타이머를 확인합니다.', group: '진료', keywords: 'ailment timer 치료', onSelect: () => changeActiveTab('ailments') },
+    { id: 'forage', label: '약초 도감 열기', detail: '영약재와 조제 정보를 검색합니다.', group: '채집', keywords: 'reagent herb', onSelect: () => changeActiveTab('reagents') },
+    { id: 'bag', label: '배낭 정리', detail: '소지 무게와 도구를 점검합니다.', group: '준비', keywords: 'inventory carry tool', onSelect: () => changeActiveTab('bio') },
+    { id: 'journal', label: '자동 여행 기록 보기', detail: '이동과 조우 기록을 다시 읽습니다.', group: '기록', keywords: 'timeline log', onSelect: () => changeActiveTab('journals') },
+    { id: 'pending', label: '보류 판정 열기', detail: `${state.manualEffectQueue.length}개의 직접 판정이 대기 중입니다.`, group: '진행', keywords: 'pending encounter', disabled: state.manualEffectQueue.length === 0, onSelect: () => updateState(s => ({ ...s, pendingManualEffect: s.manualEffectQueue[0] || null, manualEffectDraft: s.manualEffectQueue[0] || null })) },
+    { id: 'session-close', label: '세션 마감 도우미', detail: '중단 메모와 다음 행동을 저장합니다.', group: '세션', keywords: 'finish handoff 종료', onSelect: () => { changeActiveTab('play'); window.setTimeout(() => window.dispatchEvent(new Event('apawthecaria:open-session-close')), 80); } },
+    { id: 'rulebook', label: '현재 룰북 맥락', detail: '지금 화면에 필요한 규칙을 엽니다.', group: '규칙', keywords: 'rule help', onSelect: () => setRulebookRequest(currentRulebookRequest) }
+  ];
+
   return (
     <div className={`journal-app journal-app--${activeTab}`}>
       {/* Header Banner */}
@@ -5373,6 +5467,9 @@ export default function App() {
         </button>
 
         <div className="journal-header__utilities">
+          <button type="button" className="journal-header__action" onClick={() => { setCommandQuery(''); setCommandPaletteOpen(true); }} aria-label="빠른 행동 검색" title="빠른 행동 검색 (Command K)">
+            <span aria-hidden="true">⌘K</span><span>빠른 행동</span>
+          </button>
           <button type="button" className="journal-header__action" onClick={() => setRulebookRequest(currentRulebookRequest)} aria-label="현재 페이지의 룰북 맥락 열기" title="현재 페이지의 룰북 맥락">
             <span className="emoji-icon" aria-hidden="true">📚</span><span>룰북</span>
           </button>
@@ -5582,6 +5679,7 @@ export default function App() {
                 handleBarterProgressToDeal={handleBarterProgressToDeal}
                 handleBarterFinalize={handleBarterFinalize}
                 requestControlledPrompt={requestControlledPrompt}
+                onCreateUndoCheckpoint={createUndoCheckpoint}
                 onOpenMap={() => changeActiveTab('map')}
                 onResumeTravelEncounter={() => {
                   setDeferredEncounterId(null);
@@ -5822,8 +5920,8 @@ export default function App() {
           activeTravelEncounter.tags?.includes('Beast') && !activeTravelEncounter.tags?.includes('Behemoth');
 
         return (
-          <div className="encounter-dialog-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
-            <div className="glass-panel encounter-dialog encounter-dialog--journey-map" style={{ maxWidth: '1180px', width: '100%', padding: 0, background: '#fff', position: 'relative', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', borderRadius: '20px', maxHeight: '92vh', overflow: 'hidden' }}>
+          <div className="encounter-dialog-backdrop encounter-focus-mode" role="presentation" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
+            <div className="glass-panel encounter-dialog encounter-dialog--journey-map" role="dialog" aria-modal="true" aria-labelledby="encounter-focus-title" style={{ maxWidth: '1180px', width: '100%', padding: 0, background: '#fff', position: 'relative', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', borderRadius: '20px', maxHeight: '92vh', overflow: 'hidden' }}>
               <div className="encounter-dialog__map-pane">
                 <JourneyMapBoard
                   state={state}
@@ -5833,6 +5931,8 @@ export default function App() {
               </div>
               <div className="encounter-dialog__content-pane">
 
+              <div className="encounter-focus-label"><span>ENCOUNTER FOCUS</span><strong>카드 → 선택 → 효과 → 기록</strong></div>
+
               {/* Card header */}
               <div style={{ textAlign: 'center', marginBottom: '1.2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <img
@@ -5840,7 +5940,7 @@ export default function App() {
                   alt={`${activeTravelEncounter.suitLabel} ${activeTravelEncounter.cardValue}`}
                   style={{ width: '100px', height: '150px', objectFit: 'contain', borderRadius: '6px', boxShadow: '0 4px 10px rgba(0,0,0,0.12)', marginBottom: '0.8rem' }}
                 />
-                <h2 style={{ color: 'var(--primary)', margin: '0.5rem 0 0 0' }}>여정 조우 <span style={{ fontWeight: 'normal', fontSize: '0.82em', color: 'var(--text-muted)' }}>p.{activeTravelEncounter.page}</span></h2>
+                <h2 id="encounter-focus-title" style={{ color: 'var(--primary)', margin: '0.5rem 0 0 0' }}>여정 조우 <span style={{ fontWeight: 'normal', fontSize: '0.82em', color: 'var(--text-muted)' }}>p.{activeTravelEncounter.page}</span></h2>
                 <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>뽑은 카드: <strong>{activeTravelEncounter.cardValue} {activeTravelEncounter.suitLabel}</strong></div>
               </div>
 
@@ -6314,6 +6414,16 @@ export default function App() {
       {noticeQueue[0] && (
         <NoticeDialog message={noticeQueue[0]} onDismiss={dismissNotice} />
       )}
+      {lastUndoCheckpoint && (
+        <FlowUndoBanner label={lastUndoCheckpoint.label} onUndo={undoLastAction} onDismiss={() => setLastUndoCheckpoint(null)} />
+      )}
+      <QuickCommandPalette
+        open={commandPaletteOpen}
+        query={commandQuery}
+        commands={flowCommands}
+        onQueryChange={setCommandQuery}
+        onClose={() => setCommandPaletteOpen(false)}
+      />
     </div>
   );
 }
@@ -6420,6 +6530,55 @@ const alternativeMapPath = (graph: Record<string, MapLocationNode>, startId: str
 
 const pathWaterwayCount = (pathIds: string[], graph: Record<string, MapLocationNode>, customEdges: CustomMapEdge[] = []) =>
   pathIds.slice(1).filter((id, index) => mapEdgeKind(pathIds[index], id, graph, customEdges) === 'waterway').length;
+
+const mapPathMovementCost = (
+  pathIds: string[],
+  graph: Record<string, MapLocationNode>,
+  customEdges: CustomMapEdge[] = [],
+  waterwaySpan = 1
+) => {
+  let cost = 0;
+  let waterwayRun = 0;
+  const flushWaterways = () => {
+    if (waterwayRun > 0) cost += Math.ceil(waterwayRun / Math.max(1, waterwaySpan));
+    waterwayRun = 0;
+  };
+  pathIds.slice(1).forEach((id, index) => {
+    if (mapEdgeKind(pathIds[index], id, graph, customEdges) === 'waterway') waterwayRun += 1;
+    else {
+      flushWaterways();
+      cost += 1;
+    }
+  });
+  flushWaterways();
+  return cost;
+};
+
+const exactCostMapPath = (
+  graph: Record<string, MapLocationNode>,
+  startId: string,
+  destinationId: string,
+  exactCost: number,
+  customEdges: CustomMapEdge[] = [],
+  waterwaySpan = 1
+): string[] => {
+  if (!startId || !destinationId || !graph[startId] || !graph[destinationId]) return [];
+  const queue: string[][] = [[startId]];
+  const maximumEdges = Math.max(1, exactCost) * Math.max(1, waterwaySpan);
+  while (queue.length > 0) {
+    const path = queue.shift()!;
+    const current = path.at(-1)!;
+    const cost = mapPathMovementCost(path, graph, customEdges, waterwaySpan);
+    if (current === destinationId && cost === exactCost) return path;
+    if (cost > exactCost || path.length - 1 >= maximumEdges) continue;
+    for (const neighbor of graph[current]?.neighbors || []) {
+      if (path.includes(neighbor)) continue;
+      const nextPath = [...path, neighbor];
+      if (mapPathMovementCost(nextPath, graph, customEdges, waterwaySpan) <= exactCost) queue.push(nextPath);
+    }
+  }
+  return [];
+};
 
 const journeyTrailNames = (state: GameState): string[] => {
   if (!state.journeyActive) return state.currentLocationName ? [state.currentLocationName] : [];
@@ -6897,6 +7056,7 @@ function PlayView({
   handleBarterProgressToDeal,
   handleBarterFinalize,
   requestControlledPrompt,
+  onCreateUndoCheckpoint,
   onOpenMap,
   onResumeTravelEncounter
 }: {
@@ -6923,6 +7083,7 @@ function PlayView({
   handleBarterProgressToDeal: () => void;
   handleBarterFinalize: (isSuccess: boolean, paidTrinketsCount?: number, paidReputationCount?: number) => void;
   requestControlledPrompt: (request: ControlledPromptRequest) => Promise<string | null>;
+  onCreateUndoCheckpoint: (label: string, snapshot: GameState) => void;
   onOpenMap: () => void;
   onResumeTravelEncounter: () => void;
 }) {
@@ -7021,6 +7182,9 @@ function PlayView({
   const [travelFormUndo, setTravelFormUndo] = useState<{ name: string; region: string; type: string } | null>(null);
   const [showSessionResume, setShowSessionResume] = useState(true);
   const [sessionHandoffDraft, setSessionHandoffDraft] = useState(state.sessionHandoffNote || '');
+  const [showDepartureGate, setShowDepartureGate] = useState(false);
+  const [showSessionClose, setShowSessionClose] = useState(false);
+  const [sessionCloseDraft, setSessionCloseDraft] = useState(state.sessionHandoffNote || '');
   const travelFormRef = useRef<HTMLFormElement>(null);
   const destinationInputRef = useRef<HTMLInputElement>(null);
   const travelMapNodes = useMemo(
@@ -7041,7 +7205,14 @@ function PlayView({
 
   useEffect(() => {
     setSessionHandoffDraft(state.sessionHandoffNote || '');
+    setSessionCloseDraft(state.sessionHandoffNote || '');
   }, [state.sessionHandoffNote]);
+
+  useEffect(() => {
+    const openSessionClose = () => setShowSessionClose(true);
+    window.addEventListener('apawthecaria:open-session-close', openSessionClose);
+    return () => window.removeEventListener('apawthecaria:open-session-close', openSessionClose);
+  }, []);
 
   const rememberTravelForm = () => setTravelFormUndo({ name: nextLocName, region: destRegion, type: destType });
   const applyTravelDestination = ({ node, region, locationType }: { id: string; node: MapLocationNode; region: MapRegion; locationType: string }, remember = true) => {
@@ -8046,6 +8217,7 @@ function PlayView({
       ingenuitiveTool = ALMANACK_TOOLS[Math.max(0, (parseInt(choice, 10) || 1) - 1)]?.id || '';
       if (!ingenuitiveTool) return;
     }
+    onCreateUndoCheckpoint(`여정 시작 · ${destination.name}`, state);
     updateState((s: GameState) => {
       const journeyState = applyJourneyRuntime(s, result.value!);
       const serviceStart = resolveGuildServiceJourneyStart({
@@ -8074,6 +8246,14 @@ function PlayView({
         journeyPlannedStopIds: [],
         lastTravelReceipt: null,
         lastEncounterReceipt: null,
+        journeyTimeline: [{
+          id: `${transactionId}:timeline`,
+          title: `여정 시작 · ${destination.name}`,
+          meta: `${s.currentLocationName} 출발 · ${canonicalJourney.urgency.days}일`,
+          detail: journeyReason.trim(),
+          timestamp: transaction.at,
+          tone: 'session'
+        }, ...(s.journeyTimeline || [])],
         journeyStartReputation: s.reputation,
         companionTravelPaths: 0,
         taxiSoarActive: false,
@@ -8170,6 +8350,7 @@ function PlayView({
       destinationRegion: destRegion as TravelRegion,
       destinationType,
       mode: destRegion === 'Soar' || isTaxiMove ? 'soar' : 'move',
+      route: destRegion === 'Soar' || isTaxiMove ? undefined : travelPreviewPathIds,
       card: { suit: drawnSuit, value: cardVal },
       season: state.currentSeason,
       canStopInLoch: hasLochStoppingGear(state),
@@ -8291,6 +8472,8 @@ function PlayView({
     }
     const encounterProtected = servicePreview.value.protectNegativeEncounter || tentProtection || crossbowProtection || beetleApplies;
     const encounterSkipped = servicePreview.value.skipTravelEncounter || braveApplies || crankyApplies;
+    const movementRecordedAt = Date.now();
+    onCreateUndoCheckpoint(`이동 · ${state.currentLocationName} → ${outcome.nextState.currentLocationName}`, state);
     if (!encounterSkipped) setActiveTravelEncounter({
       ...outcome.encounter,
       page: outcome.encounter.sourcePage,
@@ -8375,13 +8558,21 @@ function PlayView({
         encounterTitle: encounterSkipped ? '조우 생략' : outcome.encounter.title,
         encounterSkipped,
         encounterProtected,
-        timestamp: Date.now()
+        timestamp: movementRecordedAt
       },
+      journeyTimeline: [{
+        id: `${transactionId}:timeline`,
+        title: `${s.currentLocationName} → ${outcome.nextState.currentLocationName}`,
+        meta: `${outcome.pathCount} paths · ${localizeRegionLabel(destRegion)} · ${s.calendarDays}→${outcome.nextState.calendarDays}일`,
+        detail: `${encounterSkipped ? 'Encounter 생략' : outcome.encounter.title}${encounterProtected ? ' · 보호 적용' : ''}`,
+        timestamp: movementRecordedAt,
+        tone: 'move'
+      }, ...(s.journeyTimeline || [])],
       journals: [{
         id: `${transactionId}:journal`,
         title: `이동: ${outcome.nextState.currentLocationName}`,
         text: `${outcome.pathCount}구간을 이동했습니다 (이동 비용 ${outcome.movementCost}).${outcome.soakedItemIds.length ? ` 젖어 버린 물품: ${outcome.soakedItemIds.join(', ')}` : ''}\n${servicePreview.value!.skipTravelEncounter ? 'Hitch a Ride: 여행 조우 대신 농부의 마차 안 풍경을 기록했습니다.' : braveApplies ? 'Brave 길동무가 거수 조우를 긍정적으로 끝내고 지역 영약재를 확보했습니다.' : crankyApplies ? 'Cranky Contraption이 자신을 희생해 거수 조우의 부정적 결과를 모두 막았습니다.' : beetleApplies ? 'Beetle이 맹수 조우의 효과를 막았습니다.' : outcome.encounter.title}`,
-        timestamp: Date.now()
+        timestamp: movementRecordedAt
       }, ...appendEngineJournals(next.journals, toolProtectionJournals)]
       };
       const consumed = consumeGuildServiceMove({
@@ -8407,38 +8598,8 @@ function PlayView({
     setNextLocName('');
   };
 
-  const handleTravelMove = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!state.journeyActive) return;
-
-    if (state.needsLocalHelpBeforeMove) {
-      showAlert("p.25 Earning Your Keep: 이동 후에는 현지 야수를 돕거나 고분 문제를 해결해야 다시 이동할 수 있습니다. 현재 환자 기록 또는 고분 델브를 마무리하세요.");
-      return;
-    }
-
-    if (!nextLocName) {
-      showAlert("이동할 새 위치의 이름을 적어주세요!");
-      return;
-    }
-
-    // Flight capability validation
-    if (destRegion === 'Soar') {
-      const hasPendingTaxi = ((state.pendingServices || []) as ServiceRuntimeState['pendingServices'])
-        .some(service => service.serviceId === 'taxi-service' && service.status === 'pending-move');
-      const hasFlightCapability =
-        state.bio.travelStyle === '가볍고 신속하게' ||
-        canonicalWagonFromState(state).expansionIds.includes('experimental-contraption') ||
-        hasPendingTaxi ||
-        !!state.taxiSoarActive ||
-        (isHouseRuleEnabled(state.rulesetId, 'companionFlightWaterPermissions')
-          && (state.companions || []).some(comp => ['butterfly', 'honeybee', 'wasp'].includes(comp.name)));
-
-      if (!hasFlightCapability) {
-        showAlert("🦅 비행(Soar) 이동을 하려면 비행 능력(이동 스타일 '가볍고 신속하게', 비행 동반자[나비, 꿀벌, 말벌], 또는 마차의 비행 기구 개조)이 필요합니다!");
-        return;
-      }
-    }
-
+  const confirmDeparture = () => {
+    setShowDepartureGate(false);
     const familiarMechanic = getActiveFamiliarMechanic(state);
     const canUseNewsReroll = (state.guildServiceTravelRerolls || 0) > 0;
     const canUseLogisticalMap = destRegion !== 'Soar'
@@ -8466,6 +8627,40 @@ function PlayView({
 
     executeCanonicalTravelMove(drawnSuit, cardVal);
     setTravelDrawCard(null);
+  };
+
+  const handleTravelMove = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!state.journeyActive) return;
+
+    if (state.needsLocalHelpBeforeMove) {
+      showAlert("p.25 Earning Your Keep: 이동 후에는 현지 야수를 돕거나 고분 문제를 해결해야 다시 이동할 수 있습니다. 현재 환자 기록 또는 고분 델브를 마무리하세요.");
+      return;
+    }
+
+    if (!nextLocName) {
+      showAlert("이동할 새 위치의 이름을 적어주세요!");
+      return;
+    }
+
+    if (destRegion === 'Soar') {
+      const hasPendingTaxi = ((state.pendingServices || []) as ServiceRuntimeState['pendingServices'])
+        .some(service => service.serviceId === 'taxi-service' && service.status === 'pending-move');
+      const hasFlightCapability =
+        state.bio.travelStyle === '가볍고 신속하게' ||
+        canonicalWagonFromState(state).expansionIds.includes('experimental-contraption') ||
+        hasPendingTaxi ||
+        !!state.taxiSoarActive ||
+        (isHouseRuleEnabled(state.rulesetId, 'companionFlightWaterPermissions')
+          && (state.companions || []).some(comp => ['butterfly', 'honeybee', 'wasp'].includes(comp.name)));
+
+      if (!hasFlightCapability) {
+        showAlert("🦅 비행(Soar) 이동을 하려면 비행 능력(이동 스타일 '가볍고 신속하게', 비행 동반자[나비, 꿀벌, 말벌], 또는 마차의 비행 기구 개조)이 필요합니다!");
+        return;
+      }
+    }
+
+    setShowDepartureGate(true);
   };
 
   // Resolve Ailment Diagnoses
@@ -10622,13 +10817,37 @@ function PlayView({
   };
 
   const currentTravelLocationId = findGraphLocationKey(state.currentLocationName, travelMapNodes);
-  const travelPreviewPathIds = selectedTravelDestinationId
+  const shortestTravelPathIds = selectedTravelDestinationId
     ? shortestMapPath(travelMapNodes, currentTravelLocationId, selectedTravelDestinationId)
     : [];
+  const previewWagonCapabilities = resolveWagonCapabilities(canonicalWagonFromState(state));
+  const previewPendingMoveService = ((state.pendingServices || []) as ServiceRuntimeState['pendingServices']).find(service =>
+    service.status === 'pending-move' && ['hitch-a-ride', 'taxi-service'].includes(service.serviceId)
+  );
+  const previewAllowsPartialMove = previewPendingMoveService?.serviceId === 'hitch-a-ride';
+  const exactTravelPathIds = selectedTravelDestinationId && destRegion !== 'Soar' && previewPendingMoveService?.serviceId !== 'taxi-service' && !previewAllowsPartialMove
+    ? exactCostMapPath(
+      travelMapNodes,
+      currentTravelLocationId,
+      selectedTravelDestinationId,
+      activeTravelSpeed,
+      state.customMapEdges || [],
+      previewWagonCapabilities.waterwaySpan
+    )
+    : [];
+  const travelPreviewPathIds = destRegion === 'Soar' || previewPendingMoveService?.serviceId === 'taxi-service' || previewAllowsPartialMove
+    ? shortestTravelPathIds
+    : exactTravelPathIds.length > 0 ? exactTravelPathIds : shortestTravelPathIds;
   const travelAlternativePathIds = selectedTravelDestinationId
     ? alternativeMapPath(travelMapNodes, currentTravelLocationId, selectedTravelDestinationId, travelPreviewPathIds)
     : [];
   const travelPreviewPathCount = Math.max(0, travelPreviewPathIds.length - 1);
+  const travelPreviewMovementCost = mapPathMovementCost(
+    travelPreviewPathIds,
+    travelMapNodes,
+    state.customMapEdges || [],
+    previewWagonCapabilities.waterwaySpan
+  );
   const travelPreviewWaterways = pathWaterwayCount(travelPreviewPathIds, travelMapNodes, state.customMapEdges || []);
   const travelAlternativePathCount = Math.max(0, travelAlternativePathIds.length - 1);
   const travelAlternativeWaterways = pathWaterwayCount(travelAlternativePathIds, travelMapNodes, state.customMapEdges || []);
@@ -10650,12 +10869,13 @@ function PlayView({
     nextLocName.trim() && !selectedTravelDestinationId ? '지도에 연결된 실제 장소 이름이 아닙니다.' : '',
     selectedTravelDestinationId && selectedTravelDestinationId === currentTravelLocationId ? '현재 위치와 다른 장소를 선택하세요.' : '',
     selectedTravelDestinationId && travelPreviewPathIds.length === 0 ? '현재 위치에서 이어지는 경로가 없습니다.' : '',
+    selectedTravelDestinationId && destRegion !== 'Soar' && previewPendingMoveService?.serviceId !== 'taxi-service' && !previewAllowsPartialMove
+      && exactTravelPathIds.length === 0 && shortestTravelPathIds.length > 1
+      ? `현재 이동력 ${activeTravelSpeed}으로 정확히 도달할 수 없습니다. 최단 경로는 ${shortestTravelPathIds.length - 1} paths입니다.`
+      : '',
     destRegion === 'Loch' && !['Settlement', 'City'].includes(destType) && !hasLochStoppingGear(state) ? 'Loch Wilds에 정차할 도구가 없습니다.' : ''
   ].filter(Boolean);
   const travelAdvisories = [
-    travelPreviewPathCount > 0 && travelPreviewPathCount !== activeTravelSpeed
-      ? `선택 경로 ${travelPreviewPathCount}, 현재 이동력 ${activeTravelSpeed} — 룰 판정에서 정확한 경로 수를 확인합니다.`
-      : '',
     travelPreviewWaterways > 0 && !hasSafeWaterwayTravel(state)
       ? `물길 ${travelPreviewWaterways}구간: 수영하면 일부 물품과 영약재가 젖을 수 있습니다.`
       : ''
@@ -10672,13 +10892,15 @@ function PlayView({
   const readinessWarnings = [
     currentWeight > maxCarry ? `가방이 ${formatWeight(currentWeight - maxCarry)}만큼 소지 한도를 넘었습니다.` : '',
     travelPreviewWaterways > 0 && !hasSafeWaterwayTravel(state) ? '안전한 물길 이동 도구가 없어 젖음 위험이 있습니다.' : '',
-    travelPreviewPathCount > 0 && travelPreviewPathCount !== activeTravelSpeed ? '경로 수와 현재 이동력이 일치하지 않습니다.' : '',
+    travelPreviewPathIds.length > 1 && destRegion !== 'Soar' && !previewAllowsPartialMove && travelPreviewMovementCost !== activeTravelSpeed
+      ? '경로의 이동 비용과 현재 이동력이 일치하지 않습니다.'
+      : '',
     Number.isFinite(activePatientTimer) ? `진행 중인 환자 타이머가 ${activePatientTimer}시간 남았습니다.` : ''
   ].filter(Boolean);
   const readinessTone = travelBlockingReasons.length > 0 ? 'blocked' : readinessWarnings.length > 0 ? 'warning' : 'ready';
   const routeRuleEvidence = [
     { label: '이동력', value: `${activeTravelSpeed}경로`, source: 'Travelling · p.24–25' },
-    { label: '선택 경로', value: `${travelPreviewPathCount || 0}경로`, source: '지도 최단 연결 계산' },
+    { label: '선택 경로', value: `${travelPreviewPathCount || 0}경로 · 비용 ${travelPreviewMovementCost}`, source: '지도 · 현재 이동력 일치 경로' },
     { label: '물길', value: `${travelPreviewWaterways}구간`, source: 'Waterways · p.24' },
     { label: '정차', value: destRegion === 'Loch' && !['Settlement', 'City'].includes(destType) ? hasLochStoppingGear(state) ? '가능' : '불가능' : '제한 없음', source: 'Loch stopping rule · p.24' },
     { label: '일정', value: `예상 +${travelExpectedDays}일`, source: destRegion === 'Soar' ? 'Soar 이동 판정' : '일반 Move 판정' }
@@ -10691,6 +10913,50 @@ function PlayView({
     + state.pendingManualFollowUps.filter(row => row.status === 'pending').length
     + Number(Boolean(state.pendingPatientArchive))
     + pendingServiceProcedures.length;
+  const departureGateChecks: FlowCheck[] = [
+    {
+      id: 'route',
+      label: '지도 경로',
+      detail: travelPreviewPathIds.length > 1 ? `${travelPreviewPathCount} paths · ${travelPreviewWaterways} waterways` : travelBlockingReasons[0] || '연결 경로 확인 필요',
+      status: travelPreviewPathIds.length > 1 ? 'ok' : 'blocked',
+      actionLabel: travelPreviewPathIds.length > 1 ? undefined : '지도에서 선택'
+    },
+    {
+      id: 'carry',
+      label: '가방과 이동력',
+      detail: `${formatWeight(currentWeight)} / ${maxCarry} · 이동력 ${activeTravelSpeed}`,
+      status: currentWeight > maxCarry ? 'warning' : 'ok',
+      actionLabel: currentWeight > maxCarry ? '가방 확인' : undefined
+    },
+    {
+      id: 'waterway',
+      label: '물길과 정차 도구',
+      detail: travelPreviewWaterways === 0 ? '물길 없음' : hasSafeWaterwayTravel(state) ? '안전 이동 도구 준비됨' : `${travelPreviewWaterways}구간 젖음 위험`,
+      status: travelPreviewWaterways > 0 && !hasSafeWaterwayTravel(state) ? 'warning' : 'ok',
+      actionLabel: travelPreviewWaterways > 0 && !hasSafeWaterwayTravel(state) ? '위험 확인' : undefined
+    },
+    {
+      id: 'pending',
+      label: '미해결 절차',
+      detail: pendingProcedureCount ? `${pendingProcedureCount}건이 이동을 막고 있습니다.` : '보류 중인 판정 없음',
+      status: pendingProcedureCount ? 'blocked' : 'ok',
+      actionLabel: pendingProcedureCount ? '보류함 열기' : undefined
+    },
+    {
+      id: 'timer',
+      label: '환자 타이머',
+      detail: Number.isFinite(activePatientTimer) ? `${activePatientTimer}시간 남음 · 이동 예상 +${travelExpectedDays}일` : '진행 중인 치료 없음',
+      status: Number.isFinite(activePatientTimer) && activePatientTimer <= travelExpectedDays ? 'warning' : 'ok',
+      actionLabel: Number.isFinite(activePatientTimer) && activePatientTimer <= travelExpectedDays ? '환자 확인' : undefined
+    }
+  ];
+  const departureOutcomeDeltas: OutcomeDelta[] = [
+    { label: '위치', before: state.currentLocationName, after: nextLocName || '목적지 미선택' },
+    { label: '일정', before: `${state.calendarDays}일`, after: `${state.calendarDays + travelExpectedDays}일`, tone: state.calendarDays + travelExpectedDays > state.calendarMaxDays ? 'warning' : 'neutral' },
+    { label: '이동', after: `${travelPreviewPathCount} paths / 이동력 ${activeTravelSpeed}` },
+    { label: 'Encounter', after: travelDrawCard ? `${travelDrawCard.suit} ${cardDisplayValue(travelDrawCard.value)} 사용` : '출발 시 카드 자동 드로우' },
+    { label: '자동 기록', after: '지도 경로 · 일정 · Encounter를 타임라인에 저장' }
+  ];
   const latestSessionActions = state.journals.slice(0, 3);
   const primaryAction = actionHubItems.find(item => !item.disabled);
   const savedHandoffAction = actionHubItems.find(item => item.id === state.sessionHandoffActionId && !item.disabled);
@@ -10723,6 +10989,31 @@ function PlayView({
       tone: carryRemaining < 0 ? 'urgent' : carryRemaining < 1 ? 'watch' : 'stable'
     }
   ];
+  const invalidPlannedStops = (state.journeyPlannedStopIds || []).filter(id => !travelMapNodes[id]);
+  const duplicateBagIds = state.bag.filter((item, index, items) => items.findIndex(candidate => candidate.id === item.id) !== index);
+  const expiredActiveTimers = state.patients.flatMap(patient => patient.timers.filter(timer => timer.status === 'active' && timer.current <= 0));
+  const integrityIssueCandidates: Array<IntegrityIssue | null> = [
+    state.journeyActive && !state.journeyDestination ? { id: 'journey-destination', label: '여정 목적지 누락', detail: '여정 중이지만 목적지 이름이 없습니다.', status: 'blocked' as const, targetId: 'journey-start-panel', actionLabel: '여정 확인' } : null,
+    state.journeyActive && !state.journey ? { id: 'journey-state', label: '여정 판정 상태 누락', detail: '화면상 여정과 정규 Journey 상태가 일치하지 않습니다.', status: 'blocked' as const, targetId: 'journey-start-panel', actionLabel: '여정 확인' } : null,
+    !currentTravelLocationId ? { id: 'map-location', label: '현재 위치가 지도에 없음', detail: `${state.currentLocationName}을 지도 노드에서 찾을 수 없습니다.`, status: 'blocked' as const, actionLabel: '지도 열기' } : null,
+    state.pendingEncounter && !state.journeyActive ? { id: 'orphan-encounter', label: '여정 밖의 이동 Encounter', detail: '진행 중인 여정 없이 이동 조우가 남아 있습니다.', status: 'blocked' as const, targetId: 'pending-procedures', actionLabel: '보류함 열기' } : null,
+    expiredActiveTimers.length ? { id: 'expired-timer', label: '만료된 활성 환자 타이머', detail: `${expiredActiveTimers.length}개의 타이머가 0시간 이하인 채 활성 상태입니다.`, status: 'warning' as const, targetId: 'patient-clinic-panel', actionLabel: '환자 확인' } : null,
+    state.calendarDays > state.calendarMaxDays ? { id: 'calendar-overrun', label: '여정 일정 초과', detail: `${state.calendarDays}/${state.calendarMaxDays}일로 제한을 넘었습니다.`, status: 'warning' as const, targetId: 'travel-panel', actionLabel: '일정 확인' } : null,
+    duplicateBagIds.length ? { id: 'duplicate-bag', label: '가방 ID 중복', detail: `${duplicateBagIds.length}개의 물품 기록이 중복됩니다.`, status: 'warning' as const, actionLabel: '가방 확인' } : null,
+    invalidPlannedStops.length ? { id: 'invalid-stops', label: '사라진 경유지', detail: `${invalidPlannedStops.length}개의 계획 경유지가 현재 지도에 없습니다.`, status: 'warning' as const, targetId: 'travel-panel', actionLabel: '안전하게 정리' } : null
+  ];
+  const integrityIssues = integrityIssueCandidates.filter((issue): issue is IntegrityIssue => Boolean(issue));
+  const sessionCloseChecks: FlowCheck[] = [
+    { id: 'pending', label: '미해결 절차', detail: pendingProcedureCount ? `${pendingProcedureCount}건을 다음 접속에 이어서 해결합니다.` : '모든 판정이 정리되었습니다.', status: pendingProcedureCount ? 'warning' : 'ok' },
+    { id: 'timer', label: '환자 타이머', detail: Number.isFinite(activePatientTimer) ? `가장 짧은 타이머 ${activePatientTimer}시간` : '진행 중인 치료 없음', status: Number.isFinite(activePatientTimer) && activePatientTimer <= 2 ? 'warning' : 'ok' },
+    { id: 'save', label: '자동 저장', detail: '현재 위치, 다음 행동과 중단 메모를 로컬 저장합니다.', status: 'ok' }
+  ];
+  const sessionCloseSummary = [
+    { label: '현재 위치', value: `${state.currentLocationName} · ${localizeRegionLabel(state.currentRegion)}` },
+    { label: '다음 행동', value: primaryAction?.label || '현재 진행판 확인' },
+    { label: '일정', value: state.journeyActive ? `${state.calendarDays}/${state.calendarMaxDays}일` : '휴식기' },
+    { label: '최근 결과', value: state.lastEncounterReceipt?.title || state.lastTravelReceipt?.to || '기록 없음' }
+  ];
 
   const activateNavigatorAction = (actionId: string) => {
     const action = actionHubItems.find(item => item.id === actionId && !item.disabled);
@@ -10737,6 +11028,61 @@ function PlayView({
       sessionHandoffActionId: primaryAction?.id || '',
       sessionHandoffSavedAt: savedAt
     }));
+  };
+
+  const resolveDepartureCheck = (checkId: string) => {
+    setShowDepartureGate(false);
+    if (checkId === 'route') {
+      onOpenMap();
+      return;
+    }
+    const targetId = checkId === 'pending' ? 'pending-procedures' : checkId === 'timer' ? 'patient-clinic-panel' : 'travel-panel';
+    window.setTimeout(() => document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  };
+
+  const resolveIntegrityIssue = (issue: IntegrityIssue) => {
+    if (issue.id === 'invalid-stops') {
+      updateState((current: GameState) => ({
+        ...current,
+        journeyPlannedStopIds: (current.journeyPlannedStopIds || []).filter(id => Boolean(travelMapNodes[id]))
+      }));
+      showAlert('현재 지도에 없는 경유지를 계획에서 정리했습니다.');
+      return;
+    }
+    if (issue.id === 'map-location' || issue.id === 'duplicate-bag') {
+      issue.id === 'map-location' ? onOpenMap() : window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+      return;
+    }
+    if (issue.targetId) document.getElementById(issue.targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const finishSession = () => {
+    const savedAt = new Date().toISOString();
+    const timestamp = Date.now();
+    onCreateUndoCheckpoint('세션 마감 기록', state);
+    updateState((current: GameState) => ({
+      ...current,
+      sessionHandoffNote: sessionCloseDraft.trim(),
+      sessionHandoffActionId: primaryAction?.id || '',
+      sessionHandoffSavedAt: savedAt,
+      journeyTimeline: [{
+        id: `session-close:${timestamp}`,
+        title: '세션 마감',
+        meta: `${current.currentLocationName} · ${primaryAction?.label || '진행판 확인'}`,
+        detail: sessionCloseDraft.trim() || `${pendingProcedureCount}건의 미해결 절차와 다음 행동을 저장했습니다.`,
+        timestamp,
+        tone: 'session'
+      }, ...(current.journeyTimeline || [])],
+      journals: [{
+        id: `session-close:${timestamp}:journal`,
+        title: '세션 마감 기록',
+        text: `${current.currentLocationName}에서 기록을 덮었습니다. 다음 행동: ${primaryAction?.label || '현재 진행판 확인'}.${sessionCloseDraft.trim() ? `\n\n중단 메모: ${sessionCloseDraft.trim()}` : ''}`,
+        timestamp
+      }, ...current.journals]
+    }));
+    setSessionHandoffDraft(sessionCloseDraft.trim());
+    setShowSessionClose(false);
+    showAlert('중단 메모와 다음 행동을 저장했습니다. 다음 접속에서 저장 지점 이어서로 돌아올 수 있습니다.');
   };
 
   useEffect(() => {
@@ -10877,6 +11223,33 @@ function PlayView({
         onActivate={activateNavigatorAction}
         onHandoffNoteChange={setSessionHandoffDraft}
         onSaveHandoff={saveSessionHandoff}
+      />
+
+      <div className="flow-support-bar" aria-label="플레이 지원 도구">
+        <button type="button" onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}><kbd>⌘K</kbd><span>빠른 행동 검색</span></button>
+        <button type="button" onClick={() => setShowSessionClose(true)}><span>세션 마감 도우미</span><small>메모 · 다음 행동 · 자동 저장</small></button>
+      </div>
+      <StateIntegrityPanel issues={integrityIssues} onResolve={resolveIntegrityIssue} />
+      <TravelTimeline entries={state.journeyTimeline || []} />
+
+      <DepartureGate
+        open={showDepartureGate}
+        title={`${state.currentLocationName} → ${nextLocName || '목적지'}`}
+        subtitle={`${localizeRegionLabel(destRegion)} · ${locationTypeLabel(destType)} · ${travelPreviewPathCount} paths`}
+        checks={departureGateChecks}
+        deltas={departureOutcomeDeltas}
+        onCancel={() => setShowDepartureGate(false)}
+        onConfirm={confirmDeparture}
+        onFix={resolveDepartureCheck}
+      />
+      <SessionCloseAssistant
+        open={showSessionClose}
+        checks={sessionCloseChecks}
+        summary={sessionCloseSummary}
+        note={sessionCloseDraft}
+        onNoteChange={setSessionCloseDraft}
+        onCancel={() => setShowSessionClose(false)}
+        onConfirm={finishSession}
       />
 
       {pendingProcedureCount > 0 && (

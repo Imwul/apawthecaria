@@ -11,6 +11,9 @@ const gameplayKoSource = readFileSync(fileURLToPath(new URL('./localization/game
 describe('advanced journey flow', () => {
   it('compares two routes and shares the result with readiness and resource forecasts', () => {
     expect(appSource).toContain('const alternativeMapPath =');
+    expect(appSource).toContain('const exactCostMapPath =');
+    expect(appSource).toContain("route: destRegion === 'Soar' || isTaxiMove ? undefined : travelPreviewPathIds");
+    expect(appSource).toContain('현재 이동력 ${activeTravelSpeed}으로 정확히 도달할 수 없습니다.');
     expect(appSource).toContain('className="route-comparison"');
     expect(appSource).toContain('className={`departure-readiness is-${readinessTone}`}');
     expect(appSource).toContain('className="travel-rule-reason"');
@@ -39,6 +42,18 @@ describe('advanced journey flow', () => {
     expect(appSource).toContain('saveSessionHandoff');
     expect(appSource).toContain('[data-play-primary-action="true"]');
     expect(cssSource).toMatch(/\.play-navigator__body\s*\{[\s\S]*?grid-template-columns:/);
+  });
+
+  it('adds the full experienced-player flow from departure through session close', () => {
+    expect(appSource).toContain('<DepartureGate');
+    expect(appSource).toContain('createUndoCheckpoint');
+    expect(appSource).toContain('journeyTimeline');
+    expect(appSource).toContain('<StateIntegrityPanel');
+    expect(appSource).toContain('<TravelTimeline');
+    expect(appSource).toContain('<QuickCommandPalette');
+    expect(appSource).toContain('<SessionCloseAssistant');
+    expect(appSource).toContain('encounter-focus-mode');
+    expect(cssSource).toContain('.flow-dialog-backdrop');
   });
 
   it('keeps canonical region names in English', () => {

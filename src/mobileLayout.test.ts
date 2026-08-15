@@ -71,4 +71,11 @@ describe('mobile layout regression guards', () => {
     expect(cssSource).toMatch(/@media \(max-width: 520px\)[\s\S]*?\.play-navigator__header\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
     expect(cssSource).toMatch(/\.play-view--field \.play-navigator__body/);
   });
+
+  it('reflows departure, command, undo, and session-close helpers on narrow screens', () => {
+    expect(appSource).toContain('className="flow-support-bar"');
+    expect(cssSource).toMatch(/@media \(max-width: 760px\)[\s\S]*?\.departure-gate__body,[\s\S]*?\.session-close__body[\s\S]*?grid-template-columns:\s*1fr/);
+    expect(cssSource).toMatch(/@media \(max-width: 480px\)[\s\S]*?\.flow-dialog\s*\{[\s\S]*?max-height:\s*100dvh/);
+    expect(cssSource).toMatch(/\.flow-undo\s*\{[\s\S]*?position:\s*fixed/);
+  });
 });
