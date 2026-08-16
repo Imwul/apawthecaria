@@ -60,6 +60,7 @@ export interface PendingForagingState {
   selectedReagentId?: string;
   timerCostAfterEncounter: number;
   encounterId: string | null;
+  selectedChoiceId?: string;
   phase: 'choose-reagent' | 'encounter' | 'timer' | 'resolved';
   reagentTypeFilter?: 'PLANT' | 'ANIMAL' | 'INSECT' | 'EARTH' | 'TITAN';
   source?: 'standard' | 'companion-wasp' | 'familiar-independent' | 'barrow-delve';

@@ -40,4 +40,11 @@ describe('mobile layout regression guards', () => {
     expect(appSource).toContain('const handleAdvanceSeason = () =>');
     expect(cssSource).toMatch(/\.downtime-season-action\s*\{[\s\S]*?justify-content:\s*space-between/);
   });
+
+  it('keeps a play-tab map beside journey setup without covering the paper map', () => {
+    expect(appSource).toContain('id="play-journey-map"');
+    expect(appSource).toContain('variant="companion"');
+    expect(cssSource).toMatch(/\.play-with-map\s*\{/);
+    expect(cssSource).toMatch(/\.map-location-label\s*\{[\s\S]*?pointer-events:\s*none/);
+  });
 });

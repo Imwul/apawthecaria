@@ -6,6 +6,7 @@ import {
   localizeCharacterDescriptor,
   localizeInventoryItemName,
   localizeJourneyGoalText,
+  localizeLocationName,
   localizeDirectionLabel,
   localizePreparationMethod,
   localizePreparationName,
@@ -30,6 +31,10 @@ describe('gameplay presentation localization', () => {
     expect(localizeTreatmentResult('pending')).toBe('대기 중');
     expect(localizeBehemothClass('Towering')).toBe('거대한');
     expect(localizeAvailabilityLabel('Any Settlement or City')).toBe('모든 정착지와 도시');
+    expect(localizeLocationName('오크 길')).toBe('Oak Road');
+    expect(localizeLocationName('Oak Road')).toBe('Oak Road');
+    expect(localizeLocationName('눈힐')).toBe('Noonhill');
+    expect(localizeLocationName('오도악')).toBe('Odoak');
   });
 
   it('translates preparation and legacy display fragments', () => {

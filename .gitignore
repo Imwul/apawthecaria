@@ -26,3 +26,9 @@ dist-ssr
 # Large game files
 *.pdf
 *HQ.jpg
+
+# Map detection intermediates
+tmp/map-detect-venv/
+output/map-detection/*.png
+.vercel
+.env*

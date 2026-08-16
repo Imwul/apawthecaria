@@ -21,7 +21,36 @@ const exactTranslations: Record<string, string> = {
   'Shortly after, the junior picker is violently sick.': '잠시 뒤 풋내기 채집꾼은 심하게 앓습니다.',
   "The Junior picker nonchalantly stuffs it in their maw; draw a card: ♥ - It's a tasty snack; they share one with you, Gain a tasty Trinket.": '풋내기 채집꾼이 태연하게 버섯을 입에 넣습니다. 카드를 뽑아 ♥가 나오면 맛있는 간식을 나눠 받고 장신구 1개를 얻습니다.',
   "The Junior picker nonchalantly stuffs it in their maw; 카드를 뽑습니다: ♥ - It's a tasty snack; they share one with you, Gain a tasty 장신구.": '풋내기 채집꾼이 태연하게 버섯을 입에 넣습니다. 카드를 뽑아 ♥가 나오면 맛있는 간식을 나눠 받고 장신구 1개를 얻습니다.',
-  'Gain 1 Reputation.': '길드 명성 1을 얻습니다.'
+  'Gain 1 Reputation.': '길드 명성 1을 얻습니다.',
+  'A grouchy meadow hare comes bounding over to you, yelling "watch yer paws"! They explain that the peat bog is a delicate ecosystem. Though... you aren\'t walking on any peat right now. Despite this, they draw in deep breath as if to give a lecture. Listen & Learn - Unfortunately, once the hare gets started they cannot be stopped. Decrease Timers by 4. However, from now on everytime you Forage in a Bog, gain 1 Foraging Point. Interrupt - Lose 1 Reputation as the grouchy hare tells everyone they meet how rude you were.': '심술궂은 초원 토끼가 뛰어오며 "발 조심해!" 하고 소리칩니다. 이탄 습지는 섬세한 생태계라고 설명하지만… 당신은 지금 이탄 위를 걷고 있지 않습니다. 그래도 토끼는 강의를 시작하려는 듯 깊게 숨을 들이쉽니다. 듣고 배우기 - 한 번 시작하면 멈추지 않습니다. 타이머를 4 줄입니다. 대신 앞으로 습지에서 채집할 때마다 채집 포인트 1을 얻습니다. 끼어들기 - 무례했다고 소문내어 길드 명성 1을 잃습니다.',
+  'Wayfinders have made a new route. Draw a Path from this Location to an unconnected nearby Location. New Path - Record a Path from this Location to an unconnected nearby Location.': '길잡이들이 새 길을 냈습니다. 이 위치에서 아직 이어지지 않은 가까운 위치까지 경로를 그립니다. 새 길 - 이 위치에서 아직 이어지지 않은 가까운 위치까지 경로를 기록합니다.',
+  'Something slithers beneath the water. Draw and resolve the suit result. Deep Water - Draw a card and apply the printed suit result on p166.': '물 아래에서 무언가가 미끄러집니다. 카드를 뽑아 문양 결과를 해결합니다. 깊은 물 - 카드를 뽑아 166쪽의 인쇄된 문양 결과를 적용합니다.',
+  'Music carries across the meadow as another beast sings. Listen - Journal about the melody and the singer.': '초원 너머로 다른 짐승의 노랫소리가 들려옵니다. 듣기 - 선율과 노래하는 이에 대해 일지를 적습니다.',
+  'A Titan plaque stands off the path. Read It - Journal about why it is here and what it says.': '길 옆에 타이탄 명판이 서 있습니다. 읽어 보기 - 왜 여기 있는지, 무엇이 적혀 있는지 일지를 적습니다.',
+  'Adventurous beasts have left markings on the wall warning others of the dangers within. You may ignore the negative effects of an event in this Location. Graffiti - If you\'ve already had a negative effect from an event in this Location, you can make warning marks of your own. Gain 1 Reputation. Heed The Warning - Ignore the negative effects of an event in this Location.': '모험심 많은 짐승들이 안의 위험을 알리는 표시를 벽에 남겼습니다. 이 위치에서 일어나는 사건의 부정적 효과를 무시할 수 있습니다. 낙서 - 이미 이 위치의 사건으로 부정적 효과를 겪었다면 당신도 경고 표시를 남길 수 있습니다. 길드 명성 1을 얻습니다. 경고를 따르기 - 이 위치에서 일어나는 사건의 부정적 효과를 무시합니다.',
+  'While beasts may shun the Titan ruins, insects of all kinds can be found thriving in the forgotten shadows and lost places. Stunned - Some near dead insects can be found laying around a pillar. Gain a Beetle, Honey Bee, Butterfly, or Wasp Reagent Part. Burrowed - Some insects can be dug out from inside ancient wood structures. Gain a Maggot, Slug, or Spider Reagent Part.': '짐승들은 타이탄 유적을 피하지만, 잊힌 그늘과 잃어버린 장소에는 온갖 곤충이 번성합니다. 기절한 곤충 - 기둥 주위에 거의 죽은 곤충이 있습니다. 딱정벌레, 꿀벌, 나비, 말벌 부위 하나를 얻습니다. 파묻힌 곤충 - 고대 나무 구조 안에서 파낼 수 있습니다. 구더기, 민달팽이, 거미 부위 하나를 얻습니다.',
+  'You hear the faint call of a beast from within a strange Titan construct. Open Says Me! - If you have a Titan Thingamabob, you may use it to activate the device and release the beast. Rescue - Draw a card: hearts or diamonds get the beast out, decrease the Timer by 1 and gain 2 Reputation; clubs or spades are a complication. Helping Hand - If you have come across Bakar in this ruin, you can get him to break the Titan construct open.': '이상한 타이탄 장치 안에서 희미한 짐승의 부름이 들립니다. 열려라! - 타이탄 물건이 있으면 장치를 작동시켜 짐승을 풀어줄 수 있습니다. 구조 - 카드를 뽑습니다. 하트나 다이아면 구해내고 타이머를 1 줄이며 명성 2를 얻습니다. 클럽이나 스페이드면 문제가 생깁니다. 돕는 손 - 이 유적에서 바카르를 만났다면 타이탄 장치를 부수게 할 수 있습니다.',
+  'You meet Bakar the Gorilla reading Titan words. Chat - Bakar tells you what he knows about the Titans. Reunion - Whenever you repeat this event in a new Titan Location, Bakar will have pieced together more of the mystery. Discovery - Once you have been to every Titan Location and get this event again, Bakar announces his departure.': '타이탄 글자를 읽고 있는 고릴라 바카르를 만납니다. 이야기 - 바카르가 타이탄에 대해 아는 것을 들려줍니다. 재회 - 새로운 타이탄 위치에서 이 사건을 다시 만나면 수수께끼를 조금 더 맞춰 둡니다. 발견 - 모든 타이탄 위치를 다녀온 뒤 다시 이 사건을 만나면 바카르가 떠남을 알립니다.',
+  'New Path': '새 길',
+  'Deep Water': '깊은 물',
+  Listen: '듣기',
+  'Read It': '읽어 보기',
+  Graffiti: '낙서',
+  'Heed The Warning': '경고를 따르기',
+  Stunned: '기절한 곤충',
+  Burrowed: '파묻힌 곤충',
+  'Open Says Me!': '열려라!',
+  Rescue: '구조',
+  'Helping Hand': '돕는 손',
+  Chat: '이야기',
+  Reunion: '재회',
+  Discovery: '발견',
+  'Gain a Beetle, Honey Bee, Butterfly, or Wasp Reagent Part.': '딱정벌레, 꿀벌, 나비, 말벌 부위 하나를 얻습니다.',
+  'Graffiti - If you\'ve already had a negative effect from an event in this Location, you can make warning marks of your own.': '낙서 - 이미 이 위치의 사건으로 부정적 효과를 겪었다면 당신도 경고 표시를 남길 수 있습니다.',
+  'Deep Water - Draw a card and apply the printed suit result on p166.': '깊은 물 - 카드를 뽑아 166쪽의 인쇄된 문양 결과를 적용합니다.',
+  '- If you have a Titan Thingamabob, you may use it to activate the device and release the beast.': '- 타이탄 물건이 있으면 장치를 작동시켜 짐승을 풀어줄 수 있습니다.',
+  'Helping Hand - If you have come across Bakar in this ruin, you can get him to break the Titan construct open.': '돕는 손 - 이 유적에서 바카르를 만났다면 타이탄 장치를 부수게 할 수 있습니다.',
+  'Rescue - Draw a card: hearts or diamonds get the beast out, decrease the Timer by 1 and gain 2 Reputation; clubs or spades are a complication.': '구조 - 카드를 뽑습니다. 하트나 다이아면 구해내고 타이머를 1 줄이며 명성 2를 얻습니다. 클럽이나 스페이드면 문제가 생깁니다.'
 };
 
 const optionTranslations: Record<string, string> = {
@@ -30,7 +59,21 @@ const optionTranslations: Record<string, string> = {
   Repellent: '퇴치',
   Senior: '숙련자 (숙련된 채집꾼)',
   Shortcut: '지름길',
-  Trapped: '갇힘'
+  Trapped: '갇힘',
+  'New Path': '새 길',
+  'Deep Water': '깊은 물',
+  Listen: '듣기',
+  'Read It': '읽어 보기',
+  Graffiti: '낙서',
+  'Heed The Warning': '경고를 따르기',
+  Stunned: '기절한 곤충',
+  Burrowed: '파묻힌 곤충',
+  'Open Says Me!': '열려라!',
+  Rescue: '구조',
+  'Helping Hand': '돕는 손',
+  Chat: '이야기',
+  Reunion: '재회',
+  Discovery: '발견'
 };
 
 const generatedTranslationMap = generatedTranslations as Record<string, string>;

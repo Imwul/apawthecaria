@@ -27,8 +27,11 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
   'travel-meadow-a-2': {
     title: 'Obstruction',
     prompt: 'If travelling with a Wagon, Mark 1 Day; otherwise pass through without delay.',
-    mandatoryEffects: [manual('WAGON_DAY_CHECK', 'Check whether the traveller has a Wagon. If so, Mark 1 Day.')],
-    choices: [],
+    mandatoryEffects: [],
+    choices: [
+      { id: 'with-wagon', label: '마차를 타고 있음 — Mark 1 Day', effects: [{ support: 'implemented', effect: { type: 'markDays', amount: 1 } }] },
+      { id: 'on-foot', label: '걸어 지나감 — 지연 없음', effects: [] }
+    ],
     support: 'manual-only'
   },
   'travel-mountain-9-10-winter': {
@@ -69,7 +72,10 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
   'travel-soar-m-winter': {
     title: 'Hailstorm',
     prompt: 'End at the chosen Destination, become Soaked unless protected by a Waxed Satchel, and reduce the next Timer by 2.',
-    mandatoryEffects: [manual('HAILSTORM_SOAK_AND_NEXT_TIMER', 'Check Waxed Satchel protection, soak vulnerable items, and apply -2 to the next Timer.')],
+    mandatoryEffects: [
+      { support: 'implemented', effect: { type: 'modifyTimer', amount: -2, target: 'all' } },
+      manual('HAILSTORM_SOAK', 'Waxed Satchel가 없으면 물에 젖는 시약과 물품을 버린다.')
+    ],
     choices: [],
     support: 'manual-only'
   },

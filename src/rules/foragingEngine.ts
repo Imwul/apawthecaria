@@ -21,6 +21,7 @@ export interface ForagingEngineState {
   toolIds: string[];
   tools?: CanonicalToolState[];
   patient?: PatientState | null;
+  conditions?: string[];
 }
 
 export interface ForagingEngineInput {
@@ -247,7 +248,13 @@ export const resolveForagingEngine = (input: ForagingEngineInput): ForagingEngin
   if (!skipsPrintedEncounter && !encounter) return { status: 'invalid', value: null, messages: ['No canonical Foraging Encounter matches this draw.'] };
 
   if (!input.targetReagentId) {
-    const toolGain = applyForagingPointTool(input, candidates.length === 0 ? 1 : 0);
+    const regionBonus = (input.state.conditions || []).some(condition =>
+      condition === `forage-bonus:${input.forageRegion}:1`
+    ) ? 1 : 0;
+    const locationEncounterBonus = (input.state.conditions || []).some(condition =>
+      condition === 'location-encounter-fp:3'
+    ) ? 3 : 0;
+    const toolGain = applyForagingPointTool(input, (candidates.length === 0 ? 1 : 0) + regionBonus + locationEncounterBonus);
     const gain = toolGain.gain;
     return {
       status: encounter?.support === 'implemented' || skipsPrintedEncounter ? 'resolved' : 'manual',

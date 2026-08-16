@@ -35,6 +35,7 @@ export interface TravelEngineInput {
   canStopInLoch: boolean;
   protectsFromSoaking?: boolean;
   waterwaySpan?: number;
+  freePathLocationIds?: string[];
 }
 
 export interface TravelEngineOutcome {
@@ -107,16 +108,20 @@ const validateRoute = (
 const routeMovementCost = (
   graph: Record<string, TravelGraphNode>,
   route: readonly string[],
-  waterwaySpan: number
+  waterwaySpan: number,
+  freePathLocationIds: readonly string[] = []
 ): number => {
   let cost = 0;
   let waterwayRun = 0;
+  const free = new Set(freePathLocationIds);
   const flushWaterways = () => {
     if (waterwayRun > 0) cost += Math.ceil(waterwayRun / Math.max(1, waterwaySpan));
     waterwayRun = 0;
   };
   route.slice(0, -1).forEach((nodeId, index) => {
-    const kind = graph[nodeId]?.edges.find(edge => edge.to === route[index + 1])?.kind || 'path';
+    const nextId = route[index + 1];
+    if (free.has(nextId)) return;
+    const kind = graph[nodeId]?.edges.find(edge => edge.to === nextId)?.kind || 'path';
     if (kind === 'waterway') waterwayRun += 1;
     else {
       flushWaterways();
@@ -132,7 +137,8 @@ const findRoute = (
   start: string,
   destination: string,
   exactCost: number | null,
-  waterwaySpan: number
+  waterwaySpan: number,
+  freePathLocationIds: readonly string[] = []
 ): string[] | null => {
   if (!graph[start] || !graph[destination]) return null;
   const queue: string[][] = [[start]];
@@ -141,13 +147,13 @@ const findRoute = (
   while (queue.length > 0) {
     const path = queue.shift()!;
     const current = path[path.length - 1];
-    const cost = routeMovementCost(graph, path, waterwaySpan);
+    const cost = routeMovementCost(graph, path, waterwaySpan, freePathLocationIds);
     if (current === destination && (exactCost === null || cost === exactCost)) return path;
     if (cost > (exactCost ?? Number.POSITIVE_INFINITY) || path.length - 1 >= maximumEdges) continue;
     for (const edge of graph[current]?.edges || []) {
       if (path.includes(edge.to)) continue;
       const nextPath = [...path, edge.to];
-      const nextCost = routeMovementCost(graph, nextPath, waterwaySpan);
+      const nextCost = routeMovementCost(graph, nextPath, waterwaySpan, freePathLocationIds);
       if (nextCost > (exactCost ?? Number.POSITIVE_INFINITY)) continue;
       if (exactCost === null) {
         const seen = shortestSeen.get(edge.to);
@@ -197,12 +203,12 @@ export const resolveTravelEngine = (input: TravelEngineInput): TravelEngineResol
     movementCost = days;
   } else {
     const exactCost = input.mustUseFullSpeed === false ? null : effectiveSpeed;
-    route = input.route ? [...input.route] : findRoute(input.graph, state.currentLocationId, input.destinationId, exactCost, waterwaySpan) || [];
+    route = input.route ? [...input.route] : findRoute(input.graph, state.currentLocationId, input.destinationId, exactCost, waterwaySpan, input.freePathLocationIds) || [];
     if (!validateRoute(input.graph, route, state.currentLocationId, input.destinationId)) {
       return { status: 'invalid', value: null, messages: ['The supplied destination is not connected by the selected Path route.'] };
     }
     pathCount = route.length - 1;
-    movementCost = routeMovementCost(input.graph, route, waterwaySpan);
+    movementCost = routeMovementCost(input.graph, route, waterwaySpan, input.freePathLocationIds);
     if (input.mustUseFullSpeed !== false && movementCost !== effectiveSpeed) {
       return { status: 'invalid', value: null, messages: [`Move must use Speed ${effectiveSpeed}; route costs ${movementCost}.`] };
     }
@@ -271,3 +277,108 @@ export const resolveTravelEngine = (input: TravelEngineInput): TravelEngineResol
     messages: encounter.support === 'implemented' ? [] : ['Movement is complete; resolve the printed encounter before continuing.']
   };
 };
+
+export type MoveStopReason = 'legal' | 'too-close' | 'too-far' | 'loch-locked' | 'disconnected';
+
+export type MoveStopPreview = {
+  id: string;
+  reason: MoveStopReason;
+  cost: number | null;
+  route: string[] | null;
+  usesWaterway: boolean;
+  encounterKind: 'travel' | 'social';
+  destinationType: GameplayLocationType;
+  destinationRegion: TravelRegion;
+};
+
+const endsMoveInLochWilds = (node: TravelGraphNode | undefined): boolean =>
+  Boolean(node && node.region === 'Loch' && node.locationType !== 'Settlement' && node.locationType !== 'City');
+
+export const collectMoveCosts = (
+  graph: Record<string, TravelGraphNode>,
+  originId: string,
+  waterwaySpan = 1,
+  maxCost = 16,
+  freePathLocationIds: readonly string[] = []
+): Map<string, { cost: number; route: string[] }> => {
+  const reached = new Map<string, { cost: number; route: string[] }>();
+  if (!graph[originId]) return reached;
+  reached.set(originId, { cost: 0, route: [originId] });
+  const queue: string[][] = [[originId]];
+  while (queue.length > 0) {
+    const path = queue.shift()!;
+    const current = path[path.length - 1];
+    for (const edge of graph[current]?.edges || []) {
+      if (path.includes(edge.to)) continue;
+      const nextPath = [...path, edge.to];
+      const nextCost = routeMovementCost(graph, nextPath, waterwaySpan, freePathLocationIds);
+      if (nextCost > maxCost) continue;
+      const seen = reached.get(edge.to);
+      if (seen && seen.cost <= nextCost) continue;
+      reached.set(edge.to, { cost: nextCost, route: nextPath });
+      queue.push(nextPath);
+    }
+  }
+  return reached;
+};
+
+export const classifyMoveStop = (input: {
+  node: TravelGraphNode;
+  cost: number | null;
+  speed: number;
+  mustUseFullSpeed?: boolean;
+  canStopInLoch: boolean;
+}): MoveStopReason => {
+  if (input.cost === null) return 'disconnected';
+  if (endsMoveInLochWilds(input.node) && !input.canStopInLoch) return 'loch-locked';
+  if (input.mustUseFullSpeed === false) return input.cost <= input.speed ? 'legal' : 'too-far';
+  if (input.cost === input.speed) return 'legal';
+  return input.cost < input.speed ? 'too-close' : 'too-far';
+};
+
+export const previewMoveStops = (input: {
+  graph: Record<string, TravelGraphNode>;
+  originId: string;
+  speed: number;
+  canStopInLoch: boolean;
+  waterwaySpan?: number;
+  mustUseFullSpeed?: boolean;
+  freePathLocationIds?: string[];
+}): Record<string, MoveStopPreview> => {
+  const waterwaySpan = Math.max(1, input.waterwaySpan || 1);
+  const reached = collectMoveCosts(
+    input.graph,
+    input.originId,
+    waterwaySpan,
+    Math.max(16, input.speed + 8),
+    input.freePathLocationIds || []
+  );
+  const previews: Record<string, MoveStopPreview> = {};
+  for (const [id, node] of Object.entries(input.graph)) {
+    if (id === input.originId) continue;
+    const hit = reached.get(id) || null;
+    const cost = hit?.cost ?? null;
+    const route = hit?.route ?? null;
+    previews[id] = {
+      id,
+      reason: classifyMoveStop({
+        node,
+        cost,
+        speed: input.speed,
+        mustUseFullSpeed: input.mustUseFullSpeed,
+        canStopInLoch: input.canStopInLoch
+      }),
+      cost,
+      route,
+      usesWaterway: Boolean(route && routeUsesWaterway(input.graph, route)),
+      encounterKind: node.locationType === 'Settlement' || node.locationType === 'City' ? 'social' : 'travel',
+      destinationType: node.locationType,
+      destinationRegion: node.region
+    };
+  }
+  return previews;
+};
+
+export const listLegalMoveStops = (input: Parameters<typeof previewMoveStops>[0]): string[] =>
+  Object.values(previewMoveStops(input)).filter(row => row.reason === 'legal').map(row => row.id);
+

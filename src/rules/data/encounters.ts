@@ -2,6 +2,7 @@ import { GAME_DATA } from '../../gameData';
 import { getTableLookupKey, type RuleCard } from '../cards';
 import { canonicalMetadata } from '../source';
 import { applyPrintedEncounterOverride } from './printedEncounterOverrides';
+import { enrichEncounterChoices } from './encounterChoices';
 import type {
   CardSuit,
   EncounterDefinition,
@@ -144,14 +145,18 @@ export const TRAVEL_ENCOUNTERS: EncounterDefinition[] = [
   ...buildTravelRegion('Mountain', 90, 93),
   ...buildTravelRegion('Soar', 94, 97),
   ...buildTitanTravel()
-].map(applyPrintedEncounterOverride);
+].map(applyPrintedEncounterOverride).map(enrichEncounterChoices);
 
 const FORAGING_ACE_ROWS: Record<Exclude<Region, 'Titan'>, { page: number; title: string; prompt: string }> = {
-  Bog: { page: 154, title: 'Mind Yerself!', prompt: 'A grouchy meadow hare lectures you about the delicate peat bog. Listen and learn or interrupt, following p154.' },
-  Forest: { page: 160, title: 'New Route', prompt: 'Wayfinders have made a new route. Draw a Path from this Location to an unconnected nearby Location.' },
-  Loch: { page: 166, title: 'Horrors From The Deep', prompt: 'Something slithers beneath the water. Draw and resolve the suit result on p166.' },
-  Meadow: { page: 172, title: 'Soft Song', prompt: 'Music carries across the meadow as another beast sings. Journal about the melody and singer.' },
-  Mountain: { page: 178, title: 'A Sign To Nowhere', prompt: 'A Titan plaque stands off the path. Journal about why it is here and what it says.' }
+  Bog: {
+    page: 154,
+    title: 'Mind Yerself!',
+    prompt: 'A grouchy meadow hare comes bounding over to you, yelling "watch yer paws"! They explain that the peat bog is a delicate ecosystem. Though... you aren\'t walking on any peat right now. Despite this, they draw in deep breath as if to give a lecture. Listen & Learn - Unfortunately, once the hare gets started they cannot be stopped. Decrease Timers by 4. However, from now on everytime you Forage in a Bog, gain 1 Foraging Point. Interrupt - Lose 1 Reputation as the grouchy hare tells everyone they meet how rude you were.'
+  },
+  Forest: { page: 160, title: 'New Route', prompt: 'Wayfinders have made a new route. Draw a Path from this Location to an unconnected nearby Location. New Path - Record a Path from this Location to an unconnected nearby Location.' },
+  Loch: { page: 166, title: 'Horrors From The Deep', prompt: 'Something slithers beneath the water. Draw and resolve the suit result. Deep Water - Draw a card and apply the printed suit result on p166.' },
+  Meadow: { page: 172, title: 'Soft Song', prompt: 'Music carries across the meadow as another beast sings. Listen - Journal about the melody and the singer.' },
+  Mountain: { page: 178, title: 'A Sign To Nowhere', prompt: 'A Titan plaque stands off the path. Read It - Journal about why it is here and what it says.' }
 };
 
 const buildForagingRegion = (region: Exclude<Region, 'Titan'>, firstPage: number, lastPage: number): EncounterDefinition[] => {
@@ -184,10 +189,66 @@ const buildForagingRegion = (region: Exclude<Region, 'Titan'>, firstPage: number
 };
 
 const TITAN_FORAGING_SOURCE: Record<string, { page: number; title: string; prompt: string }> = {
-  A: { page: 184, title: 'A Message', prompt: 'Adventurous beasts left warnings on the wall. Ignore one negative event in this Location or leave warning graffiti after suffering one.' },
-  '10': { page: 187, title: 'The Meek Shall Inherit', prompt: 'Search the Titan ruin for stunned or burrowed insects and gain one of the printed insect Reagent Parts.' },
-  J: { page: 187, title: 'Trapped', prompt: 'A beast is trapped in a Titan construct. Use a Titan Thingamabob, attempt the suit-based rescue, or ask Bakar for help.' },
-  M: { page: 187, title: 'The Researcher', prompt: 'Meet Bakar the Gorilla, exchange discoveries, and advance the repeated-location research story.' }
+  A: {
+    page: 184,
+    title: 'A Message',
+    prompt: 'Adventurous beasts have left markings on the wall warning others of the dangers within. You may ignore the negative effects of an event in this Location. Graffiti - If you\'ve already had a negative effect from an event in this Location, you can make warning marks of your own. Gain 1 Reputation. Heed The Warning - Ignore the negative effects of an event in this Location.'
+  },
+  '2': {
+    page: 184,
+    title: 'Password',
+    prompt: 'Part of this ruin is protected by a mysterious lock made of metal buttons with embossed Titan glyphs. Look Around - As you Forage, if you draw a J or M you may, instead of a Reagent, find something with the Titan Symbols written on it. If you do, you may Open The Door. Open The Door - You press the symbols and the lock opens, revealing what lies beyond. Gain a Titan Codex (Weight 1) you can trade the Knowers for 20 Trinkets at the end of this Journey, or Establish a Clinic at this Location and add a new Service to the Agenda.'
+  },
+  '3': {
+    page: 184,
+    title: 'Gas Leak',
+    prompt: 'A horrible stinging haze hangs in the air. Rush - Draw a Card at the end of each Encounter in this Location, including this event, until you next Move On. If you draw a ♠, the stinging haze poisons you. Poisoned - Make a remedy that solves [Poison 2], or lose all Foraging Points. You cannot Forage at this Location again until you next Move On.'
+  },
+  '4': {
+    page: 185,
+    title: 'Final Resting Place',
+    prompt: 'A collapsed wall reveals a chamber of long-dried dust and Behemoth bones. Wailing Curse - If you choose to enter this new chamber, draw a card. Hearts or diamonds let you explore; clubs or spades force you to flee unless you have a Titan Thingamabob. If you make it into the chamber, gain either a Cranky Contraption Companion, a Titan Thingamabob, or a Titan Reagent of value 8 or lower.'
+  },
+  '5': {
+    page: 185,
+    title: 'Malevolence Grafted To Metal',
+    prompt: 'A Not-Cat watches you from elsewhere in the ruin. Flee - Draw two Cards, one for you and one for the not-cat. Higher escapes; lower goes to Confrontation. Confrontation - Draw another card and add its value to your original. If still lower, you are Trapped: draw a card and decrease all Timers by its value.'
+  },
+  '6': {
+    page: 186,
+    title: 'Lock And Key',
+    prompt: 'You come across an intentional hollow. Power! - If you have a Titan Thingamabob, you may put it in the hole and gain one of the following effects: Light - Gain 3 Foraging Points after completing an Encounter in this location, until you next Move On. Cameras - You can redraw an Encounter card once until you next Move On. Action - Reveal a Titan Reagent of your choice.'
+  },
+  '7': {
+    page: 186,
+    title: 'What Remains',
+    prompt: 'You find the remains of a beast. Investigate - Draw a Card. If it is higher than 6, you find something among their things that tells you where they are from. If you take news of their demise to their home, gain 4 Reputation. Borrow - Gain a Tool for free. Memento - If you borrowed a Tool and take news of this beast\'s demise to their home, you can return it for an additional 6 Reputation.'
+  },
+  '8': {
+    page: 186,
+    title: 'Snap, Crackle, Pop!',
+    prompt: 'Something in this ruin makes a terrible and dangerous noise. Searching - Choose to be Careful or Quick. Careful - Decrease Timers by an additional 1 after each Encounter. Quick - Draw a card after each Encounter: clubs or spades force you to leave this Location and end the Forage.'
+  },
+  '9': {
+    page: 186,
+    title: 'False Idols',
+    prompt: 'You come across what appears to be some sort of shrine to the Titans. Shortcut - Pawprints in the dust show you a safer route through this portion of the ruin. Gain 2 Foraging Points.'
+  },
+  '10': {
+    page: 187,
+    title: 'The Meek Shall Inherit',
+    prompt: 'While beasts may shun the Titan ruins, insects of all kinds can be found thriving in the forgotten shadows and lost places. Stunned - Some near dead insects can be found laying around a pillar. Gain a Beetle, Honey Bee, Butterfly, or Wasp Reagent Part. Burrowed - Some insects can be dug out from inside ancient wood structures. Gain a Maggot, Slug, or Spider Reagent Part.'
+  },
+  J: {
+    page: 187,
+    title: 'Trapped',
+    prompt: 'You hear the faint call of a beast from within a strange Titan construct. Open Says Me! - If you have a Titan Thingamabob, you may use it to activate the device and release the beast. Rescue - Draw a card: hearts or diamonds get the beast out, decrease the Timer by 1 and gain 2 Reputation; clubs or spades are a complication. Helping Hand - If you have come across Bakar in this ruin, you can get him to break the Titan construct open.'
+  },
+  M: {
+    page: 187,
+    title: 'The Researcher',
+    prompt: 'You meet Bakar the Gorilla reading Titan words. Chat - Bakar tells you what he knows about the Titans. Reunion - Whenever you repeat this event in a new Titan Location, Bakar will have pieced together more of the mystery. Discovery - Once you have been to every Titan Location and get this event again, Bakar announces his departure.'
+  }
 };
 
 const buildTitanForaging = (): EncounterDefinition[] => {
@@ -219,7 +280,7 @@ export const FORAGING_ENCOUNTERS: EncounterDefinition[] = [
   ...buildForagingRegion('Meadow', 172, 177),
   ...buildForagingRegion('Mountain', 178, 183),
   ...buildTitanForaging()
-].map(applyPrintedEncounterOverride);
+].map(applyPrintedEncounterOverride).map(enrichEncounterChoices);
 
 const socialGroup = (region: Region, firstPage: number, lastPage: number, genericPage: number, cities: Record<number, string>): EncounterDefinition[] => {
   const rows = pageRows(socialLegacy, firstPage, lastPage);
@@ -273,7 +334,7 @@ export const SOCIAL_ENCOUNTERS: EncounterDefinition[] = [
     ...canonicalMetadata(213),
     support: 'manual-only' as const
   }))
-];
+].map(enrichEncounterChoices);
 
 export const ENCOUNTERS: EncounterDefinition[] = [
   ...TRAVEL_ENCOUNTERS,

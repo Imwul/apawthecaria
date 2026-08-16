@@ -79,14 +79,21 @@ describe('Step 2 printed-effect registry coverage', () => {
   it('[TRAVEL-009/FORAGE-006/TABLE-004] sends every manual Encounter row through runtime resolution', () => {
     const manualEncounters = ENCOUNTERS.filter(encounter => PRINTED_EFFECT_BY_OWNER.get(encounter.id)?.status === 'manual');
     for (const encounter of manualEncounters) {
+      const firstChoice = encounter.choices[0];
       const result = executeEncounter({
         transactionId: `reach:${encounter.id}`,
         encounter,
-        choiceId: encounter.choices[0]?.id,
+        choiceId: firstChoice?.id,
         state: encounterState()
       });
-      expect(result.status, encounter.id).toBe('manual');
-      expect(result.value?.unresolvedEffects.length, encounter.id).toBeGreaterThan(0);
+      expect(result.status, encounter.id).not.toBe('invalid');
+      expect(result.value, encounter.id).toBeTruthy();
+      const leftover = (firstChoice?.effects || []).some(effect => effect.support !== 'implemented')
+        || encounter.mandatoryEffects.some(effect => effect.support !== 'implemented');
+      if (leftover) {
+        expect(result.status, encounter.id).toBe('manual');
+        expect(result.value?.unresolvedEffects.length, encounter.id).toBeGreaterThan(0);
+      }
     }
   });
 
@@ -232,7 +239,11 @@ describe('Step 2 manual resolution transaction', () => {
     expect(examples.every(Boolean)).toBe(true);
     for (const effect of examples) {
       const encounter = ENCOUNTERS.find(row => row.id === effect!.ownerId)!;
-      expect(executeEncounter({ transactionId: `representative:${encounter.id}`, encounter, choiceId: encounter.choices[0]?.id, state: encounterState() }).status).toBe('manual');
+      const result = executeEncounter({ transactionId: `representative:${encounter.id}`, encounter, choiceId: encounter.choices[0]?.id, state: encounterState() });
+      expect(result.status, encounter.id).not.toBe('invalid');
+      const leftover = (encounter.choices[0]?.effects || []).some(row => row.support !== 'implemented')
+        || encounter.mandatoryEffects.some(row => row.support !== 'implemented');
+      if (leftover) expect(result.status, encounter.id).toBe('manual');
     }
   });
 });

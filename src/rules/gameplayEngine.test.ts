@@ -4,6 +4,8 @@ import {
   REAGENTS,
   canTreatAilmentWithInventory,
   canonicalMetadata,
+  listLegalMoveStops,
+  previewMoveStops,
   resolveDowntime,
   resolveAilmentDiagnosisEffect,
   resolveBadIdeaOutcomeEffect,
@@ -114,6 +116,95 @@ describe('travel and encounter execution', () => {
     expect(first.value?.nextState.reputation).toBe(3);
     const second = resolveEncounter({ transactionId: 'enc-1', encounter, state: first.value!.nextState });
     expect(second.value?.nextState.reputation).toBe(3);
+  });
+});
+
+describe('How To Move preview', () => {
+  const exampleGraph = (): Record<string, TravelGraphNode> => ({
+    'mountain-city': {
+      id: 'mountain-city', name: 'Mountain City', region: 'Mountain', locationType: 'City',
+      edges: [{ to: 'a' }, { to: 'b' }, { to: 'loch-approach' }]
+    },
+    a: { id: 'a', name: 'A', region: 'Mountain', locationType: 'Wilds', edges: [{ to: 'mountain-city' }, { to: 'd' }] },
+    d: { id: 'd', name: 'D', region: 'Meadow', locationType: 'Wilds', edges: [{ to: 'a' }, { to: 'meadow-wilds' }] },
+    'meadow-wilds': { id: 'meadow-wilds', name: 'Meadow Wilds', region: 'Meadow', locationType: 'Wilds', edges: [{ to: 'd' }, { to: 'forest-1' }] },
+    b: { id: 'b', name: 'B', region: 'Mountain', locationType: 'Wilds', edges: [{ to: 'mountain-city' }, { to: 'c' }] },
+    c: { id: 'c', name: 'C', region: 'Meadow', locationType: 'Wilds', edges: [{ to: 'b' }, { to: 'meadow-settlement' }] },
+    'meadow-settlement': { id: 'meadow-settlement', name: 'Meadow Settlement', region: 'Meadow', locationType: 'Settlement', edges: [{ to: 'c' }] },
+    'loch-approach': {
+      id: 'loch-approach', name: 'Loch Approach', region: 'Mountain', locationType: 'Wilds',
+      edges: [{ to: 'mountain-city' }, { to: 'loch-mid' }]
+    },
+    'loch-mid': {
+      id: 'loch-mid', name: 'Loch Mid', region: 'Loch', locationType: 'Wilds',
+      edges: [
+        { to: 'loch-approach', kind: 'waterway' },
+        { to: 'loch-wilds', kind: 'waterway' },
+        { to: 'loch-city', kind: 'waterway' }
+      ]
+    },
+    'loch-wilds': {
+      id: 'loch-wilds', name: 'Loch Wilds', region: 'Loch', locationType: 'Wilds',
+      edges: [{ to: 'loch-mid', kind: 'waterway' }]
+    },
+    'loch-city': {
+      id: 'loch-city', name: 'Loch City', region: 'Loch', locationType: 'City',
+      edges: [{ to: 'loch-mid', kind: 'waterway' }]
+    },
+    'forest-1': { id: 'forest-1', name: 'F1', region: 'Forest', locationType: 'Wilds', edges: [{ to: 'meadow-wilds' }, { to: 'forest-wilds' }] },
+    'forest-wilds': { id: 'forest-wilds', name: 'Forest Wilds', region: 'Forest', locationType: 'Wilds', edges: [{ to: 'forest-1' }] }
+  });
+
+  it('lets a Speed 3 traveller stop in the Meadow Wilds or Meadow Settlement, but not Loch Wilds or Forest Wilds', () => {
+    const previews = previewMoveStops({
+      graph: exampleGraph(),
+      originId: 'mountain-city',
+      speed: 3,
+      canStopInLoch: false
+    });
+    expect(previews['meadow-wilds']).toMatchObject({ reason: 'legal', encounterKind: 'travel', cost: 3 });
+    expect(previews['meadow-settlement']).toMatchObject({ reason: 'legal', encounterKind: 'social', cost: 3 });
+    expect(previews['loch-wilds'].reason).toBe('loch-locked');
+    expect(previews['forest-wilds'].reason).toBe('too-far');
+    expect(previews.a.reason).toBe('too-close');
+    expect(listLegalMoveStops({
+      graph: exampleGraph(),
+      originId: 'mountain-city',
+      speed: 3,
+      canStopInLoch: false
+    }).sort()).toEqual(['loch-city', 'meadow-settlement', 'meadow-wilds']);
+  });
+
+  it('allows swimming a waterway without stopping, and keeps an over-encumbered move to one path', () => {
+    const wet = previewMoveStops({
+      graph: exampleGraph(),
+      originId: 'loch-approach',
+      speed: 2,
+      canStopInLoch: false
+    });
+    expect(wet['loch-mid'].reason).toBe('loch-locked');
+    expect(wet['loch-wilds'].reason).toBe('loch-locked');
+    expect(wet['loch-city']).toMatchObject({ reason: 'legal', usesWaterway: true, encounterKind: 'social' });
+
+    const encumbered = previewMoveStops({
+      graph: exampleGraph(),
+      originId: 'mountain-city',
+      speed: 1,
+      canStopInLoch: false
+    });
+    expect(encumbered.a.reason).toBe('legal');
+    expect(encumbered['meadow-wilds'].reason).toBe('too-far');
+  });
+
+  it('treats a printed free-path location as already paid when previewing Speed stops', () => {
+    const previews = previewMoveStops({
+      graph: exampleGraph(),
+      originId: 'mountain-city',
+      speed: 2,
+      canStopInLoch: false,
+      freePathLocationIds: ['a']
+    });
+    expect(previews['meadow-wilds']).toMatchObject({ reason: 'legal', cost: 2 });
   });
 });
 

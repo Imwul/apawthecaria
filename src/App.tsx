@@ -5,6 +5,12 @@ import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebas
 import { deleteObject, getDownloadURL, ref as storageRef, uploadString } from "firebase/storage";
 import { GAME_DATA } from "./gameData";
 import {
+  CAMPAIGN_SAVE_KEY,
+  decideCloudSaveAction,
+  parseCampaignSaveRaw,
+  tryMigrateCampaignSave
+} from "./persistence/campaignSave";
+import {
   FAMILIAR_BENEFITS,
   calculateRemedyRewards,
   calculateForageRarity,
@@ -128,6 +134,8 @@ import {
   resolveToolEffects,
   resolveInstrumentShow,
   resolveTravel,
+  previewMoveStops,
+  listLegalMoveStops,
   resolveTreatmentTransaction,
   findEncounter,
   getRuleCardLabel,
@@ -190,6 +198,8 @@ import {
   localizeDirectionLabel,
   localizeInventoryItemName,
   localizeJourneyGoalText,
+  localizeLocationName,
+  localizeLocationTypeLabel,
   localizePreparationMethod,
   localizePreparationName,
   localizeReagentType,
@@ -203,10 +213,15 @@ import {
 } from './localization/gameplayKo';
 import { localizeGameplayMessage } from './localization/engineMessagesKo';
 import { enqueueOfflineSave, flushOfflineSaves, resolveRevisionConflict, type OfflineSaveEntry } from './persistence/saveQueue';
+import type { RulebookReferenceRequest } from './rulebook/types';
+import { referenceForJournalTab } from './rulebook/context';
+import { PaperMap, type MapClinicOverlay, type MapPickLocation } from './map/PaperMap';
+import { type MapPlace, type MapPlaceType } from './map/mapLayers';
 
 const AlmanackPanel = lazy(() => import('./components/AlmanackPanel'));
 const LocalizedManualEffectText = lazy(() => import('./components/LocalizedManualEffectText'));
 const ManualEffectPanel = lazy(() => import('./components/ManualEffectPanel'));
+const RulebookReferenceDrawer = lazy(() => import('./components/RulebookReferenceDrawer'));
 
 const suitLabels: { [key: string]: string } = { '♥': '하트 ♥', '♦': '다이아 ♦', '♣': '클로버 ♣', '♠': '스페이드 ♠' };
 
@@ -755,7 +770,7 @@ const INITIAL_STATE: GameState = {
   rulesetId: 'original-1e-3p',
   bio: INITIAL_BIO,
   reputation: 5,
-  currentLocationName: "오크 길",
+  currentLocationName: "Oak Road",
   currentLocationType: "Wilds",
   currentRegion: "Forest",
   currentSeason: "Spring",
@@ -811,7 +826,7 @@ const INITIAL_STATE: GameState = {
   scroungingMode: false,
   scroungingTimer: 0,
   independentUsedThisAilment: false,
-  visitedLocations: ["오크 길"],
+  visitedLocations: ["Oak Road"],
   curedAilmentInThisWilds: false,
   needsLocalHelpBeforeMove: false,
   lastForageCardValue: 0,
@@ -1201,7 +1216,7 @@ const MAP_LOCATIONS: Record<string, MapLocationNode> = {
   screens: { label: 'Screens', x: 88, y: 8, neighbors: ['spoolkeep', 'skimslim'] },
   skimslim: { label: 'Skimslim', x: 74, y: 5, neighbors: ['screens', 'blueberry_pond'] },
   crowless: { label: 'Crowless', x: 96, y: 9, neighbors: ['spoolkeep', 'screens'] },
-  starting_oak_road: { label: '오크 길', x: 26, y: 34, aliases: ['Starting Oak Road', 'Oak Road', '오크 길'], neighbors: ['whitebirch', 'spoutneck'] }
+  starting_oak_road: { label: 'Oak Road', x: 26, y: 34, aliases: ['Starting Oak Road', '오크 길'], neighbors: ['whitebirch', 'spoutneck'] }
 };
 
 const MAP_WAYPOINTS = `77.96,3.81;48.38,4.34;82.68,4.78;54.52,5.04;51.24,5.17;3.95,5.34;47.85,5.83;61.54,6.12;85.58,6.23;7.30,6.32;44.97,6.34;57.71,6.45;76.58,6.49;72.81,6.92;90.75,6.80;84.35,7.21;14.61,7.41;88.68,7.40;65.77,7.49;43.25,7.89;76.97,8.20;63.67,8.44;82.11,8.36;51.24,8.72;7.60,8.92;33.59,8.99;36.50,9.19;69.52,9.25;21.31,9.41;92.50,9.93;61.26,10.02;4.25,10.13;63.78,10.40;71.82,10.39;26.38,10.76;9.47,11.08;29.41,11.15;16.21,11.45;12.33,12.09;67.41,12.04;38.96,12.34;77.32,12.40;49.35,12.83;95.11,12.86;3.64,13.38;30.31,13.46;36.12,13.63;57.04,14.17;64.86,13.92;14.78,13.99;83.44,14.14;23.20,14.61;31.18,15.22;80.77,15.21;74.68,15.32;28.89,15.61;68.89,15.54;34.59,15.86;86.57,15.83;18.64,16.17;65.83,16.55;5.63,16.63;37.53,16.72;44.56,17.11;14.47,17.17;29.04,17.21;96.62,17.35;65.03,17.82;33.03,17.79;77.19,17.94;22.91,18.04;87.43,18.02;39.68,18.17;93.68,18.63;90.03,18.78;36.71,18.82;84.21,18.97;44.61,19.05;4.77,19.22;70.66,19.56;60.19,19.47;16.07,19.78;28.15,19.81;40.41,20.04;25.26,20.39;76.37,20.38;12.75,20.47;38.59,20.56;70.52,20.64;36.63,20.73;20.27,21.13;9.16,21.80;50.37,22.17;46.63,22.15;96.51,22.39;62.74,22.50;17.38,22.88;19.43,23.03;67.68,23.07;15.96,23.19;49.46,23.28;23.47,23.53;41.65,23.82;75.38,23.96;27.90,24.15;77.92,24.33;93.80,24.46;37.98,24.67;57.78,24.75;35.95,24.84;2.85,24.87;15.89,24.98;53.11,25.23;64.47,25.20;60.96,25.53;72.93,25.56;95.52,25.66;69.92,25.82;21.93,26.32;92.94,26.55;65.79,27.73;42.94,27.82;58.70,27.84;28.25,27.84;8.11,27.99;83.90,27.94;40.93,28.10;33.31,28.21;61.73,28.44;5.32,28.69;32.83,29.27;72.04,29.25;86.80,29.78;21.67,29.85;56.14,29.91;36.34,29.97;64.77,30.15;33.28,30.35;18.38,30.61;75.96,31.05;15.33,31.89;79.03,32.02;52.05,32.46;81.97,32.41;58.62,32.59;89.90,32.69;2.81,32.77;41.69,32.76;55.04,32.83;9.47,33.05;32.09,33.08;62.67,33.40;27.11,33.48;85.40,33.57;15.48,33.90;20.37,34.07;47.94,34.45;73.45,34.70;45.83,34.85;5.05,35.42;79.30,35.53;16.45,35.66;28.63,35.65;86.87,35.69;24.82,36.16;55.02,36.65;12.71,36.47;57.84,36.52;30.83,36.60;61.03,37.06;42.26,37.28;55.98,37.21;94.81,37.48;65.63,37.84;87.15,38.07;18.33,38.07;28.07,38.11;34.15,38.17;69.39,38.10;23.46,38.20;45.58,38.19;11.59,38.67;5.55,38.78;20.14,38.79;37.26,38.96;76.87,39.18;62.68,39.37;35.27,39.46;22.15,39.61;54.94,39.94;97.05,39.94;50.06,40.14;27.28,40.26;32.70,40.55;58.59,40.47;21.13,40.81;64.42,40.85;78.55,40.94;24.80,41.25;74.77,41.31;52.75,41.37;15.64,41.93;88.11,41.89;54.80,41.97;22.33,42.22;84.34,42.24;80.28,42.40;56.49,42.95;94.75,42.39;69.39,42.89;37.76,42.98;30.57,43.20;40.36,43.38;55.71,43.60;93.32,43.71;90.84,43.84;96.44,43.84;36.09,44.05;73.11,44.01;65.25,44.18;55.73,44.48;33.19,44.67;18.82,44.87;67.38,45.81;23.01,45.89;97.14,45.90;45.11,46.15;27.06,46.36;5.47,46.65;92.24,46.82;15.75,46.94;86.49,47.02;36.04,47.34;51.95,47.87;95.75,47.94;39.72,48.39;69.44,48.45;48.43,48.68;90.13,48.64;33.11,48.91;26.14,49.15;9.25,49.30;86.81,49.97;96.63,49.94;72.54,50.29;15.57,50.48;36.10,50.57;91.71,50.68;31.70,51.00;28.98,51.16;57.41,51.36;33.93,51.44;44.94,51.72;95.62,51.81;41.97,51.97;89.15,51.96;39.66,52.20;83.78,52.20;77.16,52.49;68.50,52.69;86.55,52.67;93.35,52.82;91.54,52.89;47.67,53.06;18.05,53.15;39.06,53.13;25.73,53.19;30.66,53.82;84.94,54.15;63.77,54.35;73.82,54.34;10.30,54.64;75.76,55.56;61.18,55.66;34.97,55.85;7.24,56.10;84.01,56.68;31.18,56.94;66.62,57.07;82.20,57.21;87.38,57.48;18.29,57.50;63.54,57.49;51.69,57.89;75.59,58.11;9.43,59.05;54.78,59.02;14.61,59.25;79.52,59.69;70.09,59.81;73.00,60.10;48.53,60.28;58.41,60.39;20.27,61.21;46.55,61.31;90.53,61.58;7.83,61.62;76.55,61.75;28.95,62.48;17.15,62.43;55.27,62.52;61.68,62.56;37.77,63.01;45.16,63.15;69.82,63.35;4.82,63.64;83.63,63.63;89.58,64.22;74.35,64.51;62.67,64.82;19.66,65.38;42.42,65.49;81.48,66.02;4.78,66.10;77.93,66.87;57.95,67.16;27.65,67.24;82.94,67.32;68.96,67.40;73.46,67.78;85.21,68.00;92.97,68.29;13.82,68.82;9.23,68.96;78.29,69.78;44.18,70.61;66.54,70.59;21.27,70.88;55.47,71.20;83.21,71.25;6.45,71.36;71.79,72.93;51.87,73.20;80.53,74.41;13.53,75.13;75.20,75.65;58.14,76.32;5.92,76.05;38.02,76.00;77.36,76.19;62.09,76.09;77.78,77.83;34.37,78.32;61.39,78.56;18.01,79.10;89.08,79.18;60.24,79.59;5.85,79.88;57.55,80.23;61.60,80.71;78.97,81.13;93.38,81.10;10.27,81.75;29.45,82.46;91.28,82.79;50.68,83.22;68.49,83.20;12.53,83.90;3.81,83.97;8.21,84.15;80.86,84.17;19.75,84.38;93.55,84.59;39.14,84.86;91.14,85.06;35.93,85.91;63.32,86.24;76.98,86.32;85.58,86.60;32.93,86.63;95.47,87.29;53.93,87.41;91.80,87.41;41.28,87.67;12.57,87.84;8.23,88.03;4.25,88.09;72.71,88.21;44.95,88.95;87.64,89.45;91.19,89.55;37.78,90.05;69.30,90.09;59.15,90.12;48.53,90.41;95.26,90.79;31.52,90.93;35.66,91.31;82.58,92.16;75.99,92.43;51.28,92.40;39.43,92.86;53.89,92.98;4.24,93.13;8.48,93.24;15.85,93.25;42.51,93.28;59.73,93.33;34.02,93.56;86.75,94.04;24.39,94.30;93.97,95.40;57.60,96.28;19.68,96.37;39.69,96.45;8.65,96.72;12.46,96.74;4.35,96.82;26.78,97.28`
@@ -1566,6 +1581,66 @@ const toRuleMapGraph = (s: GameState): Record<string, JourneyMapNode> => {
   }));
 };
 
+const toTravelEngineGraph = (s: GameState) => {
+  const source = buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || []);
+  return Object.fromEntries(Object.entries(source).map(([id, node]) => {
+    const barterType = getBarterTypeForMapNode(id, node);
+    const locationType = (barterType
+      || (node.kind === 'ruin' ? 'Titan Ruin' : node.kind === 'barrow' ? 'Behemoth Barrow' : 'Wilds')) as 'Wilds' | 'Settlement' | 'City' | 'Titan Ruin' | 'Behemoth Barrow';
+    return [id, {
+      id,
+      name: node.label,
+      x: node.x,
+      y: node.y,
+      region: toRuleRegion(node.region, s.currentRegion),
+      locationType,
+      edges: (node.neighbors || []).filter(to => source[to]).map(to => ({
+        to,
+        kind: mapEdgeKind(id, to, source, s.customMapEdges || [])
+      }))
+    }];
+  }));
+};
+
+const collectLocationDistances = (
+  graph: Record<string, { neighbors?: string[] }>,
+  originId: string,
+  maxPaths = 64
+): Map<string, number> => {
+  const distances = new Map<string, number>();
+  if (!originId || !graph[originId]) return distances;
+  distances.set(originId, 0);
+  const queue = [originId];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    const distance = distances.get(id)!;
+    if (distance >= maxPaths) continue;
+    (graph[id]?.neighbors || []).forEach(next => {
+      if (!distances.has(next)) {
+        distances.set(next, distance + 1);
+        queue.push(next);
+      }
+    });
+  }
+  return distances;
+};
+
+const toMapPlaceType = (kind?: string): MapPlaceType => {
+  if (kind === 'city' || kind === 'City') return 'City';
+  if (kind === 'settlement' || kind === 'Settlement') return 'Settlement';
+  if (kind === 'ruin' || kind === 'Ruin' || kind === 'Titan Ruin') return 'Ruin';
+  if (kind === 'barrow' || kind === 'Barrow' || kind === 'Behemoth Barrow') return 'Barrow';
+  return 'Wilds';
+};
+
+const destTypeFromMapPick = (kind?: string): string => {
+  if (kind === 'city' || kind === 'City') return 'City';
+  if (kind === 'settlement' || kind === 'Settlement') return 'Settlement';
+  if (kind === 'ruin' || kind === 'Ruin' || kind === 'Titan Ruin') return 'Ruin';
+  if (kind === 'barrow' || kind === 'Barrow' || kind === 'Behemoth Barrow') return 'Barrow';
+  return 'Wilds';
+};
+
 const adjacentRuleRegions = (s: GameState): Region[] => {
   const graph = toRuleMapGraph(s);
   const currentId = findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName);
@@ -1790,9 +1865,7 @@ const projectActiveAilments = (s: GameState): ActiveAilment[] => {
   const previousRows = s.activeAilments || (s.activeAilment ? [s.activeAilment] : []);
   return patient.ailments.filter(ailment => ailment.status === 'active').map(ailment => {
     const definition = AILMENTS.find(row => row.id === ailment.ailmentId);
-    const legacyDefinition = GAME_DATA.ailments.find(row =>
-      row.name === definition?.displayName || row.rawName === definition?.canonicalName
-    );
+    const display = definition ? ailmentDisplayRecord(definition) : null;
     const previous = previousRows.find(row => row.id === ailment.id);
     const timers = ailment.timerIds.map(id => patient.timers.find(timer => timer.id === id)).filter(Boolean);
     const timer = timers.length > 0 ? Math.min(...timers.map(row => row!.current)) : 0;
@@ -1803,10 +1876,10 @@ const projectActiveAilments = (s: GameState): ActiveAilment[] => {
       severity: ailment.severity,
       timer,
       maxTimer,
-      tags: legacyDefinition?.tags || previous?.tags || ailment.requirementSnapshot || '',
-      description: legacyDefinition?.description || previous?.description || '',
-      outcome: legacyDefinition?.outcome || previous?.outcome || '',
-      consequence: legacyDefinition?.consequence || previous?.consequence || '',
+      tags: display?.tags || previous?.tags || ailment.requirementSnapshot || '',
+      description: display?.description || previous?.description || '',
+      outcome: display?.outcome || previous?.outcome || '',
+      consequence: display?.consequence || previous?.consequence || '',
       foragingPoints: patient.foragingPoints || 0,
       reagentsGathered: patient.reagentsGathered || [],
       patientName: patient.name,
@@ -2098,31 +2171,57 @@ const cleanMemoryName = (name: string) =>
   name.replace(/\s*\([^)]*\)/g, '').replace(/\s*\[[^\]]*\]/g, '').trim();
 
 const findReagentMemoryDefinition = (name: string) => {
-  const cleanName = cleanMemoryName(name).toLowerCase();
-  return GAME_DATA.reagents.find(reagent => [
-    reagent.name,
-    reagent.rawName,
-    cleanMemoryName(reagent.name),
-    cleanMemoryName(reagent.rawName),
-    polishRuleText(reagent.rawName)
-  ].some(candidate => candidate.toLowerCase() === cleanName));
+  const row = findCanonicalReagent(cleanMemoryName(name));
+  return row ? reagentDisplayRecord(row) : null;
 };
 
-const getLocalizedLocationName = (name: string): string => {
-  if (!name) return '이름 모를 곳';
-  const clean = name.trim();
-  const lower = clean.toLowerCase();
-  if (lower === 'starting oak road' || lower === 'oak road') return '오크 길';
-  if (lower === 'bristley woods') return '브리슬리 숲';
-  if (lower === 'noonhill') return '눈힐';
-  if (lower === 'odoak') return '오도악';
-  if (lower === 'newdam') return '뉴댐';
-  if (lower === 'vessel') return '베셀';
-  if (lower === 'summit') return '서밋';
-  if (lower === 'spoolkeep') return '스풀킵';
-  if (lower === 'glasswall') return '글래스월';
-  return clean;
+const remapEncounterConditions = (conditions: string[], s: GameState): string[] => {
+  const locationId = findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName);
+  return Array.from(new Set((conditions || []).map(condition => {
+    if (condition === 'free-path:current' && locationId) return `free-path:${locationId}`;
+    if (condition === 'ignore-negative-here-until-move' && locationId) return `ignore-negative:${locationId}`;
+    return condition;
+  })));
 };
+
+const freePathLocationIdsFromState = (s: GameState): string[] =>
+  (s.manualConditions || [])
+    .filter(condition => condition.startsWith('free-path:'))
+    .map(condition => condition.slice('free-path:'.length));
+
+const previewTravelSpeed = (s: GameState, weight: number): number => {
+  let speed = getTravelSpeed(s, weight);
+  const hasStilts = canonicalToolsFromState(s).some(tool => tool.toolId === 'stilts' && !tool.broken && !tool.consumed);
+  if (s.currentRegion === 'Bog' && hasStilts) speed += 1;
+  if ((s.manualConditions || []).includes('next-move-speed-double')) speed *= 2;
+  return speed;
+};
+
+const consumeTravelConditions = (conditions: string[], destinationId: string, originId?: string): string[] =>
+  conditions.filter(condition => {
+    if (condition === 'ignore-midges-until-move') return false;
+    if (condition === 'next-move-speed-double') return false;
+    if (condition === 'location-encounter-fp:3') return false;
+    if (condition === 'redraw-encounter-once') return false;
+    if (condition === `free-path:${destinationId}`) return false;
+    if (originId && condition === `ignore-negative:${originId}`) return false;
+    return true;
+  });
+
+const defaultEncounterChoiceId = (encounter: { choices?: Array<{ id: string }> } | null | undefined, selectedChoiceId?: string): string | undefined => {
+  const choices = encounter?.choices || [];
+  if (selectedChoiceId && choices.some(choice => choice.id === selectedChoiceId)) return selectedChoiceId;
+  if (choices.length === 1 && choices[0].id === 'continue') return 'continue';
+  return undefined;
+};
+
+const encounterNeedsPlayerChoice = (encounter: { choices?: Array<{ id: string }> } | null | undefined, selectedChoiceId?: string): boolean => {
+  const choices = encounter?.choices || [];
+  if (choices.length === 0) return false;
+  return !defaultEncounterChoiceId(encounter, selectedChoiceId);
+};
+
+const getLocalizedLocationName = (name: string): string => localizeLocationName(name);
 
 const getLocalizedSource = (source: string): string => {
   const s = (source || '').toLowerCase().trim();
@@ -3402,14 +3501,16 @@ const migrateGuildNotes = (bag: BagItem[] = []): BagItem[] => bag.map(item => {
 const normalizeLocationEntries = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
   return [...new Set(value
-    .map(raw => (typeof raw === 'string' ? raw.trim() : ''))
-    .filter((name): name is string => Boolean(name)))];
+    .map(raw => (typeof raw === 'string' ? localizeLocationName(raw) : ''))
+    .filter((name): name is string => Boolean(name) && name !== 'Unknown Location'))];
 };
 
 const migrateState = (s: any): GameState => {
   if (!s) return INITIAL_STATE;
   s = migrateLegacyTerminology(migrateSavedRulesState(s));
-  const migratedCurrentLocationName = typeof s.currentLocationName === 'string' ? s.currentLocationName.trim() : '';
+  const migratedCurrentLocationName = typeof s.currentLocationName === 'string' && s.currentLocationName.trim()
+    ? localizeLocationName(s.currentLocationName)
+    : '';
   const visitedLocations = normalizeLocationEntries(s.visitedLocations);
   const fallbackCurrentLocation = migratedCurrentLocationName || visitedLocations[0] || INITIAL_STATE.currentLocationName;
   const dedupedCurrentLocation = normalizeLocationEntries([migratedCurrentLocationName])[0] || fallbackCurrentLocation;
@@ -3531,14 +3632,74 @@ const migrateState = (s: any): GameState => {
   });
 };
 
-const safeMigrateState = (raw: any): GameState => {
-  try {
-    return migrateState(raw);
-  } catch (error) {
-    console.error('게임 저장 데이터 마이그레이션 실패, 초깃값으로 초기화합니다.', error);
-    try { localStorage.removeItem('apawthecaria_rpg_state'); } catch {}
-    return syncWorldMemory(INITIAL_STATE);
+const migrateCampaignSave = (raw: unknown): { ok: true; state: GameState } | { ok: false } =>
+  tryMigrateCampaignSave(raw, migrateState);
+
+const exportRawCampaignSave = () => {
+  const raw = localStorage.getItem(CAMPAIGN_SAVE_KEY);
+  if (!raw) {
+    showAlert('내보낼 로컬 기록이 없습니다.');
+    return;
   }
+  const downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute('href', `data:text/json;charset=utf-8,${encodeURIComponent(raw)}`);
+  downloadAnchor.setAttribute('download', `apawthecaria_save_raw_${Date.now()}.json`);
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+};
+
+const findCanonicalReagent = (reagentName: string) => {
+  const needle = reagentName.trim().toLowerCase();
+  if (!needle) return null;
+  return REAGENTS.find(row =>
+    row.canonicalName.toLowerCase() === needle
+    || row.displayName.toLowerCase() === needle
+    || row.canonicalName.toLowerCase().includes(needle)
+    || row.displayName.toLowerCase().includes(needle)
+  ) || null;
+};
+
+const availableCatalogKeys = <T extends string>(record: Record<T, 'Common' | 'Rare' | 'Unavailable'>): T[] =>
+  (Object.entries(record) as [T, 'Common' | 'Rare' | 'Unavailable'][])
+    .filter(([, availability]) => availability !== 'Unavailable')
+    .map(([key]) => key);
+
+const reagentDisplayRecord = (row: (typeof REAGENTS)[number]) => ({
+  name: row.displayName,
+  rawName: row.canonicalName,
+  type: row.type,
+  br: row.baseRarity,
+  description: row.description,
+  regions: availableCatalogKeys(row.regionAvailability),
+  seasons: availableCatalogKeys(row.seasonAvailability),
+  preps: row.preparations.map(part => {
+    const tags = part.tags.map(tag => `[${tag.tag} ${tag.value}]`).join(' ');
+    return `${part.name} [${part.method}]${tags ? ` ${tags}` : ''}`;
+  }).join('\n') || 'unprepared specimen'
+});
+
+const ailmentDisplayRecord = (row: (typeof AILMENTS)[number]) => {
+  const legacy = GAME_DATA.ailments.find(ailment =>
+    ailment.rawName === row.canonicalName
+    || ailment.name === row.displayName
+    || ailment.name.toLowerCase().includes(row.canonicalName.toLowerCase())
+  );
+  const effectText = (effects: (typeof row.successEffects)) =>
+    effects
+      .map(item => item.effect.type === 'customEffect' ? item.effect.description : '')
+      .filter(Boolean)
+      .join('\n');
+  return {
+    name: row.displayName,
+    rawName: row.canonicalName,
+    severity: row.severity,
+    timer: row.timer,
+    tags: legacy?.tags || '',
+    description: legacy?.description || '',
+    outcome: legacy?.outcome || effectText(row.successEffects),
+    consequence: legacy?.consequence || effectText(row.failureEffects)
+  };
 };
 
 const isJourneyGoal = (title: string | undefined, ...names: string[]) => names.includes(title || '');
@@ -3622,7 +3783,7 @@ const checkReagentGatherForGoal = (s: GameState, reagentName: string) => {
   let nextGoalCounter = s.journeyGoalCounter || 0;
   let nextChecklist = [...(s.journeyGoalChecklist || [])];
   if (s.journeyActive && isJourneyGoal(s.journeyGoalTitle, '영감 수집', '신선한 영감')) {
-    const dbReag = GAME_DATA.reagents.find(item => item.name.toLowerCase().includes(reagentName.toLowerCase()) || item.rawName.toLowerCase().includes(reagentName.toLowerCase()));
+    const dbReag = findCanonicalReagent(reagentName);
     if (dbReag && dbReag.type === 'PLANT') {
       const validRegions = ['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain', 'Titan'];
       if (validRegions.includes(s.currentRegion) && !nextChecklist.includes(s.currentRegion)) {
@@ -3639,7 +3800,7 @@ const isEligibleForBandolier = (item: BagItem): boolean => {
   const canonical = item.canonicalReagentId ? REAGENT_BY_ID.get(item.canonicalReagentId) : null;
   if (canonical) return canonical.type === 'PLANT' || canonical.type === 'INSECT';
   const itemName = item.name.replace(/\s*\([^)]*\)\s*$/, '').trim();
-  const dbReag = GAME_DATA.reagents.find(r => r.name === itemName || r.rawName === itemName);
+  const dbReag = findCanonicalReagent(itemName);
   return dbReag ? dbReag.type === 'PLANT' || dbReag.type === 'INSECT' : false;
 };
 
@@ -4000,6 +4161,9 @@ export default function App() {
   const [controlledPromptValue, setControlledPromptValue] = useState('');
   const [controlledPromptResolver, setControlledPromptResolver] = useState<((value: string | null) => void) | null>(null);
   const [noticeQueue, setNoticeQueue] = useState<string[]>([]);
+  const [rulebookRequest, setRulebookRequest] = useState<RulebookReferenceRequest | null>(null);
+  const [pendingMapTravel, setPendingMapTravel] = useState<MapPickLocation | null>(null);
+  const [saveLoadError, setSaveLoadError] = useState<string | null>(null);
 
   const requestControlledPrompt = useCallback((request: ControlledPromptRequest) => new Promise<string | null>(resolve => {
     setControlledPromptResolver(() => resolve);
@@ -4084,34 +4248,51 @@ export default function App() {
           const snap = await getDoc(userDocRef);
           if (snap.exists()) {
             const cloudData = snap.data();
-            if (cloudData && cloudData['apawthecaria_rpg_state']) {
-              const parsed = JSON.parse(cloudData['apawthecaria_rpg_state']);
-              const localStr = localStorage.getItem('apawthecaria_rpg_state');
+            if (cloudData && cloudData[CAMPAIGN_SAVE_KEY]) {
+              const parsed = JSON.parse(cloudData[CAMPAIGN_SAVE_KEY]);
+              const localStr = localStorage.getItem(CAMPAIGN_SAVE_KEY);
               if (localStr) {
-                const localParsed = JSON.parse(localStr);
-                const isLocalDefault = !localParsed.bio?.name && (!localParsed.journals || localParsed.journals.length === 0);
-                const localRevision = Number(localParsed.saveRevision || 0);
-                const cloudRevision = Number(parsed.saveRevision || 0);
-                const shouldLoadCloud = isLocalDefault || cloudRevision > localRevision
-                  || (cloudRevision === localRevision && localRevision === 0
-                    && confirm("구글 클라우드에 백업된 아포테카리아 데이터를 발견했습니다. 불러오시겠습니까?\n(불러오면 현재 진행 중인 로컬 데이터는 덮어씌워집니다.)"));
-                if (shouldLoadCloud) {
-                  const migrated = safeMigrateState(parsed);
-                  setState(migrated);
-                  localStorage.setItem('apawthecaria_rpg_state', JSON.stringify(migrated));
-                } else if (localRevision > cloudRevision) {
-                  await setDoc(userDocRef, { 'apawthecaria_rpg_state': localStr }, { merge: true });
+                const localParsed = parseCampaignSaveRaw(localStr);
+                const localRevision = Number(
+                  localParsed.ok && localParsed.value && typeof localParsed.value === 'object'
+                    ? (localParsed.value as { saveRevision?: number }).saveRevision || 0
+                    : 0
+                );
+                const cloudRevision = Number((parsed as { saveRevision?: number }).saveRevision || 0);
+                const action = decideCloudSaveAction({
+                  localRaw: localStr,
+                  cloudRevision,
+                  confirmOverwrite: () => confirm(
+                    cloudRevision > localRevision
+                      ? '클라우드 기록이 더 최근입니다. 지금 기기의 로컬 기록을 덮어쓸까요?'
+                      : '구글 클라우드에 백업된 아포테카리아 데이터를 발견했습니다. 불러오시겠습니까?\n(불러오면 현재 진행 중인 로컬 데이터는 덮어씌워집니다.)'
+                  )
+                });
+                if (action === 'load-cloud') {
+                  const migrated = migrateCampaignSave(parsed);
+                  if (!migrated.ok) {
+                    showAlert('클라우드 저장을 올리지 못했습니다. 로컬 기록은 그대로 둡니다.');
+                  } else {
+                    setState(migrated.state);
+                    localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(migrated.state));
+                  }
+                } else if (action === 'upload-local') {
+                  await setDoc(userDocRef, { [CAMPAIGN_SAVE_KEY]: localStr }, { merge: true });
                 }
               } else {
-                const migrated = safeMigrateState(parsed);
-                setState(migrated);
-                localStorage.setItem('apawthecaria_rpg_state', JSON.stringify(migrated));
+                const migrated = migrateCampaignSave(parsed);
+                if (!migrated.ok) {
+                  showAlert('클라우드 저장을 올리지 못했습니다. 로컬 기록은 그대로 둡니다.');
+                } else {
+                  setState(migrated.state);
+                  localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(migrated.state));
+                }
               }
             }
           } else {
-            const localStr = localStorage.getItem('apawthecaria_rpg_state');
+            const localStr = localStorage.getItem(CAMPAIGN_SAVE_KEY);
             if (localStr) {
-              await setDoc(userDocRef, { 'apawthecaria_rpg_state': localStr }, { merge: true });
+              await setDoc(userDocRef, { [CAMPAIGN_SAVE_KEY]: localStr }, { merge: true });
             }
           }
         } catch (err) {
@@ -4125,9 +4306,38 @@ export default function App() {
   // Load initial state
   useEffect(() => {
     const loadSave = async () => {
-      const loaded = await store.load('apawthecaria_rpg_state', null);
+      const failLoad = (message: string) => {
+        setSaveLoadError(message);
+        showAlert(`${message} 원본을 내보낸 뒤 다시 시도하세요.`);
+      };
+      const raw = localStorage.getItem(CAMPAIGN_SAVE_KEY);
+      if (raw) {
+        const parsed = parseCampaignSaveRaw(raw);
+        if (!parsed.ok) {
+          failLoad('저장 파일이 손상되어 열 수 없습니다. 기존 기록은 지우지 않았습니다.');
+          setLoading(false);
+          return;
+        }
+        const migrated = migrateCampaignSave(parsed.value);
+        if (!migrated.ok) {
+          failLoad('저장 데이터를 올리지 못했습니다. 기존 기록은 디스크에서 지우지 않았습니다.');
+          setLoading(false);
+          return;
+        }
+        setState(migrated.state);
+        setSaveLoadError(null);
+        setLoading(false);
+        return;
+      }
+      const loaded = await store.load(CAMPAIGN_SAVE_KEY, null);
       if (loaded) {
-        setState(safeMigrateState(loaded));
+        const migrated = migrateCampaignSave(loaded);
+        if (migrated.ok) {
+          setState(migrated.state);
+          setSaveLoadError(null);
+        } else {
+          failLoad('저장 데이터를 올리지 못했습니다. 기존 기록은 디스크에서 지우지 않았습니다.');
+        }
       } else {
         setState(syncWorldMemory(INITIAL_STATE));
       }
@@ -4172,7 +4382,8 @@ export default function App() {
         inventory: toEngineInventory(state.bag),
         toolIds: canonicalToolsFromState(state).filter(tool => !tool.broken && !tool.consumed).map(tool => tool.toolId),
         tools: canonicalToolsFromState(state),
-        patient: getActivePatient(state)
+        patient: getActivePatient(state),
+        conditions: state.manualConditions || []
       },
       forageRegion: pending.region,
       locationRelation: pending.locationRelation,
@@ -4219,7 +4430,7 @@ export default function App() {
       };
       next = syncWorldMemory(next);
 
-      store.set('apawthecaria_rpg_state', next);
+      store.set(CAMPAIGN_SAVE_KEY, next);
       return next;
     });
   };
@@ -4264,24 +4475,122 @@ export default function App() {
     return () => { cancelled = true; };
   }, [state]);
 
-  const handleBarterProgressToDeal = () => {
+  const handleBarterProgressToDeal = async () => {
     if (!state?.pendingBarter) return;
     const patient = state.patients.find(row => row.id === state.pendingBarter?.patientId);
     if (!patient) return;
     let runtime = toBarterRuntime(state, patient);
     const pending = runtime.pendingBarter;
     if (pending?.status === 'manual-social' && pending.socialEncounter && pending.firstCard) {
-      const savedDraft = state.manualEffectQueue.find(draft => draft.context.barterId === pending.barterId);
-      const draft = savedDraft || createPrintedManualDraft(pending.socialEncounter.id, 'encounter', {
-        encounterTransactionId: `${pending.barterId}:social`,
-        barterId: pending.barterId,
-        patientId: patient.id,
-        locationId: pending.locationId,
-        continuation: 'barter-social'
+      const encounter = pending.socialEncounter;
+      const socialChoices = encounter.choices || [];
+      let selectedChoiceId = socialChoices.length === 1 ? socialChoices[0].id : undefined;
+      if (socialChoices.length > 1) {
+        const picked = await requestControlledPrompt({
+          title: encounter.title,
+          message: encounter.prompt,
+          defaultValue: socialChoices[0].id,
+          kicker: `사교 조우 · p.${encounter.sourcePage}`,
+          options: socialChoices.map(choice => ({ value: choice.id, label: choice.label }))
+        });
+        if (picked === null) return;
+        selectedChoiceId = picked;
+      }
+      if (selectedChoiceId) {
+        const executed = resolveEncounter({
+          transactionId: `${pending.barterId}:social-choice`,
+          encounter,
+          choiceId: selectedChoiceId,
+          state: {
+            reputation: state.reputation,
+            trinkets: state.trinkets.length,
+            calendarDays: state.calendarDays,
+            foragingPoints: state.activeAilment?.foragingPoints || 0,
+            inventory: toEngineInventory(state.bag),
+            patient,
+            movementBlocked: Boolean(state.needsLocalHelpBeforeMove),
+            conditions: state.manualConditions || [],
+            appliedEffectIds: state.appliedEncounterEffectIds
+          }
+        });
+        if (!executed.value) {
+          showAlert(executed.messages.join('\n'));
+          return;
+        }
+        const leftover = executed.value.unresolvedEffects.length > 0;
+        updateState(s => {
+          const runtimeState = executed.value!.nextState;
+          const patients = runtimeState.patient
+            ? s.patients.map(row => row.id === runtimeState.patient!.id
+              ? { ...runtimeState.patient!, foragingPoints: runtimeState.foragingPoints }
+              : row)
+            : s.patients;
+          let next: GameState = {
+            ...s,
+            reputation: runtimeState.reputation,
+            trinkets: Array.from({ length: runtimeState.trinkets }, (_, index) => s.trinkets[index] || '사교 조우 장신구'),
+            calendarDays: runtimeState.calendarDays,
+            bag: fromEngineInventory(runtimeState.inventory, s.bag),
+            patients,
+            appliedEncounterEffectIds: runtimeState.appliedEffectIds,
+            manualConditions: remapEncounterConditions(runtimeState.conditions, s)
+          };
+          if (leftover) {
+            const draft = createPrintedManualDraft(encounter.id, 'encounter', {
+              encounterTransactionId: `${pending.barterId}:social`,
+              barterId: pending.barterId,
+              patientId: patient.id,
+              locationId: pending.locationId,
+              continuation: 'barter-social'
+            });
+            next = enqueueManualDrafts(next, [draft]);
+          }
+          return next;
+        });
+        if (leftover) {
+          showAlert('인쇄된 사교 효과를 적용했습니다. 남은 서술 판정을 마친 뒤 두 번째 카드를 뽑을 수 있습니다.');
+          return;
+        }
+        runtime = toBarterRuntime({
+          ...state,
+          reputation: executed.value.nextState.reputation,
+          trinkets: Array.from({ length: executed.value.nextState.trinkets }, (_, index) => state.trinkets[index] || '사교 조우 장신구'),
+          calendarDays: executed.value.nextState.calendarDays,
+          bag: fromEngineInventory(executed.value.nextState.inventory, state.bag),
+          patients: executed.value.nextState.patient
+            ? state.patients.map(row => row.id === executed.value!.nextState.patient!.id
+              ? { ...executed.value!.nextState.patient!, foragingPoints: executed.value!.nextState.foragingPoints }
+              : row)
+            : state.patients,
+          appliedEncounterEffectIds: executed.value.nextState.appliedEffectIds,
+          manualConditions: remapEncounterConditions(executed.value.nextState.conditions, state)
+        }, patient);
+      } else {
+        const savedDraft = state.manualEffectQueue.find(draft => draft.context.barterId === pending.barterId);
+        const draft = savedDraft || createPrintedManualDraft(pending.socialEncounter.id, 'encounter', {
+          encounterTransactionId: `${pending.barterId}:social`,
+          barterId: pending.barterId,
+          patientId: patient.id,
+          locationId: pending.locationId,
+          continuation: 'barter-social'
+        });
+        if (draft) updateState(s => enqueueManualDrafts(s, [draft]));
+        showAlert('사교 조우의 직접 판정을 먼저 완료해야 두 번째 카드를 뽑을 수 있습니다.');
+        return;
+      }
+      const confirmed = resolveBarterEncounter({
+        transactionId: `${pending.barterId}:social-confirm`,
+        state: runtime,
+        card: pending.firstCard,
+        encounter,
+        manualConfirmed: true
       });
-      if (draft) updateState(s => enqueueManualDrafts(s, [draft]));
-      showAlert('사교 조우의 직접 판정을 먼저 완료해야 두 번째 카드를 뽑을 수 있습니다.');
-      return;
+      if (!confirmed.value) {
+        showAlert(confirmed.messages.join('\n'));
+        return;
+      }
+      runtime = confirmed.value;
+      updateState((s: GameState) => applyBarterRuntime(s, confirmed.value!));
     }
     if (runtime.pendingBarter?.status !== 'awaiting-second-card') {
       showAlert('사교 조우를 먼저 해결해야 합니다.');
@@ -4438,7 +4747,7 @@ export default function App() {
         };
       }
 
-      const commonReagents = GAME_DATA.reagents.filter(r => r.br <= 4);
+      const commonReagents = REAGENTS.filter(r => r.baseRarity <= 4).map(reagentDisplayRecord);
       const randomReagent = commonReagents[Math.floor(Math.random() * commonReagents.length)];
       const firstPart = randomReagent.preps.split(']')[0] ? randomReagent.preps.split(']')[0] + ']' : '영약재 부위';
       const itemGift: BagItem = {
@@ -4556,9 +4865,11 @@ export default function App() {
     if (confirm("로그아웃 하시겠습니까?")) {
       try {
         await signOut(auth);
-        const loaded = await store.load('apawthecaria_rpg_state', null);
+        const loaded = await store.load(CAMPAIGN_SAVE_KEY, null);
         if (loaded) {
-          setState(safeMigrateState(loaded));
+          const migrated = migrateCampaignSave(loaded);
+          if (migrated.ok) setState(migrated.state);
+          else showAlert('저장 데이터를 올리지 못했습니다. 기존 기록은 지우지 않았습니다.');
         } else {
           setState(syncWorldMemory(INITIAL_STATE));
         }
@@ -4576,6 +4887,39 @@ export default function App() {
   };
 
   if (loading || !state) {
+    if (saveLoadError) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '1rem', background: 'var(--bg-gradient)', color: 'var(--text-bright)', padding: '1.5rem', textAlign: 'center' }}>
+          <h2 style={{ letterSpacing: 0, color: 'var(--text-bright)', margin: 0 }}>저장 기록을 열 수 없습니다</h2>
+          <p style={{ color: 'var(--text-muted)', maxWidth: '32rem', lineHeight: 1.55 }}>{saveLoadError}</p>
+          <p style={{ color: 'var(--text-muted)', maxWidth: '32rem', lineHeight: 1.55 }}>
+            기존 로컬 기록은 디스크에서 지우지 않았습니다. 먼저 원본을 내보낸 뒤 다시 시도하거나, 확인 후에만 새로 시작하세요.
+          </p>
+          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button
+              type="button"
+              onClick={exportRawCampaignSave}
+              style={{ padding: '0.55rem 1rem', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              원본 저장 내보내기
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!window.confirm('기존 기록을 지우고 새 약제사로 시작할까요? 먼저 원본을 내보내세요.')) return;
+                const fresh = syncWorldMemory(INITIAL_STATE);
+                setState(fresh);
+                localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(fresh));
+                setSaveLoadError(null);
+              }}
+              style={{ padding: '0.55rem 1rem', background: '#fff', color: '#8f2f28', border: '1px solid #c77972', borderRadius: '8px', cursor: 'pointer' }}
+            >
+              기록을 지우고 새로 시작
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '1.2rem', background: 'var(--bg-gradient)', color: 'var(--text-bright)' }}>
         <h2 style={{ letterSpacing: 0, color: 'var(--text-bright)' }}>Apawthecaria 들녘 일지</h2>
@@ -4696,7 +5040,8 @@ export default function App() {
   const isOverEncumbered = currentWeight > maxCarry;
 
   const addPreparedReagentToInventory = (reagentName: string, sourceLabel: string, onAdded?: () => void) => {
-    const r = GAME_DATA.reagents.find(item => item.name === reagentName || item.name.toLowerCase().includes(reagentName.toLowerCase()) || item.rawName.toLowerCase().includes(reagentName.toLowerCase()));
+    const canonical = findCanonicalReagent(reagentName);
+    const r = canonical ? reagentDisplayRecord(canonical) : null;
     if (!r) {
       showAlert("영약재 이름을 도감에서 찾을 수 없습니다.");
       return;
@@ -4824,7 +5169,8 @@ export default function App() {
         inventory: toEngineInventory(state.bag),
         toolIds: state.bag.flatMap(item => item.canonicalToolId ? [item.canonicalToolId] : []),
         tools: canonicalToolsFromState(state),
-        patient: activePatient
+        patient: activePatient,
+        conditions: state.manualConditions || []
       },
       forageRegion: pending.region,
       locationRelation: pending.locationRelation,
@@ -5080,11 +5426,15 @@ export default function App() {
       setActiveTravelEncounter(null);
       return;
     }
+    if (encounterNeedsPlayerChoice(pending.encounter, activeTravelEncounter?.selectedChoiceId || pending.selectedChoiceId)) {
+      showAlert('인쇄된 선택지 중 하나를 고른 뒤 판정을 계속하세요.');
+      return;
+    }
     const activePatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
     const result = resolveEncounter({
       transactionId: pending.transactionId,
       encounter: pending.encounter,
-      choiceId: activeTravelEncounter?.selectedChoiceId,
+      choiceId: defaultEncounterChoiceId(pending.encounter, activeTravelEncounter?.selectedChoiceId || pending.selectedChoiceId),
       state: {
         reputation: state.reputation,
         trinkets: state.trinkets.length,
@@ -5093,7 +5443,7 @@ export default function App() {
         inventory: toEngineInventory(state.bag),
         patient: activePatient,
         movementBlocked: Boolean(state.needsLocalHelpBeforeMove),
-        conditions: [],
+        conditions: state.manualConditions || [],
         appliedEffectIds: state.appliedEncounterEffectIds
       },
       protection: pending.encounterProtection || (pending.ignoreNegativeEncounterEffects ? 'negative' : undefined)
@@ -5135,6 +5485,7 @@ export default function App() {
         patients,
         appliedEncounterEffectIds: runtime.appliedEffectIds,
         pendingEncounter: null,
+        manualConditions: remapEncounterConditions(runtime.conditions, s),
         journals: [{
           id: `${pending.transactionId}:${manualDraft ? 'pending-manual' : 'resolved'}`,
           title: `${manualDraft ? '판정 대기' : '여정 조우'}: ${printedEffect?.ownerName || pending.encounter.title}`,
@@ -5150,6 +5501,11 @@ export default function App() {
   const resolveCanonicalForageEncounter = (note: string): boolean => {
     const pending = state.pendingForaging;
     if (!pending) return true;
+    if (pending.source !== 'familiar-independent'
+      && encounterNeedsPlayerChoice(activeForageEncounter, activeForageEncounter?.selectedChoiceId || pending.selectedChoiceId)) {
+      showAlert('인쇄된 채집 선택지 중 하나를 고른 뒤 판정을 계속하세요.');
+      return false;
+    }
     if (pending.phase === 'choose-reagent' && (activeForageEncounter?.foundReagents?.length || 0) > 0) {
       showAlert('먼저 영약재 하나와 채집할 부위를 선택해 주세요.');
       return false;
@@ -5172,15 +5528,20 @@ export default function App() {
     const encounterResult = resolveEncounter({
       transactionId: `${pending.transactionId}:encounter`,
       encounter,
-      choiceId: activeForageEncounter?.selectedChoiceId,
+      choiceId: defaultEncounterChoiceId(encounter, activeForageEncounter?.selectedChoiceId || pending.selectedChoiceId),
       state: {
         reputation: state.reputation, trinkets: state.trinkets.length, calendarDays: state.calendarDays,
         foragingPoints: state.activeAilment?.foragingPoints || 0,
         inventory: toEngineInventory(state.bag), patient: activePatient,
-        movementBlocked: Boolean(state.needsLocalHelpBeforeMove), conditions: [],
+        movementBlocked: Boolean(state.needsLocalHelpBeforeMove),
+        conditions: state.manualConditions || [],
         appliedEffectIds: state.appliedEncounterEffectIds
       },
-      protection: pending.ignoreNegativeEncounterEffects ? 'negative' : undefined
+      protection: pending.ignoreNegativeEncounterEffects
+        || ((state.manualConditions || []).includes('ignore-midges-until-move') && /midge/i.test(`${encounter.title || ''} ${encounter.prompt || ''}`))
+        || (state.manualConditions || []).includes(`ignore-negative:${findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName)}`)
+        ? 'negative'
+        : undefined
     });
     if (!encounterResult.value) {
       showAlert(encounterResult.messages.join('\n'));
@@ -5218,6 +5579,7 @@ export default function App() {
         patients: patient ? s.patients.map(row => row.id === patient!.id ? patient! : row) : s.patients,
         appliedEncounterEffectIds: runtime.appliedEffectIds,
         pendingForaging: null,
+        manualConditions: remapEncounterConditions(runtime.conditions, s),
         journals: [{
           id: `${pending.transactionId}:${manualDraft ? 'pending-manual' : 'resolved'}`, title: `${manualDraft ? '판정 대기' : '채집 조우'}: ${printedEffect?.ownerName || encounter.title}`,
           text: `${printedEffect?.printedText || encounter.prompt}${manualDraft ? '\n\n전용 직접 판정에서 선택과 상태 변화를 완료해야 합니다.' : `\n\n${note || '인쇄된 채집 조우를 해결했다.'}`}`,
@@ -5263,6 +5625,12 @@ export default function App() {
     });
   };
 
+  const currentRulebookRequest = activeTravelEncounter
+    ? { entryId: activeTravelEncounter.id ? `encounter:${activeTravelEncounter.id}` : undefined, page: activeTravelEncounter.sourcePage, query: activeTravelEncounter.title, title: '현재 Travel Encounter' }
+    : activeForageEncounter
+      ? { entryId: activeForageEncounter.id ? `encounter:${activeForageEncounter.id}` : undefined, page: activeForageEncounter.sourcePage, query: activeForageEncounter.title, title: '현재 Foraging Encounter' }
+      : referenceForJournalTab(activeTab, state);
+
   return (
     <div className={`journal-app journal-app--${activeTab}`}>
       {/* Header Banner */}
@@ -5274,6 +5642,9 @@ export default function App() {
         </button>
 
         <div className="journal-header__utilities">
+          <button type="button" className="journal-header__action" onClick={() => setRulebookRequest(currentRulebookRequest)} aria-label="현재 페이지의 룰북 맥락 열기" title="현재 페이지의 룰북 맥락">
+            <span className="emoji-icon" aria-hidden="true">📚</span><span>룰북</span>
+          </button>
           {isFirebaseConfigured && auth && (
             user ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.3rem 0.8rem', background: 'var(--primary-light)', borderRadius: '20px', border: '1.5px solid var(--glass-border)' }}>
@@ -5522,6 +5893,7 @@ export default function App() {
                   if (focusContinueTarget()) return;
                   (pendingFollowUps || actionHub)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
+                onOpenReference={setRulebookRequest}
               />
               <BarrowPanel delve={state.activeDelve} />
               <PlayView
@@ -5548,6 +5920,10 @@ export default function App() {
                 handleBarterProgressToDeal={handleBarterProgressToDeal}
                 handleBarterFinalize={handleBarterFinalize}
                 requestControlledPrompt={requestControlledPrompt}
+                onOpenReference={setRulebookRequest}
+                onOpenFullMap={() => changeActiveTab('map')}
+                pendingMapTravel={pendingMapTravel}
+                onConsumePendingMapTravel={() => setPendingMapTravel(null)}
               />
             </>
           )}
@@ -5562,6 +5938,7 @@ export default function App() {
                   setActiveTab('play');
                   window.setTimeout(() => document.getElementById('action-hub')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
                 }}
+                onOpenReference={setRulebookRequest}
               />
               <section
                 className={`journal-chapter journal-chapter--${activeTab}`}
@@ -5624,7 +6001,24 @@ export default function App() {
                     setHighlightedPatientId={setHighlightedPatientId}
                   />
                 )}
-                {activeTab === 'map' && <MapView state={state} />}
+                {activeTab === 'map' && (
+                  <MapView
+                    state={state}
+                    onOpenReference={setRulebookRequest}
+                    onTravelRequest={state.journeyActive ? (location) => {
+                      setPendingMapTravel(location);
+                      changeActiveTab('play');
+                    } : undefined}
+                    travelEnabled={Boolean(state.journeyActive && !state.needsLocalHelpBeforeMove)}
+                    travelBlockedReason={
+                      !state.journeyActive
+                        ? '여정이 시작되면 이동할 수 있습니다.'
+                        : state.needsLocalHelpBeforeMove
+                          ? '현지 일을 마친 뒤 이동할 수 있습니다.'
+                          : null
+                    }
+                  />
+                )}
                 {activeTab === 'journals' && (
                   <JournalsView
                     state={state}
@@ -5638,6 +6032,12 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {rulebookRequest && (
+        <Suspense fallback={<div className="rulebook-drawer-backdrop"><div className="rulebook-drawer rulebook-drawer--loading" role="status">룰북 맥락을 여는 중...</div></div>}>
+          <RulebookReferenceDrawer request={rulebookRequest} onClose={() => setRulebookRequest(null)} />
+        </Suspense>
+      )}
 
       {controlledPrompt && (
         <ControlledPromptDialog
@@ -5947,6 +6347,27 @@ export default function App() {
                 {protectionNotice && <>Forecast가 적용되어 Weather 태그 조우의 모든 부정적 결과를 무시합니다.{"\n\n"}</>}
                 <Suspense fallback={encText}><LocalizedManualEffectText kind="text" summary={encTitle} text={encText} /></Suspense>
               </p>
+
+              {activeForageEncounter.choices?.length > 0 && (
+                <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.9rem' }}>
+                  {activeForageEncounter.choices.map((choice: { id: string; label: string }) => (
+                    <button
+                      key={choice.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveForageEncounter((current: any) => ({ ...current, selectedChoiceId: choice.id }));
+                        updateState(s => ({
+                          ...s,
+                          pendingForaging: s.pendingForaging ? { ...s.pendingForaging, selectedChoiceId: choice.id } : null
+                        }));
+                      }}
+                      style={{ padding: '0.65rem', textAlign: 'left', border: activeForageEncounter.selectedChoiceId === choice.id ? '2px solid var(--primary)' : '1px solid var(--glass-border)', background: '#fff', borderRadius: '6px' }}
+                    >
+                      <Suspense fallback={choice.label}><LocalizedManualEffectText kind="option" text={choice.label} /></Suspense>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Secondary draw guidance */}
               {hasSecondaryDraw && (
@@ -6304,25 +6725,29 @@ interface ControlledPromptRequest {
 function NoticeDialog({ message, onDismiss }: { message: string; onDismiss: () => void }) {
   return (
     <div
-      className="phase4-modal-backdrop controlled-prompt-backdrop"
+      className="phase4-modal-backdrop controlled-prompt-backdrop app-dialog-backdrop"
       role="presentation"
       onKeyDown={event => {
         if (event.key === 'Escape') onDismiss();
       }}
     >
       <section
-        className="phase4-modal controlled-prompt"
+        className="phase4-modal controlled-prompt app-dialog app-dialog--notice"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="app-notice-title"
         aria-describedby="app-notice-message"
       >
-        <div className="document-kicker">여행 기록 안내</div>
-        <h2 id="app-notice-title">확인해 주세요</h2>
-        <p id="app-notice-message" style={{ whiteSpace: 'pre-wrap' }}>{message}</p>
-        <div className="controlled-prompt__actions">
-          <button type="button" autoFocus onClick={onDismiss}>확인</button>
-        </div>
+        <header className="app-dialog__header">
+          <div>
+            <span className="app-dialog__kicker">여행 기록</span>
+            <h2 id="app-notice-title">안내</h2>
+          </div>
+        </header>
+        <p id="app-notice-message" className="app-dialog__message">{message}</p>
+        <footer className="controlled-prompt__actions app-dialog__actions">
+          <button className="app-dialog__primary" type="button" autoFocus onClick={onDismiss}>확인</button>
+        </footer>
       </section>
     </div>
   );
@@ -6343,14 +6768,14 @@ function ControlledPromptDialog({
 }) {
   return (
     <div
-      className="phase4-modal-backdrop controlled-prompt-backdrop"
+      className="phase4-modal-backdrop controlled-prompt-backdrop app-dialog-backdrop"
       role="presentation"
       onKeyDown={event => {
         if (event.key === 'Escape') onCancel();
       }}
     >
       <form
-        className="phase4-modal controlled-prompt"
+        className="phase4-modal controlled-prompt app-dialog app-dialog--prompt"
         role="dialog"
         aria-modal="true"
         aria-labelledby="controlled-prompt-title"
@@ -6360,9 +6785,14 @@ function ControlledPromptDialog({
           onConfirm();
         }}
       >
-        <div className="document-kicker">{request.kicker || '여행 기록 선택'}</div>
-        <h2 id="controlled-prompt-title">{request.title}</h2>
-        <p id="controlled-prompt-message">{request.message}</p>
+        <header className="app-dialog__header">
+          <div>
+            <span className="app-dialog__kicker">{request.kicker || '여행 기록 선택'}</span>
+            <h2 id="controlled-prompt-title">{request.title}</h2>
+          </div>
+        </header>
+        <p id="controlled-prompt-message" className="app-dialog__message">{request.message}</p>
+        <div className="app-dialog__field">
         <label htmlFor="controlled-prompt-input">{request.label || '선택'}</label>
         {request.options ? (
           <select
@@ -6392,10 +6822,11 @@ function ControlledPromptDialog({
             autoFocus
           />
         )}
-        <div className="controlled-prompt__actions">
-          <button type="button" onClick={onCancel}>취소</button>
-          <button type="submit">선택 확정</button>
         </div>
+        <footer className="controlled-prompt__actions app-dialog__actions">
+          <button type="button" onClick={onCancel}>취소</button>
+          <button className="app-dialog__primary" type="submit">선택 확정</button>
+        </footer>
       </form>
     </div>
   );
@@ -6424,7 +6855,11 @@ function PlayView({
   handlePassHour,
   handleBarterProgressToDeal,
   handleBarterFinalize,
-  requestControlledPrompt
+  requestControlledPrompt,
+  onOpenReference,
+  onOpenFullMap,
+  pendingMapTravel,
+  onConsumePendingMapTravel
 }: {
   state: GameState;
   updateState: any;
@@ -6449,6 +6884,10 @@ function PlayView({
   handleBarterProgressToDeal: () => void;
   handleBarterFinalize: (isSuccess: boolean, paidTrinketsCount?: number, paidReputationCount?: number) => void;
   requestControlledPrompt: (request: ControlledPromptRequest) => Promise<string | null>;
+  onOpenReference: (request: RulebookReferenceRequest) => void;
+  onOpenFullMap: () => void;
+  pendingMapTravel: MapPickLocation | null;
+  onConsumePendingMapTravel: () => void;
 }) {
   const [destName, setDestName] = useState("");
   const [journeyReason, setJourneyReason] = useState("");
@@ -6541,7 +6980,8 @@ function PlayView({
   }, [state.treatmentDraft, state.activePatientId, state.bag]);
 
   // Manual Card Selector State
-  const [nextLocName, setNextLocName] = useState("");
+  const travelFormRef = useRef<HTMLFormElement>(null);
+  const [nextLocName, setNextLocName] = useState(pendingMapTravel?.name || "");
   const [travelCardMode, setTravelCardMode] = useState<'random' | 'manual'>('random');
   const [selectedTravelSuit, setSelectedTravelSuit] = useState('♥');
   const [selectedTravelValue, setSelectedTravelValue] = useState(1);
@@ -7604,7 +8044,10 @@ function PlayView({
       canStopInLoch: hasLochStoppingGear(state),
       protectsFromSoaking: hasSafeWaterwayTravel(state),
       waterwaySpan: wagonCapabilities.waterwaySpan,
-      mustUseFullSpeed: !isHitchMove
+      mustUseFullSpeed: !isHitchMove,
+      freePathLocationIds: (state.manualConditions || [])
+        .filter(condition => condition.startsWith('free-path:'))
+        .map(condition => condition.slice('free-path:'.length))
     });
     if (!result.value) {
       showAlert(result.messages.join('\n'));
@@ -7718,7 +8161,15 @@ function PlayView({
       toolProtectionAppliedTransactionIds = protectedState.value.appliedTransactionIds;
       toolProtectionJournals.push(...protectedState.value.journalEvents);
     }
-    const encounterProtected = servicePreview.value.protectNegativeEncounter || tentProtection || crossbowProtection || beetleApplies;
+    const printedIgnoreMidges = (state.manualConditions || []).includes('ignore-midges-until-move')
+      && /midge/i.test(`${outcome.encounter.title} ${outcome.encounter.prompt}`);
+    const printedIgnoreHere = (state.manualConditions || []).includes(`ignore-negative:${destinationId}`);
+    const encounterProtected = servicePreview.value.protectNegativeEncounter
+      || tentProtection
+      || crossbowProtection
+      || beetleApplies
+      || printedIgnoreMidges
+      || printedIgnoreHere;
     const encounterSkipped = servicePreview.value.skipTravelEncounter || braveApplies || crankyApplies;
     if (!encounterSkipped) setActiveTravelEncounter({
       ...outcome.encounter,
@@ -7760,6 +8211,9 @@ function PlayView({
         });
         if (beetle.value) next = applyMobilityRuntime(next, beetle.value);
       }
+      const originId = currentLocationId;
+      let nextConditions = consumeTravelConditions(s.manualConditions || [], destinationId, originId);
+      if (printedIgnoreHere) nextConditions = nextConditions.filter(condition => condition !== `ignore-negative:${destinationId}`);
       next = {
       ...next,
       currentLocationName: outcome.nextState.currentLocationName,
@@ -7771,6 +8225,7 @@ function PlayView({
       needsLocalHelpBeforeMove: encounterSkipped || encounterProtected ? false : outcome.nextState.needsLocalHelp,
       toolStates: resolvedTravelTools,
       nextMoveSpeedOverride: null,
+      manualConditions: nextConditions,
       pendingEncounter: encounterSkipped ? null : {
         ...outcome.pendingEncounter,
         ignoreNegativeEncounterEffects: encounterProtected,
@@ -8136,7 +8591,8 @@ function PlayView({
         inventory: toEngineInventory(state.bag),
         toolIds: state.bag.flatMap(item => item.canonicalToolId ? [item.canonicalToolId] : []),
         tools: canonicalToolsFromState(state),
-        patient: getActivePatient(state)
+        patient: getActivePatient(state),
+        conditions: state.manualConditions || []
       },
       forageRegion: region,
       locationRelation,
@@ -8329,7 +8785,8 @@ function PlayView({
         inventory: toEngineInventory(state.bag),
         toolIds: state.bag.flatMap(item => item.canonicalToolId ? [item.canonicalToolId] : []),
         tools: canonicalToolsFromState(state),
-        patient: getActivePatient(state)
+        patient: getActivePatient(state),
+        conditions: state.manualConditions || []
       },
       forageRegion: toRuleRegion(regionName),
       locationRelation: relation,
@@ -9170,7 +9627,8 @@ function PlayView({
 
   // Add Foraged item directly (Manual collection)
   const handleCollectReagent = (reagentName: string) => {
-    const r = GAME_DATA.reagents.find(item => item.name.toLowerCase().includes(reagentName.toLowerCase()) || item.rawName.toLowerCase().includes(reagentName.toLowerCase()));
+    const canonical = findCanonicalReagent(reagentName);
+    const r = canonical ? reagentDisplayRecord(canonical) : null;
     if (!r) {
       showAlert("영약재 이름을 도감에서 찾을 수 없습니다.");
       return;
@@ -9818,6 +10276,42 @@ function PlayView({
   ), 0);
   const journeyGoalDone = state.journeyActive ? checkJourneyGoalSatisfaction(state) : false;
   const hubLocation = `${localizeRegionLabel(state.currentRegion)} · ${locationTypeLabel(state.currentLocationType)} · ${state.currentLocationName}`;
+  const playMapMode: 'destination' | 'travel' | 'inspect' = !state.journeyActive && downtimeTab === 'start'
+    ? 'destination'
+    : state.journeyActive
+      ? 'travel'
+      : 'inspect';
+  const playMapHighlightIds = playMapMode === 'destination'
+    ? journeyDestinationCandidates.map(row => row.id)
+    : playMapMode === 'travel'
+      ? listLegalMoveStops({
+        graph: toTravelEngineGraph(state),
+        originId: journeyOriginId,
+        speed: activeTravelSpeed,
+        canStopInLoch: hasLochStoppingGear(state),
+        waterwaySpan: resolveWagonCapabilities(canonicalWagonFromState(state)).waterwaySpan,
+        mustUseFullSpeed: true
+      })
+      : [];
+  const playMapSelectedId = playMapMode === 'destination'
+    ? destName || null
+    : playMapMode === 'travel'
+      ? findMapLocationKey(nextLocName, state.customMapLocations || []) || null
+      : null;
+  const applyMapTravelLocation = (location: MapPickLocation, submit: boolean) => {
+    setNextLocName(location.name);
+    if (location.region && ['Forest', 'Meadow', 'Loch', 'Bog', 'Mountain', 'Titan'].includes(location.region)) {
+      setDestRegion(location.region);
+    }
+    setDestType(destTypeFromMapPick(location.kind));
+    if (submit) queueMicrotask(() => travelFormRef.current?.requestSubmit());
+  };
+
+  const handlePlayMapPick = (location: MapPickLocation) => {
+    if (playMapMode === 'destination' && journeyDestinationCandidates.some(row => row.id === location.id)) {
+      setDestName(location.id);
+    }
+  };
 
   const addActionHubItem = (item: ActionHubItem) => {
     if (!actionHubItems.some(existing => existing.id === item.id) && actionHubItems.length < 4) {
@@ -10153,6 +10647,34 @@ function PlayView({
           </div>
         </div>
       )}
+
+      <div className="play-with-map">
+        <aside id="play-journey-map" className="play-with-map__map" aria-label="여정 지도">
+          <MapView
+            state={state}
+            onOpenReference={onOpenReference}
+            variant="companion"
+            highlightLocationIds={playMapHighlightIds}
+            selectedLocationId={playMapSelectedId}
+            onConfirmDestination={playMapMode === 'destination' ? handlePlayMapPick : undefined}
+            onTravelRequest={playMapMode === 'travel' ? (location) => applyMapTravelLocation(location, true) : undefined}
+            travelEnabled={Boolean(state.journeyActive && !state.needsLocalHelpBeforeMove)}
+            travelBlockedReason={state.needsLocalHelpBeforeMove ? '현지 일을 마친 뒤 이동할 수 있습니다.' : null}
+            onOpenFullMap={onOpenFullMap}
+            companionCaption={
+              playMapMode === 'destination'
+                ? (journeyDestinationCard
+                  ? (journeyDestinationCandidates.length > 0
+                    ? '카드 조건에 맞는 정착지가 강조됩니다. 장소를 고른 뒤 목적지로 정하세요.'
+                    : '조건에 맞는 목적지가 없습니다. 목적지 카드를 다시 뽑으세요.')
+                  : '목적지 카드를 뽑으면 방향·거리 조건에 맞는 정착지가 지도에 표시됩니다.')
+                : playMapMode === 'travel'
+                  ? `속도 ${activeTravelSpeed}과 같은 경로만큼 이동합니다. 강조된 곳이 이번 이동의 도착지입니다.${currentWeight > maxCarry ? ' 소지 한도를 넘어 1경로만 갑니다.' : ''}`
+                  : '현재 위치를 지도에서 확인하세요. 여정을 시작할 때 목적지를 여기서 고를 수 있습니다.'
+            }
+          />
+        </aside>
+        <div className="play-with-map__panels">
 
       {/* 1. If journey is NOT active */}
       {!state.journeyActive && (
@@ -11474,7 +11996,7 @@ function PlayView({
             <div id="journey-start-panel" className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem' }}>
               <h2 style={{ color: 'var(--secondary)', margin: '0 0 0.4rem 0', fontFamily: 'var(--font-fancy)' }}>새로운 여정 떠나기</h2>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 1.2rem 0' }}>
-                Bristley Woods 지도를 열고 어디로 가야할 지, 이번 여행의 목적지는 어디일지 의도를 설정합니다.
+                목적지·목표 카드를 뽑은 뒤, 옆 지도를 보며 경로 수·방향·속도에 맞는 목적지를 찍습니다.
               </p>
 
               <form onSubmit={handleStartJourney} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -11505,7 +12027,7 @@ function PlayView({
 
                 <div style={{ display: 'grid', gap: '0.75rem', padding: '0.85rem', background: '#fffdf8', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
                   <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                    룰북 p.18-21 순서: 출발지와 계절을 확인한 뒤, 목적지/거리 카드와 목표 카드를 뽑아 여정 기록을 시작합니다.
+                    룰북 p.19-25 순서: 목적지/거리 카드와 목표 카드를 뽑고, 지도를 보며 조건에 맞는 목적지를 고른 뒤 이동합니다.
                   </div>
                   <CardDrawSlot
                     label="목적지와 방향 카드 (p.19)"
@@ -11780,7 +12302,7 @@ function PlayView({
                 </button>
               </div>
             )}
-            <form onSubmit={handleTravelMove} className="grid-travel-form" style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '1rem' }}>
+            <form id="travel-move-form" ref={travelFormRef} onSubmit={handleTravelMove} className="grid-travel-form" style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '1rem' }}>
               <input
                 name="locName"
                 type="text"
@@ -12822,6 +13344,8 @@ function PlayView({
           </div>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -13243,8 +13767,8 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
                     style={{ padding: '0.4rem', borderRadius: '6px', fontSize: '0.85rem', border: '1px solid var(--border-cozy)' }}
                   >
                     <option value="">-- 약재 선택 --</option>
-                    {GAME_DATA.reagents.filter(r => r.br <= 7).map(r => (
-                      <option key={r.name} value={r.name}>{r.name} (희귀도: {r.br})</option>
+                    {REAGENTS.filter(r => r.baseRarity <= 7).map(r => (
+                      <option key={r.id} value={r.displayName}>{r.displayName} (희귀도: {r.baseRarity})</option>
                     ))}
                   </select>
                 </div>
@@ -14079,8 +14603,8 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                   style={{ padding: '0.4rem', borderRadius: '6px', fontSize: '0.85rem', border: '1px solid var(--border-cozy)' }}
                 >
                   <option value="">-- 약재 선택 --</option>
-                  {GAME_DATA.reagents.filter(r => r.br <= 7).map(r => (
-                    <option key={r.name} value={r.name}>{r.name} (희귀도: {r.br})</option>
+                  {REAGENTS.filter(r => r.baseRarity <= 7).map(r => (
+                    <option key={r.id} value={r.displayName}>{r.displayName} (희귀도: {r.baseRarity})</option>
                   ))}
                 </select>
               </div>
@@ -14151,7 +14675,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
 // 7. REAGENTS VIEW COMPONENT
 // =================================================================
 function ReagentsView({ state, updateState, search, setSearch, filter, setFilter, typeFilter, setTypeFilter }: { state: GameState; updateState: any; search: string; setSearch: any; filter: string; setFilter: any; typeFilter: string; setTypeFilter: any }) {
-  const filtered = GAME_DATA.reagents.filter(r => {
+  const filtered = REAGENTS.map(reagentDisplayRecord).filter(r => {
     const matchesSearch = r.name.toLowerCase().includes(search.toLowerCase()) || r.rawName.toLowerCase().includes(search.toLowerCase());
     const matchesFilter = !filter || r.preps.toLowerCase().includes(filter.toLowerCase());
     const matchesType = !typeFilter || r.type === typeFilter;
@@ -14316,7 +14840,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
 function AilmentsView({ state, updateState, search, setSearch, filter, setFilter }: { state: GameState; updateState: any; search: string; setSearch: any; filter: string; setFilter: any }) {
   const cleanAilmentName = (n: string) => n.replace(/^PAGE\s*\d+\s*(---|--|-)\s*/i, '');
 
-  const filtered = GAME_DATA.ailments.filter(a => {
+  const filtered = AILMENTS.map(ailmentDisplayRecord).filter(a => {
     const cleaned = cleanAilmentName(a.name);
     const matchesSearch = cleaned.toLowerCase().includes(search.toLowerCase()) || a.rawName.toLowerCase().includes(search.toLowerCase());
     const matchesFilter = !filter || a.tags.toLowerCase().includes(filter.toLowerCase());
@@ -14445,705 +14969,132 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
 // =================================================================
 // 9. MAP VIEW COMPONENT (Cartographer’s Margins Pass)
 // =================================================================
-const HouseSketch = () => (
-  <span className="emoji-icon" aria-hidden="true" style={{ marginRight: '4px' }}>🏠</span>
-);
-
-const HearthSketch = () => (
-  <span className="emoji-icon" aria-hidden="true" style={{ marginRight: '4px' }}>🔥</span>
-);
-
-const BranchSketch = () => (
-  <span className="emoji-icon" aria-hidden="true" style={{ marginRight: '4px' }}>🍂</span>
-);
-
-function MapView({ state }: { state: GameState }) {
-  const [mapWidth, setMapWidth] = useState(1600);
-  const handleZoomOut = () => setMapWidth((w: number) => Math.max(800, w - 200));
-  const handleZoomIn = () => setMapWidth((w: number) => Math.min(3000, w + 200));
-  const handleReset = () => setMapWidth(1600);
-
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [startY, setStartY] = useState(0);
-  const [scrollLeft, setScrollLeft] = useState(0);
-  const [scrollTop, setScrollTop] = useState(0);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!mapContainerRef.current) return;
-    setIsDragging(true);
-    // Page coordinate offset calculation
-    setStartX(e.pageX - mapContainerRef.current.offsetLeft);
-    setStartY(e.pageY - mapContainerRef.current.offsetTop);
-    setScrollLeft(mapContainerRef.current.scrollLeft);
-    setScrollTop(mapContainerRef.current.scrollTop);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !mapContainerRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - mapContainerRef.current.offsetLeft;
-    const y = e.pageY - mapContainerRef.current.offsetTop;
-    const walkX = (x - startX) * 1.5; // Drag speed multiplier
-    const walkY = (y - startY) * 1.5;
-    mapContainerRef.current.scrollLeft = scrollLeft - walkX;
-    mapContainerRef.current.scrollTop = scrollTop - walkY;
-  };
-
-  const handleMouseUpOrLeave = () => {
-    setIsDragging(false);
-  };
-
-  // Compile unique visited or active locations from campaign records
-  const visitedLocs = state.visitedLocations || [];
-  const patientLocs = (state.patientCasebook || []).map(r => r.locationName).filter(Boolean) as string[];
-	  const clinicLocs = (state.clinics || []).map(c => c.locationName).filter(Boolean) as string[];
-	  const scrapbookLocs = (state.travelScrapbook || []).map(s => s.locationName).filter(Boolean) as string[];
-	  const currentLoc = state.currentLocationName;
-	  const customMapLocations = state.customMapLocations || [];
-	  const customMapEdges = state.customMapEdges || [];
-	  const mapGraphNodes = buildMapGraphNodes(customMapLocations, customMapEdges);
-	  const clinicServiceLocs = (state.clinics || []).flatMap(c =>
-	    getMapLocationsWithinHops(c.locationName, MAP_SERVICE_HOPS, customMapLocations, customMapEdges).map(entry => entry.node.label)
-	  );
-
-	  const locCandidates = [
-	    ...visitedLocs,
-	    ...patientLocs,
-	    ...clinicLocs,
-	    ...clinicServiceLocs,
-	    ...scrapbookLocs,
-	    ...customMapLocations.map(location => location.label),
-	    currentLoc
-	  ].filter(Boolean);
-	  const seenLocKeys = new Set<string>();
-	  const allLocNames = locCandidates.filter(name => {
-	    const key = findMapLocationKey(name, customMapLocations) || normalizeMapLocationName(name);
-	    if (seenLocKeys.has(key)) return false;
-	    seenLocKeys.add(key);
-	    return true;
-	  });
-  const routeStops = [...new Set([...(state.visitedLocations || []), currentLoc].filter(Boolean))];
-
-	  // Hashing mapper for positioning pins on the map
-	  const getCoordinatesForLocation = (name: string) => {
-	    const structuredKey = findMapLocationKey(name, customMapLocations);
-	    if (structuredKey) {
-	      const node = mapGraphNodes[structuredKey];
-	      return { x: node.x, y: node.y };
-	    }
-
-	    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const x = 18 + Math.abs(hash % 64);
-    const y = 18 + Math.abs((hash >> 8) % 64);
-    return { x, y };
-  };
-
-  // Find First Patient
-  const casesSortedAsc = [...(state.patientCasebook || [])].sort((a, b) => a.timestamp - b.timestamp);
-  const firstPatient = casesSortedAsc[0] || null;
-
-  // Find Oldest Keepsake
-  const trinketsSortedAsc = [...(state.trinketArchive || [])].sort((a, b) => a.timestamp - b.timestamp);
-  const oldestTrinket = trinketsSortedAsc[0] || null;
-
-  // Find First Clinic
-  const firstClinic = (state.clinics || [])[0] || null;
-
-  // Find Most Lived-In Place
-  const locationCounts: Record<string, number> = {};
-  (state.visitedLocations || []).forEach(loc => {
-    if (loc) locationCounts[loc] = (locationCounts[loc] || 0) + 1;
+function MapView({
+  state,
+  onOpenReference,
+  variant = 'full',
+  highlightLocationIds = [],
+  selectedLocationId = null,
+  onConfirmDestination,
+  onTravelRequest,
+  onOpenFullMap,
+  companionCaption,
+  travelEnabled,
+  travelBlockedReason
+}: {
+  state: GameState;
+  onOpenReference: (request: RulebookReferenceRequest) => void;
+  variant?: 'full' | 'companion';
+  highlightLocationIds?: string[];
+  selectedLocationId?: string | null;
+  onConfirmDestination?: (location: MapPickLocation) => void;
+  onTravelRequest?: (location: MapPickLocation) => void;
+  onOpenFullMap?: () => void;
+  companionCaption?: string;
+  travelEnabled?: boolean;
+  travelBlockedReason?: string | null;
+}) {
+  const customMapLocations = state.customMapLocations || [];
+  const customMapEdges = state.customMapEdges || [];
+  const nodes = buildMapGraphNodes(customMapLocations, customMapEdges);
+  const currentId = findMapLocationKey(state.currentLocationName, customMapLocations);
+  const extraIds = new Set<string>([...highlightLocationIds, selectedLocationId, currentId].filter((id): id is string => Boolean(id)));
+  (state.visitedLocations || []).forEach(name => {
+    const id = findMapLocationKey(name, customMapLocations);
+    if (id) extraIds.add(id);
   });
-  (state.patientCasebook || []).forEach(p => {
-    if (p.locationName) locationCounts[p.locationName] = (locationCounts[p.locationName] || 0) + 1;
+  const visitedIds = new Set(
+    (state.visitedLocations || []).flatMap(name => {
+      const id = findMapLocationKey(name, customMapLocations);
+      return id ? [id] : [];
+    })
+  );
+  const clinicIds = new Set(
+    (state.clinics || []).flatMap(clinic => {
+      const id = findMapLocationKey(clinic.locationName, customMapLocations);
+      return id ? [id] : [];
+    })
+  );
+  const distances = currentId ? collectLocationDistances(nodes, currentId) : new Map<string, number>();
+  const weight = state.bag.reduce((sum, item) => sum + item.weight * Math.max(1, item.qty || 1), 0);
+  const movePreviews = state.journeyActive && currentId
+    ? previewMoveStops({
+      graph: toTravelEngineGraph(state),
+      originId: currentId,
+      speed: previewTravelSpeed(state, weight),
+      canStopInLoch: hasLochStoppingGear(state),
+      waterwaySpan: resolveWagonCapabilities(canonicalWagonFromState(state)).waterwaySpan,
+      mustUseFullSpeed: true,
+      freePathLocationIds: freePathLocationIdsFromState(state)
+    })
+    : {};
+  const soakProtected = hasSafeWaterwayTravel(state);
+  Object.entries(movePreviews).forEach(([id, preview]) => {
+    if (preview.reason === 'legal') extraIds.add(id);
   });
-  (state.clinics || []).forEach(c => {
-    if (c.locationName) locationCounts[c.locationName] = (locationCounts[c.locationName] || 0) + 1;
+  const places: MapPlace[] = Object.entries(nodes)
+    .filter(([id, node]) => node.kind !== 'wild' || extraIds.has(id))
+    .map(([id, node]) => {
+      const locationType = toMapPlaceType(node.kind || getBarterTypeForMapNode(id, node) || 'Wilds');
+      const preview = movePreviews[id];
+      return {
+        id,
+        name: node.label,
+        x: node.x,
+        y: node.y,
+        region: node.region,
+        regionLabel: node.region ? localizeRegionLabel(node.region) : undefined,
+        locationType,
+        locationTypeLabel: localizeLocationTypeLabel(locationType),
+        visited: visitedIds.has(id) || id === currentId,
+        isCurrent: id === currentId,
+        hasClinic: clinicIds.has(id),
+        hopsFromCurrent: preview?.cost ?? (distances.has(id) ? distances.get(id)! : null),
+        moveReason: preview?.reason,
+        moveCost: preview?.cost ?? null,
+        encounterKind: preview?.encounterKind,
+        usesWaterway: preview?.usesWaterway,
+        willSoak: Boolean(preview?.usesWaterway && !soakProtected)
+      };
+    });
+  const clinicOverlays: MapClinicOverlay[] = (state.clinics || []).flatMap(clinic => {
+    const id = findMapLocationKey(clinic.locationName, customMapLocations);
+    const entries = getMapServiceEntriesWithinHops(clinic.locationName, MAP_SERVICE_HOPS, customMapLocations, customMapEdges);
+    const points = entries.filter(entry => entry.node).map(entry => ({
+      id: entry.key,
+      x: entry.node.x,
+      y: entry.node.y,
+      hops: entry.hops
+    }));
+    if (!id || points.length === 0) return [];
+    return [{ id, name: clinic.locationName, points }];
   });
-  (state.travelScrapbook || []).forEach(s => {
-    if (s.locationName) locationCounts[s.locationName] = (locationCounts[s.locationName] || 0) + 1;
-  });
-  let mostLivedInLoc = '';
-  let maxCount = 0;
-  Object.entries(locationCounts).forEach(([loc, count]) => {
-    if (count > maxCount) {
-      maxCount = count;
-      mostLivedInLoc = loc;
-    }
+  const historyAnchors = [...new Set([...(state.visitedLocations || []), state.currentLocationName].filter(Boolean))].flatMap(name => {
+    const id = findMapLocationKey(name, customMapLocations);
+    const node = id ? nodes[id] : undefined;
+    return node ? [{ id, x: node.x, y: node.y }] : [];
   });
 
   return (
-    <div style={{
-      width: '100%',
-      color: '#3c2f1f',
-      fontFamily: 'var(--font-base)',
-      boxSizing: 'border-box'
-    }}>
-      {/* Page Layout: Two Column */}
-      <div className="grid-map-view">
-
-        {/* Left Side: Map Viewer */}
-        <div style={{ minWidth: 0, width: '100%', boxSizing: 'border-box', background: '#fcf8f2', border: '2px solid #5c4033', borderRadius: '8px', padding: '1rem', boxShadow: '0 4px 12px rgba(92, 75, 50, 0.05)' }}>
-          {/* Zoom Controls */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <span style={{ fontWeight: 'bold', fontSize: '1rem', color: '#5c4033' }}>Bristley Woods 지도 후면</span>
-            <div className="map-zoom-controls" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <button onClick={handleZoomOut} style={{ padding: '0.2rem 0.5rem', background: '#e8e2d5', border: '1px solid #5c4033', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}>축소</button>
-              <input
-                type="range"
-                min="800"
-                max="3000"
-                step="100"
-                value={mapWidth}
-                onChange={e => setMapWidth(parseInt(e.target.value))}
-                style={{ width: '100px', height: '24px', cursor: 'pointer' }}
-              />
-              <button onClick={handleZoomIn} style={{ padding: '0.2rem 0.5rem', background: '#e8e2d5', border: '1px solid #5c4033', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}>확대</button>
-              <button onClick={handleReset} style={{ padding: '0.2rem 0.5rem', background: '#e8e2d5', border: '1px solid #5c4033', borderRadius: '4px', cursor: 'pointer', fontSize: '0.85rem' }}>기본</button>
-              <span style={{ fontSize: '0.85rem', color: '#6b5c4b', minWidth: '45px', textAlign: 'right' }}>{Math.round((mapWidth / 1600) * 100)}%</span>
-            </div>
-          </div>
-
-          {/* Scrollable Map Container */}
-          <div
-            ref={mapContainerRef}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUpOrLeave}
-            onMouseLeave={handleMouseUpOrLeave}
-            style={{
-              overflow: 'auto',
-              width: '100%',
-              maxHeight: '650px',
-              border: '1px solid #dcd3c1',
-              borderRadius: '6px',
-              background: '#eae1d4',
-              cursor: isDragging ? 'grabbing' : 'grab',
-              userSelect: 'none'
-            }}
-          >
-            <div style={{
-              position: 'relative',
-              display: 'inline-block',
-              width: `${mapWidth}px`,
-              transition: isDragging ? 'none' : 'width 0.2s ease-out'
-            }}>
-              <img
-                src="/Apawthecaria Map Back.jpg"
-                alt="Bristley Woods 지도 후면"
-                onDragStart={e => e.preventDefault()}
-                style={{
-                  display: 'block',
-                  maxWidth: 'none',
-                  height: 'auto',
-                  width: '100%',
-                  pointerEvents: 'none'
-                }}
-	              />
-
-	              {/* Travel route and clinic service areas */}
-	              <svg
-	                viewBox="0 0 100 100"
-	                preserveAspectRatio="none"
-	                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}
-	              >
-	                {MAP_WILD_LOCATIONS.map((location, idx) => (
-	                  <circle
-	                    key={`map_wild_location_${idx}`}
-	                    cx={location.x}
-	                    cy={location.y}
-	                    r="0.18"
-	                    fill={MAP_REGION_COLORS[location.region]}
-	                    opacity="0.34"
-	                  />
-	                ))}
-	                {routeStops.length > 1 && (
-	                  <polyline
-	                    points={routeStops.map(loc => {
-	                      const { x, y } = getCoordinatesForLocation(loc);
-	                      return `${x},${y}`;
-	                    }).join(' ')}
-	                    fill="none"
-	                    stroke="rgba(40, 91, 139, 0.72)"
-	                    strokeWidth="0.42"
-	                    strokeLinecap="round"
-	                    strokeLinejoin="round"
-	                    strokeDasharray="1.4 1.1"
-	                  />
-		                )}
-		                {(state.clinics || []).map((clinic, idx) => {
-		                  const serviceEntries = getMapServiceEntriesWithinHops(clinic.locationName, MAP_SERVICE_HOPS, customMapLocations, customMapEdges);
-		                  const servicePoints = serviceEntries.length > 0
-		                    ? serviceEntries.map(entry => ({ x: entry.node.x, y: entry.node.y }))
-		                    : [getCoordinatesForLocation(clinic.locationName)];
-		                  const xs = servicePoints.map(p => p.x);
-		                  const ys = servicePoints.map(p => p.y);
-		                  const minX = Math.min(...xs);
-		                  const maxX = Math.max(...xs);
-		                  const minY = Math.min(...ys);
-		                  const maxY = Math.max(...ys);
-		                  const x = (minX + maxX) / 2;
-		                  const y = (minY + maxY) / 2;
-		                  const rx = Math.max(7, (maxX - minX) / 2 + 4);
-		                  const ry = Math.max(5, (maxY - minY) / 2 + 3);
-		                  return (
-		                    <g key={`${clinic.locationName}_${idx}_service_area`}>
-		                      <ellipse
-		                        cx={x}
-		                        cy={y}
-		                        rx={rx}
-		                        ry={ry}
-		                        fill="rgba(220, 38, 38, 0.025)"
-		                        stroke="rgba(220, 38, 38, 0.72)"
-		                        strokeWidth="0.34"
-		                        strokeLinecap="round"
-		                        strokeDasharray="0.9 0.55"
-		                        transform={`rotate(${(idx % 2 === 0 ? -8 : 7)} ${x} ${y})`}
-		                      />
-		                      {serviceEntries.map(entry => (
-		                        <circle
-		                          key={`${clinic.locationName}_${entry.key}_service_dot`}
-		                          cx={entry.node.x}
-		                          cy={entry.node.y}
-		                          r={entry.hops === 0 ? 0.42 : 0.26}
-		                          fill={entry.hops === 0 ? 'rgba(207, 45, 45, 0.9)' : 'rgba(220, 38, 38, 0.52)'}
-		                        />
-		                      ))}
-		                    </g>
-		                  );
-		                })}
-	              </svg>
-
-	              {/* Dynamic location pins & annotations */}
-	              {allLocNames.map(locName => {
-	                const { x, y } = getCoordinatesForLocation(locName);
-	                const locKey = findMapLocationKey(locName, customMapLocations);
-	                const successes = (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'success');
-	                const failures = (state.patientCasebook || []).filter(r => r.locationName === locName && r.outcome === 'failure');
-	                const isFirstClinic = !!firstClinic && (firstClinic.locationName === locName || (!!locKey && findMapLocationKey(firstClinic.locationName, customMapLocations) === locKey));
-	                const hasClinic = (state.clinics || []).some(c => c.locationName === locName || (!!locKey && findMapLocationKey(c.locationName, customMapLocations) === locKey));
-	                const isCurrent = currentLoc === locName || (!!locKey && findMapLocationKey(currentLoc, customMapLocations) === locKey);
-	                const isMostLivedIn = mostLivedInLoc === locName && maxCount >= 2;
-	                const keepsakeRecords = (state.trinketArchive || []).filter(t => t.locationName === locName && !t.spent);
-
-                let isLoss = failures.length > 0;
-                let isCare = successes.length > 0 || hasClinic;
-
-	                const notes: string[] = [];
-	                if (isCurrent) {
-	                  notes.push('현재 위치 — 이곳에서 머무는 중.');
-	                }
-	                if (isFirstClinic) {
-	                  notes.push('첫 약제소 — 이곳에서 오래 머물렀다.');
-	                } else if (isMostLivedIn) {
-                  notes.push('자주 돌아오던 곳. 오래 머문 자리.');
-                }
-
-                if (keepsakeRecords.length > 0) {
-                  notes.push(`이곳에서 ${keepsakeRecords[0].name}을(를) 선물받았다.`);
-                } else if (isCare && !isFirstClinic && !isMostLivedIn) {
-                  if (successes.length >= 2) {
-                    notes.push('이곳에서 여러 야수를 돌보았다.');
-                  } else {
-                    notes.push('여행자들이 자주 도움을 청하던 곳.');
-                  }
-                }
-
-                if (isLoss) {
-                  const lossPhrases = [
-                    '돌아오지 못한 이를 기억하며.',
-                    '한동안 빈 침상이 남아 있었다.',
-                    '숲은 그 이름을 오래 품고 있었다.'
-                  ];
-                  notes.push(lossPhrases[locName.length % lossPhrases.length]);
-                }
-
-                // Visual styling variables based on care, loss, or clinic status
-                let pinColor = 'rgba(107, 81, 59, 0.92)'; // brown ink
-                let textColor = '#2f2419';
-                let fontW = '400';
-                let shadowBg = 'rgba(255, 248, 232, 0.58)';
-                let labelBg = 'rgba(255, 250, 236, 0.97)';
-                let labelBorder = 'rgba(92, 64, 51, 0.42)';
-                let SketchIcon = null;
-
-                if (isLoss) {
-                  pinColor = 'rgba(96, 91, 84, 0.92)'; // faded gray
-                  textColor = '#4a433b';
-                  labelBg = 'rgba(248, 245, 238, 0.97)';
-                  labelBorder = 'rgba(96, 91, 84, 0.42)';
-                  SketchIcon = BranchSketch;
-                }
-                if (isCare) {
-                  pinColor = 'rgba(47, 94, 55, 0.96)'; // green ink
-                  textColor = '#203f27';
-                  fontW = '500';
-                  shadowBg = 'rgba(228, 245, 216, 0.62)';
-                  labelBg = 'rgba(246, 252, 238, 0.97)';
-                  labelBorder = 'rgba(47, 94, 55, 0.42)';
-                  SketchIcon = HearthSketch;
-                }
-                if (isFirstClinic) {
-                  pinColor = 'rgba(176, 96, 32, 0.98)';
-                  textColor = '#743d11';
-                  fontW = '700';
-                  shadowBg = 'rgba(255, 232, 190, 0.68)';
-                  labelBg = 'rgba(255, 243, 218, 0.98)';
-                  labelBorder = 'rgba(176, 96, 32, 0.5)';
-                  SketchIcon = HouseSketch;
-                }
-
-                return (
-                  <div
-                    key={locName}
-                    style={{
-                      position: 'absolute',
-                      left: `${x}%`,
-                      top: `${y}%`,
-                      transformOrigin: 'top left',
-                      transform: `translate(-10px, -10px) rotate(${(locName.length % 3) - 1.5}deg)`,
-                      pointerEvents: 'none',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '6px',
-                      fontFamily: 'var(--font-base)',
-                      fontSize: '0.92rem',
-                      fontWeight: 700,
-                      userSelect: 'none'
-                    }}
-	                  >
-	                    {hasClinic && (
-	                      <div style={{
-	                        position: 'absolute',
-	                        left: '-6px',
-	                        top: '-3px',
-	                        width: '20px',
-	                        height: '20px',
-	                        border: '3px solid rgba(207, 45, 45, 0.9)',
-	                        borderRadius: '2px',
-	                        transform: `rotate(${locName.length % 2 === 0 ? '3deg' : '-4deg'})`,
-	                        boxShadow: '0 0 0 2px rgba(255, 246, 232, 0.35)'
-	                      }} />
-	                    )}
-	                    {isCurrent && (
-	                      <div style={{
-	                        position: 'absolute',
-	                        left: '-13px',
-	                        top: '-10px',
-	                        width: '34px',
-	                        height: '34px',
-	                        border: '3px solid rgba(35, 103, 177, 0.85)',
-	                        borderRadius: '999px',
-	                        boxShadow: '0 0 0 5px rgba(35, 103, 177, 0.12)'
-	                      }} />
-	                    )}
-	                    {/* Pin Dot */}
-	                    <div style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: pinColor,
-                      marginTop: '6px',
-                      boxShadow: shadowBg !== 'transparent' ? `0 0 12px 6px ${shadowBg}` : 'none',
-                      flexShrink: 0
-                    }} />
-
-                    {/* Text Details */}
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      whiteSpace: 'nowrap',
-                      background: labelBg,
-                      border: `1px solid ${labelBorder}`,
-                      borderRadius: '4px',
-                      padding: '3px 7px 5px',
-                      boxShadow: '0 2px 5px rgba(44, 32, 20, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.62)',
-                      backdropFilter: 'blur(1px)'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', fontWeight: fontW as any, color: textColor, textShadow: '0 1px 0 rgba(255, 255, 255, 0.88)' }}>
-                        {SketchIcon && <SketchIcon />}
-                        <span>{locName}</span>
-                      </div>
-                      {notes.map((note, idx) => (
-                        <span
-                          key={idx}
-                          style={{
-                            fontSize: '0.8rem',
-                            color: isLoss ? '#5e574e' : '#594c3c',
-                            fontStyle: 'italic',
-                            marginTop: '2px',
-                            textShadow: '0 1px 0 rgba(255, 255, 255, 0.82)'
-                          }}
-                        >
-                          {note}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-
-            </div>
-          </div>
-        </div>
-
-        {/* Right Side: Map Key & Distance Scales Sidebar */}
-        <div style={{
-          maxHeight: '730px',
-          overflowY: 'auto',
-          background: '#fcf8f2',
-          border: '2px solid #5c4033',
-          borderRadius: '8px',
-          padding: '1.5rem',
-          boxShadow: '0 4px 12px rgba(92, 75, 50, 0.05)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1.5rem'
-        }}>
-          {/* Section: Distance scales */}
-          <div>
-            <h2 style={{
-              fontWeight: 800,
-              fontSize: '1.4rem',
-              color: '#5c4033',
-              borderBottom: '2px solid #5c4033',
-              paddingBottom: '0.4rem',
-              margin: '0 0 1rem 0',
-              textTransform: 'uppercase'
-            }}>
-              <span style={{ display: 'block', letterSpacing: '0.02em' }}>거리 단위</span>
-              <span style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, color: '#6b5c4b', marginTop: '0.15rem' }}>이동 거리 단위</span>
-            </h2>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-              <div style={{ background: '#fffcf7', padding: '0.8rem', borderRadius: '6px', border: '1px solid #e5dec9' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#8b5a2b', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <img src="/symbols/paws.png" alt="도보 거리 단위" style={{ width: '48px', height: 'auto', objectFit: 'contain', flexShrink: 0 }} />
-                  <span>도보</span>
-                </h3>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: '#5c4033', lineHeight: '1.4' }}>
-                  쥐, 비버, 그리고 더 작은 동물들의 보행 속도에 기초합니다. 숲과 육로를 통해 이동하는 기본적인 하루 이동 단위입니다.
-                </p>
-              </div>
-
-              <div style={{ background: '#fffcf7', padding: '0.8rem', borderRadius: '6px', border: '1px solid #e5dec9' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#4a8ca8', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <img src="/symbols/wings.png" alt="날개 거리 단위" style={{ width: '48px', height: 'auto', objectFit: 'contain', flexShrink: 0 }} />
-                  <span>날개</span>
-                </h3>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: '#5c4033', lineHeight: '1.4' }}>
-                  박새나 딱새와 같이 민첩하고 작은 조류들의 비행 속도와 관련이 있습니다. 강이나 호수 등 거친 수로 지형을 무시하고 가볍게 넘나듭니다.
-                </p>
-              </div>
-
-              <div style={{ background: '#fffcf7', padding: '0.8rem', borderRadius: '6px', border: '1px solid #e5dec9' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem', color: '#9275a8', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <img src="/symbols/soar.png" alt="활공 거리 단위" style={{ width: '48px', height: 'auto', objectFit: 'contain', flexShrink: 0 }} />
-                  <span>활공</span>
-                </h3>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: '#5c4033', lineHeight: '1.4' }}>
-                  갈매기나 까마귀와 같이 날개가 넓은 큰 조류의 높은 비행 속도에 준합니다. 아주 먼 거리를 하루 만에 주파하지만 높은 고도에서의 고유 위험 조우가 발생합니다.
-                </p>
-              </div>
-            </div>
-
-            {/* Scale ruler — manual image */}
-            <div style={{ marginTop: '1.2rem' }}>
-              <strong style={{ fontSize: '0.85rem', color: '#5c4033', display: 'block', marginBottom: '0.5rem' }}>거리 척도 자 비교</strong>
-              <img src="/symbols/scale.png" alt="도보, 날개, 활공 거리 단위 비교" style={{ width: '100%', height: 'auto', borderRadius: '4px', border: '1px solid #e5dec9' }} />
-            </div>
-          </div>
-
-          {/* Section: Map Legend */}
-          <div>
-            <h2 style={{
-              fontWeight: 800,
-              fontSize: '1.4rem',
-              color: '#5c4033',
-              borderBottom: '2px solid #5c4033',
-              paddingBottom: '0.4rem',
-              margin: '0 0 1rem 0',
-              textTransform: 'uppercase'
-            }}>
-              <span style={{ display: 'block', letterSpacing: '0.02em' }}>지도 범례</span>
-              <span style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, color: '#6b5c4b', marginTop: '0.15rem' }}>지도 범례</span>
-            </h2>
-
-            <div style={{
-              border: '1px solid #e5dec9',
-              borderRadius: '6px',
-              padding: '1rem',
-              background: '#fffdfb',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem'
-            }}>
-              {/* Category: Location Types */}
-              <div>
-                <strong style={{ fontSize: '0.85rem', color: '#8b5a2b', display: 'block', borderBottom: '1px solid #e5dec9', paddingBottom: '0.2rem', marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  <span style={{ display: 'block' }}>장소 유형</span>
-                  <span style={{ display: 'block', fontSize: '0.75rem', color: '#6b5c4b', fontWeight: 'normal', marginTop: '0.1rem' }}>장소 형태</span>
-                </strong>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <img src="/symbols/city.png" alt="도시" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.85rem' }}>도시</strong>
-                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>치료소, 길드, 번화 상점</span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <img src="/symbols/settlement.png" alt="정착지" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.85rem' }}>정착지</strong>
-                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>마을, 주민 거주지, 여각</span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <img src="/symbols/wilds.png" alt="야생 구역" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.85rem' }}>야생 구역</strong>
-                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>정착지 밖 채집 및 탐험지</span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <img src="/symbols/titan.png" alt="Titan 유적" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.85rem' }}>Titan 유적</strong>
-                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>고대 거인의 신비한 자생 흔적</span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <img src="/symbols/barrow.png" alt="거수 고분" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.85rem' }}>거수 고분</strong>
-                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>거수들의 고분군 및 위험 지대</span>
-                    </div>
-                  </div>
-
-	                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-	                    <img src="/symbols/clinic.png" alt="약제소" style={{ width: '28px', height: '28px', objectFit: 'contain', flexShrink: 0 }} />
-	                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-	                      <strong style={{ fontSize: '0.85rem' }}>약제소</strong>
-	                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>플레이어 약제사의 치료 본부</span>
-	                    </div>
-	                  </div>
-
-	                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-	                    <svg width="32" height="32" viewBox="0 0 32 32" style={{ flexShrink: 0 }} aria-label="현재 위치 표식">
-	                      <circle cx="16" cy="16" r="12" fill="none" stroke="#2367b1" strokeWidth="3" />
-	                      <circle cx="16" cy="16" r="4" fill="#2367b1" />
-	                    </svg>
-	                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-	                      <strong style={{ fontSize: '0.85rem' }}>현재 위치</strong>
-	                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>지금 약제사가 머무는 곳</span>
-	                    </div>
-	                  </div>
-
-	                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-	                    <svg width="32" height="32" viewBox="0 0 32 32" style={{ flexShrink: 0 }} aria-label="클리닉과 서비스 영역 표식">
-	                      <rect x="8" y="8" width="16" height="16" fill="none" stroke="#cf2d2d" strokeWidth="3" />
-	                      <ellipse cx="16" cy="16" rx="14" ry="9" fill="none" stroke="#dc2626" strokeWidth="2" strokeDasharray="4 3" />
-	                    </svg>
-	                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-	                      <strong style={{ fontSize: '0.85rem' }}>클리닉과 서비스 영역</strong>
-	                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>네모는 본부, 붉은 둘레는 서비스 영역</span>
-	                    </div>
-	                  </div>
-
-	                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-	                    <svg width="32" height="20" viewBox="0 0 32 20" style={{ flexShrink: 0 }} aria-label="방문 경로 표식">
-	                      <path d="M3 15 C9 3 19 17 29 5" fill="none" stroke="#285b8b" strokeWidth="2.5" strokeDasharray="5 4" strokeLinecap="round" />
-	                    </svg>
-	                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-	                      <strong style={{ fontSize: '0.85rem' }}>방문 경로</strong>
-	                      <span style={{ fontSize: '0.7rem', color: '#6b5c4b' }}>기록된 방문지와 현재 위치를 이은 선</span>
-	                    </div>
-	                  </div>
-	                </div>
-	              </div>
-
-              {/* Category: Terrains */}
-              <div>
-                <strong style={{ fontSize: '0.85rem', color: '#4a8ca8', display: 'block', borderBottom: '1px solid #e5dec9', paddingBottom: '0.2rem', marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  <span style={{ display: 'block' }}>지형</span>
-                  <span style={{ display: 'block', fontSize: '0.75rem', color: '#6b5c4b', fontWeight: 'normal', marginTop: '0.1rem' }}>지형 및 세부 속성</span>
-                </strong>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="늪지와 습지 색상"><circle cx="8" cy="8" r="6" fill="#9275a8"/></svg>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.8rem' }}>늪지와 습지</strong>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="울창한 숲 색상"><circle cx="8" cy="8" r="6" fill="#3d6c48"/></svg>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.8rem' }}>울창한 숲</strong>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="호수와 내해 색상"><circle cx="8" cy="8" r="6" fill="#4a8ca8"/></svg>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.8rem' }}>호수와 내해</strong>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="초원 색상"><circle cx="8" cy="8" r="6" fill="#e5c158"/></svg>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.8rem' }}>초원</strong>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', gridColumn: '1 / -1' }}>
-                    <svg width="16" height="16" style={{ flexShrink: 0 }} aria-label="고산과 바위 지대 색상"><circle cx="8" cy="8" r="6" fill="#c9524b"/></svg>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.8rem' }}>고산과 바위 지대</strong>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', gridColumn: '1 / -1' }}>
-                    <svg width="35" height="16" style={{ flexShrink: 0 }} viewBox="0 0 35 16" aria-label="연결 도로 표식">
-                      <path d="M 2,8 C 10,3 14,13 22,8 C 30,3 33,13 34,8" fill="none" stroke="#8b5a2b" strokeWidth="2" strokeDasharray="2.5,2.5"/>
-                    </svg>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.8rem' }}>연결 도로</strong>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', gridColumn: '1 / -1' }}>
-                    <svg width="35" height="16" style={{ flexShrink: 0 }} viewBox="0 0 35 16" aria-label="수로 표식">
-                      <path d="M 2,5 L 33,5 M 2,11 L 33,11" fill="none" stroke="#4a8ca8" strokeWidth="1.2"/>
-                      <path d="M 10,3 L 12,13 M 22,3 L 24,13" fill="none" stroke="#4a8ca8" strokeWidth="1.2"/>
-                    </svg>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <strong style={{ fontSize: '0.8rem' }}>수로</strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
+    <PaperMap
+      places={places}
+      clinicOverlays={clinicOverlays}
+      highlightPlaceIds={highlightLocationIds}
+      selectedPlaceId={selectedLocationId}
+      historyAnchors={historyAnchors}
+      variant={variant}
+      companionCaption={companionCaption}
+      travelEnabled={travelEnabled}
+      travelBlockedReason={travelBlockedReason}
+      onConfirmDestination={onConfirmDestination}
+      onTravelRequest={onTravelRequest}
+      onOpenFullMap={onOpenFullMap}
+      onOpenReference={onOpenReference}
+      currentRegion={state.currentRegion}
+      currentSeasonLabel={localizeSeasonLabel(state.currentSeason)}
+    />
   );
 }
-
-
 
 // =================================================================
 // 11. LIVING ARCHIVE VIEW COMPONENT
@@ -15890,7 +15841,12 @@ function JournalsView({
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (parsed.bio && parsed.bag) {
-          updateState(() => safeMigrateState(parsed));
+          const migrated = migrateCampaignSave(parsed);
+          if (!migrated.ok) {
+            setImportNotice({ kind: 'error', text: '세이브 파일을 올리지 못했습니다. 현재 기록은 그대로 둡니다.' });
+            return;
+          }
+          updateState(() => migrated.state);
           setImportNotice({ kind: 'success', text: '세이브 파일을 성공적으로 가져왔습니다.' });
         } else {
           setImportNotice({ kind: 'error', text: '유효하지 않은 아포테카리아 세이브 파일입니다.' });

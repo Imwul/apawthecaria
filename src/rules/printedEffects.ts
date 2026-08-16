@@ -280,16 +280,18 @@ const encounterDefaults: PrintedEffectDefinition[] = ENCOUNTERS.map(encounter =>
     ownerId: encounter.id,
     ownerName,
     status: encounter.support === 'implemented' ? 'implemented' : 'manual',
-    automationClass: encounter.choices.length > 0
-      ? 'structured-choice'
-      : encounter.support === 'implemented' ? 'deterministic' : 'narrative',
+    automationClass: encounter.support === 'implemented'
+      ? (encounter.choices.some(choice => choice.id !== 'continue') ? 'structured-choice' : 'deterministic')
+      : 'narrative',
     trigger: 'encounter',
     supportedTriggers: ['encounter'],
     printedText: compactText(encounter.prompt),
     triggerText: { encounter: compactText(encounter.prompt) },
     prerequisites,
     mandatoryEffects: [],
-    optionalChoices: encounter.choices.map(choice => ({ id: choice.id, label: choice.label, effects: [] })),
+    optionalChoices: encounter.support === 'implemented'
+      ? encounter.choices.filter(choice => choice.id !== 'continue').map(choice => ({ id: choice.id, label: choice.label, effects: [] }))
+      : [],
     resourceChanges: [], timerChanges: [], inventoryChanges: [], movementChanges: [], mapChanges: [], reputationChanges: [],
     followUpState: null,
     journalPrompt: encounter.prompt,
@@ -298,7 +300,7 @@ const encounterDefaults: PrintedEffectDefinition[] = ENCOUNTERS.map(encounter =>
       ownerName,
       text: encounter.prompt,
       prerequisites,
-      explicitChoices: encounter.choices.map(choice => choice.label)
+      explicitChoices: []
     }),
     manualResolutionByTrigger: {},
     ruleIds: [encounter.encounterType === 'travel' ? 'TRAVEL-009' : encounter.encounterType === 'foraging' ? 'FORAGE-006' : 'TABLE-004', 'CORE-002'],

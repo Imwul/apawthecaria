@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react';
-import { localizeLocationTypeLabel, localizeRegionLabel, localizeSavedJourneyText } from '../localization/gameplayKo';
+import { localizeLocationName, localizeLocationTypeLabel, localizeRegionLabel, localizeSavedJourneyText } from '../localization/gameplayKo';
 import { localizeGameplayMessage } from '../localization/engineMessagesKo';
+import { referenceForJournalTab } from '../rulebook/context';
+import type { RulebookReferenceRequest } from '../rulebook/types';
 
 const LocalizedManualEffectText = lazy(() => import('./LocalizedManualEffectText'));
 
@@ -61,13 +63,15 @@ export function ChapterOpening({
   state,
   currentWeight,
   maxCarry,
-  onReturnToToday
+  onReturnToToday,
+  onOpenReference
 }: {
   tab: ChapterTab;
   state: any;
   currentWeight: number;
   maxCarry: number;
   onReturnToToday: () => void;
+  onOpenReference: (request: RulebookReferenceRequest) => void;
 }) {
   const patient = state.patients?.find((row: any) => row.id === state.activePatientId);
   const ailment = patient?.ailments?.find((row: any) => row.status === 'active');
@@ -105,8 +109,8 @@ export function ChapterOpening({
     map: {
       kicker: '지도 기록',
       title: '접어둔 지도',
-      body: `${state.currentLocationName || '이름 없는 길목'}에서 시작해 지나온 숲과 아직 걷지 않은 길을 함께 펼칩니다.`,
-      notes: [localizeRegionLabel(state.currentRegion), `${state.visitedLocations?.length || 0}곳의 발자국`, state.journeyActive ? `${state.journeyDestination || '목적지'}로 이동 중` : '머무르는 중']
+      body: `${localizeLocationName(state.currentLocationName) || '이름 없는 길목'}에서 시작해 지나온 숲과 아직 걷지 않은 길을 함께 펼칩니다.`,
+      notes: [localizeRegionLabel(state.currentRegion), `${state.visitedLocations?.length || 0}곳의 발자국`, state.journeyActive ? `${localizeLocationName(state.journeyDestination) || '목적지'}로 이동 중` : '머무르는 중']
     },
     almanack: {
       kicker: '들녘의 참고 기록',
@@ -118,7 +122,7 @@ export function ChapterOpening({
       kicker: '진료 기록철',
       title: '환자 기록장',
       body: '만났던 이의 첫인상과 병색, 건넨 처방과 그 뒤의 이야기를 한 사람씩 다시 읽습니다.',
-      notes: [`${caseCount}건의 진료`, patientName ? `${patientName} 치료 중` : '현재 환자 없음', state.currentLocationName || '위치 미기록']
+      notes: [`${caseCount}건의 진료`, patientName ? `${patientName} 치료 중` : '현재 환자 없음', localizeLocationName(state.currentLocationName)]
     },
     livingArchive: {
       kicker: '압화한 기억',
@@ -130,7 +134,7 @@ export function ChapterOpening({
       kicker: '계절의 기억',
       title: '들녘의 일지',
       body: '하루의 사건을 숫자로 세지 않고 문장으로 남기는 곳입니다. 계절과 장소를 따라 지난 여행을 다시 읽어보세요.',
-      notes: [`${journalCount}편의 일지`, seasonLabel(state.currentSeason), state.currentLocationName || '위치 미기록']
+      notes: [`${journalCount}편의 일지`, seasonLabel(state.currentSeason), localizeLocationName(state.currentLocationName)]
     }
   };
 
@@ -153,6 +157,9 @@ export function ChapterOpening({
             <span className="emoji-icon" aria-hidden="true">📖</span> 현재 진료로 돌아가기
           </button>
         ) : null}
+        <button type="button" className="chapter-opening__reference" onClick={() => onOpenReference(referenceForJournalTab(tab, state))}>
+          <span className="emoji-icon" aria-hidden="true">📚</span> 이 장의 룰북 맥락
+        </button>
       </div>
     </header>
   );
@@ -174,13 +181,15 @@ export function TodayOverview({
   currentWeight,
   maxCarry,
   onNavigate,
-  onContinue
+  onContinue,
+  onOpenReference
 }: {
   state: any;
   currentWeight: number;
   maxCarry: number;
   onNavigate: (tab: JournalTab) => void;
   onContinue: () => void;
+  onOpenReference: (request: RulebookReferenceRequest) => void;
 }) {
   const patient = state.patients?.find((row: any) => row.id === state.activePatientId);
   const ailment = patient?.ailments?.find((row: any) => row.status === 'active');
@@ -189,9 +198,9 @@ export function TodayOverview({
   const requirements = requirementWords(legacyAilment?.tags || ailment?.requirementSnapshot || '');
   const recentJournal = state.journals?.[0];
   const dayPlace = state.journeyActive
-    ? state.journeyDestination || '다음 마을'
-    : state.currentLocationName;
-  const dayPhrase = state.journeyActive ? '로 향하는 날' : '에 머무는 날';
+    ? localizeLocationName(state.journeyDestination || '다음 마을')
+    : localizeLocationName(state.currentLocationName);
+  const dayPhrase = state.journeyActive ? '목적지를 향해 걷는 날' : '이곳에 머무는 날';
 
   return (
     <section className="today-overview" aria-labelledby="today-title">
@@ -209,8 +218,15 @@ export function TodayOverview({
             <button type="button" onClick={onContinue}>
               <span className="emoji-icon" aria-hidden="true">🧭</span> 이어서 걷기
             </button>
-            <button type="button" className="today-scene__map-preview" onClick={() => onNavigate('map')}>
+            <button
+              type="button"
+              className="today-scene__map-preview"
+              onClick={() => document.getElementById('play-journey-map')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            >
               <span className="emoji-icon" aria-hidden="true">🗺️</span> 지도에 짚어보기
+            </button>
+            <button type="button" className="today-scene__reference" onClick={() => onOpenReference(referenceForJournalTab('play', state))}>
+              <span className="emoji-icon" aria-hidden="true">📚</span> 현재 절차 확인
             </button>
           </div>
         </div>
@@ -247,7 +263,7 @@ export function TodayOverview({
 
         <article className="today-place">
           <span className="journal-note-label">지금 머무는 곳</span>
-          <h3>{state.currentLocationName}</h3>
+          <h3>{localizeLocationName(state.currentLocationName)}</h3>
           <p>{localizeRegionLabel(state.currentRegion)} · {localizeLocationTypeLabel(state.currentLocationType)} · {seasonLabel(state.currentSeason)}</p>
           <button type="button" className="journal-text-action" onClick={() => onNavigate('map')}>
             <span className="emoji-icon" aria-hidden="true">🗺️</span> 지도에 짚어보기

@@ -123,7 +123,7 @@ export const executeEncounter = (input: EncounterExecutionInput): EncounterExecu
     nextState = { ...applied, appliedEffectIds: [...applied.appliedEffectIds, effectId] };
     appliedEffectIds.push(effectId);
   });
-  if (input.protection !== 'all' && input.encounter.support !== 'implemented' && unresolvedEffects.length === 0) {
+  if (input.protection !== 'all' && input.encounter.support !== 'implemented' && unresolvedEffects.length === 0 && !choice) {
     unresolvedEffects.push({
       support: input.encounter.support,
       effect: {
