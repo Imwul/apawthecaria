@@ -93,6 +93,28 @@ const DEBUG_LOCATION_ANCHORS = mapDebugLocationAnchors();
 const DEBUG_JUNCTIONS = mapDebugJunctions();
 const MIN_SCALE = 1;
 const MAX_SCALE = 4;
+const MAP_VEIL_STORAGE_KEY = 'apawthecaria.mapVeil.v1';
+
+const loadMapVeil = (fallback: boolean): boolean => {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const raw = window.localStorage.getItem(MAP_VEIL_STORAGE_KEY);
+    if (raw === '0') return false;
+    if (raw === '1') return true;
+  } catch {
+    // Preference only.
+  }
+  return fallback;
+};
+
+const saveMapVeil = (on: boolean) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(MAP_VEIL_STORAGE_KEY, on ? '1' : '0');
+  } catch {
+    // Preference only.
+  }
+};
 
 const placeToPick = (place: MapPlace): MapPickLocation => ({
   id: place.id,
@@ -150,6 +172,8 @@ export function PaperMap({
   const markerMoveRef = useRef<{ id: string; moved: boolean } | null>(null);
   const skipMarkerClickRef = useRef(false);
   const [panLocked, setPanLocked] = useState(false);
+  const [veilOn, setVeilOn] = useState(() => loadMapVeil(true));
+  const veilVisible = Boolean(veiled && veilOn);
   const [dragPreview, setDragPreview] = useState<Record<string, { x: number; y: number }>>({});
   const [createDraft, setCreateDraft] = useState<{ x: number; y: number; kind: MapGlyphKind; terrain: MapTerrain; name: string } | null>(null);
   const routeIndexById = useMemo(() => {
@@ -282,21 +306,36 @@ export function PaperMap({
   });
 
   useEffect(() => {
+    saveMapVeil(veilOn);
+  }, [veilOn]);
+
+  useEffect(() => {
+    const typingTarget = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      return Boolean(target && target.closest('input, textarea, select, [contenteditable="true"]'));
+    };
     const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      if (searchOpen) {
-        setSearchOpen(false);
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.key === 'Escape') {
+        if (searchOpen) {
+          setSearchOpen(false);
+          return;
+        }
+        if (layersOpen) {
+          setLayersOpen(false);
+          return;
+        }
+        selectPlace(null);
         return;
       }
-      if (layersOpen) {
-        setLayersOpen(false);
-        return;
+      if (veiled && !typingTarget(event) && (event.key === 'v' || event.key === 'V')) {
+        event.preventDefault();
+        setVeilOn(on => !on);
       }
-      selectPlace(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [layersOpen, searchOpen, selectPlace]);
+  }, [layersOpen, searchOpen, selectPlace, veiled]);
 
   const searchResults = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -484,7 +523,7 @@ export function PaperMap({
   const searchHasQuery = searchQuery.trim().length > 0;
 
   return (
-    <section className={`paper-map${isCompanion ? ' paper-map--companion' : ''}${panLocked ? ' paper-map--locked' : ''}${veiled ? ' paper-map--veiled' : ''}`} aria-label="Bristley Woods 지도">
+    <section className={`paper-map${isCompanion ? ' paper-map--companion' : ''}${panLocked ? ' paper-map--locked' : ''}${veilVisible ? ' paper-map--veiled' : ''}`} aria-label="Bristley Woods 지도">
       <div
         ref={viewportRef}
         className="paper-map__viewport"
@@ -508,7 +547,7 @@ export function PaperMap({
             draggable={false}
             onDragStart={event => event.preventDefault()}
           />
-          {veiled && <div className="paper-map__veil" aria-hidden="true" />}
+          {veilVisible && <div className="paper-map__veil" aria-hidden="true" />}
           <svg className="paper-map__overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
             {mapDebug && layers.roads && ROAD_POLYLINES.map((points, index) => (
               <polyline
@@ -722,6 +761,18 @@ export function PaperMap({
         >
           {panLocked ? '잠금 중' : '이동 잠금'}
         </button>
+        {veiled && (
+          <button
+            type="button"
+            className={veilOn ? 'is-open' : ''}
+            aria-pressed={veilOn}
+            aria-keyshortcuts="v"
+            aria-label={veilOn ? '수정 막 끄기 (V)' : '수정 막 켜기 (V)'}
+            onClick={() => setVeilOn(on => !on)}
+          >
+            {veilOn ? '유산지 켜짐' : '유산지'}
+          </button>
+        )}
         <button
           type="button"
           className={searchOpen ? 'is-open' : ''}
