@@ -1,7 +1,7 @@
 import { useState, useEffect, useEffectEvent, useRef, useCallback, useMemo, memo, Fragment, lazy, Suspense } from "react";
-import { db, isFirebaseConfigured, auth, googleProvider, storage } from "./firebase";
+import { db, isFirebaseConfigured, auth, googleProvider, storage, googleSignInErrorMessage, shouldUseRedirectSignIn } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
+import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, type User } from "firebase/auth";
 import { deleteObject, getDownloadURL, ref as storageRef, uploadString } from "firebase/storage";
 import { GAME_DATA } from "./gameData";
 import {
@@ -4176,6 +4176,14 @@ export default function App() {
     return () => window.removeEventListener(APP_NOTICE_EVENT, handleNotice);
   }, []);
 
+  useEffect(() => {
+    if (!auth) return;
+    getRedirectResult(auth).catch(error => {
+      console.error('Google redirect sign-in error:', error);
+      showAlert(googleSignInErrorMessage(error));
+    });
+  }, []);
+
   const dismissNotice = useCallback(() => {
     setNoticeQueue(queue => queue.slice(1));
   }, []);
@@ -4841,10 +4849,23 @@ export default function App() {
   const handleSignIn = async () => {
     if (!auth || !googleProvider) return;
     try {
+      if (shouldUseRedirectSignIn()) {
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
       await signInWithPopup(auth, googleProvider);
     } catch (e: any) {
       console.error("Google Sign-in error:", e);
-      showAlert("로그인 중 에러가 발생했습니다: " + e.message);
+      if (e?.code === 'auth/popup-blocked' || e?.code === 'auth/cancelled-popup-request') {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectError: any) {
+          showAlert(googleSignInErrorMessage(redirectError));
+          return;
+        }
+      }
+      showAlert(googleSignInErrorMessage(e));
     }
   };
 
