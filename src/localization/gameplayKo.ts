@@ -326,8 +326,11 @@ export const localizeDirectionLabel = (value: string | undefined): string => ({
 
 export const localizeLocationTypeLabel = (value: string | undefined): string => ({
   Barrow: '거수 고분',
+  'Behemoth Barrow': '거수 고분',
   City: '도시',
+  Clinic: '약제소',
   Ruin: '유적지',
+  'Titan Ruin': '티탄 유적',
   Settlement: '정착지',
   Wilds: '야생 구역'
 } as Record<string, string>)[value || ''] || value || '장소 미기록';

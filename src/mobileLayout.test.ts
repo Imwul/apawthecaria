@@ -44,7 +44,9 @@ describe('mobile layout regression guards', () => {
   it('keeps a play-tab map beside journey setup without covering the paper map', () => {
     expect(appSource).toContain('id="play-journey-map"');
     expect(appSource).toContain('variant="companion"');
+    expect(appSource).toContain('<RouteComposer');
     expect(cssSource).toMatch(/\.play-with-map\s*\{/);
+    expect(cssSource).toMatch(/\.route-composer\s*\{/);
     expect(cssSource).toMatch(/\.map-location-label\s*\{[\s\S]*?pointer-events:\s*none/);
   });
 });

@@ -22,6 +22,8 @@ import {
   mapDebugLocationAnchors,
   useMapDebugEnabled
 } from './detection/mapDebug';
+import { MapGlyph, type MapGlyphKind, type MapTerrain } from './mapGlyphs';
+import { glyphKindFromLocation, terrainFromRegion } from './routeComposer';
 
 export type MapClinicOverlay = {
   id: string;
@@ -34,6 +36,14 @@ export type MapPickLocation = {
   name: string;
   region?: string;
   kind?: string;
+  x?: number;
+  y?: number;
+  hasClinic?: boolean;
+};
+
+export type MapCreatePlaceRequest = {
+  x: number;
+  y: number;
 };
 
 type PaperMapProps = {
@@ -49,6 +59,11 @@ type PaperMapProps = {
   onSelectedPlaceChange?: (placeId: string | null) => void;
   onConfirmDestination?: (location: MapPickLocation) => void;
   onTravelRequest?: (location: MapPickLocation) => void;
+  onAddWaypoint?: (location: MapPickLocation) => void;
+  onSetCurrentLocation?: (location: MapPickLocation) => void;
+  onCreatePlace?: (request: MapCreatePlaceRequest) => void;
+  onMovePlace?: (location: MapPickLocation) => void;
+  routePlaceIds?: string[];
   onOpenFullMap?: () => void;
   onOpenReference?: (request: {
     entryId: string;
@@ -74,7 +89,19 @@ const placeToPick = (place: MapPlace): MapPickLocation => ({
   id: place.id,
   name: place.name,
   region: place.region,
-  kind: place.locationType
+  kind: place.locationType,
+  x: place.x,
+  y: place.y,
+  hasClinic: place.hasClinic
+});
+
+const placeGlyph = (place: MapPlace): { kind: MapGlyphKind; terrain: MapTerrain | null } => ({
+  kind: glyphKindFromLocation({
+    kind: place.locationType,
+    locationType: place.locationType,
+    hasClinic: place.hasClinic
+  }),
+  terrain: terrainFromRegion(place.region)
 });
 
 export function PaperMap({
@@ -90,6 +117,11 @@ export function PaperMap({
   onSelectedPlaceChange,
   onConfirmDestination,
   onTravelRequest,
+  onAddWaypoint,
+  onSetCurrentLocation,
+  onCreatePlace,
+  onMovePlace,
+  routePlaceIds = [],
   onOpenFullMap,
   onOpenReference,
   currentRegion,
@@ -99,7 +131,18 @@ export function PaperMap({
   const mapDebug = useMapDebugEnabled();
   const viewportRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ active: boolean; moved: boolean; startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(null);
+  const dragRef = useRef<{ active: boolean; moved: boolean; startX: number; startY: number; scrollLeft: number; scrollTop: number; modify: boolean } | null>(null);
+  const markerMoveRef = useRef<{ id: string; moved: boolean } | null>(null);
+  const skipMarkerClickRef = useRef(false);
+  const [panLocked, setPanLocked] = useState(false);
+  const [dragPreview, setDragPreview] = useState<Record<string, { x: number; y: number }>>({});
+  const routeIndexById = useMemo(() => {
+    const indexes = new Map<string, number>();
+    routePlaceIds.forEach((id, index) => {
+      if (!indexes.has(id)) indexes.set(id, index);
+    });
+    return indexes;
+  }, [routePlaceIds]);
   const pinchRef = useRef<{ distance: number; scale: number } | null>(null);
   const [scale, setScale] = useState(1);
   const [viewportWidth, setViewportWidth] = useState(720);
@@ -207,6 +250,22 @@ export function PaperMap({
   }, [centerOnPlace, currentChanged, currentPlace]);
 
   useEffect(() => {
+    if (!panLocked) return;
+    const onMove = (event: MouseEvent) => {
+      if (markerMoveRef.current) moveDrag(event.clientX, event.clientY);
+    };
+    const onUp = () => {
+      if (markerMoveRef.current) finishMarkerMove();
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  });
+
+  useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (searchOpen) {
@@ -233,7 +292,7 @@ export function PaperMap({
     ).slice(0, 8);
   }, [places, searchQuery]);
 
-  const startDrag = (clientX: number, clientY: number) => {
+  const startDrag = (clientX: number, clientY: number, modify = false) => {
     const viewport = viewportRef.current;
     if (!viewport) return;
     dragRef.current = {
@@ -242,11 +301,24 @@ export function PaperMap({
       startX: clientX,
       startY: clientY,
       scrollLeft: viewport.scrollLeft,
-      scrollTop: viewport.scrollTop
+      scrollTop: viewport.scrollTop,
+      modify
     };
   };
 
   const moveDrag = (clientX: number, clientY: number) => {
+    if (panLocked) {
+      const moving = markerMoveRef.current;
+      if (!moving) return;
+      const point = percentFromClient(clientX, clientY);
+      if (!point) return;
+      moving.moved = true;
+      setDragPreview(current => ({ ...current, [moving.id]: {
+        x: Math.max(0.4, Math.min(99.6, point.x)),
+        y: Math.max(0.4, Math.min(99.6, point.y))
+      } }));
+      return;
+    }
     const viewport = viewportRef.current;
     const drag = dragRef.current;
     if (!viewport || !drag?.active) return;
@@ -257,21 +329,64 @@ export function PaperMap({
     viewport.scrollTop = drag.scrollTop - dy;
   };
 
+  const percentFromClient = (clientX: number, clientY: number): { x: number; y: number } | null => {
+    const content = contentRef.current;
+    if (!content) return null;
+    const rect = content.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    return {
+      x: ((clientX - rect.left) / rect.width) * 100,
+      y: ((clientY - rect.top) / rect.height) * 100
+    };
+  };
+
+  const finishMarkerMove = () => {
+    const moving = markerMoveRef.current;
+    if (!moving) return false;
+    markerMoveRef.current = null;
+    const preview = dragPreview[moving.id];
+    if (moving.moved && preview && onMovePlace) {
+      skipMarkerClickRef.current = true;
+      const place = placeById.get(moving.id);
+      if (place) onMovePlace({ ...placeToPick(place), x: preview.x, y: preview.y });
+      return true;
+    }
+    if (!moving.moved) {
+      const place = placeById.get(moving.id);
+      if (place) {
+        selectPlace(place.id);
+        onAddWaypoint?.(placeToPick(place));
+      }
+    }
+    return true;
+  };
+
   const endBackgroundGesture = () => {
+    if (finishMarkerMove()) return;
     const drag = dragRef.current;
     if (!drag?.active) {
       dragRef.current = drag ? { ...drag, active: false } : null;
       return;
     }
     dragRef.current = { ...drag, active: false };
-    if (!drag.moved) selectPlace(null);
+    if (drag.moved) return;
+    if (drag.modify && onCreatePlace) {
+      const point = percentFromClient(drag.startX, drag.startY);
+      if (point && point.x >= 0 && point.x <= 100 && point.y >= 0 && point.y <= 100) {
+        onCreatePlace(point);
+        return;
+      }
+    }
+    selectPlace(null);
   };
 
   const handleBackgroundPointerDown = (event: React.MouseEvent | React.TouchEvent) => {
     if ('button' in event && event.button !== 0) return;
     const point = 'touches' in event ? event.touches[0] : event;
     if (!point) return;
-    startDrag(point.clientX, point.clientY);
+    const modify = 'metaKey' in event ? Boolean(event.metaKey || event.ctrlKey) : false;
+    if (panLocked && !modify) return;
+    startDrag(point.clientX, point.clientY, modify);
   };
 
   useEffect(() => {
@@ -341,7 +456,7 @@ export function PaperMap({
   const searchHasQuery = searchQuery.trim().length > 0;
 
   return (
-    <section className={`paper-map${isCompanion ? ' paper-map--companion' : ''}`} aria-label="Bristley Woods 지도">
+    <section className={`paper-map${isCompanion ? ' paper-map--companion' : ''}${panLocked ? ' paper-map--locked' : ''}`} aria-label="Bristley Woods 지도">
       <div
         ref={viewportRef}
         className="paper-map__viewport"
@@ -349,7 +464,7 @@ export function PaperMap({
         onMouseMove={event => moveDrag(event.clientX, event.clientY)}
         onMouseUp={endBackgroundGesture}
         onMouseLeave={() => {
-          if (dragRef.current?.active) dragRef.current = { ...dragRef.current, active: false };
+          if (dragRef.current?.active) endBackgroundGesture();
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -491,11 +606,14 @@ export function PaperMap({
             const selected = selectedId === place.id;
             const showLabel = isPlaceLabelVisible(place, layers, selectedId, hoveredId, focusedId);
             const candidate = highlightSet.has(place.id);
+            const routeIndex = routeIndexById.get(place.id);
+            const glyph = placeGlyph(place);
+            const position = dragPreview[place.id] || place;
             return (
               <div
                 key={place.id}
                 className="map-location-marker"
-                style={{ left: `${place.x}%`, top: `${place.y}%` }}
+                style={{ left: `${position.x}%`, top: `${position.y}%` }}
               >
                 <button
                   type="button"
@@ -504,25 +622,49 @@ export function PaperMap({
                     place.isCurrent ? 'is-current' : '',
                     selected ? 'is-picked' : '',
                     candidate ? 'is-candidate' : '',
+                    routeIndex !== undefined ? 'is-route' : '',
+                    panLocked ? 'is-movable' : '',
                     place.visited ? 'is-visited' : 'is-unvisited'
                   ].filter(Boolean).join(' ')}
                   aria-label={place.name}
                   aria-pressed={selected}
                   data-map-place-id={place.id}
-                  onMouseDown={event => event.stopPropagation()}
-                  onTouchStart={event => event.stopPropagation()}
+                  onMouseDown={event => {
+                    event.stopPropagation();
+                    if (!panLocked || event.button !== 0) return;
+                    markerMoveRef.current = { id: place.id, moved: false };
+                    selectPlace(place.id);
+                  }}
+                  onTouchStart={event => {
+                    event.stopPropagation();
+                    if (!panLocked) return;
+                    const touch = event.touches[0];
+                    if (!touch) return;
+                    markerMoveRef.current = { id: place.id, moved: false };
+                    selectPlace(place.id);
+                  }}
                   onMouseEnter={() => setHoveredId(place.id)}
                   onMouseLeave={() => setHoveredId(current => current === place.id ? null : current)}
                   onFocus={() => setFocusedId(place.id)}
                   onBlur={() => setFocusedId(current => current === place.id ? null : current)}
                   onClick={event => {
                     event.stopPropagation();
+                    if (skipMarkerClickRef.current) {
+                      skipMarkerClickRef.current = false;
+                      return;
+                    }
                     selectPlace(place.id);
+                    onAddWaypoint?.(placeToPick(place));
                   }}
                 >
-                  <span className="map-location-dot" aria-hidden="true" />
+                  <span className="map-location-dot" aria-hidden="true">
+                    <MapGlyph kind={glyph.kind} terrain={glyph.terrain} size={place.locationType === 'Wilds' ? 10 : 14} />
+                  </span>
                   {place.isCurrent && <span className="map-location-ring" aria-hidden="true" />}
                   {selected && !place.isCurrent && <span className="map-location-ring map-location-ring--selected" aria-hidden="true" />}
+                  {routeIndex !== undefined && (
+                    <span className="map-location-order">{routeIndex + 1}</span>
+                  )}
                 </button>
                 {showLabel && <span className="map-location-label">{place.name}</span>}
               </div>
@@ -542,6 +684,15 @@ export function PaperMap({
           aria-label="현재 위치로"
         >
           현재
+        </button>
+        <button
+          type="button"
+          className={panLocked ? 'is-open' : ''}
+          aria-pressed={panLocked}
+          aria-label={panLocked ? '지도 이동 잠금 해제' : '지도 이동 잠그기'}
+          onClick={() => setPanLocked(locked => !locked)}
+        >
+          {panLocked ? '잠금 중' : '이동 잠금'}
         </button>
         <button
           type="button"
@@ -683,6 +834,21 @@ export function PaperMap({
             {onConfirmDestination && selectedIsCandidate && (
               <button type="button" onClick={() => onConfirmDestination(placeToPick(selectedPlace))}>
                 이 목적지로 정하기
+              </button>
+            )}
+            {onAddWaypoint && !selectedPlace.isCurrent && (
+              <button type="button" onClick={() => onAddWaypoint(placeToPick(selectedPlace))}>
+                경로에 넣기
+              </button>
+            )}
+            {onSetCurrentLocation && !selectedPlace.isCurrent && (
+              <button type="button" onClick={() => onSetCurrentLocation(placeToPick(selectedPlace))}>
+                여기를 지금 있는 곳으로
+              </button>
+            )}
+            {onMovePlace && (
+              <button type="button" onClick={() => setPanLocked(true)}>
+                {panLocked ? '끌어 자리를 고치세요' : '자리 고치려면 이동 잠금'}
               </button>
             )}
             {onTravelRequest && selectedCanTravel && (

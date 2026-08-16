@@ -10,7 +10,23 @@ import {
   parseCampaignSaveRaw,
   tryMigrateCampaignSave
 } from "./persistence/campaignSave";
-import { MARKER_EDGES, markerEdgeKind } from "./map/markerGraph";
+import { MARKER_BY_ID, MARKER_EDGES, markerEdgeKind } from "./map/markerGraph";
+import { loadPlayerMarkers, upsertPlayerMarkerRecords } from "./map/playerMarkerStore";
+import {
+  appendRouteStop,
+  draftFromOrigin,
+  locationTypeFromGlyph,
+  mapKindFromGlyph,
+  nearestTerrain,
+  removeRouteStopAt,
+  setRouteEdgeKind,
+  stopFromPlace,
+  terrainFromRegion,
+  updateRouteStopAt,
+  type RouteDraft,
+  type RouteStop
+} from "./map/routeComposer";
+import { RouteComposer } from "./components/RouteComposer";
 import {
   FAMILIAR_BENEFITS,
   calculateRemedyRewards,
@@ -1269,14 +1285,57 @@ const normalizeMapLocationName = (name: string) => name.trim().toLowerCase().rep
 const buildMapGraphNodes = (customLocations: CustomMapLocation[] = [], customEdges: CustomMapEdge[] = []): Record<string, MapLocationNode> => {
   const nodes: Record<string, MapLocationNode> = {};
   Object.entries(MAP_GRAPH_NODES).forEach(([key, node]) => {
+    const marker = MARKER_BY_ID.get(key);
     nodes[key] = {
       ...node,
       aliases: node.aliases ? [...node.aliases] : undefined,
-      neighbors: [...node.neighbors]
+      neighbors: [...node.neighbors],
+      kind: node.kind || marker?.kind,
+      region: node.region || (marker?.region as MapRegion | undefined)
+    };
+  });
+
+  loadPlayerMarkers().forEach(record => {
+    const existing = nodes[record.id];
+    const kind = (record.kind as MapLocationKind | undefined) || existing?.kind || 'wild';
+    const region = (record.region as MapRegion | undefined) || existing?.region;
+    if (existing) {
+      nodes[record.id] = {
+        ...existing,
+        label: record.label || existing.label,
+        x: record.x,
+        y: record.y,
+        kind,
+        region
+      };
+      return;
+    }
+    nodes[record.id] = {
+      label: record.label,
+      x: record.x,
+      y: record.y,
+      kind,
+      region,
+      neighbors: []
     };
   });
 
   customLocations.forEach(location => {
+    const existing = nodes[location.id];
+    if (existing) {
+      nodes[location.id] = {
+        ...existing,
+        ...location,
+        label: location.label || existing.label,
+        x: Number.isFinite(location.x) ? location.x : existing.x,
+        y: Number.isFinite(location.y) ? location.y : existing.y,
+        region: location.region || existing.region,
+        kind: location.kind || existing.kind,
+        aliases: Array.from(new Set([...(existing.aliases || []), ...(location.aliases || [])])),
+        neighbors: Array.from(new Set([...(existing.neighbors || []), ...(location.neighbors || [])]))
+      };
+      return;
+    }
     nodes[location.id] = {
       ...location,
       aliases: location.aliases ? [...location.aliases] : undefined,
@@ -2083,6 +2142,79 @@ const mapKindFromLocationType = (locationType: string): MapLocationKind => {
   if (locationType === 'Barrow') return 'barrow';
   if (locationType === 'Clinic') return 'clinic';
   return 'wild';
+};
+
+const sameMapPair = (from: string, to: string, edge: CustomMapEdge) =>
+  (edge.from === from && edge.to === to) || (edge.from === to && edge.to === from);
+
+const playerEdgeId = (from: string, to: string) => {
+  const [left, right] = [from, to].sort();
+  return `player_edge_${left}_${right}`;
+};
+
+const stopFromGraphNode = (
+  id: string,
+  node: MapLocationNode,
+  extras: { hasClinic?: boolean; name?: string } = {}
+): RouteStop => stopFromPlace({
+  id,
+  name: extras.name || node.label,
+  x: node.x,
+  y: node.y,
+  region: node.region,
+  kind: node.kind,
+  locationType: node.kind,
+  hasClinic: extras.hasClinic
+});
+
+const upsertPlayerMapStop = (
+  customLocations: CustomMapLocation[],
+  stop: RouteStop,
+  existingNode?: MapLocationNode
+): CustomMapLocation[] => {
+  const previous = customLocations.find(location => location.id === stop.id);
+  const next: CustomMapLocation = {
+    ...(previous || {}),
+    id: stop.id,
+    label: stop.name.trim() || previous?.label || existingNode?.label || stop.id,
+    x: Number.isFinite(stop.x) ? stop.x : previous?.x ?? existingNode?.x ?? 50,
+    y: Number.isFinite(stop.y) ? stop.y : previous?.y ?? existingNode?.y ?? 50,
+    region: (stop.terrain || previous?.region || existingNode?.region || 'Wilds') as MapRegion,
+    kind: mapKindFromGlyph(stop.kind),
+    aliases: Array.from(new Set([...(previous?.aliases || []), ...(existingNode?.aliases || []), stop.name])),
+    neighbors: Array.from(new Set([...(previous?.neighbors || []), ...(existingNode?.neighbors || [])])),
+    source: previous?.source || 'player-correction',
+    createdAt: previous?.createdAt || Date.now()
+  };
+  return [...customLocations.filter(location => location.id !== stop.id), next];
+};
+
+const playerRecordFromStop = (stop: RouteStop) => ({
+  id: stop.id,
+  label: stop.name,
+  x: stop.x,
+  y: stop.y,
+  kind: mapKindFromGlyph(stop.kind),
+  region: stop.terrain || undefined,
+  updatedAt: Date.now()
+});
+
+const upsertPlayerMapEdge = (
+  customEdges: CustomMapEdge[],
+  from: string,
+  to: string,
+  kind: 'path' | 'waterway'
+): CustomMapEdge[] => {
+  const id = playerEdgeId(from, to);
+  const next: CustomMapEdge = {
+    id,
+    from,
+    to,
+    kind,
+    label: kind === 'waterway' ? '물길' : '육로',
+    createdAt: customEdges.find(edge => edge.id === id)?.createdAt || Date.now()
+  };
+  return [...customEdges.filter(edge => edge.id !== id && !sameMapPair(from, to, edge)), next];
 };
 
 const inferMapCoordinates = (
@@ -7026,6 +7158,49 @@ function PlayView({
   // Manual Card Selector State
   const travelFormRef = useRef<HTMLFormElement>(null);
   const [nextLocName, setNextLocName] = useState(pendingMapTravel?.name || "");
+  const [routeDraft, setRouteDraft] = useState<RouteDraft>({ stops: [], edgeKinds: [] });
+  const routeDraftRef = useRef(routeDraft);
+  routeDraftRef.current = routeDraft;
+  const routeGraphNodes = useMemo(
+    () => buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || []),
+    [state.customMapLocations, state.customMapEdges]
+  );
+  const currentRouteOrigin = useMemo<RouteStop | null>(() => {
+    const currentId = findMapLocationKey(state.currentLocationName, state.customMapLocations || [])
+      || normalizeMapLocationName(state.currentLocationName);
+    const node = currentId ? routeGraphNodes[currentId] : null;
+    const clinicHere = (state.clinics || []).some(clinic =>
+      findMapLocationKey(clinic.locationName, state.customMapLocations || []) === currentId
+    );
+    if (!node) {
+      return {
+        id: currentId || 'here',
+        name: state.currentLocationName,
+        kind: state.currentLocationType === 'City'
+          ? 'City'
+          : state.currentLocationType === 'Settlement'
+            ? 'Settlement'
+            : state.currentLocationType === 'Ruin'
+              ? 'Ruin'
+              : state.currentLocationType === 'Barrow'
+                ? 'Barrow'
+                : 'Wilds',
+        terrain: terrainFromRegion(state.currentRegion),
+        hasClinic: clinicHere,
+        x: 50,
+        y: 50
+      };
+    }
+    return stopFromGraphNode(currentId, node, { hasClinic: clinicHere, name: node.label || state.currentLocationName });
+  }, [routeGraphNodes, state.currentLocationName, state.currentLocationType, state.currentRegion, state.clinics, state.customMapLocations]);
+  useEffect(() => {
+    if (!currentRouteOrigin) return;
+    setRouteDraft(previous => {
+      if (previous.stops.length === 0) return draftFromOrigin(currentRouteOrigin);
+      if (previous.stops[0].id === currentRouteOrigin.id) return previous;
+      return draftFromOrigin(currentRouteOrigin);
+    });
+  }, [currentRouteOrigin]);
   const [travelCardMode, setTravelCardMode] = useState<'random' | 'manual'>('random');
   const [selectedTravelSuit, setSelectedTravelSuit] = useState('♥');
   const [selectedTravelValue, setSelectedTravelValue] = useState(1);
@@ -8005,8 +8180,13 @@ function PlayView({
 
   const executeCanonicalTravelMove = (drawnSuit: string, cardVal: number) => {
     const mapNodes = buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || []);
-    const currentLocationId = findGraphLocationKey(state.currentLocationName, mapNodes);
-    const destinationId = findGraphLocationKey(nextLocName, mapNodes);
+    const composedDraft = routeDraftRef.current;
+    const currentLocationId = findGraphLocationKey(state.currentLocationName, mapNodes)
+      || composedDraft.stops[0]?.id
+      || '';
+    const destinationId = findGraphLocationKey(nextLocName, mapNodes)
+      || composedDraft.stops[composedDraft.stops.length - 1]?.id
+      || '';
     if (!currentLocationId || !destinationId) {
       showAlert('현재 위치와 목적지는 지도 위의 실제 위치여야 합니다. 지도에 표시된 장소 이름을 선택해 주세요.');
       return;
@@ -8060,6 +8240,46 @@ function PlayView({
       selectedToolInstanceIds: stilts.map(tool => tool.instanceId),
       rulesetId: state.rulesetId
     }) : null;
+    const composed = composedDraft;
+    const composedIds = composed.stops.map(stop => findGraphLocationKey(stop.id, mapNodes) || findGraphLocationKey(stop.name, mapNodes) || stop.id);
+    const composedMatches = composedIds.length >= 2
+      && composedIds[0] === currentLocationId
+      && composedIds[composedIds.length - 1] === destinationId;
+    if (composedMatches) {
+      composed.stops.forEach((stop, index) => {
+        const from = composedIds[index];
+        const to = composedIds[index + 1];
+        if (!from || !to) return;
+        if (!engineGraph[from]) {
+          engineGraph[from] = {
+            id: from,
+            name: stop.name,
+            region: (stop.terrain || destRegion) as TravelRegion,
+            locationType: canonicalLocationType(locationTypeFromGlyph(stop.kind)),
+            edges: []
+          };
+        }
+        if (!engineGraph[to]) {
+          const nextStop = composed.stops[index + 1];
+          engineGraph[to] = {
+            id: to,
+            name: nextStop.name,
+            region: (nextStop.terrain || destRegion) as TravelRegion,
+            locationType: canonicalLocationType(locationTypeFromGlyph(nextStop.kind)),
+            edges: []
+          };
+        }
+        const kind = composed.edgeKinds[index] || 'path';
+        if (!engineGraph[from].edges.some(edge => edge.to === to)) {
+          engineGraph[from].edges.push({ to, kind });
+        } else {
+          engineGraph[from].edges = engineGraph[from].edges.map(edge => edge.to === to ? { ...edge, kind } : edge);
+        }
+        if (!engineGraph[to].edges.some(edge => edge.to === from)) {
+          engineGraph[to].edges.push({ to: from, kind });
+        }
+      });
+    }
     const result = resolveTravel({
       transactionId,
       state: {
@@ -8086,6 +8306,7 @@ function PlayView({
       mode: destRegion === 'Soar' || isTaxiMove ? 'soar' : 'move',
       card: { suit: drawnSuit, value: cardVal },
       season: state.currentSeason,
+      route: composedMatches ? composedIds : undefined,
       canStopInLoch: hasLochStoppingGear(state),
       protectsFromSoaking: hasSafeWaterwayTravel(state),
       waterwaySpan: wagonCapabilities.waterwaySpan,
@@ -10328,6 +10549,8 @@ function PlayView({
       : 'inspect';
   const playMapHighlightIds = useMemo(() => {
     if (playMapMode === 'destination') return journeyDestinationCandidates.map(row => row.id);
+    const routeIds = routeDraft.stops.map(stop => stop.id);
+    if (routeIds.length > 0) return routeIds;
     if (playMapMode === 'travel') {
       return listLegalMoveStops({
         graph: toTravelEngineGraph(state),
@@ -10339,7 +10562,7 @@ function PlayView({
       });
     }
     return [];
-  }, [playMapMode, journeyDestinationCandidates, state, journeyOriginId, activeTravelSpeed]);
+  }, [playMapMode, journeyDestinationCandidates, state, journeyOriginId, activeTravelSpeed, routeDraft.stops]);
   const playMapSelectedId = playMapMode === 'destination'
     ? destName || null
     : playMapMode === 'travel'
@@ -10362,6 +10585,203 @@ function PlayView({
 
   const handlePlayMapTravel = useCallback((location: MapPickLocation) => {
     applyMapTravelLocation(location, true);
+  }, [applyMapTravelLocation]);
+
+  const persistRouteStop = useCallback((stop: RouteStop) => {
+    upsertPlayerMarkerRecords([playerRecordFromStop(stop)]);
+    updateState((s: GameState) => {
+      const nodes = buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || []);
+      const nextLocations = upsertPlayerMapStop(s.customMapLocations || [], stop, nodes[stop.id]);
+      const currentId = findMapLocationKey(s.currentLocationName, nextLocations) || normalizeMapLocationName(s.currentLocationName);
+      const touchesCurrent = currentId === stop.id;
+      return {
+        ...s,
+        customMapLocations: nextLocations,
+        ...(touchesCurrent ? {
+          currentLocationName: stop.name,
+          currentLocationType: locationTypeFromGlyph(stop.kind),
+          currentRegion: stop.terrain || s.currentRegion
+        } : {})
+      };
+    });
+  }, [updateState]);
+
+  const persistRouteEdge = useCallback((from: string, to: string, kind: 'path' | 'waterway') => {
+    updateState((s: GameState) => ({
+      ...s,
+      customMapEdges: upsertPlayerMapEdge(s.customMapEdges || [], from, to, kind)
+    }));
+  }, [updateState]);
+
+  const handleAddRouteWaypoint = useCallback((location: MapPickLocation) => {
+    const node = routeGraphNodes[location.id];
+    const clinicHere = (state.clinics || []).some(clinic =>
+      findMapLocationKey(clinic.locationName, state.customMapLocations || []) === location.id
+    );
+    const stop = node
+      ? stopFromGraphNode(location.id, node, { hasClinic: clinicHere || location.hasClinic, name: location.name || node.label })
+      : stopFromPlace({
+        id: location.id,
+        name: location.name,
+        x: location.x ?? 50,
+        y: location.y ?? 50,
+        region: location.region,
+        kind: location.kind,
+        locationType: location.kind,
+        hasClinic: location.hasClinic
+      });
+    setRouteDraft(previous => {
+      const last = previous.stops[previous.stops.length - 1];
+      const inferredKind = last
+        ? mapEdgeKind(last.id, stop.id, routeGraphNodes, state.customMapEdges || [])
+        : 'path';
+      const next = appendRouteStop(previous, stop, inferredKind);
+      if (last && next.stops.length > previous.stops.length) persistRouteEdge(last.id, stop.id, inferredKind);
+      if (next.stops.length > 1) {
+        const dest = next.stops[next.stops.length - 1];
+        setNextLocName(dest.name);
+        setDestType(locationTypeFromGlyph(dest.kind));
+        setDestRegion(dest.kind === 'Ruin' ? 'Titan' : (dest.terrain || state.currentRegion));
+      }
+      return next;
+    });
+  }, [persistRouteEdge, routeGraphNodes, state.clinics, state.customMapLocations, state.customMapEdges, state.currentRegion]);
+
+  const handleCreateMapPlace = useCallback((request: { x: number; y: number }) => {
+    const terrain = nearestTerrain(request.x, request.y, Object.values(routeGraphNodes).map(node => ({
+      x: node.x,
+      y: node.y,
+      region: node.region
+    }))) || terrainFromRegion(state.currentRegion) || 'Forest';
+    const markNumber = (state.customMapLocations || []).filter(location => location.source === 'player-mark').length + 1;
+    const stop: RouteStop = {
+      id: `mark_${Date.now()}`,
+      name: `표시 ${markNumber}`,
+      kind: 'Wilds',
+      terrain,
+      hasClinic: false,
+      x: Math.max(1, Math.min(99, request.x)),
+      y: Math.max(1, Math.min(99, request.y))
+    };
+    persistRouteStop(stop);
+    handleAddRouteWaypoint({
+      id: stop.id,
+      name: stop.name,
+      region: stop.terrain || undefined,
+      kind: 'Wilds',
+      x: stop.x,
+      y: stop.y,
+      hasClinic: false
+    });
+  }, [handleAddRouteWaypoint, persistRouteStop, routeGraphNodes, state.currentRegion, state.customMapLocations]);
+
+  const handleSetMappedCurrentLocation = useCallback((location: MapPickLocation) => {
+    const node = routeGraphNodes[location.id];
+    const stop = node
+      ? stopFromGraphNode(location.id, node, { name: location.name || node.label, hasClinic: location.hasClinic })
+      : stopFromPlace({
+        id: location.id,
+        name: location.name,
+        x: location.x ?? 50,
+        y: location.y ?? 50,
+        region: location.region,
+        kind: location.kind,
+        locationType: location.kind,
+        hasClinic: location.hasClinic
+      });
+    persistRouteStop(stop);
+    updateState((s: GameState) => ({
+      ...s,
+      currentLocationName: stop.name,
+      currentLocationType: locationTypeFromGlyph(stop.kind),
+      currentRegion: stop.terrain || s.currentRegion,
+      visitedLocations: Array.from(new Set([...(s.visitedLocations || []), stop.name]))
+    }));
+    setRouteDraft(draftFromOrigin(stop));
+  }, [persistRouteStop, routeGraphNodes, updateState]);
+
+  const handleRouteStopChange = useCallback((index: number, patch: Partial<RouteStop>) => {
+    setRouteDraft(previous => {
+      const next = updateRouteStopAt(previous, index, patch);
+      const stop = next.stops[index];
+      if (stop) persistRouteStop(stop);
+      if (index === next.stops.length - 1 && next.stops.length > 1) {
+        setNextLocName(stop.name);
+        setDestType(locationTypeFromGlyph(stop.kind));
+        setDestRegion(stop.terrain || (stop.kind === 'Ruin' ? 'Titan' : state.currentRegion));
+      }
+      return next;
+    });
+  }, [persistRouteStop, state.currentRegion]);
+
+  const handleRouteEdgeChange = useCallback((index: number, kind: 'path' | 'waterway') => {
+    setRouteDraft(previous => {
+      const next = setRouteEdgeKind(previous, index, kind);
+      const from = next.stops[index];
+      const to = next.stops[index + 1];
+      if (from && to) persistRouteEdge(from.id, to.id, kind);
+      return next;
+    });
+  }, [persistRouteEdge]);
+
+  const handleRemoveRouteStop = useCallback((index: number) => {
+    setRouteDraft(previous => {
+      const next = removeRouteStopAt(previous, index);
+      const dest = next.stops[next.stops.length - 1];
+      if (next.stops.length > 1 && dest) {
+        setNextLocName(dest.name);
+        setDestType(locationTypeFromGlyph(dest.kind));
+        setDestRegion(dest.terrain || state.currentRegion);
+      }
+      return next;
+    });
+  }, [state.currentRegion]);
+
+  const handleClearRouteSides = useCallback(() => {
+    setRouteDraft(previous => draftFromOrigin(previous.stops[0] || currentRouteOrigin));
+  }, [currentRouteOrigin]);
+
+  const handleMoveMapPlace = useCallback((location: MapPickLocation) => {
+    if (location.x === undefined || location.y === undefined) return;
+    const x = Math.max(1, Math.min(99, location.x));
+    const y = Math.max(1, Math.min(99, location.y));
+    setRouteDraft(previous => ({
+      ...previous,
+      stops: previous.stops.map(stop => stop.id === location.id ? { ...stop, x, y } : stop)
+    }));
+    const node = routeGraphNodes[location.id];
+    persistRouteStop({
+      id: location.id,
+      name: location.name || node?.label || location.id,
+      kind: node ? stopFromGraphNode(location.id, node).kind : (location.kind === 'City' ? 'City' : location.kind === 'Settlement' ? 'Settlement' : location.kind === 'Ruin' ? 'Ruin' : location.kind === 'Barrow' ? 'Barrow' : 'Wilds'),
+      terrain: terrainFromRegion(location.region || node?.region),
+      hasClinic: Boolean(location.hasClinic),
+      x,
+      y
+    });
+  }, [persistRouteStop, routeGraphNodes]);
+
+  const handleSaveMapPlaces = useCallback(() => {
+    const draft = routeDraftRef.current;
+    if (draft.stops.length === 0) {
+      showAlert('저장할 표시가 없습니다. 지도에서 자리를 고르거나 ⌘+클릭으로 남기세요.');
+      return;
+    }
+    upsertPlayerMarkerRecords(draft.stops.map(playerRecordFromStop));
+    draft.stops.forEach(persistRouteStop);
+    showAlert(`${draft.stops.length}개 표시를 이 기록에 남겼습니다. 자리를 옮기거나 형태를 고친 값도 다음에 그대로 보입니다.`);
+  }, [persistRouteStop]);
+
+  const handleComposerTravel = useCallback(() => {
+    const draft = routeDraftRef.current;
+    const destination = draft.stops[draft.stops.length - 1];
+    if (draft.stops.length < 2 || !destination) return;
+    applyMapTravelLocation({
+      id: destination.id,
+      name: destination.name,
+      region: destination.terrain || undefined,
+      kind: locationTypeFromGlyph(destination.kind)
+    }, true);
   }, [applyMapTravelLocation]);
 
   const addActionHubItem = (item: ActionHubItem) => {
@@ -10707,8 +11127,14 @@ function PlayView({
             variant="companion"
             highlightLocationIds={playMapHighlightIds}
             selectedLocationId={playMapSelectedId}
+            includeWilds
+            routePlaceIds={routeDraft.stops.map(stop => stop.id)}
             onConfirmDestination={playMapMode === 'destination' ? handlePlayMapPick : undefined}
             onTravelRequest={playMapMode === 'travel' ? handlePlayMapTravel : undefined}
+            onAddWaypoint={handleAddRouteWaypoint}
+            onSetCurrentLocation={handleSetMappedCurrentLocation}
+            onCreatePlace={handleCreateMapPlace}
+            onMovePlace={handleMoveMapPlace}
             travelEnabled={Boolean(state.journeyActive && !state.needsLocalHelpBeforeMove)}
             travelBlockedReason={state.needsLocalHelpBeforeMove ? '현지 일을 마친 뒤 이동할 수 있습니다.' : null}
             onOpenFullMap={onOpenFullMap}
@@ -10716,16 +11142,38 @@ function PlayView({
               playMapMode === 'destination'
                 ? (journeyDestinationCard
                   ? (journeyDestinationCandidates.length > 0
-                    ? '카드 조건에 맞는 정착지가 강조됩니다. 장소를 고른 뒤 목적지로 정하세요.'
+                    ? '카드 조건에 맞는 정착지가 강조됩니다. 장소를 고른 뒤 목적지로 정하세요. 오른쪽에서 들르는 자리도 이을 수 있습니다.'
                     : '조건에 맞는 목적지가 없습니다. 목적지 카드를 다시 뽑으세요.')
                   : '목적지 카드를 뽑으면 방향·거리 조건에 맞는 정착지가 지도에 표시됩니다.')
-                : playMapMode === 'travel'
-                  ? `속도 ${activeTravelSpeed}과 같은 경로만큼 이동합니다. 강조된 곳이 이번 이동의 도착지입니다.${currentWeight > maxCarry ? ' 소지 한도를 넘어 1경로만 갑니다.' : ''}`
-                  : '현재 위치를 지도에서 확인하세요. 여정을 시작할 때 목적지를 여기서 고를 수 있습니다.'
+                : `노드를 눌러 사이길을 잇고, 오른쪽에서 육로/수로를 고르세요. 빈 자리는 ⌘+클릭으로 표시합니다. 자리를 옮기려면 먼저 이동 잠금을 켜세요.${currentWeight > maxCarry ? ' 소지 한도를 넘어 1경로만 갑니다.' : ''}`
             }
           />
         </aside>
         <div className="play-with-map__panels">
+          <RouteComposer
+            draft={routeDraft}
+            speed={activeTravelSpeed}
+            carry={maxCarry}
+            weight={currentWeight}
+            waterwaySpan={resolveWagonCapabilities(canonicalWagonFromState(state)).waterwaySpan}
+            canStopInLoch={hasLochStoppingGear(state)}
+            protectsFromSoaking={hasSafeWaterwayTravel(state)}
+            soakableItemNames={state.bag.filter(item => isRuinedWhenSoaked(item)).map(item => item.name)}
+            canTravel={Boolean(state.journeyActive && !state.needsLocalHelpBeforeMove)}
+            travelBlockedReason={
+              !state.journeyActive
+                ? '여정을 시작한 뒤 이 경로로 이동합니다.'
+                : state.needsLocalHelpBeforeMove
+                  ? '현지 일을 마친 뒤 이동할 수 있습니다.'
+                  : null
+            }
+            onChangeStop={handleRouteStopChange}
+            onChangeEdge={handleRouteEdgeChange}
+            onRemoveStop={handleRemoveRouteStop}
+            onClear={handleClearRouteSides}
+            onSavePlaces={handleSaveMapPlaces}
+            onTravel={handleComposerTravel}
+          />
 
       {/* 1. If journey is NOT active */}
       {!state.journeyActive && (
@@ -15025,8 +15473,14 @@ const MapView = memo(function MapView({
   variant = 'full',
   highlightLocationIds = [],
   selectedLocationId = null,
+  includeWilds = false,
+  routePlaceIds = [],
   onConfirmDestination,
   onTravelRequest,
+  onAddWaypoint,
+  onSetCurrentLocation,
+  onCreatePlace,
+  onMovePlace,
   onOpenFullMap,
   companionCaption,
   travelEnabled,
@@ -15037,8 +15491,14 @@ const MapView = memo(function MapView({
   variant?: 'full' | 'companion';
   highlightLocationIds?: string[];
   selectedLocationId?: string | null;
+  includeWilds?: boolean;
+  routePlaceIds?: string[];
   onConfirmDestination?: (location: MapPickLocation) => void;
   onTravelRequest?: (location: MapPickLocation) => void;
+  onAddWaypoint?: (location: MapPickLocation) => void;
+  onSetCurrentLocation?: (location: MapPickLocation) => void;
+  onCreatePlace?: (request: { x: number; y: number }) => void;
+  onMovePlace?: (location: MapPickLocation) => void;
   onOpenFullMap?: () => void;
   companionCaption?: string;
   travelEnabled?: boolean;
@@ -15048,7 +15508,7 @@ const MapView = memo(function MapView({
   const customMapEdges = state.customMapEdges || [];
   const nodes = buildMapGraphNodes(customMapLocations, customMapEdges);
   const currentId = findMapLocationKey(state.currentLocationName, customMapLocations);
-  const extraIds = new Set<string>([...highlightLocationIds, selectedLocationId, currentId].filter((id): id is string => Boolean(id)));
+  const extraIds = new Set<string>([...highlightLocationIds, selectedLocationId, currentId, ...routePlaceIds].filter((id): id is string => Boolean(id)));
   (state.visitedLocations || []).forEach(name => {
     const id = findMapLocationKey(name, customMapLocations);
     if (id) extraIds.add(id);
@@ -15083,7 +15543,7 @@ const MapView = memo(function MapView({
     if (preview.reason === 'legal') extraIds.add(id);
   });
   const places: MapPlace[] = Object.entries(nodes)
-    .filter(([id, node]) => node.kind !== 'wild' || extraIds.has(id))
+    .filter(([id, node]) => includeWilds || node.kind !== 'wild' || extraIds.has(id))
     .map(([id, node]) => {
       const locationType = toMapPlaceType(node.kind || getBarterTypeForMapNode(id, node) || 'Wilds');
       const preview = movePreviews[id];
@@ -15138,6 +15598,11 @@ const MapView = memo(function MapView({
       travelBlockedReason={travelBlockedReason}
       onConfirmDestination={onConfirmDestination}
       onTravelRequest={onTravelRequest}
+      onAddWaypoint={onAddWaypoint}
+      onSetCurrentLocation={onSetCurrentLocation}
+      onCreatePlace={onCreatePlace}
+      onMovePlace={onMovePlace}
+      routePlaceIds={routePlaceIds}
       onOpenFullMap={onOpenFullMap}
       onOpenReference={onOpenReference}
       currentRegion={state.currentRegion}

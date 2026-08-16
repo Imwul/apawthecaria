@@ -106,6 +106,26 @@ describe('map interaction contracts', () => {
     expect(mapSource).toContain('selectPlace(null)');
   });
 
+  it('adds a clicked node to the composed route and lets Command-click mark a missing place', () => {
+    expect(mapSource).toContain('onAddWaypoint?.(placeToPick(place))');
+    expect(mapSource).toContain('경로에 넣기');
+    expect(mapSource).toContain('여기를 지금 있는 곳으로');
+    expect(mapSource).toContain('onCreatePlace');
+    expect(mapSource).toContain('event.metaKey || event.ctrlKey');
+    expect(mapSource).not.toContain('detail === 2');
+    expect(appSource).toContain('id="play-journey-map"');
+    expect(appSource).toContain('<RouteComposer');
+    expect(appSource).toContain('source: previous?.source || \'player-correction\'');
+  });
+
+  it('locks map panning before a marker can be dragged to a new place', () => {
+    expect(mapSource).toContain('지도 이동 잠그기');
+    expect(mapSource).toContain('if (panLocked && !modify) return');
+    expect(mapSource).toContain('onMovePlace');
+    expect(cssSource).toContain('.paper-map--locked');
+    expect(appSource).toContain('onSavePlaces={handleSaveMapPlaces}');
+  });
+
   it('hides history and preview routes when those layers are off', () => {
     expect(mapSource).toContain('if (!layers.currentRoute || !currentPlace || !selectedPlace');
     expect(mapSource).toContain('if (!layers.travelHistory || historyAnchors.length < 2)');
