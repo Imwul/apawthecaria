@@ -4041,9 +4041,14 @@ button,
   stroke-linecap: round;
 }
 
-.route-composer__arc--water {
+.route-composer__arc--waterway {
   stroke: #1c6da8;
   stroke-dasharray: 1.4 0.9;
+}
+
+.route-composer__arc--river {
+  stroke: #1c6da8;
+  stroke-dasharray: 0.5 0.7;
 }
 
 .route-composer__node {
@@ -4067,10 +4072,40 @@ button,
   cursor: pointer;
 }
 
-.route-composer__toggle.is-water {
+.route-composer__toggle.is-waterway,
+.route-composer__toggle.is-river {
   background: #d8e4ec;
   color: #1c6da8;
   border-color: #1c6da8;
+}
+
+.route-composer__edge {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  width: 100%;
+}
+
+.route-composer__edge button {
+  min-height: 2rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid rgba(74, 54, 40, 0.3);
+  border-radius: 4px;
+  background: #f4ead8;
+  color: #4a3628;
+  font-size: 0.72rem;
+}
+
+.route-composer__edge button.is-on {
+  background: #d8e4ec;
+  border-color: #1c6da8;
+  color: #1c4f78;
+}
+
+.route-composer__edge button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .route-composer__list {

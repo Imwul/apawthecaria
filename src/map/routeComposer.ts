@@ -4,7 +4,41 @@ import {
   type MapTerrain
 } from './mapGlyphs';
 
-export type RouteEdgeKind = 'path' | 'waterway';
+export const ROUTE_EDGE_KINDS = ['path', 'river', 'waterway'] as const;
+export type RouteEdgeKind = (typeof ROUTE_EDGE_KINDS)[number];
+
+export const routeEdgeLabel = (kind: RouteEdgeKind): string =>
+  kind === 'waterway' ? '수로' : kind === 'river' ? '강' : '육로';
+
+export const isWaterTravelKind = (kind?: string | null): boolean =>
+  kind === 'waterway' || kind === 'river';
+
+export const isLochWildsStop = (stop: { kind?: string | null; terrain?: string | null } | null | undefined): boolean =>
+  Boolean(stop && stop.terrain === 'Loch' && stop.kind !== 'Settlement' && stop.kind !== 'City' && stop.kind !== 'Clinic');
+
+export const edgeTouchesLoch = (
+  from: { terrain?: string | null } | null | undefined,
+  to: { terrain?: string | null } | null | undefined
+): boolean => from?.terrain === 'Loch' || to?.terrain === 'Loch';
+
+export const canChooseRouteEdgeKind = (
+  kind: RouteEdgeKind,
+  from: { terrain?: string | null } | null | undefined,
+  to: { terrain?: string | null } | null | undefined
+): boolean => kind !== 'waterway' || edgeTouchesLoch(from, to);
+
+export const cycleRouteEdgeKind = (
+  kind: RouteEdgeKind,
+  from: { terrain?: string | null } | null | undefined,
+  to: { terrain?: string | null } | null | undefined
+): RouteEdgeKind => {
+  const start = ROUTE_EDGE_KINDS.indexOf(kind);
+  for (let step = 1; step <= ROUTE_EDGE_KINDS.length; step += 1) {
+    const next = ROUTE_EDGE_KINDS[(start + step) % ROUTE_EDGE_KINDS.length];
+    if (canChooseRouteEdgeKind(next, from, to)) return next;
+  }
+  return 'path';
+};
 
 export type RouteStop = {
   id: string;
@@ -26,9 +60,11 @@ export type RouteComposerReason = 'incomplete' | 'legal' | 'too-close' | 'too-fa
 export type RouteComposerEvaluation = {
   pathCount: number;
   landCount: number;
+  riverCount: number;
   waterwayCount: number;
   movementCost: number;
   usesWaterway: boolean;
+  usesWaterTravel: boolean;
   endsInLochWilds: boolean;
   lochLocked: boolean;
   overEncumbered: boolean;
@@ -120,6 +156,7 @@ export const updateRouteStopAt = (draft: RouteDraft, index: number, patch: Parti
 
 export const setRouteEdgeKind = (draft: RouteDraft, index: number, kind: RouteEdgeKind): RouteDraft => {
   if (index < 0 || index >= draft.edgeKinds.length) return draft;
+  if (!canChooseRouteEdgeKind(kind, draft.stops[index], draft.stops[index + 1])) return draft;
   return {
     ...draft,
     edgeKinds: draft.edgeKinds.map((edge, edgeIndex) => edgeIndex === index ? kind : edge)
@@ -130,10 +167,11 @@ export const composedRouteCost = (
   edgeKinds: readonly RouteEdgeKind[],
   waterwaySpan = 1,
   freeStopIndexes: readonly number[] = []
-): { cost: number; landCount: number; waterwayCount: number } => {
+): { cost: number; landCount: number; riverCount: number; waterwayCount: number } => {
   const free = new Set(freeStopIndexes);
   let cost = 0;
   let landCount = 0;
+  let riverCount = 0;
   let waterwayCount = 0;
   let waterwayRun = 0;
   const flush = () => {
@@ -148,15 +186,13 @@ export const composedRouteCost = (
       return;
     }
     flush();
-    landCount += 1;
+    if (kind === 'river') riverCount += 1;
+    else landCount += 1;
     cost += 1;
   });
   flush();
-  return { cost, landCount, waterwayCount };
+  return { cost, landCount, riverCount, waterwayCount };
 };
-
-const endsInLochWilds = (destination: RouteStop | null): boolean =>
-  Boolean(destination && destination.terrain === 'Loch' && destination.kind !== 'Settlement' && destination.kind !== 'City' && destination.kind !== 'Clinic');
 
 export const evaluateRouteDraft = (input: {
   draft: RouteDraft;
@@ -174,13 +210,14 @@ export const evaluateRouteDraft = (input: {
   const effectiveSpeed = overEncumbered ? 1 : Math.max(1, input.speed);
   const destination = routeDestination(input.draft);
   const pathCount = input.draft.edgeKinds.length;
-  const { cost, landCount, waterwayCount } = composedRouteCost(
+  const { cost, landCount, riverCount, waterwayCount } = composedRouteCost(
     input.draft.edgeKinds,
     input.waterwaySpan || 1,
     input.freeStopIndexes || []
   );
   const usesWaterway = waterwayCount > 0;
-  const lochWilds = endsInLochWilds(destination);
+  const usesWaterTravel = usesWaterway || riverCount > 0;
+  const lochWilds = isLochWildsStop(destination);
   const lochLocked = Boolean(lochWilds && !input.canStopInLoch);
   let reason: RouteComposerReason = 'incomplete';
   if (pathCount > 0) {
@@ -192,14 +229,16 @@ export const evaluateRouteDraft = (input: {
   return {
     pathCount,
     landCount,
+    riverCount,
     waterwayCount,
     movementCost: cost,
     usesWaterway,
+    usesWaterTravel,
     endsInLochWilds: lochWilds,
     lochLocked,
     overEncumbered,
     effectiveSpeed,
-    soakedItemIds: usesWaterway && !input.protectsFromSoaking ? [...(input.soakableItemIds || [])] : [],
+    soakedItemIds: usesWaterTravel && !input.protectsFromSoaking ? [...(input.soakableItemIds || [])] : [],
     reason
   };
 };

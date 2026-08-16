@@ -137,6 +137,8 @@ describe('map interaction contracts', () => {
     expect(appSource).toContain('다음 표시와 잇기');
     expect(appSource).toContain('내가 남긴 표시');
     expect(appSource).toContain('육로로 잇기');
+    expect(appSource).toContain('강으로 잇기');
+    expect(appSource).toContain('수로로 잇기');
     expect(appSource).toContain('showTravelRoutes={false}');
     expect(appSource).toContain('className="map-atelier__delete"');
     expect(appSource).toContain('hidden: true');

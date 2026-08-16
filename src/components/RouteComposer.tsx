@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { MapGlyph, MAP_GLYPH_KINDS, MAP_TERRAINS, glyphUsesTerrain, type MapGlyphKind, type MapTerrain } from '../map/mapGlyphs';
 import {
+  ROUTE_EDGE_KINDS,
+  canChooseRouteEdgeKind,
+  cycleRouteEdgeKind,
   evaluateRouteDraft,
   lastRouteStop,
   routeDestination,
+  routeEdgeLabel,
   type RouteDraft,
   type RouteEdgeKind,
   type RouteStop
@@ -32,7 +36,7 @@ const reasonText = (reason: ReturnType<typeof evaluateRouteDraft>['reason'], spe
   if (reason === 'legal') return `이동 비용 ${cost}이 속도 ${speed}과 같습니다.`;
   if (reason === 'too-close') return `이동 비용 ${cost}은 속도 ${speed}보다 가깝습니다. 자리를 더 잇거나 수로 토글을 확인하세요.`;
   if (reason === 'too-far') return `이동 비용 ${cost}이 속도 ${speed}보다 멉니다.`;
-  return '도구 없이 호수·강 야생에서 이동을 끝낼 수 없습니다.';
+  return '호수·강 야생에서 멈추려면 자작나무 보트(Bark Coracle)나 밀폐식 마차(Sealed Carriage)가 필요합니다. 방수 가방(Waxed Satchel)은 젖음만 막습니다.';
 };
 
 const polar = (index: number, count: number, radius: number) => {
@@ -118,7 +122,7 @@ export function RouteComposer({
               return (
                 <path
                   key={`edge-${index}`}
-                  className={kind === 'waterway' ? 'route-composer__arc route-composer__arc--water' : 'route-composer__arc'}
+                  className={kind === 'path' ? 'route-composer__arc' : `route-composer__arc route-composer__arc--${kind}`}
                   d={`M ${from.x} ${from.y} L ${to.x} ${to.y}`}
                 />
               );
@@ -143,20 +147,22 @@ export function RouteComposer({
               const from = polar(index, count, 36);
               const to = polar(index + 1, count, 36);
               const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+              const left = draft.stops[index];
+              const right = draft.stops[index + 1];
               return (
                 <foreignObject
                   key={`toggle-${index}`}
-                  x={mid.x - 9}
-                  y={mid.y - 5}
-                  width="18"
-                  height="10"
+                  x={mid.x - 11}
+                  y={mid.y - 6}
+                  width="22"
+                  height="12"
                 >
                   <button
                     type="button"
-                    className={`route-composer__toggle${kind === 'waterway' ? ' is-water' : ''}`}
-                    onClick={() => onChangeEdge(index, kind === 'waterway' ? 'path' : 'waterway')}
+                    className={`route-composer__toggle${kind === 'path' ? '' : ` is-${kind}`}`}
+                    onClick={() => onChangeEdge(index, cycleRouteEdgeKind(kind, left, right))}
                   >
-                    {kind === 'waterway' ? '수로' : '육로'}
+                    {routeEdgeLabel(kind)}
                   </button>
                 </foreignObject>
               );
@@ -216,6 +222,25 @@ export function RouteComposer({
               {index > 0 && (
                 <button type="button" onClick={() => onRemoveStop(index)} aria-label={`${row.name} 빼기`}>빼기</button>
               )}
+              {index < draft.edgeKinds.length && (
+                <div className="route-composer__edge" role="group" aria-label={`${index + 1}에서 ${index + 2}로 가는 사이길`}>
+                  {ROUTE_EDGE_KINDS.map(kind => {
+                    const allowed = canChooseRouteEdgeKind(kind, row, draft.stops[index + 1]);
+                    return (
+                      <button
+                        key={kind}
+                        type="button"
+                        className={draft.edgeKinds[index] === kind ? 'is-on' : ''}
+                        disabled={!allowed}
+                        title={!allowed ? '수로는 물결 표시처럼 적어도 한쪽이 호수여야 합니다.' : undefined}
+                        onClick={() => onChangeEdge(index, kind)}
+                      >
+                        {routeEdgeLabel(kind)}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </li>
           ))}
         </ol>
@@ -223,18 +248,18 @@ export function RouteComposer({
 
       <div className="route-composer__summary">
         <p>
-          {evaluation.pathCount}경로 · 육로 {evaluation.landCount} · 수로 {evaluation.waterwayCount} · 이동 비용 {evaluation.movementCost} / 속도 {evaluation.effectiveSpeed}
+          {evaluation.pathCount}경로 · 육로 {evaluation.landCount} · 강 {evaluation.riverCount} · 수로 {evaluation.waterwayCount} · 이동 비용 {evaluation.movementCost} / 속도 {evaluation.effectiveSpeed}
           {evaluation.overEncumbered ? ' · 과적이라 1경로만 갑니다' : ''}
           {waterwaySpan > 1 ? ` · 연결된 수로 ${waterwaySpan}개가 1경로` : ''}
         </p>
         <p>{reasonText(evaluation.reason, evaluation.effectiveSpeed, evaluation.movementCost)}</p>
-        {evaluation.usesWaterway && (
+        {evaluation.usesWaterTravel && (
           <p className="route-composer__soak">
             {protectsFromSoaking
               ? '방수 도구가 있어 소지품이 젖지 않습니다.'
               : evaluation.soakedItemIds.length
-                ? `수로를 헤엄치면 방수되지 않은 약재와 물품이 젖어 버려집니다: ${soakableItemNames.join(', ')}`
-                : '수로를 헤엄치면 방수되지 않은 약재와 물품이 젖어 버려집니다.'}
+                ? `강이나 수로를 헤엄치면 방수되지 않은 약재와 물품이 젖어 버려집니다: ${soakableItemNames.join(', ')}`
+                : '강이나 수로를 헤엄치면 방수되지 않은 약재와 물품이 젖어 버려집니다.'}
           </p>
         )}
         {lastRouteStop(draft) && count === 1 && (

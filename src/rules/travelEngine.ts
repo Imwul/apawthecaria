@@ -167,9 +167,10 @@ const findRoute = (
 };
 
 const routeUsesWaterway = (graph: Record<string, TravelGraphNode>, route: readonly string[]): boolean =>
-  route.slice(0, -1).some((nodeId, index) =>
-    graph[nodeId]?.edges.find(edge => edge.to === route[index + 1])?.kind === 'waterway'
-  );
+  route.slice(0, -1).some((nodeId, index) => {
+    const kind = graph[nodeId]?.edges.find(edge => edge.to === route[index + 1])?.kind;
+    return kind === 'waterway' || kind === 'river';
+  });
 
 export const resolveTravelEngine = (input: TravelEngineInput): TravelEngineResolution => {
   const { state } = input;

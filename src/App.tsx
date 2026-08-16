@@ -31,12 +31,16 @@ import { MARKER_BY_ID, MARKER_EDGES, markerEdgeKind } from "./map/markerGraph";
 import { loadPlayerMarkers, removePlayerMarkerRecords, upsertPlayerMarkerRecords } from "./map/playerMarkerStore";
 import {
   appendRouteStop,
+  canChooseRouteEdgeKind,
+  cycleRouteEdgeKind,
   draftFromOrigin,
   glyphKindFromLocation,
+  isLochWildsStop,
   locationTypeFromGlyph,
   mapKindFromGlyph,
   nearestTerrain,
   removeRouteStopAt,
+  routeEdgeLabel,
   setRouteEdgeKind,
   stopFromPlace,
   terrainFromRegion,
@@ -1194,7 +1198,7 @@ interface CustomMapEdge {
   id: string;
   from: string;
   to: string;
-  kind?: 'path' | 'waterway';
+  kind?: 'path' | 'river' | 'waterway';
   label?: string;
   createdAt?: number;
 }
@@ -1437,11 +1441,11 @@ const mapEdgeKind = (
   to: string,
   nodes: Record<string, MapLocationNode>,
   customEdges: CustomMapEdge[] = []
-): 'path' | 'waterway' => {
+): 'path' | 'river' | 'waterway' => {
   const custom = customEdges.find(edge =>
     (edge.from === from && edge.to === to) || (edge.from === to && edge.to === from)
   );
-  if (custom?.kind) return custom.kind;
+  if (custom?.kind === 'path' || custom?.kind === 'river' || custom?.kind === 'waterway') return custom.kind;
   return markerEdgeKind(from, to);
 };
 
@@ -2275,7 +2279,7 @@ const upsertPlayerMapEdge = (
   customEdges: CustomMapEdge[],
   from: string,
   to: string,
-  kind: 'path' | 'waterway'
+  kind: 'path' | 'river' | 'waterway'
 ): CustomMapEdge[] => {
   const id = playerEdgeId(from, to);
   const next: CustomMapEdge = {
@@ -2283,7 +2287,7 @@ const upsertPlayerMapEdge = (
     from,
     to,
     kind,
-    label: kind === 'waterway' ? '물길' : '육로',
+    label: kind === 'waterway' ? '수로' : kind === 'river' ? '강' : '육로',
     createdAt: customEdges.find(edge => edge.id === id)?.createdAt || Date.now()
   };
   return [...customEdges.filter(edge => edge.id !== id && !sameMapPair(from, to, edge)), next];
@@ -10906,7 +10910,7 @@ function PlayView({
     });
   }, [updateState]);
 
-  const persistRouteEdge = useCallback((from: string, to: string, kind: 'path' | 'waterway') => {
+  const persistRouteEdge = useCallback((from: string, to: string, kind: 'path' | 'river' | 'waterway') => {
     updateState((s: GameState) => ({
       ...s,
       customMapEdges: upsertPlayerMapEdge(s.customMapEdges || [], from, to, kind)
@@ -10935,17 +10939,21 @@ function PlayView({
       const inferredKind = last
         ? mapEdgeKind(last.id, stop.id, routeGraphNodes, state.customMapEdges || [])
         : 'path';
-      const next = appendRouteStop(previous, stop, inferredKind);
-      if (last && next.stops.length > previous.stops.length) persistRouteEdge(last.id, stop.id, inferredKind);
+      const edgeKind = last && canChooseRouteEdgeKind(inferredKind, last, stop) ? inferredKind : 'path';
+      const next = appendRouteStop(previous, stop, edgeKind);
+      if (last && next.stops.length > previous.stops.length) persistRouteEdge(last.id, stop.id, edgeKind);
       if (next.stops.length > 1) {
         const dest = next.stops[next.stops.length - 1];
         setNextLocName(dest.name);
         setDestType(locationTypeFromGlyph(dest.kind));
         setDestRegion(dest.kind === 'Ruin' ? 'Titan' : (dest.terrain || state.currentRegion));
+        if (isLochWildsStop(dest) && !hasLochStoppingGear(state)) {
+          showAlert('호수·강 야생에서 멈추려면 자작나무 보트(Bark Coracle)나 밀폐식 마차(Sealed Carriage)가 필요합니다. 지나갈 수는 있으니 다음 자리를 잇거나 도구를 챙기세요.');
+        }
       }
       return next;
     });
-  }, [persistRouteEdge, routeGraphNodes, state.clinics, state.customMapLocations, state.customMapEdges, state.currentRegion]);
+  }, [persistRouteEdge, routeGraphNodes, state.clinics, state.customMapLocations, state.customMapEdges, state.currentRegion, state.bag, state.wagonExpansions]);
 
   const handleCreateMapPlace = useCallback((request: { x: number; y: number; kind?: string; terrain?: string; name?: string }) => {
     const stop: RouteStop = {
@@ -11014,7 +11022,7 @@ function PlayView({
     });
   }, [persistRouteStop, state.currentRegion]);
 
-  const handleRouteEdgeChange = useCallback((index: number, kind: 'path' | 'waterway') => {
+  const handleRouteEdgeChange = useCallback((index: number, kind: 'path' | 'river' | 'waterway') => {
     setRouteDraft(previous => {
       const next = setRouteEdgeKind(previous, index, kind);
       const from = next.stops[index];
@@ -15839,7 +15847,7 @@ function AtlasMapPanel({
       customMapLocations: upsertPlayerMapStop(s.customMapLocations || [], stop, buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || [])[stop.id])
     }));
   };
-  const persistLink = (from: string, to: string, kind: 'path' | 'waterway') => {
+  const persistLink = (from: string, to: string, kind: 'path' | 'river' | 'waterway') => {
     updateState(s => ({
       ...s,
       customMapEdges: upsertPlayerMapEdge(s.customMapEdges || [], from, to, kind)
@@ -15982,7 +15990,15 @@ function AtlasMapPanel({
             <strong>두 표시를 어떻게 이을까요?</strong>
             <div className="map-atelier__actions">
               <button type="button" onClick={() => persistLink(pendingLink.from, pendingLink.to, 'path')}>육로로 잇기</button>
-              <button type="button" onClick={() => persistLink(pendingLink.from, pendingLink.to, 'waterway')}>수로로 잇기</button>
+              <button type="button" onClick={() => persistLink(pendingLink.from, pendingLink.to, 'river')}>강으로 잇기</button>
+              <button
+                type="button"
+                disabled={!canChooseRouteEdgeKind('waterway', { terrain: terrainFromRegion(nodes[pendingLink.from]?.region) }, { terrain: terrainFromRegion(nodes[pendingLink.to]?.region) })}
+                title="수로는 적어도 한쪽이 호수여야 합니다."
+                onClick={() => persistLink(pendingLink.from, pendingLink.to, 'waterway')}
+              >
+                수로로 잇기
+              </button>
               <button type="button" onClick={() => setPendingLink(null)}>취소</button>
             </div>
           </div>
@@ -16025,12 +16041,16 @@ function AtlasMapPanel({
                   const other = nodes[otherId];
                   return (
                     <li key={edge.id}>
-                      <span>{kindLabel(other?.kind)} · {edge.kind === 'waterway' ? '수로' : '육로'}</span>
+                      <span>{kindLabel(other?.kind)} · {routeEdgeLabel(edge.kind === 'river' || edge.kind === 'waterway' ? edge.kind : 'path')}</span>
                       <button
                         type="button"
-                        onClick={() => persistLink(edge.from, edge.to, edge.kind === 'waterway' ? 'path' : 'waterway')}
+                        onClick={() => persistLink(edge.from, edge.to, cycleRouteEdgeKind(
+                          edge.kind === 'river' || edge.kind === 'waterway' ? edge.kind : 'path',
+                          { terrain: terrainFromRegion(selected.region) },
+                          { terrain: terrainFromRegion(other?.region) }
+                        ))}
                       >
-                        {edge.kind === 'waterway' ? '육로로' : '수로로'}
+                        바꾸기
                       </button>
                       <button
                         type="button"

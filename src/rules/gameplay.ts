@@ -69,7 +69,7 @@ export interface PendingForagingState {
 
 export interface TravelGraphEdge {
   to: string;
-  kind?: 'path' | 'waterway';
+  kind?: 'path' | 'river' | 'waterway';
 }
 
 export interface TravelGraphNode {

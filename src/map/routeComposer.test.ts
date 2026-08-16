@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   appendRouteStop,
+  canChooseRouteEdgeKind,
   composedRouteCost,
+  cycleRouteEdgeKind,
   draftFromOrigin,
   evaluateRouteDraft,
   glyphKindFromLocation,
@@ -63,7 +65,14 @@ describe('waterway and carry rules', () => {
     expect(composedRouteCost(['waterway', 'waterway', 'path'], 2)).toEqual({
       cost: 2,
       landCount: 1,
+      riverCount: 0,
       waterwayCount: 2
+    });
+    expect(composedRouteCost(['river', 'path'], 2)).toEqual({
+      cost: 2,
+      landCount: 1,
+      riverCount: 1,
+      waterwayCount: 0
     });
   });
 
@@ -131,9 +140,16 @@ describe('map-key appearance', () => {
 });
 
 describe('edge toggles', () => {
-  it('lets the player mark a side path as a waterway after the fact', () => {
+  it('lets the player mark a side path as a river, and a waterway only when a loch is touched', () => {
     let draft = appendRouteStop(draftFromOrigin(stop('a')), stop('b'));
+    draft = setRouteEdgeKind(draft, 0, 'river');
+    expect(draft.edgeKinds).toEqual(['river']);
     draft = setRouteEdgeKind(draft, 0, 'waterway');
-    expect(draft.edgeKinds).toEqual(['waterway']);
+    expect(draft.edgeKinds).toEqual(['river']);
+    expect(canChooseRouteEdgeKind('waterway', stop('a'), stop('b'))).toBe(false);
+    expect(canChooseRouteEdgeKind('waterway', stop('a'), stop('lake', { terrain: 'Loch' }))).toBe(true);
+    expect(cycleRouteEdgeKind('path', stop('a'), stop('b'))).toBe('river');
+    expect(cycleRouteEdgeKind('river', stop('a'), stop('b'))).toBe('path');
+    expect(cycleRouteEdgeKind('river', stop('a'), stop('lake', { terrain: 'Loch' }))).toBe('waterway');
   });
 });
