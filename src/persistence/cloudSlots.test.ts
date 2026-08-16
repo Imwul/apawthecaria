@@ -153,5 +153,7 @@ describe('cloud save slots', () => {
     expect(appSource).toContain('CloudSlotsDialog');
     expect(appSource).toContain('handleDownloadCloudSlot');
     expect(appSource).toContain('handleUploadCloudSlot');
+    expect(appSource).toContain('confirm: askWindowConfirm');
+    expect(appSource).toMatch(/const askWindowConfirm = \(message: string\) => window\.confirm\(message\)/);
   });
 });

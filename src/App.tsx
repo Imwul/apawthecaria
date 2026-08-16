@@ -274,6 +274,8 @@ const showAlert = (message: unknown) => {
   }));
 };
 
+const askWindowConfirm = (message: string) => window.confirm(message);
+
 const createClientTransaction = (prefix: string) => {
   const at = Date.now();
   return { at, id: `${prefix}:${at}:${Math.random().toString(36).slice(2, 8)}` };
@@ -4516,7 +4518,7 @@ export default function App() {
                   localRaw: localStr,
                   cloudRevision,
                   cloudHasNamedApothecary,
-                  confirmOverwrite: () => confirm(
+                  confirmOverwrite: () => window.confirm(
                     cloudRevision > localRevision
                       ? '클라우드 기록이 더 최근입니다. 지금 기기의 로컬 기록을 덮어쓸까요?'
                       : '구글 클라우드에 백업된 아포테카리아 데이터를 발견했습니다. 불러오시겠습니까?\n(불러오면 현재 진행 중인 로컬 데이터는 덮어씌워집니다.)'
@@ -4871,7 +4873,7 @@ export default function App() {
       return;
     }
     const gossip = runtime.inventory.find(item => item.guildNote?.kind === 'gossip');
-    if (gossip && confirm('흥미로운 소문을 버리고 이 영약재를 자동으로 받을까요?')) {
+    if (gossip && window.confirm('흥미로운 소문을 버리고 이 영약재를 자동으로 받을까요?')) {
       const transactionId = `${runtime.pendingBarter.barterId}:gossip`;
       const gossipResult = resolveBarterGossip({ transactionId, state: runtime, gossipItemId: gossip.id });
       if (!gossipResult.value) {
@@ -4931,7 +4933,7 @@ export default function App() {
       showAlert('현재 original-1e-3p ruleset에서는 Legacy Succession이 비활성화되어 있습니다.');
       return;
     }
-    if (!confirm('현재 캐릭터를 은퇴시키겠습니까? (세이브 데이터의 클리닉 네트워크와 약전 처방이 다음 세대로 상속됩니다)')) {
+    if (!window.confirm('현재 캐릭터를 은퇴시키겠습니까? (세이브 데이터의 클리닉 네트워크와 약전 처방이 다음 세대로 상속됩니다)')) {
       return;
     }
     setRetiredApothecaryName(state.bio.name || "이름 없는 약제사");
@@ -5149,7 +5151,7 @@ export default function App() {
 
   const handleSignOut = async () => {
     if (!auth) return;
-    if (confirm("로그아웃 하시겠습니까?")) {
+    if (window.confirm("로그아웃 하시겠습니까?")) {
       try {
         await signOut(auth);
         setShowCloudSlots(false);
@@ -5221,7 +5223,7 @@ export default function App() {
         slot,
         localRaw: localStr,
         cloudName: record.name,
-        confirm
+        confirm: askWindowConfirm
       })) return;
       const migrated = migrateCampaignSave(JSON.parse(record.payload));
       if (!migrated.ok) {
@@ -5270,7 +5272,7 @@ export default function App() {
         localRaw: localStr,
         occupied: Boolean(currentView && !currentView.empty),
         cloudName: currentView?.name || null,
-        confirm
+        confirm: askWindowConfirm
       })) return;
       const record = cloudSlotRecordFromPayload(slot, localStr, new Date().toISOString());
       await writeCloudSlotRecord(record);
@@ -5539,9 +5541,9 @@ export default function App() {
     const quantity = Math.max(1, parseInt(quantityInput, 10) || 1);
     const graniteMortar = canonicalToolsFromState(state).find(tool => tool.upgradeId === 'granite-mortar' && !tool.broken && !tool.consumed);
     const poundWithGranite = Boolean(graniteMortar && reagent.type === 'PLANT' && /BREW/i.test(preparation.method)
-      && confirm('Granite Mortar로 이 부위를 무게 없는 Powder/Tea로 POUND할까요?'));
+      && window.confirm('Granite Mortar로 이 부위를 무게 없는 Powder/Tea로 POUND할까요?'));
     const spendGap = !find.cardSuccess && !find.fpAvailable && (find.gapCost || 0) > 0
-      ? confirm(`카드와 희귀도 차이 ${find.gapCost}만큼 채집 포인트를 사용하시겠습니까? 취소하면 채집에 실패하고 채집 포인트 1을 얻습니다.`)
+      ? window.confirm(`카드와 희귀도 차이 ${find.gapCost}만큼 채집 포인트를 사용하시겠습니까? 취소하면 채집에 실패하고 채집 포인트 1을 얻습니다.`)
       : false;
     const activePatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
     const hasEfficientKettle = canonicalToolsFromState(state).some(tool => tool.upgradeId === 'efficient-copper-kettle' && !tool.broken && !tool.consumed);
@@ -5761,7 +5763,7 @@ export default function App() {
         );
         note = `조우 효과: ${settlementName} 정착지로 이동`;
       } else if (effect === 'endJourney') {
-        if (!confirm("이 조우 효과로 현재 여정을 종료할까요?")) return s;
+        if (!window.confirm("이 조우 효과로 현재 여정을 종료할까요?")) return s;
         nextJourneyActive = false;
         note = `조우 효과: 여정 종료`;
       }
@@ -8310,7 +8312,7 @@ function PlayView({
   const handleBuyWagonUpgrade = (upgrade: any) => {
     const expansionId = ({ sealedCarriage: 'sealed-carriage', pedalMotor: 'pedal-motor', axelSprings: 'axel-springs', sideBrackets: 'side-brackets', hiveBrackets: 'hive-brackets', passengerBooth: 'passenger-booth', shadowCanvas: 'shadow-canvas', experimentalContraption: 'experimental-contraption', clayPots: 'clay-pots' } as Record<string, string>)[upgrade.id];
     const coracle = state.bag.find(item => item.canonicalToolId === 'bark-coracle');
-    const recycleCoracle = expansionId === 'sealed-carriage' && !!coracle && confirm('Bark Coracle을 부품으로 재활용해 비용을 5 줄일까요? 사용한 Coracle은 가방에서 제거됩니다.');
+    const recycleCoracle = expansionId === 'sealed-carriage' && !!coracle && window.confirm('Bark Coracle을 부품으로 재활용해 비용을 5 줄일까요? 사용한 Coracle은 가방에서 제거됩니다.');
     const transaction = createClientTransaction(upgrade.id === 'baseUnit' ? 'downtime:commission-wagon' : 'wagon-expansion');
     const allowOverride = bypassShopRules && state.rulesetId !== 'original-1e-3p';
     let clayPotReagentId: string | undefined;
@@ -8368,7 +8370,7 @@ function PlayView({
   };
 
 	  const handleReleaseCompanion = (id: string) => {
-	    if (confirm("이 동료를 자연의 야생으로 방생하시겠습니까?")) {
+	    if (window.confirm("이 동료를 자연의 야생으로 방생하시겠습니까?")) {
 	      const transaction = createClientTransaction('companion-release');
 	      const result = resolveCompanionRelease({ transactionId: transaction.id, state: toMobilityRuntime(state), companionInstanceId: id });
 	      if (!result.value) return showAlert(result.messages.join('\n'));
@@ -8551,7 +8553,7 @@ function PlayView({
     let repairedTentState: ReturnType<typeof repairCanonicalTool>['value'] = null;
     const brokenTent = travelTools.find(tool => tool.toolId === 'canvas-tent' && tool.broken && !tool.consumed);
     if (brokenTent && ['Settlement', 'City'].includes(state.currentLocationType) && state.trinkets.length >= 2
-      && confirm('출발 전에 파손된 Canvas Tent를 장신구 2개로 수리할까요?')) {
+      && window.confirm('출발 전에 파손된 Canvas Tent를 장신구 2개로 수리할까요?')) {
       const repaired = repairCanonicalTool({
         transactionId: `${transactionId}:tool:repair-tent`,
         state: {
@@ -8686,7 +8688,7 @@ function PlayView({
       && Boolean(canonicalWagon.clayPotReagentId)
       && canonicalWagon.clayPotMoves + 1 >= 2;
     const harvestClayPot = clayPotWillBeReady
-      ? confirm('Clay Pots의 식물이 두 번의 이동을 마쳐 수확할 수 있습니다. 지금 부위 하나를 수확할까요?')
+      ? window.confirm('Clay Pots의 식물이 두 번의 이동을 마쳐 수확할 수 있습니다. 지금 부위 하나를 수확할까요?')
       : false;
     const servicePreview = consumeGuildServiceMove({
       transactionId: `${transactionId}:services`,
@@ -8745,7 +8747,7 @@ function PlayView({
       && outcome.encounter.tags?.some(tag => tag === 'Beast' || tag === 'Behemoth')
       && resolvedTravelTools.some(tool => tool.toolId === 'crossbow' && !tool.broken && !tool.consumed)
       && resolvedTravelTools.some(tool => tool.toolId === 'bolts' && !tool.broken && !tool.consumed)
-      && confirm('Crossbow와 Bolts를 사용해 이 조우의 부정적 결과를 무시할까요? Bolts 하나를 버립니다.')) {
+      && window.confirm('Crossbow와 Bolts를 사용해 이 조우의 부정적 결과를 무시할까요? Bolts 하나를 버립니다.')) {
       const protectedState = resolveCrossbowProtection({
         transactionId: `${transactionId}:tool:crossbow`,
         state: {
@@ -9536,7 +9538,7 @@ function PlayView({
 
   const handleAbandonPatient = async () => {
     const patient = state.patients.find(row => row.id === state.activePatientId);
-    if (!patient || !confirm(`${patient.name}의 해결되지 않은 질환 결과를 적용하고 떠나보냅니까?`)) return;
+    if (!patient || !window.confirm(`${patient.name}의 해결되지 않은 질환 결과를 적용하고 떠나보냅니까?`)) return;
     const note = (await requestControlledPrompt({
       title: '환자를 떠나보낸 기록',
       message: '떠나보낸 장면과 남은 여파를 기록하세요.',
@@ -9568,7 +9570,7 @@ function PlayView({
     if (!patient || pawnItemIds.length === 0) return;
     const inventory = toEngineInventory(state.bag);
     const preview = calculatePawnReward(inventory, pawnItemIds);
-    if (!confirm(`선택한 물건의 전체 무게 ${formatWeight(preview.totalWeight)}를 버리고 장신구 ${preview.trinketReward}개를 받을까요?`)) return;
+    if (!window.confirm(`선택한 물건의 전체 무게 ${formatWeight(preview.totalWeight)}를 버리고 장신구 ${preview.trinketReward}개를 받을까요?`)) return;
     const graph = toRuleMapGraph(state);
     const currentId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
     const result = resolvePawn({
@@ -9624,7 +9626,7 @@ function PlayView({
         showAlert(`${project.name} 완성에는 ${project.hours}시간이 필요합니다. 현재 타이머는 ${availableTimer}시간입니다.`);
         return;
       }
-      if (!confirm(`현재 추적 중인 타이머가 ${availableTimer}시간뿐입니다. 복구용 샌드박스에서 ${project.name}을 완성 처리할까요?`)) return;
+      if (!window.confirm(`현재 추적 중인 타이머가 ${availableTimer}시간뿐입니다. 복구용 샌드박스에서 ${project.name}을 완성 처리할까요?`)) return;
     }
 
     const transaction = createClientTransaction('tool:knitting');
@@ -9990,7 +9992,7 @@ function PlayView({
     const item = state.bag.find(i => i.id === itemId);
     if (!item) return;
 
-    if (!confirm(`🎁 이 아이템 (${localizeInventoryItemName(item.name)}, 무게: ${formatWeight(item.weight)})을 약제소 친선 매대에 기부하시겠습니까?\n시즌 종료 시 기부한 무게만큼 명성을 획득합니다.`)) {
+    if (!window.confirm(`🎁 이 아이템 (${localizeInventoryItemName(item.name)}, 무게: ${formatWeight(item.weight)})을 약제소 친선 매대에 기부하시겠습니까?\n시즌 종료 시 기부한 무게만큼 명성을 획득합니다.`)) {
       return;
     }
 
@@ -10120,7 +10122,7 @@ function PlayView({
   };
 
   const handleAdvanceSeason = () => {
-    if (confirm(`${localizeSeasonLabel(state.currentSeason)}을 마치고 룰북 순서의 다음 계절로 전환하시겠습니까?`)) {
+    if (window.confirm(`${localizeSeasonLabel(state.currentSeason)}을 마치고 룰북 순서의 다음 계절로 전환하시겠습니까?`)) {
       handleSettleSeasonTipsAndDonations();
     }
   };
@@ -10382,7 +10384,7 @@ function PlayView({
     ]));
     const selectedAlembic = canonicalTools.find(tool => effectiveSelectedTools.includes(tool.instanceId) && tool.toolId === 'glass-alembic');
     let catalyse: any[] | undefined;
-    if (selectedAlembic && selectedBagItems.length >= 2 && confirm('Glass Alembic으로 CATALYSE를 적용하시겠습니까?')) {
+    if (selectedAlembic && selectedBagItems.length >= 2 && window.confirm('Glass Alembic으로 CATALYSE를 적용하시겠습니까?')) {
       const tag = (await requestControlledPrompt({
         title: 'CATALYSE 태그',
         message: '합산할 태그 이름을 입력하세요. 예: MOOD',
@@ -10399,7 +10401,7 @@ function PlayView({
       && tool.toolId === 'big-iron-cauldron'
       && !tool.broken
       && !tool.consumed
-    ) && confirm('Big Iron Cauldron으로 이 치료제를 PRESERVE 처리할까요?');
+    ) && window.confirm('Big Iron Cauldron으로 이 치료제를 PRESERVE 처리할까요?');
     const transactionId = `treatment:${Date.now()}`;
     const journalText = await requestControlledPrompt({
       title: '치료 기록',
@@ -10489,7 +10491,7 @@ function PlayView({
       result = resolveTreatmentTransaction(treatmentInput);
     }
     if (!result.value && result.status === 'manual') {
-      const confirmed = result.messages.filter(message => confirm(`${localizeGameplayMessage(message)}\n\n이 수동 요구조건을 충족했습니까?`));
+      const confirmed = result.messages.filter(message => window.confirm(`${localizeGameplayMessage(message)}\n\n이 수동 요구조건을 충족했습니까?`));
       if (confirmed.length !== result.messages.length) return;
       treatmentInput = { ...treatmentInput, confirmedManualRequirements: confirmed };
       result = resolveTreatmentTransaction(treatmentInput);
@@ -10498,7 +10500,7 @@ function PlayView({
       showAlert(result.messages.join('\n'));
       return;
     }
-    if (result.value.trinketReward > 0 && confirm(`치료 보상 장신구 ${result.value.trinketReward}개를 모두 선물하고 길드 명성 +2를 받으시겠습니까?`)) {
+    if (result.value.trinketReward > 0 && window.confirm(`치료 보상 장신구 ${result.value.trinketReward}개를 모두 선물하고 길드 명성 +2를 받으시겠습니까?`)) {
       treatmentInput = { ...treatmentInput, gifting: true };
       result = resolveTreatmentTransaction(treatmentInput);
       if (!result.value) {
@@ -10626,7 +10628,7 @@ function PlayView({
     const outcome = outcomes[Math.max(0, Math.min(3, (parseInt(choice) || 1) - 1))];
     const blanket = state.bag.find(item => item.craftedItemId === 'knitted-blanket' || item.name.includes('Knitted Blanket'));
     if ((outcome === 'failure' || outcome === 'abandoned') && blanket
-      && confirm('Knitted Blanket을 버려 이 여정의 조기 종료를 막을까요?')) {
+      && window.confirm('Knitted Blanket을 버려 이 여정의 조기 종료를 막을까요?')) {
       const transaction = createClientTransaction('tool:knitted-blanket');
       const saved = resolveKnittedBlanket({
         transactionId: transaction.id,
@@ -10660,7 +10662,7 @@ function PlayView({
     });
     if (!memoir?.trim()) return;
     const manualConfirmed = evaluation.manualConfirmationRequired
-      ? confirm('이 목표의 서사적 조건을 직접 확인했습니까?')
+      ? window.confirm('이 목표의 서사적 조건을 직접 확인했습니까?')
       : false;
     const transactionId = `${state.journey.journeyId}:ending`;
     const result = resolveJourneyEnding({
@@ -13107,19 +13109,19 @@ function PlayView({
             <details style={{ marginTop: '0.5rem' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', color: '#8b5e1a', padding: '0.4rem 0' }}>▸ 영구적 결과 적용 (p.39)</summary>
               <div style={{ marginTop: '0.3rem', padding: '0.7rem', background: '#fff8ee', borderRadius: '8px', border: '1px dashed #d4a853', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <button onClick={() => { if(confirm('이동 속도 +1 영구 적용?')) updateState((s: GameState) => ({ ...s, bio: { ...s.bio, speed: s.bio.speed + 1 } })); }}
+                <button onClick={() => { if(window.confirm('이동 속도 +1 영구 적용?')) updateState((s: GameState) => ({ ...s, bio: { ...s.bio, speed: s.bio.speed + 1 } })); }}
                   style={{ padding: '0.4rem 0.7rem', fontSize: '0.78rem', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '6px', cursor: 'pointer' }}>
                   🦶 속도 +1
                 </button>
-                <button onClick={() => { if(confirm('가방 소지 한도 +1 영구 적용?')) updateState((s: GameState) => ({ ...s, bio: { ...s.bio, carry: s.bio.carry + 1 } })); }}
+                <button onClick={() => { if(window.confirm('가방 소지 한도 +1 영구 적용?')) updateState((s: GameState) => ({ ...s, bio: { ...s.bio, carry: s.bio.carry + 1 } })); }}
                   style={{ padding: '0.4rem 0.7rem', fontSize: '0.78rem', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '6px', cursor: 'pointer' }}>
                   🎒 용량 +1
                 </button>
-                <button onClick={() => { if(confirm('길드 평판 +5?')) updateState((s: GameState) => ({ ...s, reputation: s.reputation + 5 })); }}
+                <button onClick={() => { if(window.confirm('길드 평판 +5?')) updateState((s: GameState) => ({ ...s, reputation: s.reputation + 5 })); }}
                   style={{ padding: '0.4rem 0.7rem', fontSize: '0.78rem', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '6px', cursor: 'pointer' }}>
                   ⭐ 평판 +5
                 </button>
-                <button onClick={() => { if(confirm('길드 평판 -5?')) updateState((s: GameState) => ({ ...s, reputation: Math.max(0, s.reputation - 5) })); }}
+                <button onClick={() => { if(window.confirm('길드 평판 -5?')) updateState((s: GameState) => ({ ...s, reputation: Math.max(0, s.reputation - 5) })); }}
                   style={{ padding: '0.4rem 0.7rem', fontSize: '0.78rem', background: '#fff1f2', border: '1px solid #fca5a5', borderRadius: '6px', cursor: 'pointer' }}>
                   📉 평판 -5
                 </button>
@@ -13308,7 +13310,7 @@ function PlayView({
                 )}
                 <button
                   onClick={() => {
-                    if (confirm('탈출 도구 없이 버텼다면 주의하세요. 현재 추격 상태를 기록하고 계속 이동합니까?')) {
+                    if (window.confirm('탈출 도구 없이 버텼다면 주의하세요. 현재 추격 상태를 기록하고 계속 이동합니까?')) {
                       // Just leave the HUD in place; travel will update head start via handleTravelMove
                     }
                   }}
@@ -14307,7 +14309,7 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
   const applyWizardCard = (key: string, card: PlayingCard, action: (card: PlayingCard) => void) => {
     const previous = wizardCards[key];
     const isChanging = previous && (previous.suit !== card.suit || previous.value !== card.value);
-    if (isChanging && !confirm("이미 나온 카드가 있습니다. 룰북의 우연성을 살리려면 지금 결과를 그대로 가져가는 편을 추천합니다. 그래도 조심스럽게 바꿀까요?")) return;
+    if (isChanging && !window.confirm("이미 나온 카드가 있습니다. 룰북의 우연성을 살리려면 지금 결과를 그대로 가져가는 편을 추천합니다. 그래도 조심스럽게 바꿀까요?")) return;
     setWizardCards(cards => ({ ...cards, [key]: card }));
     action(card);
   };
@@ -14851,7 +14853,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
   };
 
   const handleRemoveBagItem = (id: string) => {
-    if (confirm("이 아이템을 가방에서 버리시겠습니까?")) {
+    if (window.confirm("이 아이템을 가방에서 버리시겠습니까?")) {
       updateState(s => ({
         ...s,
         bag: s.bag.filter(item => item.id !== id)
@@ -15336,7 +15338,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                       🪙 {localizeInventoryItemName(t)}
                       <button
                         onClick={() => {
-                          if (confirm("이 장신구를 물꼬 거래나 조력에 소모하시겠습니까?")) {
+                          if (window.confirm("이 장신구를 물꼬 거래나 조력에 소모하시겠습니까?")) {
                             updateState((s: any) => {
                               const next = [...s.trinkets];
                               const spentName = next[idx];
@@ -16950,7 +16952,7 @@ function JournalsView({
   };
 
   const handleRemoveJournalPhoto = (journalId: string, photoId: string) => {
-    if (!confirm("이 사진을 일지에서 삭제하시겠습니까?")) return;
+    if (!window.confirm("이 사진을 일지에서 삭제하시겠습니까?")) return;
     const photo = state.journals.find(j => j.id === journalId)?.photos?.find(item => item.id === photoId);
     if (photo) void deleteJournalPhotoFromStorage(photo);
     updateState((s: GameState) => ({
@@ -17037,7 +17039,7 @@ function JournalsView({
   };
 
   const handleRemoveJournal = (id: string) => {
-    if (confirm("이 일지 기록을 삭제하시겠습니까?")) {
+    if (window.confirm("이 일지 기록을 삭제하시겠습니까?")) {
       const journal = state.journals.find(j => j.id === id);
       (journal?.photos || []).forEach(photo => void deleteJournalPhotoFromStorage(photo));
       updateState(s => ({
