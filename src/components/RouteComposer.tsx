@@ -178,6 +178,16 @@ export function RouteComposer({
                   <option key={kind} value={kind}>{kind === 'City' ? '도시' : kind === 'Settlement' ? '정착지' : kind === 'Wilds' ? '야생' : kind === 'Ruin' ? '티탄 유적' : kind === 'Barrow' ? '거수 고분' : '약제소'}</option>
                 ))}
               </select>
+              {row.kind === 'City' && (
+                <input
+                  type="text"
+                  aria-label="도시 이름"
+                  value={row.name}
+                  placeholder="도시 이름"
+                  autoComplete="off"
+                  onChange={event => onChangeStop(index, { name: event.target.value })}
+                />
+              )}
               <select
                 aria-label={`${row.name} 지형색`}
                 value={row.terrain || ''}

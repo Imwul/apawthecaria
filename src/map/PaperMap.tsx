@@ -46,6 +46,7 @@ export type MapCreatePlaceRequest = {
   y: number;
   kind: MapGlyphKind;
   terrain: MapTerrain;
+  name?: string;
 };
 
 type PaperMapProps = {
@@ -70,6 +71,7 @@ type PaperMapProps = {
   onSavePlaces?: () => void;
   canDeletePlace?: (placeId: string) => boolean;
   showTravelRoutes?: boolean;
+  veiled?: boolean;
   routePlaceIds?: string[];
   onOpenFullMap?: () => void;
   onOpenReference?: (request: {
@@ -133,6 +135,7 @@ export function PaperMap({
   onSavePlaces,
   canDeletePlace,
   showTravelRoutes = true,
+  veiled = false,
   routePlaceIds = [],
   onOpenFullMap,
   onOpenReference,
@@ -148,7 +151,7 @@ export function PaperMap({
   const skipMarkerClickRef = useRef(false);
   const [panLocked, setPanLocked] = useState(false);
   const [dragPreview, setDragPreview] = useState<Record<string, { x: number; y: number }>>({});
-  const [createDraft, setCreateDraft] = useState<{ x: number; y: number; kind: MapGlyphKind; terrain: MapTerrain } | null>(null);
+  const [createDraft, setCreateDraft] = useState<{ x: number; y: number; kind: MapGlyphKind; terrain: MapTerrain; name: string } | null>(null);
   const routeIndexById = useMemo(() => {
     const indexes = new Map<string, number>();
     routePlaceIds.forEach((id, index) => {
@@ -395,7 +398,8 @@ export function PaperMap({
           x: Math.max(1, Math.min(99, point.x)),
           y: Math.max(1, Math.min(99, point.y)),
           kind: 'Wilds',
-          terrain: inferred
+          terrain: inferred,
+          name: ''
         });
         selectPlace(null);
         return;
@@ -480,7 +484,7 @@ export function PaperMap({
   const searchHasQuery = searchQuery.trim().length > 0;
 
   return (
-    <section className={`paper-map${isCompanion ? ' paper-map--companion' : ''}${panLocked ? ' paper-map--locked' : ''}`} aria-label="Bristley Woods 지도">
+    <section className={`paper-map${isCompanion ? ' paper-map--companion' : ''}${panLocked ? ' paper-map--locked' : ''}${veiled ? ' paper-map--veiled' : ''}`} aria-label="Bristley Woods 지도">
       <div
         ref={viewportRef}
         className="paper-map__viewport"
@@ -504,6 +508,7 @@ export function PaperMap({
             draggable={false}
             onDragStart={event => event.preventDefault()}
           />
+          {veiled && <div className="paper-map__veil" aria-hidden="true" />}
           <svg className="paper-map__overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
             {mapDebug && layers.roads && ROAD_POLYLINES.map((points, index) => (
               <polyline
@@ -843,7 +848,13 @@ export function PaperMap({
           <MapNodeAppearance
             kind={createDraft.kind}
             terrain={createDraft.terrain}
-            onChange={next => setCreateDraft(current => current ? { ...current, kind: next.kind, terrain: next.terrain || current.terrain } : current)}
+            name={createDraft.name}
+            onChange={next => setCreateDraft(current => current ? {
+              ...current,
+              kind: next.kind,
+              terrain: next.terrain || current.terrain,
+              name: next.name ?? current.name
+            } : current)}
           />
           <div className="paper-map__sheet-actions">
             <button
@@ -884,11 +895,13 @@ export function PaperMap({
             <MapNodeAppearance
               kind={placeGlyph(selectedPlace).kind}
               terrain={placeGlyph(selectedPlace).terrain}
+              name={selectedPlace.name}
               onChange={next => onEditPlace({
                 ...placeToPick(selectedPlace),
                 kind: next.kind,
                 region: next.terrain || undefined,
-                hasClinic: next.kind === 'Clinic'
+                hasClinic: next.kind === 'Clinic',
+                name: next.name ?? selectedPlace.name
               })}
             />
           )}

@@ -52,6 +52,7 @@ const spoolkeep: MapPlace = {
 const mapSource = readFileSync(fileURLToPath(new URL('./PaperMap.tsx', import.meta.url)), 'utf8');
 const cssSource = readFileSync(fileURLToPath(new URL('../index.css', import.meta.url)), 'utf8');
 const appSource = readFileSync(fileURLToPath(new URL('../App.tsx', import.meta.url)), 'utf8');
+const appearanceSource = readFileSync(fileURLToPath(new URL('./MapNodeAppearance.tsx', import.meta.url)), 'utf8');
 
 describe('map marker and filter visibility', () => {
   it('hides ordinary labels when Place Names is off', () => {
@@ -141,6 +142,13 @@ describe('map interaction contracts', () => {
     expect(appSource).toContain('hidden: true');
     expect(appSource).toContain('지운 인쇄 표시');
     expect(appSource).not.toContain('canDeletePlace={isPlayerCreatedMapPlace}\n        companionCaption');
+    expect(appSource).toContain('veiled');
+    expect(mapSource).toContain('paper-map--veiled');
+    expect(mapSource).toContain('paper-map__veil');
+    expect(cssSource).toContain('.paper-map--veiled');
+    expect(cssSource).toContain('.paper-map__veil');
+    expect(appearanceSource).toContain('도시 이름');
+    expect(appearanceSource).toContain("kind === 'City'");
   });
 
   it('hides history and preview routes when those layers are off', () => {

@@ -10667,10 +10667,10 @@ function PlayView({
     });
   }, [persistRouteEdge, routeGraphNodes, state.clinics, state.customMapLocations, state.customMapEdges, state.currentRegion]);
 
-  const handleCreateMapPlace = useCallback((request: { x: number; y: number; kind?: string; terrain?: string }) => {
+  const handleCreateMapPlace = useCallback((request: { x: number; y: number; kind?: string; terrain?: string; name?: string }) => {
     const stop: RouteStop = {
       id: `mark_${Date.now()}`,
-      name: '',
+      name: request.name?.trim() || '',
       kind: request.kind === 'City' || request.kind === 'Settlement' || request.kind === 'Ruin' || request.kind === 'Barrow' || request.kind === 'Clinic'
         ? request.kind
         : 'Wilds',
@@ -11204,6 +11204,7 @@ function PlayView({
             onDeletePlace={handleDeleteMapPlace}
             onSavePlaces={handleSaveMapPlaces}
             canDeletePlace={isPlayerCreatedMapPlace}
+            veiled
             travelEnabled={Boolean(state.journeyActive && !state.needsLocalHelpBeforeMove)}
             travelBlockedReason={state.needsLocalHelpBeforeMove ? '현지 일을 마친 뒤 이동할 수 있습니다.' : null}
             onOpenFullMap={onOpenFullMap}
@@ -15659,7 +15660,7 @@ function AtlasMapPanel({
           const id = `mark_${Date.now()}`;
           persistStop({
             id,
-            name: '',
+            name: request.name?.trim() || '',
             kind: request.kind === 'City' || request.kind === 'Settlement' || request.kind === 'Ruin' || request.kind === 'Barrow' || request.kind === 'Clinic' ? request.kind : 'Wilds',
             terrain: terrainFromRegion(request.terrain) || 'Forest',
             hasClinic: request.kind === 'Clinic',
@@ -15688,6 +15689,7 @@ function AtlasMapPanel({
           showAlert('접어둔 지도의 표시를 이 기록에 남겼습니다.');
         }}
         showTravelRoutes={false}
+        veiled
         companionCaption="이 탭은 지도를 고치는 자리입니다. ⌘+클릭으로 표시를 남기고, 이동 잠금 뒤에 끌어 자리를 고칩니다."
       />
       <aside className="map-atelier__desk" aria-label="표시 자세히 고치기">
@@ -15713,9 +15715,10 @@ function AtlasMapPanel({
             <MapNodeAppearance
               kind={glyphKindFromLocation({ kind: selected.kind, hasClinic: selected.kind === 'clinic' })}
               terrain={terrainFromRegion(selected.region)}
+              name={selected.label}
               onChange={next => persistStop({
                 id: selectedId,
-                name: selected.label,
+                name: next.name ?? selected.label,
                 kind: next.kind,
                 terrain: next.terrain,
                 hasClinic: next.kind === 'Clinic',
@@ -15776,7 +15779,7 @@ function AtlasMapPanel({
               {playerMarks.map(row => (
                 <li key={row.id}>
                   <button type="button" className={selectedId === row.id ? 'is-on' : ''} onClick={() => setSelectedId(row.id)}>
-                    {kindLabel(row.kind)} · {row.region || '색 미정'}
+                    {kindLabel(row.kind)}{row.label ? ` · ${row.label}` : ''} · {row.region || '색 미정'}
                   </button>
                   <button type="button" className="map-atelier__delete" onClick={() => deletePlace(row.id)}>지우기</button>
                 </li>
@@ -15792,7 +15795,7 @@ function AtlasMapPanel({
               {correctedPrints.map(row => (
                 <li key={row.id}>
                   <button type="button" className={selectedId === row.id ? 'is-on' : ''} onClick={() => setSelectedId(row.id)}>
-                    {kindLabel(row.kind)} · {row.region || '색 미정'}
+                    {kindLabel(row.kind)}{row.label ? ` · ${row.label}` : ''} · {row.region || '색 미정'}
                   </button>
                   <button type="button" className="map-atelier__delete" onClick={() => deletePlace(row.id)}>지우기</button>
                 </li>
@@ -15838,6 +15841,7 @@ const MapView = memo(function MapView({
   onSavePlaces,
   canDeletePlace,
   showTravelRoutes = true,
+  veiled = false,
   onSelectedPlaceChange,
   onOpenFullMap,
   companionCaption,
@@ -15855,13 +15859,14 @@ const MapView = memo(function MapView({
   onTravelRequest?: (location: MapPickLocation) => void;
   onAddWaypoint?: (location: MapPickLocation) => void;
   onSetCurrentLocation?: (location: MapPickLocation) => void;
-  onCreatePlace?: (request: { x: number; y: number; kind?: string; terrain?: string }) => void;
+  onCreatePlace?: (request: { x: number; y: number; kind?: string; terrain?: string; name?: string }) => void;
   onMovePlace?: (location: MapPickLocation) => void;
   onEditPlace?: (location: MapPickLocation) => void;
   onDeletePlace?: (location: MapPickLocation) => void;
   onSavePlaces?: () => void;
   canDeletePlace?: (placeId: string) => boolean;
   showTravelRoutes?: boolean;
+  veiled?: boolean;
   onSelectedPlaceChange?: (placeId: string | null) => void;
   onOpenFullMap?: () => void;
   companionCaption?: string;
@@ -15971,6 +15976,7 @@ const MapView = memo(function MapView({
       onSavePlaces={onSavePlaces}
       canDeletePlace={canDeletePlace}
       showTravelRoutes={showTravelRoutes}
+      veiled={veiled}
       routePlaceIds={routePlaceIds}
       onSelectedPlaceChange={onSelectedPlaceChange}
       onOpenFullMap={onOpenFullMap}
