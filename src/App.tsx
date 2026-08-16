@@ -10,6 +10,7 @@ import {
   parseCampaignSaveRaw,
   tryMigrateCampaignSave
 } from "./persistence/campaignSave";
+import { MARKER_EDGES, markerEdgeKind } from "./map/markerGraph";
 import {
   FAMILIAR_BENEFITS,
   calculateRemedyRewards,
@@ -1245,7 +1246,7 @@ const MAP_GRAPH_NODES: Record<string, MapLocationNode> = (() => {
     nodes[key] = {
       ...node,
       aliases: node.aliases ? [...node.aliases] : undefined,
-      neighbors: [...node.neighbors]
+      neighbors: []
     };
   });
 
@@ -1253,26 +1254,13 @@ const MAP_GRAPH_NODES: Record<string, MapLocationNode> = (() => {
     nodes[`loc_${index}`] = { ...location, neighbors: [] };
   });
 
-  const keys = Object.keys(nodes);
-  const distance = (a: MapLocationNode, b: MapLocationNode) => Math.hypot(a.x - b.x, a.y - b.y);
   const connect = (from: string, to: string) => {
+    if (!nodes[from] || !nodes[to] || from === to) return;
     if (!nodes[from].neighbors.includes(to)) nodes[from].neighbors.push(to);
     if (!nodes[to].neighbors.includes(from)) nodes[to].neighbors.push(from);
   };
 
-  keys.forEach(key => {
-    const isWildLocation = nodes[key].kind === 'wild';
-    const limit = isWildLocation ? 3.8 : 7.2;
-    const take = isWildLocation ? 3 : 8;
-    keys
-      .filter(other => other !== key)
-      .map(other => ({ key: other, distance: distance(nodes[key], nodes[other]) }))
-      .filter(candidate => candidate.distance <= limit)
-      .sort((a, b) => a.distance - b.distance)
-      .slice(0, take)
-      .forEach(candidate => connect(key, candidate.key));
-  });
-
+  MARKER_EDGES.forEach(edge => connect(edge.from, edge.to));
   return nodes;
 })();
 
@@ -1327,7 +1315,7 @@ const mapEdgeKind = (
     (edge.from === from && edge.to === to) || (edge.from === to && edge.to === from)
   );
   if (custom?.kind) return custom.kind;
-  return nodes[from]?.region === 'Loch' || nodes[to]?.region === 'Loch' ? 'waterway' : 'path';
+  return markerEdgeKind(from, to);
 };
 
 const findGraphLocationKey = (name: string, nodes: Record<string, MapLocationNode>): string => {
@@ -12031,7 +12019,7 @@ function PlayView({
                   </div>
                   <CardDrawSlot
                     label="목적지와 방향 카드 (p.19)"
-                    helper="값은 거리(A-6 가까움, 7-9 멂, 10/J/M 지평선 너머), 문양은 방향을 정합니다."
+                    helper="값은 검은 선으로 이어진 점 개수(A–6 ≤12, 7–9 13–24, 10/J/M 24+), 문양은 대략적인 방향입니다. 이름 없는 점도 후보가 됩니다."
                     card={journeyDestinationCard}
                     onCard={(card: PlayingCard) => { setJourneyDestinationCard(card); setDestName(''); }}
                   />

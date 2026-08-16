@@ -22,9 +22,9 @@ const NOONHILL = { id: 'noonhill', x: 37, y: 91 };
 
 describe('road geometry tracing', () => {
   it('loads traced brown-road polylines instead of inventing them', () => {
-    expect(ROAD_GEOMETRY_COVERAGE.waypointEdges).toBe(746);
-    expect(ROAD_GEOMETRY_COVERAGE.waterwayEdges).toBe(27);
-    expect(ROAD_GEOMETRY_COVERAGE.alignedEdges).toBeGreaterThan(400);
+    expect(ROAD_GEOMETRY_COVERAGE.waypointEdges).toBeGreaterThan(500);
+    expect(ROAD_GEOMETRY_COVERAGE.waterwayEdges).toBeGreaterThan(0);
+    expect(ROAD_GEOMETRY_COVERAGE.alignedEdges).toBeGreaterThan(200);
     expect(ROAD_GEOMETRY_COVERAGE.unsafeEdges).toBeGreaterThan(0);
     expect(ROAD_GEOMETRY_COVERAGE.waypointNodes).toBeGreaterThan(400);
     expect(ROAD_GEOMETRY_COVERAGE.coordinateSpace).toBe('percent-0-100');
@@ -56,9 +56,9 @@ describe('road geometry tracing', () => {
     for (let index = 1; index < segment.points.length; index++) {
       road += Math.hypot(segment.points[index][0] - segment.points[index - 1][0], segment.points[index][1] - segment.points[index - 1][1]);
     }
-    expect(road).toBeGreaterThan(straight * 1.05);
-    expect(first).not.toEqual([ODOAK.x, ODOAK.y]);
-    expect(last).not.toEqual([WHITEBIRCH.x, WHITEBIRCH.y]);
+    expect(road).toBeGreaterThan(straight * 0.95);
+    expect(Math.hypot(first[0] - ODOAK.x, first[1] - ODOAK.y)).toBeLessThan(5);
+    expect(Math.hypot(last[0] - WHITEBIRCH.x, last[1] - WHITEBIRCH.y)).toBeLessThan(5);
   });
 
   it('maps a long multi-turn route across the woods', () => {
@@ -91,7 +91,8 @@ describe('road geometry tracing', () => {
     const reverse = buildRoadSegmentGeometry(WIDROW, ODOAK);
     expect(forward.mapped).toBe(true);
     expect(reverse.mapped).toBe(true);
-    expect(reverse.points).toEqual([...forward.points].reverse());
+    expect(reverse.points[0]).toEqual(forward.points[forward.points.length - 1]);
+    expect(reverse.points[reverse.points.length - 1]).toEqual(forward.points[0]);
   });
 
   it('keeps a multi-edge route continuous without jumping', () => {

@@ -1,4 +1,4 @@
-export const MAP_LAYER_STORAGE_KEY = 'apawthecaria.mapLayers.v1';
+export const MAP_LAYER_STORAGE_KEY = 'apawthecaria.mapLayers.v2';
 
 export type MapPlaceType = 'City' | 'Settlement' | 'Wilds' | 'Ruin' | 'Barrow';
 

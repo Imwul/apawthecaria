@@ -366,7 +366,7 @@ export function PaperMap({
             onDragStart={event => event.preventDefault()}
           />
           <svg className="paper-map__overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            {layers.roads && ROAD_POLYLINES.map((points, index) => (
+            {mapDebug && layers.roads && ROAD_POLYLINES.map((points, index) => (
               <polyline
                 key={`road:${index}`}
                 className="paper-map__roads"

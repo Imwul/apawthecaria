@@ -3931,40 +3931,39 @@ button,
 }
 
 .paper-map__roads {
-  stroke: rgba(92, 64, 51, 0.16);
-  stroke-width: 0.14;
+  stroke: rgba(40, 34, 28, 0.22);
+  stroke-width: 0.07;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .paper-map__history {
-  stroke: rgba(92, 64, 51, 0.18);
-  stroke-width: 0.18;
+  stroke: rgba(40, 34, 28, 0.22);
+  stroke-width: 0.08;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .paper-map__recent {
-  stroke: rgba(92, 64, 51, 0.42);
-  stroke-width: 0.24;
+  stroke: rgba(40, 34, 28, 0.38);
+  stroke-width: 0.1;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .paper-map__preview {
-  stroke: rgba(132, 72, 24, 0.7);
-  stroke-width: 0.4;
+  stroke: rgba(28, 24, 20, 0.55);
+  stroke-width: 0.13;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-dasharray: 1.05 0.6;
 }
 
 .paper-map__waterway {
-  stroke: rgba(28, 109, 168, 0.78);
-  stroke-width: 0.38;
+  stroke: rgba(28, 109, 168, 0.45);
+  stroke-width: 0.12;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-dasharray: 0.45 0.35 0.95 0.35;
+  stroke-dasharray: 0.35 0.28 0.7 0.28;
 }
 
 .paper-map__debug-aligned {

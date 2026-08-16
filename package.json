@@ -10,6 +10,7 @@
     "audit:rulebook": "python3 scripts/build_rulebook_transplant_audit.py",
     "analyze:map": "tmp/map-detect-venv/bin/python scripts/analyze_map_geometry.py",
     "analyze:waterways": "tmp/map-detect-venv/bin/python scripts/review_water_crossings.py",
+    "detect:markers": "tmp/map-detect-venv/bin/python scripts/detect_map_markers.py",
     "lint": "eslint .",
     "test": "vitest run",
     "test:golden": "vitest run src/rules/goldenMaster.test.ts src/mobileLayout.test.ts",

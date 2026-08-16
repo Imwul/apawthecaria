@@ -194,18 +194,23 @@ export const findJourneyDestinationCandidates = (input: {
   graph: Record<string, JourneyMapNode>;
   originId: string;
   card: RuleCard & { suit?: CardSuit };
-}): Array<{ id: string; name: string; paths: number; region: Region; locationType: 'Settlement' | 'City' }> => {
+}): Array<{ id: string; name: string; paths: number; region: Region; locationType: JourneyMapNode['locationType'] }> => {
   const origin = input.graph[input.originId];
   if (!origin) return [];
   const requirements = getDestinationRequirements(input.card);
   const distances = pathDistances(input.graph, input.originId);
   return Object.values(input.graph)
-    .filter(node => node.id !== input.originId && node.locationType === requirements.locationType)
+    .filter(node => node.id !== input.originId)
     .filter(node => liesInDirection(origin, node, requirements.direction))
     .map(node => ({ node, paths: distances.get(node.id) }))
-    .filter((row): row is { node: JourneyMapNode & { locationType: 'Settlement' | 'City' }; paths: number } => row.paths !== undefined)
+    .filter((row): row is { node: JourneyMapNode; paths: number } => row.paths !== undefined)
     .filter(row => row.paths >= requirements.minimumPaths && (requirements.maximumPaths === null || row.paths <= requirements.maximumPaths))
-    .sort((a, b) => a.paths - b.paths || a.node.name.localeCompare(b.node.name))
+    .sort((a, b) => {
+      const typeRank = (type: JourneyMapNode['locationType']) => type === requirements.locationType ? 0 : type === 'Settlement' || type === 'City' ? 1 : 2;
+      return typeRank(a.node.locationType) - typeRank(b.node.locationType)
+        || a.paths - b.paths
+        || a.node.name.localeCompare(b.node.name);
+    })
     .map(({ node, paths }) => ({ id: node.id, name: node.name, paths, region: node.region, locationType: node.locationType }));
 };
 

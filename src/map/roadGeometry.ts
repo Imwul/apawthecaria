@@ -4,6 +4,7 @@ import {
 } from '../data/roadNetworkGeometry';
 import mapDetectionSummary from './detection/mapDetectionSummary.json';
 import reviewedWaterCrossings from './detection/reviewedWaterCrossings.json';
+import { markerEdgeKind, markerPathPoints } from './markerGraph';
 
 export type RoadPoint = [number, number];
 export type RoadRouteKind = 'road' | 'waterway';
@@ -223,6 +224,20 @@ export const buildRoadSegmentGeometry = (from: RoadAnchor, to: RoadAnchor): Road
   });
   if (from.id && to.id && from.id === to.id) {
     return { id, from: from.id, to: to.id, points: [[from.x, from.y]], mapped: true, kind: 'road' };
+  }
+
+  if (from.id && to.id) {
+    const markerPoints = markerPathPoints(from.id, to.id);
+    if (markerPoints.length >= 2) {
+      return {
+        id,
+        from: from.id,
+        to: to.id,
+        points: markerPoints,
+        mapped: true,
+        kind: markerEdgeKind(from.id, to.id) === 'waterway' ? 'waterway' : 'road'
+      };
+    }
   }
 
   const start = snapToRoadWaypoint(from.x, from.y);
