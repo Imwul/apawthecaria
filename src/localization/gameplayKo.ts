@@ -274,9 +274,9 @@ export const localizeInventoryItemName = (value: string): string => {
 };
 
 const ENGLISH_LOCATION_NAMES: Record<string, string> = {
-  'starting oak road': 'Oak Road',
-  'oak road': 'Oak Road',
-  '오크 길': 'Oak Road',
+  'starting oak road': 'Odoak',
+  'oak road': 'Odoak',
+  '오크 길': 'Odoak',
   'bristley woods': 'Bristley Woods',
   '브리슬리 숲': 'Bristley Woods',
   noonhill: 'Noonhill',
