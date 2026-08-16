@@ -1,4 +1,6 @@
+// @ts-expect-error Vitest runs this source audit in Node; the app build intentionally exposes browser types only.
 import { readFileSync } from 'node:fs';
+// @ts-expect-error Vitest runs this source audit in Node; the app build intentionally exposes browser types only.
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { googleSignInErrorMessage } from './firebase';
