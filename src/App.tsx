@@ -11542,7 +11542,7 @@ function PlayView({
             routePlaceIds={routeDraft.stops.map(stop => stop.id)}
             onConfirmDestination={playMapMode === 'destination' ? handlePlayMapPick : undefined}
             onTravelRequest={playMapMode === 'travel' ? handlePlayMapTravel : undefined}
-            onAddWaypoint={playMapMode === 'travel' ? handleAddRouteWaypoint : undefined}
+            onAddWaypoint={handleAddRouteWaypoint}
             onCreatePlace={undefined}
             onMovePlace={undefined}
             onEditPlace={undefined}
