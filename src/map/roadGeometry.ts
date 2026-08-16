@@ -228,14 +228,14 @@ export const buildRoadSegmentGeometry = (from: RoadAnchor, to: RoadAnchor): Road
 
   if (from.id && to.id) {
     const markerPoints = markerPathPoints(from.id, to.id);
-    if (markerPoints.length >= 2) {
+    if (markerPoints.length >= 2 && markerEdgeKind(from.id, to.id) !== 'waterway') {
       return {
         id,
         from: from.id,
         to: to.id,
         points: markerPoints,
         mapped: true,
-        kind: markerEdgeKind(from.id, to.id) === 'waterway' ? 'waterway' : 'road'
+        kind: 'road'
       };
     }
   }
