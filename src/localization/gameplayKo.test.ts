@@ -32,7 +32,7 @@ describe('gameplay presentation localization', () => {
     expect(localizeBehemothClass('Towering')).toBe('거대한');
     expect(localizeAvailabilityLabel('Any Settlement or City')).toBe('모든 정착지와 도시');
     expect(localizeLocationName('오크 길')).toBe('Odoak');
-    expect(localizeLocationName('Oak Road')).toBe('Odoak');
+    expect(localizeLocationName('starting oak road')).toBe('Odoak');
     expect(localizeLocationName('눈힐')).toBe('Noonhill');
     expect(localizeLocationName('오도악')).toBe('Odoak');
   });
