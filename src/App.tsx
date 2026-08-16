@@ -8410,7 +8410,7 @@ function PlayView({
       return;
     }
     if (!destName || !journeyDestinationCandidates.some(row => row.id === destName)) {
-      showAlert('목적지 카드 조건에 맞는 후보를 선택하세요. 후보가 없으면 카드를 다시 뽑으세요.');
+      showAlert('이동 가능한 목적지 후보를 선택하세요. 후보가 없으면 카드를 다시 뽑으세요.');
       return;
     }
     const journeyReason = journeyReasonRef.current;
@@ -11538,8 +11538,8 @@ function PlayView({
               playMapMode === 'destination'
                 ? (journeyDestinationCard
                   ? (journeyDestinationCandidates.length > 0
-                    ? '카드 조건에 맞는 정착지가 강조됩니다. 장소를 고른 뒤 목적지로 정하세요. 오른쪽에서 들르는 자리도 이을 수 있습니다.'
-                    : '조건에 맞는 목적지가 없습니다. 목적지 카드를 다시 뽑으세요.')
+                    ? '여정 조건을 충족하는 후보를 지도에서 골라 목적지로 지정하세요. 오른쪽에서 들르는 자리도 이어서 확인할 수 있습니다.'
+                    : '현재는 이동 가능한 후보가 없습니다. 목적지 카드를 다시 뽑으세요.')
                   : '목적지 카드를 뽑으면 방향·거리 조건에 맞는 정착지가 지도에 표시됩니다.')
                 : `노드를 눌러 사이길을 잇고, 오른쪽에서 육로/수로를 고르세요. 빈 자리는 ⌘+클릭으로 표시합니다. 자리를 옮기려면 먼저 이동 잠금을 켜세요.${currentWeight > maxCarry ? ' 소지 한도를 넘어 1경로만 갑니다.' : ''}`
             }
@@ -12905,7 +12905,7 @@ function PlayView({
                 </div>
                 <div style={{ display: 'grid', gap: '0.75rem', padding: '0.85rem', background: '#fffdf8', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
                   <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                    룰북 p.19-25 순서: 목적지/거리 카드와 목표 카드를 뽑고, 지도를 보며 조건에 맞는 목적지를 고른 뒤 이동합니다.
+                    룰북 p.19-25 순서: 목적지/거리 카드와 목표 카드를 뽑고, 지도를 보며 후보를 골라 이동합니다.
                   </div>
                   <CardDrawSlot
                     label="목적지와 방향 카드 (p.19)"
