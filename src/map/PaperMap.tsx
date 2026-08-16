@@ -846,6 +846,7 @@ export function PaperMap({
             <span>⌘+클릭한 빈 자리입니다. 형태와 지형색을 고른 뒤 남깁니다.</span>
           </div>
           <MapNodeAppearance
+            key={`create:${createDraft.x}:${createDraft.y}`}
             kind={createDraft.kind}
             terrain={createDraft.terrain}
             name={createDraft.name}
@@ -893,6 +894,7 @@ export function PaperMap({
           </div>
           {onEditPlace && (
             <MapNodeAppearance
+              key={selectedPlace.id}
               kind={placeGlyph(selectedPlace).kind}
               terrain={placeGlyph(selectedPlace).terrain}
               name={selectedPlace.name}

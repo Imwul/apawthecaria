@@ -15713,6 +15713,7 @@ function AtlasMapPanel({
             <strong>{kindLabel(selected.kind)} 표시</strong>
             <span>{isPlayerCreatedMapPlace(selectedId) ? '직접 남긴 표시' : '인쇄된 표시를 고치는 중'}</span>
             <MapNodeAppearance
+              key={selectedId}
               kind={glyphKindFromLocation({ kind: selected.kind, hasClinic: selected.kind === 'clinic' })}
               terrain={terrainFromRegion(selected.region)}
               name={selected.label}

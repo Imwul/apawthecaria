@@ -4490,7 +4490,8 @@ button,
   color: #6b5343;
 }
 
-.map-node-appearance__name input {
+.map-node-appearance__name input,
+.map-node-appearance__add-name {
   min-height: 2rem;
   padding: 0.3rem 0.5rem;
   border: 1px solid rgba(74, 54, 40, 0.3);
@@ -4499,6 +4500,12 @@ button,
   color: #4a3628;
   font-family: inherit;
   font-size: 0.82rem;
+}
+
+.map-node-appearance__add-name {
+  justify-self: start;
+  background: #f4ead8;
+  cursor: pointer;
 }
 
 .map-atelier {

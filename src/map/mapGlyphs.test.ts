@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 // @ts-expect-error Vitest runs this source audit in Node; the app build intentionally exposes browser types only.
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { CITY_TRIANGLE_POINTS } from './mapGlyphs';
+import { CITY_TRIANGLE_POINTS, glyphUsesTerrain } from './mapGlyphs';
 
 const glyphSource = readFileSync(fileURLToPath(new URL('./mapGlyphs.tsx', import.meta.url)), 'utf8');
 
@@ -25,5 +25,12 @@ describe('map glyphs', () => {
     expect(apex[1]).toBeGreaterThan(3);
     expect(left[1]).toBe(right[1]);
     expect(left[1]).toBeLessThan(18);
+  });
+
+  it('keeps titan ruins free of the five terrain colours', () => {
+    expect(glyphUsesTerrain('Ruin')).toBe(false);
+    expect(glyphUsesTerrain('City')).toBe(true);
+    expect(glyphUsesTerrain('Settlement')).toBe(true);
+    expect(glyphSource).toContain('glyphUsesTerrain(kind) ? glyphColor(terrain) : glyphColor(null)');
   });
 });

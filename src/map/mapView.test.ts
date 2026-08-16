@@ -147,8 +147,9 @@ describe('map interaction contracts', () => {
     expect(mapSource).toContain('paper-map__veil');
     expect(cssSource).toContain('.paper-map--veiled');
     expect(cssSource).toContain('.paper-map__veil');
-    expect(appearanceSource).toContain('도시 이름');
-    expect(appearanceSource).toContain("kind === 'City'");
+    expect(appearanceSource).toContain('이름 추가');
+    expect(appearanceSource).toContain('glyphUsesTerrain');
+    expect(appearanceSource).not.toContain('도시 이름');
   });
 
   it('hides history and preview routes when those layers are off', () => {

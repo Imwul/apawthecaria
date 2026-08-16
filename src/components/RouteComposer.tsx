@@ -1,4 +1,5 @@
-import { MapGlyph, MAP_GLYPH_KINDS, MAP_TERRAINS, type MapGlyphKind, type MapTerrain } from '../map/mapGlyphs';
+import { useState } from 'react';
+import { MapGlyph, MAP_GLYPH_KINDS, MAP_TERRAINS, glyphUsesTerrain, type MapGlyphKind, type MapTerrain } from '../map/mapGlyphs';
 import {
   evaluateRouteDraft,
   lastRouteStop,
@@ -75,6 +76,7 @@ export function RouteComposer({
   const count = draft.stops.length;
   const glyphSize = count > 16 ? 14 : count > 10 ? 16 : 20;
   const travelReady = canTravel && evaluation.reason === 'legal' && Boolean(destination);
+  const [nameOpen, setNameOpen] = useState<Record<string, boolean>>({});
 
   return (
     <section className="route-composer" aria-label="경로 짜기">
@@ -172,32 +174,45 @@ export function RouteComposer({
               <select
                 aria-label={`${row.name} 형태`}
                 value={row.kind}
-                onChange={event => onChangeStop(index, { kind: event.target.value as MapGlyphKind, hasClinic: event.target.value === 'Clinic' })}
+                onChange={event => {
+                  const kind = event.target.value as MapGlyphKind;
+                  onChangeStop(index, {
+                    kind,
+                    hasClinic: kind === 'Clinic',
+                    terrain: glyphUsesTerrain(kind) ? row.terrain : null
+                  });
+                }}
               >
                 {MAP_GLYPH_KINDS.map(kind => (
                   <option key={kind} value={kind}>{kind === 'City' ? '도시' : kind === 'Settlement' ? '정착지' : kind === 'Wilds' ? '야생' : kind === 'Ruin' ? '티탄 유적' : kind === 'Barrow' ? '거수 고분' : '약제소'}</option>
                 ))}
               </select>
-              {row.kind === 'City' && (
+              {row.name.trim() || nameOpen[`${row.id}:${index}`] ? (
                 <input
                   type="text"
-                  aria-label="도시 이름"
+                  aria-label="이름"
                   value={row.name}
-                  placeholder="도시 이름"
+                  placeholder="이름"
                   autoComplete="off"
                   onChange={event => onChangeStop(index, { name: event.target.value })}
                 />
+              ) : (
+                <button type="button" onClick={() => setNameOpen(current => ({ ...current, [`${row.id}:${index}`]: true }))}>
+                  이름 추가
+                </button>
               )}
-              <select
-                aria-label={`${row.name} 지형색`}
-                value={row.terrain || ''}
-                onChange={event => onChangeStop(index, { terrain: (event.target.value || null) as MapTerrain | null })}
-              >
-                <option value="">색 미정</option>
-                {MAP_TERRAINS.map(terrain => (
-                  <option key={terrain} value={terrain}>{terrain === 'Bog' ? '늪지' : terrain === 'Forest' ? '숲' : terrain === 'Loch' ? '호수' : terrain === 'Meadow' ? '초원' : '산맥'}</option>
-                ))}
-              </select>
+              {glyphUsesTerrain(row.kind) && (
+                <select
+                  aria-label={`${row.name} 지형색`}
+                  value={row.terrain || ''}
+                  onChange={event => onChangeStop(index, { terrain: (event.target.value || null) as MapTerrain | null })}
+                >
+                  <option value="">색 미정</option>
+                  {MAP_TERRAINS.map(terrain => (
+                    <option key={terrain} value={terrain}>{terrain === 'Bog' ? '늪지' : terrain === 'Forest' ? '숲' : terrain === 'Loch' ? '호수' : terrain === 'Meadow' ? '초원' : '산맥'}</option>
+                  ))}
+                </select>
+              )}
               {index > 0 && (
                 <button type="button" onClick={() => onRemoveStop(index)} aria-label={`${row.name} 빼기`}>빼기</button>
               )}

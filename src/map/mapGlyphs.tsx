@@ -32,6 +32,8 @@ export const MAP_TERRAIN_LABELS: Record<MapTerrain, string> = {
 export const glyphColor = (terrain: MapTerrain | null | undefined, fallback = '#5a4a3a'): string =>
   terrain && MAP_TERRAIN_COLORS[terrain] ? MAP_TERRAIN_COLORS[terrain] : fallback;
 
+export const glyphUsesTerrain = (kind: MapGlyphKind): boolean => kind !== 'Ruin';
+
 // Printed city mark: largest upright equilateral triangle that sits flush in the square.
 const CITY_SQUARE = { x: 2.4, y: 2.4, size: 15.2 };
 const CITY_INNER = CITY_SQUARE.size - 1.6;
@@ -52,7 +54,7 @@ export function MapGlyph({
   size?: number;
   title?: string;
 }) {
-  const color = glyphColor(terrain);
+  const color = glyphUsesTerrain(kind) ? glyphColor(terrain) : glyphColor(null);
   const stroke = color;
   const common = {
     fill: 'none' as const,
