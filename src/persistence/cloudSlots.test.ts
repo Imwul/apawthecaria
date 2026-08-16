@@ -153,7 +153,7 @@ describe('cloud save slots', () => {
     expect(appSource).toContain('CloudSlotsDialog');
     expect(appSource).toContain('handleDownloadCloudSlot');
     expect(appSource).toContain('handleUploadCloudSlot');
-    expect(appSource).toContain('confirm: askWindowConfirm');
-    expect(appSource).toMatch(/const askWindowConfirm = \(message: string\) => window\.confirm\(message\)/);
+    expect(appSource).toContain('window.confirm.call(window, message)');
+    expect(readFileSync(fileURLToPath(new URL('./cloudSlots.ts', import.meta.url)), 'utf8')).toContain('window.confirm.call(window, message)');
   });
 });

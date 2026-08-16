@@ -205,17 +205,20 @@ export const mergeCloudSlotRecord = (
   return next;
 };
 
+const askBoundWindowConfirm = (message: string) => window.confirm.call(window, message);
+
 export const confirmManualSlotDownload = (input: {
   slot: CloudSlotId;
   localRaw: string | null;
   cloudName: string | null;
-  confirm: (message: string) => boolean;
+  confirm?: (message: string) => boolean;
 }): boolean => {
   const parsed = parseCampaignSaveRaw(input.localRaw);
   const localHasProgress = parsed.ok && campaignSaveHasProgress(parsed.value);
   if (!localHasProgress) return true;
   const name = input.cloudName?.trim();
-  return input.confirm(
+  const ask = input.confirm ?? askBoundWindowConfirm;
+  return ask(
     name
       ? `클라우드 슬롯 ${input.slot}의 ${name} 기록으로 이 기기 기록을 덮어쓸까요? 지금 기기의 로컬 진행은 사라집니다.`
       : `클라우드 슬롯 ${input.slot} 기록으로 이 기기 기록을 덮어쓸까요? 지금 기기의 로컬 진행은 사라집니다.`
@@ -227,14 +230,15 @@ export const confirmManualSlotUpload = (input: {
   localRaw: string;
   occupied: boolean;
   cloudName: string | null;
-  confirm: (message: string) => boolean;
+  confirm?: (message: string) => boolean;
 }): boolean => {
   const parsed = parseCampaignSaveRaw(input.localRaw);
   if (!parsed.ok || !campaignSaveHasNamedApothecary(parsed.value)) return false;
   if (!input.occupied) return true;
   const localName = nameFromPayload(input.localRaw) || '로컬';
   const cloudName = input.cloudName?.trim();
-  return input.confirm(
+  const ask = input.confirm ?? askBoundWindowConfirm;
+  return ask(
     cloudName
       ? `슬롯 ${input.slot}에 이미 ${cloudName} 기록이 있습니다. 지금 이 기기의 ${localName} 기록으로 덮어쓸까요?`
       : `슬롯 ${input.slot}에 이미 기록이 있습니다. 지금 이 기기의 ${localName} 기록으로 덮어쓸까요?`
