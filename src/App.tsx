@@ -1,4 +1,4 @@
-import { useState, useEffect, useEffectEvent, useRef, useCallback, Fragment, lazy, Suspense } from "react";
+import { useState, useEffect, useEffectEvent, useRef, useCallback, useMemo, memo, Fragment, lazy, Suspense } from "react";
 import { db, isFirebaseConfigured, auth, googleProvider, storage } from "./firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
@@ -6820,6 +6820,29 @@ function ControlledPromptDialog({
   );
 }
 
+function IsolatedTextarea({
+  valueRef,
+  initialValue = "",
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  valueRef: React.MutableRefObject<string>;
+  initialValue?: string;
+}) {
+  const [value, setValue] = useState(initialValue);
+  valueRef.current = value;
+  return (
+    <textarea
+      {...props}
+      value={value}
+      onChange={event => {
+        const next = event.target.value;
+        valueRef.current = next;
+        setValue(next);
+      }}
+    />
+  );
+}
+
 function PlayView({
   state,
   updateState,
@@ -6878,18 +6901,30 @@ function PlayView({
   onConsumePendingMapTravel: () => void;
 }) {
   const [destName, setDestName] = useState("");
-  const [journeyReason, setJourneyReason] = useState("");
+  const journeyReasonRef = useRef("");
   const [destRegion, setDestRegion] = useState("Forest");
   const [destType, setDestType] = useState("Wilds");
   const [journeyDestinationCard, setJourneyDestinationCard] = useState<PlayingCard | null>(null);
   const [journeyGoalCard, setJourneyGoalCard] = useState<PlayingCard | null>(null);
 
-  const journeyGraph = toRuleMapGraph(state);
-  const journeyOriginId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
-  const journeyDestinationCandidates = journeyDestinationCard
-    ? findJourneyDestinationCandidates({ graph: journeyGraph, originId: journeyOriginId, card: journeyDestinationCard as PlayingCard & { suit: CardSuit } })
-    : [];
-  const scroungeAdjacentRegions = adjacentRuleRegions(state);
+  const journeyGraph = useMemo(
+    () => toRuleMapGraph(state),
+    [state.customMapLocations, state.customMapEdges, state.currentRegion]
+  );
+  const journeyOriginId = useMemo(
+    () => findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName),
+    [state.currentLocationName, state.customMapLocations]
+  );
+  const journeyDestinationCandidates = useMemo(
+    () => journeyDestinationCard
+      ? findJourneyDestinationCandidates({ graph: journeyGraph, originId: journeyOriginId, card: journeyDestinationCard as PlayingCard & { suit: CardSuit } })
+      : [],
+    [journeyDestinationCard, journeyGraph, journeyOriginId]
+  );
+  const scroungeAdjacentRegions = useMemo(
+    () => adjacentRuleRegions(state),
+    [state.customMapLocations, state.customMapEdges, state.currentLocationName, state.currentSeason, state.currentRegion, state.bag]
+  );
 
   const [newAilmentName, setNewAilmentName] = useState("");
   const [patientNameDraft, setPatientNameDraft] = useState("");
@@ -7840,6 +7875,7 @@ function PlayView({
       showAlert('목적지 카드 조건에 맞는 후보를 선택하세요. 후보가 없으면 카드를 다시 뽑으세요.');
       return;
     }
+    const journeyReason = journeyReasonRef.current;
     if (!journeyReason.trim()) {
       showAlert('이번 여정을 떠나는 이유를 기록해주세요.');
       return;
@@ -7941,7 +7977,7 @@ function PlayView({
     });
 
     setDestName("");
-    setJourneyReason("");
+    journeyReasonRef.current = "";
     setJourneyDestinationCard(null);
     setJourneyGoalCard(null);
   };
@@ -10269,37 +10305,43 @@ function PlayView({
     : state.journeyActive
       ? 'travel'
       : 'inspect';
-  const playMapHighlightIds = playMapMode === 'destination'
-    ? journeyDestinationCandidates.map(row => row.id)
-    : playMapMode === 'travel'
-      ? listLegalMoveStops({
+  const playMapHighlightIds = useMemo(() => {
+    if (playMapMode === 'destination') return journeyDestinationCandidates.map(row => row.id);
+    if (playMapMode === 'travel') {
+      return listLegalMoveStops({
         graph: toTravelEngineGraph(state),
         originId: journeyOriginId,
         speed: activeTravelSpeed,
         canStopInLoch: hasLochStoppingGear(state),
         waterwaySpan: resolveWagonCapabilities(canonicalWagonFromState(state)).waterwaySpan,
         mustUseFullSpeed: true
-      })
-      : [];
+      });
+    }
+    return [];
+  }, [playMapMode, journeyDestinationCandidates, state, journeyOriginId, activeTravelSpeed]);
   const playMapSelectedId = playMapMode === 'destination'
     ? destName || null
     : playMapMode === 'travel'
       ? findMapLocationKey(nextLocName, state.customMapLocations || []) || null
       : null;
-  const applyMapTravelLocation = (location: MapPickLocation, submit: boolean) => {
+  const applyMapTravelLocation = useCallback((location: MapPickLocation, submit: boolean) => {
     setNextLocName(location.name);
     if (location.region && ['Forest', 'Meadow', 'Loch', 'Bog', 'Mountain', 'Titan'].includes(location.region)) {
       setDestRegion(location.region);
     }
     setDestType(destTypeFromMapPick(location.kind));
     if (submit) queueMicrotask(() => travelFormRef.current?.requestSubmit());
-  };
+  }, []);
 
-  const handlePlayMapPick = (location: MapPickLocation) => {
+  const handlePlayMapPick = useCallback((location: MapPickLocation) => {
     if (playMapMode === 'destination' && journeyDestinationCandidates.some(row => row.id === location.id)) {
       setDestName(location.id);
     }
-  };
+  }, [playMapMode, journeyDestinationCandidates]);
+
+  const handlePlayMapTravel = useCallback((location: MapPickLocation) => {
+    applyMapTravelLocation(location, true);
+  }, [applyMapTravelLocation]);
 
   const addActionHubItem = (item: ActionHubItem) => {
     if (!actionHubItems.some(existing => existing.id === item.id) && actionHubItems.length < 4) {
@@ -10645,7 +10687,7 @@ function PlayView({
             highlightLocationIds={playMapHighlightIds}
             selectedLocationId={playMapSelectedId}
             onConfirmDestination={playMapMode === 'destination' ? handlePlayMapPick : undefined}
-            onTravelRequest={playMapMode === 'travel' ? (location) => applyMapTravelLocation(location, true) : undefined}
+            onTravelRequest={playMapMode === 'travel' ? handlePlayMapTravel : undefined}
             travelEnabled={Boolean(state.journeyActive && !state.needsLocalHelpBeforeMove)}
             travelBlockedReason={state.needsLocalHelpBeforeMove ? '현지 일을 마친 뒤 이동할 수 있습니다.' : null}
             onOpenFullMap={onOpenFullMap}
@@ -11990,11 +12032,10 @@ function PlayView({
               <form onSubmit={handleStartJourney} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>여정을 떠나는 이유</label>
-                  <textarea
+                  <IsolatedTextarea
                     rows={2}
                     placeholder="왜 지금 이 길을 떠나는지 기록하세요."
-                    value={journeyReason}
-                    onChange={e => setJourneyReason(e.target.value)}
+                    valueRef={journeyReasonRef}
                     style={{ padding: '0.55rem', border: '1px solid #ccc', borderRadius: '4px', resize: 'vertical' }}
                   />
                 </div>
@@ -14957,7 +14998,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
 // =================================================================
 // 9. MAP VIEW COMPONENT (Cartographer’s Margins Pass)
 // =================================================================
-function MapView({
+const MapView = memo(function MapView({
   state,
   onOpenReference,
   variant = 'full',
@@ -15082,7 +15123,7 @@ function MapView({
       currentSeasonLabel={localizeSeasonLabel(state.currentSeason)}
     />
   );
-}
+});
 
 // =================================================================
 // 11. LIVING ARCHIVE VIEW COMPONENT

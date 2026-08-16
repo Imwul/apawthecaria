@@ -94,6 +94,12 @@ describe('map interaction contracts', () => {
     expect(appSource).not.toMatch(/onPickLocation=\{playMapMode === 'inspect' \? undefined : handlePlayMapPick\}/);
   });
 
+  it('keeps journey-reason typing from re-rendering the play map', () => {
+    expect(appSource).toContain('function IsolatedTextarea');
+    expect(appSource).toContain('valueRef={journeyReasonRef}');
+    expect(appSource).not.toMatch(/setJourneyReason\(e\.target\.value\)/);
+  });
+
   it('only asks gameplay to travel from the Travel action', () => {
     expect(mapSource).toContain("onClick={() => onTravelRequest(placeToPick(selectedPlace))}");
     expect(mapSource).toContain('여기로 이동');
