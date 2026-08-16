@@ -54,16 +54,28 @@ export function MapNodeAppearance({ kind, terrain, name = '', onChange, heading 
         </div>
       )}
       {showName ? (
-        <label className="map-node-appearance__name">
-          <span>이름</span>
-          <input
-            type="text"
-            value={name}
-            placeholder="이름을 적으세요"
-            autoComplete="off"
-            onChange={event => emit({ kind, terrain, name: event.target.value })}
-          />
-        </label>
+        <div className="map-node-appearance__name-row">
+          <label className="map-node-appearance__name">
+            <span>이름</span>
+            <input
+              type="text"
+              value={name}
+              placeholder="이름을 적으세요"
+              autoComplete="off"
+              onChange={event => emit({ kind, terrain, name: event.target.value })}
+            />
+          </label>
+          <button
+            type="button"
+            className="map-node-appearance__add-name"
+            onClick={() => {
+              setAddingName(false);
+              emit({ kind, terrain, name: '' });
+            }}
+          >
+            이름 없음
+          </button>
+        </div>
       ) : (
         <button type="button" className="map-node-appearance__add-name" onClick={() => setAddingName(true)}>
           이름 추가

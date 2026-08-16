@@ -147,11 +147,15 @@ describe('map interaction contracts', () => {
     expect(appSource).toContain('veiled');
     expect(mapSource).toContain('paper-map--veiled');
     expect(mapSource).toContain('paper-map__veil');
+    expect(mapSource).toContain('유산지');
+    expect(mapSource).toContain("event.key === 'v' || event.key === 'V'");
     expect(cssSource).toContain('.paper-map--veiled');
     expect(cssSource).toContain('.paper-map__veil');
     expect(appearanceSource).toContain('이름 추가');
+    expect(appearanceSource).toContain('이름 없음');
     expect(appearanceSource).toContain('glyphUsesTerrain');
     expect(appearanceSource).not.toContain('도시 이름');
+    expect(appSource).toContain('label: stop.name.trim()');
   });
 
   it('hides history and preview routes when those layers are off', () => {

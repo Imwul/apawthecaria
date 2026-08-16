@@ -90,7 +90,7 @@ export function RouteComposer({
           {origin ? (
             <>
               <MapGlyph kind={origin.kind} terrain={origin.terrain} size={28} />
-              <strong>{origin.name}</strong>
+              <strong>{origin.name.trim() || '이름 없음'}</strong>
               <em>{origin.kind === 'Clinic' ? '약제소' : origin.kind === 'City' ? '도시' : origin.kind === 'Settlement' ? '정착지' : origin.kind === 'Ruin' ? '티탄 유적' : origin.kind === 'Barrow' ? '거수 고분' : '야생'}{origin.terrain ? ` · ${origin.terrain === 'Bog' ? '늪지' : origin.terrain === 'Forest' ? '숲' : origin.terrain === 'Loch' ? '호수' : origin.terrain === 'Meadow' ? '초원' : '산맥'}` : ''}</em>
             </>
           ) : (
@@ -102,7 +102,7 @@ export function RouteComposer({
           {destination ? (
             <>
               <MapGlyph kind={destination.kind} terrain={destination.terrain} size={28} />
-              <strong>{destination.name}</strong>
+              <strong>{destination.name.trim() || '이름 없음'}</strong>
               <em>{destination.kind === 'Clinic' ? '약제소' : destination.kind === 'City' ? '도시' : destination.kind === 'Settlement' ? '정착지' : destination.kind === 'Ruin' ? '티탄 유적' : destination.kind === 'Barrow' ? '거수 고분' : '야생'}{destination.terrain ? ` · ${destination.terrain === 'Bog' ? '늪지' : destination.terrain === 'Forest' ? '숲' : destination.terrain === 'Loch' ? '호수' : destination.terrain === 'Meadow' ? '초원' : '산맥'}` : ''}</em>
             </>
           ) : (
@@ -194,14 +194,25 @@ export function RouteComposer({
                 ))}
               </select>
               {row.name.trim() || nameOpen[`${row.id}:${index}`] ? (
-                <input
-                  type="text"
-                  aria-label="이름"
-                  value={row.name}
-                  placeholder="이름"
-                  autoComplete="off"
-                  onChange={event => onChangeStop(index, { name: event.target.value })}
-                />
+                <>
+                  <input
+                    type="text"
+                    aria-label="이름"
+                    value={row.name}
+                    placeholder="이름"
+                    autoComplete="off"
+                    onChange={event => onChangeStop(index, { name: event.target.value })}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNameOpen(current => ({ ...current, [`${row.id}:${index}`]: false }));
+                      onChangeStop(index, { name: '' });
+                    }}
+                  >
+                    이름 없음
+                  </button>
+                </>
               ) : (
                 <button type="button" onClick={() => setNameOpen(current => ({ ...current, [`${row.id}:${index}`]: true }))}>
                   이름 추가
