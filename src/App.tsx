@@ -15534,8 +15534,15 @@ function AtlasMapPanel({
   onOpenReference: (request: RulebookReferenceRequest) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [linkFromId, setLinkFromId] = useState<string | null>(null);
+  const [pendingLink, setPendingLink] = useState<{ from: string; to: string } | null>(null);
   const nodes = buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || []);
   const selected = selectedId ? nodes[selectedId] : null;
+  const playerMarks = (state.customMapLocations || []).filter(row => isPlayerCreatedMapPlace(row.id));
+  const correctedPrints = (state.customMapLocations || []).filter(row => !isPlayerCreatedMapPlace(row.id));
+  const selectedEdges = selectedId
+    ? (state.customMapEdges || []).filter(edge => edge.from === selectedId || edge.to === selectedId)
+    : [];
   const persistStop = (stop: RouteStop) => {
     upsertPlayerMarkerRecords([playerRecordFromStop(stop)]);
     updateState(s => ({
@@ -15543,6 +15550,47 @@ function AtlasMapPanel({
       customMapLocations: upsertPlayerMapStop(s.customMapLocations || [], stop, buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || [])[stop.id])
     }));
   };
+  const persistLink = (from: string, to: string, kind: 'path' | 'waterway') => {
+    updateState(s => ({
+      ...s,
+      customMapEdges: upsertPlayerMapEdge(s.customMapEdges || [], from, to, kind)
+    }));
+    setPendingLink(null);
+  };
+  const deletePlace = (id: string) => {
+    if (!isPlayerCreatedMapPlace(id)) return;
+    removePlayerMarkerRecords([id]);
+    setSelectedId(current => current === id ? null : current);
+    setLinkFromId(current => current === id ? null : current);
+    setPendingLink(current => current && (current.from === id || current.to === id) ? null : current);
+    updateState(s => ({
+      ...s,
+      customMapLocations: (s.customMapLocations || []).filter(row => row.id !== id),
+      customMapEdges: (s.customMapEdges || []).filter(edge => edge.from !== id && edge.to !== id)
+    }));
+  };
+  const stopFromRequest = (location: MapPickLocation): RouteStop => {
+    const node = nodes[location.id];
+    const kind = location.kind === 'City' || location.kind === 'Settlement' || location.kind === 'Ruin' || location.kind === 'Barrow' || location.kind === 'Clinic'
+      ? location.kind
+      : (node ? stopFromGraphNode(location.id, node).kind : 'Wilds');
+    return {
+      id: location.id,
+      name: location.name || node?.label || '',
+      kind,
+      terrain: terrainFromRegion(location.region) || (node ? stopFromGraphNode(location.id, node).terrain : null),
+      hasClinic: Boolean(location.hasClinic) || kind === 'Clinic',
+      x: location.x ?? node?.x ?? 50,
+      y: location.y ?? node?.y ?? 50
+    };
+  };
+  const kindLabel = (kind?: string) =>
+    kind === 'city' || kind === 'City' ? '도시'
+      : kind === 'settlement' || kind === 'Settlement' ? '정착지'
+        : kind === 'ruin' || kind === 'Ruin' ? '티탄 유적'
+          : kind === 'barrow' || kind === 'Barrow' ? '거수 고분'
+            : kind === 'clinic' || kind === 'Clinic' ? '약제소'
+              : '야생';
   return (
     <div className="map-atelier">
       <MapView
@@ -15550,10 +15598,20 @@ function AtlasMapPanel({
         onOpenReference={onOpenReference}
         includeWilds
         selectedLocationId={selectedId}
-        onSelectedPlaceChange={setSelectedId}
+        highlightLocationIds={[linkFromId, pendingLink?.from, pendingLink?.to].filter((id): id is string => Boolean(id))}
+        onSelectedPlaceChange={id => {
+          if (linkFromId && id && id !== linkFromId) {
+            setPendingLink({ from: linkFromId, to: id });
+            setLinkFromId(null);
+            setSelectedId(id);
+            return;
+          }
+          setSelectedId(id);
+        }}
         onCreatePlace={request => {
+          const id = `mark_${Date.now()}`;
           persistStop({
-            id: `mark_${Date.now()}`,
+            id,
             name: '',
             kind: request.kind === 'City' || request.kind === 'Settlement' || request.kind === 'Ruin' || request.kind === 'Barrow' || request.kind === 'Clinic' ? request.kind : 'Wilds',
             terrain: terrainFromRegion(request.terrain) || 'Forest',
@@ -15561,42 +15619,14 @@ function AtlasMapPanel({
             x: request.x,
             y: request.y
           });
+          setSelectedId(id);
         }}
         onMovePlace={location => {
           if (location.x === undefined || location.y === undefined || !location.id) return;
-          const node = nodes[location.id];
-          persistStop({
-            id: location.id,
-            name: location.name || node?.label || '',
-            kind: node ? stopFromGraphNode(location.id, node).kind : 'Wilds',
-            terrain: terrainFromRegion(location.region || node?.region),
-            hasClinic: Boolean(location.hasClinic),
-            x: location.x,
-            y: location.y
-          });
+          persistStop(stopFromRequest(location));
         }}
-        onEditPlace={location => {
-          const node = nodes[location.id];
-          persistStop({
-            id: location.id,
-            name: location.name || node?.label || '',
-            kind: location.kind === 'City' || location.kind === 'Settlement' || location.kind === 'Ruin' || location.kind === 'Barrow' || location.kind === 'Clinic' ? location.kind : 'Wilds',
-            terrain: terrainFromRegion(location.region),
-            hasClinic: location.kind === 'Clinic',
-            x: location.x ?? node?.x ?? 50,
-            y: location.y ?? node?.y ?? 50
-          });
-        }}
-        onDeletePlace={location => {
-          if (!isPlayerCreatedMapPlace(location.id)) return;
-          removePlayerMarkerRecords([location.id]);
-          setSelectedId(current => current === location.id ? null : current);
-          updateState(s => ({
-            ...s,
-            customMapLocations: (s.customMapLocations || []).filter(row => row.id !== location.id),
-            customMapEdges: (s.customMapEdges || []).filter(edge => edge.from !== location.id && edge.to !== location.id)
-          }));
-        }}
+        onEditPlace={location => persistStop(stopFromRequest(location))}
+        onDeletePlace={location => deletePlace(location.id)}
         onSavePlaces={() => {
           const custom = state.customMapLocations || [];
           upsertPlayerMarkerRecords(custom.map(row => ({
@@ -15611,13 +15641,28 @@ function AtlasMapPanel({
           showAlert('접어둔 지도의 표시를 이 기록에 남겼습니다.');
         }}
         canDeletePlace={isPlayerCreatedMapPlace}
-        companionCaption="⌘+클릭으로 표시를 남기고, 형태와 색을 고른 뒤 저장하세요. 자리를 옮기려면 이동 잠금을 켭니다."
+        companionCaption="이 탭은 지도를 고치는 자리입니다. ⌘+클릭으로 표시를 남기고, 이동 잠금 뒤에 끌어 자리를 고칩니다."
       />
       <aside className="map-atelier__desk" aria-label="표시 자세히 고치기">
-        <h3>표시 고치기</h3>
+        <h3>지도 고치기</h3>
+        <p>오늘의 여행은 경로를 잇고, 여기서는 표시 자체(형태, 색, 자리, 연결)를 고칩니다.</p>
+
+        {linkFromId && <p className="map-atelier__note">이을 다음 표시를 지도에서 누르세요.</p>}
+        {pendingLink && (
+          <div className="map-atelier__block">
+            <strong>두 표시를 어떻게 이을까요?</strong>
+            <div className="map-atelier__actions">
+              <button type="button" onClick={() => persistLink(pendingLink.from, pendingLink.to, 'path')}>육로로 잇기</button>
+              <button type="button" onClick={() => persistLink(pendingLink.from, pendingLink.to, 'waterway')}>수로로 잇기</button>
+              <button type="button" onClick={() => setPendingLink(null)}>취소</button>
+            </div>
+          </div>
+        )}
+
         {selected && selectedId ? (
-          <>
-            <p>{selected.kind === 'city' ? '도시' : selected.kind === 'settlement' ? '정착지' : selected.kind === 'ruin' ? '티탄 유적' : selected.kind === 'barrow' ? '거수 고분' : selected.kind === 'clinic' ? '약제소' : '야생'} 표시입니다. 형태와 색을 바로 바꿀 수 있습니다.</p>
+          <div className="map-atelier__block">
+            <strong>{kindLabel(selected.kind)} 표시</strong>
+            <span>{isPlayerCreatedMapPlace(selectedId) ? '직접 남긴 표시' : '인쇄된 표시를 고치는 중'}</span>
             <MapNodeAppearance
               kind={glyphKindFromLocation({ kind: selected.kind, hasClinic: selected.kind === 'clinic' })}
               terrain={terrainFromRegion(selected.region)}
@@ -15631,25 +15676,82 @@ function AtlasMapPanel({
                 y: selected.y
               })}
             />
-            {isPlayerCreatedMapPlace(selectedId) && (
-              <button
-                type="button"
-                onClick={() => {
-                  removePlayerMarkerRecords([selectedId]);
-                  updateState(s => ({
-                    ...s,
-                    customMapLocations: (s.customMapLocations || []).filter(row => row.id !== selectedId),
-                    customMapEdges: (s.customMapEdges || []).filter(edge => edge.from !== selectedId && edge.to !== selectedId)
-                  }));
-                  setSelectedId(null);
-                }}
-              >
-                이 표시 지우기
-              </button>
+            <div className="map-atelier__nudge" aria-label="자리 미세 이동">
+              <span>자리</span>
+              <button type="button" onClick={() => persistStop({ ...stopFromGraphNode(selectedId, selected), x: Math.max(1, selected.x - 0.4) })}>←</button>
+              <button type="button" onClick={() => persistStop({ ...stopFromGraphNode(selectedId, selected), y: Math.max(1, selected.y - 0.4) })}>↑</button>
+              <button type="button" onClick={() => persistStop({ ...stopFromGraphNode(selectedId, selected), y: Math.min(99, selected.y + 0.4) })}>↓</button>
+              <button type="button" onClick={() => persistStop({ ...stopFromGraphNode(selectedId, selected), x: Math.min(99, selected.x + 0.4) })}>→</button>
+            </div>
+            <div className="map-atelier__actions">
+              <button type="button" onClick={() => { setLinkFromId(selectedId); setPendingLink(null); }}>다음 표시와 잇기</button>
+              {isPlayerCreatedMapPlace(selectedId) && (
+                <button type="button" onClick={() => deletePlace(selectedId)}>이 표시 지우기</button>
+              )}
+            </div>
+            {selectedEdges.length > 0 && (
+              <ul className="map-atelier__edges">
+                {selectedEdges.map(edge => {
+                  const otherId = edge.from === selectedId ? edge.to : edge.from;
+                  const other = nodes[otherId];
+                  return (
+                    <li key={edge.id}>
+                      <span>{kindLabel(other?.kind)} · {edge.kind === 'waterway' ? '수로' : '육로'}</span>
+                      <button
+                        type="button"
+                        onClick={() => persistLink(edge.from, edge.to, edge.kind === 'waterway' ? 'path' : 'waterway')}
+                      >
+                        {edge.kind === 'waterway' ? '육로로' : '수로로'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateState(s => ({
+                          ...s,
+                          customMapEdges: (s.customMapEdges || []).filter(row => row.id !== edge.id)
+                        }))}
+                      >
+                        끊기
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
-          </>
+          </div>
         ) : (
           <p>지도의 표시를 누르거나, 빈 자리를 ⌘+클릭해 새 표시를 남기세요.</p>
+        )}
+
+        <div className="map-atelier__block">
+          <strong>내가 남긴 표시 {playerMarks.length}</strong>
+          {playerMarks.length === 0 ? (
+            <p>아직 없습니다. 빈 자리를 ⌘+클릭하세요.</p>
+          ) : (
+            <ul className="map-atelier__list">
+              {playerMarks.map(row => (
+                <li key={row.id}>
+                  <button type="button" className={selectedId === row.id ? 'is-on' : ''} onClick={() => setSelectedId(row.id)}>
+                    {kindLabel(row.kind)} · {row.region || '색 미정'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {correctedPrints.length > 0 && (
+          <div className="map-atelier__block">
+            <strong>고친 인쇄 표시 {correctedPrints.length}</strong>
+            <ul className="map-atelier__list">
+              {correctedPrints.map(row => (
+                <li key={row.id}>
+                  <button type="button" className={selectedId === row.id ? 'is-on' : ''} onClick={() => setSelectedId(row.id)}>
+                    {kindLabel(row.kind)} · {row.region || '색 미정'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </aside>
     </div>

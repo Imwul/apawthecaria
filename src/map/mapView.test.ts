@@ -130,6 +130,14 @@ describe('map interaction contracts', () => {
     expect(mapSource).toContain('이 표시 지우기');
   });
 
+  it('gives the folded-map tab a workshop for creating, linking, and deleting marks', () => {
+    expect(appSource).toContain('function AtlasMapPanel');
+    expect(appSource).toContain('지도 고치기');
+    expect(appSource).toContain('다음 표시와 잇기');
+    expect(appSource).toContain('내가 남긴 표시');
+    expect(appSource).toContain('육로로 잇기');
+  });
+
   it('hides history and preview routes when those layers are off', () => {
     expect(mapSource).toContain('if (!layers.currentRoute || !currentPlace || !selectedPlace');
     expect(mapSource).toContain('if (!layers.travelHistory || historyAnchors.length < 2)');

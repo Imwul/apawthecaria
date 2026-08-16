@@ -4489,6 +4489,81 @@ button,
   color: #6b5343;
 }
 
+.map-atelier__note {
+  padding: 0.4rem 0.5rem;
+  border: 1px dashed #6a5344;
+  background: #f4ead8;
+}
+
+.map-atelier__block {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed rgba(74, 54, 40, 0.24);
+}
+
+.map-atelier__block strong,
+.map-atelier__block span {
+  display: block;
+  font-size: 0.82rem;
+}
+
+.map-atelier__block span {
+  color: #6b5343;
+}
+
+.map-atelier__actions,
+.map-atelier__nudge {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.map-atelier__actions button,
+.map-atelier__nudge button,
+.map-atelier__list button,
+.map-atelier__edges button {
+  min-height: 2rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid rgba(74, 54, 40, 0.3);
+  border-radius: 4px;
+  background: #f4ead8;
+  color: #4a3628;
+  font-size: 0.76rem;
+}
+
+.map-atelier__nudge span {
+  align-self: center;
+}
+
+.map-atelier__list,
+.map-atelier__edges {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.map-atelier__list button {
+  width: 100%;
+  text-align: left;
+}
+
+.map-atelier__list button.is-on,
+.map-atelier__actions button:first-child {
+  background: #e4ebdc;
+}
+
+.map-atelier__edges li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .map-location-marker {
   position: absolute;
   transform: translate(-12px, -12px);
