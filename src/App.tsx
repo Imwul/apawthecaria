@@ -7396,6 +7396,11 @@ function PlayView({
   const [destType, setDestType] = useState("Wilds");
   const [journeyDestinationCard, setJourneyDestinationCard] = useState<PlayingCard | null>(null);
   const [journeyGoalCard, setJourneyGoalCard] = useState<PlayingCard | null>(null);
+  const journeyGoalPreview = useMemo(() => {
+    if (!journeyGoalCard) return null;
+    const key = getRuleCardLabel(journeyGoalCard);
+    return Array.from(JOURNEY_GOAL_BY_ID.values()).find(row => row.cardKey === key) || null;
+  }, [journeyGoalCard]);
 
   const journeyGraph = useMemo(
     () => toRuleMapGraph(state),
@@ -12929,6 +12934,21 @@ function PlayView({
                     card={journeyGoalCard}
                     onCard={setJourneyGoalCard}
                   />
+                  {journeyGoalCard && (
+                    <div style={{ padding: '0.75rem', borderRadius: '7px', border: '1px dashed var(--glass-border)', background: '#fffdfa', color: 'var(--text)' }}>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                        현재 카드: {journeyGoalCard.suit} {cardDisplayValue(journeyGoalCard.value)} · 규칙 표기: {cardRuleValue(journeyGoalCard)}
+                      </div>
+                      {journeyGoalPreview ? (
+                        <div style={{ fontSize: '0.9rem', lineHeight: 1.4 }}>
+                          <div style={{ fontWeight: 'bold', color: 'var(--primary)' }}>{journeyGoalPreview.title}</div>
+                          <div style={{ color: 'var(--text-muted)' }}>{localizeJourneyGoalText(journeyGoalPreview.requiredState)}</div>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.82rem', color: 'var(--accent-red)' }}>이 카드 값에 해당하는 목표 표를 찾을 수 없습니다.</div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <button
