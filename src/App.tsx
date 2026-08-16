@@ -12903,21 +12903,6 @@ function PlayView({
                     style={{ padding: '0.55rem', border: '1px solid #ccc', borderRadius: '4px', resize: 'vertical' }}
                   />
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>카드 조건에 맞는 목적지</label>
-                  <select
-                    value={destName}
-                    onChange={e => setDestName(e.target.value)}
-                    style={{ padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px' }}
-                    disabled={!journeyDestinationCard || journeyDestinationCandidates.length === 0}
-                  >
-                    <option value="">{!journeyDestinationCard ? '먼저 목적지 카드를 뽑으세요' : journeyDestinationCandidates.length === 0 ? '조건에 맞는 목적지 없음 · 다시 뽑기' : '목적지를 선택하세요'}</option>
-                    {journeyDestinationCandidates.map(candidate => (
-                      <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.paths}경로 · {locationTypeLabel(candidate.locationType)}</option>
-                    ))}
-                  </select>
-                </div>
-
                 <div style={{ display: 'grid', gap: '0.75rem', padding: '0.85rem', background: '#fffdf8', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
                   <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
                     룰북 p.19-25 순서: 목적지/거리 카드와 목표 카드를 뽑고, 지도를 보며 조건에 맞는 목적지를 고른 뒤 이동합니다.
