@@ -1,0 +1,16 @@
+{
+  "baseName": "orca-base",
+  "snapshotId": "",
+  "authSourceSnapshotId": "",
+  "scope": "",
+  "project": "",
+  "port": 7331,
+  "timeout": "30m",
+  "vcpus": 2,
+  "repoUrl": "https://github.com/Imwul/apawthecaria.git",
+  "repoRef": "main",
+  "projectRoot": "",
+  "orcaVersion": "v1.4.183",
+  "sandboxImage": "vercel/sandbox/node:24",
+  "workdir": "/vercel"
+}

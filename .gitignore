@@ -32,3 +32,6 @@ tmp/map-detect-venv/
 output/map-detection/*.png
 .vercel
 .env*
+
+# Per-developer Vercel snapshot ids and team/project
+scripts/orca-vm/vercel-state.json

@@ -9,7 +9,8 @@ source "${SCRIPT_DIR}/lib.sh"
 load_common
 
 [ -n "$repo_url" ] || { log "repoUrl missing — set ORCA_VM_REPO_URL or edit ${STATE_FILE}"; exit 1; }
-[ -n "$project" ] || { log "Vercel project missing — set VERCEL_PROJECT or edit ${STATE_FILE}"; exit 1; }
+[ -n "$project" ] || { log "Vercel project missing — copy vercel-state.example.json to vercel-state.json and set project (or VERCEL_PROJECT)"; exit 1; }
+[ -n "$scope" ] || { log "Vercel scope/team missing — set scope in ${STATE_FILE} or VERCEL_SCOPE"; exit 1; }
 
 token="$(gh_token)"
 base="$(sanitize_name "$base_name")"

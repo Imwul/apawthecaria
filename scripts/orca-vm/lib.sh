@@ -4,6 +4,20 @@
 
 ORCA_VM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE_FILE="${ORCA_VM_STATE_FILE:-$ORCA_VM_DIR/vercel-state.json}"
+EXAMPLE_STATE_FILE="${ORCA_VM_DIR}/vercel-state.example.json"
+
+ensure_state() {
+  if [ -f "$STATE_FILE" ]; then
+    return
+  fi
+  if [ ! -f "$EXAMPLE_STATE_FILE" ]; then
+    log "missing ${STATE_FILE} and ${EXAMPLE_STATE_FILE}"
+    exit 1
+  fi
+  cp "$EXAMPLE_STATE_FILE" "$STATE_FILE"
+  log "copied ${EXAMPLE_STATE_FILE} → ${STATE_FILE}"
+  log "fill scope and project (your Vercel team/project), then run vercel-base-snapshot.sh and vercel-base-auth.sh"
+}
 
 log() { printf '%s\n' "$*" >&2; }
 
@@ -65,6 +79,7 @@ resolve_vercel() {
 }
 
 load_common() {
+  ensure_state
   resolve_vercel
   base_name="$(env_or_state ORCA_VM_BASE_NAME baseName orca-base)"
   snapshot_id="$(env_or_state ORCA_VM_SNAPSHOT_ID snapshotId "")"
