@@ -10974,12 +10974,32 @@ function PlayView({
       });
     setRouteDraft(previous => {
       const last = previous.stops[previous.stops.length - 1];
+      const existingIndex = previous.stops.findIndex(row => row.id === stop.id);
+      if (existingIndex > 0) {
+        const next = removeRouteStopAt(previous, existingIndex);
+        const destination = next.stops[next.stops.length - 1];
+        if (next.stops.length > 1 && destination) {
+          setNextLocName(destination.name);
+          setDestType(locationTypeFromGlyph(destination.kind));
+          setDestRegion(destination.kind === 'Ruin' ? 'Titan' : (destination.terrain || state.currentRegion));
+          if (isLochWildsStop(destination) && !hasLochStoppingGear(state)) {
+            showAlert('호수·강 야생에서 멈추려면 자작나무 보트(Bark Coracle)나 밀폐식 마차(Sealed Carriage)가 필요합니다. 지나갈 수는 있으니 다음 자리를 잇거나 도구를 챙기세요.');
+          }
+        } else {
+          setNextLocName('');
+          setDestType('');
+          setDestRegion('');
+        }
+        return next;
+      }
+      if (existingIndex === 0) {
+        return previous;
+      }
       const inferredKind = last
         ? mapEdgeKind(last.id, stop.id, routeGraphNodes, state.customMapEdges || [])
         : 'path';
       const edgeKind = last && canChooseRouteEdgeKind(inferredKind, last, stop) ? inferredKind : 'path';
       const next = appendRouteStop(previous, stop, edgeKind);
-      if (last && next.stops.length > previous.stops.length) persistRouteEdge(last.id, stop.id, edgeKind);
       if (next.stops.length > 1) {
         const dest = next.stops[next.stops.length - 1];
         setNextLocName(dest.name);
@@ -10991,7 +11011,7 @@ function PlayView({
       }
       return next;
     });
-  }, [persistRouteEdge, routeGraphNodes, state.clinics, state.customMapLocations, state.customMapEdges, state.currentRegion, state.bag, state.wagonExpansions]);
+  }, [routeGraphNodes, state.clinics, state.customMapLocations, state.currentRegion, state.customMapEdges, state.bag, state.wagonExpansions]);
 
   const handleCreateMapPlace = useCallback((request: { x: number; y: number; kind?: string; terrain?: string; name?: string }) => {
     const stop: RouteStop = {
@@ -11522,15 +11542,15 @@ function PlayView({
             routePlaceIds={routeDraft.stops.map(stop => stop.id)}
             onConfirmDestination={playMapMode === 'destination' ? handlePlayMapPick : undefined}
             onTravelRequest={playMapMode === 'travel' ? handlePlayMapTravel : undefined}
-            onAddWaypoint={handleAddRouteWaypoint}
-            onSetCurrentLocation={handleSetMappedCurrentLocation}
-            onCreatePlace={handleCreateMapPlace}
-            onMovePlace={handleMoveMapPlace}
-            onEditPlace={handleEditMapPlace}
-            onDeletePlace={handleDeleteMapPlace}
-            onSavePlaces={handleSaveMapPlaces}
-            canDeletePlace={isPlayerCreatedMapPlace}
+            onAddWaypoint={playMapMode === 'travel' ? handleAddRouteWaypoint : undefined}
+            onCreatePlace={undefined}
+            onMovePlace={undefined}
+            onEditPlace={undefined}
+            onDeletePlace={undefined}
+            onSavePlaces={undefined}
+            canDeletePlace={undefined}
             veiled
+            showWaypointAction={false}
             travelEnabled={Boolean(state.journeyActive && !state.needsLocalHelpBeforeMove)}
             travelBlockedReason={state.needsLocalHelpBeforeMove ? '현지 일을 마친 뒤 이동할 수 있습니다.' : null}
             onOpenFullMap={onOpenFullMap}
@@ -16179,6 +16199,7 @@ const MapView = memo(function MapView({
   onDeletePlace,
   onSavePlaces,
   canDeletePlace,
+  showWaypointAction = true,
   showTravelRoutes = true,
   veiled = false,
   onSelectedPlaceChange,
@@ -16204,6 +16225,7 @@ const MapView = memo(function MapView({
   onDeletePlace?: (location: MapPickLocation) => void;
   onSavePlaces?: () => void;
   canDeletePlace?: (placeId: string) => boolean;
+  showWaypointAction?: boolean;
   showTravelRoutes?: boolean;
   veiled?: boolean;
   onSelectedPlaceChange?: (placeId: string | null) => void;
@@ -16314,6 +16336,7 @@ const MapView = memo(function MapView({
       onDeletePlace={onDeletePlace}
       onSavePlaces={onSavePlaces}
       canDeletePlace={canDeletePlace}
+      showWaypointAction={showWaypointAction}
       showTravelRoutes={showTravelRoutes}
       veiled={veiled}
       routePlaceIds={routePlaceIds}

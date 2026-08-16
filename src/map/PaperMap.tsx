@@ -70,6 +70,7 @@ type PaperMapProps = {
   onDeletePlace?: (location: MapPickLocation) => void;
   onSavePlaces?: () => void;
   canDeletePlace?: (placeId: string) => boolean;
+  showWaypointAction?: boolean;
   showTravelRoutes?: boolean;
   veiled?: boolean;
   routePlaceIds?: string[];
@@ -156,6 +157,7 @@ export function PaperMap({
   onDeletePlace,
   onSavePlaces,
   canDeletePlace,
+  showWaypointAction = true,
   showTravelRoutes = true,
   veiled = false,
   routePlaceIds = [],
@@ -964,7 +966,7 @@ export function PaperMap({
                 이 목적지로 정하기
               </button>
             )}
-            {onAddWaypoint && !selectedPlace.isCurrent && (
+            {showWaypointAction && onAddWaypoint && !selectedPlace.isCurrent && (
               <button type="button" onClick={() => onAddWaypoint(placeToPick(selectedPlace))}>
                 경로에 넣기
               </button>
@@ -1011,5 +1013,4 @@ export function PaperMap({
     </section>
   );
 }
-
 
