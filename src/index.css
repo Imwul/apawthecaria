@@ -892,6 +892,79 @@ button:active {
   background: var(--primary);
   color: #fff;
 }
+
+.phase4-modal.controlled-prompt.app-dialog.app-dialog--slots {
+  width: min(560px, 100%);
+}
+
+.cloud-slots {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0 1.2rem 1.15rem;
+  list-style: none;
+}
+
+.cloud-slot {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.75rem 0.8rem;
+  border: 1px solid rgba(37, 33, 28, 0.28);
+  background: rgba(255, 253, 246, 0.72);
+}
+
+.cloud-slot--active {
+  border-color: var(--herb, #657255);
+}
+
+.cloud-slot__meta {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.cloud-slot__meta strong {
+  color: var(--editorial-ink, #25211c);
+  font-size: 0.82rem;
+}
+
+.cloud-slot__meta span {
+  color: var(--text-bright);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.cloud-slot__meta time,
+.cloud-slot__meta em {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-style: normal;
+}
+
+.cloud-slot__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.cloud-slot__actions button {
+  min-height: 38px;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid rgba(37, 33, 28, 0.52);
+  background: transparent;
+  color: var(--editorial-ink, #25211c);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.cloud-slot__actions .app-dialog__primary {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+.cloud-slot__actions button:disabled {
+  opacity: 0.45;
+}
 .controlled-prompt h2 { margin: 0; font-size: 1.35rem; }
 .controlled-prompt p { margin: 0; color: var(--text-muted); line-height: 1.6; white-space: pre-wrap; }
 .controlled-prompt label { font-size: 0.82rem; font-weight: 700; color: var(--text-bright); }
@@ -1389,6 +1462,15 @@ button:active {
 
   .app-dialog--notice .app-dialog__actions {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cloud-slot__actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cloud-slot__actions button {
+    min-height: 44px;
   }
 }
 

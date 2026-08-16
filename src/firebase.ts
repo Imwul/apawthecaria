@@ -15,6 +15,7 @@ const firebaseConfig = {
 
 // Check if Firebase config is loaded correctly
 export const isFirebaseConfigured = !!firebaseConfig.apiKey && !!firebaseConfig.projectId;
+export const firebaseProjectId = firebaseConfig.projectId;
 
 const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
 export const db = app ? getFirestore(app) : null;
