@@ -32,6 +32,15 @@ export const MAP_TERRAIN_LABELS: Record<MapTerrain, string> = {
 export const glyphColor = (terrain: MapTerrain | null | undefined, fallback = '#5a4a3a'): string =>
   terrain && MAP_TERRAIN_COLORS[terrain] ? MAP_TERRAIN_COLORS[terrain] : fallback;
 
+// Printed city mark: largest upright equilateral triangle that sits flush in the square.
+const CITY_SQUARE = { x: 2.4, y: 2.4, size: 15.2 };
+const CITY_INNER = CITY_SQUARE.size - 1.6;
+const CITY_LEFT = (20 - CITY_INNER) / 2;
+const CITY_RIGHT = 20 - CITY_LEFT;
+const CITY_BOTTOM = CITY_RIGHT;
+const CITY_APEX_Y = CITY_BOTTOM - CITY_INNER * Math.sqrt(3) / 2;
+export const CITY_TRIANGLE_POINTS = `${10},${CITY_APEX_Y} ${CITY_RIGHT},${CITY_BOTTOM} ${CITY_LEFT},${CITY_BOTTOM}`;
+
 export function MapGlyph({
   kind,
   terrain,
@@ -64,7 +73,24 @@ export function MapGlyph({
     >
       {title ? <title>{title}</title> : null}
       {kind === 'City' && (
-        <polygon points="10,3 17.4,16.2 2.6,16.2" fill={color} stroke={color} strokeWidth="1" strokeLinejoin="round" />
+        <>
+          <rect
+            x={CITY_SQUARE.x}
+            y={CITY_SQUARE.y}
+            width={CITY_SQUARE.size}
+            height={CITY_SQUARE.size}
+            fill="none"
+            stroke={color}
+            strokeWidth="1.6"
+          />
+          <polygon
+            points={CITY_TRIANGLE_POINTS}
+            fill={color}
+            stroke={color}
+            strokeWidth="0.4"
+            strokeLinejoin="miter"
+          />
+        </>
       )}
       {kind === 'Settlement' && (
         <polygon points="10,3 17.4,16.2 2.6,16.2" {...common} />
