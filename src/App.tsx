@@ -1131,6 +1131,7 @@ interface CustomMapLocation extends MapLocationNode {
   id: string;
   source?: string;
   createdAt?: number;
+  hidden?: boolean;
 }
 
 interface CustomMapEdge {
@@ -1328,6 +1329,10 @@ const buildMapGraphNodes = (customLocations: CustomMapLocation[] = [], customEdg
   });
 
   customLocations.forEach(location => {
+    if (location.hidden) {
+      delete nodes[location.id];
+      return;
+    }
     const existing = nodes[location.id];
     if (existing) {
       nodes[location.id] = {
@@ -2190,8 +2195,9 @@ const upsertPlayerMapStop = (
     kind: mapKindFromGlyph(stop.kind),
     aliases: Array.from(new Set([...(previous?.aliases || []), ...(existingNode?.aliases || []), stop.name])),
     neighbors: Array.from(new Set([...(previous?.neighbors || []), ...(existingNode?.neighbors || [])])),
-    source: previous?.source || 'player-correction',
-    createdAt: previous?.createdAt || Date.now()
+    source: previous?.hidden ? 'player-correction' : (previous?.source || 'player-correction'),
+    createdAt: previous?.createdAt || Date.now(),
+    hidden: false
   };
   return [...customLocations.filter(location => location.id !== stop.id), next];
 };
@@ -15536,10 +15542,12 @@ function AtlasMapPanel({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [linkFromId, setLinkFromId] = useState<string | null>(null);
   const [pendingLink, setPendingLink] = useState<{ from: string; to: string } | null>(null);
-  const nodes = buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || []);
+  const customLocations = state.customMapLocations || [];
+  const nodes = buildMapGraphNodes(customLocations, state.customMapEdges || []);
   const selected = selectedId ? nodes[selectedId] : null;
-  const playerMarks = (state.customMapLocations || []).filter(row => isPlayerCreatedMapPlace(row.id));
-  const correctedPrints = (state.customMapLocations || []).filter(row => !isPlayerCreatedMapPlace(row.id));
+  const playerMarks = customLocations.filter(row => isPlayerCreatedMapPlace(row.id) && !row.hidden);
+  const correctedPrints = customLocations.filter(row => !isPlayerCreatedMapPlace(row.id) && !row.hidden);
+  const hiddenPrints = customLocations.filter(row => !isPlayerCreatedMapPlace(row.id) && row.hidden);
   const selectedEdges = selectedId
     ? (state.customMapEdges || []).filter(edge => edge.from === selectedId || edge.to === selectedId)
     : [];
@@ -15557,16 +15565,55 @@ function AtlasMapPanel({
     }));
     setPendingLink(null);
   };
-  const deletePlace = (id: string) => {
-    if (!isPlayerCreatedMapPlace(id)) return;
-    removePlayerMarkerRecords([id]);
+  const clearPlaceSelection = (id: string) => {
     setSelectedId(current => current === id ? null : current);
     setLinkFromId(current => current === id ? null : current);
     setPendingLink(current => current && (current.from === id || current.to === id) ? null : current);
+  };
+  const deletePlace = (id: string) => {
+    if (findMapLocationKey(state.currentLocationName, customLocations) === id) {
+      showAlert('지금 있는 자리의 표시는 지울 수 없습니다.');
+      return;
+    }
+    removePlayerMarkerRecords([id]);
+    clearPlaceSelection(id);
+    updateState(s => {
+      const locations = s.customMapLocations || [];
+      const edges = (s.customMapEdges || []).filter(edge => edge.from !== id && edge.to !== id);
+      if (isPlayerCreatedMapPlace(id)) {
+        return {
+          ...s,
+          customMapLocations: locations.filter(row => row.id !== id),
+          customMapEdges: edges
+        };
+      }
+      const existing = locations.find(row => row.id === id);
+      const printed = MAP_GRAPH_NODES[id] || MARKER_BY_ID.get(id);
+      const hidden: CustomMapLocation = {
+        id,
+        label: existing?.label || printed?.label || id,
+        x: existing?.x ?? printed?.x ?? 50,
+        y: existing?.y ?? printed?.y ?? 50,
+        region: existing?.region || (printed?.region as MapRegion | undefined),
+        kind: existing?.kind || printed?.kind,
+        neighbors: [],
+        source: 'player-hidden',
+        createdAt: existing?.createdAt || Date.now(),
+        hidden: true
+      };
+      return {
+        ...s,
+        customMapLocations: [...locations.filter(row => row.id !== id), hidden],
+        customMapEdges: edges
+      };
+    });
+  };
+  const restorePrintedPlace = (id: string) => {
+    removePlayerMarkerRecords([id]);
+    clearPlaceSelection(id);
     updateState(s => ({
       ...s,
-      customMapLocations: (s.customMapLocations || []).filter(row => row.id !== id),
-      customMapEdges: (s.customMapEdges || []).filter(edge => edge.from !== id && edge.to !== id)
+      customMapLocations: (s.customMapLocations || []).filter(row => row.id !== id)
     }));
   };
   const stopFromRequest = (location: MapPickLocation): RouteStop => {
@@ -15629,7 +15676,7 @@ function AtlasMapPanel({
         onDeletePlace={location => deletePlace(location.id)}
         onSavePlaces={() => {
           const custom = state.customMapLocations || [];
-          upsertPlayerMarkerRecords(custom.map(row => ({
+          upsertPlayerMarkerRecords(custom.filter(row => !row.hidden).map(row => ({
             id: row.id,
             label: row.label,
             x: row.x,
@@ -15640,7 +15687,7 @@ function AtlasMapPanel({
           })));
           showAlert('접어둔 지도의 표시를 이 기록에 남겼습니다.');
         }}
-        canDeletePlace={isPlayerCreatedMapPlace}
+        showTravelRoutes={false}
         companionCaption="이 탭은 지도를 고치는 자리입니다. ⌘+클릭으로 표시를 남기고, 이동 잠금 뒤에 끌어 자리를 고칩니다."
       />
       <aside className="map-atelier__desk" aria-label="표시 자세히 고치기">
@@ -15685,9 +15732,7 @@ function AtlasMapPanel({
             </div>
             <div className="map-atelier__actions">
               <button type="button" onClick={() => { setLinkFromId(selectedId); setPendingLink(null); }}>다음 표시와 잇기</button>
-              {isPlayerCreatedMapPlace(selectedId) && (
-                <button type="button" onClick={() => deletePlace(selectedId)}>이 표시 지우기</button>
-              )}
+              <button type="button" className="map-atelier__delete" onClick={() => deletePlace(selectedId)}>이 표시 지우기</button>
             </div>
             {selectedEdges.length > 0 && (
               <ul className="map-atelier__edges">
@@ -15733,6 +15778,7 @@ function AtlasMapPanel({
                   <button type="button" className={selectedId === row.id ? 'is-on' : ''} onClick={() => setSelectedId(row.id)}>
                     {kindLabel(row.kind)} · {row.region || '색 미정'}
                   </button>
+                  <button type="button" className="map-atelier__delete" onClick={() => deletePlace(row.id)}>지우기</button>
                 </li>
               ))}
             </ul>
@@ -15748,6 +15794,21 @@ function AtlasMapPanel({
                   <button type="button" className={selectedId === row.id ? 'is-on' : ''} onClick={() => setSelectedId(row.id)}>
                     {kindLabel(row.kind)} · {row.region || '색 미정'}
                   </button>
+                  <button type="button" className="map-atelier__delete" onClick={() => deletePlace(row.id)}>지우기</button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {hiddenPrints.length > 0 && (
+          <div className="map-atelier__block">
+            <strong>지운 인쇄 표시 {hiddenPrints.length}</strong>
+            <ul className="map-atelier__list">
+              {hiddenPrints.map(row => (
+                <li key={row.id}>
+                  <span>{kindLabel(row.kind)} · {row.label || row.id}</span>
+                  <button type="button" onClick={() => restorePrintedPlace(row.id)}>되돌리기</button>
                 </li>
               ))}
             </ul>
@@ -15776,6 +15837,7 @@ const MapView = memo(function MapView({
   onDeletePlace,
   onSavePlaces,
   canDeletePlace,
+  showTravelRoutes = true,
   onSelectedPlaceChange,
   onOpenFullMap,
   companionCaption,
@@ -15799,6 +15861,7 @@ const MapView = memo(function MapView({
   onDeletePlace?: (location: MapPickLocation) => void;
   onSavePlaces?: () => void;
   canDeletePlace?: (placeId: string) => boolean;
+  showTravelRoutes?: boolean;
   onSelectedPlaceChange?: (placeId: string | null) => void;
   onOpenFullMap?: () => void;
   companionCaption?: string;
@@ -15907,6 +15970,7 @@ const MapView = memo(function MapView({
       onDeletePlace={onDeletePlace}
       onSavePlaces={onSavePlaces}
       canDeletePlace={canDeletePlace}
+      showTravelRoutes={showTravelRoutes}
       routePlaceIds={routePlaceIds}
       onSelectedPlaceChange={onSelectedPlaceChange}
       onOpenFullMap={onOpenFullMap}

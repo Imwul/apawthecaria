@@ -4547,13 +4547,29 @@ button,
 }
 
 .map-atelier__list button {
-  width: 100%;
   text-align: left;
 }
 
 .map-atelier__list button.is-on,
 .map-atelier__actions button:first-child {
   background: #e4ebdc;
+}
+
+.map-atelier__list li {
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.map-atelier__list li > button:first-child {
+  flex: 1;
+}
+
+.map-atelier__delete,
+.paper-map__delete {
+  border-color: rgba(148, 54, 40, 0.4);
+  background: #f6e4dc;
+  color: #7a2e22;
 }
 
 .map-atelier__edges li {

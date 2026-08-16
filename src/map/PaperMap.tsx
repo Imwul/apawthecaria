@@ -69,6 +69,7 @@ type PaperMapProps = {
   onDeletePlace?: (location: MapPickLocation) => void;
   onSavePlaces?: () => void;
   canDeletePlace?: (placeId: string) => boolean;
+  showTravelRoutes?: boolean;
   routePlaceIds?: string[];
   onOpenFullMap?: () => void;
   onOpenReference?: (request: {
@@ -131,6 +132,7 @@ export function PaperMap({
   onDeletePlace,
   onSavePlaces,
   canDeletePlace,
+  showTravelRoutes = true,
   routePlaceIds = [],
   onOpenFullMap,
   onOpenReference,
@@ -194,25 +196,25 @@ export function PaperMap({
   );
 
   const previewGeometry = useMemo(() => {
-    if (!layers.currentRoute || !currentPlace || !selectedPlace || selectedPlace.id === currentPlace.id) {
+    if (!showTravelRoutes || !layers.currentRoute || !currentPlace || !selectedPlace || selectedPlace.id === currentPlace.id) {
       return EMPTY_ROUTE;
     }
     return buildRoadRouteGeometry([
       { id: currentPlace.id, x: currentPlace.x, y: currentPlace.y },
       { id: selectedPlace.id, x: selectedPlace.x, y: selectedPlace.y }
     ]);
-  }, [layers.currentRoute, currentPlace, selectedPlace]);
+  }, [showTravelRoutes, layers.currentRoute, currentPlace, selectedPlace]);
 
   const recentGeometry = useMemo(() => {
-    if (!layers.currentRoute || selectedPlace || historyAnchors.length < 2) return EMPTY_ROUTE;
+    if (!showTravelRoutes || !layers.currentRoute || selectedPlace || historyAnchors.length < 2) return EMPTY_ROUTE;
     return buildRoadRouteGeometry(historyAnchors.slice(-2));
-  }, [layers.currentRoute, selectedPlace, historyAnchors]);
+  }, [showTravelRoutes, layers.currentRoute, selectedPlace, historyAnchors]);
 
   const historyGeometry = useMemo(() => {
-    if (!layers.travelHistory || historyAnchors.length < 2) return EMPTY_ROUTE;
+    if (!showTravelRoutes || !layers.travelHistory || historyAnchors.length < 2) return EMPTY_ROUTE;
     const stops = selectedPlace || !layers.currentRoute ? historyAnchors : historyAnchors.slice(0, -1);
     return stops.length >= 2 ? buildRoadRouteGeometry(stops) : EMPTY_ROUTE;
-  }, [layers.travelHistory, layers.currentRoute, selectedPlace, historyAnchors]);
+  }, [showTravelRoutes, layers.travelHistory, layers.currentRoute, selectedPlace, historyAnchors]);
 
   const contentWidth = Math.round(viewportWidth * scale);
 
@@ -814,11 +816,13 @@ export function PaperMap({
               </div>
             )}
           </section>
-          <section>
-            <h3>이동</h3>
-            <label><input type="checkbox" checked={layers.currentRoute} onChange={event => setLayers(current => ({ ...current, currentRoute: event.target.checked }))} /> 현재 경로</label>
-            <label><input type="checkbox" checked={layers.travelHistory} onChange={event => setLayers(current => ({ ...current, travelHistory: event.target.checked }))} /> 지난 경로</label>
-          </section>
+          {showTravelRoutes && (
+            <section>
+              <h3>이동</h3>
+              <label><input type="checkbox" checked={layers.currentRoute} onChange={event => setLayers(current => ({ ...current, currentRoute: event.target.checked }))} /> 현재 경로</label>
+              <label><input type="checkbox" checked={layers.travelHistory} onChange={event => setLayers(current => ({ ...current, travelHistory: event.target.checked }))} /> 지난 경로</label>
+            </section>
+          )}
           <section>
             <h3>서비스</h3>
             <label><input type="checkbox" checked={layers.clinicService} onChange={event => setLayers(current => ({ ...current, clinicService: event.target.checked }))} /> 약제소 / 서비스</label>
@@ -864,17 +868,17 @@ export function PaperMap({
               {selectedPlace.isCurrent ? '현재 위치' : selectedPlace.visited ? '방문함' : '미방문'}
               {selectedPlace.locationTypeLabel ? ` · ${selectedPlace.locationTypeLabel}` : ''}
             </span>
-            {!selectedPlace.isCurrent && selectedPlace.hopsFromCurrent !== null && (
+            {showTravelRoutes && !selectedPlace.isCurrent && selectedPlace.hopsFromCurrent !== null && (
               <span>현재 위치에서 {selectedPlace.hopsFromCurrent}경로</span>
             )}
-            {moveReasonText && <span>{moveReasonText}</span>}
-            {selectedPlace.willSoak && (
+            {showTravelRoutes && moveReasonText && <span>{moveReasonText}</span>}
+            {showTravelRoutes && selectedPlace.willSoak && (
               <span className="paper-map__waterway-note">물길을 헤엄치면 방수되지 않은 약재와 물품이 젖어 버려집니다.</span>
             )}
-            {previewUsesWaterway && !selectedPlace.willSoak && (
+            {showTravelRoutes && previewUsesWaterway && !selectedPlace.willSoak && (
               <span className="paper-map__waterway-note">파란 물길입니다. 호수·강 야생에서는 멈추지 않습니다.</span>
             )}
-            {previewUnmapped && <span className="paper-map__unmapped">경로를 아직 지도에 그리지 못했습니다.</span>}
+            {showTravelRoutes && previewUnmapped && <span className="paper-map__unmapped">경로를 아직 지도에 그리지 못했습니다.</span>}
           </div>
           {onEditPlace && (
             <MapNodeAppearance
@@ -909,8 +913,8 @@ export function PaperMap({
                 {panLocked ? '끌어 자리를 고치세요' : '자리 고치려면 이동 잠금'}
               </button>
             )}
-            {onDeletePlace && (canDeletePlace ? canDeletePlace(selectedPlace.id) : selectedPlace.id.startsWith('mark_') || selectedPlace.id.startsWith('custom_')) && (
-              <button type="button" onClick={() => onDeletePlace(placeToPick(selectedPlace))}>
+            {onDeletePlace && (!canDeletePlace || canDeletePlace(selectedPlace.id)) && (
+              <button type="button" className="paper-map__delete" onClick={() => onDeletePlace(placeToPick(selectedPlace))}>
                 이 표시 지우기
               </button>
             )}

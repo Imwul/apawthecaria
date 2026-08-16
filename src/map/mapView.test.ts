@@ -117,7 +117,7 @@ describe('map interaction contracts', () => {
     expect(mapSource).not.toContain('detail === 2');
     expect(appSource).toContain('id="play-journey-map"');
     expect(appSource).toContain('<RouteComposer');
-    expect(appSource).toContain('source: previous?.source || \'player-correction\'');
+    expect(appSource).toContain("source: previous?.hidden ? 'player-correction' : (previous?.source || 'player-correction')");
   });
 
   it('locks map panning before a marker can be dragged to a new place', () => {
@@ -136,11 +136,17 @@ describe('map interaction contracts', () => {
     expect(appSource).toContain('다음 표시와 잇기');
     expect(appSource).toContain('내가 남긴 표시');
     expect(appSource).toContain('육로로 잇기');
+    expect(appSource).toContain('showTravelRoutes={false}');
+    expect(appSource).toContain('className="map-atelier__delete"');
+    expect(appSource).toContain('hidden: true');
+    expect(appSource).toContain('지운 인쇄 표시');
+    expect(appSource).not.toContain('canDeletePlace={isPlayerCreatedMapPlace}\n        companionCaption');
   });
 
   it('hides history and preview routes when those layers are off', () => {
-    expect(mapSource).toContain('if (!layers.currentRoute || !currentPlace || !selectedPlace');
-    expect(mapSource).toContain('if (!layers.travelHistory || historyAnchors.length < 2)');
+    expect(mapSource).toContain('if (!showTravelRoutes || !layers.currentRoute || !currentPlace || !selectedPlace');
+    expect(mapSource).toContain('if (!showTravelRoutes || !layers.travelHistory || historyAnchors.length < 2)');
+    expect(mapSource).toContain('showTravelRoutes = true');
   });
 
   it('does not invent coordinates for markers or routes', () => {
