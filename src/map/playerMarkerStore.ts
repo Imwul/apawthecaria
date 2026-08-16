@@ -31,6 +31,19 @@ export const loadPlayerMarkers = (): PlayerMarkerRecord[] => {
   }
 };
 
+export const removePlayerMarkerRecords = (ids: readonly string[]): PlayerMarkerRecord[] => {
+  const banned = new Set(ids);
+  const next = loadPlayerMarkers().filter(row => !banned.has(row.id));
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(PLAYER_MARKER_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // Preference only; ignore quota / private-mode failures.
+    }
+  }
+  return next;
+};
+
 export const upsertPlayerMarkerRecords = (records: readonly PlayerMarkerRecord[]): PlayerMarkerRecord[] => {
   const byId = new Map(loadPlayerMarkers().map(row => [row.id, row]));
   records.forEach(record => {

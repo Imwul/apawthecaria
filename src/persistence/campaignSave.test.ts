@@ -61,12 +61,14 @@ describe('campaign save safety', () => {
     expect(decideCloudSaveAction({
       localRaw: JSON.stringify({ bio: { name: 'Bramble' }, saveRevision: 4 }),
       cloudRevision: 1,
+      cloudHasNamedApothecary: false,
       confirmOverwrite: () => false
     })).toBe('upload-local');
 
     expect(decideCloudSaveAction({
       localRaw: JSON.stringify({ bio: {}, journals: [] }),
       cloudRevision: 3,
+      cloudHasNamedApothecary: true,
       confirmOverwrite: () => {
         throw new Error('should not confirm an empty local save');
       }
@@ -75,7 +77,19 @@ describe('campaign save safety', () => {
     expect(decideCloudSaveAction({
       localRaw: null,
       cloudRevision: 1,
+      cloudHasNamedApothecary: true,
       confirmOverwrite: () => false
+    })).toBe('load-cloud');
+  });
+
+  it('never uploads an unnamed local save over a named cloud apothecary', () => {
+    expect(decideCloudSaveAction({
+      localRaw: JSON.stringify({ bio: { name: '' }, journals: [], saveRevision: 12 }),
+      cloudRevision: 3,
+      cloudHasNamedApothecary: true,
+      confirmOverwrite: () => {
+        throw new Error('should not confirm when local has no apothecary');
+      }
     })).toBe('load-cloud');
   });
 });

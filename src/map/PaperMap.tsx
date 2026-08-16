@@ -10,7 +10,6 @@ import {
 } from './roadGeometry';
 import {
   DEFAULT_MAP_LAYERS,
-  isPlaceLabelVisible,
   isPlaceMarkerVisible,
   loadMapLayers,
   saveMapLayers,
@@ -23,7 +22,8 @@ import {
   useMapDebugEnabled
 } from './detection/mapDebug';
 import { MapGlyph, type MapGlyphKind, type MapTerrain } from './mapGlyphs';
-import { glyphKindFromLocation, terrainFromRegion } from './routeComposer';
+import { MapNodeAppearance } from './MapNodeAppearance';
+import { glyphKindFromLocation, nearestTerrain, terrainFromRegion } from './routeComposer';
 
 export type MapClinicOverlay = {
   id: string;
@@ -44,6 +44,8 @@ export type MapPickLocation = {
 export type MapCreatePlaceRequest = {
   x: number;
   y: number;
+  kind: MapGlyphKind;
+  terrain: MapTerrain;
 };
 
 type PaperMapProps = {
@@ -63,6 +65,10 @@ type PaperMapProps = {
   onSetCurrentLocation?: (location: MapPickLocation) => void;
   onCreatePlace?: (request: MapCreatePlaceRequest) => void;
   onMovePlace?: (location: MapPickLocation) => void;
+  onEditPlace?: (location: MapPickLocation) => void;
+  onDeletePlace?: (location: MapPickLocation) => void;
+  onSavePlaces?: () => void;
+  canDeletePlace?: (placeId: string) => boolean;
   routePlaceIds?: string[];
   onOpenFullMap?: () => void;
   onOpenReference?: (request: {
@@ -121,6 +127,10 @@ export function PaperMap({
   onSetCurrentLocation,
   onCreatePlace,
   onMovePlace,
+  onEditPlace,
+  onDeletePlace,
+  onSavePlaces,
+  canDeletePlace,
   routePlaceIds = [],
   onOpenFullMap,
   onOpenReference,
@@ -136,6 +146,7 @@ export function PaperMap({
   const skipMarkerClickRef = useRef(false);
   const [panLocked, setPanLocked] = useState(false);
   const [dragPreview, setDragPreview] = useState<Record<string, { x: number; y: number }>>({});
+  const [createDraft, setCreateDraft] = useState<{ x: number; y: number; kind: MapGlyphKind; terrain: MapTerrain } | null>(null);
   const routeIndexById = useMemo(() => {
     const indexes = new Map<string, number>();
     routePlaceIds.forEach((id, index) => {
@@ -373,7 +384,18 @@ export function PaperMap({
     if (drag.modify && onCreatePlace) {
       const point = percentFromClient(drag.startX, drag.startY);
       if (point && point.x >= 0 && point.x <= 100 && point.y >= 0 && point.y <= 100) {
-        onCreatePlace(point);
+        const inferred = nearestTerrain(point.x, point.y, places.map(place => ({
+          x: place.x,
+          y: place.y,
+          region: place.region
+        }))) || 'Forest';
+        setCreateDraft({
+          x: Math.max(1, Math.min(99, point.x)),
+          y: Math.max(1, Math.min(99, point.y)),
+          kind: 'Wilds',
+          terrain: inferred
+        });
+        selectPlace(null);
         return;
       }
     }
@@ -604,7 +626,6 @@ export function PaperMap({
             const visible = isPlaceMarkerVisible(place, layers, selectedId);
             if (!visible) return null;
             const selected = selectedId === place.id;
-            const showLabel = isPlaceLabelVisible(place, layers, selectedId, hoveredId, focusedId);
             const candidate = highlightSet.has(place.id);
             const routeIndex = routeIndexById.get(place.id);
             const glyph = placeGlyph(place);
@@ -666,7 +687,7 @@ export function PaperMap({
                     <span className="map-location-order">{routeIndex + 1}</span>
                   )}
                 </button>
-                {showLabel && <span className="map-location-label">{place.name}</span>}
+
               </div>
             );
           })}
@@ -809,10 +830,36 @@ export function PaperMap({
         </div>
       )}
 
-      {selectedPlace && !layersOpen && !searchOpen && (
-        <aside className="paper-map__sheet" aria-label={`${selectedPlace.name} 정보`}>
+      {createDraft && onCreatePlace && !layersOpen && !searchOpen && (
+        <aside className="paper-map__sheet" aria-label="새 표시 고르기">
           <div>
-            <strong>{selectedPlace.name}</strong>
+            <strong>어떤 표시를 남길까요?</strong>
+            <span>⌘+클릭한 빈 자리입니다. 형태와 지형색을 고른 뒤 남깁니다.</span>
+          </div>
+          <MapNodeAppearance
+            kind={createDraft.kind}
+            terrain={createDraft.terrain}
+            onChange={next => setCreateDraft(current => current ? { ...current, kind: next.kind, terrain: next.terrain || current.terrain } : current)}
+          />
+          <div className="paper-map__sheet-actions">
+            <button
+              type="button"
+              onClick={() => {
+                onCreatePlace(createDraft);
+                setCreateDraft(null);
+              }}
+            >
+              이 자리에 남기기
+            </button>
+            <button type="button" onClick={() => setCreateDraft(null)}>취소</button>
+          </div>
+        </aside>
+      )}
+
+      {selectedPlace && !createDraft && !layersOpen && !searchOpen && (
+        <aside className="paper-map__sheet" aria-label="선택한 표시">
+          <div>
+            <strong>{selectedPlace.isCurrent ? '지금 있는 자리' : selectedPlace.locationTypeLabel || '표시'}</strong>
             <span>
               {selectedPlace.isCurrent ? '현재 위치' : selectedPlace.visited ? '방문함' : '미방문'}
               {selectedPlace.locationTypeLabel ? ` · ${selectedPlace.locationTypeLabel}` : ''}
@@ -820,7 +867,6 @@ export function PaperMap({
             {!selectedPlace.isCurrent && selectedPlace.hopsFromCurrent !== null && (
               <span>현재 위치에서 {selectedPlace.hopsFromCurrent}경로</span>
             )}
-            {selectedPlace.hasClinic && <span>약제소가 있는 위치</span>}
             {moveReasonText && <span>{moveReasonText}</span>}
             {selectedPlace.willSoak && (
               <span className="paper-map__waterway-note">물길을 헤엄치면 방수되지 않은 약재와 물품이 젖어 버려집니다.</span>
@@ -830,6 +876,18 @@ export function PaperMap({
             )}
             {previewUnmapped && <span className="paper-map__unmapped">경로를 아직 지도에 그리지 못했습니다.</span>}
           </div>
+          {onEditPlace && (
+            <MapNodeAppearance
+              kind={placeGlyph(selectedPlace).kind}
+              terrain={placeGlyph(selectedPlace).terrain}
+              onChange={next => onEditPlace({
+                ...placeToPick(selectedPlace),
+                kind: next.kind,
+                region: next.terrain || undefined,
+                hasClinic: next.kind === 'Clinic'
+              })}
+            />
+          )}
           <div className="paper-map__sheet-actions">
             {onConfirmDestination && selectedIsCandidate && (
               <button type="button" onClick={() => onConfirmDestination(placeToPick(selectedPlace))}>
@@ -851,6 +909,11 @@ export function PaperMap({
                 {panLocked ? '끌어 자리를 고치세요' : '자리 고치려면 이동 잠금'}
               </button>
             )}
+            {onDeletePlace && (canDeletePlace ? canDeletePlace(selectedPlace.id) : selectedPlace.id.startsWith('mark_') || selectedPlace.id.startsWith('custom_')) && (
+              <button type="button" onClick={() => onDeletePlace(placeToPick(selectedPlace))}>
+                이 표시 지우기
+              </button>
+            )}
             {onTravelRequest && selectedCanTravel && (
               <button
                 type="button"
@@ -865,9 +928,16 @@ export function PaperMap({
         </aside>
       )}
 
-      {companionCaption && !selectedPlace && (
-        <p className="paper-map__caption">{companionCaption}</p>
-      )}
+      <div className="paper-map__below">
+        {onSavePlaces && (
+          <button type="button" className="paper-map__save" onClick={onSavePlaces}>
+            표시 저장
+          </button>
+        )}
+        {companionCaption && !selectedPlace && !createDraft && (
+          <p className="paper-map__caption">{companionCaption}</p>
+        )}
+      </div>
     </section>
   );
 }

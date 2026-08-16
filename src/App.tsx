@@ -6,15 +6,17 @@ import { deleteObject, getDownloadURL, ref as storageRef, uploadString } from "f
 import { GAME_DATA } from "./gameData";
 import {
   CAMPAIGN_SAVE_KEY,
+  campaignSaveHasNamedApothecary,
   decideCloudSaveAction,
   parseCampaignSaveRaw,
   tryMigrateCampaignSave
 } from "./persistence/campaignSave";
 import { MARKER_BY_ID, MARKER_EDGES, markerEdgeKind } from "./map/markerGraph";
-import { loadPlayerMarkers, upsertPlayerMarkerRecords } from "./map/playerMarkerStore";
+import { loadPlayerMarkers, removePlayerMarkerRecords, upsertPlayerMarkerRecords } from "./map/playerMarkerStore";
 import {
   appendRouteStop,
   draftFromOrigin,
+  glyphKindFromLocation,
   locationTypeFromGlyph,
   mapKindFromGlyph,
   nearestTerrain,
@@ -27,6 +29,8 @@ import {
   type RouteStop
 } from "./map/routeComposer";
 import { RouteComposer } from "./components/RouteComposer";
+import { MapNodeAppearance } from "./map/MapNodeAppearance";
+import { mergeCharacterJournals } from "./characterJournals";
 import {
   FAMILIAR_BENEFITS,
   calculateRemedyRewards,
@@ -297,6 +301,9 @@ const store = {
       return false;
     }
     if (isFirebaseConfigured && db && auth?.currentUser) {
+      if (!campaignSaveHasNamedApothecary(value)) {
+        return true;
+      }
       const revision = Number(value?.saveRevision || 0);
       const queuedAt = Date.now();
       writeSaveOutbox(enqueueOfflineSave(readSaveOutbox(), { id: `${key}:${revision}:${queuedAt}`, key, payload: jsonString, revision, queuedAt }));
@@ -2189,6 +2196,9 @@ const upsertPlayerMapStop = (
   return [...customLocations.filter(location => location.id !== stop.id), next];
 };
 
+const isPlayerCreatedMapPlace = (id: string): boolean =>
+  id.startsWith('mark_') || id.startsWith('custom_');
+
 const playerRecordFromStop = (stop: RouteStop) => ({
   id: stop.id,
   label: stop.name,
@@ -2633,6 +2643,7 @@ const finalizePendingPatientArchive = (pending: PendingPatientArchive, finalArch
 });
 
 const classifyJournalForScrapbook = (journal: { id: string; title: string; text: string; timestamp: number }): ScrapbookKind | null => {
+  if (journal.id.startsWith('character:') || journal.id.startsWith('origin_') || journal.id.startsWith('memento_') || journal.id.startsWith('familiar_') || journal.id.startsWith('relation_')) return 'journey';
   if (journal.id.startsWith('start_') || journal.id.startsWith('travel_') || journal.id.startsWith('death_travel_')) return 'journey';
   if (journal.id.startsWith('forage_') || journal.id.startsWith('barter_finish_') || journal.id.startsWith('brave_enc_')) return 'discovery';
   if (journal.id.startsWith('cure_') || journal.id.startsWith('cure_fail_')) return 'patient';
@@ -3715,6 +3726,7 @@ const migrateState = (s: any): GameState => {
     patientArchive: s.patientArchive || [],
     pendingPatientArchive: s.pendingPatientArchive || null,
     worldAlmanac: s.worldAlmanac || [],
+    journals: mergeCharacterJournals(Array.isArray(s.journals) ? s.journals : [], { ...INITIAL_BIO, ...(s.bio || {}) }),
     travelScrapbook: s.travelScrapbook || [],
     trinketArchive: (s.trinketArchive && s.trinketArchive.length > 0)
       ? s.trinketArchive.map(normalizeTrinketRecord)
@@ -4387,9 +4399,11 @@ export default function App() {
                     : 0
                 );
                 const cloudRevision = Number((parsed as { saveRevision?: number }).saveRevision || 0);
+                const cloudHasNamedApothecary = campaignSaveHasNamedApothecary(parsed);
                 const action = decideCloudSaveAction({
                   localRaw: localStr,
                   cloudRevision,
+                  cloudHasNamedApothecary,
                   confirmOverwrite: () => confirm(
                     cloudRevision > localRevision
                       ? '클라우드 기록이 더 최근입니다. 지금 기기의 로컬 기록을 덮어쓸까요?'
@@ -4403,6 +4417,8 @@ export default function App() {
                   } else {
                     setState(migrated.state);
                     localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(migrated.state));
+                    const name = migrated.state.bio?.name?.trim();
+                    showAlert(name ? `${name} 약제사 기록을 불러왔습니다.` : '클라우드 기록을 불러왔습니다.');
                   }
                 } else if (action === 'upload-local') {
                   await setDoc(userDocRef, { [CAMPAIGN_SAVE_KEY]: localStr }, { merge: true });
@@ -4414,17 +4430,26 @@ export default function App() {
                 } else {
                   setState(migrated.state);
                   localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(migrated.state));
+                  const name = migrated.state.bio?.name?.trim();
+                  showAlert(name ? `${name} 약제사 기록을 불러왔습니다.` : '클라우드 기록을 불러왔습니다.');
                 }
               }
+            } else {
+              showAlert('이 구글 계정에는 저장된 약제사가 없습니다. 원래 기기에서 같은 계정으로 ‘Google 기록 동기화’를 한 번 눌러 올려 주세요.');
             }
           } else {
             const localStr = localStorage.getItem(CAMPAIGN_SAVE_KEY);
-            if (localStr) {
+            const localParsed = parseCampaignSaveRaw(localStr);
+            const localHasName = localParsed.ok && campaignSaveHasNamedApothecary(localParsed.value);
+            if (localStr && localHasName) {
               await setDoc(userDocRef, { [CAMPAIGN_SAVE_KEY]: localStr }, { merge: true });
+            } else {
+              showAlert('이 구글 계정에는 저장된 약제사가 없습니다. 원래 기기에서 같은 계정으로 ‘Google 기록 동기화’를 한 번 눌러 올려 주세요.');
             }
           }
         } catch (err) {
           console.error("Failed to check cloud save during login:", err);
+          showAlert('구글 기록을 불러오지 못했습니다. 네트워크와 로그인 계정을 확인한 뒤 다시 시도해 주세요.');
         }
       }
     });
@@ -6143,21 +6168,10 @@ export default function App() {
                   />
                 )}
                 {activeTab === 'map' && (
-                  <MapView
+                  <AtlasMapPanel
                     state={state}
+                    updateState={updateState}
                     onOpenReference={setRulebookRequest}
-                    onTravelRequest={state.journeyActive ? (location) => {
-                      setPendingMapTravel(location);
-                      changeActiveTab('play');
-                    } : undefined}
-                    travelEnabled={Boolean(state.journeyActive && !state.needsLocalHelpBeforeMove)}
-                    travelBlockedReason={
-                      !state.journeyActive
-                        ? '여정이 시작되면 이동할 수 있습니다.'
-                        : state.needsLocalHelpBeforeMove
-                          ? '현지 일을 마친 뒤 이동할 수 있습니다.'
-                          : null
-                    }
                   />
                 )}
                 {activeTab === 'journals' && (
@@ -10647,19 +10661,19 @@ function PlayView({
     });
   }, [persistRouteEdge, routeGraphNodes, state.clinics, state.customMapLocations, state.customMapEdges, state.currentRegion]);
 
-  const handleCreateMapPlace = useCallback((request: { x: number; y: number }) => {
-    const terrain = nearestTerrain(request.x, request.y, Object.values(routeGraphNodes).map(node => ({
-      x: node.x,
-      y: node.y,
-      region: node.region
-    }))) || terrainFromRegion(state.currentRegion) || 'Forest';
-    const markNumber = (state.customMapLocations || []).filter(location => location.source === 'player-mark').length + 1;
+  const handleCreateMapPlace = useCallback((request: { x: number; y: number; kind?: string; terrain?: string }) => {
     const stop: RouteStop = {
       id: `mark_${Date.now()}`,
-      name: `표시 ${markNumber}`,
-      kind: 'Wilds',
-      terrain,
-      hasClinic: false,
+      name: '',
+      kind: request.kind === 'City' || request.kind === 'Settlement' || request.kind === 'Ruin' || request.kind === 'Barrow' || request.kind === 'Clinic'
+        ? request.kind
+        : 'Wilds',
+      terrain: terrainFromRegion(request.terrain) || nearestTerrain(request.x, request.y, Object.values(routeGraphNodes).map(node => ({
+        x: node.x,
+        y: node.y,
+        region: node.region
+      }))) || terrainFromRegion(state.currentRegion) || 'Forest',
+      hasClinic: request.kind === 'Clinic',
       x: Math.max(1, Math.min(99, request.x)),
       y: Math.max(1, Math.min(99, request.y))
     };
@@ -10668,12 +10682,12 @@ function PlayView({
       id: stop.id,
       name: stop.name,
       region: stop.terrain || undefined,
-      kind: 'Wilds',
+      kind: stop.kind,
       x: stop.x,
       y: stop.y,
-      hasClinic: false
+      hasClinic: stop.hasClinic
     });
-  }, [handleAddRouteWaypoint, persistRouteStop, routeGraphNodes, state.currentRegion, state.customMapLocations]);
+  }, [handleAddRouteWaypoint, persistRouteStop, routeGraphNodes, state.currentRegion]);
 
   const handleSetMappedCurrentLocation = useCallback((location: MapPickLocation) => {
     const node = routeGraphNodes[location.id];
@@ -10763,14 +10777,59 @@ function PlayView({
 
   const handleSaveMapPlaces = useCallback(() => {
     const draft = routeDraftRef.current;
-    if (draft.stops.length === 0) {
+    if (draft.stops.length === 0 && (state.customMapLocations || []).length === 0) {
       showAlert('저장할 표시가 없습니다. 지도에서 자리를 고르거나 ⌘+클릭으로 남기세요.');
       return;
     }
     upsertPlayerMarkerRecords(draft.stops.map(playerRecordFromStop));
     draft.stops.forEach(persistRouteStop);
-    showAlert(`${draft.stops.length}개 표시를 이 기록에 남겼습니다. 자리를 옮기거나 형태를 고친 값도 다음에 그대로 보입니다.`);
-  }, [persistRouteStop]);
+    showAlert('표시를 이 기록에 남겼습니다. 형태와 자리를 고친 값도 다음에 그대로 보입니다.');
+  }, [persistRouteStop, state.customMapLocations]);
+
+  const handleEditMapPlace = useCallback((location: MapPickLocation) => {
+    const node = routeGraphNodes[location.id];
+    const stop: RouteStop = {
+      id: location.id,
+      name: location.name || node?.label || '',
+      kind: location.kind === 'City' || location.kind === 'Settlement' || location.kind === 'Ruin' || location.kind === 'Barrow' || location.kind === 'Clinic'
+        ? location.kind
+        : (node ? stopFromGraphNode(location.id, node).kind : 'Wilds'),
+      terrain: terrainFromRegion(location.region) || (node ? stopFromGraphNode(location.id, node).terrain : null),
+      hasClinic: Boolean(location.hasClinic) || location.kind === 'Clinic',
+      x: location.x ?? node?.x ?? 50,
+      y: location.y ?? node?.y ?? 50
+    };
+    persistRouteStop(stop);
+    setRouteDraft(previous => ({
+      ...previous,
+      stops: previous.stops.map(row => row.id === stop.id ? { ...row, ...stop } : row)
+    }));
+  }, [persistRouteStop, routeGraphNodes]);
+
+  const handleDeleteMapPlace = useCallback((location: MapPickLocation) => {
+    if (!isPlayerCreatedMapPlace(location.id)) {
+      setRouteDraft(previous => {
+        const index = previous.stops.findIndex(stop => stop.id === location.id);
+        return index > 0 ? removeRouteStopAt(previous, index) : previous;
+      });
+      return;
+    }
+    if (findMapLocationKey(state.currentLocationName, state.customMapLocations || []) === location.id) {
+      showAlert('지금 있는 자리의 표시는 지울 수 없습니다.');
+      return;
+    }
+    removePlayerMarkerRecords([location.id]);
+    setRouteDraft(previous => {
+      const index = previous.stops.findIndex(stop => stop.id === location.id);
+      if (index <= 0) return { ...previous, stops: previous.stops.filter(stop => stop.id !== location.id) };
+      return removeRouteStopAt(previous, index);
+    });
+    updateState((s: GameState) => ({
+      ...s,
+      customMapLocations: (s.customMapLocations || []).filter(row => row.id !== location.id),
+      customMapEdges: (s.customMapEdges || []).filter(edge => edge.from !== location.id && edge.to !== location.id)
+    }));
+  }, [state.currentLocationName, state.customMapLocations, updateState]);
 
   const handleComposerTravel = useCallback(() => {
     const draft = routeDraftRef.current;
@@ -11135,6 +11194,10 @@ function PlayView({
             onSetCurrentLocation={handleSetMappedCurrentLocation}
             onCreatePlace={handleCreateMapPlace}
             onMovePlace={handleMoveMapPlace}
+            onEditPlace={handleEditMapPlace}
+            onDeletePlace={handleDeleteMapPlace}
+            onSavePlaces={handleSaveMapPlaces}
+            canDeletePlace={isPlayerCreatedMapPlace}
             travelEnabled={Boolean(state.journeyActive && !state.needsLocalHelpBeforeMove)}
             travelBlockedReason={state.needsLocalHelpBeforeMove ? '현지 일을 마친 뒤 이동할 수 있습니다.' : null}
             onOpenFullMap={onOpenFullMap}
@@ -11171,7 +11234,6 @@ function PlayView({
             onChangeEdge={handleRouteEdgeChange}
             onRemoveStop={handleRemoveRouteStop}
             onClear={handleClearRouteSides}
-            onSavePlaces={handleSaveMapPlaces}
             onTravel={handleComposerTravel}
           />
 
@@ -13964,33 +14026,6 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
     }
 
     const timestamp = Date.now();
-    const journalEntries = [
-      draft.originJournal.trim() && {
-        id: `origin_${timestamp}`,
-        title: "약제사의 출발 계기",
-        text: `${draft.origin.name}\n${draft.originJournal.trim()}`,
-        timestamp
-      },
-      draft.mementoNote.trim() && {
-        id: `memento_${timestamp}`,
-        title: "첫 여정의 기념품",
-        text: draft.mementoNote.trim(),
-        timestamp
-      },
-      draft.familiarJournal.trim() && {
-        id: `familiar_${timestamp}`,
-        title: "길동무와의 첫 만남",
-        text: draft.familiarJournal.trim(),
-        timestamp
-      },
-      draft.relationshipJournal.trim() && {
-        id: `relation_${timestamp}`,
-        title: "길동무와의 관계",
-        text: `${draft.relationship.name}\n${draft.relationshipJournal.trim()}`,
-        timestamp
-      }
-    ].filter(Boolean);
-
     const matchedBenefit = FAMILIAR_BENEFITS.find(f => f.card === draft.familiarBenefit.card);
     const canFlyFromTravel = draft.travel.speed === 5 && draft.travel.carry === 2;
 
@@ -14022,7 +14057,14 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
       resourcefulReagent: matchedBenefit?.mechanic === 'resourceful' ? draft.resourcefulReagent : "",
       ingenuitiveTool: matchedBenefit?.mechanic === 'ingenuitive' ? draft.ingenuitiveTool : "",
       trinkets: s.trinkets.length > 0 ? s.trinkets : ["기념품 (Memento)"],
-      journals: [...journalEntries as any[], ...s.journals]
+      journals: mergeCharacterJournals(s.journals, {
+        originName: draft.origin.name,
+        originJournal: draft.originJournal,
+        mementoNote: draft.mementoNote,
+        familiarJournal: draft.familiarJournal,
+        familiarRelation: draft.relationship.name,
+        relationshipJournal: draft.relationshipJournal
+      }, timestamp)
     }));
     setOpen(false);
     showAlert("룰북 절차에 따라 약제사 시트가 완성되었습니다.");
@@ -14544,6 +14586,15 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                 <div><strong>이동 스타일:</strong> {localizeTravelStyle(state.bio.travelStyle)}</div>
                 <div><strong>비행 능력:</strong> {state.bio.canFly ? '가능 🦅' : '불가능 ❌'} {state.canFlyOverride && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>(하우스 룰 허용됨)</span>}</div>
                 <div><strong>출발 동기:</strong> <span style={{ color: 'var(--text-muted)' }}>{state.bio.originName}</span></div>
+                {state.bio.originJournal && (
+                  <p style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--text-muted)', lineHeight: 1.55 }}>{state.bio.originJournal}</p>
+                )}
+                {state.bio.mementoNote && (
+                  <div>
+                    <strong>첫 기념품:</strong>
+                    <p style={{ margin: '0.2rem 0 0', whiteSpace: 'pre-wrap', color: 'var(--text-muted)', lineHeight: 1.55 }}>{state.bio.mementoNote}</p>
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: '1.5rem', borderTop: '1px dashed #e5dec9', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
                   <div><strong>이동 속도:</strong> {getTravelSpeed(state, currentWeight)} (기본: {state.bio.speed})</div>
                   <div><strong>가방 소지 한도:</strong> {getMaxCarry(state)} (기본: {state.bio.carry})</div>
@@ -14561,6 +14612,12 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                 <div><strong>길동무 이름:</strong> {state.bio.familiarName || '이름 없음'}</div>
                 <div><strong>길동무 동물:</strong> {state.bio.familiarAnimal || state.bio.familiarExamples || '미정'}</div>
                 <div><strong>길드 관계:</strong> {state.bio.familiarRelation}</div>
+                {state.bio.familiarJournal && (
+                  <p style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--text-muted)', lineHeight: 1.55 }}>{state.bio.familiarJournal}</p>
+                )}
+                {state.bio.relationshipJournal && (
+                  <p style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--text-muted)', lineHeight: 1.55 }}>{state.bio.relationshipJournal}</p>
+                )}
                 <div style={{ background: '#f3faf5', borderRadius: '8px', padding: '0.6rem', border: '1px solid #c8e6c9' }}>
                   <div style={{ fontWeight: 'bold', color: 'var(--primary)', marginBottom: '0.2rem' }}>
                     {(() => {
@@ -15467,6 +15524,138 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
 // =================================================================
 // 9. MAP VIEW COMPONENT (Cartographer’s Margins Pass)
 // =================================================================
+function AtlasMapPanel({
+  state,
+  updateState,
+  onOpenReference
+}: {
+  state: GameState;
+  updateState: (recipe: (s: GameState) => GameState) => void;
+  onOpenReference: (request: RulebookReferenceRequest) => void;
+}) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const nodes = buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || []);
+  const selected = selectedId ? nodes[selectedId] : null;
+  const persistStop = (stop: RouteStop) => {
+    upsertPlayerMarkerRecords([playerRecordFromStop(stop)]);
+    updateState(s => ({
+      ...s,
+      customMapLocations: upsertPlayerMapStop(s.customMapLocations || [], stop, buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || [])[stop.id])
+    }));
+  };
+  return (
+    <div className="map-atelier">
+      <MapView
+        state={state}
+        onOpenReference={onOpenReference}
+        includeWilds
+        selectedLocationId={selectedId}
+        onSelectedPlaceChange={setSelectedId}
+        onCreatePlace={request => {
+          persistStop({
+            id: `mark_${Date.now()}`,
+            name: '',
+            kind: request.kind === 'City' || request.kind === 'Settlement' || request.kind === 'Ruin' || request.kind === 'Barrow' || request.kind === 'Clinic' ? request.kind : 'Wilds',
+            terrain: terrainFromRegion(request.terrain) || 'Forest',
+            hasClinic: request.kind === 'Clinic',
+            x: request.x,
+            y: request.y
+          });
+        }}
+        onMovePlace={location => {
+          if (location.x === undefined || location.y === undefined || !location.id) return;
+          const node = nodes[location.id];
+          persistStop({
+            id: location.id,
+            name: location.name || node?.label || '',
+            kind: node ? stopFromGraphNode(location.id, node).kind : 'Wilds',
+            terrain: terrainFromRegion(location.region || node?.region),
+            hasClinic: Boolean(location.hasClinic),
+            x: location.x,
+            y: location.y
+          });
+        }}
+        onEditPlace={location => {
+          const node = nodes[location.id];
+          persistStop({
+            id: location.id,
+            name: location.name || node?.label || '',
+            kind: location.kind === 'City' || location.kind === 'Settlement' || location.kind === 'Ruin' || location.kind === 'Barrow' || location.kind === 'Clinic' ? location.kind : 'Wilds',
+            terrain: terrainFromRegion(location.region),
+            hasClinic: location.kind === 'Clinic',
+            x: location.x ?? node?.x ?? 50,
+            y: location.y ?? node?.y ?? 50
+          });
+        }}
+        onDeletePlace={location => {
+          if (!isPlayerCreatedMapPlace(location.id)) return;
+          removePlayerMarkerRecords([location.id]);
+          setSelectedId(current => current === location.id ? null : current);
+          updateState(s => ({
+            ...s,
+            customMapLocations: (s.customMapLocations || []).filter(row => row.id !== location.id),
+            customMapEdges: (s.customMapEdges || []).filter(edge => edge.from !== location.id && edge.to !== location.id)
+          }));
+        }}
+        onSavePlaces={() => {
+          const custom = state.customMapLocations || [];
+          upsertPlayerMarkerRecords(custom.map(row => ({
+            id: row.id,
+            label: row.label,
+            x: row.x,
+            y: row.y,
+            kind: row.kind,
+            region: row.region,
+            updatedAt: Date.now()
+          })));
+          showAlert('접어둔 지도의 표시를 이 기록에 남겼습니다.');
+        }}
+        canDeletePlace={isPlayerCreatedMapPlace}
+        companionCaption="⌘+클릭으로 표시를 남기고, 형태와 색을 고른 뒤 저장하세요. 자리를 옮기려면 이동 잠금을 켭니다."
+      />
+      <aside className="map-atelier__desk" aria-label="표시 자세히 고치기">
+        <h3>표시 고치기</h3>
+        {selected && selectedId ? (
+          <>
+            <p>{selected.kind === 'city' ? '도시' : selected.kind === 'settlement' ? '정착지' : selected.kind === 'ruin' ? '티탄 유적' : selected.kind === 'barrow' ? '거수 고분' : selected.kind === 'clinic' ? '약제소' : '야생'} 표시입니다. 형태와 색을 바로 바꿀 수 있습니다.</p>
+            <MapNodeAppearance
+              kind={glyphKindFromLocation({ kind: selected.kind, hasClinic: selected.kind === 'clinic' })}
+              terrain={terrainFromRegion(selected.region)}
+              onChange={next => persistStop({
+                id: selectedId,
+                name: selected.label,
+                kind: next.kind,
+                terrain: next.terrain,
+                hasClinic: next.kind === 'Clinic',
+                x: selected.x,
+                y: selected.y
+              })}
+            />
+            {isPlayerCreatedMapPlace(selectedId) && (
+              <button
+                type="button"
+                onClick={() => {
+                  removePlayerMarkerRecords([selectedId]);
+                  updateState(s => ({
+                    ...s,
+                    customMapLocations: (s.customMapLocations || []).filter(row => row.id !== selectedId),
+                    customMapEdges: (s.customMapEdges || []).filter(edge => edge.from !== selectedId && edge.to !== selectedId)
+                  }));
+                  setSelectedId(null);
+                }}
+              >
+                이 표시 지우기
+              </button>
+            )}
+          </>
+        ) : (
+          <p>지도의 표시를 누르거나, 빈 자리를 ⌘+클릭해 새 표시를 남기세요.</p>
+        )}
+      </aside>
+    </div>
+  );
+}
+
 const MapView = memo(function MapView({
   state,
   onOpenReference,
@@ -15481,6 +15670,11 @@ const MapView = memo(function MapView({
   onSetCurrentLocation,
   onCreatePlace,
   onMovePlace,
+  onEditPlace,
+  onDeletePlace,
+  onSavePlaces,
+  canDeletePlace,
+  onSelectedPlaceChange,
   onOpenFullMap,
   companionCaption,
   travelEnabled,
@@ -15497,8 +15691,13 @@ const MapView = memo(function MapView({
   onTravelRequest?: (location: MapPickLocation) => void;
   onAddWaypoint?: (location: MapPickLocation) => void;
   onSetCurrentLocation?: (location: MapPickLocation) => void;
-  onCreatePlace?: (request: { x: number; y: number }) => void;
+  onCreatePlace?: (request: { x: number; y: number; kind?: string; terrain?: string }) => void;
   onMovePlace?: (location: MapPickLocation) => void;
+  onEditPlace?: (location: MapPickLocation) => void;
+  onDeletePlace?: (location: MapPickLocation) => void;
+  onSavePlaces?: () => void;
+  canDeletePlace?: (placeId: string) => boolean;
+  onSelectedPlaceChange?: (placeId: string | null) => void;
   onOpenFullMap?: () => void;
   companionCaption?: string;
   travelEnabled?: boolean;
@@ -15602,7 +15801,12 @@ const MapView = memo(function MapView({
       onSetCurrentLocation={onSetCurrentLocation}
       onCreatePlace={onCreatePlace}
       onMovePlace={onMovePlace}
+      onEditPlace={onEditPlace}
+      onDeletePlace={onDeletePlace}
+      onSavePlaces={onSavePlaces}
+      canDeletePlace={canDeletePlace}
       routePlaceIds={routePlaceIds}
+      onSelectedPlaceChange={onSelectedPlaceChange}
       onOpenFullMap={onOpenFullMap}
       onOpenReference={onOpenReference}
       currentRegion={state.currentRegion}
@@ -16176,7 +16380,7 @@ function JournalsView({
   const [newText, setNewText] = useState("");
   const [newPhotos, setNewPhotos] = useState<JournalPhoto[]>([]);
   const [viewingPhoto, setViewingPhoto] = useState<{ photo: JournalPhoto; title: string } | null>(null);
-  const [subTab, setSubTab] = useState<'casebook' | 'almanac' | 'scrapbook' | 'journals' | 'chronicles' | 'legacy'>('casebook');
+  const [subTab, setSubTab] = useState<'casebook' | 'almanac' | 'scrapbook' | 'journals' | 'chronicles' | 'legacy'>('journals');
   const [importNotice, setImportNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
@@ -16733,6 +16937,36 @@ function JournalsView({
 
       {subTab === 'journals' && (
         <>
+          <section className="cute-card" style={{ background: '#fffdf8', border: '1.5px solid var(--border-cozy)', padding: '1rem', marginTop: '1rem' }} aria-label="약제사 시작 기록">
+            <h3 style={{ margin: '0 0 0.35rem 0', color: 'var(--primary)' }}>약제사 시작 기록</h3>
+            <p style={{ margin: '0 0 0.8rem 0', fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              캐릭터를 만들 때 짧게 적어 둔 출발 계기, 기념품, 길동무 만남이 여기에 남습니다. 나중에 더 적을 수도 있습니다.
+            </p>
+            {([
+              { key: 'originJournal', title: '약제사의 출발 계기', value: state.bio.originJournal || '', hint: state.bio.originName },
+              { key: 'mementoNote', title: '첫 여정의 기념품', value: state.bio.mementoNote || '', hint: '' },
+              { key: 'familiarJournal', title: '길동무와의 첫 만남', value: state.bio.familiarJournal || '', hint: state.bio.familiarName },
+              { key: 'relationshipJournal', title: '길동무와의 관계', value: state.bio.relationshipJournal || '', hint: state.bio.familiarRelation }
+            ] as const).map(row => (
+              <label key={row.key} style={{ display: 'grid', gap: '0.3rem', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-bright)' }}>{row.title}</span>
+                {row.hint ? <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>{row.hint}</span> : null}
+                <textarea
+                  rows={3}
+                  value={row.value}
+                  onChange={event => {
+                    const nextValue = event.target.value;
+                    updateState((s: GameState) => {
+                      const bio = { ...s.bio, [row.key]: nextValue };
+                      return { ...s, bio, journals: mergeCharacterJournals(s.journals, bio) };
+                    });
+                  }}
+                  placeholder="아직 적힌 문장이 없습니다."
+                  style={{ width: '100%', resize: 'vertical' }}
+                />
+              </label>
+            ))}
+          </section>
           {/* Write custom journal */}
           <form onSubmit={handleAddJournal} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', background: '#fafafa', padding: '1.2rem', borderRadius: '12px', border: '1px solid #ddd', marginTop: '1rem' }}>
             <h4>✍️ 새로운 저널 일지 작성하기</h4>

@@ -23,7 +23,6 @@ type RouteComposerProps = {
   onChangeEdge: (index: number, kind: RouteEdgeKind) => void;
   onRemoveStop: (index: number) => void;
   onClear: () => void;
-  onSavePlaces?: () => void;
   onTravel: () => void;
 };
 
@@ -58,7 +57,6 @@ export function RouteComposer({
   onChangeEdge,
   onRemoveStop,
   onClear,
-  onSavePlaces,
   onTravel
 }: RouteComposerProps) {
   const origin = draft.stops[0] || null;
@@ -171,11 +169,6 @@ export function RouteComposer({
             <li key={`${row.id}:${index}`}>
               <span className="route-composer__index">{index + 1}</span>
               <MapGlyph kind={row.kind} terrain={row.terrain} size={18} />
-              <input
-                aria-label={`${index + 1}번째 자리 이름`}
-                value={row.name}
-                onChange={event => onChangeStop(index, { name: event.target.value })}
-              />
               <select
                 aria-label={`${row.name} 형태`}
                 value={row.kind}
@@ -225,9 +218,6 @@ export function RouteComposer({
       </div>
 
       <div className="route-composer__actions">
-        {onSavePlaces && (
-          <button type="button" onClick={onSavePlaces} disabled={count === 0}>표시 저장</button>
-        )}
         <button type="button" onClick={onClear} disabled={count <= 1}>사이길 비우기</button>
         <button
           type="button"

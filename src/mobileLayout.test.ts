@@ -45,6 +45,7 @@ describe('mobile layout regression guards', () => {
     expect(appSource).toContain('id="play-journey-map"');
     expect(appSource).toContain('variant="companion"');
     expect(appSource).toContain('<RouteComposer');
+    expect(appSource).toContain('약제사 시작 기록');
     expect(cssSource).toMatch(/\.play-with-map\s*\{/);
     expect(cssSource).toMatch(/\.route-composer\s*\{/);
     expect(cssSource).toMatch(/\.map-location-label\s*\{[\s\S]*?pointer-events:\s*none/);

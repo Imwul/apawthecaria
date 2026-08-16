@@ -9,10 +9,15 @@ type CampaignSaveShape = {
   saveRevision?: number;
 };
 
+export const campaignSaveHasNamedApothecary = (parsed: unknown): boolean => {
+  if (!parsed || typeof parsed !== 'object') return false;
+  return Boolean((parsed as CampaignSaveShape).bio?.name?.trim());
+};
+
 export const campaignSaveHasProgress = (parsed: unknown): boolean => {
   if (!parsed || typeof parsed !== 'object') return false;
   const save = parsed as CampaignSaveShape;
-  return Boolean(save.bio?.name)
+  return campaignSaveHasNamedApothecary(save)
     || (Array.isArray(save.journals) && save.journals.length > 0)
     || Boolean(save.journeyActive);
 };
@@ -55,23 +60,29 @@ export const readCampaignSaveWithoutWipe = (
 export const decideCloudSaveAction = (input: {
   localRaw: string | null;
   cloudRevision: number;
+  cloudHasNamedApothecary?: boolean;
   confirmOverwrite: () => boolean;
 }): CloudSaveAction => {
-  if (!input.localRaw) return 'load-cloud';
+  const cloudHasNamed = Boolean(input.cloudHasNamedApothecary);
+  if (!input.localRaw) return cloudHasNamed || input.cloudRevision > 0 ? 'load-cloud' : 'keep-local';
   const parsed = parseCampaignSaveRaw(input.localRaw);
-  if (!parsed.ok || !parsed.value || typeof parsed.value !== 'object') return 'keep-local';
+  if (!parsed.ok || !parsed.value || typeof parsed.value !== 'object') {
+    return cloudHasNamed ? 'load-cloud' : 'keep-local';
+  }
   const localParsed = parsed.value as CampaignSaveShape;
-  const isLocalDefault = !localParsed.bio?.name && (!localParsed.journals || localParsed.journals.length === 0);
+  const localHasName = campaignSaveHasNamedApothecary(localParsed);
+  const isLocalDefault = !localHasName && (!localParsed.journals || localParsed.journals.length === 0);
   const localRevision = Number(localParsed.saveRevision || 0);
   const localHasProgress = campaignSaveHasProgress(localParsed);
 
-  if (isLocalDefault) return 'load-cloud';
+  if (cloudHasNamed && !localHasName) return 'load-cloud';
+  if (isLocalDefault) return cloudHasNamed || input.cloudRevision > 0 ? 'load-cloud' : 'keep-local';
   if (input.cloudRevision > localRevision) {
     if (!localHasProgress || input.confirmOverwrite()) return 'load-cloud';
     return 'keep-local';
   }
-  if (localRevision > input.cloudRevision) return 'upload-local';
-  if (input.cloudRevision === localRevision && localRevision === 0 && input.confirmOverwrite()) {
+  if (localRevision > input.cloudRevision) return localHasName ? 'upload-local' : (cloudHasNamed ? 'load-cloud' : 'keep-local');
+  if (input.cloudRevision === localRevision && localRevision === 0 && cloudHasNamed && input.confirmOverwrite()) {
     return 'load-cloud';
   }
   return 'keep-local';

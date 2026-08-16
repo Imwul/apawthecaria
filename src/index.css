@@ -4003,7 +4003,7 @@ button,
 
 .route-composer__list li {
   display: grid;
-  grid-template-columns: 1.4rem auto minmax(0, 1fr) minmax(5.5rem, 0.7fr) minmax(5rem, 0.6fr) auto;
+  grid-template-columns: 1.4rem auto minmax(5.5rem, 0.8fr) minmax(5rem, 0.7fr) auto;
   gap: 0.35rem;
   align-items: center;
 }
@@ -4393,10 +4393,99 @@ button,
   cursor: pointer;
 }
 
+.paper-map__below {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.55rem 0.7rem 0.65rem;
+}
+
+.paper-map__save {
+  justify-self: start;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid #6a5344;
+  border-radius: 4px;
+  background: #657255;
+  color: #fffdf6;
+  font-family: "Noto Sans KR", sans-serif;
+  font-size: 0.82rem;
+}
+
 .paper-map__caption {
   margin: 0;
-  padding: 0.4rem 0.7rem 0.55rem;
+  padding: 0;
   font-size: 0.75rem;
+  color: #6b5343;
+}
+
+.map-node-appearance {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.map-node-appearance__heading {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b5343;
+}
+
+.map-node-appearance__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.map-node-appearance__choice,
+.map-node-appearance__swatch {
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+  min-width: 3.4rem;
+  padding: 0.3rem 0.35rem;
+  border: 1px solid rgba(74, 54, 40, 0.28);
+  border-radius: 4px;
+  background: #f4ead8;
+  color: #4a3628;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.map-node-appearance__choice.is-on,
+.map-node-appearance__swatch.is-on {
+  border-color: #3f4c3a;
+  background: #e4ebdc;
+}
+
+.map-atelier {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 1100px) {
+  .map-atelier {
+    grid-template-columns: minmax(0, 1.2fr) minmax(16rem, 0.8fr);
+    align-items: start;
+  }
+}
+
+.map-atelier__desk {
+  padding: 0.9rem;
+  border: 1px solid #6a5344;
+  border-radius: 8px;
+  background: #fffdf6;
+}
+
+.map-atelier__desk h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1.05rem;
+}
+
+.map-atelier__desk p {
+  margin: 0 0 0.7rem;
+  font-size: 0.84rem;
+  line-height: 1.5;
   color: #6b5343;
 }
 

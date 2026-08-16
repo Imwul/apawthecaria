@@ -82,9 +82,9 @@ describe('map marker and filter visibility', () => {
 });
 
 describe('map interaction contracts', () => {
-  it('keeps labels from intercepting pointer events', () => {
+  it('keeps leftover label styles from intercepting pointer events and does not paint names on nodes', () => {
     expect(cssSource).toMatch(/\.map-location-label\s*\{[\s\S]*?pointer-events:\s*none/);
-    expect(mapSource).toContain('className="map-location-label"');
+    expect(mapSource).not.toContain('className="map-location-label"');
   });
 
   it('selects a location without changing current travel state', () => {
@@ -111,6 +111,8 @@ describe('map interaction contracts', () => {
     expect(mapSource).toContain('경로에 넣기');
     expect(mapSource).toContain('여기를 지금 있는 곳으로');
     expect(mapSource).toContain('onCreatePlace');
+    expect(mapSource).toContain('어떤 표시를 남길까요?');
+    expect(mapSource).toContain('이 자리에 남기기');
     expect(mapSource).toContain('event.metaKey || event.ctrlKey');
     expect(mapSource).not.toContain('detail === 2');
     expect(appSource).toContain('id="play-journey-map"');
@@ -124,6 +126,8 @@ describe('map interaction contracts', () => {
     expect(mapSource).toContain('onMovePlace');
     expect(cssSource).toContain('.paper-map--locked');
     expect(appSource).toContain('onSavePlaces={handleSaveMapPlaces}');
+    expect(mapSource).toContain('className="paper-map__save"');
+    expect(mapSource).toContain('이 표시 지우기');
   });
 
   it('hides history and preview routes when those layers are off', () => {
