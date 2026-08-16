@@ -29,7 +29,7 @@ const stop = (id: string, patch: Partial<RouteStop> = {}): RouteStop => ({
 
 describe('route composer draft', () => {
   it('starts from the current place and appends later clicks as side paths', () => {
-    const origin = stop('oak', { name: 'Oak Road', kind: 'Wilds', terrain: 'Forest' });
+    const origin = stop('oak', { name: 'Odoak', kind: 'Wilds', terrain: 'Forest' });
     const first = appendRouteStop(draftFromOrigin(origin), stop('widrow', { name: 'Widrow', kind: 'Settlement' }));
     const next = appendRouteStop(first, stop('odoak', { name: 'Odoak', kind: 'City' }), 'waterway');
     expect(next.stops.map(row => row.id)).toEqual(['oak', 'widrow', 'odoak']);

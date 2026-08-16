@@ -21,10 +21,10 @@ describe('player marker store', () => {
     });
     window.localStorage.removeItem(PLAYER_MARKER_STORAGE_KEY);
     upsertPlayerMarkerRecords([
-      { id: 'oak', label: 'Oak Road', x: 26, y: 34, kind: 'wild', region: 'Forest', updatedAt: 1 }
+      { id: 'oak', label: 'Odoak', x: 26, y: 34, kind: 'wild', region: 'Forest', updatedAt: 1 }
     ]);
     upsertPlayerMarkerRecords([
-      { id: 'oak', label: 'Oak Road', x: 28.5, y: 33.2, kind: 'wild', region: 'Forest', updatedAt: 2 }
+      { id: 'oak', label: 'Odoak', x: 28.5, y: 33.2, kind: 'wild', region: 'Forest', updatedAt: 2 }
     ]);
     expect(loadPlayerMarkers()).toEqual([
       expect.objectContaining({ id: 'oak', x: 28.5, y: 33.2, kind: 'wild' })

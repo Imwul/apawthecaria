@@ -10,9 +10,9 @@ import {
   type MapPlace
 } from './mapLayers';
 
-const oak: MapPlace = {
+const start: MapPlace = {
   id: 'starting_oak_road',
-  name: 'Oak Road',
+  name: 'Odoak',
   x: 26,
   y: 34,
   locationType: 'Wilds',
@@ -57,7 +57,7 @@ const appearanceSource = readFileSync(fileURLToPath(new URL('./MapNodeAppearance
 describe('map marker and filter visibility', () => {
   it('hides ordinary labels when Place Names is off', () => {
     expect(isPlaceLabelVisible(odoak, DEFAULT_MAP_LAYERS, null, null, null)).toBe(false);
-    expect(isPlaceLabelVisible(oak, DEFAULT_MAP_LAYERS, null, null, null)).toBe(true);
+    expect(isPlaceLabelVisible(start, DEFAULT_MAP_LAYERS, null, null, null)).toBe(true);
   });
 
   it('shows labels for selected, hovered, focused, or Place Names on', () => {
@@ -70,13 +70,13 @@ describe('map marker and filter visibility', () => {
   it('hides visited or unvisited markers from their filters but keeps the current place', () => {
     expect(isPlaceMarkerVisible(odoak, { ...DEFAULT_MAP_LAYERS, visitedPlaces: false }, null)).toBe(false);
     expect(isPlaceMarkerVisible(spoolkeep, { ...DEFAULT_MAP_LAYERS, unvisitedPlaces: false }, null)).toBe(false);
-    expect(isPlaceMarkerVisible(oak, { ...DEFAULT_MAP_LAYERS, visitedPlaces: false, placeMarkers: false }, null)).toBe(true);
+    expect(isPlaceMarkerVisible(start, { ...DEFAULT_MAP_LAYERS, visitedPlaces: false, placeMarkers: false }, null)).toBe(true);
     expect(isPlaceMarkerVisible(odoak, { ...DEFAULT_MAP_LAYERS, placeMarkers: false }, 'odoak')).toBe(true);
   });
 
   it('keeps current and selected markers when both visit filters are off', () => {
     const bothOff = { ...DEFAULT_MAP_LAYERS, visitedPlaces: false, unvisitedPlaces: false };
-    expect(isPlaceMarkerVisible(oak, bothOff, null)).toBe(true);
+    expect(isPlaceMarkerVisible(start, bothOff, null)).toBe(true);
     expect(isPlaceMarkerVisible(odoak, bothOff, 'odoak')).toBe(true);
     expect(isPlaceMarkerVisible(spoolkeep, bothOff, null)).toBe(false);
   });
