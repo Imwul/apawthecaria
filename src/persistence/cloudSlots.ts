@@ -29,8 +29,18 @@ export type CloudSlotView = {
 
 const SLOT_IDS: CloudSlotId[] = [1, 2, 3];
 
+export const cloudSlotMapKey = (slot: CloudSlotId) => `slot-${slot}`;
+
 const isCloudSlotId = (value: unknown): value is CloudSlotId =>
   value === 1 || value === 2 || value === 3;
+
+const slotRecordFields = (record: CloudSlotRecord) => ({
+  slot: record.slot,
+  payload: record.payload,
+  uploadedAt: record.uploadedAt,
+  name: record.name,
+  saveRevision: record.saveRevision
+});
 
 export const emptyCloudSlotViews = (): CloudSlotView[] =>
   SLOT_IDS.map(slot => ({ slot, empty: true, name: null, uploadedAt: null, saveRevision: 0 }));
@@ -125,7 +135,11 @@ export const readCloudSlotsFromDocument = (
   if (slotsField && typeof slotsField === 'object') {
     const map = slotsField as Record<string, unknown>;
     for (const slot of SLOT_IDS) {
-      records[slot - 1] = recordFromUnknown(slot, map[String(slot)] ?? map[slot], documentUpdatedAt);
+      records[slot - 1] = recordFromUnknown(
+        slot,
+        map[cloudSlotMapKey(slot)] ?? map[String(slot)] ?? map[slot],
+        documentUpdatedAt
+      );
     }
   }
 
@@ -152,28 +166,44 @@ export const readCloudSlotsFromDocument = (
 
 export const cloudSlotWriteFields = (record: CloudSlotRecord): Record<string, unknown> => {
   const fields: Record<string, unknown> = {
-    [`${CLOUD_SLOTS_FIELD}.${record.slot}`]: {
-      slot: record.slot,
-      payload: record.payload,
-      uploadedAt: record.uploadedAt,
-      name: record.name,
-      saveRevision: record.saveRevision
-    }
+    [`${CLOUD_SLOTS_FIELD}.${cloudSlotMapKey(record.slot)}`]: slotRecordFields(record)
   };
   if (record.slot === 1) fields[CAMPAIGN_SAVE_KEY] = record.payload;
   return fields;
 };
 
-export const assembleNewCloudSlotDocument = (record: CloudSlotRecord): Record<string, unknown> => ({
-  ...(record.slot === 1 ? { [CAMPAIGN_SAVE_KEY]: record.payload } : {}),
-  [CLOUD_SLOTS_FIELD]: { [String(record.slot)]: {
-    slot: record.slot,
-    payload: record.payload,
-    uploadedAt: record.uploadedAt,
-    name: record.name,
-    saveRevision: record.saveRevision
-  } }
-});
+export const assembleCloudSlotDocument = (
+  records: Array<CloudSlotRecord | null | undefined>
+): Record<string, unknown> => {
+  const slots: Record<string, ReturnType<typeof slotRecordFields>> = {};
+  for (const record of records) {
+    if (!record) continue;
+    slots[cloudSlotMapKey(record.slot)] = slotRecordFields(record);
+  }
+  const first = records[0] || null;
+  return {
+    ...(first ? { [CAMPAIGN_SAVE_KEY]: first.payload } : {}),
+    [CLOUD_SLOTS_FIELD]: slots
+  };
+};
+
+export const assembleNewCloudSlotDocument = (record: CloudSlotRecord): Record<string, unknown> => {
+  const records: Array<CloudSlotRecord | null> = [null, null, null];
+  records[record.slot - 1] = record;
+  return assembleCloudSlotDocument(records);
+};
+
+export const mergeCloudSlotRecord = (
+  records: Array<CloudSlotRecord | null | undefined>,
+  record: CloudSlotRecord
+): Array<CloudSlotRecord | null> => {
+  const next: Array<CloudSlotRecord | null> = [null, null, null];
+  records.forEach((row, index) => {
+    if (row) next[index] = row;
+  });
+  next[record.slot - 1] = record;
+  return next;
+};
 
 export const confirmManualSlotDownload = (input: {
   slot: CloudSlotId;

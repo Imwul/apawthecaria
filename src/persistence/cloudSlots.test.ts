@@ -8,9 +8,12 @@ import {
   ACTIVE_CLOUD_SLOT_KEY,
   CLOUD_SLOT_COUNT,
   CLOUD_SLOTS_FIELD,
+  assembleCloudSlotDocument,
   assembleNewCloudSlotDocument,
+  cloudSlotMapKey,
   cloudSlotRecordFromPayload,
   cloudSlotWriteFields,
+  mergeCloudSlotRecord,
   confirmManualSlotDownload,
   confirmManualSlotUpload,
   emptyCloudSlotViews,
@@ -63,14 +66,37 @@ describe('cloud save slots', () => {
     expect(result.records[0]?.name).toBe('커스타드');
   });
 
-  it('writes slot 1 back onto the legacy field and uses dotted paths for other slots', () => {
+  it('writes slot 1 back onto the legacy field and keeps other slots when composing a document', () => {
     const record = cloudSlotRecordFromPayload(1, namedSave('커스타드', 39), '2026-08-16T12:08:37.713Z');
     expect(cloudSlotWriteFields(record)[CAMPAIGN_SAVE_KEY]).toBe(record.payload);
-    expect(cloudSlotWriteFields(record)[`${CLOUD_SLOTS_FIELD}.1`]).toMatchObject({ slot: 1, name: '커스타드' });
+    expect(cloudSlotWriteFields(record)[`${CLOUD_SLOTS_FIELD}.${cloudSlotMapKey(1)}`]).toMatchObject({ slot: 1, name: '커스타드' });
 
     const slotTwo = cloudSlotRecordFromPayload(2, namedSave('다른약제사', 4), '2026-08-16T13:00:00.000Z');
     expect(cloudSlotWriteFields(slotTwo)[CAMPAIGN_SAVE_KEY]).toBeUndefined();
-    expect(assembleNewCloudSlotDocument(slotTwo)[CLOUD_SLOTS_FIELD]).toHaveProperty('2');
+    expect(assembleNewCloudSlotDocument(slotTwo)[CLOUD_SLOTS_FIELD]).toHaveProperty(cloudSlotMapKey(2));
+
+    const merged = mergeCloudSlotRecord([record, null, null], slotTwo);
+    const document = assembleCloudSlotDocument(merged);
+    expect(document[CAMPAIGN_SAVE_KEY]).toBe(record.payload);
+    expect(document[CLOUD_SLOTS_FIELD]).toHaveProperty(cloudSlotMapKey(1));
+    expect(document[CLOUD_SLOTS_FIELD]).toHaveProperty(cloudSlotMapKey(2));
+    expect(readCloudSlotsFromDocument(document).records[0]?.name).toBe('커스타드');
+    expect(readCloudSlotsFromDocument(document).records[1]?.name).toBe('다른약제사');
+  });
+
+  it('still reads older numeric slot keys from existing cloud documents', () => {
+    const result = readCloudSlotsFromDocument({
+      [CLOUD_SLOTS_FIELD]: {
+        2: {
+          payload: namedSave('옛슬롯', 8),
+          uploadedAt: '2026-08-16T13:00:00.000Z',
+          name: '옛슬롯',
+          saveRevision: 8
+        }
+      }
+    });
+    expect(result.records[1]?.name).toBe('옛슬롯');
+    expect(result.records[0]).toBeNull();
   });
 
   it('asks before a manual download or upload overwrites an occupied record', () => {

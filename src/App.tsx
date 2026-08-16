@@ -1,6 +1,6 @@
 import { useState, useEffect, useEffectEvent, useRef, useCallback, useMemo, memo, Fragment, lazy, Suspense } from "react";
 import { db, isFirebaseConfigured, auth, googleProvider, storage, googleSignInErrorMessage, shouldUseRedirectSignIn, firebaseProjectId } from "./firebase";
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, type User } from "firebase/auth";
 import { deleteObject, getDownloadURL, ref as storageRef, uploadString } from "firebase/storage";
 import { GAME_DATA } from "./gameData";
@@ -15,9 +15,9 @@ import {
   type CloudSlotId,
   type CloudSlotRecord,
   type CloudSlotView,
+  assembleCloudSlotDocument,
   assembleNewCloudSlotDocument,
   cloudSlotRecordFromPayload,
-  cloudSlotWriteFields,
   confirmManualSlotDownload,
   confirmManualSlotUpload,
   emptyCloudSlotViews,
@@ -334,19 +334,44 @@ const fetchCloudDocumentUpdatedAt = async (uid: string): Promise<string | null> 
   }
 };
 
+const cloudWriteErrorMessage = (error: { code?: string; message?: string } | null | undefined) => {
+  const code = String(error?.code || '');
+  const message = String(error?.message || '');
+  if (code === 'not-signed-in' || message === 'not-signed-in') {
+    return '구글 계정에 먼저 로그인해 주세요.';
+  }
+  if (code === 'permission-denied' || code.endsWith('/permission-denied')) {
+    return '이 구글 계정으로 클라우드에 쓸 권한이 없습니다. 같은 계정으로 다시 로그인해 주세요.';
+  }
+  if (code === 'invalid-argument' || code.endsWith('/invalid-argument') || /exceed|too large|1,?048,?576|byte/i.test(String(error?.message || ''))) {
+    return '기록이 너무 커서 클라우드에 올리지 못했습니다. 일지 사진을 줄인 뒤 다시 시도해 주세요.';
+  }
+  if (code === 'unauthenticated' || code.endsWith('/unauthenticated')) {
+    return '구글 로그인이 만료되었습니다. 다시 로그인한 뒤 올려 주세요.';
+  }
+  return '클라우드에 올리지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.';
+};
+
 const writeCloudSlotRecord = async (record: CloudSlotRecord) => {
   const docRef = userSaveDocRef();
-  if (!docRef) return;
-  const fields = cloudSlotWriteFields(record);
-  try {
-    await withTimeout(updateDoc(docRef, fields));
-  } catch (error: any) {
-    if (error?.code === 'not-found') {
-      await withTimeout(setDoc(docRef, assembleNewCloudSlotDocument(record)));
-      return;
-    }
-    throw error;
+  if (!docRef) {
+    throw new Error('not-signed-in');
   }
+  const snap = await withTimeout(getDoc(docRef), 20000);
+  if (!snap.exists()) {
+    await withTimeout(setDoc(docRef, assembleNewCloudSlotDocument(record)), 20000);
+    return;
+  }
+  const current = readCloudSlotsFromDocument(
+    snap.data() as Record<string, unknown>,
+    snapshotUpdatedAt(snap)
+  );
+  const records: Array<CloudSlotRecord | null> = [null, null, null];
+  current.records.forEach((row, index) => {
+    if (row) records[index] = row;
+  });
+  records[record.slot - 1] = record;
+  await withTimeout(setDoc(docRef, assembleCloudSlotDocument(records), { merge: true }), 20000);
 };
 
 const store = {
@@ -393,8 +418,16 @@ const store = {
         if (currentUser) {
           const docRef = doc(db, 'saves', `uid_${currentUser.uid}`);
           const snap = await withTimeout(getDoc(docRef));
-          if (snap.exists() && snap.data()[key]) {
-            const cloudValue = JSON.parse(snap.data()[key]);
+          if (snap.exists()) {
+            const data = snap.data() as Record<string, unknown>;
+            const slots = readCloudSlotsFromDocument(data, snapshotUpdatedAt(snap));
+            const activeRecord = slots.records[readActiveCloudSlot() - 1] || slots.records[0];
+            const rawPayload = activeRecord?.payload
+              ?? (typeof data[key] === 'string' ? data[key] : null);
+            if (!rawPayload) {
+              return localValue || fallback;
+            }
+            const cloudValue = JSON.parse(rawPayload);
             const resolved = resolveRevisionConflict(localValue, cloudValue);
             if (resolved.conflict) {
               localStorage.setItem('apawthecaria_sync_status', 'same-revision-conflict-local-kept');
@@ -2248,12 +2281,12 @@ const upsertPlayerMapStop = (
   const next: CustomMapLocation = {
     ...(previous || {}),
     id: stop.id,
-    label: stop.name.trim() || previous?.label || existingNode?.label || stop.id,
+    label: stop.name.trim(),
     x: Number.isFinite(stop.x) ? stop.x : previous?.x ?? existingNode?.x ?? 50,
     y: Number.isFinite(stop.y) ? stop.y : previous?.y ?? existingNode?.y ?? 50,
     region: (stop.terrain || previous?.region || existingNode?.region || 'Wilds') as MapRegion,
     kind: mapKindFromGlyph(stop.kind),
-    aliases: Array.from(new Set([...(previous?.aliases || []), ...(existingNode?.aliases || []), stop.name])),
+    aliases: Array.from(new Set([...(previous?.aliases || []), ...(existingNode?.aliases || []), previous?.label || '', existingNode?.label || '', stop.name].filter(Boolean))),
     neighbors: Array.from(new Set([...(previous?.neighbors || []), ...(existingNode?.neighbors || [])])),
     source: previous?.hidden ? 'player-correction' : (previous?.source || 'player-correction'),
     createdAt: previous?.createdAt || Date.now(),
@@ -5247,7 +5280,7 @@ export default function App() {
       showAlert(record.name ? `슬롯 ${slot}에 ${record.name} 기록을 올렸습니다.` : `슬롯 ${slot}에 기록을 올렸습니다.`);
     } catch (error) {
       console.error('Failed to upload cloud slot:', error);
-      showAlert('클라우드에 올리지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.');
+      showAlert(cloudWriteErrorMessage(error as { code?: string; message?: string }));
     } finally {
       setCloudSlotBusy(false);
     }
@@ -10902,7 +10935,7 @@ function PlayView({
         ...s,
         customMapLocations: nextLocations,
         ...(touchesCurrent ? {
-          currentLocationName: stop.name,
+          currentLocationName: stop.name.trim() || s.currentLocationName,
           currentLocationType: locationTypeFromGlyph(stop.kind),
           currentRegion: stop.terrain || s.currentRegion
         } : {})
@@ -11084,7 +11117,7 @@ function PlayView({
     const node = routeGraphNodes[location.id];
     const stop: RouteStop = {
       id: location.id,
-      name: location.name || node?.label || '',
+      name: location.name ?? node?.label ?? '',
       kind: location.kind === 'City' || location.kind === 'Settlement' || location.kind === 'Ruin' || location.kind === 'Barrow' || location.kind === 'Clinic'
         ? location.kind
         : (node ? stopFromGraphNode(location.id, node).kind : 'Wilds'),
@@ -15912,7 +15945,7 @@ function AtlasMapPanel({
       : (node ? stopFromGraphNode(location.id, node).kind : 'Wilds');
     return {
       id: location.id,
-      name: location.name || node?.label || '',
+      name: location.name ?? node?.label ?? '',
       kind,
       terrain: terrainFromRegion(location.region) || (node ? stopFromGraphNode(location.id, node).terrain : null),
       hasClinic: Boolean(location.hasClinic) || kind === 'Clinic',
