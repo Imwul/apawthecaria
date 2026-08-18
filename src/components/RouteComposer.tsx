@@ -45,12 +45,6 @@ const polar = (index: number, count: number, radius: number) => {
   };
 };
 
-const edgeGlyph = (kind: RouteEdgeKind): string => {
-  if (kind === 'river') return '강';
-  if (kind === 'waterway') return '수';
-  return '육';
-};
-
 export function RouteComposer({
   draft,
   speed,
@@ -169,7 +163,8 @@ export function RouteComposer({
                     title={`${routeEdgeLabel(kind)} · 클릭 시 ${nextKindHint}로 바뀝니다`}
                     onClick={() => onChangeEdge(index, cycleRouteEdgeKind(kind, left, right))}
                   >
-                    {edgeGlyph(kind)}
+                    <span className={`route-composer__edge-indicator route-composer__edge-indicator--${kind}`} aria-hidden="true" />
+                    <span className="sr-only">{`현재 ${routeEdgeLabel(kind)}, 클릭 시 ${nextKindHint}`}</span>
                   </button>
                 </foreignObject>
               );
