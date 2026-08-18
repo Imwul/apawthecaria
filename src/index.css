@@ -4060,20 +4060,63 @@ button,
 }
 
 .route-composer__edge-dot {
+  position: relative;
   min-width: 0;
   min-height: 0;
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 1.05rem;
+  height: 1.05rem;
   border: 1px solid #6a5344;
   border-radius: 999px;
   background: #f4ead8;
   color: #4a3628;
-  font-family: "Noto Sans KR", sans-serif;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
   font-size: 0.62rem;
   line-height: 1;
+  font-family: "Noto Sans KR", sans-serif;
   text-align: center;
-  padding: 0;
   cursor: pointer;
+  box-shadow: 0 1px 0 rgba(22, 20, 16, 0.12);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.route-composer__edge-dot:focus-visible,
+.route-composer__edge-dot:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 0 rgba(22, 20, 16, 0.16);
+}
+
+.route-composer__edge-indicator {
+  width: 0.45rem;
+  height: 0.45rem;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  transform: rotate(45deg);
+}
+
+.route-composer__edge-indicator--path {
+  width: 0.62rem;
+  height: 0.2rem;
+  border-radius: 999px;
+  border-width: 1.4px;
+  transform: none;
+}
+
+.route-composer__edge-indicator--river {
+  width: 0.56rem;
+  height: 0.56rem;
+  border: 1px dashed currentColor;
+  border-radius: 999px;
+  transform: none;
+}
+
+.route-composer__edge-indicator--waterway {
+  width: 0.56rem;
+  height: 0.56rem;
+  border: 1px solid currentColor;
+  border-radius: 0.18rem;
+  transform: none;
 }
 
 .route-composer__edge-dot.is-waterway,
@@ -4081,6 +4124,18 @@ button,
   background: #d8e4ec;
   color: #1c6da8;
   border-color: #1c6da8;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .route-composer__edge-hint {
@@ -4805,8 +4860,7 @@ button,
 
 .map-location-hit.is-current .map-location-dot,
 .map-location-hit.is-picked .map-location-dot,
-.map-location-hit.is-route .map-location-dot,
-.map-location-hit.is-candidate .map-location-dot {
+.map-location-hit.is-route .map-location-dot {
   opacity: 1;
 }
 
