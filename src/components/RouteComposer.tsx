@@ -38,10 +38,50 @@ const reasonText = (reason: ReturnType<typeof evaluateRouteDraft>['reason'], spe
 };
 
 const polar = (index: number, count: number, radius: number) => {
+  if (count <= 0) return { x: 50, y: 50 };
   const angle = -Math.PI / 2 + (count === 0 ? 0 : (index * 2 * Math.PI) / count);
+  const halfWidth = radius * 1.08;
+  const halfHeight = Math.max(10, radius * 0.34);
+  const cornerRadius = Math.max(4, radius * 0.14);
+  const straightTop = Math.max(2, (2 * halfWidth) - (2 * cornerRadius));
+  const straightBottom = Math.max(2, (2 * halfHeight) - (2 * cornerRadius));
+  const rightArc = Math.PI * cornerRadius;
+  const totalPerimeter = 2 * straightTop + 2 * straightBottom + 2 * rightArc;
+  const offset = ((index % count + count) % count) / count * totalPerimeter;
+  const cx = 50;
+  const cy = 50;
+
+  if (offset < straightTop) {
+    return {
+      x: cx - halfWidth + cornerRadius + offset,
+      y: cy - halfHeight
+    };
+  }
+
+  if (offset < straightTop + rightArc) {
+    const arcOffset = offset - straightTop;
+    const theta = -Math.PI / 2 + arcOffset / cornerRadius;
+    const rx = cx + halfWidth - cornerRadius;
+    return {
+      x: rx + cornerRadius * Math.cos(theta),
+      y: cy + cornerRadius * Math.sin(theta)
+    };
+  }
+
+  if (offset < 2 * straightTop + rightArc) {
+    const local = offset - (straightTop + rightArc);
+    return {
+      x: cx + halfWidth - cornerRadius - local,
+      y: cy + halfHeight
+    };
+  }
+
+  const leftArcOffset = offset - (2 * straightTop + rightArc);
+  const theta = Math.PI / 2 + leftArcOffset / cornerRadius;
+  const lx = cx - halfWidth + cornerRadius;
   return {
-    x: 50 + radius * Math.cos(angle),
-    y: 50 + radius * Math.sin(angle)
+    x: lx + cornerRadius * Math.cos(theta),
+    y: cy + cornerRadius * Math.sin(theta)
   };
 };
 
@@ -117,11 +157,23 @@ export function RouteComposer({
             {draft.edgeKinds.map((kind, index) => {
               const from = polar(index, count, 36);
               const to = polar(index + 1, count, 36);
+              const nextKindHint = routeEdgeLabel(cycleRouteEdgeKind(kind, draft.stops[index], draft.stops[index + 1]));
               return (
                 <path
                   key={`edge-${index}`}
                   className={kind === 'path' ? 'route-composer__arc' : `route-composer__arc route-composer__arc--${kind}`}
                   d={`M ${from.x} ${from.y} L ${to.x} ${to.y}`}
+                  role="button"
+                  aria-label={`경로 ${index + 1}의 타입을 바꾸기 (현재 ${routeEdgeLabel(kind)})`}
+                  title={`${routeEdgeLabel(kind)} · 클릭 시 ${nextKindHint}로 바뀝니다`}
+                  tabIndex={0}
+                  onClick={() => onChangeEdge(index, cycleRouteEdgeKind(kind, draft.stops[index], draft.stops[index + 1]))}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onChangeEdge(index, cycleRouteEdgeKind(kind, draft.stops[index], draft.stops[index + 1]));
+                    }
+                  }}
                 />
               );
             })}
@@ -141,40 +193,12 @@ export function RouteComposer({
                 </foreignObject>
               );
             })}
-            {draft.edgeKinds.map((kind, index) => {
-              const from = polar(index, count, 36);
-              const to = polar(index + 1, count, 36);
-              const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
-              const left = draft.stops[index];
-              const right = draft.stops[index + 1];
-              const nextKindHint = routeEdgeLabel(cycleRouteEdgeKind(kind, left, right));
-              return (
-                <foreignObject
-                  key={`edge-kind-${index}`}
-                  x={mid.x - 11}
-                  y={mid.y - 11}
-                  width="22"
-                  height="22"
-                >
-                  <button
-                    type="button"
-                    className={`route-composer__edge-dot${kind === 'path' ? '' : ` is-${kind}`}`}
-                    aria-label={`경로 ${index + 1}의 타입을 바꾸기 (현재 ${routeEdgeLabel(kind)})`}
-                    title={`${routeEdgeLabel(kind)} · 클릭 시 ${nextKindHint}로 바뀝니다`}
-                    onClick={() => onChangeEdge(index, cycleRouteEdgeKind(kind, left, right))}
-                  >
-                    <span className={`route-composer__edge-indicator route-composer__edge-indicator--${kind}`} aria-hidden="true" />
-                    <span className="sr-only">{`현재 ${routeEdgeLabel(kind)}, 클릭 시 ${nextKindHint}`}</span>
-                  </button>
-                </foreignObject>
-              );
-            })}
           </svg>
         )}
       </div>
       {count > 1 && (
         <p className="route-composer__edge-hint">
-          경로 타입은 각 구간의 점을 눌러 순환으로 변경할 수 있습니다. (현재 타입 → 다음 타입)
+          경로 타입은 각 구간 선을 클릭하거나 Enter/Space로 순환해서 변경할 수 있습니다. (현재 타입 → 다음 타입)
         </p>
       )}
 

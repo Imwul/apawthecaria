@@ -11576,6 +11576,7 @@ function PlayView({
             travelEnabled={Boolean(state.journeyActive && !state.needsLocalHelpBeforeMove)}
             travelBlockedReason={state.needsLocalHelpBeforeMove ? '현지 일을 마친 뒤 이동할 수 있습니다.' : null}
             onOpenFullMap={onOpenFullMap}
+            showRoutePreview={false}
             companionCaption={
               playMapMode === 'destination'
                 ? (journeyDestinationCard
@@ -16297,6 +16298,7 @@ const MapView = memo(function MapView({
   showWaypointAction = true,
   showTravelRoutes = true,
   veiled = false,
+  showRoutePreview = true,
   onSelectedPlaceChange,
   onOpenFullMap,
   companionCaption,
@@ -16323,6 +16325,7 @@ const MapView = memo(function MapView({
   showWaypointAction?: boolean;
   showTravelRoutes?: boolean;
   veiled?: boolean;
+  showRoutePreview?: boolean;
   onSelectedPlaceChange?: (placeId: string | null) => void;
   onOpenFullMap?: () => void;
   companionCaption?: string;
@@ -16433,6 +16436,7 @@ const MapView = memo(function MapView({
       canDeletePlace={canDeletePlace}
       showWaypointAction={showWaypointAction}
       showTravelRoutes={showTravelRoutes}
+      showRoutePreview={showRoutePreview}
       veiled={veiled}
       routePlaceIds={routePlaceIds}
       onSelectedPlaceChange={onSelectedPlaceChange}
