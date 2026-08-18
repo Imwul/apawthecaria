@@ -83,6 +83,7 @@ type PaperMapProps = {
   }) => void;
   currentRegion?: string;
   currentSeasonLabel?: string;
+  showRoutePreview?: boolean;
 };
 
 const EMPTY_ROUTE: RoadRouteGeometry = { segments: [], missingPairs: [], total: 0 };
@@ -164,7 +165,8 @@ export function PaperMap({
   onOpenFullMap,
   onOpenReference,
   currentRegion,
-  currentSeasonLabel
+  currentSeasonLabel,
+  showRoutePreview = true
 }: PaperMapProps) {
   const isCompanion = variant === 'companion';
   const mapDebug = useMapDebugEnabled();
@@ -626,7 +628,7 @@ export function PaperMap({
                 fill="none"
               />
             ))}
-            {previewGeometry.segments.map((segment, index) => (
+            {showRoutePreview && previewGeometry.segments.map((segment, index) => (
               <polyline
                 key={`preview:${segment.id}:${index}`}
                 className={segment.kind === 'waterway' ? 'paper-map__waterway' : 'paper-map__preview'}

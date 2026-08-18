@@ -185,7 +185,6 @@ export function RouteComposer({
                   d={`M ${insetFrom.x} ${insetFrom.y} L ${insetTo.x} ${insetTo.y}`}
                   role="button"
                   aria-label={`경로 ${index + 1}의 타입을 바꾸기 (현재 ${routeEdgeLabel(kind)})`}
-                  title={`${routeEdgeLabel(kind)} · 클릭 시 ${nextKindHint}로 바뀝니다`}
                   tabIndex={0}
                   onClick={() => onChangeEdge(index, cycleRouteEdgeKind(kind, draft.stops[index], draft.stops[index + 1]))}
                   onKeyDown={(event) => {
