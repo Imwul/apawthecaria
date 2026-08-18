@@ -133,7 +133,7 @@ export function RouteComposer({
     mustUseFullSpeed: true
   });
   const count = draft.stops.length;
-  const glyphSize = count > 16 ? 14 : count > 10 ? 16 : 20;
+  const glyphSize = count > 16 ? 12 : count > 10 ? 14 : 16;
   const travelReady = canTravel && evaluation.reason === 'legal' && Boolean(destination);
   const [nameOpen, setNameOpen] = useState<Record<string, boolean>>({});
 
@@ -198,7 +198,7 @@ export function RouteComposer({
             })}
             {draft.stops.map((row, index) => {
               const point = polar(index, count, 36);
-              const nodeFrame = Math.max(18, glyphSize + 8);
+              const nodeFrame = Math.max(14, glyphSize + 4);
               return (
                 <foreignObject
                   key={row.id + index}

@@ -11565,6 +11565,7 @@ function PlayView({
             onConfirmDestination={playMapMode === 'destination' ? handlePlayMapPick : undefined}
             onTravelRequest={playMapMode === 'travel' ? handlePlayMapTravel : undefined}
             onAddWaypoint={handleAddRouteWaypoint}
+            onSetCurrentLocation={handleSetMappedCurrentLocation}
             onCreatePlace={undefined}
             onMovePlace={undefined}
             onEditPlace={undefined}
@@ -16111,12 +16112,13 @@ function AtlasMapPanel({
           });
           setSelectedId(id);
         }}
-        onMovePlace={location => {
+      onMovePlace={location => {
           if (location.x === undefined || location.y === undefined || !location.id) return;
           persistStop(stopFromRequest(location));
         }}
-        onEditPlace={location => persistStop(stopFromRequest(location))}
-        onDeletePlace={location => deletePlace(location.id)}
+      onSetCurrentLocation={handleSetMappedCurrentLocation}
+      onEditPlace={location => persistStop(stopFromRequest(location))}
+      onDeletePlace={location => deletePlace(location.id)}
         onSavePlaces={() => {
           const custom = state.customMapLocations || [];
           upsertPlayerMarkerRecords(custom.filter(row => !row.hidden).map(row => ({
