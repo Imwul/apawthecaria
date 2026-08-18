@@ -118,6 +118,7 @@ import {
   resolveForaging,
   resolveJourneyEnding,
   resolveJourneyStart,
+  urgencyFor,
   resolveLeave,
   resolveManualEffectTransaction,
   normalizeLegacyManualEffectDraft,
@@ -5449,7 +5450,7 @@ export default function App() {
   const travelSpeed = getTravelSpeed(state, currentWeight);
   const isOverEncumbered = currentWeight > maxCarry;
 
-  const addPreparedReagentToInventory = (reagentName: string, sourceLabel: string, onAdded?: () => void) => {
+  const addPreparedReagentToInventory = async (reagentName: string, sourceLabel: string, onAdded?: () => void) => {
     const canonical = findCanonicalReagent(reagentName);
     const r = canonical ? reagentDisplayRecord(canonical) : null;
     if (!r) {
@@ -5457,7 +5458,12 @@ export default function App() {
       return;
     }
     const parts = splitReagentPreparations(r.preps);
-    const chosenPart = prompt(`가방에 넣을 ${r.name} 부위를 선택하세요:\n${parts.map((p, i) => `${i + 1}. ${p.trim()}`).join('\n')}`);
+    const chosenPart = await requestControlledPrompt({
+      title: '🌿 영약재 부위 선택',
+      message: `가방에 넣을 ${r.name} 부위를 선택하세요:`,
+      options: parts.map((p, i) => ({ label: `${i + 1}. ${p.trim()}`, value: String(i + 1) })),
+      defaultValue: '1'
+    });
     if (!chosenPart) return;
     const partIdx = Math.max(0, (parseInt(chosenPart) || 1) - 1);
     const partText = parts[partIdx] || parts[0];
@@ -5666,16 +5672,90 @@ export default function App() {
     if (outcome.gatheredItems.length === 0) showAlert(result.messages.join('\n'));
   };
 
-  const applyEncounterStateEffect = (effect: 'gainFP' | 'loseFP' | 'gainTime' | 'loseTime' | 'gainReagent' | 'loseReagent' | 'gainTrinket' | 'loseTrinket' | 'startPursuit' | 'clearPursuit' | 'gainRep' | 'loseRep' | 'markDay' | 'moveSettlement' | 'endJourney') => {
+  const applyEncounterStateEffect = async (effect: 'gainFP' | 'loseFP' | 'gainTime' | 'loseTime' | 'gainReagent' | 'loseReagent' | 'gainTrinket' | 'loseTrinket' | 'startPursuit' | 'clearPursuit' | 'gainRep' | 'loseRep' | 'markDay' | 'moveSettlement' | 'endJourney') => {
     const amountInput = ['gainFP', 'loseFP', 'gainTime', 'loseTime', 'gainTrinket', 'loseTrinket', 'startPursuit', 'gainRep', 'loseRep', 'markDay'].includes(effect)
-      ? prompt("적용할 수치를 입력하세요:", effect === 'startPursuit' ? "6" : "1")
+      ? await requestControlledPrompt({
+          title: '조우 수치 입력',
+          message: '적용할 수치를 입력하세요:',
+          defaultValue: effect === 'startPursuit' ? '6' : '1',
+          inputMode: 'number'
+        })
       : null;
+    if (['gainFP', 'loseFP', 'gainTime', 'loseTime', 'gainTrinket', 'loseTrinket', 'startPursuit', 'gainRep', 'loseRep', 'markDay'].includes(effect) && amountInput === null) return;
     const amount = Math.max(0, parseInt(amountInput || "0") || 0);
     const timestamp = createClientTransaction('encounter-effect').at;
 
     if (effect === 'gainReagent') {
-      const reagentName = prompt("획득할 영약재 이름:", "");
-      if (reagentName) addPreparedReagentToInventory(reagentName, 'encounter_reagent');
+      const reagentName = await requestControlledPrompt({
+        title: '🌿 영약재 획득',
+        message: '획득할 영약재 이름을 입력하세요:',
+        defaultValue: ''
+      });
+      if (reagentName) await addPreparedReagentToInventory(reagentName, 'encounter_reagent');
+      return;
+    }
+
+    if (effect === 'loseReagent') {
+      const reagents = state.bag.filter(item => item.type === 'reagent');
+      if (reagents.length === 0) {
+        showAlert("잃을 영약재가 가방에 없습니다.");
+        return;
+      }
+      const choice = await requestControlledPrompt({
+        title: '영약재 분실',
+        message: '잃을 영약재를 선택하세요:',
+        options: reagents.map((item, i) => ({ label: `${i + 1}. ${localizeInventoryItemName(item.name)}`, value: String(i + 1) })),
+        defaultValue: '1'
+      });
+      if (!choice) return;
+      const target = reagents[Math.max(0, (parseInt(choice || "1") || 1) - 1)] || reagents[0];
+      let removed = false;
+      const nextBag = state.bag.filter(item => {
+        if (!removed && item.id === target.id) {
+          removed = true;
+          return false;
+        }
+        return true;
+      });
+      updateState(s => ({
+        ...s,
+        bag: nextBag,
+        journals: [{
+          id: `encounter-lose-reagent-${timestamp}`,
+          title: '조우 효과: 영약재 상실',
+          text: `영약재 ${target.name}을(를) 잃었습니다.`,
+          timestamp
+        }, ...s.journals]
+      }));
+      return;
+    }
+
+    if (effect === 'moveSettlement') {
+      const settlementName = await requestControlledPrompt({
+        title: '정착지로 이동',
+        message: '이동할 정착지 이름을 입력하세요:',
+        defaultValue: state.currentLocationName
+      });
+      if (!settlementName) return;
+      updateState(s => ({
+        ...s,
+        currentLocationName: settlementName,
+        currentLocationType: 'Settlement',
+        customMapLocations: upsertCustomMapLocation(
+          s.customMapLocations || [],
+          settlementName,
+          s.currentRegion,
+          'Settlement',
+          s.currentLocationName,
+          '조우 효과로 도착한 정착지'
+        ),
+        journals: [{
+          id: `encounter-move-${timestamp}`,
+          title: '조우 효과: 정착지 이동',
+          text: `${settlementName} 정착지로 이동했습니다.`,
+          timestamp
+        }, ...s.journals]
+      }));
       return;
     }
 
@@ -5710,23 +5790,6 @@ export default function App() {
       } else if (effect === 'loseTime' && nextAilment) {
         nextAilment = { ...nextAilment, timer: Math.max(0, nextAilment.timer - amount) };
         note = `조우 효과: 치료 시간 -${amount}`;
-      } else if (effect === 'loseReagent') {
-        const reagents = nextBag.filter(item => item.type === 'reagent');
-        if (reagents.length === 0) {
-          showAlert("잃을 영약재가 가방에 없습니다.");
-          return s;
-        }
-        const choice = prompt(`잃을 영약재 번호를 선택하세요:\n${reagents.map((item, i) => `${i + 1}. ${localizeInventoryItemName(item.name)}`).join('\n')}`, "1");
-        const target = reagents[Math.max(0, (parseInt(choice || "1") || 1) - 1)] || reagents[0];
-        let removed = false;
-        nextBag = nextBag.filter(item => {
-          if (!removed && item.id === target.id) {
-            removed = true;
-            return false;
-          }
-          return true;
-        });
-        note = `조우 효과: 영약재 ${target.name} 상실`;
       } else if (effect === 'gainTrinket') {
         nextTrinkets = [...nextTrinkets, ...Array(amount).fill('조우 보상 장신구 (Trinket)')];
         note = `조우 효과: 장신구 +${amount}`;
@@ -5749,20 +5812,6 @@ export default function App() {
         nextCalendarDays = nextCalendarDays + amount;
         nextCumulative = nextCumulative + amount;
         note = `조우 효과: 일정 +${amount}일`;
-      } else if (effect === 'moveSettlement') {
-        const settlementName = prompt("이동할 정착지 이름:", s.currentLocationName);
-        if (!settlementName) return s;
-        nextCurrentLocationName = settlementName;
-        nextCurrentLocationType = 'Settlement';
-        nextCustomMapLocations = upsertCustomMapLocation(
-          s.customMapLocations || [],
-          settlementName,
-          s.currentRegion,
-          'Settlement',
-          s.currentLocationName,
-          '조우 효과로 도착한 정착지'
-        );
-        note = `조우 효과: ${settlementName} 정착지로 이동`;
       } else if (effect === 'endJourney') {
         if (!askWindowConfirm("이 조우 효과로 현재 여정을 종료할까요?")) return s;
         nextJourneyActive = false;
@@ -5783,7 +5832,12 @@ export default function App() {
         currentLocationType: nextCurrentLocationType,
         customMapLocations: nextCustomMapLocations,
         journals: note ? [
-          { id: `encounter_effect_${timestamp}`, title: '조우 상태 효과 적용', text: note, timestamp },
+          {
+            id: `encounter-effect-${timestamp}`,
+            title: note,
+            text: `${note} (${s.currentLocationName})`,
+            timestamp
+          },
           ...s.journals
         ] : s.journals
       };
@@ -7396,11 +7450,13 @@ function PlayView({
   onConsumePendingMapTravel: () => void;
 }) {
   const [destName, setDestName] = useState("");
+  const [journeyReason, setJourneyReason] = useState("");
   const journeyReasonRef = useRef("");
   const [destRegion, setDestRegion] = useState("Forest");
   const [destType, setDestType] = useState("Wilds");
   const [journeyDestinationCard, setJourneyDestinationCard] = useState<PlayingCard | null>(null);
   const [journeyGoalCard, setJourneyGoalCard] = useState<PlayingCard | null>(null);
+  const urgencyPreview = useMemo(() => urgencyFor(state.reputation), [state.reputation]);
   const journeyGoalPreview = useMemo(() => {
     if (!journeyGoalCard) return null;
     const key = getRuleCardLabel(journeyGoalCard);
@@ -7603,7 +7659,7 @@ function PlayView({
   const [selectedAgendaService, setSelectedAgendaService] = useState("pantry");
   const [independentAdjRegion, setIndependentAdjRegion] = useState("Forest");
 
-  const handlePickUpPassenger = () => {
+  const handlePickUpPassenger = async () => {
     if (!canonicalWagonFromState(state).expansionIds.includes('passenger-booth')) {
       showAlert("조수석 부스를 먼저 설치해야 합니다.");
       return;
@@ -7617,7 +7673,11 @@ function PlayView({
       return;
     }
 
-    const name = prompt("태울 승객 이름:", "길손");
+    const name = await requestControlledPrompt({
+      title: '👥 승객 모집',
+      message: '태울 승객 이름을 입력하세요:',
+      defaultValue: '길손'
+    });
     if (!name) return;
     const graph = toServiceMapGraph(state);
     const originId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
@@ -7626,29 +7686,37 @@ function PlayView({
       showAlert('현재 지도에서 승객 규칙을 만족하는 목적지를 찾을 수 없습니다.');
       return;
     }
-    const destinationChoice = prompt(
-      `승객 목적지를 고르세요.\n${destinationOptions.map((option, index) => `${index + 1}. ${option.destination} · 경로 ${option.distance}개 · 장신구 ${option.reward}`).join('\n')}`,
-      '1'
-    );
+    const destinationChoice = await requestControlledPrompt({
+      title: '승객 목적지 선택',
+      message: '승객의 목적지를 고르세요:',
+      options: destinationOptions.map((opt, index) => ({
+        label: `${opt.destination} · 경로 ${opt.distance}개 · 장신구 ${opt.reward}개`,
+        value: String(index + 1)
+      })),
+      defaultValue: '1'
+    });
     if (!destinationChoice) return;
     const destination = destinationOptions[Math.max(0, (parseInt(destinationChoice, 10) || 1) - 1)];
     if (!destination) return;
-    const roleChoice = prompt(
-      `이 승객이 이동 중 맡을 임시 길동무 역할 번호를 고르세요:\n${FAMILIAR_BENEFITS.map((f, idx) => `${idx + 1}. ${f.name}`).join('\n')}`,
-      "1"
-    );
-    if (roleChoice === null) return;
+    const roleChoice = await requestControlledPrompt({
+      title: '승객 역할 선택',
+      message: '이 승객이 이동 중 맡을 임시 길동무 역할을 고르세요:',
+      options: FAMILIAR_BENEFITS.map((f, idx) => ({ label: `${f.name} (${f.desc})`, value: String(idx + 1) })),
+      defaultValue: '1'
+    });
+    if (!roleChoice) return;
     const role = FAMILIAR_BENEFITS[Math.max(0, (parseInt(roleChoice, 10) || 1) - 1)] || FAMILIAR_BENEFITS[0];
     const roleBenefit = role.name;
     let ingenuitiveToolId: string | undefined;
     if (role.mechanic === 'ingenuitive') {
-      const toolChoice = prompt(
-        `Ingenuitive 승객이 제공할 도구 효과를 선택하세요.\n${ALMANACK_TOOLS.map((tool, index) => `${index + 1}. ${tool.canonicalName}`).join('\n')}`,
-        '1'
-      );
-      if (toolChoice === null) return;
-      ingenuitiveToolId = ALMANACK_TOOLS[Math.max(0, (parseInt(toolChoice, 10) || 1) - 1)]?.id;
-      if (!ingenuitiveToolId) return;
+      const toolChoice = await requestControlledPrompt({
+        title: '🐾 Ingenuitive 도구 효과 선택',
+        message: 'Ingenuitive 승객이 제공할 도구 효과를 선택하세요:',
+        options: ALMANACK_TOOLS.map((tool, index) => ({ label: tool.canonicalName, value: tool.id })),
+        defaultValue: ALMANACK_TOOLS[0]?.id || ''
+      });
+      if (!toolChoice) return;
+      ingenuitiveToolId = toolChoice;
     }
     const transaction = createClientTransaction('passenger-board');
     const result = resolvePassengerBoarding({
@@ -7969,7 +8037,7 @@ function PlayView({
     }
   };
 
-  const handleReplenishStocks = (e: React.FormEvent) => {
+  const handleReplenishStocks = async (e: React.FormEvent) => {
     e.preventDefault();
     if (replenishReagentIndexes.length === 0) {
       showAlert("보충할 약재를 하나 이상 골라주세요!");
@@ -7996,13 +8064,26 @@ function PlayView({
         showAlert(`${selected.displayName}: 현재 도구로 준비할 수 있는 부위가 없습니다.`);
         return;
       }
-      const choice = prompt(`보충할 ${selected.displayName} 부위를 선택하세요:\n${preparations.map((part, index) => `${index + 1}. ${localizePreparationName(part.name)} · 무게 ${formatWeight(part.weight)} · ${part.uses}회분`).join('\n')}`, '1');
+      const choice = await requestControlledPrompt({
+        title: `🌿 ${selected.displayName} 부위 선택`,
+        message: `보충할 ${selected.displayName} 부위를 선택하세요:`,
+        options: preparations.map((part, index) => ({
+          label: `${localizePreparationName(part.name)} · 무게 ${formatWeight(part.weight)} · ${part.uses}회분`,
+          value: String(index + 1)
+        })),
+        defaultValue: '1'
+      });
       if (choice === null) return;
       const preparation = preparations[(parseInt(choice, 10) || 1) - 1];
       if (!preparation) return showAlert('목록에 있는 부위를 선택해 주세요.');
       const maximum = preparation.weight > 0 ? Math.max(0, Math.floor(remaining / preparation.weight)) : 1;
       if (maximum === 0) return showAlert(`${selected.displayName}을(를) 담을 공간이 없습니다.`);
-      const amountText = prompt(`${selected.displayName} ${preparation.name}을 몇 개 채울까요? 최대 ${maximum}개`, '1');
+      const amountText = await requestControlledPrompt({
+        title: '보충 수량 입력',
+        message: `${selected.displayName} ${preparation.name}을 몇 개 채울까요? (최대 ${maximum}개)`,
+        defaultValue: '1',
+        inputMode: 'number'
+      });
       if (amountText === null) return;
       const quantity = Math.max(1, Math.min(maximum, parseInt(amountText, 10) || 1));
       items.push({
@@ -8057,7 +8138,7 @@ function PlayView({
     }
   };
 
-  const handleBuyTool = (tool: any) => {
+  const handleBuyTool = async (tool: any) => {
     if (!isToolAvailableAtLocation(tool, state, bypassShopRules)) {
       showAlert("현재 위치에서는 이 도구를 구입할 수 없습니다.");
       return;
@@ -8069,7 +8150,16 @@ function PlayView({
     let canonicalToolId = CANONICAL_TOOL_IDS[tool.id];
     let source: 'market' | 'basic-replacement' = 'market';
     if (tool.id === 'tool_basic_replacement') {
-      const chosen = prompt("교체할 기본 도구를 선택하세요:\n1. 벨트 칼\n2. 낡은 캠프 주전자\n3. 나무 절구와 공이", "1");
+      const chosen = await requestControlledPrompt({
+        title: '기본 도구 교체',
+        message: '교체할 기본 도구를 선택하세요:',
+        options: [
+          { label: '벨트 칼 (Belt Knife)', value: '1' },
+          { label: '낡은 캠프 주전자 (Camp Kettle)', value: '2' },
+          { label: '나무 절구와 공이 (Mortar and Pestle)', value: '3' }
+        ],
+        defaultValue: '1'
+      });
       if (chosen === null) return;
       canonicalToolId = chosen === '2' ? 'camp-kettle' : chosen === '3' ? 'mortar-and-pestle' : 'belt-knife';
       source = 'basic-replacement';
@@ -8111,7 +8201,7 @@ function PlayView({
     showAlert(`${outcome.inventory.find(item => item.id === `${transaction.id}:tool`)?.name || '도구'}를 구매했습니다.`);
   };
 
-  const handleHireGuildService = (service: any) => {
+  const handleHireGuildService = async (service: any) => {
     const serviceId = LEGACY_SERVICE_IDS[service.id];
     const definition = serviceId ? GUILD_SERVICE_BY_ID.get(serviceId) : null;
     if (!definition) {
@@ -8125,19 +8215,30 @@ function PlayView({
     const transaction = createClientTransaction(`service:${serviceId}`);
     const graph = toServiceMapGraph(state);
     const currentLocationId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
-    const chooseOne = (label: string, rows: Array<{ id: string; label: string }>) => {
+    const chooseOne = async (label: string, rows: Array<{ id: string; label: string }>) => {
       if (rows.length === 0) return null;
-      const raw = prompt(`${label}\n${rows.map((row, index) => `${index + 1}. ${row.label}`).join('\n')}`, '1');
-      if (raw === null) return null;
-      return rows[Math.max(0, (parseInt(raw, 10) || 1) - 1)]?.id || null;
+      return await requestControlledPrompt({
+        title: '길드 서비스 선택',
+        message: label,
+        options: rows.map(row => ({ label: row.label, value: row.id })),
+        defaultValue: rows[0]?.id || ''
+      });
     };
-    const chooseMany = (label: string, rows: Array<{ id: string; label: string }>, maximum: number) => {
-      const raw = prompt(`${label}\n${rows.map((row, index) => `${index + 1}. ${row.label}`).join('\n')}\n번호를 쉼표로 구분하세요.`, '1');
+    const chooseMany = async (label: string, rows: Array<{ id: string; label: string }>, maximum: number) => {
+      const raw = await requestControlledPrompt({
+        title: '다중 선택 (최대 ' + maximum + '개)',
+        message: `${label}\n${rows.map((row, index) => `${index + 1}. ${row.label}`).join('\n')}\n선택할 번호를 쉼표로 구분해 입력하세요 (예: 1, 2):`,
+        defaultValue: '1'
+      });
       if (raw === null) return null;
       const indexes = [...new Set(raw.split(',').map(value => parseInt(value.trim(), 10) - 1).filter(index => index >= 0 && index < rows.length))].slice(0, maximum);
       return indexes.map(index => rows[index].id);
     };
-    const note = prompt(`${definition.name} 이용 기록을 남겨주세요:`, '')?.trim();
+    const note = (await requestControlledPrompt({
+      title: `${definition.name} 이용 기록`,
+      message: `${definition.name} 이용 기록을 남겨주세요:`,
+      defaultValue: `${definition.name} 서비스를 이용했다.`
+    }))?.trim();
     if (!note) return;
     const targetIds: string[] = [];
     let selectedItemIds: string[] = [];
@@ -8147,66 +8248,74 @@ function PlayView({
     const nodes = Object.values(graph).map(node => ({ id: node.id, label: `${node.name} · ${localizeRegionLabel(node.region)} · ${locationTypeLabel(node.locationType)}` }));
 
     if (serviceId === 'send-package') {
-      const chosen = chooseMany('보낼 실제 가방 물품을 선택하세요. 최대 총 무게 5.', state.bag.map(item => ({ id: item.id, label: `${localizeInventoryItemName(item.name)} · ${formatWeight(item.weight * (item.qty || 1))}` })), state.bag.length);
+      const chosen = await chooseMany('보낼 실제 가방 물품을 선택하세요. 최대 총 무게 5.', state.bag.map(item => ({ id: item.id, label: `${localizeInventoryItemName(item.name)} · ${formatWeight(item.weight * (item.qty || 1))}` })), state.bag.length);
       if (!chosen?.length) return;
       selectedItemIds = chosen;
     } else if (serviceId === 'shortcut') {
-      const chosen = chooseOne('지름길로 이동할 가까운 위치를 선택하세요.', nodes.filter(row => isNearbyMapLocation(graph, currentLocationId, row.id)));
+      const chosen = await chooseOne('지름길로 이동할 가까운 위치를 선택하세요.', nodes.filter(row => isNearbyMapLocation(graph, currentLocationId, row.id)));
       if (!chosen) return;
       targetIds.push(chosen);
     } else if (serviceId === 'hitch-a-ride') {
       const candidates = nodes.filter(row => graph[row.id].region === 'Meadow' && (shortestPathDistance(graph, currentLocationId, row.id) || Infinity) <= 5);
-      const chosen = chooseOne('경로 5개 이내의 초원 목적지를 선택하세요.', candidates);
+      const chosen = await chooseOne('경로 5개 이내의 초원 목적지를 선택하세요.', candidates);
       if (!chosen) return;
       targetIds.push(chosen);
     } else if (serviceId === 'survey-paths') {
-      const mode = prompt('Survey Paths 방식을 선택하세요.\n1. 가까운 두 장소를 연결\n2. 한 장소를 기존 경로에 연결', '1');
+      const mode = await requestControlledPrompt({
+        title: 'Survey Paths 방식 선택',
+        message: 'Survey Paths 방식을 선택하세요:',
+        options: [
+          { label: '1. 가까운 두 장소를 연결', value: '1' },
+          { label: '2. 한 장소를 기존 경로에 연결', value: '2' }
+        ],
+        defaultValue: '1'
+      });
       if (mode === null) return;
       if (mode === '2') {
-        const location = chooseOne('기존 경로에 연결할 장소를 선택하세요.', nodes);
+        const location = await chooseOne('기존 경로에 연결할 장소를 선택하세요.', nodes);
         if (!location) return;
         const pathRows = Object.values(graph).flatMap(node => node.edges
           .filter(edge => node.id < edge.to && graph[edge.to])
           .map(edge => ({ id: `${node.id}|${edge.to}`, label: `${node.name} ↔ ${graph[edge.to].name}` })));
-        const path = chooseOne('연결할 기존 경로를 선택하세요.', pathRows.filter(row => !row.id.split('|').includes(location)));
+        const path = await chooseOne('연결할 기존 경로를 선택하세요.', pathRows.filter(row => !row.id.split('|').includes(location)));
         if (!path) return;
         const [a, b] = path.split('|');
         targetIds.push(location, a, b);
       } else {
-        const first = chooseOne('새 경로의 첫 장소를 선택하세요.', nodes);
+        const first = await chooseOne('새 경로의 첫 장소를 선택하세요.', nodes);
         if (!first) return;
-        const second = chooseOne('가까운 두 번째 위치를 선택하세요.', nodes.filter(row => isNearbyMapLocation(graph, first, row.id)));
+        const second = await chooseOne('가까운 두 번째 위치를 선택하세요.', nodes.filter(row => isNearbyMapLocation(graph, first, row.id)));
         if (!second) return;
         targetIds.push(first, second);
       }
     } else if (serviceId === 'build-a-bridge') {
-      const loch = chooseOne('다리를 놓을 호수 위치를 선택하세요.', nodes.filter(row => graph[row.id].region === 'Loch'));
+      const loch = await chooseOne('다리를 놓을 호수 위치를 선택하세요.', nodes.filter(row => graph[row.id].region === 'Loch'));
       if (!loch) return;
       const neighbors = graph[loch].edges.filter(edge => graph[edge.to]?.region !== 'Loch').map(edge => ({ id: edge.to, label: graph[edge.to].name }));
-      const banks = chooseMany('양쪽 둑 위치 두 곳을 선택하세요.', neighbors, 2);
+      const banks = await chooseMany('양쪽 둑 위치 두 곳을 선택하세요.', neighbors, 2);
       if (!banks || banks.length !== 2) return;
       targetIds.push(loch, ...banks);
     } else if (serviceId === 'floodplain') {
-      const chosen = chooseOne('다음 봄까지 호수가 될 야생 위치를 선택하세요.', nodes.filter(row => graph[row.id].locationType === 'Wilds' && graph[row.id].region !== 'Loch'));
+      const chosen = await chooseOne('다음 봄까지 호수가 될 야생 위치를 선택하세요.', nodes.filter(row => graph[row.id].locationType === 'Wilds' && graph[row.id].region !== 'Loch'));
       if (!chosen) return;
       targetIds.push(chosen);
     } else if (serviceId === 'retrieval') {
-      const chosen = chooseOne('경로 5개 이상 떨어진 정착지를 선택하세요.', nodes.filter(row => graph[row.id].locationType === 'Settlement' && (shortestPathDistance(graph, currentLocationId, row.id) || 0) >= 5));
+      const chosen = await chooseOne('경로 5개 이상 떨어진 정착지를 선택하세요.', nodes.filter(row => graph[row.id].locationType === 'Settlement' && (shortestPathDistance(graph, currentLocationId, row.id) || 0) >= 5));
       if (!chosen) return;
       targetIds.push(chosen);
-      const reagentId = chooseOne('회수할 비-Titan 영약재를 선택하세요.', REAGENTS.filter(row => row.type !== 'TITAN').map(row => ({ id: row.id, label: `${row.displayName} · 기본 희귀도 ${row.baseRarity}` })));
+      const reagentId = await chooseOne('회수할 비-Titan 영약재를 선택하세요.', REAGENTS.filter(row => row.type !== 'TITAN').map(row => ({ id: row.id, label: `${row.displayName} · 기본 희귀도 ${row.baseRarity}` })));
       const reagent = reagentId ? REAGENT_BY_ID.get(reagentId) : null;
       if (!reagent) return;
-      const preparationId = chooseOne('회수할 부위와 조제법을 선택하세요.', reagent.preparations.map(row => ({ id: row.id, label: `${localizePreparationName(row.name)} · ${localizePreparationMethod(row.method)} · 무게 ${formatWeight(row.weight)}` })));
+      const preparationId = await chooseOne('회수할 부위와 조제법을 선택하세요.', reagent.preparations.map(row => ({ id: row.id, label: `${localizePreparationName(row.name)} · ${localizePreparationMethod(row.method)} · 무게 ${formatWeight(row.weight)}` })));
       if (!preparationId) return;
       selectedReagentId = reagent.id;
       selectedPreparationId = preparationId;
     } else if (serviceId === 'send-a-missive') {
-      const chosen = chooseMany('서신을 보낼 정착지를 최대 세 곳 선택하세요.', nodes.filter(row => graph[row.id].locationType === 'Settlement'), 3);
+      const chosen = await chooseMany('서신을 보낼 정착지를 최대 세 곳 선택하세요.', nodes.filter(row => graph[row.id].locationType === 'Settlement'), 3);
       if (!chosen?.length) return;
       targetIds.push(...chosen);
     } else if (serviceId === 'scare-tactics') {
-      const chosen = chooseOne('제거할 지도상의 고분을 선택하세요.', (state.barrows || []).filter(row => !row.removed).map(row => ({ id: row.id, label: `${row.name} · ${row.locationName}` })));
+      const chosen = await chooseOne('제거할 지도상의 고분을 선택하세요.', (state.barrows || []).filter(row => !row.removed).map(row => ({ id: row.id, label: `${row.name} · ${row.locationName}` })));
       if (!chosen) return;
       targetIds.push(chosen);
     }
@@ -8215,10 +8324,10 @@ function PlayView({
       if (serviceId === 'pick-of-the-deep') card = drawPlayingCard();
       const limit = card ? getRuleCardValue(card, 'table') : 12;
       const candidates = REAGENTS.filter(row => serviceId === 'rug-of-wonders' ? row.type !== 'TITAN' && row.baseRarity <= 9 : serviceId === 'take-clippings' ? row.type === 'PLANT' : serviceId === 'pick-of-the-deep' ? row.type === 'TITAN' && row.baseRarity <= limit : row.canonicalName === (service.id === 'catch_day_big' ? 'Big Fish' : 'Small Fish'));
-      const chosen = chooseOne('획득할 정식 영약재를 선택하세요.', candidates.map(row => ({ id: row.id, label: `${row.displayName} · 기본 희귀도 ${row.baseRarity}` })));
+      const chosen = await chooseOne('획득할 정식 영약재를 선택하세요.', candidates.map(row => ({ id: row.id, label: `${row.displayName} · 기본 희귀도 ${row.baseRarity}` })));
       const reagent = chosen ? REAGENT_BY_ID.get(chosen) : null;
       if (!reagent) return;
-      const preparationId = chooseOne('획득할 부위와 조제법을 선택하세요.', reagent.preparations.map(row => ({ id: row.id, label: `${localizePreparationName(row.name)} · ${localizePreparationMethod(row.method)} · 무게 ${formatWeight(row.weight)}` })));
+      const preparationId = await chooseOne('획득할 부위와 조제법을 선택하세요.', reagent.preparations.map(row => ({ id: row.id, label: `${localizePreparationName(row.name)} · ${localizePreparationMethod(row.method)} · 무게 ${formatWeight(row.weight)}` })));
       if (!preparationId) return;
       selectedReagentId = reagent.id;
       selectedPreparationId = preparationId;
@@ -8339,7 +8448,7 @@ function PlayView({
     setSelectedUpgradeOption("");
   };
 
-  const handleBuyWagonUpgrade = (upgrade: any) => {
+  const handleBuyWagonUpgrade = async (upgrade: any) => {
     const expansionId = ({ sealedCarriage: 'sealed-carriage', pedalMotor: 'pedal-motor', axelSprings: 'axel-springs', sideBrackets: 'side-brackets', hiveBrackets: 'hive-brackets', passengerBooth: 'passenger-booth', shadowCanvas: 'shadow-canvas', experimentalContraption: 'experimental-contraption', clayPots: 'clay-pots' } as Record<string, string>)[upgrade.id];
     const coracle = state.bag.find(item => item.canonicalToolId === 'bark-coracle');
     const recycleCoracle = expansionId === 'sealed-carriage' && !!coracle && askWindowConfirm('Bark Coracle을 부품으로 재활용해 비용을 5 줄일까요? 사용한 Coracle은 가방에서 제거됩니다.');
@@ -8348,10 +8457,14 @@ function PlayView({
     let clayPotReagentId: string | undefined;
     if (expansionId === 'clay-pots') {
       const plants = REAGENTS.filter(row => row.type === 'PLANT' && row.seasonAvailability[state.currentSeason] !== 'Unavailable');
-      const choice = prompt(`Clay Pots에 심을 제철 식물을 선택하세요.\n${plants.map((row, index) => `${index + 1}. ${row.displayName}`).join('\n')}`, '1');
+      const choice = await requestControlledPrompt({
+        title: '🌱 Clay Pots 제철 식물 선택',
+        message: 'Clay Pots에 심을 제철 식물을 선택하세요:',
+        options: plants.map(row => ({ label: `${row.displayName} (${row.seasonAvailability[state.currentSeason]})`, value: row.id })),
+        defaultValue: plants[0]?.id || ''
+      });
       if (!choice) return;
-      clayPotReagentId = plants[Math.max(0, (parseInt(choice, 10) || 1) - 1)]?.id;
-      if (!clayPotReagentId) return;
+      clayPotReagentId = choice;
     }
     const result = resolveWagonUpgrade({
       transactionId: transaction.id,
@@ -8367,20 +8480,21 @@ function PlayView({
     updateState(s => applyMobilityRuntime(s, result.value!));
   };
 
-  const handleAdoptCompanion = (companion: any) => {
+  const handleAdoptCompanion = async (companion: any) => {
     const companionSlots = resolveWagonCapabilities(canonicalWagonFromState(state)).companionSlots;
     let replaceCompanionInstanceId: string | undefined;
     if ((state.companionStates || []).length >= companionSlots) {
-      const choice = prompt(
-        `동행 한도가 가득 찼습니다. 야생으로 돌려보낼 동반자를 선택하세요.\n${(state.companionStates || []).map((row, index) => {
+      const choice = await requestControlledPrompt({
+        title: '동반자 교체',
+        message: '동행 한도가 가득 찼습니다. 야생으로 돌려보낼 동반자를 선택하세요:',
+        options: (state.companionStates || []).map((row, index) => {
           const definition = COMPANIONS_DB.find(item => canonicalCompanionId(item.id) === canonicalCompanionId(row.companionId));
-          return `${index + 1}. ${definition?.name || row.companionId}`;
-        }).join('\n')}`,
-        '1'
-      );
+          return { label: `${index + 1}. ${definition?.name || row.companionId}`, value: row.instanceId };
+        }),
+        defaultValue: state.companionStates[0]?.instanceId || ''
+      });
       if (choice === null) return;
-      replaceCompanionInstanceId = state.companionStates[Math.max(0, (parseInt(choice, 10) || 1) - 1)]?.instanceId;
-      if (!replaceCompanionInstanceId) return;
+      replaceCompanionInstanceId = choice;
     }
     const transaction = createClientTransaction('companion-adoption');
     const result = resolveCompanionAdoption({
@@ -8430,7 +8544,7 @@ function PlayView({
 	    updateState(s => applyMobilityRuntime(s, result.value!));
 	  };
 
-  const handleStartJourney = (e: React.FormEvent) => {
+  const handleStartJourney = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!journeyDestinationCard || !journeyGoalCard) {
       showAlert('목적지 카드와 목표 카드를 모두 뽑아주세요.');
@@ -8481,26 +8595,38 @@ function PlayView({
     let clayPotReagentId: string | null = null;
     if (journeyWagon.commissioned && journeyWagon.expansionIds.includes('clay-pots')) {
       const plants = REAGENTS.filter(row => row.type === 'PLANT' && row.seasonAvailability[state.currentSeason] !== 'Unavailable');
-      const plantChoice = prompt(`Clay Pots에 심을 제철 식물을 선택하세요.\n${plants.map((row, index) => `${index + 1}. ${row.displayName}`).join('\n')}`, '1');
-      if (plantChoice === null) return;
-      clayPotReagentId = plants[Math.max(0, (parseInt(plantChoice, 10) || 1) - 1)]?.id || null;
-      if (!clayPotReagentId) return;
+      const plantChoice = await requestControlledPrompt({
+        title: '🌱 Clay Pots 제철 식물 선택',
+        message: 'Clay Pots에 심을 제철 식물을 선택하세요:',
+        options: plants.map(row => ({ label: `${row.displayName} (${row.seasonAvailability[state.currentSeason]})`, value: row.id })),
+        defaultValue: plants[0]?.id || ''
+      });
+      if (!plantChoice) return;
+      clayPotReagentId = plantChoice;
     }
     const familiarMechanic = getActiveFamiliarMechanic(state);
     let resourcefulReagent = state.resourcefulReagent || '';
     if (familiarMechanic === 'resourceful') {
       const candidates = REAGENTS.filter(row => row.baseRarity <= 7);
-      const choice = prompt(`Resourceful 길동무가 이번 여정에 조달할 기본 희귀도 7 이하 영약재를 선택하세요.\n${candidates.map((row, index) => `${index + 1}. ${row.displayName} · 기본 희귀도 ${row.baseRarity}`).join('\n')}`, '1');
-      if (choice === null) return;
-      resourcefulReagent = candidates[Math.max(0, (parseInt(choice, 10) || 1) - 1)]?.displayName || '';
-      if (!resourcefulReagent) return;
+      const choice = await requestControlledPrompt({
+        title: '🐾 Resourceful 길동무 조달 영약재',
+        message: 'Resourceful 길동무가 이번 여정에 조달할 기본 희귀도 7 이하 영약재를 선택하세요:',
+        options: candidates.map(row => ({ label: `${row.displayName} (기본 희귀도 ${row.baseRarity})`, value: row.displayName })),
+        defaultValue: candidates[0]?.displayName || ''
+      });
+      if (!choice) return;
+      resourcefulReagent = choice;
     }
     let ingenuitiveTool = state.ingenuitiveTool || '';
     if (familiarMechanic === 'ingenuitive') {
-      const choice = prompt(`Ingenuitive 길동무가 제공할 도구 효과를 선택하세요.\n${ALMANACK_TOOLS.map((tool, index) => `${index + 1}. ${tool.canonicalName}`).join('\n')}`, '1');
-      if (choice === null) return;
-      ingenuitiveTool = ALMANACK_TOOLS[Math.max(0, (parseInt(choice, 10) || 1) - 1)]?.id || '';
-      if (!ingenuitiveTool) return;
+      const choice = await requestControlledPrompt({
+        title: '🐾 Ingenuitive 길동무 도구 효과',
+        message: 'Ingenuitive 길동무가 제공할 도구 효과를 선택하세요:',
+        options: ALMANACK_TOOLS.map(tool => ({ label: tool.canonicalName, value: tool.id })),
+        defaultValue: ALMANACK_TOOLS[0]?.id || ''
+      });
+      if (!choice) return;
+      ingenuitiveTool = choice;
     }
     updateState((s: GameState) => {
       const journeyState = applyJourneyRuntime(s, result.value!);
@@ -8511,8 +8637,22 @@ function PlayView({
       const withServices = serviceStart.value ? applyServiceRuntime(journeyState, serviceStart.value) : journeyState;
       const mobility = resolveMobilityJourneyStart({ transactionId: `${transactionId}:mobility`, state: toMobilityRuntime(withServices), clayPotReagentId });
       const next = mobility.value ? applyMobilityRuntime(withServices, mobility.value) : withServices;
+      const nextBag = [...next.bag];
+      if (goalCard.value === 8 || goal.title === 'Justice' || goal.title === '정의') {
+        const hasEvidence = nextBag.some(item => item.name.toLowerCase().includes('evidence') || item.name.includes('증거'));
+        if (!hasEvidence) {
+          nextBag.push({
+            id: 'evidence_item_' + Date.now(),
+            name: '증거물 (Evidence)',
+            weight: 1,
+            type: 'item',
+            qty: 1
+          });
+        }
+      }
       return {
         ...next,
+        bag: nextBag,
         journeyActive: true,
         downtimeCompleted: false,
         journeyOrigin: s.currentLocationName,
@@ -8543,7 +8683,7 @@ function PlayView({
     setJourneyGoalCard(null);
   };
 
-  const executeCanonicalTravelMove = (drawnSuit: string, cardVal: number) => {
+  const executeCanonicalTravelMove = async (drawnSuit: string, cardVal: number) => {
     const mapNodes = buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || []);
     const composedDraft = routeDraftRef.current;
     const currentLocationId = findGraphLocationKey(state.currentLocationName, mapNodes)
@@ -8692,11 +8832,21 @@ function PlayView({
     if (braveApplies) {
       const candidates = REAGENTS.filter(reagent => reagent.baseRarity <= 6
         && reagent.regionAvailability[toRuleRegion(destRegion, state.currentRegion)] !== 'Unavailable');
-      const reagentChoice = prompt(`Brave: 획득할 지역 영약재를 선택하세요.\n${candidates.map((row, index) => `${index + 1}. ${row.displayName} · 기본 희귀도 ${row.baseRarity}`).join('\n')}`, '1');
+      const reagentChoice = await requestControlledPrompt({
+        title: '🐾 Brave: 지역 영약재 선택',
+        message: 'Brave 길동무 효과: 획득할 지역 영약재를 선택하세요:',
+        options: candidates.map((row, index) => ({ label: `${row.displayName} · 기본 희귀도 ${row.baseRarity}`, value: String(index + 1) })),
+        defaultValue: '1'
+      });
       if (reagentChoice === null) return;
       const reagent = candidates[Math.max(0, (parseInt(reagentChoice, 10) || 1) - 1)];
       if (!reagent) return;
-      const partChoice = prompt(`획득할 부위를 선택하세요.\n${reagent.preparations.map((row, index) => `${index + 1}. ${localizePreparationName(row.name)} · ${localizePreparationMethod(row.method)}`).join('\n')}`, '1');
+      const partChoice = await requestControlledPrompt({
+        title: '🐾 Brave: 부위 선택',
+        message: `획득할 ${reagent.displayName} 부위를 선택하세요:`,
+        options: reagent.preparations.map((row, index) => ({ label: `${localizePreparationName(row.name)} · ${localizePreparationMethod(row.method)}`, value: String(index + 1) })),
+        defaultValue: '1'
+      });
       if (partChoice === null) return;
       const preparation = reagent.preparations[Math.max(0, (parseInt(partChoice, 10) || 1) - 1)];
       if (!preparation) return;
@@ -13019,13 +13169,29 @@ function PlayView({
               <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 1.2rem 0' }}>
                 목적지·목표 카드를 뽑은 뒤, 옆 지도를 보며 후보를 골라 목적지 총 경로를 확인하세요.
               </p>
+
+              {/* First session tip */}
+              {!state.cumulativeDays && (
+                <div style={{ padding: '0.6rem 0.8rem', borderRadius: '8px', background: '#f0fdf4', border: '1px solid #86efac', color: '#166534', fontSize: '0.82rem', marginBottom: '0.8rem', lineHeight: 1.5 }}>
+                  💡 <strong>첫 세션 권장:</strong> 오도크(Odoak) 정착지에서 봄(Spring)에 첫 여정을 시작하는 것을 추천합니다. <span style={{ color: '#15803d' }}>(룰북 p.18)</span>
+                </div>
+              )}
+
               <div style={{ padding: '0.8rem', borderRadius: '8px', border: '1px dashed var(--glass-border)', background: '#fffcf2', fontSize: '0.84rem', color: 'var(--text)', display: 'grid', gap: '0.35rem' }}>
                 <div><strong>여행 거리 형태:</strong> {journeyDestinationCard ? journeyDistanceBandText : '목적지 카드를 먼저 뽑으세요.'}</div>
                 <div><strong>지도에서 선택한 총 거리:</strong> {selectedJourneyDestination ? `${selectedJourneyDestination.paths}경로` : '선택된 후보가 없습니다'}</div>
+                {selectedJourneyDestination && (
+                  <div style={{ padding: '0.3rem 0.5rem', background: 'var(--secondary-light, #fffae0)', borderRadius: '5px', color: 'var(--secondary)' }}>
+                    📍 <strong>{selectedJourneyDestination.name}</strong> · {selectedJourneyDestination.region ? selectedJourneyDestination.region : ''}{selectedJourneyDestination.locationType ? ` (${selectedJourneyDestination.locationType})` : ''}
+                  </div>
+                )}
                 <div><strong>현재 일일 이동력:</strong> {getTravelSpeed(state, currentWeight)}경로</div>
+                <div><strong>여정 기한 (Urgency):</strong> <span style={{ fontWeight: 700, color: urgencyPreview.days <= 6 ? '#dc2626' : urgencyPreview.days <= 9 ? '#d97706' : '#16a34a' }}>
+                  {urgencyPreview.days}일 ({urgencyPreview.label} · 현재 길드 평판 {state.reputation} 기준)
+                </span></div>
               </div>
 
-              <form onSubmit={handleStartJourney} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <form onSubmit={handleStartJourney} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>여정을 떠나는 이유</label>
                   <IsolatedTextarea
@@ -13034,6 +13200,25 @@ function PlayView({
                     valueRef={journeyReasonRef}
                     style={{ padding: '0.55rem', border: '1px solid #ccc', borderRadius: '4px', resize: 'vertical' }}
                   />
+                  {/* Quick suggestion chips */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.25rem' }}>
+                    {[
+                      '🌿 희귀 영약재 채집',
+                      '💊 긴급 환자 치료',
+                      '📜 길드 의무 수행',
+                      '🗺️ 새로운 정착지 탐방',
+                      '🐾 길동무와의 여행'
+                    ].map(chip => (
+                      <button
+                        key={chip}
+                        type="button"
+                        style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem', border: '1px solid var(--glass-border)', borderRadius: '12px', background: '#fffdf8', cursor: 'pointer', color: 'var(--text-muted)' }}
+                        onClick={() => { journeyReasonRef.current = chip; setJourneyReason(chip); }}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div style={{ display: 'grid', gap: '0.75rem', padding: '0.85rem', background: '#fffdf8', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
                   <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
@@ -13063,6 +13248,12 @@ function PlayView({
                         </div>
                       ) : (
                         <div style={{ fontSize: '0.82rem', color: 'var(--accent-red)' }}>이 카드 값에 해당하는 목표 표를 찾을 수 없습니다.</div>
+                      )}
+                      {/* Justice special rule badge */}
+                      {journeyGoalPreview && (journeyGoalPreview.title === 'Justice' || journeyGoalPreview.title === '정의' || journeyGoalCard.value === 8) && (
+                        <div style={{ marginTop: '0.5rem', padding: '0.4rem 0.6rem', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '6px', fontSize: '0.8rem', color: '#92400e', fontWeight: 600 }}>
+                          ⚖️ <strong>정의(Justice) 특수 규칙:</strong> 여정 출발 시 무게 1의 <em>증거물(Evidence)</em>을 자동으로 소지하고 시작합니다. (룰북 p.20)
+                        </div>
                       )}
                     </div>
                   )}
@@ -13306,9 +13497,61 @@ function PlayView({
 
             {/* Travel Form */}
             {state.needsLocalHelpBeforeMove && (
-              <div style={{ borderTop: '1px dashed var(--glass-border)', padding: '0.8rem', background: '#fffdf8', borderRadius: '8px', border: '1px solid var(--border-cozy)', color: 'var(--text-muted)', fontSize: '0.86rem', lineHeight: 1.45 }}>
-                <strong style={{ color: 'var(--primary)' }}>현지 기록 미결 (p.25 Earning Your Keep)</strong><br />
-                이곳에서 환자를 돌보거나 고분 문제를 마무리해야 다음 위치로 이동할 수 있습니다.
+              <div style={{ borderTop: '1px dashed var(--glass-border)', padding: '0.9rem', background: '#fffaf0', borderRadius: '8px', border: '1.5px solid #f59e0b', color: 'var(--text)', fontSize: '0.86rem', lineHeight: 1.6, marginBottom: '0.5rem' }}>
+                <strong style={{ color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.9rem' }}>
+                  🔒 현지 봉사 미결 — 이동 전 완료 필요 (룰북 p.25 Earning Your Keep)
+                </strong>
+                <p style={{ margin: '0.4rem 0 0.6rem 0', color: 'var(--text-muted)', fontSize: '0.83rem' }}>
+                  이곳에서 환자를 돌보거나 야수 고분 문제를 해결해야 다음 위치로 이동할 수 있습니다. 아래 버튼으로 봉사를 기록하세요.
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                  <button
+                    type="button"
+                    style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', background: '#ecfdf5', border: '1px solid #6ee7b7', borderRadius: '8px', cursor: 'pointer', color: '#065f46', fontWeight: 600 }}
+                    onClick={() => {
+                      const activePatient = state.patients.find(p => p.id === state.activePatientId);
+                      if (activePatient) {
+                        updateState((s: GameState) => ({
+                          ...s,
+                          needsLocalHelpBeforeMove: false,
+                          journals: [{ id: `local-help-patient-${Date.now()}`, title: '현지 봉사: 환자 돌봄', text: `${state.currentLocationName}에서 ${activePatient.name} 환자를 돌봤습니다.`, timestamp: new Date().toISOString() }, ...s.journals]
+                        }));
+                      } else {
+                        showAlert('현재 담당 환자가 없습니다. 환자 탭에서 먼저 환자를 선택해주세요.');
+                      }
+                    }}
+                  >
+                    🩺 환자 돌보기
+                  </button>
+                  <button
+                    type="button"
+                    style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', cursor: 'pointer', color: '#166534', fontWeight: 600 }}
+                    onClick={() => {
+                      updateState((s: GameState) => ({
+                        ...s,
+                        needsLocalHelpBeforeMove: false,
+                        journals: [{ id: `local-help-forage-${Date.now()}`, title: '현지 봉사: 약재 채집', text: `${state.currentLocationName}에서 현지 약재 채집 봉사를 완료했습니다.`, timestamp: new Date().toISOString() }, ...s.journals]
+                      }));
+                    }}
+                  >
+                    🌾 약재 채집하기
+                  </button>
+                  <button
+                    type="button"
+                    style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: '8px', cursor: 'pointer', color: '#1e40af', fontWeight: 600 }}
+                    onClick={() => {
+                      if (askWindowConfirm('현지 봉사(환자 돌봄/야수 고분/약재 채집)를 완료했음을 기록하고 이동 제한을 해제할까요?')) {
+                        updateState((s: GameState) => ({
+                          ...s,
+                          needsLocalHelpBeforeMove: false,
+                          journals: [{ id: `local-help-done-${Date.now()}`, title: '현지 봉사 완료 기록', text: `${state.currentLocationName}에서 현지 봉사를 완료했습니다. (p.25 Earning Your Keep)`, timestamp: new Date().toISOString() }, ...s.journals]
+                        }));
+                      }
+                    }}
+                  >
+                    ✅ 현지 봉사 완료 기록
+                  </button>
+                </div>
               </div>
             )}
             {canonicalWagonFromState(state).expansionIds.includes('clay-pots') && canonicalWagonFromState(state).clayPotReagentId && (

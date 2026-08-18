@@ -214,7 +214,7 @@ export const findJourneyDestinationCandidates = (input: {
     .map(({ node, paths }) => ({ id: node.id, name: node.name, paths, region: node.region, locationType: node.locationType }));
 };
 
-const urgencyFor = (reputation: number): JourneyState['urgency'] => {
+export const urgencyFor = (reputation: number): JourneyState['urgency'] => {
   if (reputation >= 35) return { label: 'Dire', days: 3 };
   if (reputation >= 25) return { label: 'Urgent', days: 6 };
   if (reputation >= 15) return { label: 'Important', days: 9 };

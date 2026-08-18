@@ -235,13 +235,23 @@ export function RouteComposer({
           {waterwaySpan > 1 ? ` · 연결된 수로 ${waterwaySpan}개가 1경로` : ''}
         </p>
         <p>{reasonText(evaluation.reason, evaluation.effectiveSpeed, evaluation.movementCost)}</p>
+        {evaluation.overEncumbered && (
+          <div style={{ padding: '0.4rem 0.6rem', background: '#fef2f2', border: '1px solid #f87171', borderRadius: '6px', color: '#991b1b', fontSize: '0.8rem', fontWeight: 600, marginTop: '0.3rem' }}>
+            🎒 과적 상태 (무게 {weight}/{carry}): 일일 이동 속도가 1경로로 제한됩니다. (룰북 p.22)
+          </div>
+        )}
+        {evaluation.reason === 'loch-locked' && (
+          <div style={{ padding: '0.4rem 0.6rem', background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: '6px', color: '#92400e', fontSize: '0.8rem', fontWeight: 600, marginTop: '0.3rem' }}>
+            ⛵ 호수/강 정차 제한 (룰북 p.24): 호수(Loch) 야생에서 멈추려면 자작나무 보트(Bark Coracle)나 밀폐식 마차(Sealed Carriage)가 필요합니다.
+          </div>
+        )}
         {evaluation.usesWaterTravel && (
           <p className="route-composer__soak">
             {protectsFromSoaking
-              ? '방수 도구가 있어 소지품이 젖지 않습니다.'
+              ? '✨ 방수 도구 또는 안전한 수상 이동 능력이 있어 소지품이 젖지 않습니다.'
               : evaluation.soakedItemIds.length
-                ? `강이나 수로를 헤엄치면 방수되지 않은 약재와 물품이 젖어 버려집니다: ${soakableItemNames.join(', ')}`
-                : '강이나 수로를 헤엄치면 방수되지 않은 약재와 물품이 젖어 버려집니다.'}
+                ? `⚠️ 주의: 방수 장비 없이 물길을 건너면 물품이 젖어 파손됩니다 (${soakableItemNames.join(', ')})`
+                : '⚠️ 주의: 방수 장비 없이 물길을 건너면 방수되지 않은 약재와 물품이 젖어 버려집니다.'}
           </p>
         )}
         {lastRouteStop(draft) && count === 1 && (
