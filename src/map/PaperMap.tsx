@@ -218,7 +218,6 @@ export function PaperMap({
   const placeById = useMemo(() => new Map(places.map(place => [place.id, place])), [places]);
   const currentPlace = places.find(place => place.isCurrent) || null;
   const selectedPlace = selectedId ? placeById.get(selectedId) || null : null;
-  const highlightSet = useMemo(() => new Set(highlightPlaceIds), [highlightPlaceIds]);
   const presentTypes = useMemo(
     () => Array.from(new Set(places.map(place => place.locationType))),
     [places]
@@ -501,7 +500,6 @@ export function PaperMap({
 
   const previewUnmapped = Boolean(selectedPlace && currentPlace && selectedPlace.id !== currentPlace.id && previewGeometry.missingPairs.length > 0);
   const previewUsesWaterway = previewGeometry.segments.some(segment => segment.kind === 'waterway');
-  const selectedIsCandidate = Boolean(selectedPlace && highlightSet.has(selectedPlace.id));
   const selectedCanTravel = Boolean(
     selectedPlace
     && !selectedPlace.isCurrent
@@ -674,7 +672,6 @@ export function PaperMap({
             const visible = isPlaceMarkerVisible(place, layers, selectedId);
             if (!visible) return null;
             const selected = selectedId === place.id;
-            const candidate = highlightSet.has(place.id);
             const routeIndex = routeIndexById.get(place.id);
             const glyph = placeGlyph(place);
             const position = dragPreview[place.id] || place;
@@ -690,7 +687,6 @@ export function PaperMap({
                     'map-location-hit',
                     place.isCurrent ? 'is-current' : '',
                     selected ? 'is-picked' : '',
-                    candidate ? 'is-candidate' : '',
                     routeIndex !== undefined ? 'is-route' : '',
                     panLocked ? 'is-movable' : '',
                     place.visited ? 'is-visited' : 'is-unvisited'
@@ -961,11 +957,6 @@ export function PaperMap({
             />
           )}
           <div className="paper-map__sheet-actions">
-            {onConfirmDestination && selectedIsCandidate && (
-              <button type="button" onClick={() => onConfirmDestination(placeToPick(selectedPlace))}>
-                이 목적지로 정하기
-              </button>
-            )}
             {showWaypointAction && onAddWaypoint && !selectedPlace.isCurrent && (
               <button type="button" onClick={() => onAddWaypoint(placeToPick(selectedPlace))}>
                 경로에 넣기
@@ -1013,4 +1004,3 @@ export function PaperMap({
     </section>
   );
 }
-
