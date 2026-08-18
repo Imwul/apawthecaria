@@ -726,6 +726,7 @@ interface GameState {
   journeyOrigin?: string;
   journeyDestination: string;
   journeyDistance: string;
+  journeyTotalDistance: number;
   journeyDirection: string;
   journeyGoalTitle: string;
   journeyGoalDesc: string;
@@ -900,6 +901,7 @@ const INITIAL_STATE: GameState = {
   journeyOrigin: "",
   journeyDestination: "",
   journeyDistance: "",
+  journeyTotalDistance: 0,
   journeyDirection: "",
   journeyGoalTitle: "",
   journeyGoalDesc: "",
@@ -6180,7 +6182,9 @@ export default function App() {
             {state.journeyActive ? (
               <div style={{ marginTop: '0.5rem' }}>
                 <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary)' }}>{state.journeyDestination}</div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>방향: {state.journeyDirection} | 거리: {state.journeyDistance}</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  방향: {state.journeyDirection} | 거리 형태: {state.journeyDistance} · 총거리: {state.journeyTotalDistance || 0}경로
+                </div>
 
                 <div className="calendar-counter" style={{ marginTop: '0.8rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem' }}>
                   <div style={{ fontSize: '1.6rem', fontWeight: 'bold' }}>{state.calendarDays}</div>
@@ -7416,6 +7420,28 @@ function PlayView({
       : [],
     [journeyDestinationCard, journeyGraph, journeyOriginId]
   );
+  const selectedJourneyDestination = useMemo(
+    () => journeyDestinationCandidates.find(row => row.id === destName) || null,
+    [journeyDestinationCandidates, destName]
+  );
+  const journeyCandidateGroups = useMemo(() => {
+    if (journeyDestinationCandidates.length === 0) return [];
+    const near = journeyDestinationCandidates.filter(row => row.locationType === 'Settlement' && row.paths <= 12);
+    const far = journeyDestinationCandidates.filter(row => row.locationType === 'Settlement' && row.paths >= 13 && row.paths <= 24);
+    const overHorizon = journeyDestinationCandidates.filter(row => row.locationType === 'City' && row.paths >= 24);
+    return [
+      { key: 'near', label: '가까운 거리', range: '12경로 이하', candidates: near },
+      { key: 'far', label: '먼 거리', range: '13~24경로', candidates: far },
+      { key: 'overHorizon', label: '지평선 너머', range: '24경로 이상', candidates: overHorizon }
+    ].filter(entry => entry.candidates.length > 0);
+  }, [journeyDestinationCandidates]);
+  const journeyDistanceBandText = useMemo(() => {
+    if (!journeyDestinationCard) return '';
+    const value = getRuleCardValue(journeyDestinationCard, 'table');
+    if (value <= 6) return '가까운 거리(정착지 · 12경로 이하, 카드 값 A~6)';
+    if (value <= 9) return '먼 거리(정착지 · 13~24경로, 카드 값 7~9)';
+    return '지평선 너머(도시 · 24경로 이상, 카드 값 10~J/M)';
+  }, [journeyDestinationCard]);
   const scroungeAdjacentRegions = useMemo(
     () => adjacentRuleRegions(state),
     [state.customMapLocations, state.customMapEdges, state.currentLocationName, state.currentSeason, state.currentRegion, state.bag]
@@ -8450,11 +8476,6 @@ function PlayView({
     const canonicalJourney = result.value.journey;
     const goal = JOURNEY_GOAL_BY_ID.get(canonicalJourney.goalId)!;
     const destination = journeyDestinationCandidates.find(row => row.id === destName)!;
-    const distLabel = canonicalJourney.destinationRequirements.distanceBand === 'near'
-      ? '가까운 거리 · 12경로 이하 정착지'
-      : canonicalJourney.destinationRequirements.distanceBand === 'far'
-        ? '먼 거리 · 13~24경로 정착지'
-        : '지평선 너머 · 24경로 이상 도시';
     const journeyWagon = canonicalWagonFromState(state);
     let clayPotReagentId: string | null = null;
     if (journeyWagon.commissioned && journeyWagon.expansionIds.includes('clay-pots')) {
@@ -8495,7 +8516,8 @@ function PlayView({
         downtimeCompleted: false,
         journeyOrigin: s.currentLocationName,
         journeyDestination: destination.name,
-        journeyDistance: distLabel,
+        journeyDistance: journeyDistanceBandText,
+        journeyTotalDistance: destination.paths,
         journeyDirection: suitNames[randomSuit] || randomSuit,
         journeyGoalTitle: goal.title,
         journeyGoalDesc: goal.requiredState,
@@ -11557,15 +11579,83 @@ function PlayView({
             companionCaption={
               playMapMode === 'destination'
                 ? (journeyDestinationCard
-                  ? (journeyDestinationCandidates.length > 0
-                    ? '여정 조건을 충족하는 후보를 지도에서 골라 목적지로 지정하세요. 오른쪽에서 들르는 자리도 이어서 확인할 수 있습니다.'
-                    : '현재는 이동 가능한 후보가 없습니다. 목적지 카드를 다시 뽑으세요.')
+                  ? (selectedJourneyDestination
+                    ? `선택된 후보: ${selectedJourneyDestination.name} · 총거리 ${selectedJourneyDestination.paths}경로`
+                    : journeyDestinationCandidates.length > 0
+                      ? '여정 조건을 충족하는 후보를 지도에서 골라 목적지로 지정하세요. 오른쪽에서 들르는 자리도 이어서 확인할 수 있습니다.'
+                      : '현재는 이동 가능한 후보가 없습니다. 목적지 카드를 다시 뽑으세요.')
                   : '목적지 카드를 뽑으면 방향·거리 조건에 맞는 정착지가 지도에 표시됩니다.')
                 : `노드를 눌러 사이길을 잇고, 오른쪽에서 육로/수로를 고르세요. 빈 자리는 ⌘+클릭으로 표시합니다. 자리를 옮기려면 먼저 이동 잠금을 켜세요.${currentWeight > maxCarry ? ' 소지 한도를 넘어 1경로만 갑니다.' : ''}`
             }
           />
         </aside>
         <div className="play-with-map__panels">
+          {!state.journeyActive && downtimeTab === 'start' && (
+            <section
+              className="journey-candidate-list"
+              aria-label="도달 후보 빠른 선택"
+              style={{
+                borderRadius: '10px',
+                border: '1px solid var(--glass-border)',
+                background: '#fffdfa',
+                padding: '0.8rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.55rem'
+              }}
+            >
+              <div style={{ fontSize: '0.84rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                도달 후보(이름/거리: A~6=12이하, 7~9=13~24, 10/J/M=24+)
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                지도에서 표시되는 후보는 카드 값 구간으로 필터된 목적지들입니다. 왼쪽은 후보 이름, 오른쪽은 실제 경로 수입니다.
+              </div>
+              {!journeyDestinationCard && (
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  목적지 카드를 먼저 뽑으면 후보가 표시됩니다.
+                </div>
+              )}
+              {journeyDestinationCard && journeyDestinationCandidates.length === 0 && (
+                <div style={{ fontSize: '0.8rem', color: 'var(--accent-red)' }}>
+                  현재는 이동 가능한 후보가 없습니다. 지도 카드 규칙을 다시 뽑아 주세요.
+                </div>
+              )}
+              {journeyDestinationCard && journeyCandidateGroups.length > 0 && (
+                <div style={{ display: 'grid', gap: '0.45rem' }}>
+                  {journeyCandidateGroups.map(group => (
+                    <div key={group.key} style={{ display: 'grid', gap: '0.32rem' }}>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>
+                        {`${group.label} (${group.range}, ${group.candidates.length}개)`}
+                      </div>
+                      {group.candidates.map(candidate => (
+                        <button
+                          type="button"
+                          key={candidate.id}
+                          onClick={() => setDestName(candidate.id)}
+                          style={{
+                            borderRadius: '8px',
+                            border: `1.5px solid ${candidate.id === destName ? 'var(--primary)' : '#e9e0cf'}`,
+                            background: candidate.id === destName ? 'var(--paper)' : '#fff',
+                            padding: '0.45rem 0.55rem',
+                            textAlign: 'left',
+                            fontSize: '0.82rem',
+                            color: 'var(--text)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            gap: '0.5rem'
+                          }}
+                        >
+                          <span>{candidate.name}</span>
+                          <span style={{ color: 'var(--text-muted)' }}>{candidate.paths}경로</span>
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
           <RouteComposer
             draft={routeDraft}
             speed={activeTravelSpeed}
@@ -12910,8 +13000,13 @@ function PlayView({
             <div id="journey-start-panel" className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem' }}>
               <h2 style={{ color: 'var(--secondary)', margin: '0 0 0.4rem 0', fontFamily: 'var(--font-fancy)' }}>새로운 여정 떠나기</h2>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 1.2rem 0' }}>
-                목적지·목표 카드를 뽑은 뒤, 옆 지도를 보며 경로 수·방향·속도에 맞는 목적지를 찍습니다.
+                목적지·목표 카드를 뽑은 뒤, 옆 지도를 보며 후보를 골라 목적지 총 경로를 확인하세요.
               </p>
+              <div style={{ padding: '0.8rem', borderRadius: '8px', border: '1px dashed var(--glass-border)', background: '#fffcf2', fontSize: '0.84rem', color: 'var(--text)', display: 'grid', gap: '0.35rem' }}>
+                <div><strong>여행 거리 형태:</strong> {journeyDestinationCard ? journeyDistanceBandText : '목적지 카드를 먼저 뽑으세요.'}</div>
+                <div><strong>지도에서 선택한 총 거리:</strong> {selectedJourneyDestination ? `${selectedJourneyDestination.paths}경로` : '선택된 후보가 없습니다'}</div>
+                <div><strong>현재 일일 이동력:</strong> {getTravelSpeed(state, currentWeight)}경로</div>
+              </div>
 
               <form onSubmit={handleStartJourney} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -12977,7 +13072,7 @@ function PlayView({
           <div id="active-journey-panel" className="cute-card journey-record" style={{ background: '#fffefa', borderColor: 'var(--primary)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem' }}>
               <div className="prose-summary" style={{ fontSize: '0.95rem' }}>
-                <strong>{state.journeyDestination}</strong>을 향해 {state.journeyDirection} 방향으로 {state.journeyDistance} 거리를 여행 중.
+                <strong>{state.journeyDestination}</strong>을 향해 {state.journeyDirection} 방향으로 이동 중 (거리 형태: {state.journeyDistance}, 총거리 <span style={{ fontWeight: 700 }}>{state.journeyTotalDistance || 0}경로</span>).
                 <br />
                 출발한 지 <strong>{state.calendarDays}일째</strong>, 남은 시간은 <strong>{Math.max(0, state.calendarMaxDays - state.calendarDays)}일</strong>.
               </div>
@@ -15165,7 +15260,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                       {localizeJourneyGoalText(state.journeyGoalDesc)}
                     </div>
                     <div><strong>방향/방위:</strong> {state.journeyDirection}</div>
-                    <div><strong>거리 형태:</strong> {state.journeyDistance}</div>
+                    <div><strong>거리 형태:</strong> {state.journeyDistance} · 총거리 <span style={{ fontWeight: 700 }}>{state.journeyTotalDistance || 0}경로</span> · 일일 이동력 <strong>{state.journeyActive ? getTravelSpeed(state, currentWeight) : state.bio.speed}</strong>경로</div>
                   </div>
                 ) : (
                   <div style={{ fontStyle: 'italic', color: 'var(--text-dim)', fontSize: '0.85rem', textAlign: 'center', padding: '1rem 0' }}>

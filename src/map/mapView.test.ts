@@ -126,7 +126,7 @@ describe('map interaction contracts', () => {
     expect(mapSource).toContain('if (panLocked && !modify) return');
     expect(mapSource).toContain('onMovePlace');
     expect(cssSource).toContain('.paper-map--locked');
-    expect(appSource).toContain('onSavePlaces={handleSaveMapPlaces}');
+    expect(appSource).toContain('onSavePlaces={() => {');
     expect(mapSource).toContain('className="paper-map__save"');
     expect(mapSource).toContain('이 표시 지우기');
   });

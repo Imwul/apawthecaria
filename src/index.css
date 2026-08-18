@@ -4059,53 +4059,36 @@ button,
   height: 100%;
 }
 
-.route-composer__toggle {
-  width: 100%;
-  height: 100%;
+.route-composer__edge-dot {
+  min-width: 0;
+  min-height: 0;
+  width: 1.6rem;
+  height: 1.6rem;
   border: 1px solid #6a5344;
-  border-radius: 3px;
+  border-radius: 999px;
   background: #f4ead8;
   color: #4a3628;
   font-family: "Noto Sans KR", sans-serif;
-  font-size: 0.42rem;
+  font-size: 0.62rem;
   line-height: 1;
+  text-align: center;
+  padding: 0;
   cursor: pointer;
 }
 
-.route-composer__toggle.is-waterway,
-.route-composer__toggle.is-river {
+.route-composer__edge-dot.is-waterway,
+.route-composer__edge-dot.is-river {
   background: #d8e4ec;
   color: #1c6da8;
   border-color: #1c6da8;
 }
 
-.route-composer__edge {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  width: 100%;
-}
-
-.route-composer__edge button {
-  min-height: 2rem;
-  padding: 0.2rem 0.55rem;
-  border: 1px solid rgba(74, 54, 40, 0.3);
-  border-radius: 4px;
-  background: #f4ead8;
-  color: #4a3628;
-  font-size: 0.72rem;
-}
-
-.route-composer__edge button.is-on {
-  background: #d8e4ec;
-  border-color: #1c6da8;
-  color: #1c4f78;
-}
-
-.route-composer__edge button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+.route-composer__edge-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: #6b5343;
+  text-align: center;
+  line-height: 1.35;
 }
 
 .route-composer__list {

@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { MapGlyph, MAP_GLYPH_KINDS, MAP_TERRAINS, glyphUsesTerrain, type MapGlyphKind, type MapTerrain } from '../map/mapGlyphs';
 import {
-  ROUTE_EDGE_KINDS,
-  canChooseRouteEdgeKind,
   cycleRouteEdgeKind,
   evaluateRouteDraft,
   lastRouteStop,
@@ -45,6 +43,12 @@ const polar = (index: number, count: number, radius: number) => {
     x: 50 + radius * Math.cos(angle),
     y: 50 + radius * Math.sin(angle)
   };
+};
+
+const edgeGlyph = (kind: RouteEdgeKind): string => {
+  if (kind === 'river') return '강';
+  if (kind === 'waterway') return '수';
+  return '육';
 };
 
 export function RouteComposer({
@@ -149,20 +153,23 @@ export function RouteComposer({
               const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
               const left = draft.stops[index];
               const right = draft.stops[index + 1];
+              const nextKindHint = routeEdgeLabel(cycleRouteEdgeKind(kind, left, right));
               return (
                 <foreignObject
-                  key={`toggle-${index}`}
+                  key={`edge-kind-${index}`}
                   x={mid.x - 11}
-                  y={mid.y - 6}
+                  y={mid.y - 11}
                   width="22"
-                  height="12"
+                  height="22"
                 >
                   <button
                     type="button"
-                    className={`route-composer__toggle${kind === 'path' ? '' : ` is-${kind}`}`}
+                    className={`route-composer__edge-dot${kind === 'path' ? '' : ` is-${kind}`}`}
+                    aria-label={`경로 ${index + 1}의 타입을 바꾸기 (현재 ${routeEdgeLabel(kind)})`}
+                    title={`${routeEdgeLabel(kind)} · 클릭 시 ${nextKindHint}로 바뀝니다`}
                     onClick={() => onChangeEdge(index, cycleRouteEdgeKind(kind, left, right))}
                   >
-                    {routeEdgeLabel(kind)}
+                    {edgeGlyph(kind)}
                   </button>
                 </foreignObject>
               );
@@ -170,6 +177,11 @@ export function RouteComposer({
           </svg>
         )}
       </div>
+      {count > 1 && (
+        <p className="route-composer__edge-hint">
+          경로 타입은 각 구간의 점을 눌러 순환으로 변경할 수 있습니다. (현재 타입 → 다음 타입)
+        </p>
+      )}
 
       {count > 0 && (
         <ol className="route-composer__list">
@@ -232,25 +244,6 @@ export function RouteComposer({
               )}
               {index > 0 && (
                 <button type="button" onClick={() => onRemoveStop(index)} aria-label={`${row.name} 빼기`}>빼기</button>
-              )}
-              {index < draft.edgeKinds.length && (
-                <div className="route-composer__edge" role="group" aria-label={`${index + 1}에서 ${index + 2}로 가는 사이길`}>
-                  {ROUTE_EDGE_KINDS.map(kind => {
-                    const allowed = canChooseRouteEdgeKind(kind, row, draft.stops[index + 1]);
-                    return (
-                      <button
-                        key={kind}
-                        type="button"
-                        className={draft.edgeKinds[index] === kind ? 'is-on' : ''}
-                        disabled={!allowed}
-                        title={!allowed ? '수로는 물결 표시처럼 적어도 한쪽이 호수여야 합니다.' : undefined}
-                        onClick={() => onChangeEdge(index, kind)}
-                      >
-                        {routeEdgeLabel(kind)}
-                      </button>
-                    );
-                  })}
-                </div>
               )}
             </li>
           ))}
