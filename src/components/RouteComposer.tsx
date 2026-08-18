@@ -85,6 +85,23 @@ const polar = (index: number, count: number, radius: number) => {
   };
 };
 
+const insetSegmentPoint = (
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  inset: number
+) => {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.hypot(dx, dy);
+  if (!len || !inset) return from;
+  const safeInset = Math.min(0.45 * len, inset);
+  if (safeInset <= 0) return from;
+  return {
+    x: from.x + (dx / len) * safeInset,
+    y: from.y + (dy / len) * safeInset
+  };
+};
+
 export function RouteComposer({
   draft,
   speed,
@@ -157,12 +174,15 @@ export function RouteComposer({
             {draft.edgeKinds.map((kind, index) => {
               const from = polar(index, count, 36);
               const to = polar(index + 1, count, 36);
+              const inset = Math.max(2, glyphSize * 0.2);
+              const insetFrom = insetSegmentPoint(from, to, inset);
+              const insetTo = insetSegmentPoint(to, from, inset);
               const nextKindHint = routeEdgeLabel(cycleRouteEdgeKind(kind, draft.stops[index], draft.stops[index + 1]));
               return (
                 <path
                   key={`edge-${index}`}
                   className={kind === 'path' ? 'route-composer__arc' : `route-composer__arc route-composer__arc--${kind}`}
-                  d={`M ${from.x} ${from.y} L ${to.x} ${to.y}`}
+                  d={`M ${insetFrom.x} ${insetFrom.y} L ${insetTo.x} ${insetTo.y}`}
                   role="button"
                   aria-label={`경로 ${index + 1}의 타입을 바꾸기 (현재 ${routeEdgeLabel(kind)})`}
                   title={`${routeEdgeLabel(kind)} · 클릭 시 ${nextKindHint}로 바뀝니다`}
@@ -179,13 +199,14 @@ export function RouteComposer({
             })}
             {draft.stops.map((row, index) => {
               const point = polar(index, count, 36);
+              const nodeFrame = Math.max(18, glyphSize + 8);
               return (
                 <foreignObject
                   key={row.id + index}
-                  x={point.x - 6}
-                  y={point.y - 6}
-                  width="12"
-                  height="12"
+                  x={point.x - nodeFrame / 2}
+                  y={point.y - nodeFrame / 2}
+                  width={nodeFrame}
+                  height={nodeFrame}
                 >
                   <div className="route-composer__node">
                     <MapGlyph kind={row.kind} terrain={row.terrain} size={glyphSize} />
