@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { MapGlyph, MAP_GLYPH_KINDS, MAP_TERRAINS, glyphUsesTerrain, type MapGlyphKind, type MapTerrain } from '../map/mapGlyphs';
 import {
   cycleRouteEdgeKind,
@@ -25,6 +24,7 @@ type RouteComposerProps = {
   onChangeStop: (index: number, patch: Partial<RouteStop>) => void;
   onChangeEdge: (index: number, kind: RouteEdgeKind) => void;
   onRemoveStop: (index: number) => void;
+  onMoveStop?: (fromIndex: number, toIndex: number) => void;
   onClear: () => void;
   onTravel: () => void;
 };
@@ -35,71 +35,6 @@ const reasonText = (reason: ReturnType<typeof evaluateRouteDraft>['reason'], spe
   if (reason === 'too-close') return `이동 비용 ${cost}은 속도 ${speed}보다 가깝습니다. 자리를 더 잇거나 수로 토글을 확인하세요.`;
   if (reason === 'too-far') return `이동 비용 ${cost}이 속도 ${speed}보다 멉니다.`;
   return '호수·강 야생에서 멈추려면 자작나무 보트(Bark Coracle)나 밀폐식 마차(Sealed Carriage)가 필요합니다. 방수 가방(Waxed Satchel)은 젖음만 막습니다.';
-};
-
-const polar = (index: number, count: number, radius: number) => {
-  if (count <= 0) return { x: 50, y: 50 };
-  const angle = -Math.PI / 2 + (count === 0 ? 0 : (index * 2 * Math.PI) / count);
-  const halfWidth = radius * 1.08;
-  const halfHeight = Math.max(10, radius * 0.34);
-  const cornerRadius = Math.max(4, radius * 0.14);
-  const straightTop = Math.max(2, (2 * halfWidth) - (2 * cornerRadius));
-  const straightBottom = Math.max(2, (2 * halfHeight) - (2 * cornerRadius));
-  const rightArc = Math.PI * cornerRadius;
-  const totalPerimeter = 2 * straightTop + 2 * straightBottom + 2 * rightArc;
-  const offset = ((index % count + count) % count) / count * totalPerimeter;
-  const cx = 50;
-  const cy = 50;
-
-  if (offset < straightTop) {
-    return {
-      x: cx - halfWidth + cornerRadius + offset,
-      y: cy - halfHeight
-    };
-  }
-
-  if (offset < straightTop + rightArc) {
-    const arcOffset = offset - straightTop;
-    const theta = -Math.PI / 2 + arcOffset / cornerRadius;
-    const rx = cx + halfWidth - cornerRadius;
-    return {
-      x: rx + cornerRadius * Math.cos(theta),
-      y: cy + cornerRadius * Math.sin(theta)
-    };
-  }
-
-  if (offset < 2 * straightTop + rightArc) {
-    const local = offset - (straightTop + rightArc);
-    return {
-      x: cx + halfWidth - cornerRadius - local,
-      y: cy + halfHeight
-    };
-  }
-
-  const leftArcOffset = offset - (2 * straightTop + rightArc);
-  const theta = Math.PI / 2 + leftArcOffset / cornerRadius;
-  const lx = cx - halfWidth + cornerRadius;
-  return {
-    x: lx + cornerRadius * Math.cos(theta),
-    y: cy + cornerRadius * Math.sin(theta)
-  };
-};
-
-const insetSegmentPoint = (
-  from: { x: number; y: number },
-  to: { x: number; y: number },
-  inset: number
-) => {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const len = Math.hypot(dx, dy);
-  if (!len || !inset) return from;
-  const safeInset = Math.min(0.45 * len, inset);
-  if (safeInset <= 0) return from;
-  return {
-    x: from.x + (dx / len) * safeInset,
-    y: from.y + (dy / len) * safeInset
-  };
 };
 
 export function RouteComposer({
@@ -116,6 +51,7 @@ export function RouteComposer({
   onChangeStop,
   onChangeEdge,
   onRemoveStop,
+  onMoveStop,
   onClear,
   onTravel
 }: RouteComposerProps) {
@@ -133,9 +69,7 @@ export function RouteComposer({
     mustUseFullSpeed: true
   });
   const count = draft.stops.length;
-  const glyphSize = count > 16 ? 12 : count > 10 ? 14 : 16;
   const travelReady = canTravel && evaluation.reason === 'legal' && Boolean(destination);
-  const [nameOpen, setNameOpen] = useState<Record<string, boolean>>({});
 
   return (
     <section className="route-composer" aria-label="경로 짜기">
@@ -143,11 +77,11 @@ export function RouteComposer({
         <div className="route-composer__endpoint">
           <span>출발지</span>
           {origin ? (
-            <>
-              <MapGlyph kind={origin.kind} terrain={origin.terrain} size={28} />
+            <div className="route-composer__endpoint-info">
+              <MapGlyph kind={origin.kind} terrain={origin.terrain} size={22} />
               <strong>{origin.name.trim() || '이름 없음'}</strong>
               <em>{origin.kind === 'Clinic' ? '약제소' : origin.kind === 'City' ? '도시' : origin.kind === 'Settlement' ? '정착지' : origin.kind === 'Ruin' ? '티탄 유적' : origin.kind === 'Barrow' ? '거수 고분' : '야생'}{origin.terrain ? ` · ${origin.terrain === 'Bog' ? '늪지' : origin.terrain === 'Forest' ? '숲' : origin.terrain === 'Loch' ? '호수' : origin.terrain === 'Meadow' ? '초원' : '산맥'}` : ''}</em>
-            </>
+            </div>
           ) : (
             <strong>지도를 눌러 지금 있는 곳을 찍으세요</strong>
           )}
@@ -155,138 +89,143 @@ export function RouteComposer({
         <div className="route-composer__endpoint">
           <span>도착지</span>
           {destination ? (
-            <>
-              <MapGlyph kind={destination.kind} terrain={destination.terrain} size={28} />
+            <div className="route-composer__endpoint-info">
+              <MapGlyph kind={destination.kind} terrain={destination.terrain} size={22} />
               <strong>{destination.name.trim() || '이름 없음'}</strong>
               <em>{destination.kind === 'Clinic' ? '약제소' : destination.kind === 'City' ? '도시' : destination.kind === 'Settlement' ? '정착지' : destination.kind === 'Ruin' ? '티탄 유적' : destination.kind === 'Barrow' ? '거수 고분' : '야생'}{destination.terrain ? ` · ${destination.terrain === 'Bog' ? '늪지' : destination.terrain === 'Forest' ? '숲' : destination.terrain === 'Loch' ? '호수' : destination.terrain === 'Meadow' ? '초원' : '산맥'}` : ''}</em>
-            </>
+            </div>
           ) : (
             <strong>아직 없음</strong>
           )}
         </div>
       </header>
 
-      <div className="route-composer__ring" aria-hidden={count === 0}>
+      {/* Track of horizontal cards and interactive connector lines */}
+      <div className="route-composer__track-container">
         {count === 0 ? (
-          <p className="route-composer__empty">왼쪽 지도에서 노드를 눌러 경로를 잇습니다. 빈 자리는 ⌘+클릭으로 표시할 수 있습니다.</p>
+          <p className="route-composer__empty">왼쪽 지도에서 위치를 클릭하면 경로에 노드가 가로 방향으로 추가됩니다. 빈 자리는 ⌘+클릭으로 표시합니다.</p>
         ) : (
-          <svg viewBox="0 0 100 100" className="route-composer__svg">
-            {draft.edgeKinds.map((kind, index) => {
-              const from = polar(index, count, 36);
-              const to = polar(index + 1, count, 36);
-              const inset = Math.max(2, glyphSize * 0.2);
-              const insetFrom = insetSegmentPoint(from, to, inset);
-              const insetTo = insetSegmentPoint(to, from, inset);
-              const nextKindHint = routeEdgeLabel(cycleRouteEdgeKind(kind, draft.stops[index], draft.stops[index + 1]));
-              return (
-                <path
-                  key={`edge-${index}`}
-                  className={kind === 'path' ? 'route-composer__arc' : `route-composer__arc route-composer__arc--${kind}`}
-                  d={`M ${insetFrom.x} ${insetFrom.y} L ${insetTo.x} ${insetTo.y}`}
-                  role="button"
-                  aria-label={`경로 ${index + 1}의 타입을 바꾸기 (현재 ${routeEdgeLabel(kind)})`}
-                  tabIndex={0}
-                  onClick={() => onChangeEdge(index, cycleRouteEdgeKind(kind, draft.stops[index], draft.stops[index + 1]))}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      onChangeEdge(index, cycleRouteEdgeKind(kind, draft.stops[index], draft.stops[index + 1]));
-                    }
-                  }}
-                />
-              );
-            })}
+          <div className="route-composer__track" role="region" aria-label="가로 경로 목록">
             {draft.stops.map((row, index) => {
-              const point = polar(index, count, 36);
-              const nodeFrame = Math.max(14, glyphSize + 4);
+              const edgeKind = draft.edgeKinds[index] || 'path';
+              const nextStop = draft.stops[index + 1];
               return (
-                <foreignObject
-                  key={row.id + index}
-                  x={point.x - nodeFrame / 2}
-                  y={point.y - nodeFrame / 2}
-                  width={nodeFrame}
-                  height={nodeFrame}
-                >
-                  <div className="route-composer__node">
-                    <MapGlyph kind={row.kind} terrain={row.terrain} size={glyphSize} />
+                <div key={`${row.id}:${index}`} className="route-composer__step-unit">
+                  {/* Rounded horizontal rectangular node card */}
+                  <div className="route-composer__card">
+                    <div className="route-card__header">
+                      <span className="route-card__index">{index === 0 ? '출발' : index + 1}</span>
+                      <MapGlyph kind={row.kind} terrain={row.terrain} size={18} />
+                      <input
+                        type="text"
+                        className="route-card__name-input"
+                        aria-label={`${index + 1}번 노드 이름`}
+                        value={row.name}
+                        placeholder="이름 없음"
+                        autoComplete="off"
+                        onChange={event => onChangeStop(index, { name: event.target.value })}
+                      />
+                      <div className="route-card__actions">
+                        <button
+                          type="button"
+                          className="route-card__move-btn"
+                          disabled={index <= 0}
+                          onClick={() => onMoveStop?.(index, index - 1)}
+                          aria-label="왼쪽으로 이동"
+                          title="왼쪽으로 이동"
+                        >
+                          ◀
+                        </button>
+                        <button
+                          type="button"
+                          className="route-card__move-btn"
+                          disabled={index >= count - 1}
+                          onClick={() => onMoveStop?.(index, index + 1)}
+                          aria-label="오른쪽으로 이동"
+                          title="오른쪽으로 이동"
+                        >
+                          ▶
+                        </button>
+                        {index > 0 && (
+                          <button
+                            type="button"
+                            className="route-card__remove-btn"
+                            onClick={() => onRemoveStop(index)}
+                            aria-label={`${row.name || '노드'} 삭제`}
+                          >
+                            빼기
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="route-card__controls">
+                      <select
+                        className="route-card__select"
+                        aria-label={`${row.name || '노드'} 형태`}
+                        value={row.kind}
+                        onChange={event => {
+                          const kind = event.target.value as MapGlyphKind;
+                          onChangeStop(index, {
+                            kind,
+                            hasClinic: kind === 'Clinic',
+                            terrain: glyphUsesTerrain(kind) ? row.terrain : null
+                          });
+                        }}
+                      >
+                        {MAP_GLYPH_KINDS.map(kind => (
+                          <option key={kind} value={kind}>
+                            {kind === 'City' ? '도시' : kind === 'Settlement' ? '정착지' : kind === 'Wilds' ? '야생' : kind === 'Ruin' ? '티탄 유적' : kind === 'Barrow' ? '거수 고분' : '약제소'}
+                          </option>
+                        ))}
+                      </select>
+                      {glyphUsesTerrain(row.kind) && (
+                        <select
+                          className="route-card__select"
+                          aria-label={`${row.name || '노드'} 지형색`}
+                          value={row.terrain || ''}
+                          onChange={event => onChangeStop(index, { terrain: (event.target.value || null) as MapTerrain | null })}
+                        >
+                          <option value="">색 미정</option>
+                          {MAP_TERRAINS.map(terrain => (
+                            <option key={terrain} value={terrain}>
+                              {terrain === 'Bog' ? '늪지' : terrain === 'Forest' ? '숲' : terrain === 'Loch' ? '호수' : terrain === 'Meadow' ? '초원' : '산맥'}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
                   </div>
-                </foreignObject>
+
+                  {/* Interactive connector line between cards */}
+                  {index < count - 1 && (
+                    <div className="route-connector" role="group" aria-label={`구간 ${index + 1} 연결선`}>
+                      <div className={`route-connector__line route-connector__line--${edgeKind}`} />
+                      <button
+                        type="button"
+                        className={`route-connector__btn route-connector__btn--${edgeKind}`}
+                        onClick={() => onChangeEdge(index, cycleRouteEdgeKind(edgeKind, row, nextStop))}
+                        aria-label={`구간 ${index + 1} 연결선 클릭하여 타입 변경 (현재: ${routeEdgeLabel(edgeKind)})`}
+                        title={`클릭하여 육로/수로/강 전환 (현재: ${routeEdgeLabel(edgeKind)})`}
+                      >
+                        <span className="route-connector__icon">
+                          {edgeKind === 'waterway' ? '⛵' : edgeKind === 'river' ? '🌊' : '🌲'}
+                        </span>
+                        <span className="route-connector__label">{routeEdgeLabel(edgeKind)}</span>
+                      </button>
+                      <div className={`route-connector__line route-connector__line--${edgeKind}`} />
+                    </div>
+                  )}
+                </div>
               );
             })}
-          </svg>
+          </div>
         )}
       </div>
+
       {count > 1 && (
         <p className="route-composer__edge-hint">
-          경로 타입은 각 구간 선을 클릭하거나 Enter/Space로 순환해서 변경할 수 있습니다. (현재 타입 → 다음 타입)
+          연결선 버튼을 클릭하여 육로 ↔ 강/수로를 전환하세요. (◀ ▶ 버튼으로 순서를 바꿉니다)
         </p>
-      )}
-
-      {count > 0 && (
-        <ol className="route-composer__list">
-          {draft.stops.map((row, index) => (
-            <li key={`${row.id}:${index}`}>
-              <span className="route-composer__index">{index + 1}</span>
-              <MapGlyph kind={row.kind} terrain={row.terrain} size={18} />
-              <select
-                aria-label={`${row.name} 형태`}
-                value={row.kind}
-                onChange={event => {
-                  const kind = event.target.value as MapGlyphKind;
-                  onChangeStop(index, {
-                    kind,
-                    hasClinic: kind === 'Clinic',
-                    terrain: glyphUsesTerrain(kind) ? row.terrain : null
-                  });
-                }}
-              >
-                {MAP_GLYPH_KINDS.map(kind => (
-                  <option key={kind} value={kind}>{kind === 'City' ? '도시' : kind === 'Settlement' ? '정착지' : kind === 'Wilds' ? '야생' : kind === 'Ruin' ? '티탄 유적' : kind === 'Barrow' ? '거수 고분' : '약제소'}</option>
-                ))}
-              </select>
-              {row.name.trim() || nameOpen[`${row.id}:${index}`] ? (
-                <>
-                  <input
-                    type="text"
-                    aria-label="이름"
-                    value={row.name}
-                    placeholder="이름"
-                    autoComplete="off"
-                    onChange={event => onChangeStop(index, { name: event.target.value })}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNameOpen(current => ({ ...current, [`${row.id}:${index}`]: false }));
-                      onChangeStop(index, { name: '' });
-                    }}
-                  >
-                    이름 없음
-                  </button>
-                </>
-              ) : (
-                <button type="button" onClick={() => setNameOpen(current => ({ ...current, [`${row.id}:${index}`]: true }))}>
-                  이름 추가
-                </button>
-              )}
-              {glyphUsesTerrain(row.kind) && (
-                <select
-                  aria-label={`${row.name} 지형색`}
-                  value={row.terrain || ''}
-                  onChange={event => onChangeStop(index, { terrain: (event.target.value || null) as MapTerrain | null })}
-                >
-                  <option value="">색 미정</option>
-                  {MAP_TERRAINS.map(terrain => (
-                    <option key={terrain} value={terrain}>{terrain === 'Bog' ? '늪지' : terrain === 'Forest' ? '숲' : terrain === 'Loch' ? '호수' : terrain === 'Meadow' ? '초원' : '산맥'}</option>
-                  ))}
-                </select>
-              )}
-              {index > 0 && (
-                <button type="button" onClick={() => onRemoveStop(index)} aria-label={`${row.name} 빼기`}>빼기</button>
-              )}
-            </li>
-          ))}
-        </ol>
       )}
 
       <div className="route-composer__summary">

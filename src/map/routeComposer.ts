@@ -146,6 +146,25 @@ export const removeRouteStopAt = (draft: RouteDraft, index: number): RouteDraft 
   return { stops, edgeKinds };
 };
 
+export const moveRouteStop = (draft: RouteDraft, fromIndex: number, toIndex: number): RouteDraft => {
+  if (fromIndex < 0 || fromIndex >= draft.stops.length) return draft;
+  if (toIndex < 0 || toIndex >= draft.stops.length) return draft;
+  if (fromIndex === toIndex) return draft;
+
+  const stops = [...draft.stops];
+  const [moved] = stops.splice(fromIndex, 1);
+  stops.splice(toIndex, 0, moved);
+
+  const edgeKinds: RouteEdgeKind[] = [];
+  for (let i = 0; i < stops.length - 1; i += 1) {
+    const candidate = draft.edgeKinds[i] || 'path';
+    const kind = canChooseRouteEdgeKind(candidate, stops[i], stops[i + 1]) ? candidate : 'path';
+    edgeKinds.push(kind);
+  }
+
+  return { stops, edgeKinds };
+};
+
 export const updateRouteStopAt = (draft: RouteDraft, index: number, patch: Partial<RouteStop>): RouteDraft => {
   if (index < 0 || index >= draft.stops.length) return draft;
   return {

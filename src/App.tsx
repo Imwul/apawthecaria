@@ -38,6 +38,7 @@ import {
   isLochWildsStop,
   locationTypeFromGlyph,
   mapKindFromGlyph,
+  moveRouteStop,
   nearestTerrain,
   removeRouteStopAt,
   routeEdgeLabel,
@@ -11125,6 +11126,19 @@ function PlayView({
     });
   }, [state.currentRegion]);
 
+  const handleMoveRouteStop = useCallback((fromIndex: number, toIndex: number) => {
+    setRouteDraft(previous => {
+      const next = moveRouteStop(previous, fromIndex, toIndex);
+      const dest = next.stops[next.stops.length - 1];
+      if (next.stops.length > 1 && dest) {
+        setNextLocName(dest.name);
+        setDestType(locationTypeFromGlyph(dest.kind));
+        setDestRegion(dest.terrain || state.currentRegion);
+      }
+      return next;
+    });
+  }, [state.currentRegion]);
+
   const handleClearRouteSides = useCallback(() => {
     setRouteDraft(previous => draftFromOrigin(previous.stops[0] || currentRouteOrigin));
   }, [currentRouteOrigin]);
@@ -11678,6 +11692,7 @@ function PlayView({
             onChangeStop={handleRouteStopChange}
             onChangeEdge={handleRouteEdgeChange}
             onRemoveStop={handleRemoveRouteStop}
+            onMoveStop={handleMoveRouteStop}
             onClear={handleClearRouteSides}
             onTravel={handleComposerTravel}
           />
@@ -16116,7 +16131,29 @@ function AtlasMapPanel({
           if (location.x === undefined || location.y === undefined || !location.id) return;
           persistStop(stopFromRequest(location));
         }}
-      onSetCurrentLocation={handleSetMappedCurrentLocation}
+      onSetCurrentLocation={location => {
+        const node = nodes[location.id];
+        const stop = node
+          ? stopFromGraphNode(location.id, node, { name: location.name || node.label, hasClinic: location.hasClinic })
+          : stopFromPlace({
+              id: location.id,
+              name: location.name,
+              x: location.x ?? 50,
+              y: location.y ?? 50,
+              region: location.region,
+              kind: location.kind,
+              locationType: location.kind,
+              hasClinic: location.hasClinic
+            });
+        persistStop(stop);
+        updateState((s: GameState) => ({
+          ...s,
+          currentLocationName: stop.name,
+          currentLocationType: locationTypeFromGlyph(stop.kind),
+          currentRegion: stop.terrain || s.currentRegion,
+          visitedLocations: Array.from(new Set([...(s.visitedLocations || []), stop.name]))
+        }));
+      }}
       onEditPlace={location => persistStop(stopFromRequest(location))}
       onDeletePlace={location => deletePlace(location.id)}
         onSavePlaces={() => {

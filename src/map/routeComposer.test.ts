@@ -8,6 +8,7 @@ import {
   evaluateRouteDraft,
   glyphKindFromLocation,
   nearestTerrain,
+  moveRouteStop,
   removeRouteStopAt,
   setRouteEdgeKind,
   stopFromPlace,
@@ -57,6 +58,15 @@ describe('route composer draft', () => {
     draft = removeRouteStopAt(draft, 1);
     expect(draft.stops.map(row => row.id)).toEqual(['a', 'c']);
     expect(draft.edgeKinds).toEqual(['waterway']);
+  });
+
+  it('reorders stops and maintains valid edge counts', () => {
+    let draft = draftFromOrigin(stop('a'));
+    draft = appendRouteStop(draft, stop('b'));
+    draft = appendRouteStop(draft, stop('c'));
+    draft = moveRouteStop(draft, 2, 1);
+    expect(draft.stops.map(row => row.id)).toEqual(['a', 'c', 'b']);
+    expect(draft.edgeKinds).toHaveLength(2);
   });
 });
 
