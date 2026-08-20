@@ -1,6 +1,8 @@
 import generatedTranslations from './printedEffectKo.generated.json';
 import { PRINTED_EFFECT_REGISTRY } from '../rules/printedEffects';
+import { ENCOUNTERS } from '../rules/data/encounters';
 import { localizeRegionLabel, localizeSeasonLabel } from './gameplayKo';
+import { ENCOUNTER_TITLE_KO } from './encounterTitleKo';
 
 const MUSHROOM_PICKERS_TEXT = `약용 버섯이 아닌 것은 확실하지만, 위험한 버섯일까요?
 
@@ -12,6 +14,14 @@ const MUSHROOM_PICKERS_TEXT = `약용 버섯이 아닌 것은 확실하지만, �
 
 const exactTranslations: Record<string, string> = {
   'Any Season': '모든 계절',
+  'Dam Lotta Trouble': '댐 때문에 골치 아파',
+  'Friend In Need': '도움이 필요한 동료',
+  'Rest Stop': '길가의 쉼터',
+  'To Glide, or not to Glide': '활공할까, 말까',
+  'Alluring Odours': '매혹적인 향기',
+  'Awkward Small Talk': '어색한 잡담',
+  "Wheee! — One Craftpaw manages to swirl into a curving flight, up until they slam into the side of the hometree. How far do they fall? Does their contraption survive the crash?": '휘이잉! — 장인발 길드원 하나가 나선형으로 날아오르다 집나무 옆면에 부딪힙니다. 얼마나 아래로 떨어졌나요? 장치는 충돌 뒤에도 멀쩡한가요?',
+  "Slowfall — A shadow passes over you, large and round. Its owner is a Craftpaw testing a device they call a 'fall protector'. Its a wide, thin sack that fills with air and slows their descent through the air. Do they get caught in the hometree's branches, or get enveloped by their falling parachute?": '느린 낙하 — 크고 둥근 그림자가 머리 위를 지납니다. 주인은 ‘낙하 보호 장치’를 시험하는 장인발 길드원입니다. 공기로 부풀어 낙하 속도를 늦추는 넓고 얇은 자루입니다. 집나무 가지에 걸렸나요, 아니면 떨어지는 낙하산에 휘감겼나요?',
   Duty: '의무',
   Repellent: '퇴치',
   'Region: Forest': '지역: 숲',
@@ -22,6 +32,13 @@ const exactTranslations: Record<string, string> = {
   "The Junior picker nonchalantly stuffs it in their maw; draw a card: ♥ - It's a tasty snack; they share one with you, Gain a tasty Trinket.": '풋내기 채집꾼이 태연하게 버섯을 입에 넣습니다. 카드를 뽑아 ♥가 나오면 맛있는 간식을 나눠 받고 장신구 1개를 얻습니다.',
   "The Junior picker nonchalantly stuffs it in their maw; 카드를 뽑습니다: ♥ - It's a tasty snack; they share one with you, Gain a tasty 장신구.": '풋내기 채집꾼이 태연하게 버섯을 입에 넣습니다. 카드를 뽑아 ♥가 나오면 맛있는 간식을 나눠 받고 장신구 1개를 얻습니다.',
   'Gain 1 Reputation.': '길드 명성 1을 얻습니다.',
+  'Draw a card and decrease all Timers by 1. If your result was 7 or higher, gain a Reagent that can provide [Fair] and that can also be Foraged for in the Forest. If no such Reagent exists, invent a new one for your Almanack. 162': '카드를 한 장 뽑고 모든 타이머를 1만큼 줄입니다. 결과가 7 이상이면 [FAIR]를 제공하면서 숲에서 채집할 수 있는 영약재를 얻습니다. 그런 영약재가 없다면 연감에 새 영약재를 만드세요.',
+  'You find yourself scampering for an available lift, and a local holds it until you leap aboard. Journal about your experience aboard the lift, out of breath and assailed with polite questions about your day.': '이용 가능한 승강기로 달려가자 현지 야수가 기다려 주어 간신히 올라탑니다. 숨을 고르는 동안 오늘 하루에 관한 공손한 질문을 받습니다. 승강기에서 나눈 어색한 대화를 일지에 기록하세요.',
+  'This location has been flooded with river water from a local dam. Mark on your map that this is a Beaver Dam, and that its Region has changed Loch': '이 위치가 인근 비버 댐의 강물로 잠겼습니다. 지도에 이곳을 비버 댐으로 표시하고 지역을 호수로 바꾸세요.',
+  'The dam bursts after Winter, causing this Location to return to being a Forest Region. 161': '겨울이 지난 뒤 댐이 무너집니다. 이 위치의 지역을 다시 숲으로 바꾸세요.',
+  'How do they feel about their work? What gossip have the builders got to share? Beaver Flood - This location has been flooded with river water from a local dam. Mark on your map that this is a Beaver Dam, and that its Region has changed Loch. Dam Burst - The dam bursts after Winter, causing this Location to return to being a Forest Region. 161': '그들은 자신의 일에 대해 어떻게 생각하나요? 건축업자들은 어떤 이야기를 들려주나요? 비버 댐 범람 - 이 위치가 인근 비버 댐의 강물로 잠겼습니다. 지도에 이곳을 비버 댐으로 표시하고 지역을 호수로 바꾸세요. 댐 붕괴 - 겨울이 지난 뒤 댐이 무너집니다. 이 위치의 지역을 다시 숲으로 바꾸세요. 161',
+  'Draw a card and gain a Forest Reagent with Rarity equal to the card’s value. Decrease your Ailment Timer by 1': '카드를 한 장 뽑고 카드 값과 희귀도가 같은 숲 영약재 하나를 얻습니다. 질병 타이머를 1만큼 줄이세요.',
+  'Decrease Guild Reputation by 1. Journal about your fellow Poulticier’s patient.': '길드 명성 1을 잃습니다. 동료 약제사의 환자에 관해 일지에 기록하세요.',
   'A grouchy meadow hare comes bounding over to you, yelling "watch yer paws"! They explain that the peat bog is a delicate ecosystem. Though... you aren\'t walking on any peat right now. Despite this, they draw in deep breath as if to give a lecture. Listen & Learn - Unfortunately, once the hare gets started they cannot be stopped. Decrease Timers by 4. However, from now on everytime you Forage in a Bog, gain 1 Foraging Point. Interrupt - Lose 1 Reputation as the grouchy hare tells everyone they meet how rude you were.': '심술궂은 초원 토끼가 뛰어오며 "발 조심해!" 하고 소리칩니다. 이탄 습지는 섬세한 생태계라고 설명하지만… 당신은 지금 이탄 위를 걷고 있지 않습니다. 그래도 토끼는 강의를 시작하려는 듯 깊게 숨을 들이쉽니다. 듣고 배우기 - 한 번 시작하면 멈추지 않습니다. 타이머를 4 줄입니다. 대신 앞으로 습지에서 채집할 때마다 채집 포인트 1을 얻습니다. 끼어들기 - 무례했다고 소문내어 길드 명성 1을 잃습니다.',
   'Wayfinders have made a new route. Draw a Path from this Location to an unconnected nearby Location. New Path - Record a Path from this Location to an unconnected nearby Location.': '길잡이들이 새 길을 냈습니다. 이 위치에서 아직 이어지지 않은 가까운 위치까지 경로를 그립니다. 새 길 - 이 위치에서 아직 이어지지 않은 가까운 위치까지 경로를 기록합니다.',
   'Something slithers beneath the water. Draw and resolve the suit result. Deep Water - Draw a card and apply the printed suit result on p166.': '물 아래에서 무언가가 미끄러집니다. 카드를 뽑아 문양 결과를 해결합니다. 깊은 물 - 카드를 뽑아 166쪽의 인쇄된 문양 결과를 적용합니다.',
@@ -71,6 +88,37 @@ const exactTranslations: Record<string, string> = {
   ,'Treat three ailments and retain the seasonal map consequences.': '질병 세 개를 치료하고 계절 지도 결과를 유지합니다.'
   ,"Something falls out of a passing Noonmessenger’s satchel. Call out to the Messenger - Gain 1 Reputation. Deliver the Parcel - Add a 'Parcel' (Weight 1) to your Bags. Choose a Location 4 Paths away for its address. Gain 3 Trinkets if you go to that Location, delivering it. Keep the Parcel - Choose and Gain a Tool or Upgrade from the Almanac, and lose 1 Reputation.": '지나가던 정오 전령의 가방에서 무언가가 떨어집니다. 전령 부르기 - 길드 명성 1을 얻습니다. 소포 배달 - 소포(무게 1)를 가방에 넣고 4경로 떨어진 배달 장소를 정합니다. 그곳에 도착해 배달하면 장신구 3개를 얻습니다. 소포 갖기 - 연감에서 도구 또는 개조 하나를 골라 얻고 길드 명성 1을 잃습니다.'
   ,"Deliver the Parcel - Add a 'Parcel' (Weight 1) to your Bags.": '소포 배달 - 소포(무게 1)를 가방에 넣습니다.'
+  ,'The Right Thing To Do — Leave it somewhere it can easily be found. Increase Guild Reputation by 1 80': '옳은 일 하기 — 쉽게 찾을 수 있는 곳에 두세요. 길드 명성 1을 얻습니다.'
+  ,'Lessons should be learned — This beast needs to learn not to bite off more than they can chew.': '교훈을 남기기 — 이 야수도 감당하지 못할 일에 함부로 덤비면 안 된다는 것을 배워야 합니다.'
+  ,'If you win — Gain 1 Trinket as a prize': '승리 — 상품으로 장신구 1개를 얻습니다.'
+  ,'If you lose — Gain 1 Reputation, for being a good sport.': '패배 — 훌륭한 경기 태도를 인정받아 길드 명성 1을 얻습니다.'
+  ,'Taken Prisoner — Your Journey ends here. The pirates capture you and keep you prisoner for the remainder of the Season. What do you learn about them? How do you finally get away?': '포로가 되기 — 여정이 여기서 끝납니다. 해적에게 붙잡혀 이번 계절이 끝날 때까지 포로로 지냅니다. 그들에 관해 무엇을 알게 되었나요? 마지막에는 어떻게 탈출했나요?'
+  ,'If you win — Start a new Goal with the nearest City as your Destination. Gain 10 Reputation for bringing them in. Journal about why you felt the need to enforce justice': '승리 — 가장 가까운 도시를 목적지로 삼는 새 목표를 시작합니다. 이들을 붙잡아 데려가면 길드 명성 10을 얻습니다. 왜 정의를 집행해야 한다고 느꼈는지 일지에 기록하세요.'
+  ,'If you lose — They escape, never to be seen by you again. 85': '패배 — 그들은 달아나고, 다시는 마주치지 못합니다.'
+  ,'마차를 타고 있음 — Mark 1 Day': '마차를 타고 있음 — 달력에 1일을 표시합니다.'
+  ,'Pay with your patience — Storming past the pup, you continue your journey. Lose 1 Reputation.': '인내심을 잃고 지나가기 — 새끼를 지나쳐 여정을 계속합니다. 길드 명성 1을 잃습니다.'
+  ,'Not Highest — you had fun but got knocked off. You land with a thud in the slushy snow.': '가장 높지 않음 — 즐거웠지만 결국 떨어져 질척한 눈 위에 쿵 하고 내려앉습니다.'
+  ,"Stay out of it — He got himself into this situation, and he only has himself to blame. As you ride the breeze, you look back and see a rug full of glittering specks topple off of the capercaille's back. End your Soar at your chosen destination. Griph's Services as a trader are unavailable for the remainder of your Journey.": '관여하지 않기 — 그리프가 자초한 일이니 그대로 지나갑니다. 바람을 타고 멀어지며 돌아보면 반짝이는 물건이 가득한 깔개가 큰들꿩의 등에서 쏟아집니다. 선택한 목적지에서 활공을 끝냅니다. 이번 여정이 끝날 때까지 그리프와 거래할 수 없습니다.'
+  ,'Ignore the distraction — You shift your eyes back towards the horizon. End your Soar at your chosen destination.': '한눈팔지 않기 — 다시 지평선을 바라봅니다. 선택한 목적지에서 활공을 끝냅니다.'
+  ,'Follow the wind — rotate your Flightpath 180 degrees. End your Soar at a location up to twice as far as you originally intended to travel.': '바람을 따르기 — 비행 경로를 180도 돌립니다. 원래 가려던 거리의 최대 두 배만큼 떨어진 위치에서 활공을 끝냅니다.'
+  ,'Warm Up — You have to take a moment to heat up before you go trudging on. Decrease Timer by 1.': '몸 녹이기 — 다시 길을 나서기 전에 잠시 몸을 덥힙니다. 타이머를 1만큼 줄입니다.'
+  ,'If the deer has the highest card — they chase you off, stamping the ground and threatening with their antlers. You do not gather anything for this Forage, and cannot Move through or Forage here again.': '사슴의 카드가 가장 높음 — 사슴이 땅을 구르고 뿔로 위협하며 당신을 쫓아냅니다. 이번 채집에서는 아무것도 얻지 못하며, 다시 이동하기 전까지 이곳을 통과하거나 여기서 채집할 수 없습니다.'
+  ,'Guild Level is Upstanding or higher — They recognise the look in your eyes, and forlornly offer you one of the dishes. If you were looking for an Insect Reagent Part, add it to your Bags.': '길드 등급이 신망 있음 이상 — 그들은 당신의 눈빛을 알아보고 침울하게 요리 하나를 내어 줍니다. 곤충 영약재 부위를 찾고 있었다면 그 부위를 가방에 넣습니다.'
+  ,'Nut Hunt — Draw a card for yourself and two cards for the other of the beasts. Whoever has the single highest value card finds the most nuts. If you win, gain 1 Trinket.': '견과 찾기 — 자신을 위해 카드 1장, 다른 야수들을 위해 카드 2장을 뽑습니다. 가장 높은 값의 카드 한 장을 가진 쪽이 견과를 가장 많이 찾습니다. 이기면 장신구 1개를 얻습니다.'
+  ,'Leave It — If it is really that important, someone else will get it. Continue foraging. Gain 1 Foraging Point.': '그대로 두기 — 정말 중요한 물건이라면 다른 누군가가 가져갈 것입니다. 채집을 계속하고 채집 포인트 1을 얻습니다.'
+  ,'Startled — You cannot find any Big Fish or Small Fish in this Location until you next Move On 169': '놀라 달아남 — 다음 장소로 이동할 때까지 이 위치에서는 큰 물고기나 작은 물고기를 찾을 수 없습니다.'
+  ,'Hot Toddy — If you have a Tent, you can set up a campsite to take refuge in as you Forage, with a pot of something warm to drink from. Decrease Timers by 1. If you draw this event again during the same Ailment, Journal about your Hot Toddy.': '따뜻한 토디차 — 텐트가 있다면 채집 중 몸을 피할 야영지를 차리고 따뜻한 음료를 끓입니다. 타이머를 1만큼 줄입니다. 같은 질병을 치료하는 동안 이 사건을 다시 뽑으면 토디차에 관해 일지에 기록하세요.'
+  ,'Run & Hide — You dive for cover, only to find another beast hiding from "The Crow Scarer". What legend do they tell you of the terrifying thing out there? Decrease Timers by 1, but you may choose the Knowledge action next time you encounter this event': '달아나 숨기 — 몸을 숨긴 곳에서 ‘까마귀 허수아비’를 피해 숨어 있는 다른 야수를 만납니다. 그 야수는 바깥의 무서운 존재에 관한 어떤 전설을 들려주나요? 타이머를 1만큼 줄입니다. 다음에 이 사건을 만나면 지식 행동을 선택할 수 있습니다.'
+  ,'If you win the fight — you chase them off and can take their Weapon. It has the same function as a Crossbow, but only works against Beasts, not Behemoths': '싸움에서 승리 — 상대를 쫓아내고 무기를 가져올 수 있습니다. 이 무기는 석궁과 같은 기능을 하지만 거수가 아닌 일반 야수에게만 사용할 수 있습니다.'
+  ,'If you lose the fight — they kick, beat and bite you. While you shelter from their attacks, they snatch your Bags. Discard all of your Items, and lose all your Trinkets. 179': '싸움에서 패배 — 상대가 발로 차고 때리고 물어뜯습니다. 공격을 피하는 사이 가방을 빼앗깁니다. 모든 물품을 버리고 장신구를 전부 잃습니다.'
+  ,'If you make it into the chamber — amongst the long deceased behemoths you find a crumbling sack of tools far too big for you to use. However, the sack also contains a number of strange devices. Gain either a Cranky Contraption Companion, a Titan Thingamabob, or a Titan Reagent of value 8 or lower.': '방 안에 들어감 — 오래전에 죽은 거수들 사이에서 너무 커서 쓸 수 없는 도구가 든 낡은 자루를 찾습니다. 그 안에는 이상한 장치도 여럿 있습니다. 괴팍한 장치 동반자, 타이탄 물건, 또는 값 8 이하의 타이탄 영약재 중 하나를 얻습니다.'
+  ,"If your total is still lower — The Not-Cat's slaps force you into a space it can't reach. It's oddly echoing meows sound both familiar, and also like meaningless babble": '합계가 여전히 낮음 — ‘고양이 아닌 것’의 앞발질에 밀려 그 존재가 닿지 못하는 틈으로 들어갑니다. 기묘하게 울리는 울음은 익숙한 듯하면서도 의미 없는 옹알이처럼 들립니다.'
+  ,"Regrowth — When they're big enough, the Guild of Loggnawers collect the sapplings and plant them out in the land they've cleared. How many beavers does it take to move a single sapling": '다시 심기 — 묘목이 충분히 자라면 통나무갉이 길드가 이를 거두어 개간한 땅에 옮겨 심습니다. 묘목 하나를 옮기려면 비버가 몇 마리나 필요할까요?'
+  ,"Mother 'o Fruits — Towering over the Pots is a single, massive apple tree. Wait, no its a pear tree. Hang on... its all sorts of trees! Branches from different species have been grafted onto a single host, so that the tree bears fruit all year long. What fruit is in season right now? Apples, pears, peaches, cherries? Add 'Fruit' to your Bags. It can be USED/COOKED for [FAIR 2/3]. Far to the north of the Bristley Woods sits Loch Katrine, a languid mirror to the stars. A crew of Beavers dug a river to lower lying bodies of water, and established Newdam. This tiny settlement flourishes with trade from the northern heart of the woods, and is famous for its shipyards and waterside wooden lodges. NewDam 199": '열매의 어머니 — 화분들 위로 거대한 사과나무 한 그루가 솟아 있습니다. 아니, 배나무인가요? 자세히 보니 여러 나무가 한데 섞여 있습니다. 서로 다른 종의 가지를 한 나무에 접붙여 일 년 내내 열매가 열립니다. 지금 제철인 열매는 무엇인가요? 과일 1개를 가방에 넣습니다. 과일은 [FAIR 2/3]을 위해 그대로 사용하거나 요리할 수 있습니다.'
+  ,'What do you think its original purpose was — to commemorate memories, to celebrate life? Or something more mundane? Open rolling hills of wild grasses peppered with mossy stones and thistly flowers dot the Bristley Woods, and to the untrained eye they can appear to be completely uninhabited. These Settlements use natural features as shelter from the elements; they’re built into sturdy gorse bushes, or in hillside barrows reinforced by the roots of old, gnarled trees. Anything exterior can be quickly packed down and hauled to safety, away from fast approaching predators and Behemoths. Meadows 204': '이곳의 원래 목적은 무엇이었을까요? — 추억을 기리거나 삶을 축하하기 위한 곳이었을까요? 아니면 더 평범한 용도였을까요?'
+  ,'Floral beastlore — You know for sure this flower has no medicinal value. However, it does have some sentimental quality. What is this plant? What stories do beasts tell that involve or are somehow tied to this flower?': '꽃에 얽힌 야수 전승 — 이 꽃에 약효가 없다는 점은 확실하지만, 정서적으로 특별한 의미가 있습니다. 어떤 식물인가요? 야수들은 이 꽃과 얽힌 어떤 이야기를 전하나요?'
+  ,'Wish them luck — Sometimes its bee-st not to get involved in the business of other guilds. Lose 1 Reputation.': '행운을 빌기 — 때로는 다른 길드의 일에 끼어들지 않는 편이 최선입니다. 길드 명성 1을 잃습니다.'
+  ,'Arbitrate — "Wait a minute, you\'re holding the red rod, but so is your friend. What does that mean?" you ask inquisitively. "Wait, well, uh..." the bird begins... The wee beasts are eager to explain their game. What are the rules? How many can play? How do you win, lose, or have fun?': '중재하기 — “잠깐, 너도 빨간 막대를 들고 있고 친구도 들고 있네. 그게 무슨 뜻이야?”라고 묻습니다. 작은 야수들은 신이 나서 놀이를 설명합니다. 규칙은 무엇인가요? 몇 명이 할 수 있나요? 어떻게 이기고 지며, 무엇이 재미있나요?'
 };
 
 const optionTranslations: Record<string, string> = {
@@ -94,6 +142,12 @@ const optionTranslations: Record<string, string> = {
   Chat: '이야기',
   Reunion: '재회',
   Discovery: '발견'
+  ,'Beaver Flood': '비버 댐 범람'
+  ,'Dam Burst': '댐 붕괴'
+  ,'Help Your Guildmate': '길드 동료 돕기'
+  ,'Keep to Yourself': '혼자 조용히 지내기'
+  ,'Wheee!': '휘이잉!'
+  ,Slowfall: '느린 낙하'
 };
 
 const generatedTranslationMap = generatedTranslations as Record<string, string>;
@@ -188,6 +242,10 @@ const genericPhraseTranslations: Record<string, string> = {
   Trapped: '갇힘',
   Junior: '풋내기',
   Senior: '숙련자'
+  ,'Beaver Flood': '비버 댐 범람'
+  ,'Dam Burst': '댐 붕괴'
+  ,'Help Your Guildmate': '길드 동료 돕기'
+  ,'Keep to Yourself': '혼자 조용히 지내기'
 };
 
 const polishGenericRuleTerms = (text: string, names: string[] = protectedRuleNames): string => {
@@ -230,10 +288,89 @@ const hashTranslationKey = (text: string): string => {
   return (hash >>> 0).toString(36);
 };
 
+const branchDelimiters = (text: string): Array<{ start: number; end: number }> =>
+  [...text.matchAll(/\s+[—-]\s+/g)].map(match => ({
+    start: match.index || 0,
+    end: (match.index || 0) + match[0].length
+  }));
+
+const translatedBranchStart = (text: string, delimiterStart: number): number => {
+  for (let index = delimiterStart - 1; index >= 0; index -= 1) {
+    if (!/[.!?]/.test(text[index])) continue;
+    // Choice headings such as “Rescue!” end immediately before the dash. That
+    // punctuation belongs to the heading, not to the previous sentence.
+    if (delimiterStart - index <= 3) continue;
+    return index + 1;
+  }
+  return 0;
+};
+
+const cleanPrintedDisplayText = (text: string, sourcePage?: number): string => {
+  let cleaned = text
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^[.,;:]\s*/, '')
+    .replace(/\s+([,.;!?])/g, '$1');
+  const boilerplate = cleaned.search(/\b(?:Bog|Forest|Loch|Meadow|Mountain|Titan|Soar)\s+(?:travel|foraging)\s+encounters\b/i);
+  if (boilerplate > 0) cleaned = cleaned.slice(0, boilerplate).trim();
+  const localizedBoilerplate = cleaned.search(/(?:늪지|숲|호수|초원|산맥|타이탄)\s*(?:여행|채집)(?:\s*조우|은|는)/);
+  if (localizedBoilerplate > 0) cleaned = cleaned.slice(0, localizedBoilerplate).trim();
+  if (sourcePage) cleaned = cleaned.replace(new RegExp(`(?:[.!?]\\s*)?${sourcePage}\\s*$`), '').trim();
+  return cleaned.replace(/\s*[—-]\s*$/, '').trim();
+};
+
+let generatedEncounterOptionMap: Map<string, string> | null = null;
+
+const getGeneratedEncounterOptionMap = (): Map<string, string> => {
+  if (generatedEncounterOptionMap) return generatedEncounterOptionMap;
+  const result = new Map<string, string>();
+  ENCOUNTERS.forEach(encounter => {
+    const rawPrompt = normalizeTranslationKey(encounter.prompt);
+    const translatedPrompt = exactTranslations[rawPrompt] || generatedTranslationMap[hashTranslationKey(rawPrompt)];
+    if (!translatedPrompt || translatedPrompt === rawPrompt || encounter.choices.length === 0) return;
+    const rawDelimiters = branchDelimiters(rawPrompt);
+    const translatedDelimiters = branchDelimiters(translatedPrompt);
+    const rows = encounter.choices.map(choice => {
+      const match = choice.label.match(/^(.+?)\s+[—-]\s+([\s\S]+)$/);
+      if (!match) return null;
+      const sourceNeedle = `${match[1]} - `;
+      const headingStart = rawPrompt.indexOf(sourceNeedle);
+      if (headingStart < 0) return null;
+      const delimiterStart = headingStart + match[1].length;
+      const delimiterOrdinal = rawDelimiters.findIndex(delimiter => delimiter.start === delimiterStart);
+      return delimiterOrdinal >= 0 ? { choice, match, delimiterOrdinal } : null;
+    }).filter((row): row is NonNullable<typeof row> => Boolean(row));
+
+    rows.forEach((row, index) => {
+      const translatedDelimiter = translatedDelimiters[row.delimiterOrdinal];
+      if (!translatedDelimiter) return;
+      const next = rows[index + 1];
+      const nextDelimiter = next ? translatedDelimiters[next.delimiterOrdinal] : null;
+      const detailEnd = nextDelimiter
+        ? translatedBranchStart(translatedPrompt, nextDelimiter.start)
+        : translatedPrompt.length;
+      const detail = cleanPrintedDisplayText(
+        translatedPrompt.slice(translatedDelimiter.end, detailEnd),
+        encounter.sourcePage
+      );
+      if (!detail) return;
+      const heading = optionTranslations[row.match[1]] || localizeManualEffectValue(row.match[1]);
+      result.set(row.choice.label.trim(), `${heading} — ${polishGenericRuleTerms(detail)}`);
+    });
+  });
+  generatedEncounterOptionMap = result;
+  return result;
+};
+
 export const localizeManualEffectValue = (text: string): string => {
   const compact = text.trim();
   const translated = exactTranslations[compact] || generatedTranslationMap[hashTranslationKey(compact)];
   return translated ? polishGenericRuleTerms(translated) : text;
+};
+
+export const localizeEncounterTitle = (text: string): string => {
+  const compact = cleanPrintedDisplayText(text);
+  return ENCOUNTER_TITLE_KO[compact] || localizeManualEffectValue(compact);
 };
 
 export const localizeManualEffectText = (summary: string, text: string): string => {
@@ -249,6 +386,28 @@ export const localizeManualEffectText = (summary: string, text: string): string 
     return translation ? polishGenericRuleTerms(translation, summary ? [summary] : []) : block;
   });
   return localized.some((block, index) => block !== blocks[index]) ? localized.join('') : text;
+};
+
+export const localizeEncounterDisplayText = (summary: string, text: string): string => {
+  const raw = normalizeTranslationKey(text);
+  const encounter = ENCOUNTERS.find(row => normalizeTranslationKey(row.prompt) === raw);
+  const localized = localizeManualEffectText(summary, raw);
+  if (!encounter) return cleanPrintedDisplayText(localized);
+  if (encounter.choices.length === 0) return cleanPrintedDisplayText(localized, encounter.sourcePage);
+
+  const firstChoice = encounter.choices
+    .map(choice => choice.label.match(/^(.+?)\s+[—-]\s+/)?.[1])
+    .find(Boolean);
+  if (!firstChoice) return cleanPrintedDisplayText(localized, encounter.sourcePage);
+  const rawHeadingStart = raw.indexOf(`${firstChoice} - `);
+  if (rawHeadingStart < 0) return cleanPrintedDisplayText(localized, encounter.sourcePage);
+  const rawDelimiterStart = rawHeadingStart + firstChoice.length;
+  const ordinal = branchDelimiters(raw).findIndex(delimiter => delimiter.start === rawDelimiterStart);
+  const translatedDelimiter = branchDelimiters(localized)[ordinal];
+  const descriptionEnd = translatedDelimiter
+    ? translatedBranchStart(localized, translatedDelimiter.start)
+    : localized.length;
+  return cleanPrintedDisplayText(localized.slice(0, descriptionEnd), encounter.sourcePage);
 };
 
 export const localizeManualEffectLine = (text: string): string => {
@@ -279,8 +438,24 @@ export const localizeManualJournalText = (text: string): string => text
   })
   .join('');
 
-export const localizeManualEffectOption = (option: string): string =>
-  optionTranslations[option] || localizeManualEffectValue(option).replace(/\s+or\s+/gi, ' 또는 ');
+export const localizeManualEffectOption = (option: string): string => {
+  const compact = option.trim();
+  if (optionTranslations[compact]) return optionTranslations[compact];
+  if (exactTranslations[compact]) return cleanPrintedDisplayText(exactTranslations[compact]);
+  const branch = compact.match(/^(.+?)\s+[—-]\s+([\s\S]+)$/);
+  if (branch) {
+    const heading = optionTranslations[branch[1]] || localizeManualEffectValue(branch[1]);
+    const detail = localizeManualEffectValue(branch[2]);
+    if (detail !== branch[2]) return `${heading} — ${cleanPrintedDisplayText(detail)}`;
+  }
+  const generatedOption = getGeneratedEncounterOptionMap().get(compact);
+  if (generatedOption) return cleanPrintedDisplayText(generatedOption);
+  if (branch) {
+    const heading = optionTranslations[branch[1]] || localizeManualEffectValue(branch[1]);
+    if (heading !== branch[1]) return `${heading} — ${cleanPrintedDisplayText(branch[2])}`;
+  }
+  return localizeManualEffectValue(compact).replace(/\s+or\s+/gi, ' 또는 ');
+};
 
 export const localizeManualEffectTrigger = (trigger: string): string => ({
   encounter: '조우',

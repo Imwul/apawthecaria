@@ -4,6 +4,12 @@ export interface CampaignContinuityState {
   journeyActive?: boolean;
   downtimeRequired?: boolean;
   downtimeCompleted?: boolean;
+  pendingEncounter?: unknown;
+  pendingForaging?: unknown;
+  pendingPatientArchive?: unknown;
+  activeAilment?: unknown;
+  scroungingMode?: boolean;
+  needsLocalHelpBeforeMove?: boolean;
   currentLocationName?: string;
   journeyDestination?: string;
   calendarDays?: number;
@@ -23,10 +29,23 @@ export const getCampaignContinuity = (state: CampaignContinuityState): CampaignC
     const elapsed = Math.max(0, state.calendarDays || 0);
     const limit = Math.max(0, state.calendarMaxDays || 0);
     const remaining = Math.max(0, limit - elapsed);
+    const nextAction = state.pendingEncounter
+      ? '열어 둔 이동 조우를 먼저 해결하세요.'
+      : state.pendingForaging
+        ? '열어 둔 채집 조우를 먼저 해결하세요.'
+        : state.pendingPatientArchive
+          ? '끝난 진료를 환자 기록장에 마무리하세요.'
+          : state.activeAilment
+            ? '현재 환자의 치료를 이어가세요.'
+            : state.scroungingMode
+              ? '남은 치료 시간으로 여분 채집을 하거나 마감하세요.'
+              : state.needsLocalHelpBeforeMove
+                ? '현지 야수의 질환을 해결해야 다시 이동할 수 있습니다.'
+                : '현재 위치에서 다음 Move를 해결하세요.';
     return {
       stage: 'journey',
       label: '여정 진행 중',
-      nextAction: '현재 위치에서 다음 Move를 해결하세요.',
+      nextAction,
       continueLabel: '여정 이어가기',
       guidance: `${state.journeyDestination || '목적지'}까지 이동 중 · ${elapsed}/${limit}일 경과 · ${remaining}일 남음`
     };

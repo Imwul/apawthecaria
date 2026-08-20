@@ -45,6 +45,12 @@ const reasonText = (reason: ReturnType<typeof evaluateRouteDraft>['reason'], spe
   return '호수·강 야생에서 멈추려면 자작나무 보트(Bark Coracle)나 밀폐식 마차(Sealed Carriage)가 필요합니다. 방수 가방(Waxed Satchel)은 젖음만 막습니다.';
 };
 
+const blockedActionText = (reason: ReturnType<typeof evaluateRouteDraft>['reason']): string => {
+  if (reason === 'too-far') return '이동력에 맞게 경로를 줄이세요';
+  if (reason === 'loch-locked') return '호수·강 정차 장비가 필요합니다';
+  return '속도만큼 경로를 이으세요';
+};
+
 const stopKindLabel = (stop: RouteStop): string =>
   stop.kind === 'Clinic' ? '약제소' : stop.kind === 'City' ? '도시' : stop.kind === 'Settlement' ? '정착지' : stop.kind === 'Ruin' ? '티탄 유적' : stop.kind === 'Barrow' ? '거수 고분' : '야생';
 
@@ -431,7 +437,7 @@ export function RouteComposer({
         >
           {travelReady
             ? (movementMode === 'soar' ? '마지막 위치로 활공' : '이 경로로 이동')
-            : (travelBlockedReason || (movementMode === 'soar' ? '착륙 위치를 고르세요' : '속도만큼 경로를 이으세요'))}
+            : (travelBlockedReason || (movementMode === 'soar' ? '착륙 위치를 고르세요' : blockedActionText(evaluation.reason)))}
         </button>
       </div>
     </section>

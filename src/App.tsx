@@ -264,6 +264,7 @@ import {
   localizeTreatmentResult
 } from './localization/gameplayKo';
 import { localizeGameplayMessage } from './localization/engineMessagesKo';
+import { localizeManualEffectValue } from './localization/manualEffectKo';
 import { enqueueOfflineSave, flushOfflineSaves, resolveRevisionConflict, type OfflineSaveEntry } from './persistence/saveQueue';
 import type { RulebookReferenceRequest } from './rulebook/types';
 import { referenceForJournalTab } from './rulebook/context';
@@ -6597,7 +6598,7 @@ export default function App() {
     if (!followUp) return;
     const note = await requestControlledPrompt({
       title: '후속 판정 기록',
-      message: followUp.description,
+      message: localizeManualEffectValue(followUp.description),
       defaultValue: '화면에 표시된 조건을 확인하고 후속 판정을 완료했다.',
       kicker: '직접 판정',
       label: '해결 기록',
@@ -7226,13 +7227,13 @@ export default function App() {
 
               {/* Encounter title */}
               <h3 style={{ borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.8rem', color: 'var(--text-bright)' }}>
-                {encTitle}
+                <Suspense fallback="조우 제목을 번역하는 중…"><LocalizedManualEffectText kind="encounter-title" text={encTitle} /></Suspense>
               </h3>
 
               {/* Encounter body text */}
               <p style={{ fontSize: '1rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', maxHeight: '220px', overflowY: 'auto', background: '#faf8f4', padding: '1rem', borderRadius: '10px', color: 'var(--text-bright)', borderLeft: '4.5px solid var(--primary)' }}>
                 {protectionNotice && <>보호 효과가 적용되어 이 조우의 모든 부정적 결과를 무시합니다.{"\n\n"}</>}
-                <Suspense fallback={encText}><LocalizedManualEffectText kind="text" summary={encTitle} text={encText} /></Suspense>
+                <Suspense fallback="조우 내용을 정리하는 중…"><LocalizedManualEffectText kind="encounter" summary={encTitle} text={encText} /></Suspense>
               </p>
 
               {activeTravelEncounter.choices?.length > 0 && (
@@ -7247,7 +7248,7 @@ export default function App() {
                       }}
                       style={{ padding: '0.65rem', textAlign: 'left', border: activeTravelEncounter.selectedChoiceId === choice.id ? '2px solid var(--primary)' : '1px solid var(--glass-border)', background: '#fff', borderRadius: '6px' }}
                     >
-                      <Suspense fallback={choice.label}><LocalizedManualEffectText kind="option" text={choice.label} /></Suspense>
+                      <Suspense fallback="선택지를 번역하는 중…"><LocalizedManualEffectText kind="option" text={choice.label} /></Suspense>
                     </button>
                   ))}
                 </div>
@@ -7439,12 +7440,12 @@ export default function App() {
               </div>
 
               <h3 style={{ borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.8rem', color: 'var(--text-bright)' }}>
-                {encTitle}
+                <Suspense fallback="조우 제목을 번역하는 중…"><LocalizedManualEffectText kind="encounter-title" text={encTitle} /></Suspense>
               </h3>
 
               <p style={{ fontSize: '1rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', maxHeight: '200px', overflowY: 'auto', background: '#faf8f4', padding: '1rem', borderRadius: '10px', color: 'var(--text-bright)', borderLeft: '4.5px solid var(--primary)' }}>
                 {protectionNotice && <>Forecast가 적용되어 Weather 태그 조우의 모든 부정적 결과를 무시합니다.{"\n\n"}</>}
-                <Suspense fallback={encText}><LocalizedManualEffectText kind="text" summary={encTitle} text={encText} /></Suspense>
+                <Suspense fallback="조우 내용을 정리하는 중…"><LocalizedManualEffectText kind="encounter" summary={encTitle} text={encText} /></Suspense>
               </p>
 
               {activeForageEncounter.choices?.length > 0 && (
@@ -7476,7 +7477,7 @@ export default function App() {
                           }}
                           style={{ minHeight: '44px', padding: '0.65rem', textAlign: 'left', border: activeForageEncounter.selectedChoiceId === choice.id ? '2px solid var(--primary)' : '1px solid var(--glass-border)', background: disabledReason ? '#f0eee9' : '#fff', color: disabledReason ? '#8b8177' : undefined, borderRadius: '6px', cursor: disabledReason ? 'not-allowed' : 'pointer' }}
                         >
-                          <Suspense fallback={choice.label}><LocalizedManualEffectText kind="option" text={choice.label} /></Suspense>
+                          <Suspense fallback="선택지를 번역하는 중…"><LocalizedManualEffectText kind="option" text={choice.label} /></Suspense>
                           {disabledReason && <small style={{ display: 'block', marginTop: '0.2rem' }}>현재 선택 불가 · {disabledReason}</small>}
                         </button>
                       );

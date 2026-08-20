@@ -14,6 +14,20 @@ describe('campaign continuity', () => {
     expect(continuity.guidance).toContain('0일 남음');
   });
 
+  it('prioritizes the active cross-system workflow over another Move', () => {
+    const journey = { journeyActive: true, journeyDestination: 'Widrow', calendarDays: 3, calendarMaxDays: 12 };
+    expect(getCampaignContinuity({ ...journey, pendingEncounter: { id: 'travel' } }).nextAction)
+      .toBe('열어 둔 이동 조우를 먼저 해결하세요.');
+    expect(getCampaignContinuity({ ...journey, pendingForaging: { id: 'forage' }, activeAilment: { id: 'patient' } }).nextAction)
+      .toBe('열어 둔 채집 조우를 먼저 해결하세요.');
+    expect(getCampaignContinuity({ ...journey, activeAilment: { id: 'patient' } }).nextAction)
+      .toBe('현재 환자의 치료를 이어가세요.');
+    expect(getCampaignContinuity({ ...journey, scroungingMode: true }).nextAction)
+      .toBe('남은 치료 시간으로 여분 채집을 하거나 마감하세요.');
+    expect(getCampaignContinuity({ ...journey, needsLocalHelpBeforeMove: true }).nextAction)
+      .toBe('현지 야수의 질환을 해결해야 다시 이동할 수 있습니다.');
+  });
+
   it('keeps the journey and cumulative clocks aligned during a manual correction', () => {
     const forward = applyManualCalendarAdjustment({ calendarDays: 2, calendarMaxDays: 12, cumulativeDays: 17, calendarHistory: [] }, 5);
     expect(forward.calendarDays).toBe(5);

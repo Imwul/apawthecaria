@@ -105,17 +105,29 @@ const change = (id: string, category: PrintedStateChange['category'], operation:
 const compactText = (value: string) => value.replace(/\s+/g, ' ').trim().replace(/^[.,;:]\s+/, '');
 const unique = <T,>(rows: T[]): T[] => [...new Set(rows)];
 const encounterOwnerName = (value: string): string => {
+  const titleConnectors = new Set(['a', 'an', 'and', 'or', 'the', 'to', 'of', 'in', 'on', 'at', 'for', 'from', 'with', 'not', 'is', 'up', 'down']);
+  const lines = value.split(/\n+/).map(line => line.trim()).filter(Boolean);
+  const title: string[] = [];
+  for (const line of lines) {
+    const words = line.split(/\s+/).map(word => word.replace(/^[“‘'([{]+|[”’'\])},:;.!?]+$/g, '')).filter(Boolean);
+    const looksLikeTitle = words.length > 0 && words.every(word =>
+      /^[A-Z0-9]/.test(word) || /^a['’][A-Z]/.test(word) || titleConnectors.has(word.toLowerCase()) || /^[&+/–—-]+$/.test(word)
+    );
+    if (!looksLikeTitle) break;
+    title.push(line);
+  }
+  if (title.length > 0) return compactText(title.join(' ')).replace(/\s+([,.;!?])/g, '$1');
+
   const compact = compactText(value);
   const words = compact.split(/\s+/);
   for (let index = 1; index < words.length - 1; index += 1) {
-    const word = words[index];
+    const word = words[index].replace(/[,:;!?]+$/, '');
     const next = words[index + 1];
     if (/^[A-Z][A-Za-z'’-]*$/.test(word) && /^[a-z]/.test(next)) {
-      return words.slice(0, index).join(' ');
+      const articleStart = index > 0 && /^(?:A|An|The)$/.test(words[index - 1]) ? index - 1 : index;
+      return words.slice(0, articleStart).join(' ').replace(/\s+([,.;!?])/g, '$1');
     }
   }
-  const lines = value.split(/\n+/).map(line => line.trim()).filter(Boolean);
-  const title: string[] = [];
   for (const line of lines) {
     if (title.length > 0 && /^(?:You|A |An |Some |Several |Beasts |Massive |Across |After |As |Not |Something |The weather|The smell|The sound)\b/i.test(line)) break;
     title.push(line);

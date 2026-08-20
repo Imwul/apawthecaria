@@ -1,7 +1,9 @@
 import {
   localizeManualEffectOption,
+  localizeEncounterTitle,
   localizeManualJournalText,
   localizeManualJournalTitle,
+  localizeEncounterDisplayText,
   localizeManualEffectText,
   localizeManualEffectValue
 } from '../localization/manualEffectKo';
@@ -12,7 +14,7 @@ export default function LocalizedManualEffectText({
   text,
   maxLength
 }: {
-  kind?: 'value' | 'text' | 'option' | 'journal-title' | 'journal-text';
+  kind?: 'value' | 'text' | 'encounter-title' | 'encounter' | 'option' | 'journal-title' | 'journal-text';
   summary?: string;
   text: string;
   maxLength?: number;
@@ -21,8 +23,12 @@ export default function LocalizedManualEffectText({
     ? localizeManualJournalTitle(text)
     : kind === 'journal-text'
       ? localizeManualJournalText(text)
-      : kind === 'text'
+    : kind === 'encounter-title'
+      ? localizeEncounterTitle(text)
+    : kind === 'text'
     ? localizeManualEffectText(summary, text)
+    : kind === 'encounter'
+      ? localizeEncounterDisplayText(summary, text)
     : kind === 'option'
       ? localizeManualEffectOption(text)
       : localizeManualEffectValue(text);
