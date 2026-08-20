@@ -298,7 +298,8 @@ export function RouteComposer({
           )}
         </div>
       </div>
-      <div className="route-composer__track-container" ref={trackContainerRef} tabIndex={0} aria-label="선택 순서대로 이어진 경로. 좌우로 스크롤할 수 있습니다.">
+      <div className="route-composer__track-clip">
+        <div className="route-composer__track-container" ref={trackContainerRef} tabIndex={0} aria-label="선택 순서대로 이어진 경로. 좌우로 스크롤할 수 있습니다.">
         {count === 0 ? (
           <p className="route-composer__empty">현재 위치를 확인한 뒤 지도나 위치 검색에서 첫 node를 고르세요.</p>
         ) : (
@@ -426,6 +427,7 @@ export function RouteComposer({
             })}
           </div>
         )}
+        </div>
       </div>
 
       {routeFeedback && <p className="route-composer__feedback" role="status" aria-live="polite">{routeFeedback}</p>}

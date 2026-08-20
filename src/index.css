@@ -81,6 +81,12 @@
   background: var(--secondary);
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -4797,8 +4803,21 @@ button,
 }
 
 /* Horizontal track and card container */
+.route-composer__track-clip {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
 .route-composer__track-container {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
+  contain: inline-size;
+  box-sizing: border-box;
   padding: 0.4rem 0.2rem 0.6rem;
   margin: 0.2rem 0;
   scroll-behavior: smooth;
@@ -4817,7 +4836,8 @@ button,
   display: flex;
   align-items: center;
   gap: 0;
-  min-width: max-content;
+  width: max-content;
+  min-width: 100%;
 }
 
 .route-composer__track--compact {

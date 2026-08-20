@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const appSource = readFileSync(fileURLToPath(new URL('./App.tsx', import.meta.url)), 'utf8');
+const routeComposerSource = readFileSync(fileURLToPath(new URL('./components/RouteComposer.tsx', import.meta.url)), 'utf8');
 const cssSource = readFileSync(fileURLToPath(new URL('./index.css', import.meta.url)), 'utf8');
 
 describe('mobile layout regression guards', () => {
@@ -53,7 +54,11 @@ describe('mobile layout regression guards', () => {
 
   it('keeps the route strip controls tappable and horizontally usable on narrow screens', () => {
     expect(appSource).toContain('className="travel-mode-switch"');
-    expect(cssSource).toMatch(/\.route-composer__track-container\s*\{[\s\S]*?overflow-x:\s*auto;[\s\S]*?scroll-snap-type:\s*x proximity/);
+    expect(cssSource).toMatch(/html,\s*body\s*\{[\s\S]*?overflow-x:\s*clip/);
+    expect(routeComposerSource).toContain('className="route-composer__track-clip"');
+    expect(cssSource).toMatch(/\.route-composer__track-clip\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;[\s\S]*?overflow:\s*hidden/);
+    expect(cssSource).toMatch(/\.route-composer__track-container\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;[\s\S]*?overflow-x:\s*auto;[\s\S]*?contain:\s*inline-size;[\s\S]*?scroll-snap-type:\s*x proximity/);
+    expect(cssSource).toMatch(/\.route-composer__track\s*\{[\s\S]*?width:\s*max-content;[\s\S]*?min-width:\s*100%/);
     expect(cssSource).toMatch(/\.route-composer \.route-card__remove-btn\s*\{[\s\S]*?min-width:\s*44px;[\s\S]*?flex-shrink:\s*0/);
     expect(cssSource).toMatch(/\.route-composer \.route-connector__btn\s*\{[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px/);
     expect(cssSource).toMatch(/\.route-composer__picker-controls input,[\s\S]*?min-height:\s*2\.75rem/);
