@@ -6,7 +6,6 @@ import {
   cycleRouteEdgeKind,
   draftFromOrigin,
   evaluateRouteDraft,
-  findDisconnectedRouteSegment,
   glyphKindFromLocation,
   nearestTerrain,
   moveRouteStop,
@@ -33,34 +32,18 @@ const stop = (id: string, patch: Partial<RouteStop> = {}): RouteStop => ({
 describe('route composer draft', () => {
   it('starts from the current place and appends later clicks as side paths', () => {
     const origin = stop('oak', { name: 'Odoak', kind: 'Wilds', terrain: 'Forest' });
-    const first = appendRouteStop(draftFromOrigin(origin), stop('widrow', { name: 'Widrow', kind: 'Settlement' }));
+    const first = appendRouteStop(draftFromOrigin(origin), stop('widrow', { name: 'Widrow', kind: 'Settlement', terrain: 'Loch' }));
     const next = appendRouteStop(first, stop('odoak', { name: 'Odoak', kind: 'City' }), 'waterway');
     expect(next.stops.map(row => row.id)).toEqual(['oak', 'widrow', 'odoak']);
     expect(next.edgeKinds).toEqual(['path', 'waterway']);
   });
 
-  it('keeps repeated taps idempotent instead of duplicating or deleting a stop', () => {
+  it('allows a later retrace but keeps a repeated tap on the current end idempotent', () => {
     let draft = appendRouteStop(draftFromOrigin(stop('oak')), stop('middle'));
     draft = appendRouteStop(draft, stop('end'));
     const repeatedMiddle = appendRouteStop(draft, stop('middle'));
-    expect(repeatedMiddle).toBe(draft);
-    expect(repeatedMiddle.stops.map(row => row.id)).toEqual(['oak', 'middle', 'end']);
-  });
-
-  it('finds a reordered or hand-picked segment that is not a real map connection', () => {
-    let draft = appendRouteStop(draftFromOrigin(stop('oak')), stop('bridge'));
-    draft = appendRouteStop(draft, stop('lake'));
-    const neighbors: Record<string, string[]> = {
-      oak: ['bridge'],
-      bridge: ['oak'],
-      lake: []
-    };
-    expect(findDisconnectedRouteSegment(draft, (from, to) => neighbors[from]?.includes(to) ?? false))
-      .toMatchObject({ index: 1, from: { id: 'bridge' }, to: { id: 'lake' } });
-    expect(findDisconnectedRouteSegment(
-      draft,
-      (from, to) => ({ oak: ['bridge'], bridge: ['oak', 'lake'], lake: ['bridge'] })[from]?.includes(to) ?? false
-    )).toBeNull();
+    expect(repeatedMiddle.stops.map(row => row.id)).toEqual(['oak', 'middle', 'end', 'middle']);
+    expect(appendRouteStop(repeatedMiddle, stop('middle'))).toBe(repeatedMiddle);
   });
 
   it('lets a player correct auto-filled kind and terrain', () => {
@@ -72,22 +55,32 @@ describe('route composer draft', () => {
     expect(draft.stops[1]).toMatchObject({ kind: 'Ruin', terrain: 'Bog' });
   });
 
-  it('removes an intermediate stop and keeps one edge between its neighbors', () => {
+  it('removes an intermediate stop and resolves the newly joined physical segment', () => {
     let draft = draftFromOrigin(stop('a'));
     draft = appendRouteStop(draft, stop('b'), 'path');
-    draft = appendRouteStop(draft, stop('c'), 'waterway');
-    draft = removeRouteStopAt(draft, 1);
+    draft = appendRouteStop(draft, stop('c'), 'river');
+    draft = removeRouteStopAt(draft, 1, (from, to) => from.id === 'a' && to.id === 'c' ? 'river' : 'path');
     expect(draft.stops.map(row => row.id)).toEqual(['a', 'c']);
-    expect(draft.edgeKinds).toEqual(['waterway']);
+    expect(draft.edgeKinds).toEqual(['river']);
   });
 
-  it('reorders stops and maintains valid edge counts', () => {
-    let draft = draftFromOrigin(stop('a'));
-    draft = appendRouteStop(draft, stop('b'));
+  it('collapses a self-loop exposed by deleting the middle of a retrace', () => {
+    let draft = appendRouteStop(draftFromOrigin(stop('a')), stop('b'));
     draft = appendRouteStop(draft, stop('c'));
-    draft = moveRouteStop(draft, 2, 1);
-    expect(draft.stops.map(row => row.id)).toEqual(['a', 'c', 'b']);
-    expect(draft.edgeKinds).toHaveLength(2);
+    draft = appendRouteStop(draft, stop('b'));
+    draft = removeRouteStopAt(draft, 2);
+    expect(draft.stops.map(row => row.id)).toEqual(['a', 'b']);
+    expect(draft.edgeKinds).toHaveLength(1);
+  });
+
+  it('keeps edge types on endpoint pairs when stops are reordered', () => {
+    let draft = draftFromOrigin(stop('a'));
+    draft = appendRouteStop(draft, stop('b'), 'river');
+    draft = appendRouteStop(draft, stop('c'), 'path');
+    draft = appendRouteStop(draft, stop('d'), 'river');
+    draft = moveRouteStop(draft, 2, 1, (from, to) => `${from.id}-${to.id}` === 'a-c' ? 'river' : 'path');
+    expect(draft.stops.map(row => row.id)).toEqual(['a', 'c', 'b', 'd']);
+    expect(draft.edgeKinds).toEqual(['river', 'path', 'path']);
   });
 
   it('keeps the current-location origin fixed when reordering', () => {
@@ -95,6 +88,15 @@ describe('route composer draft', () => {
     draft = appendRouteStop(draft, stop('c'));
     expect(moveRouteStop(draft, 0, 1)).toBe(draft);
     expect(moveRouteStop(draft, 1, 0)).toBe(draft);
+  });
+
+  it('does not leave adjacent duplicate ids after a reorder', () => {
+    let draft = appendRouteStop(draftFromOrigin(stop('a')), stop('b'));
+    draft = appendRouteStop(draft, stop('c'));
+    draft = appendRouteStop(draft, stop('b'));
+    draft = moveRouteStop(draft, 3, 2);
+    expect(draft.stops.map(row => row.id)).toEqual(['a', 'b', 'c']);
+    expect(draft.edgeKinds).toHaveLength(2);
   });
 
   it('repairs malformed persisted drafts without inventing connector counts', () => {
@@ -110,6 +112,28 @@ describe('route composer draft', () => {
     expect(restored.stops.map(row => row.id)).toEqual(['origin', 'lake']);
     expect(restored.stops[1].x).toBe(100);
     expect(restored.edgeKinds).toEqual(['waterway']);
+  });
+
+  it('repairs a persisted self-loop without dropping a later retrace', () => {
+    const restored = normalizeRouteDraft({
+      stops: [stop('a'), stop('b'), stop('b'), stop('c'), stop('b')],
+      edgeKinds: ['path', 'river', 'path', 'river']
+    });
+    expect(restored.stops.map(row => row.id)).toEqual(['a', 'b', 'c', 'b']);
+    expect(restored.edgeKinds).toEqual(['path', 'path', 'river']);
+  });
+
+  it('round-trips a 20-node mixed route including a legitimate retrace', () => {
+    let draft = draftFromOrigin(stop('n0'));
+    for (let index = 1; index < 20; index += 1) {
+      const id = index === 19 ? 'n3' : `n${index}`;
+      draft = appendRouteStop(draft, stop(id, { terrain: index % 4 === 0 ? 'Loch' : 'Forest' }), index % 3 === 0 ? 'river' : 'path');
+    }
+    const restored = normalizeRouteDraft(JSON.parse(JSON.stringify(draft)));
+    expect(restored).toEqual(draft);
+    expect(restored.stops).toHaveLength(20);
+    expect(restored.edgeKinds).toHaveLength(19);
+    expect(restored.stops.at(-1)?.id).toBe('n3');
   });
 });
 
@@ -204,5 +228,12 @@ describe('edge toggles', () => {
     expect(cycleRouteEdgeKind('path', stop('a'), stop('b'))).toBe('river');
     expect(cycleRouteEdgeKind('river', stop('a'), stop('b'))).toBe('path');
     expect(cycleRouteEdgeKind('river', stop('a'), stop('lake', { terrain: 'Loch' }))).toBe('waterway');
+  });
+
+  it('updates every occurrence when the same bidirectional path is retraced', () => {
+    let draft = appendRouteStop(draftFromOrigin(stop('a')), stop('b'));
+    draft = appendRouteStop(draft, stop('a'));
+    draft = setRouteEdgeKind(draft, 1, 'river');
+    expect(draft.edgeKinds).toEqual(['river', 'river']);
   });
 });

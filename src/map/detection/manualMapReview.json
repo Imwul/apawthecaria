@@ -1,0 +1,4924 @@
+{
+  "version": 1,
+  "coordinateSpace": "percent-0-100",
+  "reviewedAt": "2026-08-16T15:49:31.729Z",
+  "source": "player-reviewed-node-editor",
+  "locations": [
+    {
+      "id": "loc_152",
+      "label": "수렁 위치 153",
+      "x": 26.79465776293823,
+      "y": 32.84706281302171,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_5",
+      "label": "초원 위치 6",
+      "x": 3.33889816360601,
+      "y": 4.341219741235392,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_9",
+      "label": "산맥 위치 10",
+      "x": 6.803005008347246,
+      "y": 5.30115296327212,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_24",
+      "label": "산맥 위치 25",
+      "x": 6.928213689482471,
+      "y": 7.888799040066778,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_31",
+      "label": "산맥 위치 32",
+      "x": 3.589315525876461,
+      "y": 9.224358305509183,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_44",
+      "label": "수렁 위치 45",
+      "x": 3.005008347245409,
+      "y": 12.438047787979967,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_35",
+      "label": "호수/강 위치 36",
+      "x": 9.348914858096828,
+      "y": 11.561587020033388,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "narin",
+      "label": "Narin",
+      "x": 11.853088480801336,
+      "y": 11.144224749582637,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_28",
+      "label": "산맥 위치 29",
+      "x": 20.91676269429355,
+      "y": 8.416258950464316,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_17",
+      "label": "산맥 위치 18",
+      "x": 86.19165919626282,
+      "y": 5.34533725938163,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_29",
+      "label": "산맥 위치 30",
+      "x": 91.42503967716806,
+      "y": 5.902324066809583,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_8",
+      "label": "산맥 위치 9",
+      "x": 85.48444130127298,
+      "y": 6.612446958981612,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_2",
+      "label": "산맥 위치 3",
+      "x": 83.25671852899575,
+      "y": 3.783592644978784,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_22",
+      "label": "산맥 위치 23",
+      "x": 82.5848656294201,
+      "y": 7.46110325318246,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786883660659",
+      "label": "mark_1786883660659",
+      "x": 80.85219236209336,
+      "y": 4.3493635077793495,
+      "region": "Mountain",
+      "kind": "ruin",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_32",
+      "label": "수렁 위치 33",
+      "x": 64.05586987270155,
+      "y": 9.476661951909476,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_21",
+      "label": "수렁 위치 22",
+      "x": 63.879066478076375,
+      "y": 7.531824611032532,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_30",
+      "label": "수렁 위치 31",
+      "x": 61.474540311173975,
+      "y": 9.158415841584159,
+      "region": "Bog",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_18",
+      "label": "수렁 위치 19",
+      "x": 66.1067892503536,
+      "y": 6.5417256011315414,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_27",
+      "label": "초원 위치 28",
+      "x": 69.78429985855729,
+      "y": 8.415841584158416,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_33",
+      "label": "초원 위치 34",
+      "x": 72.11810466760961,
+      "y": 9.512022630834512,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_39",
+      "label": "초원 위치 40",
+      "x": 67.73338048090524,
+      "y": 11.138613861386139,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_48",
+      "label": "숲 위치 49",
+      "x": 65.11669024045261,
+      "y": 13.083451202263083,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_60",
+      "label": "숲 위치 61",
+      "x": 66.17751060820368,
+      "y": 15.876944837340876,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_56",
+      "label": "숲 위치 57",
+      "x": 69.18316831683168,
+      "y": 14.745403111739746,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_0",
+      "label": "산맥 위치 1",
+      "x": 78.44766619519095,
+      "y": 2.828854314002829,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_43",
+      "label": "loc_43",
+      "x": 95.84512022630834,
+      "y": 11.987270155586987,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "screens",
+      "label": "screens",
+      "x": 91.42503536067893,
+      "y": 5.799151343705799,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_14",
+      "label": "loc_14",
+      "x": 89.33875962059096,
+      "y": 6.476878984982762,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_15",
+      "label": "Screnest",
+      "x": 84.95403111739745,
+      "y": 6.152758132956153,
+      "region": "Mountain",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "crowless",
+      "label": "Crowlett",
+      "x": 93.15771294449479,
+      "y": 9.04942449113773,
+      "region": "Mountain",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_66",
+      "label": "loc_66",
+      "x": 97.4009900990099,
+      "y": 16.584158415841586,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_73",
+      "label": "산맥 위치 74",
+      "x": 93.68,
+      "y": 18.63,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "spoolkeep",
+      "label": "Spoolkeep",
+      "x": 94.3953323903819,
+      "y": 18.104667609618105,
+      "region": "Mountain",
+      "kind": "city",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_74",
+      "label": "숲 위치 75",
+      "x": 90.61173974540311,
+      "y": 18.06930693069307,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_71",
+      "label": "숲 위치 72",
+      "x": 88.06577086280056,
+      "y": 17.14992927864215,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_58",
+      "label": "숲 위치 59",
+      "x": 87.18175388967468,
+      "y": 14.992927864214991,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "elderflower_flux",
+      "label": "Elderflower Flats",
+      "x": 83.99929278642149,
+      "y": 13.295615275813297,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_50",
+      "label": "숲 위치 51",
+      "x": 81.27652050919377,
+      "y": 14.356435643564355,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_53",
+      "label": "숲 위치 54",
+      "x": 77.88189533239039,
+      "y": 11.421499292786422,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_69",
+      "label": "호수/강 위치 70",
+      "x": 77.5990099009901,
+      "y": 17.22065063649222,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_20",
+      "label": "호수/강 위치 21",
+      "x": 77.38684582743988,
+      "y": 7.284299858557285,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_12",
+      "label": "초원 위치 13",
+      "x": 77.06859971711457,
+      "y": 5.586987270155587,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_13",
+      "label": "산맥 위치 14",
+      "x": 72.81,
+      "y": 6.92,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "skimslim",
+      "label": "Skimslim",
+      "x": 73.17892503536068,
+      "y": 6.082036775106082,
+      "region": "Mountain",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786885374852",
+      "label": "호수·강 추가 표시 1",
+      "x": 74.41654879773691,
+      "y": 9.759547383309759,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_45",
+      "label": "산맥 위치 46",
+      "x": 30.074257425742573,
+      "y": 12.553041018387553,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_52",
+      "label": "산맥 위치 53",
+      "x": 31.02899575671853,
+      "y": 14.427157001414429,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_55",
+      "label": "산맥 위치 56",
+      "x": 28.65983026874116,
+      "y": 14.85148514851485,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_65",
+      "label": "산맥 위치 66",
+      "x": 28.8012729844413,
+      "y": 16.33663366336634,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_68",
+      "label": "초원 위치 69",
+      "x": 32.7970297029703,
+      "y": 17.008486562942007,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_57",
+      "label": "초원 위치 58",
+      "x": 34.38826025459689,
+      "y": 15.099009900990099,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_46",
+      "label": "초원 위치 47",
+      "x": 35.94413012729844,
+      "y": 12.765205091937764,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_62",
+      "label": "숲 위치 63",
+      "x": 37.358557284299856,
+      "y": 16.124469589816123,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_75",
+      "label": "숲 위치 76",
+      "x": 36.4038189533239,
+      "y": 18.06930693069307,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_89",
+      "label": "숲 위치 90",
+      "x": 36.50990099009901,
+      "y": 19.978783592644977,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_87",
+      "label": "호수/강 위치 88",
+      "x": 38.49009900990099,
+      "y": 19.766619519094768,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786885617254",
+      "label": "수렁 추가 표시 2",
+      "x": 5.9582743988684586,
+      "y": 13.295615275813297,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_61",
+      "label": "초원 위치 62",
+      "x": 5.074257425742575,
+      "y": 15.876944837340876,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_78",
+      "label": "수렁 위치 79",
+      "x": 4.154879773691655,
+      "y": 18.458274398868458,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_86",
+      "label": "호수/강 위치 87",
+      "x": 12.287835926449787,
+      "y": 19.58981612446959,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_64",
+      "label": "산맥 위치 65",
+      "x": 13.985148514851486,
+      "y": 16.3012729844413,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_49",
+      "label": "수렁 위치 50",
+      "x": 14.338755304101838,
+      "y": 13.224893917963223,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_81",
+      "label": "산맥 위치 82",
+      "x": 15.682461103253182,
+      "y": 19.024045261669023,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_99",
+      "label": "산맥 위치 100",
+      "x": 15.505657708628007,
+      "y": 22.48939179632249,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_111",
+      "label": "산맥 위치 112",
+      "x": 15.505657708628007,
+      "y": 24.328147100424328,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_96",
+      "label": "산맥 위치 97",
+      "x": 17.06152758132956,
+      "y": 22.24186704384724,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_97",
+      "label": "호수/강 위치 98",
+      "x": 19.006364922206505,
+      "y": 22.383309759547384,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_90",
+      "label": "숲 위치 91",
+      "x": 19.855021216407355,
+      "y": 20.43847241867044,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_101",
+      "label": "숲 위치 102",
+      "x": 23.143564356435643,
+      "y": 22.666195190947665,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_70",
+      "label": "숲 위치 71",
+      "x": 22.577793493635077,
+      "y": 17.291371994342292,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_59",
+      "label": "초원 위치 60",
+      "x": 18.263790664780764,
+      "y": 15.311173974540312,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_140",
+      "label": "산맥 위치 141",
+      "x": 14.975247524752474,
+      "y": 31.506364922206508,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_19",
+      "label": "산맥 위치 20",
+      "x": 45.20862800565771,
+      "y": 5.445544554455446,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_10",
+      "label": "산맥 위치 11",
+      "x": 44.85502121640735,
+      "y": 5.198019801980198,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "lady_bank",
+      "label": "Lady's Bank",
+      "x": 43.228429985855726,
+      "y": 6.966053748231967,
+      "region": "Mountain",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_6",
+      "label": "산맥 위치 7",
+      "x": 47.86067892503536,
+      "y": 4.985855728429986,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_1",
+      "label": "산맥 위치 2",
+      "x": 48.461810466760966,
+      "y": 3.3592644978783595,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_4",
+      "label": "초원 위치 5",
+      "x": 51.2906647807638,
+      "y": 4.278642149929278,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_3",
+      "label": "호수/강 위치 4",
+      "x": 54.685289957567186,
+      "y": 4.137199434229137,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_11",
+      "label": "산맥 위치 12",
+      "x": 57.973833097595474,
+      "y": 5.516265912305516,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_7",
+      "label": "산맥 위치 8",
+      "x": 61.757425742574256,
+      "y": 5.2687411598302685,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "blueberry_pond",
+      "label": "Blueberry Pond",
+      "x": 58.292079207920786,
+      "y": 10.21923620933522,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "bramblefork",
+      "label": "Bramblefork",
+      "x": 54,
+      "y": 15,
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_23",
+      "label": "호수/강 위치 24",
+      "x": 51.32602545968883,
+      "y": 7.814710042432815,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_42",
+      "label": "수렁 위치 43",
+      "x": 49.34582743988685,
+      "y": 11.951909476661953,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786885780973",
+      "label": "Loch Katrine",
+      "x": 45.17326732673268,
+      "y": 9.441301272984441,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "fallowfields",
+      "label": "Fallowfields",
+      "x": 43,
+      "y": 17,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_63",
+      "label": "Fallowfields",
+      "x": 44.43069306930693,
+      "y": 16.407355021216407,
+      "region": "Bog",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_77",
+      "label": "초원 위치 78",
+      "x": 44.501414427157,
+      "y": 18.21074964639321,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_93",
+      "label": "초원 위치 94",
+      "x": 46.55233380480905,
+      "y": 21.428571428571427,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_72",
+      "label": "숲 위치 73",
+      "x": 39.55091937765205,
+      "y": 17.432814710042432,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_83",
+      "label": "숲 위치 84",
+      "x": 40.328854314002825,
+      "y": 19.200848656294202,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_80",
+      "label": "호수/강 위치 81",
+      "x": 60.19,
+      "y": 19.47,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "brambledam",
+      "label": "Brambledam",
+      "x": 60.41371994342292,
+      "y": 18.705799151343705,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_95",
+      "label": "숲 위치 96",
+      "x": 62.995049504950494,
+      "y": 21.923620933521924,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "willow_moot",
+      "label": "Willow Moot",
+      "x": 57.938472418670436,
+      "y": 24.115983026874115,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_108",
+      "label": "초원 위치 109",
+      "x": 57.655586987270155,
+      "y": 25.212164073550213,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_114",
+      "label": "초원 위치 115",
+      "x": 61.26237623762376,
+      "y": 24.893917963224894,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_122",
+      "label": "초원 위치 123",
+      "x": 58.8932107496464,
+      "y": 27.157001414427157,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_112",
+      "label": "초원 위치 113",
+      "x": 53.270862800565766,
+      "y": 24.575671852899575,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "aspengrace",
+      "label": "Aspengrace",
+      "x": 50.37128712871287,
+      "y": 21.322489391796324,
+      "region": "Meadow",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_92",
+      "label": "초원 위치 93",
+      "x": 50.37,
+      "y": 22.17,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_100",
+      "label": "초원 위치 101",
+      "x": 49.52263083451202,
+      "y": 22.48939179632249,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_107",
+      "label": "숲 위치 108",
+      "x": 37.88896746817539,
+      "y": 23.974540311173975,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_102",
+      "label": "숲 위치 103",
+      "x": 41.67256011315417,
+      "y": 23.09052333804809,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_126",
+      "label": "숲 위치 127",
+      "x": 40.894625176803395,
+      "y": 27.475247524752476,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "widfneck",
+      "label": "Wulfneck",
+      "x": 42.910183875530414,
+      "y": 27.015558698727016,
+      "region": "Loch",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_121",
+      "label": "호수/강 위치 122",
+      "x": 42.910183875530414,
+      "y": 28.42998585572843,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_147",
+      "label": "초원 위치 148",
+      "x": 41.63719943422914,
+      "y": 32.142857142857146,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_158",
+      "label": "숲 위치 159",
+      "x": 45.52687411598303,
+      "y": 36.52758132956153,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_170",
+      "label": "호수/강 위치 171",
+      "x": 42.16760961810467,
+      "y": 36.7043847241867,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "obridge",
+      "label": "Obridge",
+      "x": 42.16760961810467,
+      "y": 36.7043847241867,
+      "region": "Loch",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_184",
+      "label": "초원 위치 185",
+      "x": 37.04031117397454,
+      "y": 38.437057991513434,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_135",
+      "label": "초원 위치 136",
+      "x": 36.227015558698724,
+      "y": 29.349363507779348,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_109",
+      "label": "초원 위치 110",
+      "x": 35.873408769448375,
+      "y": 24.257425742574256,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "whitebirch",
+      "label": "Whitebirch",
+      "x": 27.563649222065063,
+      "y": 23.47949080622348,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_104",
+      "label": "loc_104",
+      "x": 30.88755304101839,
+      "y": 23.833097595473834,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_82",
+      "label": "초원 위치 83",
+      "x": 27.95261669024045,
+      "y": 19.13012729844413,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_84",
+      "label": "숲 위치 85",
+      "x": 25.017680339462515,
+      "y": 19.660537482319658,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_41",
+      "label": "숲 위치 42",
+      "x": 77.24540311173975,
+      "y": 13.048090523338049,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_54",
+      "label": "숲 위치 55",
+      "x": 75.08840169731259,
+      "y": 14.427157001414429,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "apple_stump",
+      "label": "Apple Stump",
+      "x": 84.81258840169731,
+      "y": 18.14002828854314,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_76",
+      "label": "숲 위치 77",
+      "x": 84.21,
+      "y": 18.97,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_105",
+      "label": "숲 위치 106",
+      "x": 77.92,
+      "y": 24.33,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "fort_bulrush",
+      "label": "Fort Bulrush",
+      "x": 78.34158415841584,
+      "y": 23.55021216407355,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_85",
+      "label": "숲 위치 86",
+      "x": 76.78571428571429,
+      "y": 19.766619519094768,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_88",
+      "label": "호수/강 위치 89",
+      "x": 70.63295615275813,
+      "y": 20.43847241867044,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "mark_1786886039856",
+      "label": "Loch Venachar",
+      "x": 89.90452616690241,
+      "y": 20.75671852899576,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "eyrin",
+      "label": "Eyelet",
+      "x": 88.27793493635077,
+      "y": 22.595473833097596,
+      "region": "Meadow",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_106",
+      "label": "숲 위치 107",
+      "x": 94.46605374823197,
+      "y": 23.86845827439887,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_116",
+      "label": "숲 위치 117",
+      "x": 96.37553041018387,
+      "y": 25,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_94",
+      "label": "초원 위치 95",
+      "x": 97.2949080622348,
+      "y": 21.817538896746818,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_119",
+      "label": "초원 위치 120",
+      "x": 93.6881188118812,
+      "y": 25.884016973125885,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886093672",
+      "label": "Loch Drunkie",
+      "x": 80.92291371994342,
+      "y": 25.388967468175387,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "mark_1786886126134",
+      "label": "숲 추가 표시 3",
+      "x": 76.8917963224894,
+      "y": 27.58132956152758,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_103",
+      "label": "숲 위치 104",
+      "x": 75.76025459688826,
+      "y": 23.302687411598303,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_115",
+      "label": "숲 위치 116",
+      "x": 73.32036775106083,
+      "y": 24.85855728429986,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_117",
+      "label": "숲 위치 118",
+      "x": 70.24398868458275,
+      "y": 25.176803394625175,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_131",
+      "label": "초원 위치 132",
+      "x": 72.2949080622348,
+      "y": 28.71287128712871,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_139",
+      "label": "초원 위치 140",
+      "x": 76.3967468175389,
+      "y": 30.586987270155586,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_143",
+      "label": "숲 위치 144",
+      "x": 82.51414427157002,
+      "y": 31.8953323903819,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_153",
+      "label": "숲 위치 154",
+      "x": 86.15629420084866,
+      "y": 33.062234794908065,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_163",
+      "label": "숲 위치 164",
+      "x": 87.3939179632249,
+      "y": 35.148514851485146,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_132",
+      "label": "숲 위치 133",
+      "x": 87.35855728429985,
+      "y": 29.13719943422914,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_125",
+      "label": "초원 위치 126",
+      "x": 84.49434229137199,
+      "y": 27.263083451202263,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_145",
+      "label": "숲 위치 146",
+      "x": 90.57637906647807,
+      "y": 32.142857142857146,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886158532",
+      "label": "초원 추가 표시 4",
+      "x": 91.81400282885431,
+      "y": 34.65346534653465,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_172",
+      "label": "Greenport",
+      "x": 95.56223479490806,
+      "y": 36.88118811881188,
+      "region": "Loch",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886174943",
+      "label": "Loch Mentheith",
+      "x": 91.56647807637907,
+      "y": 37.6944837340877,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_174",
+      "label": "초원 위치 175",
+      "x": 87.07567185289957,
+      "y": 38.2956152758133,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "grainport",
+      "label": "Grainport",
+      "x": 87.64144271570015,
+      "y": 37.55304101838755,
+      "region": "Meadow",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_215",
+      "label": "숲 위치 216",
+      "x": 91.46039603960396,
+      "y": 43.458274398868454,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_202",
+      "label": "초원 위치 203",
+      "x": 88.8083451202263,
+      "y": 41.44271570014144,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_205",
+      "label": "숲 위치 206",
+      "x": 84.95403111739745,
+      "y": 41.83168316831683,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_214",
+      "label": "숲 위치 215",
+      "x": 94.00636492220652,
+      "y": 43.38755304101839,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_208",
+      "label": "숲 위치 209",
+      "x": 95.49151343705799,
+      "y": 41.937765205091935,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "greenport",
+      "label": "Greenport",
+      "x": 96,
+      "y": 42,
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_190",
+      "label": "숲 위치 191",
+      "x": 97.82531824611033,
+      "y": 39.533239038189535,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_216",
+      "label": "숲 위치 217",
+      "x": 97.22418670438473,
+      "y": 43.52899575671853,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_225",
+      "label": "숲 위치 226",
+      "x": 97.82531824611033,
+      "y": 45.509193776520505,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_234",
+      "label": "숲 위치 235",
+      "x": 96.55233380480905,
+      "y": 47.701555869872706,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_243",
+      "label": "숲 위치 244",
+      "x": 97.2949080622348,
+      "y": 49.64639321074964,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_253",
+      "label": "숲 위치 254",
+      "x": 96.26944837340878,
+      "y": 51.55586987270156,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "deepholm",
+      "label": "Deepholm",
+      "x": 94.00636492220652,
+      "y": 52.40452616690241,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_261",
+      "label": "숲 위치 262",
+      "x": 93.51131541725601,
+      "y": 53.04101838755304,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_262",
+      "label": "숲 위치 263",
+      "x": 92.23833097595474,
+      "y": 52.65205091937766,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_255",
+      "label": "숲 위치 256",
+      "x": 89.83380480905232,
+      "y": 51.76803394625177,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_247",
+      "label": "숲 위치 248",
+      "x": 92.37977369165488,
+      "y": 50.45968882602546,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_238",
+      "label": "숲 위치 239",
+      "x": 90.78854314002828,
+      "y": 48.302687411598306,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_229",
+      "label": "숲 위치 230",
+      "x": 92.94554455445545,
+      "y": 46.4992927864215,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886239054",
+      "label": "티탄 유적 추가 표시 5",
+      "x": 94.96110325318247,
+      "y": 45.01414427157002,
+      "region": "Forest",
+      "kind": "ruin",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_231",
+      "label": "초원 위치 232",
+      "x": 87.1110325318246,
+      "y": 46.605374823196605,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_242",
+      "label": "숲 위치 243",
+      "x": 87.35855728429985,
+      "y": 49.78783592644979,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_257",
+      "label": "초원 위치 258",
+      "x": 84.35289957567186,
+      "y": 51.94483734087695,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_268",
+      "label": "숲 위치 269",
+      "x": 85.48444130127298,
+      "y": 53.88967468175389,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_260",
+      "label": "숲 위치 261",
+      "x": 87.1110325318246,
+      "y": 52.33380480905233,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_206",
+      "label": "숲 위치 207",
+      "x": 80.28,
+      "y": 42.4,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "oldwife",
+      "label": "Oldwife",
+      "x": 80.81683168316832,
+      "y": 41.902404526166904,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_197",
+      "label": "숲 위치 198",
+      "x": 79.04879773691655,
+      "y": 40.52333804809052,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_185",
+      "label": "숲 위치 186",
+      "x": 77.2100424328147,
+      "y": 38.64922206506365,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_160",
+      "label": "초원 위치 161",
+      "x": 79.68528995756718,
+      "y": 35.04243281471005,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_141",
+      "label": "초원 위치 142",
+      "x": 79.4024045261669,
+      "y": 31.61244695898161,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "cres_stitch",
+      "label": "Cross Stitch",
+      "x": 79.54384724186704,
+      "y": 31.294200848656295,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_157",
+      "label": "숲 위치 158",
+      "x": 73.81541725601132,
+      "y": 34.12305516265912,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_280",
+      "label": "호수/강 위치 281",
+      "x": 87.38,
+      "y": 57.48,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "solkroot",
+      "label": "Solkroot",
+      "x": 88.03041018387553,
+      "y": 57.21357850070722,
+      "region": "Loch",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_276",
+      "label": "초원 위치 277",
+      "x": 84.63578500707214,
+      "y": 56.541725601131546,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_279",
+      "label": "초원 위치 280",
+      "x": 82.79702970297029,
+      "y": 57.814710042432814,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loho",
+      "label": "Loho",
+      "x": 82.76166902404526,
+      "y": 56.895332390381895,
+      "region": "Meadow",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886325036",
+      "label": "초원 추가 표시 6",
+      "x": 80.53394625176803,
+      "y": 53.57142857142857,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_258",
+      "label": "호수/강 위치 259",
+      "x": 77.52828854314004,
+      "y": 52.192362093352195,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_244",
+      "label": "숲 위치 245",
+      "x": 72.71923620933521,
+      "y": 50.35360678925035,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_236",
+      "label": "숲 위치 237",
+      "x": 69.67821782178217,
+      "y": 48.125884016973124,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_223",
+      "label": "초원 위치 224",
+      "x": 67.38,
+      "y": 45.81,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_219",
+      "label": "숲 위치 220",
+      "x": 65.54101838755304,
+      "y": 43.81188118811881,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_259",
+      "label": "숲 위치 260",
+      "x": 68.86492220650636,
+      "y": 52.33380480905233,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_270",
+      "label": "수렁 위치 271",
+      "x": 74.2043847241867,
+      "y": 53.995756718528995,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_272",
+      "label": "숲 위치 273",
+      "x": 76.21994342291372,
+      "y": 55.33946251768034,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_284",
+      "label": "숲 위치 285",
+      "x": 76.07850070721358,
+      "y": 57.779349363507784,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_290",
+      "label": "Winding",
+      "x": 73.35572842998586,
+      "y": 59.865629420084865,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_289",
+      "label": "초원 위치 290",
+      "x": 70.45615275813296,
+      "y": 59.759547383309766,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886373539",
+      "label": "티탄 유적 추가 표시 7",
+      "x": 71.0926449787836,
+      "y": 53.74823196605375,
+      "region": "Forest",
+      "kind": "ruin",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_269",
+      "label": "수렁 위치 270",
+      "x": 64.12659123055163,
+      "y": 53.960396039603964,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886386754",
+      "label": "호수·강 추가 표시 8",
+      "x": 82.23125884016973,
+      "y": 61.77510608203678,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_288",
+      "label": "숲 위치 289",
+      "x": 80.14497878359265,
+      "y": 59.476661951909485,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_297",
+      "label": "숲 위치 298",
+      "x": 77.06859971711457,
+      "y": 61.562942008486566,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_306",
+      "label": "숲 위치 307",
+      "x": 84.24681753889675,
+      "y": 63.47241867043847,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_317",
+      "label": "숲 위치 318",
+      "x": 83.53960396039604,
+      "y": 67.11456859971712,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_312",
+      "label": "숲 위치 313",
+      "x": 82.05445544554455,
+      "y": 65.80622347949081,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_320",
+      "label": "초원 위치 321",
+      "x": 85.8026874115983,
+      "y": 67.75106082036774,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_329",
+      "label": "숲 위치 330",
+      "x": 83.71640735502122,
+      "y": 71.14568599717114,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_333",
+      "label": "숲 위치 334",
+      "x": 81.13507779349364,
+      "y": 74.32814710042433,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_324",
+      "label": "초원 위치 325",
+      "x": 78.83663366336634,
+      "y": 69.62517680339462,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_314",
+      "label": "숲 위치 315",
+      "x": 78.34158415841584,
+      "y": 66.69024045261669,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_278",
+      "label": "숲 위치 279",
+      "x": 66.81400282885431,
+      "y": 56.85997171145686,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_304",
+      "label": "초원 위치 305",
+      "x": 70.27934936350778,
+      "y": 63.15417256011315,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "bowing_hog",
+      "label": "Bowing Hog",
+      "x": 90.22277227722772,
+      "y": 64.002828854314,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_307",
+      "label": "숲 위치 308",
+      "x": 89.58,
+      "y": 64.22,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_295",
+      "label": "초원 위치 296",
+      "x": 91.1067892503536,
+      "y": 61.315417256011315,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_321",
+      "label": "초원 위치 322",
+      "x": 93.72347949080623,
+      "y": 68.21074964639321,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_401",
+      "label": "초원 위치 402",
+      "x": 94.74893917963226,
+      "y": 95.65063649222066,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_385",
+      "label": "초원 위치 386",
+      "x": 96.02192362093352,
+      "y": 91.0891089108911,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_370",
+      "label": "초원 위치 371",
+      "x": 96.23408769448373,
+      "y": 87.41159830268741,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_362",
+      "label": "초원 위치 363",
+      "x": 94.21852899575673,
+      "y": 84.72418670438473,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_364",
+      "label": "수렁 위치 365",
+      "x": 91.74328147100425,
+      "y": 85.21923620933521,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_372",
+      "label": "수렁 위치 373",
+      "x": 92.48585572842998,
+      "y": 87.51768033946252,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_380",
+      "label": "수렁 위치 381",
+      "x": 91.84936350777934,
+      "y": 89.78076379066479,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_354",
+      "label": "초원 위치 355",
+      "x": 92.02616690240453,
+      "y": 82.85007072135785,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_351",
+      "label": "초원 위치 352",
+      "x": 94.14780763790664,
+      "y": 81.1881188118812,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886442975",
+      "label": "티탄 유적 추가 표시 9",
+      "x": 92.23833097595474,
+      "y": 79.98585572842998,
+      "region": "Meadow",
+      "kind": "ruin",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_345",
+      "label": "초원 위치 346",
+      "x": 89.7984441301273,
+      "y": 79.24328147100425,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886448655",
+      "label": "호수·강 추가 표시 10",
+      "x": 86.54526166902404,
+      "y": 79.52616690240453,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "mark_1786886453610",
+      "label": "수렁 추가 표시 11",
+      "x": 86.96958981612447,
+      "y": 82.81471004243282,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_360",
+      "label": "초원 위치 361",
+      "x": 81.41796322489392,
+      "y": 84.26449787835926,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_350",
+      "label": "초원 위치 351",
+      "x": 79.50848656294201,
+      "y": 81.1881188118812,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "shallot",
+      "label": "Shallot",
+      "x": 78.30622347949081,
+      "y": 77.82885431400283,
+      "region": "Loch",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_341",
+      "label": "호수/강 위치 342",
+      "x": 77.78,
+      "y": 77.83,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_339",
+      "label": "호수/강 위치 340",
+      "x": 77.36,
+      "y": 76.19,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_399",
+      "label": "초원 위치 400",
+      "x": 87.35855728429985,
+      "y": 94.23620933521923,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_379",
+      "label": "초원 위치 380",
+      "x": 87.64,
+      "y": 89.45,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "summit",
+      "label": "Summit",
+      "x": 88.3132956152758,
+      "y": 89.81612446958982,
+      "region": "Meadow",
+      "kind": "city",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_368",
+      "label": "초원 위치 369",
+      "x": 86.15629420084866,
+      "y": 86.7043847241867,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "sweetgorse",
+      "label": "Sweetgorse",
+      "x": 77.42220650636492,
+      "y": 86.38613861386139,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_367",
+      "label": "초원 위치 368",
+      "x": 76.98,
+      "y": 86.32,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_388",
+      "label": "호수/강 위치 389",
+      "x": 80.07425742574257,
+      "y": 91.83168316831683,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_389",
+      "label": "호수/강 위치 390",
+      "x": 72.7899575671853,
+      "y": 93.06930693069307,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_377",
+      "label": "초원 위치 378",
+      "x": 73.07284299858557,
+      "y": 88.26025459688826,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_356",
+      "label": "초원 위치 357",
+      "x": 68.72347949080623,
+      "y": 83.34512022630834,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_349",
+      "label": "호수/강 위치 350",
+      "x": 61.6,
+      "y": 80.71,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_346",
+      "label": "호수/강 위치 347",
+      "x": 62.641442715700144,
+      "y": 81.29420084865629,
+      "region": "Loch",
+      "kind": "ruin",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_366",
+      "label": "초원 위치 367",
+      "x": 63.596181046676094,
+      "y": 86.35077793493635,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_382",
+      "label": "초원 위치 383",
+      "x": 69.64285714285714,
+      "y": 90.38189533239039,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886523724",
+      "label": "티탄 유적 추가 표시 12",
+      "x": 64.58628005657708,
+      "y": 96.18104667609619,
+      "region": "Bog",
+      "kind": "ruin",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "mark_1786886529690",
+      "label": "초원 추가 표시 13",
+      "x": 59.21145685997171,
+      "y": 82.4964639321075,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_402",
+      "label": "수렁 위치 403",
+      "x": 57.83239038189534,
+      "y": 96.67609618104667,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_397",
+      "label": "수렁 위치 398",
+      "x": 59.98939179632249,
+      "y": 93.74115983026874,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_383",
+      "label": "수렁 위치 384",
+      "x": 59.31753889674681,
+      "y": 90.41725601131542,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_371",
+      "label": "수렁 위치 372",
+      "x": 54.048797736916555,
+      "y": 87.51768033946252,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_392",
+      "label": "수렁 위치 393",
+      "x": 53.87199434229137,
+      "y": 93.24611032531824,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886543219",
+      "label": "호수·강 추가 표시 14",
+      "x": 48.6032531824611,
+      "y": 80.44554455445545,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_390",
+      "label": "수렁 위치 391",
+      "x": 51.3967468175389,
+      "y": 92.64497878359265,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_384",
+      "label": "수렁 위치 385",
+      "x": 48.497171145685996,
+      "y": 90.52333804809052,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "bogbridge",
+      "label": "Bogbridge",
+      "x": 47.01202263083451,
+      "y": 89.53323903818954,
+      "region": "Loch",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_378",
+      "label": "수렁 위치 379",
+      "x": 44.996463932107496,
+      "y": 89.28571428571429,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_387",
+      "label": "수렁 위치 388",
+      "x": 35.66,
+      "y": 91.31,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "noonhill",
+      "label": "Noonhill",
+      "x": 35.51980198019802,
+      "y": 91.72560113154172,
+      "region": "Bog",
+      "kind": "city",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_398",
+      "label": "수렁 위치 399",
+      "x": 33.92857142857143,
+      "y": 93.88260254596888,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_381",
+      "label": "수렁 위치 382",
+      "x": 37.641442715700144,
+      "y": 90.27581329561527,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_391",
+      "label": "수렁 위치 392",
+      "x": 39.33875530410184,
+      "y": 93.06930693069307,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_404",
+      "label": "수렁 위치 405",
+      "x": 39.65700141442716,
+      "y": 96.81753889674681,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_386",
+      "label": "수렁 위치 387",
+      "x": 31.417963224893917,
+      "y": 91.19519094766619,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_369",
+      "label": "수렁 위치 370",
+      "x": 32.76166902404526,
+      "y": 86.77510608203679,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_353",
+      "label": "Misle",
+      "x": 29.225601131541723,
+      "y": 82.53182461103253,
+      "region": "Bog",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_365",
+      "label": "수렁 위치 366",
+      "x": 35.802687411598306,
+      "y": 86.13861386138613,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_363",
+      "label": "수렁 위치 364",
+      "x": 39.05586987270156,
+      "y": 85.07779349363508,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886597477",
+      "label": "호수·강 추가 표시 15",
+      "x": 25.194483734087697,
+      "y": 81.57708628005658,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "mark_1786886600829",
+      "label": "티탄 유적 추가 표시 16",
+      "x": 23.10820367751061,
+      "y": 78.57142857142857,
+      "region": "Loch",
+      "kind": "ruin",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_344",
+      "label": "초원 위치 345",
+      "x": 17.627298444130126,
+      "y": 79.27864214992928,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_408",
+      "label": "수렁 위치 409",
+      "x": 26.60891089108911,
+      "y": 97.59547383309759,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886612672",
+      "label": "호수·강 추가 표시 17",
+      "x": 27.316124469589813,
+      "y": 90.52333804809052,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_403",
+      "label": "수렁 위치 404",
+      "x": 19.253889674681755,
+      "y": 96.71145685997172,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "moatcourt",
+      "label": "Moatcourt",
+      "x": 20.385431400282886,
+      "y": 89.78076379066479,
+      "region": "Meadow",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_361",
+      "label": "초원 위치 362",
+      "x": 19.466053748231964,
+      "y": 84.54738330975955,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_357",
+      "label": "숲 위치 358",
+      "x": 12.11103253182461,
+      "y": 84.01697312588402,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_352",
+      "label": "초원 위치 353",
+      "x": 10.27,
+      "y": 81.75,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "bigpaw",
+      "label": "Bigpaw",
+      "x": 9.777227722772277,
+      "y": 81.82461103253182,
+      "region": "Meadow",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_347",
+      "label": "숲 위치 348",
+      "x": 5.2864214992927865,
+      "y": 79.98585572842998,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_359",
+      "label": "숲 위치 360",
+      "x": 7.726308345120227,
+      "y": 84.26449787835926,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_395",
+      "label": "숲 위치 396",
+      "x": 15.399575671852899,
+      "y": 93.5997171145686,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_358",
+      "label": "숲 위치 359",
+      "x": 3.1647807637906653,
+      "y": 84.01697312588402,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_393",
+      "label": "숲 위치 394",
+      "x": 3.5891089108910887,
+      "y": 93.49363507779348,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_394",
+      "label": "숲 위치 395",
+      "x": 8.00919377652051,
+      "y": 93.5997171145686,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_405",
+      "label": "숲 위치 406",
+      "x": 8.22135785007072,
+      "y": 97.24186704384724,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_406",
+      "label": "숲 위치 407",
+      "x": 11.792786421499294,
+      "y": 97.17114568599717,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_407",
+      "label": "숲 위치 408",
+      "x": 3.8719943422913716,
+      "y": 97.24186704384724,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_376",
+      "label": "숲 위치 377",
+      "x": 3.695190947666195,
+      "y": 88.47241867043847,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_375",
+      "label": "숲 위치 376",
+      "x": 7.690947666195191,
+      "y": 88.47241867043847,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_374",
+      "label": "숲 위치 375",
+      "x": 12.004950495049505,
+      "y": 88.11881188118812,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886677571",
+      "label": "티탄 유적 추가 표시 18",
+      "x": 11.863507779349364,
+      "y": 91.30127298444131,
+      "region": "Forest",
+      "kind": "ruin",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_400",
+      "label": "초원 위치 401",
+      "x": 24.0983026874116,
+      "y": 94.62517680339462,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_337",
+      "label": "수렁 위치 338",
+      "x": 5.2864214992927865,
+      "y": 76.13154172560112,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_330",
+      "label": "수렁 위치 331",
+      "x": 5.9582743988684586,
+      "y": 71.3932107496464,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_334",
+      "label": "산맥 위치 335",
+      "x": 12.995049504950495,
+      "y": 75.1060820367751,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886700644",
+      "label": "티탄 유적 추가 표시 19",
+      "x": 15.152050919377652,
+      "y": 72.4893917963225,
+      "region": "Forest",
+      "kind": "ruin",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_327",
+      "label": "숲 위치 328",
+      "x": 21.27,
+      "y": 70.88,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "wavshade",
+      "label": "Waveshade",
+      "x": 20.951202263083452,
+      "y": 70.75671852899575,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_310",
+      "label": "산맥 위치 311",
+      "x": 19.35997171145686,
+      "y": 65.13437057991513,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_322",
+      "label": "산맥 위치 323",
+      "x": 13.348656294200847,
+      "y": 68.74115983026874,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_323",
+      "label": "산맥 위치 324",
+      "x": 8.787128712871286,
+      "y": 68.84724186704385,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_313",
+      "label": "산맥 위치 314",
+      "x": 4.154879773691655,
+      "y": 66.01838755304101,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_305",
+      "label": "수렁 위치 306",
+      "x": 4.19024045261669,
+      "y": 63.401697312588404,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_296",
+      "label": "산맥 위치 297",
+      "x": 7.337340876944837,
+      "y": 61.52758132956153,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_299",
+      "label": "초원 위치 300",
+      "x": 16.672560113154173,
+      "y": 62.199434229137196,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_293",
+      "label": "산맥 위치 294",
+      "x": 19.855021216407355,
+      "y": 60.92644978783592,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_281",
+      "label": "산맥 위치 282",
+      "x": 17.874823196605373,
+      "y": 57.24893917963225,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_287",
+      "label": "산맥 위치 288",
+      "x": 14.197312588401697,
+      "y": 59.08769448373409,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_264",
+      "label": "산맥 위치 265",
+      "x": 17.698019801980198,
+      "y": 52.793493635077795,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_275",
+      "label": "산맥 위치 276",
+      "x": 6.665487977369165,
+      "y": 55.693069306930695,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_271",
+      "label": "초원 위치 272",
+      "x": 10.3,
+      "y": 54.64,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "windtop",
+      "label": "Windtop",
+      "x": 9.706506364922207,
+      "y": 54.243281471004245,
+      "region": "Meadow",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "sailors_fang",
+      "label": "Sailor's Fang",
+      "x": 23.037482319660537,
+      "y": 55.23338048090524,
+      "region": "Loch",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_285",
+      "label": "산맥 위치 286",
+      "x": 8.963932107496465,
+      "y": 58.87553041018387,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_230",
+      "label": "초원 위치 231",
+      "x": 15.293493635077793,
+      "y": 46.57001414427157,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_245",
+      "label": "산맥 위치 246",
+      "x": 15.187411598302688,
+      "y": 50.07072135785007,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_222",
+      "label": "호수/강 위치 223",
+      "x": 18.36987270155587,
+      "y": 44.44837340876945,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_201",
+      "label": "산맥 위치 202",
+      "x": 15.222772277227723,
+      "y": 41.54879773691655,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_181",
+      "label": "산맥 위치 182",
+      "x": 11.12093352192362,
+      "y": 38.26025459688826,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886771510",
+      "label": "티탄 유적 추가 표시 20",
+      "x": 8.433521923620933,
+      "y": 41.230551626591236,
+      "region": "Bog",
+      "kind": "ruin",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_182",
+      "label": "수렁 위치 183",
+      "x": 4.9681753889674685,
+      "y": 38.22489391796323,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_228",
+      "label": "숲 위치 229",
+      "x": 4.932814710042433,
+      "y": 46.28712871287129,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_241",
+      "label": "숲 위치 242",
+      "x": 8.787128712871286,
+      "y": 49.00990099009901,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_199",
+      "label": "호수/강 위치 200",
+      "x": 74.8055162659123,
+      "y": 41.51343705799152,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "boatlast",
+      "label": "Boatlast",
+      "x": 75.1944837340877,
+      "y": 40.735502121640735,
+      "region": "Loch",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_178",
+      "label": "호수/강 위치 179",
+      "x": 69.78429985855729,
+      "y": 37.6944837340877,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_173",
+      "label": "숲 위치 174",
+      "x": 65.85926449787836,
+      "y": 37.37623762376238,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "pinesworth",
+      "label": "Pinesworth",
+      "x": 62.924328147100425,
+      "y": 38.82602545968883,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_186",
+      "label": "숲 위치 187",
+      "x": 62.68,
+      "y": 39.37,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_196",
+      "label": "숲 위치 197",
+      "x": 64.76308345120226,
+      "y": 40.381895332390386,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_209",
+      "label": "숲 위치 210",
+      "x": 69.74893917963226,
+      "y": 42.46817538896747,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_218",
+      "label": "숲 위치 219",
+      "x": 73.497171145686,
+      "y": 43.5997171145686,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "highroad",
+      "label": "Highroad",
+      "x": 73.03748231966054,
+      "y": 49.893917963224894,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886809868",
+      "label": "호수·강 추가 표시 21",
+      "x": 65.75318246110325,
+      "y": 34.900990099009896,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_169",
+      "label": "초원 위치 170",
+      "x": 61.26237623762376,
+      "y": 36.52758132956153,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_171",
+      "label": "숲 위치 172",
+      "x": 55.98,
+      "y": 37.21,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_167",
+      "label": "숲 위치 168",
+      "x": 58.009193776520505,
+      "y": 35.961810466760966,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_165",
+      "label": "Loch Ard",
+      "x": 53.90735502121641,
+      "y": 34.193776520509196,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_194",
+      "label": "숲 위치 195",
+      "x": 58.71640735502122,
+      "y": 40.06364922206506,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_189",
+      "label": "호수/강 위치 190",
+      "x": 55.07425742574258,
+      "y": 39.4978783592645,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_203",
+      "label": "숲 위치 204",
+      "x": 55.0035360678925,
+      "y": 41.336633663366335,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_200",
+      "label": "숲 위치 201",
+      "x": 52.881895332390386,
+      "y": 40.91230551626591,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_191",
+      "label": "숲 위치 192",
+      "x": 50.19448373408769,
+      "y": 39.71004243281471,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_213",
+      "label": "호수/강 위치 214",
+      "x": 55.71,
+      "y": 43.6,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_207",
+      "label": "호수/강 위치 208",
+      "x": 56.5947666195191,
+      "y": 42.609618104667604,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "seven_flowers",
+      "label": "Seven Flowers",
+      "x": 67.62729844413012,
+      "y": 45.36775106082037,
+      "region": "Meadow",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886849177",
+      "label": "초원 추가 표시 22",
+      "x": 50.26520509193777,
+      "y": 35.53748231966053,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_233",
+      "label": "초원 위치 234",
+      "x": 52.06859971711457,
+      "y": 47.38330975954738,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_237",
+      "label": "초원 위치 238",
+      "x": 48.43,
+      "y": 48.68,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "crossyce",
+      "label": "Crosseye",
+      "x": 48.497171145685996,
+      "y": 48.090523338048094,
+      "region": "Meadow",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_226",
+      "label": "초원 위치 227",
+      "x": 45.17326732673268,
+      "y": 45.72135785007072,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_252",
+      "label": "수렁 위치 253",
+      "x": 44.92574257425743,
+      "y": 51.34370579915134,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_263",
+      "label": "초원 위치 264",
+      "x": 47.71923620933522,
+      "y": 52.75813295615276,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886888506",
+      "label": "티탄 유적 추가 표시 23",
+      "x": 53.94271570014144,
+      "y": 52.722772277227726,
+      "region": "Forest",
+      "kind": "ruin",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_187",
+      "label": "호수/강 위치 188",
+      "x": 34.954031117397456,
+      "y": 39.95756718528995,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "spoutneck",
+      "label": "Spoutneck",
+      "x": 32.51414427157002,
+      "y": 39.95756718528995,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_193",
+      "label": "수렁 위치 194",
+      "x": 32.7,
+      "y": 40.55,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_177",
+      "label": "초원 위치 178",
+      "x": 33.9992927864215,
+      "y": 37.8005657708628,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_168",
+      "label": "수렁 위치 169",
+      "x": 30.56930693069307,
+      "y": 35.92644978783593,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_162",
+      "label": "수렁 위치 163",
+      "x": 28.37694483734088,
+      "y": 35.21923620933522,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_176",
+      "label": "수렁 위치 177",
+      "x": 27.81117397454031,
+      "y": 37.65912305516266,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_192",
+      "label": "초원 위치 193",
+      "x": 27.03323903818953,
+      "y": 39.886845827439885,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_211",
+      "label": "수렁 위치 212",
+      "x": 30.32178217821782,
+      "y": 42.751060820367755,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_210",
+      "label": "수렁 위치 211",
+      "x": 37.676803394625175,
+      "y": 42.751060820367755,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_212",
+      "label": "수렁 위치 213",
+      "x": 40.222772277227726,
+      "y": 43.104667609618105,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_235",
+      "label": "수렁 위치 236",
+      "x": 39.72772277227723,
+      "y": 48.090523338048094,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_265",
+      "label": "호수/강 위치 266",
+      "x": 39.02050919377652,
+      "y": 52.86421499292786,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_256",
+      "label": "호수/강 위치 257",
+      "x": 39.66,
+      "y": 52.2,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_254",
+      "label": "수렁 위치 255",
+      "x": 41.92008486562942,
+      "y": 51.66195190947667,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886920341",
+      "label": "초원 추가 표시 24",
+      "x": 38.45473833097596,
+      "y": 55.26874115983027,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "mark_1786886925330",
+      "label": "티탄 유적 추가 표시 25",
+      "x": 36.227015558698724,
+      "y": 53.42998585572843,
+      "region": "Loch",
+      "kind": "ruin",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_232",
+      "label": "수렁 위치 233",
+      "x": 35.873408769448375,
+      "y": 46.88826025459689,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_217",
+      "label": "초원 위치 218",
+      "x": 35.908769448373405,
+      "y": 43.74115983026874,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_221",
+      "label": "수렁 위치 222",
+      "x": 32.973833097595474,
+      "y": 44.236209335219236,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_239",
+      "label": "수렁 위치 240",
+      "x": 32.938472418670436,
+      "y": 48.62093352192362,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_246",
+      "label": "수렁 위치 247",
+      "x": 35.94413012729844,
+      "y": 50.21216407355021,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_251",
+      "label": "초원 위치 252",
+      "x": 33.857850070721355,
+      "y": 51.096181046676094,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_248",
+      "label": "숲 위치 249",
+      "x": 31.7,
+      "y": 51,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "brander",
+      "label": "Brandge",
+      "x": 31.55940594059406,
+      "y": 50.707213578500706,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_267",
+      "label": "숲 위치 268",
+      "x": 30.357142857142854,
+      "y": 53.53606789250354,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_164",
+      "label": "수렁 위치 165",
+      "x": 24.593352192362094,
+      "y": 35.60820367751061,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_179",
+      "label": "초원 위치 180",
+      "x": 23.143564356435643,
+      "y": 37.6944837340877,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_198",
+      "label": "초원 위치 199",
+      "x": 24.45190947666195,
+      "y": 40.77086280056577,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_204",
+      "label": "숲 위치 205",
+      "x": 21.976661951909477,
+      "y": 41.86704384724187,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_188",
+      "label": "산맥 위치 189",
+      "x": 21.7998585572843,
+      "y": 39.285714285714285,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_161",
+      "label": "산맥 위치 162",
+      "x": 16.071428571428573,
+      "y": 35.148514851485146,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_175",
+      "label": "산맥 위치 176",
+      "x": 17.91018387553041,
+      "y": 37.6944837340877,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_183",
+      "label": "산맥 위치 184",
+      "x": 19.784299858557283,
+      "y": 38.22489391796323,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_155",
+      "label": "산맥 위치 156",
+      "x": 20.067185289957568,
+      "y": 33.59264497878359,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_154",
+      "label": "산맥 위치 155",
+      "x": 14.975247524752474,
+      "y": 33.345120226308346,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786886985669",
+      "label": "산맥 추가 표시 26",
+      "x": 25.22984441301273,
+      "y": 29.985855728429982,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_133",
+      "label": "산맥 위치 134",
+      "x": 21.26944837340877,
+      "y": 29.066478076379067,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_138",
+      "label": "수렁 위치 139",
+      "x": 17.91018387553041,
+      "y": 29.915134370579917,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_118",
+      "label": "초원 위치 119",
+      "x": 21.587694483734087,
+      "y": 25.70721357850071,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_123",
+      "label": "호수/강 위치 124",
+      "x": 28.023338048090523,
+      "y": 27.33380480905233,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_130",
+      "label": "호수/강 위치 131",
+      "x": 32.83,
+      "y": 29.27,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_137",
+      "label": "호수/강 위치 138",
+      "x": 33.11527581329561,
+      "y": 29.879773691654883,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_150",
+      "label": "호수/강 위치 151",
+      "x": 31.877652050919377,
+      "y": 32.42574257425743,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_195",
+      "label": "산맥 위치 196",
+      "x": 20.774398868458274,
+      "y": 40.27581329561528,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_166",
+      "label": "초원 위치 167",
+      "x": 12.11103253182461,
+      "y": 36.1032531824611,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_149",
+      "label": "산맥 위치 150",
+      "x": 9.034653465346535,
+      "y": 32.496463932107496,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "widim",
+      "label": "Widim",
+      "x": 7.584865629420085,
+      "y": 27.298444130127297,
+      "region": "Loch",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_124",
+      "label": "호수/강 위치 125",
+      "x": 10.413719943422914,
+      "y": 27.545968882602544,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786887028038",
+      "label": "산맥 추가 표시 27",
+      "x": 13.313295615275814,
+      "y": 27.298444130127297,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_129",
+      "label": "산맥 위치 130",
+      "x": 4.756011315417256,
+      "y": 27.970297029702973,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_110",
+      "label": "산맥 위치 111",
+      "x": 2.1746817538896748,
+      "y": 24.257425742574256,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786887033543",
+      "label": "티탄 유적 추가 표시 28",
+      "x": 4.720650636492221,
+      "y": 22.772277227722775,
+      "region": "Mountain",
+      "kind": "ruin",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_146",
+      "label": "산맥 위치 147",
+      "x": 2.139321074964639,
+      "y": 32.213578500707214,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_159",
+      "label": "산맥 위치 160",
+      "x": 4.437765205091938,
+      "y": 34.93635077793494,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786887044906",
+      "label": "호수·강 추가 표시 29",
+      "x": 14.515558698727016,
+      "y": 36.633663366336634,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "mark_1786887052862",
+      "label": "티탄 유적 추가 표시 30",
+      "x": 18.475954738330977,
+      "y": 6.117397454031118,
+      "region": "Mountain",
+      "kind": "ruin",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_16",
+      "label": "수렁 위치 17",
+      "x": 14.268033946251768,
+      "y": 6.612446958981612,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_37",
+      "label": "초원 위치 38",
+      "x": 15.859264497878359,
+      "y": 10.537482319660537,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_51",
+      "label": "산맥 위치 52",
+      "x": 22.96676096181047,
+      "y": 13.684582743988685,
+      "region": "Mountain",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786887060853",
+      "label": "호수·강 추가 표시 31",
+      "x": 23.673974540311175,
+      "y": 11.598302687411598,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_26",
+      "label": "호수/강 위치 27",
+      "x": 38.38401697312588,
+      "y": 7.991513437057991,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_34",
+      "label": "초원 위치 35",
+      "x": 26.078500707213582,
+      "y": 9.830268741159829,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_36",
+      "label": "호수/강 위치 37",
+      "x": 28.483026874115986,
+      "y": 11.598302687411598,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "olddam",
+      "label": "Olddam",
+      "x": 29.154879773691654,
+      "y": 10.254596888260254,
+      "region": "Loch",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "newdam",
+      "label": "New Dam",
+      "x": 33.504243281471005,
+      "y": 8.30975954738331,
+      "region": "Forest",
+      "kind": "city",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_25",
+      "label": "호수/강 위치 26",
+      "x": 33.150636492220656,
+      "y": 9.2998585572843,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_79",
+      "label": "호수/강 위치 80",
+      "x": 72.71923620933521,
+      "y": 19.165487977369168,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "blackberry_log",
+      "label": "Blackberry Log",
+      "x": 70.84512022630834,
+      "y": 19.908062234794908,
+      "region": "Loch",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_67",
+      "label": "호수/강 위치 68",
+      "x": 64.0912305516266,
+      "y": 17.82178217821782,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_47",
+      "label": "Bramblefork",
+      "x": 55.67538896746817,
+      "y": 14.427157001414429,
+      "region": "Meadow",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_98",
+      "label": "초원 위치 99",
+      "x": 67.94554455445545,
+      "y": 22.418670438472418,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_113",
+      "label": "숲 위치 114",
+      "x": 64.65700141442716,
+      "y": 24.398868458274396,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_120",
+      "label": "초원 위치 121",
+      "x": 66.17751060820368,
+      "y": 27.05091937765205,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_136",
+      "label": "초원 위치 137",
+      "x": 65.22277227722772,
+      "y": 29.490806223479492,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_128",
+      "label": "Parsley Nook",
+      "x": 61.828147100424324,
+      "y": 27.793493635077795,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "parsley_nook",
+      "label": "Parsley Nook",
+      "x": 62.075671852899575,
+      "y": 31.082036775106083,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_134",
+      "label": "초원 위치 135",
+      "x": 56.24115983026874,
+      "y": 29.42008486562942,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "fort_ard",
+      "label": "Fort Ard",
+      "x": 56.205799151343705,
+      "y": 36.810466760961816,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_220",
+      "label": "숲 위치 221",
+      "x": 55.958274398868454,
+      "y": 44.271570014144274,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_180",
+      "label": "숲 위치 181",
+      "x": 45.7036775106082,
+      "y": 37.8005657708628,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_250",
+      "label": "숲 위치 251",
+      "x": 57.655586987270155,
+      "y": 50.919377652050926,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_273",
+      "label": "호수/강 위치 274",
+      "x": 61.50990099009901,
+      "y": 55.41018387553041,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "tuskpoint",
+      "label": "Tuskpoint",
+      "x": 58.71640735502122,
+      "y": 57.42574257425742,
+      "region": "Loch",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_292",
+      "label": "숲 위치 293",
+      "x": 58.68104667609618,
+      "y": 60.113154172560115,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_300",
+      "label": "숲 위치 301",
+      "x": 55.46322489391796,
+      "y": 62.37623762376238,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_286",
+      "label": "숲 위치 287",
+      "x": 54.82673267326733,
+      "y": 58.87553041018387,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_301",
+      "label": "초원 위치 302",
+      "x": 61.96958981612447,
+      "y": 62.37623762376238,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "rosehill",
+      "label": "Rosehill",
+      "x": 62.924328147100425,
+      "y": 64.63932107496464,
+      "region": "Meadow",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_309",
+      "label": "초원 위치 310",
+      "x": 62.6060820367751,
+      "y": 65.24045261669023,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_282",
+      "label": "숲 위치 283",
+      "x": 63.808345120226306,
+      "y": 57.28429985855728,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_326",
+      "label": "수렁 위치 327",
+      "x": 66.92008486562942,
+      "y": 70.47383309759547,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_318",
+      "label": "숲 위치 319",
+      "x": 69.32461103253182,
+      "y": 67.18528995756718,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_336",
+      "label": "초원 위치 337",
+      "x": 58.3981612446959,
+      "y": 76.37906647807637,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_127",
+      "label": "숲 위치 128",
+      "x": 33.18599717114569,
+      "y": 27.475247524752476,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_38",
+      "label": "호수/강 위치 39",
+      "x": 12.33,
+      "y": 12.09,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_91",
+      "label": "수렁 위치 92",
+      "x": 8.68104667609618,
+      "y": 21.216407355021218,
+      "region": "Bog",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_40",
+      "label": "초원 위치 41",
+      "x": 38.94978783592645,
+      "y": 11.527581329561528,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "locsid",
+      "label": "Locsid",
+      "x": 30.922913719943423,
+      "y": 56.683168316831676,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_266",
+      "label": "숲 위치 267",
+      "x": 25.371287128712872,
+      "y": 52.793493635077795,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_240",
+      "label": "숲 위치 241",
+      "x": 25.866336633663366,
+      "y": 48.79773691654879,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_227",
+      "label": "숲 위치 228",
+      "x": 26.785714285714285,
+      "y": 46.03960396039604,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_224",
+      "label": "숲 위치 225",
+      "x": 22.61315417256011,
+      "y": 45.473833097595474,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_249",
+      "label": "Brange",
+      "x": 28.695190947666195,
+      "y": 51.096181046676094,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786887324954",
+      "label": "호수·강 추가 표시 32",
+      "x": 23.992220650636494,
+      "y": 59.15841584158416,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_298",
+      "label": "초원 위치 299",
+      "x": 28.65983026874116,
+      "y": 62.164073550212166,
+      "region": "Meadow",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "spinner_cot",
+      "label": "Spinner's Cot",
+      "x": 48.56789250353607,
+      "y": 59.93635077793493,
+      "region": "Forest",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_291",
+      "label": "숲 위치 292",
+      "x": 48.53,
+      "y": 60.28,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "holdall",
+      "label": "Holdall",
+      "x": 45.17326732673268,
+      "y": 63.012729844413016,
+      "region": "Meadow",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_303",
+      "label": "초원 위치 304",
+      "x": 45.16,
+      "y": 63.15,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "mark_1786887360270",
+      "label": "초원 추가 표시 33",
+      "x": 38.38401697312588,
+      "y": 67.36209335219236,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "mark_1786887367483",
+      "label": "호수·강 추가 표시 34",
+      "x": 31.17043847241867,
+      "y": 65.7001414427157,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "mark_1786887388668",
+      "label": "호수·강 추가 표시 35",
+      "x": 29.119519094766623,
+      "y": 72.87835926449789,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "loc_342",
+      "label": "야생 위치 343",
+      "x": 34.37,
+      "y": 78.32,
+      "region": "Wilds",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_338",
+      "label": "야생 위치 339",
+      "x": 38.17185289957567,
+      "y": 78.00565770862801,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "loc_316",
+      "label": "초원 위치 317",
+      "x": 27.65,
+      "y": 67.24,
+      "region": "Meadow",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "glasswall",
+      "label": "Glasswall",
+      "x": 27.38684582743989,
+      "y": 67.18528995756718,
+      "region": "Forest",
+      "kind": "city",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "vessel",
+      "label": "Vessel",
+      "x": 33.53960396039604,
+      "y": 71.60537482319661,
+      "region": "Loch",
+      "kind": "city",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_274",
+      "label": "호수/강 위치 275",
+      "x": 35.23691654879774,
+      "y": 56.08203677510608,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_277",
+      "label": "숲 위치 278",
+      "x": 35.34299858557284,
+      "y": 58.345120226308346,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "mark_1786887448341",
+      "label": "호수·강 추가 표시 36",
+      "x": 38.31329561527581,
+      "y": 78.00565770862801,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": false,
+      "added": true
+    },
+    {
+      "id": "odoak",
+      "label": "Odoak",
+      "x": 45.73903818953324,
+      "y": 34.47666195190948,
+      "region": "Forest",
+      "kind": "city",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_142",
+      "label": "호수/강 위치 143",
+      "x": 52.11309523809524,
+      "y": 32.60230654761905,
+      "region": "Loch",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    },
+    {
+      "id": "widrow",
+      "label": "Widrowe",
+      "x": 52.17852480417755,
+      "y": 31.982804340731068,
+      "region": "Loch",
+      "kind": "settlement",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_151",
+      "label": "숲 위치 152",
+      "x": 62.932441253263704,
+      "y": 33.010872225848566,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_144",
+      "label": "숲 위치 145",
+      "x": 58.90176240208878,
+      "y": 32.129671181462136,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_148",
+      "label": "숲 위치 149",
+      "x": 55.197454308093995,
+      "y": 32.47236047650131,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "loc_156",
+      "label": "숲 위치 157",
+      "x": 48.017297650130544,
+      "y": 34.05525864882507,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": false,
+      "added": false
+    },
+    {
+      "id": "starting_oak_road",
+      "label": "Odoak",
+      "x": 50,
+      "y": 50,
+      "region": "Forest",
+      "kind": "wild",
+      "hidden": true,
+      "added": false
+    }
+  ]
+}

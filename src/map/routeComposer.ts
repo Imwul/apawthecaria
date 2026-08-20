@@ -127,7 +127,7 @@ const finiteCoordinate = (value: unknown, fallback: number): number => {
 export const normalizeRouteDraft = (value: unknown): RouteDraft => {
   if (!value || typeof value !== 'object') return emptyRouteDraft();
   const raw = value as { stops?: unknown; edgeKinds?: unknown };
-  const stops = Array.isArray(raw.stops)
+  const parsedStops = Array.isArray(raw.stops)
     ? raw.stops.flatMap((entry, index): RouteStop[] => {
         if (!entry || typeof entry !== 'object') return [];
         const row = entry as Record<string, unknown>;
@@ -150,14 +150,18 @@ export const normalizeRouteDraft = (value: unknown): RouteDraft => {
         }];
       })
     : [];
+  const stops = collapseConsecutiveRouteStops(parsedStops);
   const rawEdges = Array.isArray(raw.edgeKinds) ? raw.edgeKinds : [];
-  const edgeKinds: RouteEdgeKind[] = [];
-  for (let index = 0; index < Math.max(0, stops.length - 1); index += 1) {
+  const parsedEdgeKinds: RouteEdgeKind[] = [];
+  for (let index = 0; index < Math.max(0, parsedStops.length - 1); index += 1) {
     const candidate = ROUTE_EDGE_KINDS.includes(rawEdges[index] as RouteEdgeKind)
       ? rawEdges[index] as RouteEdgeKind
       : 'path';
-    edgeKinds.push(canChooseRouteEdgeKind(candidate, stops[index], stops[index + 1]) ? candidate : 'path');
+    parsedEdgeKinds.push(canChooseRouteEdgeKind(candidate, parsedStops[index], parsedStops[index + 1]) ? candidate : 'path');
   }
+  const edgeKinds = stops.length === parsedStops.length
+    ? parsedEdgeKinds
+    : rebuildRouteEdgeKinds({ stops: parsedStops, edgeKinds: parsedEdgeKinds }, stops);
   return { stops, edgeKinds };
 };
 
@@ -173,28 +177,7 @@ export const lastRouteStop = (draft: RouteDraft): RouteStop | null =>
 export const routeDestination = (draft: RouteDraft): RouteStop | null =>
   draft.stops.length > 1 ? draft.stops[draft.stops.length - 1] : null;
 
-export type DisconnectedRouteSegment = {
-  index: number;
-  from: RouteStop;
-  to: RouteStop;
-};
-
-/**
- * Returns the first itinerary segment that is not an actual map connection.
- * Route selection stays manual, but a distant marker cannot be counted as one
- * Path merely because it was clicked next.
- */
-export const findDisconnectedRouteSegment = (
-  draft: RouteDraft,
-  areConnected: (fromId: string, toId: string) => boolean
-): DisconnectedRouteSegment | null => {
-  for (let index = 0; index < draft.stops.length - 1; index += 1) {
-    const from = draft.stops[index];
-    const to = draft.stops[index + 1];
-    if (!areConnected(from.id, to.id)) return { index, from, to };
-  }
-  return null;
-};
+export type ResolveRouteEdgeKind = (from: RouteStop, to: RouteStop) => RouteEdgeKind;
 
 export const appendRouteStop = (
   draft: RouteDraft,
@@ -202,24 +185,62 @@ export const appendRouteStop = (
   edgeKind: RouteEdgeKind = 'path'
 ): RouteDraft => {
   if (draft.stops.length === 0) return { stops: [stop], edgeKinds: [] };
-  if (draft.stops.some(existing => existing.id === stop.id)) return draft;
+  const last = draft.stops[draft.stops.length - 1];
+  // A route may retrace a Path to spend the full Speed required by p.24.
+  // Only a consecutive self-loop is ignored, which also makes rapid repeated
+  // clicks on the same marker idempotent.
+  if (last.id === stop.id) return draft;
+  const validKind = canChooseRouteEdgeKind(edgeKind, last, stop) ? edgeKind : 'path';
   return {
     stops: [...draft.stops, stop],
-    edgeKinds: [...draft.edgeKinds, edgeKind]
+    edgeKinds: [...draft.edgeKinds, validKind]
   };
 };
 
-export const removeRouteStopAt = (draft: RouteDraft, index: number): RouteDraft => {
-  if (index <= 0 || index >= draft.stops.length) return draft;
-  const stops = draft.stops.filter((_, stopIndex) => stopIndex !== index);
-  const edgeKinds = draft.edgeKinds.filter((_, edgeIndex) => edgeIndex !== index - 1 && edgeIndex !== index);
-  if (index < draft.stops.length - 1 && index - 1 >= 0) {
-    edgeKinds.splice(index - 1, 0, draft.edgeKinds[index] || draft.edgeKinds[index - 1] || 'path');
-  }
-  return { stops, edgeKinds };
+const routePairKey = (fromId: string, toId: string): string =>
+  fromId < toId ? `${fromId}|${toId}` : `${toId}|${fromId}`;
+
+const collapseConsecutiveRouteStops = (stops: RouteStop[]): RouteStop[] =>
+  stops.filter((stop, index) => index === 0 || stops[index - 1].id !== stop.id);
+
+const rebuildRouteEdgeKinds = (
+  previous: RouteDraft,
+  stops: RouteStop[],
+  resolveEdgeKind?: ResolveRouteEdgeKind
+): RouteEdgeKind[] => {
+  const previousKindsByPair = new Map<string, RouteEdgeKind[]>();
+  previous.edgeKinds.forEach((kind, index) => {
+    const from = previous.stops[index];
+    const to = previous.stops[index + 1];
+    if (!from || !to) return;
+    const key = routePairKey(from.id, to.id);
+    previousKindsByPair.set(key, [...(previousKindsByPair.get(key) || []), kind]);
+  });
+
+  return stops.slice(0, -1).map((from, index) => {
+    const to = stops[index + 1];
+    const previousKinds = previousKindsByPair.get(routePairKey(from.id, to.id));
+    const candidate = previousKinds?.shift() || resolveEdgeKind?.(from, to) || 'path';
+    return canChooseRouteEdgeKind(candidate, from, to) ? candidate : 'path';
+  });
 };
 
-export const moveRouteStop = (draft: RouteDraft, fromIndex: number, toIndex: number): RouteDraft => {
+export const removeRouteStopAt = (
+  draft: RouteDraft,
+  index: number,
+  resolveEdgeKind?: ResolveRouteEdgeKind
+): RouteDraft => {
+  if (index <= 0 || index >= draft.stops.length) return draft;
+  const stops = collapseConsecutiveRouteStops(draft.stops.filter((_, stopIndex) => stopIndex !== index));
+  return { stops, edgeKinds: rebuildRouteEdgeKinds(draft, stops, resolveEdgeKind) };
+};
+
+export const moveRouteStop = (
+  draft: RouteDraft,
+  fromIndex: number,
+  toIndex: number,
+  resolveEdgeKind?: ResolveRouteEdgeKind
+): RouteDraft => {
   // The first node is the campaign's current Location, not a movable waypoint.
   if (fromIndex === 0 || toIndex === 0) return draft;
   if (fromIndex < 0 || fromIndex >= draft.stops.length) return draft;
@@ -229,15 +250,9 @@ export const moveRouteStop = (draft: RouteDraft, fromIndex: number, toIndex: num
   const stops = [...draft.stops];
   const [moved] = stops.splice(fromIndex, 1);
   stops.splice(toIndex, 0, moved);
+  const collapsedStops = collapseConsecutiveRouteStops(stops);
 
-  const edgeKinds: RouteEdgeKind[] = [];
-  for (let i = 0; i < stops.length - 1; i += 1) {
-    const candidate = draft.edgeKinds[i] || 'path';
-    const kind = canChooseRouteEdgeKind(candidate, stops[i], stops[i + 1]) ? candidate : 'path';
-    edgeKinds.push(kind);
-  }
-
-  return { stops, edgeKinds };
+  return { stops: collapsedStops, edgeKinds: rebuildRouteEdgeKinds(draft, collapsedStops, resolveEdgeKind) };
 };
 
 export const updateRouteStopAt = (draft: RouteDraft, index: number, patch: Partial<RouteStop>): RouteDraft => {
@@ -251,9 +266,16 @@ export const updateRouteStopAt = (draft: RouteDraft, index: number, patch: Parti
 export const setRouteEdgeKind = (draft: RouteDraft, index: number, kind: RouteEdgeKind): RouteDraft => {
   if (index < 0 || index >= draft.edgeKinds.length) return draft;
   if (!canChooseRouteEdgeKind(kind, draft.stops[index], draft.stops[index + 1])) return draft;
+  const selectedPair = routePairKey(draft.stops[index].id, draft.stops[index + 1].id);
   return {
     ...draft,
-    edgeKinds: draft.edgeKinds.map((edge, edgeIndex) => edgeIndex === index ? kind : edge)
+    // Edge type describes the physical bidirectional Path. If a route retraces
+    // that Path, every occurrence must show and persist the same type.
+    edgeKinds: draft.edgeKinds.map((edge, edgeIndex) => {
+      const from = draft.stops[edgeIndex];
+      const to = draft.stops[edgeIndex + 1];
+      return from && to && routePairKey(from.id, to.id) === selectedPair ? kind : edge;
+    })
   };
 };
 

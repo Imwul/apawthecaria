@@ -28,13 +28,13 @@ import {
   writeActiveCloudSlot
 } from "./persistence/cloudSlots";
 import { MARKER_BY_ID, MARKER_EDGES, markerEdgeKind } from "./map/markerGraph";
+import manualMapReview from "./map/detection/manualMapReview.json";
 import { loadPlayerMarkers, removePlayerMarkerRecords, upsertPlayerMarkerRecords } from "./map/playerMarkerStore";
 import {
   appendRouteStop,
   canChooseRouteEdgeKind,
   cycleRouteEdgeKind,
   draftFromOrigin,
-  findDisconnectedRouteSegment,
   glyphKindFromLocation,
   locationTypeFromGlyph,
   mapKindFromGlyph,
@@ -1401,18 +1401,62 @@ const MAP_WILD_LOCATIONS = MAP_WAYPOINTS.map(([x, y], index) => {
 
 const MAP_SERVICE_HOPS = 3;
 
+type ReviewedMapLocation = {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  region?: string;
+  kind?: string;
+  hidden: boolean;
+  added: boolean;
+};
+
+const REVIEWED_MAP_LOCATIONS = manualMapReview.locations as ReviewedMapLocation[];
+const REVIEWED_MAP_LOCATION_BY_ID = new Map(REVIEWED_MAP_LOCATIONS.map(location => [location.id, location]));
+
 const MAP_GRAPH_NODES: Record<string, MapLocationNode> = (() => {
   const nodes: Record<string, MapLocationNode> = {};
   Object.entries(MAP_LOCATIONS).forEach(([key, node]) => {
+    const reviewed = REVIEWED_MAP_LOCATION_BY_ID.get(key);
+    if (reviewed?.hidden) return;
     nodes[key] = {
       ...node,
+      label: reviewed?.label || node.label,
+      x: reviewed?.x ?? node.x,
+      y: reviewed?.y ?? node.y,
+      region: (reviewed?.region as MapRegion | undefined) || node.region,
+      kind: (reviewed?.kind as MapLocationKind | undefined) || node.kind,
       aliases: node.aliases ? [...node.aliases] : undefined,
       neighbors: []
     };
   });
 
   MAP_WILD_LOCATIONS.forEach((location, index) => {
-    nodes[`loc_${index}`] = { ...location, neighbors: [] };
+    const id = `loc_${index}`;
+    const reviewed = REVIEWED_MAP_LOCATION_BY_ID.get(id);
+    if (reviewed?.hidden) return;
+    nodes[id] = {
+      ...location,
+      label: reviewed?.label || location.label,
+      x: reviewed?.x ?? location.x,
+      y: reviewed?.y ?? location.y,
+      region: (reviewed?.region as MapRegion | undefined) || location.region,
+      kind: (reviewed?.kind as MapLocationKind | undefined) || location.kind,
+      neighbors: []
+    };
+  });
+
+  REVIEWED_MAP_LOCATIONS.forEach(location => {
+    if (location.hidden || nodes[location.id]) return;
+    nodes[location.id] = {
+      label: location.label,
+      x: location.x,
+      y: location.y,
+      region: location.region as MapRegion | undefined,
+      kind: location.kind as MapLocationKind | undefined,
+      neighbors: []
+    };
   });
 
   const connect = (from: string, to: string) => {
@@ -2391,7 +2435,7 @@ const upsertPlayerMapStop = (
 };
 
 const isPlayerCreatedMapPlace = (id: string): boolean =>
-  id.startsWith('mark_') || id.startsWith('custom_');
+  (id.startsWith('mark_') || id.startsWith('custom_')) && !REVIEWED_MAP_LOCATION_BY_ID.has(id);
 
 const playerRecordFromStop = (stop: RouteStop) => ({
   id: stop.id,
@@ -8433,11 +8477,8 @@ function PlayView({
   }, [routeGraphNodes, state.currentLocationName, state.currentLocationType, state.currentRegion, state.clinics, state.customMapLocations]);
   const routeEndId = routeDraft.stops.at(-1)?.id || currentRouteOrigin?.id || '';
   const routeStopChoices = useMemo<RouteStop[]>(() => {
-    const routeIds = new Set(routeDraft.stops.map(stop => stop.id));
-    const adjacentIds = new Set(routeGraphNodes[routeEndId]?.neighbors || []);
-    const usesMapPaths = travelMode !== 'soar' && !hasPendingTaxiMove;
     return Object.entries(routeGraphNodes)
-      .filter(([id]) => !routeIds.has(id) && (!usesMapPaths || adjacentIds.has(id)))
+      .filter(([id]) => id !== routeEndId)
       .map(([id, node]) => stopFromGraphNode(id, node, {
         name: node.label,
         hasClinic: (state.clinics || []).some(clinic =>
@@ -8445,7 +8486,7 @@ function PlayView({
         )
       }))
       .sort((left, right) => left.name.localeCompare(right.name, 'ko'));
-  }, [hasPendingTaxiMove, routeDraft.stops, routeEndId, routeGraphNodes, state.clinics, state.customMapLocations, travelMode]);
+  }, [routeEndId, routeGraphNodes, state.clinics, state.customMapLocations]);
   const routeJourneyTarget = useMemo<RouteStop | null>(() => {
     const targetId = state.journeyActive
       ? findMapLocationKey(state.journeyDestination, state.customMapLocations || [])
@@ -12114,12 +12155,6 @@ function PlayView({
       || activeTravelWagonCapabilities.canSoar
       || (!activeTravelWagon.commissioned && hasPersonalFlight));
   const activeRouteEnd = routeDraft.stops.length > 1 ? routeDraft.stops.at(-1) || null : null;
-  const disconnectedRouteSegment = activeRouteMode === 'move'
-    ? findDisconnectedRouteSegment(
-      routeDraft,
-      (fromId, toId) => (routeGraphNodes[fromId]?.neighbors || []).includes(toId)
-    )
-    : null;
   const soarTargetIsUnvisitedRestrictedPlace = Boolean(activeRouteMode === 'soar'
     && activeRouteEnd
     && ['Ruin', 'Barrow'].includes(activeRouteEnd.kind)
@@ -12138,9 +12173,7 @@ function PlayView({
               : '활공 능력이나 도구가 필요합니다.'
           : soarTargetIsUnvisitedRestrictedPlace
             ? '방문하지 않은 티탄 유적·거수 고분에는 활공할 수 없습니다.'
-            : disconnectedRouteSegment
-              ? `‘${disconnectedRouteSegment.from.name}’과 ‘${disconnectedRouteSegment.to.name}’ 사이에는 직접 이어진 지도 경로가 없습니다.`
-              : null;
+            : null;
   const barterLocations = state.activeAilment ? getAvailableBarterLocations(state) : [];
   const barterLimit = barterLocations.reduce((max, option) => Math.max(max, getBarterAttemptLimit(option.type)), 0);
   const barterRemaining = barterLocations.reduce((max, option) => Math.max(max,
@@ -12225,6 +12258,11 @@ function PlayView({
     }));
   }, [updateState]);
 
+  const resolveDraftEdgeKind = useCallback((from: RouteStop, to: RouteStop): 'path' | 'river' | 'waterway' => {
+    const inferred = mapEdgeKind(from.id, to.id, routeGraphNodes, state.customMapEdges || []);
+    return canChooseRouteEdgeKind(inferred, from, to) ? inferred : 'path';
+  }, [routeGraphNodes, state.customMapEdges]);
+
   const handleAddRouteWaypoint = useCallback((location: MapPickLocation) => {
     const node = routeGraphNodes[location.id];
     const clinicHere = (state.clinics || []).some(clinic =>
@@ -12241,20 +12279,15 @@ function PlayView({
         kind: location.kind,
         locationType: location.kind,
         hasClinic: location.hasClinic
-      });
+    });
     const currentDraft = routeDraftRef.current;
-    if (currentDraft.stops.some(row => row.id === stop.id)) return;
     const currentEnd = currentDraft.stops.at(-1);
-    const usesMapPaths = travelMode !== 'soar' && !hasPendingTaxiMove;
-    if (usesMapPaths && currentEnd && !(routeGraphNodes[currentEnd.id]?.neighbors || []).includes(stop.id)) {
-      showAlert(`‘${currentEnd.name}’과 ‘${stop.name}’ 사이에는 직접 이어진 지도 경로가 없습니다. 현재 경로 끝과 선으로 연결된 위치를 골라 주세요.`);
-      return;
-    }
+    if (currentEnd?.id === stop.id) return;
     setRouteDraft(previous => {
       const last = previous.stops[previous.stops.length - 1];
       // Repeated taps and accidental double-clicks must be idempotent. Removing
       // a route stop is an explicit action in the editor, never a map-click side effect.
-      if (previous.stops.some(row => row.id === stop.id)) return previous;
+      if (last?.id === stop.id) return previous;
       const inferredKind = last
         ? mapEdgeKind(last.id, stop.id, routeGraphNodes, state.customMapEdges || [])
         : 'path';
@@ -12268,7 +12301,7 @@ function PlayView({
       }
       return next;
     });
-  }, [hasPendingTaxiMove, routeGraphNodes, setRouteDraft, state, travelMode]);
+  }, [routeGraphNodes, setRouteDraft, state]);
 
   const handleCreateMapPlace = useCallback((request: { x: number; y: number; kind?: string; terrain?: string; name?: string }) => {
     const stop: RouteStop = {
@@ -12352,7 +12385,7 @@ function PlayView({
 
   const handleRemoveRouteStop = useCallback((index: number) => {
     setRouteDraft(previous => {
-      const next = removeRouteStopAt(previous, index);
+      const next = removeRouteStopAt(previous, index, resolveDraftEdgeKind);
       const dest = next.stops[next.stops.length - 1];
       if (next.stops.length > 1 && dest) {
         setNextLocName(dest.name);
@@ -12365,11 +12398,11 @@ function PlayView({
       }
       return next;
     });
-  }, [setRouteDraft, state.currentRegion]);
+  }, [resolveDraftEdgeKind, setRouteDraft, state.currentRegion]);
 
   const handleMoveRouteStop = useCallback((fromIndex: number, toIndex: number) => {
     setRouteDraft(previous => {
-      const next = moveRouteStop(previous, fromIndex, toIndex);
+      const next = moveRouteStop(previous, fromIndex, toIndex, resolveDraftEdgeKind);
       const dest = next.stops[next.stops.length - 1];
       if (next.stops.length > 1 && dest) {
         setNextLocName(dest.name);
@@ -12378,7 +12411,7 @@ function PlayView({
       }
       return next;
     });
-  }, [setRouteDraft, state.currentRegion]);
+  }, [resolveDraftEdgeKind, setRouteDraft, state.currentRegion]);
 
   const handleClearRouteSides = useCallback(() => {
     setNextLocName('');
@@ -12443,7 +12476,7 @@ function PlayView({
       setRouteDraft(previous => {
         const index = previous.stops.findIndex(stop => stop.id === location.id);
         if (index <= 0) return previous;
-        const next = removeRouteStopAt(previous, index);
+        const next = removeRouteStopAt(previous, index, resolveDraftEdgeKind);
         const destination = next.stops.at(-1);
         if (next.stops.length > 1 && destination) {
           setNextLocName(destination.name);
@@ -12466,7 +12499,7 @@ function PlayView({
     setRouteDraft(previous => {
       const index = previous.stops.findIndex(stop => stop.id === location.id);
       if (index <= 0) return previous;
-      const next = removeRouteStopAt(previous, index);
+      const next = removeRouteStopAt(previous, index, resolveDraftEdgeKind);
       const destination = next.stops.at(-1);
       if (next.stops.length > 1 && destination) {
         setNextLocName(destination.name);
@@ -12484,7 +12517,7 @@ function PlayView({
       customMapLocations: (s.customMapLocations || []).filter(row => row.id !== location.id),
       customMapEdges: (s.customMapEdges || []).filter(edge => edge.from !== location.id && edge.to !== location.id)
     }));
-  }, [setRouteDraft, state.currentLocationName, state.currentRegion, state.customMapLocations, updateState]);
+  }, [resolveDraftEdgeKind, setRouteDraft, state.currentLocationName, state.currentRegion, state.customMapLocations, updateState]);
 
   const handleComposerTravel = useCallback(() => {
     const draft = routeDraftRef.current;
@@ -12886,7 +12919,7 @@ function PlayView({
                       ? '강조된 후보를 누른 뒤 ‘이곳을 여정 목적지로’를 선택하세요. Route Editor에서 경유지도 이어서 고를 수 있습니다.'
                       : '현재는 이동 가능한 후보가 없습니다. 목적지 카드를 다시 뽑으세요.')
                   : '목적지 카드를 뽑으면 방향·거리·장소 유형에 맞는 목적지가 지도에 표시됩니다.')
-                : `현재 경로 끝과 지도 선으로 직접 이어진 위치를 누르세요. Route Editor에서 연결 타입과 순서를 고를 수 있습니다.${currentWeight > maxCarry ? ' 현재 과적 상태라 속도는 1입니다.' : ''}`
+                : `룰북 지도를 보고 다음 위치를 누르세요. Route Editor에서 연결 타입과 순서를 고를 수 있습니다.${currentWeight > maxCarry ? ' 현재 과적 상태라 속도는 1입니다.' : ''}`
             }
           />
         </aside>

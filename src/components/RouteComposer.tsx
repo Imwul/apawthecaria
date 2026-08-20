@@ -89,6 +89,8 @@ export function RouteComposer({
   onTravel
 }: RouteComposerProps) {
   const [placeQuery, setPlaceQuery] = useState('');
+  const [compactView, setCompactView] = useState(true);
+  const [routeFeedback, setRouteFeedback] = useState('');
   const trackContainerRef = useRef<HTMLDivElement>(null);
   const previousCountRef = useRef(draft.stops.length);
   const origin = draft.stops[0] || null;
@@ -108,14 +110,29 @@ export function RouteComposer({
   const travelReady = canTravel
     && Boolean(destination)
     && (movementMode === 'soar' || evaluation.reason === 'legal');
+  const availableStopOptions = useMemo(() => {
+    const nameCounts = new Map<string, number>();
+    availableStops.forEach(stop => {
+      const key = stop.name.trim().toLocaleLowerCase();
+      nameCounts.set(key, (nameCounts.get(key) || 0) + 1);
+    });
+    return availableStops.map(stop => ({
+      stop,
+      inputValue: (nameCounts.get(stop.name.trim().toLocaleLowerCase()) || 0) > 1
+        ? `${stop.name} · ${stop.id}`
+        : stop.name
+    }));
+  }, [availableStops]);
   const exactStopMatch = useMemo(() => {
     const query = placeQuery.trim().toLocaleLowerCase();
     if (!query) return null;
-    return availableStops.find(stop => stop.name.trim().toLocaleLowerCase() === query || stop.id.toLocaleLowerCase() === query) || null;
-  }, [availableStops, placeQuery]);
-  const exactStopAlreadyAdded = Boolean(exactStopMatch && draft.stops.some(stop => stop.id === exactStopMatch.id));
-  const targetAlreadyAdded = Boolean(journeyTarget && draft.stops.some(stop => stop.id === journeyTarget.id));
+    return availableStopOptions.find(option =>
+      option.inputValue.trim().toLocaleLowerCase() === query || option.stop.id.toLocaleLowerCase() === query
+    )?.stop || null;
+  }, [availableStopOptions, placeQuery]);
+  const exactStopAlreadyAdded = Boolean(exactStopMatch && destination?.id === exactStopMatch.id);
   const targetIsMoveEnd = Boolean(journeyTarget && destination?.id === journeyTarget.id);
+  const targetAlreadyAdded = targetIsMoveEnd;
   const targetCanAdd = Boolean(journeyTarget && availableStops.some(stop => stop.id === journeyTarget.id));
 
   useEffect(() => {
@@ -129,6 +146,17 @@ export function RouteComposer({
   const addStop = (stop: RouteStop) => {
     onAddStop?.(stop);
     setPlaceQuery('');
+    setRouteFeedback(`${stop.name || '위치'}을(를) 경로 끝에 추가했습니다.`);
+  };
+
+  const removeStop = (index: number, stop: RouteStop) => {
+    onRemoveStop(index);
+    setRouteFeedback(`${stop.name || `${index + 1}번 위치`}을(를) 경로에서 뺐습니다.`);
+  };
+
+  const moveStop = (fromIndex: number, toIndex: number, stop: RouteStop) => {
+    onMoveStop?.(fromIndex, toIndex);
+    setRouteFeedback(`${stop.name || `${fromIndex + 1}번 위치`}을(를) ${toIndex + 1}번으로 옮겼습니다.`);
   };
 
   const scrollRoute = (direction: -1 | 1) => {
@@ -209,7 +237,7 @@ export function RouteComposer({
             <span>
               {movementMode === 'soar'
                 ? '착륙할 지도 위치를 검색하세요. 중간 위치는 Move로 돌아갈 때 그대로 남습니다.'
-                : '현재 경로 끝과 지도 선으로 직접 이어진 위치만 검색됩니다.'}
+                : '룰북 지도를 보고 다음 위치를 고르세요. 연결 여부와 이동 순서는 플레이어가 판단합니다.'}
             </span>
           </div>
           <div className="route-composer__picker-controls">
@@ -223,8 +251,8 @@ export function RouteComposer({
               autoComplete="off"
             />
             <datalist id="route-stop-options">
-              {availableStops.map(stop => (
-                <option key={stop.id} value={stop.name}>{stopMeta(stop)}</option>
+              {availableStopOptions.map(({ stop, inputValue }) => (
+                <option key={stop.id} value={inputValue}>{stopMeta(stop)}</option>
               ))}
             </datalist>
             <button
@@ -250,19 +278,31 @@ export function RouteComposer({
 
       {/* Track of horizontal cards and interactive connector lines */}
       <div className="route-composer__strip-heading">
-        <span>출발 → 경유 → 도착</span>
-        {count > 2 && (
-          <div className="route-composer__scroll-actions" aria-label="긴 경로 보기">
-            <button type="button" onClick={() => scrollRoute(-1)} aria-label="이전 경로 보기">‹</button>
-            <button type="button" onClick={() => scrollRoute(1)} aria-label="다음 경로 보기">›</button>
-          </div>
-        )}
+        <div className="route-composer__strip-labels">
+          <span>출발 → 경유 → 도착</span>
+        </div>
+        <div className="route-composer__strip-actions">
+          <button
+            type="button"
+            className="route-composer__density-toggle"
+            aria-pressed={!compactView}
+            onClick={() => setCompactView(current => !current)}
+          >
+            {compactView ? '세부 편집' : '간결 보기'}
+          </button>
+          {count > 2 && (
+            <div className="route-composer__scroll-actions" aria-label="긴 경로 보기">
+              <button type="button" onClick={() => scrollRoute(-1)} aria-label="이전 경로 보기">‹</button>
+              <button type="button" onClick={() => scrollRoute(1)} aria-label="다음 경로 보기">›</button>
+            </div>
+          )}
+        </div>
       </div>
       <div className="route-composer__track-container" ref={trackContainerRef} tabIndex={0} aria-label="선택 순서대로 이어진 경로. 좌우로 스크롤할 수 있습니다.">
         {count === 0 ? (
           <p className="route-composer__empty">현재 위치를 확인한 뒤 지도나 위치 검색에서 첫 node를 고르세요.</p>
         ) : (
-          <div className="route-composer__track" role="region" aria-label="가로 경로 목록">
+          <div className={`route-composer__track${compactView ? ' route-composer__track--compact' : ''}`} role="region" aria-label="가로 경로 목록">
             {draft.stops.map((row, index) => {
               const edgeKind = draft.edgeKinds[index] || 'path';
               const nextStop = draft.stops[index + 1];
@@ -270,7 +310,7 @@ export function RouteComposer({
               return (
                 <div key={`${row.id}:${index}`} className="route-composer__step-unit">
                   {/* Rounded horizontal rectangular node card */}
-                  <div className="route-composer__card">
+                  <div className={`route-composer__card${compactView ? ' route-composer__card--compact' : ''}`}>
                     <div className="route-card__header">
                       <span className="route-card__index">{roleLabel}</span>
                       <MapGlyph kind={row.kind} terrain={row.terrain} size={18} />
@@ -279,47 +319,52 @@ export function RouteComposer({
                         className="route-card__name-input"
                         aria-label={`${index + 1}번 노드 이름`}
                         value={row.name}
+                        title={row.name}
                         placeholder="이름 없음"
                         autoComplete="off"
                         onChange={event => onChangeStop(index, { name: event.target.value })}
                       />
                     </div>
-                    <div className="route-card__controls">
-                      <select
-                        className="route-card__select"
-                        aria-label={`${row.name || '노드'} 형태`}
-                        value={row.kind}
-                        onChange={event => {
-                          const kind = event.target.value as MapGlyphKind;
-                          onChangeStop(index, {
-                            kind,
-                            hasClinic: kind === 'Clinic',
-                            terrain: glyphUsesTerrain(kind) ? row.terrain : null
-                          });
-                        }}
-                      >
-                        {MAP_GLYPH_KINDS.map(kind => (
-                          <option key={kind} value={kind}>
-                            {kind === 'City' ? '도시' : kind === 'Settlement' ? '정착지' : kind === 'Wilds' ? '야생' : kind === 'Ruin' ? '티탄 유적' : kind === 'Barrow' ? '거수 고분' : '약제소'}
-                          </option>
-                        ))}
-                      </select>
-                      {glyphUsesTerrain(row.kind) && (
+                    {compactView ? (
+                      <span className="route-card__meta" title={stopMeta(row)}>{stopMeta(row)}</span>
+                    ) : (
+                      <div className="route-card__controls">
                         <select
                           className="route-card__select"
-                          aria-label={`${row.name || '노드'} 지형색`}
-                          value={row.terrain || ''}
-                          onChange={event => onChangeStop(index, { terrain: (event.target.value || null) as MapTerrain | null })}
+                          aria-label={`${row.name || '노드'} 형태`}
+                          value={row.kind}
+                          onChange={event => {
+                            const kind = event.target.value as MapGlyphKind;
+                            onChangeStop(index, {
+                              kind,
+                              hasClinic: kind === 'Clinic',
+                              terrain: glyphUsesTerrain(kind) ? row.terrain : null
+                            });
+                          }}
                         >
-                          <option value="">색 미정</option>
-                          {MAP_TERRAINS.map(terrain => (
-                            <option key={terrain} value={terrain}>
-                              {terrain === 'Bog' ? '늪지' : terrain === 'Forest' ? '숲' : terrain === 'Loch' ? '호수·강' : terrain === 'Meadow' ? '초원' : '산맥'}
+                          {MAP_GLYPH_KINDS.map(kind => (
+                            <option key={kind} value={kind}>
+                              {kind === 'City' ? '도시' : kind === 'Settlement' ? '정착지' : kind === 'Wilds' ? '야생' : kind === 'Ruin' ? '티탄 유적' : kind === 'Barrow' ? '거수 고분' : '약제소'}
                             </option>
                           ))}
                         </select>
-                      )}
-                    </div>
+                        {glyphUsesTerrain(row.kind) && (
+                          <select
+                            className="route-card__select"
+                            aria-label={`${row.name || '노드'} 지형색`}
+                            value={row.terrain || ''}
+                            onChange={event => onChangeStop(index, { terrain: (event.target.value || null) as MapTerrain | null })}
+                          >
+                            <option value="">색 미정</option>
+                            {MAP_TERRAINS.map(terrain => (
+                              <option key={terrain} value={terrain}>
+                                {terrain === 'Bog' ? '늪지' : terrain === 'Forest' ? '숲' : terrain === 'Loch' ? '호수·강' : terrain === 'Meadow' ? '초원' : '산맥'}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    )}
                     {index === 0 ? (
                       <span className="route-card__fixed">현재 위치 · 순서 고정</span>
                     ) : (
@@ -328,7 +373,7 @@ export function RouteComposer({
                           type="button"
                           className="route-card__move-btn"
                           disabled={index <= 0}
-                          onClick={() => onMoveStop?.(index, index - 1)}
+                          onClick={() => moveStop(index, index - 1, row)}
                           aria-label={`앞 순서로 이동: ${row.name || roleLabel}`}
                           title="앞 순서로 이동"
                         >
@@ -338,7 +383,7 @@ export function RouteComposer({
                           type="button"
                           className="route-card__move-btn"
                           disabled={index === 0 || index >= count - 1}
-                          onClick={() => onMoveStop?.(index, index + 1)}
+                          onClick={() => moveStop(index, index + 1, row)}
                           aria-label={`뒤 순서로 이동: ${row.name || roleLabel}`}
                           title="뒤 순서로 이동"
                         >
@@ -347,7 +392,7 @@ export function RouteComposer({
                         <button
                           type="button"
                           className="route-card__remove-btn"
-                          onClick={() => onRemoveStop(index)}
+                          onClick={() => removeStop(index, row)}
                           aria-label={`${row.name || '노드'} 삭제`}
                         >
                           빼기
@@ -358,13 +403,13 @@ export function RouteComposer({
 
                   {/* Interactive connector line between cards */}
                   {index < count - 1 && (
-                    <div className="route-connector" role="group" aria-label={`구간 ${index + 1} 연결선`}>
+                    <div className="route-connector" role="group" aria-label={`구간 ${index + 1}: ${row.name || '이름 없음'}에서 ${nextStop?.name || '이름 없음'}까지`}>
                       <div className={`route-connector__line route-connector__line--${edgeKind}`} />
                       <button
                         type="button"
                         className={`route-connector__btn route-connector__btn--${edgeKind}`}
                         onClick={() => onChangeEdge(index, cycleRouteEdgeKind(edgeKind, row, nextStop))}
-                        aria-label={`구간 ${index + 1} 연결선 클릭하여 타입 변경 (현재: ${routeEdgeLabel(edgeKind)})`}
+                        aria-label={`구간 ${index + 1}: ${row.name || '이름 없음'}에서 ${nextStop?.name || '이름 없음'}까지, 클릭하여 타입 변경 (현재: ${routeEdgeLabel(edgeKind)})`}
                         title={`클릭하여 육로/수로/강 전환 (현재: ${routeEdgeLabel(edgeKind)})`}
                       >
                         <span className="route-connector__icon">
@@ -382,6 +427,8 @@ export function RouteComposer({
           </div>
         )}
       </div>
+
+      {routeFeedback && <p className="route-composer__feedback" role="status" aria-live="polite">{routeFeedback}</p>}
 
       {count > 1 && (
         <p className="route-composer__edge-hint">
