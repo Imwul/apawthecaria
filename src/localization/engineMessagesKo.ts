@@ -134,6 +134,7 @@ const exactEngineMessages: Record<string, string> = {
   "Destination Region and Location type must match the selected map node.": "목적지의 지역과 장소 유형은 선택한 지도 지점과 일치해야 합니다.",
   "Not enough Trinkets.": "장신구가 부족합니다.",
   "Only an intact, unmodified Basic Tool can be upgraded.": "온전하고 개조되지 않은 기본 도구만 개조할 수 있습니다.",
+  "Only one bottle of Musk Scrapings can be gathered per Forage.": "사향 긁은 가루는 한 번의 채집에서 1병만 모을 수 있습니다.",
   "Override reason is required and is recorded separately from a normal resolution.": "예외 처리 사유가 필요하며 일반 판정과 별도로 기록됩니다.",
   "POUND requires canonical Plant Parts with a BREW preparation.": "POUND에는 BREW 조제법을 지닌 정식 식물 부위가 필요합니다.",
   "PRESERVE requires a selected Big Iron Cauldron.": "PRESERVE에는 선택한 Big Iron Cauldron이 필요합니다.",

@@ -6,6 +6,8 @@ import {
   hasImmediatelyTreatableAilment,
   previewTreatmentSelection,
   canonicalMetadata,
+  calculateForageRarityBreakdown,
+  isForagingPreparationAvailableInSeason,
   listLegalMoveStops,
   previewMoveStops,
   resolveDowntime,
@@ -296,6 +298,51 @@ describe('foraging and treatment transactions', () => {
     expect(new Set(result.value?.gatheredItems.map(item => item.canonicalReagentId))).toEqual(new Set([candidate.reagentId]));
     expect(result.value?.gatheredItems.every(item => item.provenance?.region === 'Bog')).toBe(true);
     expect(result.value?.gatheredItems.every(item => item.provenance?.source === 'forage')).toBe(true);
+  });
+
+  it('[FORAGE-003/FORAGE-006] exposes the exact rarity calculation used by the forage result', () => {
+    const marigold = REAGENTS.find(reagent => reagent.canonicalName === 'Marigold')!;
+    const breakdown = calculateForageRarityBreakdown(marigold, 'Forest', 'Spring', [], -2)!;
+    expect(breakdown).toMatchObject({
+      baseRarity: 5,
+      regionModifier: 0,
+      seasonModifier: 3,
+      additionalModifier: -2,
+      finalRarity: 6
+    });
+    const smallFish = REAGENTS.find(reagent => reagent.canonicalName === 'Small Fish')!;
+    const toolBreakdown = calculateForageRarityBreakdown(smallFish, 'Loch', 'Summer', ['bark-coracle', 'fine-spidersilk-net'])!;
+    expect(toolBreakdown.toolModifiers).toEqual([
+      { toolId: 'bark-coracle', amount: -2 },
+      { toolId: 'fine-spidersilk-net', amount: -3 }
+    ]);
+    expect(toolBreakdown.finalRarity).toBe(2);
+  });
+
+  it('[FORAGE-006] blocks out-of-season Parts and the one-bottle special limit', () => {
+    const burdock = REAGENTS.find(reagent => reagent.canonicalName === 'Burdock')!;
+    const summerFlowers = burdock.preparations.find(part => part.name === 'Flowers')!;
+    expect(isForagingPreparationAvailableInSeason(summerFlowers, 'Spring')).toBe(false);
+    expect(isForagingPreparationAvailableInSeason(summerFlowers, 'Summer')).toBe(true);
+    const seasonal = resolveForaging({
+      transactionId: 'forage-seasonal-part',
+      state: { season: 'Spring', currentRegion: 'Forest', currentLocationType: 'Wilds', foragingPoints: 0, inventory: [], toolIds: ['teeth'] },
+      forageRegion: 'Forest', locationRelation: 'current', card: 13, targetReagentId: burdock.id,
+      parts: [{ preparationId: summerFlowers.id, quantity: 1 }], skipEncounter: true
+    });
+    expect(seasonal.status).toBe('invalid');
+    expect(seasonal.messages.join(' ')).toMatch(/cannot be foraged in Spring/i);
+
+    const musk = REAGENTS.find(reagent => reagent.canonicalName === 'Musk Scrapings')!;
+    const bottle = musk.preparations[0];
+    const duplicateBottle = resolveForaging({
+      transactionId: 'forage-musk-limit',
+      state: { season: 'Spring', currentRegion: 'Titan', currentLocationType: 'Titan Ruin', foragingPoints: 0, inventory: [], toolIds: bottle.requiredTools.filter(tool => tool !== 'none') },
+      forageRegion: 'Titan', locationRelation: 'current', card: 13, targetReagentId: musk.id,
+      parts: [{ preparationId: bottle.id, quantity: 2 }], skipEncounter: true
+    });
+    expect(duplicateBottle.status).toBe('invalid');
+    expect(duplicateBottle.messages.join(' ')).toMatch(/one bottle/i);
   });
 
   it('[REMEDY-001/FORAGE-006/UX-001] previews selected Parts, required Tools, and the p.33 immediate-Remedy checkpoint', () => {

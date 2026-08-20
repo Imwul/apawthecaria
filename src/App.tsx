@@ -120,6 +120,8 @@ import {
   resolveCanonicalDowntime,
   resolveEncounter,
   resolveForaging,
+  calculateForageRarityBreakdown,
+  isForagingPreparationAvailableInSeason,
   listInBloomCandidates,
   resolveJourneyEnding,
   resolveJourneyStart,
@@ -296,6 +298,21 @@ const requirementRuleTags = (requirement: RequirementExpression): RuleTag[] => {
   if (requirement.kind === 'alternatives') return requirement.alternatives.flatMap(requirementRuleTags);
   return requirement.requirements.flatMap(requirementRuleTags);
 };
+
+const requirementTagThresholds = (requirement: RequirementExpression): Array<{ tag: RuleTag; threshold: number }> => {
+  if (requirement.kind === 'tag') return [{ tag: requirement.tag, threshold: requirement.threshold }];
+  if (requirement.kind === 'special') return [];
+  if (requirement.kind === 'alternatives') return requirement.alternatives.flatMap(requirementTagThresholds);
+  return requirement.requirements.flatMap(requirementTagThresholds);
+};
+
+const treatmentRelevantPreparationTags = (
+  tags: ReadonlyArray<{ tag: RuleTag; value: number }>,
+  requirements: ReadonlyArray<{ tag: RuleTag; threshold: number }>
+) => tags.filter(value => requirements.some(requirement =>
+  requirement.tag === value.tag
+  && (value.tag === 'FAIR' || value.tag === 'FOUL' || value.value >= requirement.threshold)
+));
 
 const canResolveSeverityAtReputation = (severity: string, reputation: number) => {
   const rank = ['lesser', 'intermediate', 'severe', 'dire'].indexOf(severity);
@@ -4399,6 +4416,36 @@ const CANONICAL_TOOL_IDS: Record<string, string> = {
   tool_stilts: 'stilts', tool_saddlebags: 'saddlebags'
 };
 
+const BASIC_TOOL_EFFECTS_KO: Record<string, string> = {
+  'belt-knife': '채집에 실패했을 때 채집 포인트를 얻을 수 있게 하는 기본 도구입니다.',
+  'mortar-and-pestle': '영약재 부위를 갈거나 빻는 GROUND·CRUSHED 조제에 사용합니다.',
+  'camp-kettle': '영약재 부위를 끓이거나 우려내는 BOILED·BREWED 조제에 사용합니다.',
+  teeth: '영약재 부위를 씹거나 소화하는 CHEWED·DIGESTED 조제에 사용합니다.',
+  paws: '영약재 부위를 더하거나 바르는 ADDED·APPLIED 조제에 사용합니다.'
+};
+
+const TOOL_UPGRADE_EFFECTS_KO: Record<string, string> = {
+  'steel-lined-mortar': '지역 동물을 돕는 동안 처음 GRIND·CRUSH 부위를 모으면 모든 활성 타이머가 1시간 늘어납니다.',
+  'granite-mortar': '식물의 BREW 부위를 무게 없는 가루·차로 만듭니다. 보관 한도는 소지 한도 수치만큼입니다.',
+  'pairing-knife': '무게 없이 채집 포인트를 얻을 수 있습니다.',
+  'silver-sickle': '채집 포인트를 얻을 때마다 1점을 추가로 얻습니다.',
+  'steel-axe': '새 질환이 시작될 때 채집 포인트 3점을 얻습니다.',
+  'efficient-copper-kettle': 'BOIL·BREW 부위를 모을 때 선택한 활성 타이머 하나를 1시간 늘립니다.',
+  'double-boiler': '치료제에 든 BOIL·BREW 부위가 하나뿐이면 그 부위의 약효를 1 높입니다.'
+};
+
+const canonicalToolEffectText = (item: BagItem, state: GameState): string => {
+  const toolId = item.canonicalToolId;
+  if (!toolId) return '직접 기록한 장비입니다.';
+  const toolState = canonicalToolsFromState(state).find(tool => tool.instanceId === item.id);
+  if (toolState?.upgradeId) return TOOL_UPGRADE_EFFECTS_KO[toolState.upgradeId]
+    || TOOL_UPGRADE_BY_ID.get(toolState.upgradeId)?.effect
+    || '개조된 기본 도구입니다.';
+  if (BASIC_TOOL_EFFECTS_KO[toolId]) return BASIC_TOOL_EFFECTS_KO[toolId];
+  const legacyId = Object.entries(CANONICAL_TOOL_IDS).find(([, canonicalId]) => canonicalId === toolId)?.[0];
+  return TOOLS_DB.find(tool => tool.id === legacyId)?.desc || '도감에 기록된 도구입니다.';
+};
+
 const GUILD_SERVICES_DB = [
   { id: 'send_package', name: '소포 보내기 (Send Package)', cost: 2, places: 'Any Settlement or City', desc: '최대 무게 5의 실제 가방 물품을 다른 플레이어에게 보낼 의뢰로 기록합니다.' },
   { id: 'rug_wonders', name: '놀라운 양탄자 (Rug of Wonders)', cost: 1, places: 'Any Settlement or City', desc: '여정당 1회, 기본 희귀도 9 이하 영약재 부위 1개를 구입합니다.' },
@@ -4745,6 +4792,9 @@ export default function App() {
   useEffect(() => {
     if (!state?.pendingForaging || activeForageEncounter) return;
     const pending = state.pendingForaging;
+    const restoredGatheredItems = state.bag.filter(item =>
+      item.type === 'reagent' && item.provenance?.sourceTransactionId === pending.transactionId
+    );
     const result = resolveForaging({
       transactionId: pending.transactionId,
       state: {
@@ -4780,12 +4830,19 @@ export default function App() {
         page: encounter?.sourcePage || 152,
         cardValue: cardDisplayValue(pending.card.value), suitLabel: suitLabels[pending.card.suit || '♥'], suit: pending.card.suit || '♥',
         foundReagents: result.value!.candidates.map(candidate => ({
-          name: candidate.canonicalName, reagentId: candidate.reagentId, rarity: candidate.rarity,
+          name: REAGENT_BY_ID.get(candidate.reagentId)?.displayName || candidate.canonicalName,
+          reagentId: candidate.reagentId, rarity: candidate.rarity,
           fpAvailable: candidate.automaticWithForagingPoints, gapCost: candidate.gapCost, cardSuccess: candidate.cardSuccess
         })),
         region: pending.region, season: state.currentSeason,
         timerBaseCost: pending.locationRelation === 'adjacent' ? 2 : 1,
-        gatheredPartCount: 0, selectedReagentId: pending.selectedReagentId,
+        gatheredPartCount: restoredGatheredItems.length, selectedReagentId: pending.selectedReagentId,
+        forageFailed: Boolean(pending.selectedReagentId && restoredGatheredItems.length === 0),
+        resultNotice: pending.selectedReagentId
+          ? restoredGatheredItems.length > 0
+            ? `저장된 채집 결과를 복원했습니다. ${restoredGatheredItems.map(item => localizeInventoryItemName(item.name)).join(' · ')}`
+            : `저장된 실패 판정을 복원했습니다. 현재 채집 포인트 ${state.activeAilment?.foragingPoints || 0}점입니다.`
+          : '',
         transactionId: pending.transactionId,
         secondaryCard: pending.secondaryCard || null
       });
@@ -5639,9 +5696,10 @@ export default function App() {
       selectedReagentId: find.reagentId,
       gatheredPartCount: 0,
       timerBaseCost: outcome.timerCostAfterEncounter,
-      forageFailed: true
+      forageFailed: true,
+      foragingPointsGained: outcome.foragingPointsGained,
+      resultNotice: `${find.name} 채집 실패 · 카드 ${cardDisplayValue(pending.card.value)} < 희귀도 ${find.rarity} · 채집 포인트 +${outcome.foragingPointsGained}`
     } : current);
-    showAlert(result.messages.join('\n'));
   };
 
   const handleAddForageFindToBag = async (find: ForageFind, _idx: number) => {
@@ -5651,30 +5709,44 @@ export default function App() {
     const availableToolIds = new Set(canonicalToolsFromState(state)
       .filter(tool => !tool.broken && !tool.consumed)
       .map(tool => tool.toolId));
-    const availableParts = reagent.preparations.filter(part => part.requiredTools.every(tool => tool === 'none' || availableToolIds.has(tool)));
+    const toolCompatibleParts = reagent.preparations.filter(part =>
+      part.requiredTools.every(tool => tool === 'none' || availableToolIds.has(tool))
+    );
+    const availableParts = toolCompatibleParts.filter(part =>
+      isForagingPreparationAvailableInSeason(part, state.currentSeason)
+    );
     if (availableParts.length === 0) {
-      showAlert('이 영약재를 준비하는 데 필요한 도구가 없습니다.');
+      showAlert(toolCompatibleParts.length > 0
+        ? `${localizeSeasonLabel(state.currentSeason)}에는 채집할 수 있는 부위가 없습니다.`
+        : '이 영약재를 준비하는 데 필요한 도구가 없습니다.');
       return;
     }
     const selectionPatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
     const selectionAilment = selectionPatient?.ailments.find(ailment => ailment.status === 'active');
     const selectionAilmentDefinition = AILMENTS.find(ailment => ailment.id === selectionAilment?.ailmentId);
-    const treatmentNeededTags = new Set(selectionAilmentDefinition
-      ? requirementRuleTags(selectionAilmentDefinition.requirements)
-      : []);
-    const preferredPartIndex = availableParts.findIndex(part => part.tags.some(tag => treatmentNeededTags.has(tag.tag)));
+    const treatmentNeededRequirements = selectionAilmentDefinition
+      ? requirementTagThresholds(selectionAilmentDefinition.requirements)
+      : [];
+    const preferredPartIndex = availableParts.findIndex(part =>
+      treatmentRelevantPreparationTags(part.tags, treatmentNeededRequirements).length > 0
+    );
+    const onePartPerForage = reagent.specialAcquisition.some(rule =>
+      rule.effect.type === 'customEffect' && rule.effect.code === 'ONE_BOTTLE_PER_FORAGE'
+    );
     const partSelections: Array<{ preparationId: string; quantity: number }> = [];
     const selectedPreparationDefs: typeof availableParts = [];
     let addAnotherPart = true;
     while (addAnotherPart) {
       const chosen = await requestControlledPrompt({
         title: partSelections.length > 0 ? '다른 부위도 채집하세요' : '채집할 부위를 선택하세요',
-        message: `${reagent.displayName} · 같은 영약재에서 서로 다른 부위나 여러 개를 함께 가져올 수 있습니다. 첫 부위 이후 각 추가 부위마다 타이머 비용이 1시간 늘어납니다.`,
+        message: onePartPerForage
+          ? `${reagent.displayName} · 이 영약재는 특별 조건에 따라 한 번의 채집에서 1병만 모을 수 있습니다.`
+          : `${reagent.displayName} · 같은 영약재에서 서로 다른 부위나 여러 개를 함께 가져올 수 있습니다. 첫 부위 이후 각 추가 부위마다 타이머 비용이 1시간 늘어납니다.`,
         defaultValue: String((preferredPartIndex >= 0 ? preferredPartIndex : 0) + 1),
         kicker: '채집 기록',
         options: availableParts.map((part, partIndex) => ({
           value: String(partIndex + 1),
-          label: `${partIndex + 1}. ${localizePreparationName(part.name)} (${localizePreparationMethod(part.method)}, ${part.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음'}, 무게 ${formatWeight(part.weight)}, ${part.uses}회분)${part.tags.some(tag => treatmentNeededTags.has(tag.tag)) ? ' · 현재 치료에 맞음' : ''}`
+          label: `${partIndex + 1}. ${localizePreparationName(part.name)} (${localizePreparationMethod(part.method)}, ${part.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음'}, 무게 ${formatWeight(part.weight)}, ${part.uses}회분)${treatmentRelevantPreparationTags(part.tags, treatmentNeededRequirements).length > 0 ? ' · 현재 치료에 기여' : ''}`
         }))
       });
       if (chosen === null) {
@@ -5682,7 +5754,7 @@ export default function App() {
         break;
       }
       const preparation = availableParts[Math.max(0, (parseInt(chosen, 10) || 1) - 1)] || availableParts[0];
-      const quantityInput = await requestControlledPrompt({
+      const quantityInput = onePartPerForage ? '1' : await requestControlledPrompt({
         title: '채집 수량',
         message: `${localizePreparationName(preparation.name)}을 몇 개 채집하나요?`,
         defaultValue: '1',
@@ -5694,12 +5766,16 @@ export default function App() {
         if (partSelections.length === 0) return;
         break;
       }
-      const quantity = Math.max(1, parseInt(quantityInput, 10) || 1);
+      const quantity = onePartPerForage ? 1 : Math.max(1, parseInt(quantityInput, 10) || 1);
       const existing = partSelections.find(row => row.preparationId === preparation.id);
       if (existing) existing.quantity += quantity;
       else {
         partSelections.push({ preparationId: preparation.id, quantity });
         selectedPreparationDefs.push(preparation);
+      }
+      if (onePartPerForage) {
+        addAnotherPart = false;
+        continue;
       }
       const continueChoice = await requestControlledPrompt({
         title: '같은 영약재에서 더 채집할까요?',
@@ -5836,8 +5912,12 @@ export default function App() {
       foundReagents: [{ ...find, name: reagent.displayName }],
       selectedReagentId: reagent.id,
       gatheredPartCount: outcome.gatheredItems.length,
-      timerBaseCost: pending.timerCostAfterEncounter,
-      forageFailed: outcome.gatheredItems.length === 0
+      timerBaseCost: outcome.timerCostAfterEncounter,
+      forageFailed: outcome.gatheredItems.length === 0,
+      foragingPointsSpent: outcome.foragingPointsSpent,
+      resultNotice: outcome.gatheredItems.length > 0
+        ? `${reagent.displayName} 채집 완료 · ${outcome.gatheredItems.map(item => localizeInventoryItemName(item.name)).join(' · ')}${outcome.foragingPointsSpent > 0 ? ` · 채집 포인트 -${outcome.foragingPointsSpent}` : ''}`
+        : `채집 실패 · 채집 포인트 +${outcome.foragingPointsGained}`
     } : prev);
     if (outcome.gatheredItems.length === 0) showAlert(result.messages.join('\n'));
   };
@@ -6272,7 +6352,7 @@ export default function App() {
           defaultValue: reagentItems[0].id,
           options: reagentItems.map(item => ({
             value: item.id,
-            label: `${item.name}${(item.quantity || 1) > 1 ? ` · ${item.quantity}개 중 1개` : ''}`
+            label: `${localizeInventoryItemName(item.name)}${(item.quantity || 1) > 1 ? ` · ${item.quantity}개 중 1개` : ''}`
           }))
         });
         if (scurryDiscardId === null) return false;
@@ -7139,21 +7219,47 @@ export default function App() {
         const foragePatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
         const forageAilment = foragePatient?.ailments.find(ailment => ailment.status === 'active');
         const forageAilmentDefinition = AILMENTS.find(ailment => ailment.id === forageAilment?.ailmentId);
-        const neededForageTags = new Set(forageAilmentDefinition ? requirementRuleTags(forageAilmentDefinition.requirements) : []);
+        const neededForageRequirements = forageAilmentDefinition ? requirementTagThresholds(forageAilmentDefinition.requirements) : [];
         const currentForagingPoints = foragePatient?.foragingPoints || 0;
-        const forageToolIds = new Set(canonicalToolsFromState(state)
+        const forageToolIdList = canonicalToolsFromState(state)
           .filter(tool => !tool.broken && !tool.consumed)
-          .map(tool => tool.toolId));
+          .map(tool => tool.toolId);
+        const forageToolIds = new Set(forageToolIdList);
+        const forageModifiers = canonicalForagingModifiers(state);
+        const rarityExplanation = (find: ForageFind): string => {
+          const reagent = find.reagentId ? REAGENT_BY_ID.get(find.reagentId) : null;
+          if (!reagent) return find.rarity ? `희귀도 ${find.rarity}` : '';
+          const alwaysAvailable = forageModifiers.alwaysAvailableReagentIds.includes(reagent.id);
+          const additionalModifier = forageModifiers.typeRarityModifiers[reagent.type] || 0;
+          const breakdown = calculateForageRarityBreakdown(
+            reagent,
+            activeForageEncounter.region,
+            state.currentSeason,
+            forageToolIdList,
+            additionalModifier,
+            alwaysAvailable
+          );
+          if (!breakdown) return `희귀도 ${find.rarity}`;
+          const modifiers = [
+            breakdown.regionModifier ? `지역 ${breakdown.regionModifier > 0 ? '+' : ''}${breakdown.regionModifier}` : '',
+            breakdown.seasonModifier ? `계절 ${breakdown.seasonModifier > 0 ? '+' : ''}${breakdown.seasonModifier}` : '',
+            ...breakdown.toolModifiers.map(modifier => `${modifier.toolId === 'bark-coracle' ? '자작나무 보트' : '스파이더실크 그물'} ${modifier.amount}`),
+            breakdown.additionalModifier ? `길동무·동료 ${breakdown.additionalModifier}` : '',
+            alwaysAvailable ? 'Resourceful: 지역 제한 무시' : ''
+          ].filter(Boolean);
+          return `기본 ${breakdown.baseRarity}${modifiers.length > 0 ? ` · ${modifiers.join(' · ')}` : ''} → 희귀도 ${breakdown.finalRarity}`;
+        };
         const normalizeForageFind = (find: ForageFind | string): ForageFind => typeof find === 'string'
           ? { name: find.replace(/\s*\(.*/, ''), rarity: 0 }
           : find;
         const matchingForageParts = (find: ForageFind): string[] => {
           const reagent = REAGENTS.find(row => row.id === find.reagentId);
-          if (!reagent || neededForageTags.size === 0) return [];
+          if (!reagent || neededForageRequirements.length === 0) return [];
           return reagent.preparations
-            .filter(part => part.requiredTools.every(tool => tool === 'none' || forageToolIds.has(tool)))
+            .filter(part => part.requiredTools.every(tool => tool === 'none' || forageToolIds.has(tool))
+              && isForagingPreparationAvailableInSeason(part, state.currentSeason))
             .flatMap(part => {
-            const relevant = part.tags.filter(tag => neededForageTags.has(tag.tag));
+            const relevant = treatmentRelevantPreparationTags(part.tags, neededForageRequirements);
             return relevant.length > 0
               ? [`${localizePreparationName(part.name)}: ${relevant.map(tag => `${tag.tag} ${tag.value}`).join(' · ')}`]
               : [];
@@ -7165,9 +7271,11 @@ export default function App() {
             || a.rarity - b.rarity
             || a.name.localeCompare(b.name));
         const treatmentForageFinds = sortedForageFinds.filter((find: ForageFind) => matchingForageParts(find).length > 0);
-        const displayedForageFinds = !activeForageEncounter.showAllFinds && treatmentForageFinds.length > 0
-          ? treatmentForageFinds
-          : sortedForageFinds;
+        const displayedForageFinds = activeForageEncounter.selectedReagentId
+          ? sortedForageFinds.filter((find: ForageFind) => find.reagentId === activeForageEncounter.selectedReagentId)
+          : !activeForageEncounter.showAllFinds && treatmentForageFinds.length > 0
+            ? treatmentForageFinds
+            : sortedForageFinds;
         const closeForageEncounter = async () => {
           if (await resolveCanonicalForageEncounter('')) {
             if (state.pendingLeaveObligation?.kind === 'foraging-encounter') {
@@ -7205,20 +7313,37 @@ export default function App() {
               {activeForageEncounter.choices?.length > 0 && (
                 <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.9rem' }}>
                   {activeForageEncounter.choices.map((choice: { id: string; label: string }) => (
-                    <button
-                      key={choice.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveForageEncounter((current: any) => ({ ...current, selectedChoiceId: choice.id }));
-                        updateState(s => ({
-                          ...s,
-                          pendingForaging: s.pendingForaging ? { ...s.pendingForaging, selectedChoiceId: choice.id } : null
-                        }));
-                      }}
-                      style={{ padding: '0.65rem', textAlign: 'left', border: activeForageEncounter.selectedChoiceId === choice.id ? '2px solid var(--primary)' : '1px solid var(--glass-border)', background: '#fff', borderRadius: '6px' }}
-                    >
-                      <Suspense fallback={choice.label}><LocalizedManualEffectText kind="option" text={choice.label} /></Suspense>
-                    </button>
+                    (() => {
+                      const scurry = activeForageEncounter.id === 'foraging-forest-bear-scurry';
+                      const reagentCount = state.bag.filter(item => item.type === 'reagent').length;
+                      const disabledReason = !scurry ? ''
+                        : choice.id === 'lose-foraging-points' && currentForagingPoints < 3
+                          ? `채집 포인트 ${currentForagingPoints}/3`
+                          : choice.id === 'lose-reagent' && reagentCount === 0
+                            ? '버릴 영약재 없음'
+                            : choice.id === 'nothing-to-lose' && (currentForagingPoints >= 3 || reagentCount > 0)
+                              ? '잃을 자원이 남아 있음'
+                              : '';
+                      return (
+                        <button
+                          key={choice.id}
+                          type="button"
+                          disabled={Boolean(disabledReason)}
+                          title={disabledReason}
+                          onClick={() => {
+                            setActiveForageEncounter((current: any) => ({ ...current, selectedChoiceId: choice.id }));
+                            updateState(s => ({
+                              ...s,
+                              pendingForaging: s.pendingForaging ? { ...s.pendingForaging, selectedChoiceId: choice.id } : null
+                            }));
+                          }}
+                          style={{ minHeight: '44px', padding: '0.65rem', textAlign: 'left', border: activeForageEncounter.selectedChoiceId === choice.id ? '2px solid var(--primary)' : '1px solid var(--glass-border)', background: disabledReason ? '#f0eee9' : '#fff', color: disabledReason ? '#8b8177' : undefined, borderRadius: '6px', cursor: disabledReason ? 'not-allowed' : 'pointer' }}
+                        >
+                          <Suspense fallback={choice.label}><LocalizedManualEffectText kind="option" text={choice.label} /></Suspense>
+                          {disabledReason && <small style={{ display: 'block', marginTop: '0.2rem' }}>현재 선택 불가 · {disabledReason}</small>}
+                        </button>
+                      );
+                    })()
                   ))}
                 </div>
               )}
@@ -7243,7 +7368,7 @@ export default function App() {
 
               <div style={{ marginTop: '1rem', background: '#f0f9f4', padding: '1rem', borderRadius: '10px', borderLeft: '4.5px solid var(--secondary)' }}>
                 <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--secondary)', fontSize: '0.95rem' }}>🌿 채집 발견 처리</h4>
-                {treatmentForageFinds.length > 0 && sortedForageFinds.length > treatmentForageFinds.length && (
+                {!activeForageEncounter.selectedReagentId && treatmentForageFinds.length > 0 && sortedForageFinds.length > treatmentForageFinds.length && (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.65rem', flexWrap: 'wrap', marginBottom: '0.7rem', fontSize: '0.78rem', color: '#4f6d58' }}>
                     <span>현재 질환에 맞는 후보 {treatmentForageFinds.length}개를 먼저 표시합니다.</span>
                     <button
@@ -7256,7 +7381,7 @@ export default function App() {
                   </div>
                 )}
                 {displayedForageFinds.length > 0 ? (
-                  <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                  <ul className="forage-candidate-list" style={{ margin: 0, padding: 0, fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', listStyle: 'none' }}>
                     {displayedForageFinds.map((normalizedFind: ForageFind, idx: number) => {
                       const matchingParts = matchingForageParts(normalizedFind);
                       const canSpendGap = !normalizedFind.cardSuccess
@@ -7272,16 +7397,19 @@ export default function App() {
                             ? `FP ${normalizedFind.gapCost} 사용 가능`
                             : `현재 실패 · FP +1`;
                       return (
-                        <li key={`${normalizedFind.name}_${idx}`} style={{ color: '#2b5e3d', fontWeight: 'bold' }}>
-                          <span>{normalizedFind.name} {normalizedFind.rarity ? `(희귀도 ${normalizedFind.rarity} · ${status})` : ''}</span>
+                        <li key={`${normalizedFind.name}_${idx}`} className="forage-candidate" style={{ color: '#2b5e3d', fontWeight: 'bold' }}>
+                          <div className="forage-candidate__copy">
+                            <span>{normalizedFind.name} {normalizedFind.rarity ? `· ${status}` : ''}</span>
+                            {normalizedFind.rarity > 0 && <small className="forage-candidate__rarity">{rarityExplanation(normalizedFind)}</small>}
                           {matchingParts.length > 0 && <small style={{ display: 'block', marginTop: '0.15rem', color: '#4f6d58', fontWeight: 500 }}>치료 후보 · {matchingParts.join(' / ')}</small>}
+                          </div>
                           <button
                             type="button"
                             onClick={() => canGather
                               ? handleAddForageFindToBag(normalizedFind, idx)
                               : handleRecordForageMiss(normalizedFind)}
                             disabled={Boolean(activeForageEncounter.selectedReagentId)}
-                            style={{ marginLeft: '0.5rem', minHeight: '44px', padding: '0.45rem 0.7rem', fontSize: '0.75rem', background: canGather ? 'var(--secondary)' : '#6b7280', color: '#fff', borderRadius: '6px', border: 'none' }}
+                            style={{ minHeight: '44px', padding: '0.45rem 0.7rem', fontSize: '0.75rem', background: canGather ? 'var(--secondary)' : '#6b7280', color: '#fff', borderRadius: '6px', border: 'none', flexShrink: 0 }}
                           >
                             {activeForageEncounter.selectedReagentId ? '선택 완료' : canGather ? '부위 선택 후 가방에 추가' : '채집 실패 처리 · FP +1'}
                           </button>
@@ -7295,6 +7423,19 @@ export default function App() {
                   </div>
                 )}
               </div>
+
+              {activeForageEncounter.selectedReagentId && (
+                <div className={`forage-result-receipt ${activeForageEncounter.forageFailed ? 'is-failure' : 'is-success'}`} role="status" aria-live="polite">
+                  <strong>{activeForageEncounter.forageFailed ? '채집 판정 완료' : '가방에 담았습니다'}</strong>
+                  <span>{activeForageEncounter.resultNotice || (activeForageEncounter.forageFailed ? '채집에 실패했습니다.' : '선택한 영약재 부위를 획득했습니다.')}</span>
+                  <span>현재 가방 {formatWeight(currentWeight)} / {maxCarry}{currentWeight > maxCarry ? ' · 소지 한도 초과(채집은 허용됨)' : ''}</span>
+                  <span>
+                    다음: {foragePatient && hasImmediatelyTreatableAilment(foragePatient, toEngineInventory(state.bag))
+                      ? '조우를 해결한 뒤 바로 치료제를 만드세요. 필요한 재료가 갖춰졌습니다.'
+                      : `조우를 해결한 뒤 타이머 ${state.pendingForaging?.timerCostAfterEncounter || activeForageEncounter.timerBaseCost || 0}시간을 적용하고 다음 재료를 찾으세요.`}
+                  </span>
+                </div>
+              )}
 
               {state.rulesetId === 'sandbox' && <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#fbfaf4', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
                 <div className="document-kicker" style={{ marginBottom: '0.45rem' }}>조우 효과 적용</div>
@@ -8205,6 +8346,62 @@ function PlayView({
   const [forageDrawCard, setForageDrawCard] = useState<PlayingCard | null>(null);
   const [forageLocationType, setForageLocationType] = useState<'current' | 'adjacent'>('current');
   const [forageAdjacentRegion, setForageAdjacentRegion] = useState<string>('Forest');
+  const forageContext = useMemo(() => {
+    const rawRegion = forageLocationType === 'adjacent' ? forageAdjacentRegion : state.currentRegion;
+    const region = (rawRegion === 'Barrow' ? 'Titan' : rawRegion) as Exclude<TravelRegion, 'Soar'>;
+    const validRegion = ['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain', 'Titan'].includes(region);
+    const actionAllowed = forageLocationType === 'adjacent' || ['Wilds', 'Ruin', 'Barrow'].includes(state.currentLocationType);
+    const tools = canonicalToolsFromState(state).filter(tool => !tool.broken && !tool.consumed);
+    const toolIds = tools.map(tool => tool.toolId);
+    const modifiers = canonicalForagingModifiers(state);
+    const ailment = state.activeAilment
+      ? AILMENTS.find(definition => definition.displayName === state.activeAilment?.name
+        || definition.id === state.patients.find(patient => patient.id === state.activePatientId)
+          ?.ailments.find(row => row.id === state.activeAilment?.id)?.ailmentId)
+      : null;
+    const neededRequirements = ailment ? requirementTagThresholds(ailment.requirements) : [];
+    const previewRows = validRegion && actionAllowed ? REAGENTS.flatMap(reagent => {
+      const matchingParts = reagent.preparations.filter(part =>
+        isForagingPreparationAvailableInSeason(part, state.currentSeason)
+        && treatmentRelevantPreparationTags(part.tags, neededRequirements).length > 0
+      );
+      if (matchingParts.length === 0) return [];
+      const alwaysAvailable = modifiers.alwaysAvailableReagentIds.includes(reagent.id);
+      const breakdown = calculateForageRarityBreakdown(
+        reagent,
+        region,
+        state.currentSeason,
+        toolIds,
+        modifiers.typeRarityModifiers[reagent.type] || 0,
+        alwaysAvailable
+      );
+      if (!breakdown) return [];
+      return [{
+        reagent,
+        breakdown,
+        alwaysAvailable,
+        owned: state.bag.filter(item => item.canonicalReagentId === reagent.id).length,
+        parts: matchingParts.map(part => ({
+          part,
+          relevantTags: treatmentRelevantPreparationTags(part.tags, neededRequirements),
+          missingTools: part.requiredTools.filter(tool => tool !== 'none' && !toolIds.includes(tool))
+        }))
+      }];
+    }).sort((left, right) =>
+      Number(left.parts.every(part => part.missingTools.length > 0)) - Number(right.parts.every(part => part.missingTools.length > 0))
+      || left.breakdown.finalRarity - right.breakdown.finalRarity
+      || left.reagent.displayName.localeCompare(right.reagent.displayName, 'ko')
+    ) : [];
+    const modifierLabels = [
+      modifiers.typeRarityModifiers.PLANT ? `식물 희귀도 ${modifiers.typeRarityModifiers.PLANT} (길동무·동료)` : '',
+      modifiers.typeRarityModifiers.INSECT ? `곤충 희귀도 ${modifiers.typeRarityModifiers.INSECT} (동료)` : '',
+      modifiers.typeRarityModifiers.TITAN ? `Titan 희귀도 ${modifiers.typeRarityModifiers.TITAN} (길동무)` : '',
+      region === 'Loch' && toolIds.includes('bark-coracle') ? '호수 희귀도 -2 (자작나무 보트)' : '',
+      toolIds.includes('fine-spidersilk-net') ? '곤충·작은 물고기 희귀도 -3 (스파이더실크 그물)' : '',
+      modifiers.alwaysAvailableReagentIds.length > 0 ? '지정 영약재는 지역 제한 무시 (Resourceful)' : ''
+    ].filter(Boolean);
+    return { region, previewRows, modifierLabels, actionAllowed };
+  }, [forageAdjacentRegion, forageLocationType, state]);
 
   const [barrowJournalNote, setBarrowJournalNote] = useState('');
   const [barrowSelectedItemIds, setBarrowSelectedItemIds] = useState<string[]>([]);
@@ -10061,7 +10258,7 @@ function PlayView({
       suitLabel: suitLabels[drawnSuit],
       suit: drawnSuit,
       foundReagents: result.value.candidates.map(candidate => ({
-        name: candidate.canonicalName,
+        name: REAGENT_BY_ID.get(candidate.reagentId)?.displayName || candidate.canonicalName,
         reagentId: candidate.reagentId,
         rarity: candidate.rarity,
         fpAvailable: candidate.automaticWithForagingPoints,
@@ -10235,7 +10432,7 @@ function PlayView({
     const outcome = result.value;
     const selectedFEnc = outcome.encounter;
     const foundReagents: ForageFind[] = outcome.candidates.map(candidate => ({
-      name: candidate.canonicalName,
+      name: REAGENT_BY_ID.get(candidate.reagentId)?.displayName || candidate.canonicalName,
       reagentId: candidate.reagentId,
       rarity: candidate.rarity,
       fpAvailable: candidate.automaticWithForagingPoints,
@@ -14998,6 +15195,54 @@ function PlayView({
                   </div>
                 </div>
 
+                <section className="forage-context" aria-label="현재 채집 조건">
+                  <div className="forage-context__summary">
+                    <div><span>현재 위치</span><strong>{state.currentLocationName} · {locationTypeLabel(state.currentLocationType)}</strong></div>
+                    <div><span>대상 지역</span><strong>{localizeRegionLabel(forageContext.region)} · {localizeSeasonLabel(state.currentSeason)}</strong></div>
+                    <div><span>예상 시간</span><strong>{forageLocationType === 'current' && !['Wilds', 'Ruin', 'Barrow'].includes(state.currentLocationType) ? '현재 위치 채집 불가' : `기본 ${forageLocationType === 'adjacent' ? 2 : 1}시간${forageLocationType === 'adjacent' ? ' · 인접 채집' : ''}`}</strong></div>
+                    <div><span>가방</span><strong>{formatWeight(currentWeight)} / {maxCarry}{currentWeight > maxCarry ? ' · 초과' : ''}</strong></div>
+                  </div>
+                  {forageContext.modifierLabels.length > 0 && (
+                    <div className="forage-context__modifiers" aria-label="적용 중인 채집 보정">
+                      {forageContext.modifierLabels.map(label => <span key={label}>{label}</span>)}
+                    </div>
+                  )}
+                  {forageContext.actionAllowed ? <details className="forage-context__matches">
+                    <summary>현재 치료에 맞는 채집 후보 {forageContext.previewRows.length}개 보기</summary>
+                    {forageContext.previewRows.length > 0 ? (
+                      <div className="forage-match-list">
+                        {forageContext.previewRows.map(row => (
+                          <div key={row.reagent.id} className="forage-match-row">
+                            <div>
+                              <strong>{row.reagent.displayName}</strong>
+                              <small>
+                                기본 {row.breakdown.baseRarity}
+                                {row.breakdown.regionModifier ? ` · 지역 +${row.breakdown.regionModifier}` : ''}
+                                {row.breakdown.seasonModifier ? ` · 계절 +${row.breakdown.seasonModifier}` : ''}
+                                {row.breakdown.toolModifiers.map(modifier => ` · 도구 ${modifier.amount}`).join('')}
+                                {row.breakdown.additionalModifier ? ` · 길동무·동료 ${row.breakdown.additionalModifier}` : ''}
+                                {row.alwaysAvailable ? ' · 지역 제한 무시' : ''}
+                                {' → '}희귀도 {row.breakdown.finalRarity} · 보유 {row.owned}
+                              </small>
+                            </div>
+                            <div className="forage-match-row__parts">
+                              {row.parts.map(({ part, relevantTags, missingTools }) => (
+                                <span key={part.id} className={missingTools.length > 0 ? 'is-unavailable' : ''}>
+                                  {localizePreparationName(part.name)} · {relevantTags.map(tag => `${tag.tag} ${tag.value}`).join(' · ')}
+                                  {missingTools.length > 0 ? ` · 도구 필요: ${missingTools.map(tool => localizeInventoryItemName(TOOL_BY_ID.get(tool)?.canonicalName || tool)).join(', ')}` : ''}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p>이 지역·계절에서 현재 질환의 약효와 맞는 채집 후보가 없습니다. 인접 지역을 바꾸거나 도감을 확인하세요.</p>
+                    )}
+                  </details> : <p className="forage-context__note">현재 위치에서는 후보를 뽑지 않습니다. ‘인접 지역’을 선택하면 연결된 지역의 치료 후보와 정확한 희귀도를 미리 볼 수 있습니다.</p>}
+                  {currentWeight > maxCarry && <p className="forage-context__note">소지 한도를 넘겨도 채집 자체는 할 수 있습니다. 조우 뒤 가방을 정리하세요.</p>}
+                </section>
+
                 {/* Foraging Drawing selector */}
                 <div style={{ margin: '0.8rem 0', display: 'grid', gap: '0.75rem', fontSize: '0.85rem', background: '#faf8f5', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)', width: '100%' }}>
                   <CardDrawSlot
@@ -15014,12 +15259,12 @@ function PlayView({
                 </div>
 
                 {/* Foraging Location Type Selector */}
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', width: '100%', marginBottom: '0.5rem', background: 'var(--bg-glass)', border: '1px solid var(--glass-border)', padding: '0.5rem', borderRadius: '8px' }}>
+                <div className="forage-location-controls" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', width: '100%', marginBottom: '0.5rem', background: 'var(--bg-glass)', border: '1px solid var(--glass-border)', padding: '0.5rem', borderRadius: '8px' }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--primary)' }}>📍 채집 지역:</span>
                   <select
                     value={forageLocationType}
                     onChange={(e) => setForageLocationType(e.target.value as 'current' | 'adjacent')}
-                    style={{ padding: '0.3rem', borderRadius: '6px', border: '1px solid var(--glass-border)', fontSize: '0.85rem', background: '#fff', color: '#333' }}
+                    style={{ padding: '0.3rem', borderRadius: '6px', border: '1px solid var(--glass-border)', fontSize: '0.85rem', background: '#fff', color: '#333', minHeight: '44px', minWidth: 0 }}
                   >
                     <option value="current">현재 지역 ({localizeRegionLabel(state.currentRegion)}) (기본 1시간)</option>
                     <option value="adjacent" disabled={scroungeAdjacentRegions.length === 0}>인접 지역 (기본 2시간)</option>
@@ -15029,7 +15274,7 @@ function PlayView({
                     <select
                       value={forageAdjacentRegion}
                       onChange={(e) => setForageAdjacentRegion(e.target.value)}
-                      style={{ padding: '0.3rem', borderRadius: '6px', border: '1px solid var(--glass-border)', fontSize: '0.85rem', background: '#fff', color: '#333' }}
+                      style={{ padding: '0.3rem', borderRadius: '6px', border: '1px solid var(--glass-border)', fontSize: '0.85rem', background: '#fff', color: '#333', minHeight: '44px', minWidth: 0 }}
                     >
                       {scroungeAdjacentRegions.map(r => (
                           <option key={r} value={r}>{localizeRegionLabel(r)}</option>
@@ -15045,10 +15290,11 @@ function PlayView({
                     const forageDisabled = (forageLocationType === 'current' && !currentForageAllowed)
                       || (forageLocationType === 'adjacent' && !scroungeAdjacentRegions.includes(toRuleRegion(forageAdjacentRegion)));
                     return (
+                      <div className="forage-primary-action">
                       <button
                         onClick={(e) => handleForageDraw(e)}
                         disabled={forageDisabled}
-                        title={forageDisabled ? '현재 위치 채집은 Wilds, Titan Ruins, Barrows에서만 가능합니다.' : ''}
+                        title={forageDisabled ? '현재 위치 채집은 야생 구역, Titan 유적, 거수 고분에서만 가능합니다.' : ''}
                         style={{
                           flex: 1,
                           padding: '0.7rem',
@@ -15062,6 +15308,10 @@ function PlayView({
                       >
                         🌿 {forageLocationType === 'adjacent' ? `인접 지역 [${forageAdjacentRegion}] 채집 시작` : '이 위치 채집 및 조우'}
                       </button>
+                      {forageDisabled && (
+                        <span role="note">현재 위치에서는 직접 채집할 수 없습니다. 위에서 ‘인접 지역’을 선택해 연결된 지역을 살펴보세요.</span>
+                      )}
+                      </div>
                     );
                   })()}
 
@@ -16249,6 +16499,19 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
 
                 const toolItems = state.bag.filter(item => item.id.startsWith("tool_") || item.type === 'tool');
                 const reagentItems = state.bag.filter(item => !item.id.startsWith("tool_") && item.type !== 'tool');
+                const activePatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
+                const activeAilmentDefinitions = activePatient?.ailments
+                  .filter(ailment => ailment.status === 'active')
+                  .flatMap(ailment => {
+                    const definition = AILMENTS.find(candidate => candidate.id === ailment.ailmentId);
+                    return definition ? [definition] : [];
+                  }) || [];
+                const activeNeededRequirements = activeAilmentDefinitions.flatMap(ailment => requirementTagThresholds(ailment.requirements));
+                const activeCanonicalTools = canonicalToolsFromState(state).filter(tool => !tool.broken && !tool.consumed);
+                const activeToolIds = activeCanonicalTools.map(tool => tool.toolId);
+                const inventoryRegion = (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as Exclude<TravelRegion, 'Soar'>;
+                const inventoryRegionIsCanonical = ['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain', 'Titan'].includes(inventoryRegion);
+                const inventoryModifiers = canonicalForagingModifiers(state);
 
                 return (
                   <>
@@ -16270,7 +16533,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                     {/* Table A: Tools & Equipment */}
                     <div style={{ marginBottom: '1.2rem' }}>
                       <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.95rem', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>🛠️ 도구 및 장비</h4>
-                      <div style={{ overflowX: 'auto', maxHeight: '150px', overflowY: 'auto', border: '1px solid #f0f0f0', borderRadius: '8px' }}>
+                      <div className="inventory-ledger-scroll" style={{ maxHeight: '260px', overflowY: 'auto', border: '1px solid #f0f0f0', borderRadius: '8px' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
                           <thead>
                             <tr style={{ borderBottom: '1.5px solid var(--border-cozy)', color: 'var(--text-muted)', background: '#fafafa' }}>
@@ -16282,11 +16545,25 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                           <tbody>
                             {toolItems.map(item => (
                               <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
-                                <td style={{ padding: '0.4rem 0.5rem', fontWeight: 'bold', color: 'var(--text-bright)' }}>{localizeInventoryItemName(item.name)}</td>
+                                <td style={{ padding: '0.55rem 0.5rem', color: 'var(--text-bright)' }}>
+                                  <strong>{localizeInventoryItemName(item.name)}</strong>
+                                  <small className="inventory-ledger__detail">{canonicalToolEffectText(item, state)}</small>
+                                  {(() => {
+                                    const toolState = activeCanonicalTools.find(tool => tool.instanceId === item.id);
+                                    const context = item.canonicalToolId === 'bark-coracle' && inventoryRegion === 'Loch'
+                                      ? '현재 호수 채집 희귀도 -2 적용 중'
+                                      : item.canonicalToolId === 'fine-spidersilk-net'
+                                        ? '곤충·작은 물고기 채집 희귀도 -3'
+                                        : TOOL_BY_ID.get(item.canonicalToolId || '')?.preparationMethods.length
+                                          ? '치료제 조제에 사용 가능'
+                                          : '';
+                                    return <>{toolState?.broken && <small className="inventory-ledger__warning">파손됨 · 수리 전 효과 없음</small>}{context && <small className="inventory-ledger__context">{context}</small>}</>;
+                                  })()}
+                                </td>
                                 <td style={{ padding: '0.4rem 0.5rem' }}>{formatWeight(item.weight)}</td>
                                 <td style={{ padding: '0.4rem 0.5rem' }}>
                                   {!item.id.startsWith("tool_") ? (
-                                    <button onClick={() => handleRemoveBagItem(item.id)} style={{ background: 'transparent', color: 'var(--accent-red)', border: 'none', cursor: 'pointer', fontSize: '0.8rem', padding: 0 }}>❌</button>
+                                    <button type="button" aria-label={`${localizeInventoryItemName(item.name)} 버리기`} onClick={() => handleRemoveBagItem(item.id)} className="inventory-delete-button">버리기</button>
                                   ) : (
                                     <span style={{ color: 'var(--text-dim)' }}>-</span>
                                   )}
@@ -16306,7 +16583,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                     {/* Table B: Reagents & Items */}
                     <div>
                       <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.95rem', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>🌿 영약재 및 수집물</h4>
-                      <div style={{ overflowX: 'auto', maxHeight: '200px', overflowY: 'auto', border: '1px solid #f0f0f0', borderRadius: '8px' }}>
+                      <div className="inventory-ledger-scroll" style={{ maxHeight: '360px', overflowY: 'auto', border: '1px solid #f0f0f0', borderRadius: '8px' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
                           <thead>
                             <tr style={{ borderBottom: '1.5px solid var(--border-cozy)', color: 'var(--text-muted)', background: '#fafafa' }}>
@@ -16320,11 +16597,40 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                             {reagentItems.map(item => {
                               const eligible = isEligibleForBandolier(item);
                               const inBando = item.inBandolier && eligible;
+                              const reagent = item.canonicalReagentId ? REAGENT_BY_ID.get(item.canonicalReagentId) : null;
+                              const preparation = reagent?.preparations.find(part => part.id === item.preparationId);
+                              const relevantTags = preparation ? treatmentRelevantPreparationTags(preparation.tags, activeNeededRequirements) : [];
+                              const breakdown = reagent && inventoryRegionIsCanonical
+                                ? calculateForageRarityBreakdown(
+                                    reagent,
+                                    inventoryRegion,
+                                    state.currentSeason,
+                                    activeToolIds,
+                                    inventoryModifiers.typeRarityModifiers[reagent.type] || 0,
+                                    inventoryModifiers.alwaysAvailableReagentIds.includes(reagent.id)
+                                  )
+                                : null;
+                              const sourceText = item.provenance?.source === 'forage'
+                                ? `${localizeRegionLabel(item.provenance.region || '')}에서 채집`
+                                : item.provenance?.source === 'barter'
+                                  ? '물꼬 거래로 획득'
+                                  : '';
                               return (
                                 <tr key={item.id} style={{ borderBottom: '1px solid #eee', background: inBando ? '#f3faf5' : 'transparent' }}>
-                                  <td style={{ padding: '0.4rem 0.5rem', fontWeight: 'bold', color: 'var(--text-bright)' }}>
-                                    {localizeInventoryItemName(item.name)}
+                                  <td style={{ padding: '0.55rem 0.5rem', color: 'var(--text-bright)' }}>
+                                    <strong>{localizeInventoryItemName(item.name)}</strong>
                                     {inBando && <span style={{ color: '#16a34a', fontSize: '0.7rem', marginLeft: '0.3rem', fontWeight: 'bold', background: '#dcfce7', padding: '0.05rem 0.3rem', borderRadius: '4px' }}>🎽 반도리어</span>}
+                                    {preparation && (
+                                      <small className="inventory-ledger__detail">
+                                        {localizePreparationName(preparation.name)} · {localizePreparationMethod(preparation.method)} · {preparation.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 없음'} · 남은 사용 {item.usesRemaining ?? preparation.uses}회
+                                      </small>
+                                    )}
+                                    {(sourceText || breakdown) && (
+                                      <small className="inventory-ledger__detail">
+                                        {[sourceText, breakdown ? `현재 ${localizeRegionLabel(inventoryRegion)}·${localizeSeasonLabel(state.currentSeason)} 희귀도 ${breakdown.finalRarity}` : '현재 지역·계절에는 채집 불가'].filter(Boolean).join(' · ')}
+                                      </small>
+                                    )}
+                                    {relevantTags.length > 0 && <small className="inventory-ledger__context">현재 환자에 맞음 · {relevantTags.map(tag => `${tag.tag} ${tag.value}`).join(' · ')}</small>}
                                   </td>
                                   <td style={{ padding: '0.4rem 0.5rem' }}>
                                     {inBando ? (
@@ -16341,6 +16647,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                                         <button
                                           type="button"
                                           onClick={() => handleToggleBandolier(item.id)}
+                                          className="inventory-bandolier-button"
                                           style={{
                                             background: inBando ? '#fee2e2' : '#dcfce7',
                                             color: inBando ? '#dc2626' : '#16a34a',
@@ -16360,7 +16667,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                                     </td>
                                   )}
                                   <td style={{ padding: '0.4rem 0.5rem' }}>
-                                    <button onClick={() => handleRemoveBagItem(item.id)} style={{ background: 'transparent', color: 'var(--accent-red)', border: 'none', cursor: 'pointer', fontSize: '0.8rem', padding: 0 }}>❌</button>
+                                    <button type="button" aria-label={`${localizeInventoryItemName(item.name)} 버리기`} onClick={() => handleRemoveBagItem(item.id)} className="inventory-delete-button">버리기</button>
                                   </td>
                                 </tr>
                               );

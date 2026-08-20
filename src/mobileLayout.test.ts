@@ -58,4 +58,16 @@ describe('mobile layout regression guards', () => {
     expect(cssSource).toMatch(/\.route-composer \.route-connector__btn\s*\{[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px/);
     expect(cssSource).toMatch(/\.route-composer__picker-controls input,[\s\S]*?min-height:\s*2\.75rem/);
   });
+
+  it('keeps forage context, result feedback, and inventory actions usable on mobile', () => {
+    expect(appSource).toContain('className="forage-context"');
+    expect(appSource).toContain('className={`forage-result-receipt');
+    expect(appSource).toContain('className="inventory-delete-button"');
+    expect(appSource).toContain('className="inventory-bandolier-button"');
+    expect(cssSource).toMatch(/\.forage-location-controls\s*\{[\s\S]*?flex-direction:\s*column/);
+    expect(cssSource).toMatch(/\.inventory-delete-button\s*\{[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px/);
+    expect(cssSource).toMatch(/\.inventory-ledger-scroll tr\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\) auto auto/);
+    expect(cssSource).toMatch(/\.inventory-bandolier-button\s*\{[\s\S]*?min-height:\s*44px/);
+    expect(cssSource).toMatch(/\.forage-candidate > button\s*\{[\s\S]*?width:\s*100%/);
+  });
 });

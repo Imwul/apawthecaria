@@ -139,11 +139,56 @@ const availabilityModifier = (availability: Availability): number | null => {
   return availability === 'Rare' ? 3 : 0;
 };
 
-const builtInToolModifier = (reagent: ReagentDefinition, region: TravelRegion, toolIds: readonly string[]): number => {
-  let modifier = 0;
-  if (region === 'Loch' && toolIds.includes('bark-coracle')) modifier -= 2;
-  if (toolIds.includes('fine-spidersilk-net') && (reagent.type === 'INSECT' || reagent.canonicalName === 'Small Fish')) modifier -= 3;
-  return modifier;
+export interface ForageRarityBreakdown {
+  baseRarity: number;
+  regionAvailability: Availability;
+  regionModifier: number;
+  seasonAvailability: Availability;
+  seasonModifier: number;
+  toolModifiers: Array<{ toolId: 'bark-coracle' | 'fine-spidersilk-net'; amount: number }>;
+  additionalModifier: number;
+  finalRarity: number;
+}
+
+const builtInToolModifiers = (
+  reagent: ReagentDefinition,
+  region: TravelRegion,
+  toolIds: readonly string[]
+): ForageRarityBreakdown['toolModifiers'] => {
+  const modifiers: ForageRarityBreakdown['toolModifiers'] = [];
+  if (region === 'Loch' && toolIds.includes('bark-coracle')) modifiers.push({ toolId: 'bark-coracle', amount: -2 });
+  if (toolIds.includes('fine-spidersilk-net') && (reagent.type === 'INSECT' || reagent.canonicalName === 'Small Fish')) {
+    modifiers.push({ toolId: 'fine-spidersilk-net', amount: -3 });
+  }
+  return modifiers;
+};
+
+export const calculateForageRarityBreakdown = (
+  reagent: ReagentDefinition,
+  region: Exclude<TravelRegion, 'Soar'>,
+  season: Season,
+  toolIds: readonly string[],
+  additionalModifier = 0,
+  ignoreRegionAvailability = false
+): ForageRarityBreakdown | null => {
+  const regionAvailability = reagent.regionAvailability[region];
+  const seasonAvailability = reagent.seasonAvailability[season];
+  const regionModifier = ignoreRegionAvailability ? 0 : availabilityModifier(regionAvailability);
+  const seasonModifier = availabilityModifier(seasonAvailability);
+  if (regionModifier === null || seasonModifier === null) return null;
+  const toolModifiers = builtInToolModifiers(reagent, region, toolIds);
+  const finalRarity = Math.max(1, reagent.baseRarity + regionModifier + seasonModifier
+    + toolModifiers.reduce((sum, modifier) => sum + modifier.amount, 0) + additionalModifier);
+  return {
+    baseRarity: reagent.baseRarity,
+    regionAvailability,
+    regionModifier,
+    seasonAvailability,
+    seasonModifier,
+    toolModifiers,
+    additionalModifier,
+    finalRarity
+  };
 };
 
 export const calculateCanonicalForageRarity = (
@@ -153,14 +198,23 @@ export const calculateCanonicalForageRarity = (
   toolIds: readonly string[],
   additionalModifier = 0
 ): number | null => {
-  const regionModifier = availabilityModifier(reagent.regionAvailability[region]);
-  const seasonModifier = availabilityModifier(reagent.seasonAvailability[season]);
-  if (regionModifier === null || seasonModifier === null) return null;
-  return Math.max(1, reagent.baseRarity + regionModifier + seasonModifier + builtInToolModifier(reagent, region, toolIds) + additionalModifier);
+  return calculateForageRarityBreakdown(reagent, region, season, toolIds, additionalModifier)?.finalRarity ?? null;
 };
 
 const hasPreparationTools = (preparation: ReagentPreparation, toolIds: readonly string[]): boolean =>
   preparation.requiredTools.every(tool => tool === 'none' || toolIds.includes(tool));
+
+export const isForagingPreparationAvailableInSeason = (
+  preparation: ReagentPreparation,
+  season: Season
+): boolean => preparation.specialRules.every(rule => {
+  if (rule.effect.type !== 'customEffect') return true;
+  if (rule.effect.code === 'SPRING_ONLY_PART') return season === 'Spring';
+  if (rule.effect.code === 'SUMMER_ONLY_PART') return season === 'Summer';
+  if (rule.effect.code === 'AUTUMN_ONLY_PART') return season === 'Autumn';
+  if (rule.effect.code === 'SUMMER_AUTUMN_ONLY_PART') return season === 'Summer' || season === 'Autumn';
+  return true;
+});
 
 export interface InBloomCandidate {
   reagentId: string;
@@ -185,7 +239,8 @@ export const listInBloomCandidates = (
       || reagent.regionAvailability.Forest === 'Unavailable'
       || reagent.seasonAvailability[season] === 'Unavailable') return [];
     const preparationIds = reagent.preparations
-      .filter(preparation => hasPreparationTools(preparation, toolIds))
+      .filter(preparation => hasPreparationTools(preparation, toolIds)
+        && isForagingPreparationAvailableInSeason(preparation, season))
       .map(preparation => preparation.id);
     return preparationIds.length > 0
       ? [{ reagentId: reagent.id, canonicalName: reagent.canonicalName, preparationIds }]
@@ -200,12 +255,14 @@ const candidateFor = (
 ): ForagingCandidate | null => {
   const alwaysAvailable = input.alwaysAvailableReagentIds?.includes(reagent.id);
   const rarity = alwaysAvailable
-    ? (() => {
-        const seasonModifier = availabilityModifier(reagent.seasonAvailability[input.state.season]);
-        return seasonModifier === null ? null : Math.max(1, reagent.baseRarity + seasonModifier
-          + builtInToolModifier(reagent, input.forageRegion, input.state.toolIds)
-          + (input.rarityModifiers || 0) + (input.typeRarityModifiers?.[reagent.type] || 0));
-      })()
+    ? calculateForageRarityBreakdown(
+        reagent,
+        input.forageRegion,
+        input.state.season,
+        input.state.toolIds,
+        (input.rarityModifiers || 0) + (input.typeRarityModifiers?.[reagent.type] || 0),
+        true
+      )?.finalRarity ?? null
     : calculateCanonicalForageRarity(
         reagent,
         input.forageRegion,
@@ -358,6 +415,16 @@ export const resolveForagingEngine = (input: ForagingEngineInput): ForagingEngin
   }));
   if (selectedPreparations.some(row => !row.preparation)) {
     return { status: 'invalid', value: null, messages: ['Every selected Part must belong to the chosen Reagent.'] };
+  }
+  const unavailablePart = selectedPreparations.find(row => !isForagingPreparationAvailableInSeason(row.preparation!, input.state.season));
+  if (unavailablePart) {
+    return { status: 'invalid', value: null, messages: [`${unavailablePart.preparation!.name} cannot be foraged in ${input.state.season}.`] };
+  }
+  const oneBottleOnly = reagent.specialAcquisition.some(rule =>
+    rule.effect.type === 'customEffect' && rule.effect.code === 'ONE_BOTTLE_PER_FORAGE'
+  );
+  if (oneBottleOnly && selections.reduce((sum, selection) => sum + selection.quantity, 0) > 1) {
+    return { status: 'invalid', value: null, messages: ['Only one bottle of Musk Scrapings can be gathered per Forage.'] };
   }
   const missingTool = selectedPreparations.find(row => !hasPreparationTools(row.preparation!, input.state.toolIds));
   if (missingTool) {
