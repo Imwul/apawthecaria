@@ -693,7 +693,13 @@ export function PaperMap({
               <div
                 key={place.id}
                 className="map-location-marker"
-                style={{ left: `${position.x}%`, top: `${position.y}%` }}
+                style={{
+                  left: `${position.x}%`,
+                  top: `${position.y}%`,
+                  // Named places must remain tappable when a dense Wilds marker
+                  // shares almost the same map coordinate.
+                  zIndex: place.isCurrent ? 9 : selected ? 8 : routeIndex !== undefined ? 7 : place.locationType === 'Wilds' ? 3 : 4
+                }}
               >
                 <button
                   type="button"
@@ -779,10 +785,10 @@ export function PaperMap({
             className={veilOn ? 'is-open' : ''}
             aria-pressed={veilOn}
             aria-keyshortcuts="v"
-            aria-label={veilOn ? '수정 막 끄기 (V)' : '수정 막 켜기 (V)'}
+            aria-label={veilOn ? '지도 가림막 끄기 (V)' : '지도 가림막 켜기 (V)'}
             onClick={() => setVeilOn(on => !on)}
           >
-            {veilOn ? '유산지 켜짐' : '유산지'}
+            {veilOn ? '가림막 켜짐' : '가림막'}
           </button>
         )}
         <button
@@ -971,6 +977,11 @@ export function PaperMap({
             />
           )}
           <div className="paper-map__sheet-actions">
+            {onConfirmDestination && !selectedPlace.isCurrent && (
+              <button type="button" onClick={() => onConfirmDestination(placeToPick(selectedPlace))}>
+                이곳을 여정 목적지로
+              </button>
+            )}
             {showWaypointAction && onAddWaypoint && !selectedPlace.isCurrent && (
               <button type="button" onClick={() => onAddWaypoint(placeToPick(selectedPlace))}>
                 경로에 넣기

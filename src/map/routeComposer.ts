@@ -173,14 +173,36 @@ export const lastRouteStop = (draft: RouteDraft): RouteStop | null =>
 export const routeDestination = (draft: RouteDraft): RouteStop | null =>
   draft.stops.length > 1 ? draft.stops[draft.stops.length - 1] : null;
 
+export type DisconnectedRouteSegment = {
+  index: number;
+  from: RouteStop;
+  to: RouteStop;
+};
+
+/**
+ * Returns the first itinerary segment that is not an actual map connection.
+ * Route selection stays manual, but a distant marker cannot be counted as one
+ * Path merely because it was clicked next.
+ */
+export const findDisconnectedRouteSegment = (
+  draft: RouteDraft,
+  areConnected: (fromId: string, toId: string) => boolean
+): DisconnectedRouteSegment | null => {
+  for (let index = 0; index < draft.stops.length - 1; index += 1) {
+    const from = draft.stops[index];
+    const to = draft.stops[index + 1];
+    if (!areConnected(from.id, to.id)) return { index, from, to };
+  }
+  return null;
+};
+
 export const appendRouteStop = (
   draft: RouteDraft,
   stop: RouteStop,
   edgeKind: RouteEdgeKind = 'path'
 ): RouteDraft => {
   if (draft.stops.length === 0) return { stops: [stop], edgeKinds: [] };
-  const last = draft.stops[draft.stops.length - 1];
-  if (last.id === stop.id) return draft;
+  if (draft.stops.some(existing => existing.id === stop.id)) return draft;
   return {
     stops: [...draft.stops, stop],
     edgeKinds: [...draft.edgeKinds, edgeKind]

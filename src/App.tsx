@@ -34,8 +34,8 @@ import {
   canChooseRouteEdgeKind,
   cycleRouteEdgeKind,
   draftFromOrigin,
+  findDisconnectedRouteSegment,
   glyphKindFromLocation,
-  isLochWildsStop,
   locationTypeFromGlyph,
   mapKindFromGlyph,
   moveRouteStop,
@@ -8078,6 +8078,35 @@ function PlayView({
     }
     return stopFromGraphNode(currentId, node, { hasClinic: clinicHere, name: node.label || state.currentLocationName });
   }, [routeGraphNodes, state.currentLocationName, state.currentLocationType, state.currentRegion, state.clinics, state.customMapLocations]);
+  const routeEndId = routeDraft.stops.at(-1)?.id || currentRouteOrigin?.id || '';
+  const routeStopChoices = useMemo<RouteStop[]>(() => {
+    const routeIds = new Set(routeDraft.stops.map(stop => stop.id));
+    const adjacentIds = new Set(routeGraphNodes[routeEndId]?.neighbors || []);
+    const usesMapPaths = travelMode !== 'soar' && !hasPendingTaxiMove;
+    return Object.entries(routeGraphNodes)
+      .filter(([id]) => !routeIds.has(id) && (!usesMapPaths || adjacentIds.has(id)))
+      .map(([id, node]) => stopFromGraphNode(id, node, {
+        name: node.label,
+        hasClinic: (state.clinics || []).some(clinic =>
+          findMapLocationKey(clinic.locationName, state.customMapLocations || []) === id
+        )
+      }))
+      .sort((left, right) => left.name.localeCompare(right.name, 'ko'));
+  }, [hasPendingTaxiMove, routeDraft.stops, routeEndId, routeGraphNodes, state.clinics, state.customMapLocations, travelMode]);
+  const routeJourneyTarget = useMemo<RouteStop | null>(() => {
+    const targetId = state.journeyActive
+      ? findMapLocationKey(state.journeyDestination, state.customMapLocations || [])
+      : selectedJourneyDestination?.id;
+    if (!targetId) return null;
+    const node = routeGraphNodes[targetId];
+    if (!node) return null;
+    return stopFromGraphNode(targetId, node, {
+      name: node.label,
+      hasClinic: (state.clinics || []).some(clinic =>
+        findMapLocationKey(clinic.locationName, state.customMapLocations || []) === targetId
+      )
+    });
+  }, [routeGraphNodes, selectedJourneyDestination?.id, state.clinics, state.customMapLocations, state.journeyActive, state.journeyDestination]);
   useEffect(() => {
     if (!currentRouteOrigin) return;
     let cancelled = false;
@@ -11632,6 +11661,45 @@ function PlayView({
   const patientReagentCount = state.bag.filter(item => item.type === 'reagent').length;
   const maxCarry = getMaxCarry(state);
   const activeTravelSpeed = state.journeyActive ? getTravelSpeed(state, currentWeight) : state.bio.speed;
+  const activeRouteMode: 'move' | 'soar' = hasPendingTaxiMove ? 'soar' : travelMode;
+  const activeTravelWagon = canonicalWagonFromState(state);
+  const activeTravelWagonCapabilities = resolveWagonCapabilities(activeTravelWagon);
+  const hasPersonalFlight = state.bio.travelStyle === '가볍고 신속하게'
+    || Boolean(state.taxiSoarActive)
+    || (isHouseRuleEnabled(state.rulesetId, 'companionFlightWaterPermissions')
+      && (state.companions || []).some(companion => ['butterfly', 'honeybee', 'wasp'].includes(companion.name)));
+  const canSoarNow = currentWeight <= maxCarry
+    && (hasPendingTaxiMove
+      || activeTravelWagonCapabilities.canSoar
+      || (!activeTravelWagon.commissioned && hasPersonalFlight));
+  const activeRouteEnd = routeDraft.stops.length > 1 ? routeDraft.stops.at(-1) || null : null;
+  const disconnectedRouteSegment = activeRouteMode === 'move'
+    ? findDisconnectedRouteSegment(
+      routeDraft,
+      (fromId, toId) => (routeGraphNodes[fromId]?.neighbors || []).includes(toId)
+    )
+    : null;
+  const soarTargetIsUnvisitedRestrictedPlace = Boolean(activeRouteMode === 'soar'
+    && activeRouteEnd
+    && ['Ruin', 'Barrow'].includes(activeRouteEnd.kind)
+    && !(state.visitedLocations || []).includes(activeRouteEnd.name));
+  const routeTravelBlockedReason = !state.journeyActive
+    ? '여정을 시작하면 이 경로로 이동할 수 있습니다.'
+    : state.pendingEncounter
+      ? '먼저 현재 이동 조우를 해결하세요.'
+      : state.needsLocalHelpBeforeMove
+        ? '현지 야수의 질환을 해결한 뒤 이동할 수 있습니다.'
+        : activeRouteMode === 'soar' && !canSoarNow
+          ? currentWeight > maxCarry
+            ? '과적 상태에서는 활공할 수 없습니다.'
+            : activeTravelWagon.commissioned && !activeTravelWagonCapabilities.canSoar
+              ? '일반 마차를 타는 동안에는 활공할 수 없습니다.'
+              : '활공 능력이나 도구가 필요합니다.'
+          : soarTargetIsUnvisitedRestrictedPlace
+            ? '방문하지 않은 티탄 유적·거수 고분에는 활공할 수 없습니다.'
+            : disconnectedRouteSegment
+              ? `‘${disconnectedRouteSegment.from.name}’과 ‘${disconnectedRouteSegment.to.name}’ 사이에는 직접 이어진 지도 경로가 없습니다.`
+              : null;
   const barterLocations = state.activeAilment ? getAvailableBarterLocations(state) : [];
   const barterLimit = barterLocations.reduce((max, option) => Math.max(max, getBarterAttemptLimit(option.type)), 0);
   const barterRemaining = barterLocations.reduce((max, option) => Math.max(max,
@@ -11732,29 +11800,19 @@ function PlayView({
         locationType: location.kind,
         hasClinic: location.hasClinic
       });
+    const currentDraft = routeDraftRef.current;
+    if (currentDraft.stops.some(row => row.id === stop.id)) return;
+    const currentEnd = currentDraft.stops.at(-1);
+    const usesMapPaths = travelMode !== 'soar' && !hasPendingTaxiMove;
+    if (usesMapPaths && currentEnd && !(routeGraphNodes[currentEnd.id]?.neighbors || []).includes(stop.id)) {
+      showAlert(`‘${currentEnd.name}’과 ‘${stop.name}’ 사이에는 직접 이어진 지도 경로가 없습니다. 현재 경로 끝과 선으로 연결된 위치를 골라 주세요.`);
+      return;
+    }
     setRouteDraft(previous => {
       const last = previous.stops[previous.stops.length - 1];
-      const existingIndex = previous.stops.findIndex(row => row.id === stop.id);
-      if (existingIndex > 0) {
-        const next = removeRouteStopAt(previous, existingIndex);
-        const destination = next.stops[next.stops.length - 1];
-        if (next.stops.length > 1 && destination) {
-          setNextLocName(destination.name);
-          setDestType(locationTypeFromGlyph(destination.kind));
-          setDestRegion(destination.kind === 'Ruin' ? 'Titan' : (destination.terrain || state.currentRegion));
-          if (isLochWildsStop(destination) && !hasLochStoppingGear(state)) {
-            showAlert('호수·강 야생에서 멈추려면 자작나무 보트(Bark Coracle)나 밀폐식 마차(Sealed Carriage)가 필요합니다. 지나갈 수는 있으니 다음 자리를 잇거나 도구를 챙기세요.');
-          }
-        } else {
-          setNextLocName('');
-          setDestType('');
-          setDestRegion('');
-        }
-        return next;
-      }
-      if (existingIndex === 0) {
-        return previous;
-      }
+      // Repeated taps and accidental double-clicks must be idempotent. Removing
+      // a route stop is an explicit action in the editor, never a map-click side effect.
+      if (previous.stops.some(row => row.id === stop.id)) return previous;
       const inferredKind = last
         ? mapEdgeKind(last.id, stop.id, routeGraphNodes, state.customMapEdges || [])
         : 'path';
@@ -11765,13 +11823,10 @@ function PlayView({
         setNextLocName(dest.name);
         setDestType(locationTypeFromGlyph(dest.kind));
         setDestRegion(dest.kind === 'Ruin' ? 'Titan' : (dest.terrain || state.currentRegion));
-        if (isLochWildsStop(dest) && !hasLochStoppingGear(state)) {
-          showAlert('호수·강 야생에서 멈추려면 자작나무 보트(Bark Coracle)나 밀폐식 마차(Sealed Carriage)가 필요합니다. 지나갈 수는 있으니 다음 자리를 잇거나 도구를 챙기세요.');
-        }
       }
       return next;
     });
-  }, [routeGraphNodes, setRouteDraft, state]);
+  }, [hasPendingTaxiMove, routeGraphNodes, setRouteDraft, state, travelMode]);
 
   const handleCreateMapPlace = useCallback((request: { x: number; y: number; kind?: string; terrain?: string; name?: string }) => {
     const stop: RouteStop = {
@@ -12367,15 +12422,15 @@ function PlayView({
                 ? (journeyDestinationMode === 'choose'
                   ? (selectedJourneyDestination
                     ? `직접 선택: ${selectedJourneyDestination.name}${selectedJourneyDestination.paths === null ? ' · 연결 경로 없음' : ` · ${selectedJourneyDestination.paths}경로`}`
-                    : '룰북 p.19의 직접 선택입니다. 지도에서 출발지가 아닌 위치를 골라 목적지로 지정하세요.')
+                    : '룰북 p.19의 직접 선택입니다. 지도에서 위치를 누른 뒤 ‘이곳을 여정 목적지로’를 선택하세요.')
                   : journeyDestinationCard
                   ? (selectedJourneyDestination
                     ? `선택된 후보: ${selectedJourneyDestination.name} · 총거리 ${selectedJourneyDestination.paths}경로`
                     : journeyDestinationCandidates.length > 0
-                      ? '여정 조건을 충족하는 후보를 지도에서 골라 목적지로 지정하세요. 오른쪽에서 들르는 자리도 이어서 확인할 수 있습니다.'
+                      ? '강조된 후보를 누른 뒤 ‘이곳을 여정 목적지로’를 선택하세요. Route Editor에서 경유지도 이어서 고를 수 있습니다.'
                       : '현재는 이동 가능한 후보가 없습니다. 목적지 카드를 다시 뽑으세요.')
                   : '목적지 카드를 뽑으면 방향·거리·장소 유형에 맞는 목적지가 지도에 표시됩니다.')
-                : `노드를 눌러 사이길을 잇고, 오른쪽에서 육로/수로를 고르세요. 빈 자리는 ⌘+클릭으로 표시합니다. 자리를 옮기려면 먼저 이동 잠금을 켜세요.${currentWeight > maxCarry ? ' 소지 한도를 넘어 1경로만 갑니다.' : ''}`
+                : `현재 경로 끝과 지도 선으로 직접 이어진 위치를 누르세요. Route Editor에서 연결 타입과 순서를 고를 수 있습니다.${currentWeight > maxCarry ? ' 현재 과적 상태라 속도는 1입니다.' : ''}`
             }
           />
         </aside>
@@ -12402,7 +12457,7 @@ function PlayView({
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                 {journeyDestinationMode === 'draw'
                   ? '지도 후보는 카드의 거리·방향·정착지/도시 유형을 모두 충족합니다.'
-                  : '지도에서 출발지가 아닌 위치를 누르거나 아래 여정 양식에서 검색해 고르세요.'}
+                  : '지도에서 위치를 누른 뒤 목적지로 확정하거나, 아래 여정 양식에서 이름으로 고르세요.'}
               </div>
               {journeyDestinationMode === 'choose' && selectedJourneyDestination && (
                 <div style={{ fontSize: '0.82rem', color: 'var(--primary)', fontWeight: 700 }}>
@@ -12455,24 +12510,53 @@ function PlayView({
               )}
             </section>
           )}
+          {state.journeyActive && (
+            <section className="travel-mode-switch" aria-label="이번 이동 방식">
+              <div>
+                <span>이동 방식</span>
+                <strong>{activeRouteMode === 'soar' ? 'Soar · 직선 비행' : 'Move · 경로 이동'}</strong>
+                <small>
+                  {activeRouteMode === 'soar'
+                    ? '출발지와 마지막 위치를 잇고 계절별 Soar 조우를 해결합니다.'
+                    : `속도 ${activeTravelSpeed}만큼 경로를 이은 뒤 도착지 조우를 해결합니다.`}
+                </small>
+              </div>
+              <select
+                value={activeRouteMode}
+                onChange={event => setTravelMode(event.target.value as 'move' | 'soar')}
+                disabled={hasPendingTaxiMove}
+                aria-label="이동 방식"
+              >
+                <option value="move">Move · 경로/속도 사용</option>
+                <option value="soar" disabled={!canSoarNow}>Soar · 지도 위치로 활공</option>
+              </select>
+            </section>
+          )}
           <RouteComposer
             draft={routeDraft}
             speed={activeTravelSpeed}
             carry={maxCarry}
             weight={currentWeight}
-            waterwaySpan={resolveWagonCapabilities(canonicalWagonFromState(state)).waterwaySpan}
+            waterwaySpan={activeTravelWagonCapabilities.waterwaySpan}
             canStopInLoch={hasLochStoppingGear(state)}
             protectsFromSoaking={hasSafeWaterwayTravel(state)}
             soakableItemNames={state.bag.filter(item => isRuinedWhenSoaked(item)).map(item => item.name)}
-            canTravel={Boolean(state.journeyActive && !state.needsLocalHelpBeforeMove)}
-            movementMode={hasPendingTaxiMove ? 'soar' : travelMode}
-            travelBlockedReason={
-              !state.journeyActive
-                ? '여정을 시작한 뒤 이 경로로 이동합니다.'
-                : state.needsLocalHelpBeforeMove
-                  ? '현지 야수의 질환을 해결한 뒤 이동할 수 있습니다.'
-                  : null
-            }
+            canTravel={routeTravelBlockedReason === null}
+            movementMode={activeRouteMode}
+            travelBlockedReason={routeTravelBlockedReason}
+            availableStops={routeStopChoices}
+            journeyTarget={routeJourneyTarget}
+            seasonLabel={localizeSeasonLabel(state.currentSeason)}
+            daysRemaining={state.journeyActive ? state.calendarMaxDays - state.calendarDays : null}
+            onAddStop={stop => handleAddRouteWaypoint({
+              id: stop.id,
+              name: stop.name,
+              region: stop.terrain || undefined,
+              kind: locationTypeFromGlyph(stop.kind),
+              x: stop.x,
+              y: stop.y,
+              hasClinic: stop.hasClinic
+            })}
             onChangeStop={handleRouteStopChange}
             onChangeEdge={handleRouteEdgeChange}
             onRemoveStop={handleRemoveRouteStop}
@@ -13858,7 +13942,7 @@ function PlayView({
                 <div style={{ display: 'grid', gap: '0.4rem', padding: '0.75rem', background: '#f8faf4', border: '1px solid #d7e3cf', borderRadius: '8px' }}>
                   <strong style={{ fontSize: '0.86rem', color: 'var(--primary)' }}>출발 전 저널 맥락 (p.18, p.21)</strong>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                    출발지 <strong>{state.currentLocationName}</strong>은 어떤 의미인가요? <strong>{localizeSeasonLabel(state.currentSeason)}</strong>은 어떤 기분을 주나요? {urgencyPreview.days}일의 Urgency가 목표와 어떻게 이어지나요?
+                    출발지 <strong>{state.currentLocationName}</strong>: 이곳은 어떤 의미인가요? 계절은 <strong>{localizeSeasonLabel(state.currentSeason)}</strong>입니다. 지금의 기분과 {urgencyPreview.days}일의 Urgency가 목표에 어떻게 이어지는지 떠올려 보세요.
                   </div>
                   <textarea
                     rows={3}
@@ -13967,7 +14051,7 @@ function PlayView({
           <div id="active-journey-panel" className="cute-card journey-record" style={{ background: '#fffefa', borderColor: 'var(--primary)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem' }}>
               <div className="prose-summary" style={{ fontSize: '0.95rem' }}>
-                <strong>{state.journeyDestination}</strong>을 향해 {state.journeyDirection} 방향으로 이동 중 (거리 형태: {state.journeyDistance}, 총거리 <span style={{ fontWeight: 700 }}>{state.journeyTotalDistance || 0}경로</span>).
+                여정 목적지 <strong>{state.journeyDestination}</strong> · {state.journeyDirection} 방향 · {state.journeyDistance} · 지도 거리 <span style={{ fontWeight: 700 }}>{state.journeyTotalDistance || 0}경로</span>
                 <br />
                 출발한 지 <strong>{state.calendarDays}일째</strong>, 남은 시간은 <strong>{Math.max(0, state.calendarMaxDays - state.calendarDays)}일</strong>.
               </div>
@@ -14228,48 +14312,9 @@ function PlayView({
               </div>
             )}
             <form id="travel-move-form" ref={travelFormRef} onSubmit={handleTravelMove} className="grid-travel-form" style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '1rem' }}>
-              <input
-                name="locName"
-                type="text"
-                list="map-destination-options"
-                placeholder="이동해 도달할 새 장소 이름..."
-                value={nextLocName}
-                onChange={e => setNextLocName(e.target.value)}
-              />
-              <datalist id="map-destination-options">
-                {Object.entries(buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || [])).map(([key, node]) => (
-                  <option key={key} value={node.label}>{node.region ? `${localizeRegionLabel(node.region)} · ` : ''}{locationTypeLabel(node.kind || 'named')}</option>
-                ))}
-              </datalist>
-
-              <div className="travel-destination-facts" aria-live="polite">
-                <span>지도 판정</span>
-                <strong>
-                  {selectedTravelNode
-                    ? `${localizeRegionLabel(selectedTravelRegion)} · ${locationTypeLabel(selectedTravelType)}`
-                    : '지도에서 도착지를 선택하세요'}
-                </strong>
-              </div>
-
-              <select
-                value={hasPendingTaxiMove ? 'soar' : travelMode}
-                onChange={e => setTravelMode(e.target.value as 'move' | 'soar')}
-                disabled={hasPendingTaxiMove}
-                aria-label="이동 방식"
-              >
-                <option value="move">🚶 Move · 경로/속도 사용</option>
-                <option value="soar">🦅 Soar · 지도 위치로 활공</option>
-              </select>
-
-              <button type="submit" disabled={state.needsLocalHelpBeforeMove} style={{ background: state.needsLocalHelpBeforeMove ? '#d8d1c4' : 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold', cursor: state.needsLocalHelpBeforeMove ? 'not-allowed' : 'pointer' }}>
-                {state.needsLocalHelpBeforeMove
-                  ? '현지 질환 해결 후 이동 가능'
-                  : (hasPendingTaxiMove || travelMode === 'soar')
-                    ? '🦅 활공 및 계절 조우'
-                    : '🚶‍♂️ 경로 이동 및 카드 조우'}
-              </button>
-
-              <div style={{ gridColumn: 'span 4', display: 'grid', gap: '0.75rem', fontSize: '0.85rem', background: '#faf8f5', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)', marginTop: '0.4rem' }}>
+              <div className="travel-encounter-prep">
+                <strong>도착지 조우</strong>
+                <span>카드를 미리 고를 수 있습니다. 비워두고 Route Editor에서 이동하면 자동으로 한 장 뽑습니다.</span>
                 <CardDrawSlot
                   label="이동 조우 카드 (p.25)"
                   helper="빈 칸을 문양/숫자로 채우거나 랜덤으로 뽑습니다. 이동 버튼을 누를 때 비어 있으면 자동 랜덤 드로우됩니다."

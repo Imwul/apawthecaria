@@ -50,4 +50,12 @@ describe('mobile layout regression guards', () => {
     expect(cssSource).toMatch(/\.route-composer\s*\{/);
     expect(cssSource).toMatch(/\.map-location-label\s*\{[\s\S]*?pointer-events:\s*none/);
   });
+
+  it('keeps the route strip controls tappable and horizontally usable on narrow screens', () => {
+    expect(appSource).toContain('className="travel-mode-switch"');
+    expect(cssSource).toMatch(/\.route-composer__track-container\s*\{[\s\S]*?overflow-x:\s*auto;[\s\S]*?scroll-snap-type:\s*x proximity/);
+    expect(cssSource).toMatch(/\.route-composer \.route-card__remove-btn\s*\{[\s\S]*?min-width:\s*44px;[\s\S]*?flex-shrink:\s*0/);
+    expect(cssSource).toMatch(/\.route-composer \.route-connector__btn\s*\{[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px/);
+    expect(cssSource).toMatch(/\.route-composer__picker-controls input,[\s\S]*?min-height:\s*2\.75rem/);
+  });
 });

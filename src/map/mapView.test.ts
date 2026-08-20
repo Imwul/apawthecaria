@@ -95,6 +95,12 @@ describe('map interaction contracts', () => {
     expect(appSource).not.toMatch(/onPickLocation=\{playMapMode === 'inspect' \? undefined : handlePlayMapPick\}/);
   });
 
+  it('keeps named destinations above overlapping wild markers and asks for an explicit destination confirmation', () => {
+    expect(mapSource).toContain("place.locationType === 'Wilds' ? 3 : 4");
+    expect(mapSource).toContain('이곳을 여정 목적지로');
+    expect(mapSource).toContain('onConfirmDestination(placeToPick(selectedPlace))');
+  });
+
   it('keeps journey-reason typing from re-rendering the play map', () => {
     expect(appSource).toContain('function IsolatedTextarea');
     expect(appSource).toContain('valueRef={journeyReasonRef}');
@@ -147,7 +153,7 @@ describe('map interaction contracts', () => {
     expect(appSource).toContain('veiled');
     expect(mapSource).toContain('paper-map--veiled');
     expect(mapSource).toContain('paper-map__veil');
-    expect(mapSource).toContain('유산지');
+    expect(mapSource).toContain('가림막');
     expect(mapSource).toContain("event.key === 'v' || event.key === 'V'");
     expect(cssSource).toContain('.paper-map--veiled');
     expect(cssSource).toContain('.paper-map__veil');

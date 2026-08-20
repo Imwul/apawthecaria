@@ -6,6 +6,7 @@ import {
   cycleRouteEdgeKind,
   draftFromOrigin,
   evaluateRouteDraft,
+  findDisconnectedRouteSegment,
   glyphKindFromLocation,
   nearestTerrain,
   moveRouteStop,
@@ -38,9 +39,28 @@ describe('route composer draft', () => {
     expect(next.edgeKinds).toEqual(['path', 'waterway']);
   });
 
-  it('does not duplicate the last stop when the same node is clicked again', () => {
-    const draft = appendRouteStop(draftFromOrigin(stop('oak')), stop('oak'));
-    expect(draft.stops).toHaveLength(1);
+  it('keeps repeated taps idempotent instead of duplicating or deleting a stop', () => {
+    let draft = appendRouteStop(draftFromOrigin(stop('oak')), stop('middle'));
+    draft = appendRouteStop(draft, stop('end'));
+    const repeatedMiddle = appendRouteStop(draft, stop('middle'));
+    expect(repeatedMiddle).toBe(draft);
+    expect(repeatedMiddle.stops.map(row => row.id)).toEqual(['oak', 'middle', 'end']);
+  });
+
+  it('finds a reordered or hand-picked segment that is not a real map connection', () => {
+    let draft = appendRouteStop(draftFromOrigin(stop('oak')), stop('bridge'));
+    draft = appendRouteStop(draft, stop('lake'));
+    const neighbors: Record<string, string[]> = {
+      oak: ['bridge'],
+      bridge: ['oak'],
+      lake: []
+    };
+    expect(findDisconnectedRouteSegment(draft, (from, to) => neighbors[from]?.includes(to) ?? false))
+      .toMatchObject({ index: 1, from: { id: 'bridge' }, to: { id: 'lake' } });
+    expect(findDisconnectedRouteSegment(
+      draft,
+      (from, to) => ({ oak: ['bridge'], bridge: ['oak', 'lake'], lake: ['bridge'] })[from]?.includes(to) ?? false
+    )).toBeNull();
   });
 
   it('lets a player correct auto-filled kind and terrain', () => {
