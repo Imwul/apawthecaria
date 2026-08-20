@@ -41,7 +41,6 @@ import {
   locationTypeFromGlyph,
   mapKindFromGlyph,
   moveRouteStop,
-  nearestTerrain,
   normalizeRouteDraft,
   removeRouteStopAt,
   routeEdgeLabel,
@@ -57,19 +56,13 @@ import { MapNodeAppearance } from "./map/MapNodeAppearance";
 import { mergeCharacterJournals } from "./characterJournals";
 import {
   FAMILIAR_BENEFITS,
-  calculateRemedyRewards,
-  calculateForageRarity,
   createPreparedReagentItem,
   getActiveFamiliarBenefit,
   getActiveFamiliarMechanic,
   getStartingForagingPoints,
   hasTool,
   parseAilmentRequirements,
-  previewConcoction,
-  previewPatientTimer,
-  selectedToolEffectItems,
-  splitReagentPreparations,
-  validateConcoction
+  splitReagentPreparations
 } from "./rulesEngine";
 import parsedPrepsList from "../parsed_preps_list.json";
 import {
@@ -262,8 +255,7 @@ import {
   localizeSavedJourneyText,
   localizeSeasonLabel,
   localizeSeverityLabel,
-  localizeTravelStyle,
-  localizeTreatmentResult
+  localizeTravelStyle
 } from './localization/gameplayKo';
 import { localizeGameplayMessage } from './localization/engineMessagesKo';
 import { localizeManualEffectValue } from './localization/manualEffectKo';
@@ -1087,35 +1079,6 @@ const cardDisplayValue = (value: number) => {
   return String(value);
 };
 
-const drawSocialEncounterForLocation = (regionName: string, locationName: string, season: GameState['currentSeason']) => {
-  const card = drawPlayingCard();
-  const normalizedLocation = normalizeMapLocationName(locationName);
-  const cityNames: Record<string, string> = {
-    glasswall: 'Glasswall', '글래스월': 'Glasswall',
-    noonhill: 'Noonhill', '눈힐': 'Noonhill',
-    odoak: 'Odoak', '오도크': 'Odoak',
-    newdam: 'Newdam', '뉴댐': 'Newdam',
-    vessel: 'Vessel', '베슬': 'Vessel',
-    summit: 'Summit', '서밋': 'Summit',
-    spoolkeep: 'Spoolkeep', '스풀킵': 'Spoolkeep'
-  };
-  const city = Object.entries(cityNames).find(([key]) => normalizedLocation.includes(key))?.[1];
-  const encounter = findEncounter({
-    encounterType: 'social',
-    region: regionName as any,
-    card,
-    season,
-    locationType: city ? 'City' : 'Settlement',
-    city
-  });
-  if (!encounter) return null;
-  return {
-    card,
-    tableKey: city || regionName,
-    encounter: { ...encounter, text: encounter.prompt, page: encounter.sourcePage }
-  };
-};
-
 const examplesToOptions = (examples: string) => examples.split(',').map(item => item.trim()).filter(Boolean);
 
 const findByCard = <T extends { card: string }>(items: T[], card: string) => items.find(item => item.card === card) || items[0];
@@ -1309,16 +1272,6 @@ const MAP_REGION_LABELS: Record<MapRegion, string> = {
   Mountain: '산맥',
   Titan: '티탄 유적',
   Wilds: '야생'
-};
-
-const MAP_REGION_COLORS: Record<MapRegion, string> = {
-  Bog: '#9d2e84',
-  Forest: '#5f8f3c',
-  Loch: '#1c6da8',
-  Meadow: '#e5a832',
-  Mountain: '#b7533c',
-  Titan: '#77726c',
-  Wilds: '#6b7280'
 };
 
 const MAP_LOCATIONS: Record<string, MapLocationNode> = {
@@ -1563,7 +1516,6 @@ const buildMapGraphNodes = (customLocations: CustomMapLocation[] = [], customEdg
 const mapEdgeKind = (
   from: string,
   to: string,
-  nodes: Record<string, MapLocationNode>,
   customEdges: CustomMapEdge[] = []
 ): 'path' | 'river' | 'waterway' => {
   const custom = customEdges.find(edge =>
@@ -1744,9 +1696,6 @@ const getMapServiceEntriesWithinHops = (startName: string, maxHops: number = MAP
   return [...seen.entries()].map(([key, hops]) => ({ key, hops, node: graphNodes[key] })).filter(entry => entry.node);
 };
 
-const getMapLocationsWithinHops = (startName: string, maxHops: number = MAP_SERVICE_HOPS, customLocations: CustomMapLocation[] = [], customEdges: CustomMapEdge[] = []) =>
-  getMapServiceEntriesWithinHops(startName, maxHops, customLocations, customEdges).filter(entry => entry.node.kind !== 'wild');
-
 const BARTER_CITY_LOCATION_NAMES = ['Glasswall', 'Summit', 'Spoolkeep', 'New Dam', 'Newdam', 'Vessel', 'Odoak', 'Noonhill'];
 
 const isKnownBarterCity = (key: string, node: MapLocationNode) => {
@@ -1842,7 +1791,7 @@ const toTravelEngineGraph = (s: GameState) => {
       locationType,
       edges: (node.neighbors || []).filter(to => source[to]).map(to => ({
         to,
-        kind: mapEdgeKind(id, to, source, s.customMapEdges || [])
+        kind: mapEdgeKind(id, to, s.customMapEdges || [])
       }))
     }];
   }));
@@ -1872,14 +1821,6 @@ const collectLocationDistances = (
 };
 
 const toMapPlaceType = (kind?: string): MapPlaceType => {
-  if (kind === 'city' || kind === 'City') return 'City';
-  if (kind === 'settlement' || kind === 'Settlement') return 'Settlement';
-  if (kind === 'ruin' || kind === 'Ruin' || kind === 'Titan Ruin') return 'Ruin';
-  if (kind === 'barrow' || kind === 'Barrow' || kind === 'Behemoth Barrow') return 'Barrow';
-  return 'Wilds';
-};
-
-const destTypeFromMapPick = (kind?: string): string => {
   if (kind === 'city' || kind === 'City') return 'City';
   if (kind === 'settlement' || kind === 'Settlement') return 'Settlement';
   if (kind === 'ruin' || kind === 'Ruin' || kind === 'Titan Ruin') return 'Ruin';
@@ -1928,7 +1869,7 @@ const toServiceMapGraph = (s: GameState): ServiceRuntimeState['graph'] => Object
     locationType: node.locationType,
     edges: node.neighbors.map(to => ({
       to,
-      kind: mapEdgeKind(id, to, buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || []), s.customMapEdges || [])
+      kind: mapEdgeKind(id, to, s.customMapEdges || [])
     }))
   }])
 );
@@ -2822,53 +2763,6 @@ const legacyCaseRecordsFromJournals = (s: any): PatientCaseRecord[] => {
     });
 };
 
-const createPendingPatientArchive = (
-  s: GameState,
-  sourceId: string,
-  outcome: 'success' | 'failure',
-  notes: string,
-  remedy: string[] = [],
-  consequence: string = '',
-  timestamp: number = Date.now()
-): PendingPatientArchive | null => {
-  if (!s.activeAilment) return null;
-  return {
-    sourceId,
-    patientName: s.activeAilment.patientName || '',
-    species: s.activeAilment.species || '',
-    ailmentName: s.activeAilment.name,
-    severity: s.activeAilment.severity,
-    tags: s.activeAilment.tags,
-    locationName: s.currentLocationName,
-    region: s.currentRegion,
-    season: s.currentSeason,
-    journeyTitle: s.journeyGoalTitle || s.journeyDestination || '',
-    resolvedAtDay: s.cumulativeDays || s.calendarDays || 0,
-    outcome,
-    remedy,
-    consequence,
-    initialRememberedNote: s.activeAilment.initialRememberedNote || '',
-    notes,
-    timestamp
-  };
-};
-
-const getAvailableRemedyIngredients = (s: GameState, bag: BagItem[] = s.bag): BagItem[] => [
-  ...bag.filter(item => item.type === 'reagent'),
-  ...selectedToolEffectItems(bag, bag.filter(item => item.type === 'tool').map(item => item.id))
-];
-
-const canCreateRemedyFromBag = (s: GameState, bag: BagItem[] = s.bag): boolean => {
-  if (!s.activeAilment) return false;
-  return validateConcoction(
-    s.activeAilment,
-    getAvailableRemedyIngredients(s, bag),
-    bag,
-    { ...s, bag },
-    false
-  ).isComplete;
-};
-
 const finalizePendingPatientArchive = (pending: PendingPatientArchive, finalArchiveNote: string): PatientCaseRecord => ({
   id: memoryKey('case', pending.sourceId),
   sourceId: pending.sourceId,
@@ -3582,254 +3476,6 @@ const parseAndRenderTags = (tagsStr: string) => {
       })}
     </div>
   );
-};
-
-const parsePrepsLine = (line: string) => {
-  const match = line.trim().match(/^(\d\/\d|\d)([\s\S]*)$/);
-  if (match) {
-    return {
-      portion: match[1],
-      content: match[2].trim()
-    };
-  }
-  return { portion: "", content: line };
-};
-
-const PortionIndicator = ({ value }: { value: string }) => {
-  let filled = 0;
-
-  if (value === '1/3') {
-    filled = 1;
-  } else if (value === '2/3') {
-    filled = 2;
-  } else if (value === '1' || value === '1/1' || value === '3/3') {
-    filled = 3;
-  } else if (value === '1/2') {
-    filled = 1.5;
-  } else {
-    const match = value.match(/(\d+)\/(\d+)/);
-    if (match) {
-      const num = parseInt(match[1]);
-      const den = parseInt(match[2]);
-      if (den === 3) {
-        filled = num;
-      } else {
-        filled = (num / den) * 3;
-      }
-    } else {
-      const num = parseFloat(value);
-      if (!isNaN(num)) {
-        filled = num * 3;
-      }
-    }
-  }
-
-  filled = Math.min(3, Math.max(0, filled));
-
-  return (
-    <span style={{ display: 'inline-flex', gap: '3px', marginRight: '6px', transform: 'translateY(3px)' }}>
-      {[1, 2, 3].map((i) => {
-        const isFilled = filled >= i;
-        const isHalf = !isFilled && (filled + 0.5 >= i);
-        return (
-          <span
-            key={i}
-            style={{
-              width: '10px',
-              height: '10px',
-              borderRadius: '2px',
-              background: isFilled ? 'var(--primary)' : isHalf ? 'linear-gradient(90deg, var(--primary) 50%, #e0e0e0 50%)' : '#e0e0e0',
-              border: '1px solid rgba(0,0,0,0.08)',
-              display: 'inline-block'
-            }}
-            title={`${value} 분량`}
-          />
-        );
-      })}
-    </span>
-  );
-};
-
-const prepKeywordMap: { [key: string]: { label: string; bg: string; color: string; border: string } } = {
-  '빻아서': { label: '빻기 [CRUSH] 🔨', bg: '#fef3c7', color: '#b45309', border: '#fcd34d' },
-  '갈아서': { label: '갈기 [GRIND] 🔨', bg: '#fef3c7', color: '#b45309', border: '#fcd34d' },
-  '끓여서': { label: '끓이기 [BOIL] ♨️', bg: '#e0f2fe', color: '#0369a1', border: '#7dd3fc' },
-  '달여서': { label: '달이기 [BREW] ♨️', bg: '#e0f2fe', color: '#0369a1', border: '#7dd3fc' },
-  '끓인 뒤': { label: '끓이기 [BOIL] ♨️', bg: '#e0f2fe', color: '#0369a1', border: '#7dd3fc' },
-  '요리해서': { label: '요리 [COOK] 🍳', bg: '#dcfce7', color: '#15803d', border: '#86efac' },
-  '요리하여': { label: '요리 [COOK] 🍳', bg: '#dcfce7', color: '#15803d', border: '#86efac' },
-  '씹어서': { label: '씹기 [CHEW] 🦷', bg: '#ffedd5', color: '#c2410c', border: '#fdbb2d' },
-  '발라서': { label: '바르기 [APPLY] 🐾', bg: '#f3e8ff', color: '#6b21a8', border: '#d8b4fe' },
-  '발라': { label: '바르기 [APPLY] 🐾', bg: '#f3e8ff', color: '#6b21a8', border: '#d8b4fe' },
-  '첨가하여': { label: '첨가 [ADD] ➕', bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' },
-  '첨가': { label: '첨가 [ADD] ➕', bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' },
-};
-
-const formatTextWithPrepKeywords = (text: string, keyPrefix: string): React.ReactNode[] => {
-  const keywords = Object.keys(prepKeywordMap);
-  keywords.sort((a, b) => b.length - a.length);
-
-  const pattern = new RegExp(`(${keywords.join('|')})`, 'g');
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match;
-
-  while ((match = pattern.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.substring(lastIndex, match.index));
-    }
-
-    const keyword = match[1];
-    const style = prepKeywordMap[keyword];
-
-    parts.push(
-      <span
-        key={`${keyPrefix}_kw_${match.index}`}
-        style={{
-          padding: '0.12rem 0.35rem',
-          borderRadius: '4px',
-          background: style.bg,
-          color: style.color,
-          border: `1px solid ${style.border}`,
-          fontSize: '0.72rem',
-          fontWeight: 'bold',
-          display: 'inline-flex',
-          alignItems: 'center',
-          margin: '0 0.15rem',
-          transform: 'translateY(-1px)'
-        }}
-      >
-        {style.label}
-      </span>
-    );
-
-    lastIndex = pattern.lastIndex;
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(text.substring(lastIndex));
-  }
-
-  return parts.length > 0 ? parts : [text];
-};
-
-const renderPreps = (prepsStr: string) => {
-  if (!prepsStr) return null;
-
-  const lines = prepsStr.split('\n').filter(Boolean);
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.4rem' }}>
-      {lines.map((line, idx) => {
-        const { portion, content } = parsePrepsLine(line);
-
-        const parts: React.ReactNode[] = [];
-        const tagRegex = /\[([^\]]+)\]/g;
-        let lastIndex = 0;
-        let match;
-
-        while ((match = tagRegex.exec(content)) !== null) {
-          if (match.index > lastIndex) {
-            const rawText = content.substring(lastIndex, match.index);
-            parts.push(...formatTextWithPrepKeywords(rawText, `idx_${idx}_part_${lastIndex}`));
-          }
-
-          const tagText = match[1];
-          const numMatch = tagText.match(/^([\s\S]+?)\s*(\d+)$/);
-          let tagName = tagText;
-          let tagNum = '';
-          if (numMatch) {
-            tagName = numMatch[1].trim();
-            tagNum = numMatch[2];
-          }
-
-          const cleanKey = tagName.toLowerCase();
-          const translated = tagTranslationMap[cleanKey] || tagTranslationMap[tagName] || tagName.toUpperCase();
-          const finalTagText = tagNum ? `${translated} ${tagNum}` : translated;
-          const style = getTagStyle(finalTagText);
-
-          parts.push(
-            <span
-              key={match.index}
-              style={{
-                padding: '0.15rem 0.45rem',
-                borderRadius: '6px',
-                background: style.bg,
-                color: style.text,
-                border: `1.2px solid ${style.border}`,
-                fontSize: '0.74rem',
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                margin: '0 0.2rem',
-                letterSpacing: '0.02em',
-                textTransform: 'uppercase',
-                transform: 'translateY(-1px)',
-                fontFamily: 'var(--font-fancy)'
-              }}
-            >
-              {finalTagText}
-            </span>
-          );
-
-          lastIndex = tagRegex.lastIndex;
-        }
-
-        if (lastIndex < content.length) {
-          const rawText = content.substring(lastIndex);
-          parts.push(...formatTextWithPrepKeywords(rawText, `idx_${idx}_end_${lastIndex}`));
-        }
-
-        const finalContent = parts.length > 0 ? parts : formatTextWithPrepKeywords(content, `idx_${idx}_full`);
-
-        return (
-          <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem', fontSize: '0.88rem', color: '#444', lineHeight: '1.5' }}>
-            {portion && <PortionIndicator value={portion} />}
-            <div style={{ flex: 1 }}>{finalContent}</div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-const parseLocs = (locsStr: string) => {
-  if (!locsStr) return { regions: [], seasons: [], desc: "" };
-
-  const lines = locsStr.split('\n');
-  const codeLine = lines[0] || "";
-  const desc = lines.slice(1).join('\n') || "";
-
-  const regions: string[] = [];
-  const seasons: string[] = [];
-
-  const regMap: { [key: string]: string } = {
-    'b': '늪지',
-    'f': '숲',
-    'l': '호수',
-    'g': '초원',
-    'm': '산맥',
-    't': '티탄유적'
-  };
-
-  const seasonMap: { [key: string]: string } = {
-    'p': '봄',
-    's': '여름',
-    'a': '가을',
-    'w': '겨울'
-  };
-
-  const cleanCode = codeLine.replace(/\s+/g, '').toLowerCase();
-
-  for (const char of cleanCode) {
-    if (regMap[char]) {
-      regions.push(regMap[char]);
-    } else if (seasonMap[char]) {
-      seasons.push(seasonMap[char]);
-    }
-  }
-
-  return { regions, seasons, desc };
 };
 
 // =================================================================
@@ -4595,7 +4241,6 @@ export default function App() {
   const [controlledPromptResolver, setControlledPromptResolver] = useState<((value: string | null) => void) | null>(null);
   const [noticeQueue, setNoticeQueue] = useState<string[]>([]);
   const [rulebookRequest, setRulebookRequest] = useState<RulebookReferenceRequest | null>(null);
-  const [pendingMapTravel, setPendingMapTravel] = useState<MapPickLocation | null>(null);
   const [saveLoadError, setSaveLoadError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'ready' | 'saving' | 'saved' | 'error'>('ready');
   const initialSetupRouted = useRef(false);
@@ -4642,8 +4287,6 @@ export default function App() {
   const [showTitanwiseModal, setShowTitanwiseModal] = useState(false);
 
   const [barterJournalNote, setBarterJournalNote] = useState("");
-  const [barterPaymentTrinkets, setBarterPaymentTrinkets] = useState(0);
-  const [rumourCards, setRumourCards] = useState<{ suit: string; val: string; text?: string }[]>([]);
 
   const changeActiveTab = (tab: JournalTab, options: { replace?: boolean; restoreScroll?: boolean } = {}) => {
     tabScrollPositions.current[activeTabRef.current] = window.scrollY;
@@ -4702,12 +4345,6 @@ export default function App() {
     }
     setRulebookRequest(null);
   };
-  const [rumourBarrowName, setRumourBarrowName] = useState("");
-  const [rumourLocName, setRumourLocName] = useState("");
-  const [selectedToolToUpgrade, setSelectedToolToUpgrade] = useState("");
-  const [selectedUpgradeOption, setSelectedUpgradeOption] = useState("");
-  const [bypassShopRules, setBypassShopRules] = useState(false);
-
   // Succession states
   const [showSuccessionModal, setShowSuccessionModal] = useState(false);
   const [retiredApothecaryName, setRetiredApothecaryName] = useState("");
@@ -5182,7 +4819,6 @@ export default function App() {
       }
       updateState((s: GameState) => commitPendingAlternativeAcquisition(applyBarterRuntime(s, gossipResult.value!), 'barter', transactionId));
       setBarterJournalNote('');
-      setBarterPaymentTrinkets(0);
       showAlert('흥미로운 소문을 건네고 선택한 영약재를 받았습니다.');
       return;
     }
@@ -5202,7 +4838,6 @@ export default function App() {
         ? { ...next, journals: [{ id: `${runtime.pendingBarter!.barterId}:social-note`, title: '사교 조우 기록', text: barterJournalNote.trim(), timestamp: Date.now() }, ...next.journals] }
         : next;
     });
-    setBarterPaymentTrinkets(0);
   };
 
   const handleBarterFinalize = (isSuccess: boolean, paidTrinketsCount: number = 0, paidReputationCount: number = 0) => {
@@ -5223,7 +4858,6 @@ export default function App() {
       return isSuccess ? commitPendingAlternativeAcquisition(next, 'barter', transactionId) : next;
     });
     setBarterJournalNote("");
-    setBarterPaymentTrinkets(0);
     showAlert(isSuccess ? "거래가 완료되어 선택한 조제 부위가 가방에 추가되었습니다." : "거래를 중단해 모든 활성 타이머가 1 감소했습니다.");
   };
 
@@ -5743,7 +5377,6 @@ export default function App() {
     ? baseWeight + Math.max(0, bandolierContentsWeight - 5)
     : baseWeight + bandolierContentsWeight;
   const maxCarry = getMaxCarry(state);
-  const travelSpeed = getTravelSpeed(state, currentWeight);
   const isOverEncumbered = currentWeight > maxCarry;
 
   const addPreparedReagentToInventory = async (reagentName: string, sourceLabel: string, onAdded?: () => void) => {
@@ -6979,17 +6612,12 @@ export default function App() {
                 state={state}
                 updateState={updateState}
                 currentWeight={currentWeight}
-                activeTravelEncounter={activeTravelEncounter}
                 setActiveTravelEncounter={setActiveTravelEncounter}
                 activeForageEncounter={activeForageEncounter}
                 setActiveForageEncounter={setActiveForageEncounter}
-                seasonedDraws={seasonedDraws}
                 setSeasonedDraws={setSeasonedDraws}
-                showSeasonedModal={showSeasonedModal}
                 setShowSeasonedModal={setShowSeasonedModal}
-                titanwiseDraws={titanwiseDraws}
                 setTitanwiseDraws={setTitanwiseDraws}
-                showTitanwiseModal={showTitanwiseModal}
                 setShowTitanwiseModal={setShowTitanwiseModal}
                 handleRetireClick={handleRetireClick}
                 handleLegacyClinicRest={handleLegacyClinicRest}
@@ -7002,18 +6630,15 @@ export default function App() {
                 onOpenReference={openRulebookReference}
                 onOpenFullMap={() => changeActiveTab('map')}
                 onOpenPatientArchive={() => changeActiveTab('patientArchive')}
-                pendingMapTravel={pendingMapTravel}
-                onConsumePendingMapTravel={() => setPendingMapTravel(null)}
               />
             </>
           )}
           {activeTab !== 'play' && (
             <>
-              <ChapterOpening
-                tab={activeTab}
-                state={state}
-                currentWeight={currentWeight}
-                maxCarry={maxCarry}
+                <ChapterOpening
+                  tab={activeTab}
+                  state={state}
+                  maxCarry={maxCarry}
                 onReturnToToday={() => {
                   changeActiveTab('play');
                   window.setTimeout(() => document.getElementById('action-hub')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
@@ -8171,17 +7796,12 @@ function PlayView({
   state,
   updateState,
   currentWeight,
-  activeTravelEncounter,
   setActiveTravelEncounter,
   activeForageEncounter,
   setActiveForageEncounter,
-  seasonedDraws,
   setSeasonedDraws,
-  showSeasonedModal,
   setShowSeasonedModal,
-  titanwiseDraws,
   setTitanwiseDraws,
-  showTitanwiseModal,
   setShowTitanwiseModal,
   handleRetireClick,
   handleLegacyClinicRest,
@@ -8193,24 +7813,17 @@ function PlayView({
   requestControlledPrompt,
   onOpenReference,
   onOpenFullMap,
-  onOpenPatientArchive,
-  pendingMapTravel,
-  onConsumePendingMapTravel
+  onOpenPatientArchive
 }: {
   state: GameState;
   updateState: any;
   currentWeight: number;
-  activeTravelEncounter: any;
   setActiveTravelEncounter: any;
   activeForageEncounter: any;
   setActiveForageEncounter: any;
-  seasonedDraws: Array<{ suit: string; val: number }>;
   setSeasonedDraws: any;
-  showSeasonedModal: boolean;
   setShowSeasonedModal: any;
-  titanwiseDraws: Array<{ suit: string; val: number }>;
   setTitanwiseDraws: any;
-  showTitanwiseModal: boolean;
   setShowTitanwiseModal: any;
   handleRetireClick: () => void;
   handleLegacyClinicRest: () => void;
@@ -8223,14 +7836,11 @@ function PlayView({
   onOpenReference: (request: RulebookReferenceRequest) => void;
   onOpenFullMap: () => void;
   onOpenPatientArchive: () => void;
-  pendingMapTravel: MapPickLocation | null;
-  onConsumePendingMapTravel: () => void;
 }) {
   const [destName, setDestName] = useState("");
   const [journeyReason, setJourneyReason] = useState("");
   const journeyReasonRef = useRef("");
   const [destRegion, setDestRegion] = useState("Forest");
-  const [destType, setDestType] = useState("Wilds");
   const [travelMode, setTravelMode] = useState<'move' | 'soar'>('move');
   const [journeyDestinationMode, setJourneyDestinationMode] = useState<'draw' | 'choose'>('draw');
   const [journeyGoalMode, setJourneyGoalMode] = useState<'table' | 'invent'>('table');
@@ -8292,7 +7902,6 @@ function PlayView({
     [state]
   );
 
-  const [newAilmentName, setNewAilmentName] = useState("");
   const [patientNameDraft, setPatientNameDraft] = useState("");
   const [patientSpeciesDraft, setPatientSpeciesDraft] = useState("");
   const [patientInitialNoteDraft, setPatientInitialNoteDraft] = useState("");
@@ -8409,7 +8018,6 @@ function PlayView({
   // Manual Card Selector State
   const travelFormRef = useRef<HTMLFormElement>(null);
   const [nextLocName, setNextLocName] = useState(() => {
-    if (pendingMapTravel?.name) return pendingMapTravel.name;
     const savedRoute = normalizeRouteDraft(state.routeDraft);
     return savedRoute.stops.length > 1 ? savedRoute.stops.at(-1)?.name || '' : '';
   });
@@ -8441,7 +8049,6 @@ function PlayView({
       }
       if (destination) {
         setNextLocName(destination.name);
-        setDestType(locationTypeFromGlyph(destination.kind));
         setDestRegion(destination.kind === 'Ruin' ? 'Titan' : (destination.terrain || state.currentRegion));
       }
     });
@@ -8458,13 +8065,6 @@ function PlayView({
   const selectedTravelRegion = selectedTravelNode?.region && selectedTravelNode.region !== 'Wilds'
     ? selectedTravelNode.region
     : destRegion;
-  const selectedTravelType = selectedTravelNode
-    ? (selectedTravelNode.kind === 'settlement' ? 'Settlement'
-      : selectedTravelNode.kind === 'city' ? 'City'
-        : selectedTravelNode.kind === 'ruin' ? 'Ruin'
-          : selectedTravelNode.kind === 'barrow' ? 'Barrow'
-            : 'Wilds')
-    : destType;
   const hasPendingTaxiMove = ((state.pendingServices || []) as ServiceRuntimeState['pendingServices'])
     .some(service => service.serviceId === 'taxi-service' && service.status === 'pending-move');
   const currentRouteOrigin = useMemo<RouteStop | null>(() => {
@@ -8534,14 +8134,8 @@ function PlayView({
     });
     return () => { cancelled = true; };
   }, [currentRouteOrigin, setRouteDraft]);
-  const [travelCardMode, setTravelCardMode] = useState<'random' | 'manual'>('random');
-  const [selectedTravelSuit, setSelectedTravelSuit] = useState('♥');
-  const [selectedTravelValue, setSelectedTravelValue] = useState(1);
   const [travelDrawCard, setTravelDrawCard] = useState<PlayingCard | null>(null);
 
-  const [forageCardMode, setForageCardMode] = useState<'random' | 'manual'>('random');
-  const [selectedForageSuit, setSelectedForageSuit] = useState('♥');
-  const [selectedForageValue, setSelectedForageValue] = useState(1);
   const [forageDrawCard, setForageDrawCard] = useState<PlayingCard | null>(null);
   const [forageLocationType, setForageLocationType] = useState<'current' | 'adjacent'>('current');
   const [forageAdjacentRegion, setForageAdjacentRegion] = useState<string>('Forest');
@@ -8676,7 +8270,7 @@ function PlayView({
       const toolChoice = await requestControlledPrompt({
         title: '🐾 Ingenuitive 도구 효과 선택',
         message: 'Ingenuitive 승객이 제공할 도구 효과를 선택하세요:',
-        options: ALMANACK_TOOLS.map((tool, index) => ({ label: tool.canonicalName, value: tool.id })),
+        options: ALMANACK_TOOLS.map(tool => ({ label: tool.canonicalName, value: tool.id })),
         defaultValue: ALMANACK_TOOLS[0]?.id || ''
       });
       if (!toolChoice) return;
@@ -8881,7 +8475,6 @@ function PlayView({
       return;
     }
 
-    const behemothClasses = { '♥': 'Towering', '♦': 'Many', '♣': 'Violent', '♠': 'Demanding' };
     const behemothLabels = { '♥': '거대한 야수', '♦': '무리를 이룬 야수', '♣': '폭력적인 야수', '♠': '까다로운 야수' };
     const directions = { '♥': '북쪽', '♦': '남쪽', '♣': '동쪽', '♠': '서쪽' };
     const regions = { '♥': '숲', '♦': '산맥', '♣': '늪지', '♠': '초원' };
@@ -8892,7 +8485,6 @@ function PlayView({
     const c3 = drawn[2].suit as '♥' | '♦' | '♣' | '♠';
     const c4 = drawn[3].suit as '♥' | '♦' | '♣' | '♠';
 
-    const bClass = behemothClasses[c1];
     const bDir = directions[c2];
     const bRegion = regions[c3];
     const bDist = distances[c4];
@@ -9705,7 +9297,7 @@ function PlayView({
       locationType: canonicalLocationType(node.kind === 'settlement' ? 'Settlement' : node.kind === 'city' ? 'City' : node.kind === 'ruin' ? 'Ruin' : node.kind === 'barrow' ? 'Barrow' : 'Wilds'),
       edges: node.neighbors.map(to => ({
         to,
-        kind: mapEdgeKind(id, to, mapNodes, state.customMapEdges || [])
+        kind: mapEdgeKind(id, to, state.customMapEdges || [])
       }))
     }]));
     const mappedDestination = engineGraph[destinationId];
@@ -10375,7 +9967,6 @@ function PlayView({
         }, ...base.journals]
       }, diagnosisDrafts);
     });
-    setNewAilmentName('');
     setPatientNameDraft('');
     setPatientSpeciesDraft('');
       setPatientInitialNoteDraft('');
@@ -10566,21 +10157,6 @@ function PlayView({
 
     const card = drawPlayingCard();
     executeForageDraw(card.suit, card.value, adjRegion, 'familiar-independent');
-  };
-
-  // Check if reagent has at least one prep with potency <= 2
-  const isReagentPotencyTwoOrLess = (r: any) => {
-    if (!r || !r.preps) return false;
-    const matches = r.preps.match(/\[[^\]]+\s+(\d+)\]/g);
-    if (!matches) return true; // fallback
-    for (const m of matches) {
-      const numMatch = m.match(/(\d+)/);
-      if (numMatch) {
-        const val = parseInt(numMatch[1]);
-        if (val <= 2) return true;
-      }
-    }
-    return false;
   };
 
   // Scrounging Forage Draw Resolver
@@ -11228,44 +10804,6 @@ function PlayView({
     } catch (error) {
       showAlert(error instanceof Error ? error.message : '기부를 완료하지 못했습니다.');
     }
-  };
-
-  const handleLegacySettleSeasonTipsAndDonations = (nextSeason: 'Spring' | 'Summer' | 'Autumn' | 'Winter') => {
-    const activeServices = Array.from(new Set((state.clinics || []).map(c => c.agendaService).filter(Boolean))) as string[];
-    const clinicsCount = (state.clinics || []).length;
-
-    // Taproom / Hostel calculation
-    let tipPerClinic = 0;
-    if (activeServices.includes('hostel')) tipPerClinic = 2;
-    else if (activeServices.includes('taproom')) tipPerClinic = 1;
-
-    const totalTips = clinicsCount * tipPerClinic;
-    const goodwillRep = Math.round(state.goodwillDonationsVal || 0);
-
-    updateState((s: GameState) => {
-      const earnedTrinkets = Array(totalTips).fill("선술집 수입 (Trinket)");
-      const nextTrinkets = [...s.trinkets, ...earnedTrinkets];
-      const nextRep = s.reputation + goodwillRep;
-
-      return {
-        ...s,
-        currentSeason: nextSeason,
-        trinkets: nextTrinkets,
-        reputation: nextRep,
-        goodwillDonationsVal: 0,
-        journals: [
-          {
-            id: 'season_settle_' + Date.now(),
-            title: `🍂 계절 정산 결과 (${localizeSeasonLabel(s.currentSeason)} → ${localizeSeasonLabel(nextSeason)})`,
-            text: `계절이 바뀌어 길드 약제소들의 정산을 마쳤습니다.\n- 운영 중인 약제소 수: ${clinicsCount}개\n- 선술집(Taproom/Hostel) 팁 수입: 장신구 ${totalTips}개 획득\n- 친선 매대 기부 무게: ${formatWeight(s.goodwillDonationsVal || 0)} → 길드 평판 +${goodwillRep} 획득`,
-            timestamp: Date.now()
-          },
-          ...s.journals
-        ]
-      };
-    });
-
-    showAlert(`🍂 계절 정산 완료!\n\n🪙 선술집 팁 수입: 장신구 +${totalTips}개\n🎁 기부금 명성 전환: 평판 +${goodwillRep}\n\n계절이 [${localizeSeasonLabel(nextSeason)}]으로 변경되었습니다.`);
   };
 
   const handleSettleSeasonTipsAndDonations = (_requestedSeason?: 'Spring' | 'Summer' | 'Autumn' | 'Winter') => {
@@ -12244,7 +11782,6 @@ function PlayView({
     if (location.region && ['Forest', 'Meadow', 'Loch', 'Bog', 'Mountain', 'Titan'].includes(location.region)) {
       setDestRegion(location.region);
     }
-    setDestType(destTypeFromMapPick(location.kind));
     if (submit) queueMicrotask(() => travelFormRef.current?.requestSubmit());
   }, []);
 
@@ -12288,9 +11825,9 @@ function PlayView({
   }, [updateState]);
 
   const resolveDraftEdgeKind = useCallback((from: RouteStop, to: RouteStop): 'path' | 'river' | 'waterway' => {
-    const inferred = mapEdgeKind(from.id, to.id, routeGraphNodes, state.customMapEdges || []);
+    const inferred = mapEdgeKind(from.id, to.id, state.customMapEdges || []);
     return canChooseRouteEdgeKind(inferred, from, to) ? inferred : 'path';
-  }, [routeGraphNodes, state.customMapEdges]);
+  }, [state.customMapEdges]);
 
   const handleAddRouteWaypoint = useCallback((location: MapPickLocation) => {
     const node = routeGraphNodes[location.id];
@@ -12318,47 +11855,18 @@ function PlayView({
       // a route stop is an explicit action in the editor, never a map-click side effect.
       if (last?.id === stop.id) return previous;
       const inferredKind = last
-        ? mapEdgeKind(last.id, stop.id, routeGraphNodes, state.customMapEdges || [])
+        ? mapEdgeKind(last.id, stop.id, state.customMapEdges || [])
         : 'path';
       const edgeKind = last && canChooseRouteEdgeKind(inferredKind, last, stop) ? inferredKind : 'path';
       const next = appendRouteStop(previous, stop, edgeKind);
       if (next.stops.length > 1) {
         const dest = next.stops[next.stops.length - 1];
         setNextLocName(dest.name);
-        setDestType(locationTypeFromGlyph(dest.kind));
         setDestRegion(dest.kind === 'Ruin' ? 'Titan' : (dest.terrain || state.currentRegion));
       }
       return next;
     });
   }, [routeGraphNodes, setRouteDraft, state]);
-
-  const handleCreateMapPlace = useCallback((request: { x: number; y: number; kind?: string; terrain?: string; name?: string }) => {
-    const stop: RouteStop = {
-      id: `mark_${Date.now()}`,
-      name: request.name?.trim() || '',
-      kind: request.kind === 'City' || request.kind === 'Settlement' || request.kind === 'Ruin' || request.kind === 'Barrow' || request.kind === 'Clinic'
-        ? request.kind
-        : 'Wilds',
-      terrain: terrainFromRegion(request.terrain) || nearestTerrain(request.x, request.y, Object.values(routeGraphNodes).map(node => ({
-        x: node.x,
-        y: node.y,
-        region: node.region
-      }))) || terrainFromRegion(state.currentRegion) || 'Forest',
-      hasClinic: request.kind === 'Clinic',
-      x: Math.max(1, Math.min(99, request.x)),
-      y: Math.max(1, Math.min(99, request.y))
-    };
-    persistRouteStop(stop);
-    handleAddRouteWaypoint({
-      id: stop.id,
-      name: stop.name,
-      region: stop.terrain || undefined,
-      kind: stop.kind,
-      x: stop.x,
-      y: stop.y,
-      hasClinic: stop.hasClinic
-    });
-  }, [handleAddRouteWaypoint, persistRouteStop, routeGraphNodes, state.currentRegion]);
 
   const handleSetMappedCurrentLocation = useCallback((location: MapPickLocation) => {
     const node = routeGraphNodes[location.id];
@@ -12383,7 +11891,6 @@ function PlayView({
       visitedLocations: Array.from(new Set([...(s.visitedLocations || []), stop.name]))
     }));
     setNextLocName('');
-    setDestType('');
     setDestRegion(stop.terrain || state.currentRegion);
     setRouteDraft(draftFromOrigin(stop));
   }, [persistRouteStop, routeGraphNodes, setRouteDraft, state.currentRegion, updateState]);
@@ -12395,7 +11902,6 @@ function PlayView({
       if (stop) persistRouteStop(stop);
       if (index === next.stops.length - 1 && next.stops.length > 1) {
         setNextLocName(stop.name);
-        setDestType(locationTypeFromGlyph(stop.kind));
         setDestRegion(stop.terrain || (stop.kind === 'Ruin' ? 'Titan' : state.currentRegion));
       }
       return next;
@@ -12418,11 +11924,9 @@ function PlayView({
       const dest = next.stops[next.stops.length - 1];
       if (next.stops.length > 1 && dest) {
         setNextLocName(dest.name);
-        setDestType(locationTypeFromGlyph(dest.kind));
         setDestRegion(dest.terrain || state.currentRegion);
       } else {
         setNextLocName('');
-        setDestType('');
         setDestRegion(state.currentRegion);
       }
       return next;
@@ -12435,7 +11939,6 @@ function PlayView({
       const dest = next.stops[next.stops.length - 1];
       if (next.stops.length > 1 && dest) {
         setNextLocName(dest.name);
-        setDestType(locationTypeFromGlyph(dest.kind));
         setDestRegion(dest.terrain || state.currentRegion);
       }
       return next;
@@ -12444,109 +11947,9 @@ function PlayView({
 
   const handleClearRouteSides = useCallback(() => {
     setNextLocName('');
-    setDestType('');
     setDestRegion(state.currentRegion);
     setRouteDraft(previous => draftFromOrigin(previous.stops[0] || currentRouteOrigin));
   }, [currentRouteOrigin, setRouteDraft, state.currentRegion]);
-
-  const handleMoveMapPlace = useCallback((location: MapPickLocation) => {
-    if (location.x === undefined || location.y === undefined) return;
-    const x = Math.max(1, Math.min(99, location.x));
-    const y = Math.max(1, Math.min(99, location.y));
-    setRouteDraft(previous => ({
-      ...previous,
-      stops: previous.stops.map(stop => stop.id === location.id ? { ...stop, x, y } : stop)
-    }));
-    const node = routeGraphNodes[location.id];
-    persistRouteStop({
-      id: location.id,
-      name: location.name || node?.label || location.id,
-      kind: node ? stopFromGraphNode(location.id, node).kind : (location.kind === 'City' ? 'City' : location.kind === 'Settlement' ? 'Settlement' : location.kind === 'Ruin' ? 'Ruin' : location.kind === 'Barrow' ? 'Barrow' : 'Wilds'),
-      terrain: terrainFromRegion(location.region || node?.region),
-      hasClinic: Boolean(location.hasClinic),
-      x,
-      y
-    });
-  }, [persistRouteStop, routeGraphNodes, setRouteDraft]);
-
-  const handleSaveMapPlaces = useCallback(() => {
-    const draft = routeDraftRef.current;
-    if (draft.stops.length === 0 && (state.customMapLocations || []).length === 0) {
-      showAlert('저장할 표시가 없습니다. 지도에서 자리를 고르거나 ⌘+클릭으로 남기세요.');
-      return;
-    }
-    upsertPlayerMarkerRecords(draft.stops.map(playerRecordFromStop));
-    draft.stops.forEach(persistRouteStop);
-    showAlert('표시를 이 기록에 남겼습니다. 형태와 자리를 고친 값도 다음에 그대로 보입니다.');
-  }, [persistRouteStop, state.customMapLocations]);
-
-  const handleEditMapPlace = useCallback((location: MapPickLocation) => {
-    const node = routeGraphNodes[location.id];
-    const stop: RouteStop = {
-      id: location.id,
-      name: location.name ?? node?.label ?? '',
-      kind: location.kind === 'City' || location.kind === 'Settlement' || location.kind === 'Ruin' || location.kind === 'Barrow' || location.kind === 'Clinic'
-        ? location.kind
-        : (node ? stopFromGraphNode(location.id, node).kind : 'Wilds'),
-      terrain: terrainFromRegion(location.region) || (node ? stopFromGraphNode(location.id, node).terrain : null),
-      hasClinic: Boolean(location.hasClinic) || location.kind === 'Clinic',
-      x: location.x ?? node?.x ?? 50,
-      y: location.y ?? node?.y ?? 50
-    };
-    persistRouteStop(stop);
-    setRouteDraft(previous => ({
-      ...previous,
-      stops: previous.stops.map(row => row.id === stop.id ? { ...row, ...stop } : row)
-    }));
-  }, [persistRouteStop, routeGraphNodes, setRouteDraft]);
-
-  const handleDeleteMapPlace = useCallback((location: MapPickLocation) => {
-    if (!isPlayerCreatedMapPlace(location.id)) {
-      setRouteDraft(previous => {
-        const index = previous.stops.findIndex(stop => stop.id === location.id);
-        if (index <= 0) return previous;
-        const next = removeRouteStopAt(previous, index, resolveDraftEdgeKind);
-        const destination = next.stops.at(-1);
-        if (next.stops.length > 1 && destination) {
-          setNextLocName(destination.name);
-          setDestType(locationTypeFromGlyph(destination.kind));
-          setDestRegion(destination.terrain || state.currentRegion);
-        } else {
-          setNextLocName('');
-          setDestType('');
-          setDestRegion(state.currentRegion);
-        }
-        return next;
-      });
-      return;
-    }
-    if (findMapLocationKey(state.currentLocationName, state.customMapLocations || []) === location.id) {
-      showAlert('지금 있는 자리의 표시는 지울 수 없습니다.');
-      return;
-    }
-    removePlayerMarkerRecords([location.id]);
-    setRouteDraft(previous => {
-      const index = previous.stops.findIndex(stop => stop.id === location.id);
-      if (index <= 0) return previous;
-      const next = removeRouteStopAt(previous, index, resolveDraftEdgeKind);
-      const destination = next.stops.at(-1);
-      if (next.stops.length > 1 && destination) {
-        setNextLocName(destination.name);
-        setDestType(locationTypeFromGlyph(destination.kind));
-        setDestRegion(destination.terrain || state.currentRegion);
-      } else {
-        setNextLocName('');
-        setDestType('');
-        setDestRegion(state.currentRegion);
-      }
-      return next;
-    });
-    updateState((s: GameState) => ({
-      ...s,
-      customMapLocations: (s.customMapLocations || []).filter(row => row.id !== location.id),
-      customMapEdges: (s.customMapEdges || []).filter(edge => edge.from !== location.id && edge.to !== location.id)
-    }));
-  }, [resolveDraftEdgeKind, setRouteDraft, state.currentLocationName, state.currentRegion, state.customMapLocations, updateState]);
 
   const handleComposerTravel = useCallback(() => {
     const draft = routeDraftRef.current;
@@ -14855,12 +14258,7 @@ function PlayView({
                   label="이동 조우 카드 (p.25)"
                   helper="빈 칸을 문양/숫자로 채우거나 랜덤으로 뽑습니다. 이동 버튼을 누를 때 비어 있으면 자동 랜덤 드로우됩니다."
                   card={travelDrawCard}
-                  onCard={(card) => {
-                    setTravelDrawCard(card);
-                    setSelectedTravelSuit(card.suit);
-                    setSelectedTravelValue(card.value);
-                    setTravelCardMode('manual');
-                  }}
+                  onCard={setTravelDrawCard}
                 />
               </div>
             </form>
@@ -15479,12 +14877,7 @@ function PlayView({
                     label="채집 카드"
                     helper="카드 값이 영약재 희귀도 이상이면 발견합니다. 빈 칸이면 채집 버튼을 누를 때 자동 랜덤 드로우됩니다."
                     card={forageDrawCard}
-                    onCard={(card) => {
-                      setForageDrawCard(card);
-                      setSelectedForageSuit(card.suit);
-                      setSelectedForageValue(card.value);
-                      setForageCardMode('manual');
-                    }}
+                    onCard={setForageDrawCard}
                   />
                 </div>
 
@@ -18106,7 +17499,6 @@ const MapView = memo(function MapView({
     <PaperMap
       places={places}
       clinicOverlays={clinicOverlays}
-      highlightPlaceIds={highlightLocationIds}
       selectedPlaceId={selectedLocationId}
       historyAnchors={historyAnchors}
       variant={variant}

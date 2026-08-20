@@ -168,7 +168,7 @@ export default function AlmanackPanel({
       }
       return true;
     });
-    const source = (kind === 'all' || kind === 'source') && query.trim().length >= 2 ? pageResults.map(sourceEntry).filter(entry => status === 'all' || status === 'reference-only') : [];
+    const source = (kind === 'all' || kind === 'source') && query.trim().length >= 2 && (status === 'all' || status === 'reference-only') ? pageResults.map(sourceEntry) : [];
     const seen = new Set<string>();
     return [...canonical, ...source].filter(entry => !seen.has(entry.id) && seen.add(entry.id));
   }, [bookmarkedOnly, currentRegionId, entryIngredient, fieldContextOnly, gameplayContext.currentSeason, isOwnedEntry, kind, ownedOnly, pageResults, patientContextOnly, patientMatches, personal.bookmarks, query, status, statusFor]);
@@ -230,7 +230,6 @@ export default function AlmanackPanel({
     return labels;
   };
 
-  const bookmarked = selected ? personal.bookmarks.includes(selected.id) : false;
   const note = selected ? personal.notes[selected.id] || '' : '';
   const houseRule = selected ? personal.houseRules[selected.id] || '' : '';
   const sourceLoading = Boolean(selected && sourcePage?.page !== selected.sourcePage);

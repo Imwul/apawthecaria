@@ -1,29 +1,25 @@
-export const MAP_LAYER_STORAGE_KEY = 'apawthecaria.mapLayers.v2';
+const MAP_LAYER_STORAGE_KEY = 'apawthecaria.mapLayers.v2';
 
 export type MapPlaceType = 'City' | 'Settlement' | 'Wilds' | 'Ruin' | 'Barrow';
 
 export type MapLayerState = {
   placeMarkers: boolean;
-  placeNames: boolean;
   visitedPlaces: boolean;
   unvisitedPlaces: boolean;
   hiddenPlaceTypes: MapPlaceType[];
   clinicService: boolean;
   currentRoute: boolean;
   travelHistory: boolean;
-  roads: boolean;
 };
 
 export const DEFAULT_MAP_LAYERS: MapLayerState = {
   placeMarkers: true,
-  placeNames: false,
   visitedPlaces: true,
   unvisitedPlaces: true,
   hiddenPlaceTypes: [],
   clinicService: false,
   currentRoute: true,
-  travelHistory: false,
-  roads: false
+  travelHistory: false
 };
 
 export const loadMapLayers = (): MapLayerState => {
@@ -32,13 +28,18 @@ export const loadMapLayers = (): MapLayerState => {
     const raw = window.localStorage.getItem(MAP_LAYER_STORAGE_KEY);
     if (!raw) return { ...DEFAULT_MAP_LAYERS };
     const parsed = JSON.parse(raw) as Partial<MapLayerState>;
+    const savedBoolean = (value: unknown, fallback: boolean) => typeof value === 'boolean' ? value : fallback;
     return {
-      ...DEFAULT_MAP_LAYERS,
-      ...parsed,
+      placeMarkers: savedBoolean(parsed.placeMarkers, DEFAULT_MAP_LAYERS.placeMarkers),
+      visitedPlaces: savedBoolean(parsed.visitedPlaces, DEFAULT_MAP_LAYERS.visitedPlaces),
+      unvisitedPlaces: savedBoolean(parsed.unvisitedPlaces, DEFAULT_MAP_LAYERS.unvisitedPlaces),
       hiddenPlaceTypes: Array.isArray(parsed.hiddenPlaceTypes)
         ? parsed.hiddenPlaceTypes.filter((type): type is MapPlaceType =>
           type === 'City' || type === 'Settlement' || type === 'Wilds' || type === 'Ruin' || type === 'Barrow')
-        : []
+        : [],
+      clinicService: savedBoolean(parsed.clinicService, DEFAULT_MAP_LAYERS.clinicService),
+      currentRoute: savedBoolean(parsed.currentRoute, DEFAULT_MAP_LAYERS.currentRoute),
+      travelHistory: savedBoolean(parsed.travelHistory, DEFAULT_MAP_LAYERS.travelHistory)
     };
   } catch {
     return { ...DEFAULT_MAP_LAYERS };
@@ -87,16 +88,4 @@ export const isPlaceMarkerVisible = (
   if (!place.visited && !layers.unvisitedPlaces) return false;
   if (layers.hiddenPlaceTypes.includes(place.locationType)) return false;
   return true;
-};
-
-export const isPlaceLabelVisible = (
-  place: MapPlace,
-  layers: MapLayerState,
-  selectedId: string | null,
-  hoveredId: string | null,
-  focusedId: string | null
-): boolean => {
-  if (!isPlaceMarkerVisible(place, layers, selectedId)) return false;
-  if (layers.placeNames) return true;
-  return place.isCurrent || place.id === selectedId || place.id === hoveredId || place.id === focusedId;
 };

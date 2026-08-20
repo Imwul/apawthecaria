@@ -2,10 +2,10 @@
 import { readFileSync } from 'node:fs';
 // @ts-expect-error Vitest runs this source audit in Node; the app build intentionally exposes browser types only.
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_MAP_LAYERS,
-  isPlaceLabelVisible,
+  loadMapLayers,
   isPlaceMarkerVisible,
   type MapPlace
 } from './mapLayers';
@@ -55,16 +55,21 @@ const appSource = readFileSync(fileURLToPath(new URL('../App.tsx', import.meta.u
 const appearanceSource = readFileSync(fileURLToPath(new URL('./MapNodeAppearance.tsx', import.meta.url)), 'utf8');
 
 describe('map marker and filter visibility', () => {
-  it('hides ordinary labels when Place Names is off', () => {
-    expect(isPlaceLabelVisible(odoak, DEFAULT_MAP_LAYERS, null, null, null)).toBe(false);
-    expect(isPlaceLabelVisible(start, DEFAULT_MAP_LAYERS, null, null, null)).toBe(true);
-  });
-
-  it('shows labels for selected, hovered, focused, or Place Names on', () => {
-    expect(isPlaceLabelVisible(odoak, DEFAULT_MAP_LAYERS, 'odoak', null, null)).toBe(true);
-    expect(isPlaceLabelVisible(odoak, DEFAULT_MAP_LAYERS, null, 'odoak', null)).toBe(true);
-    expect(isPlaceLabelVisible(odoak, DEFAULT_MAP_LAYERS, null, null, 'odoak')).toBe(true);
-    expect(isPlaceLabelVisible(odoak, { ...DEFAULT_MAP_LAYERS, placeNames: true }, null, null, null)).toBe(true);
+  it('normalizes saved layer preferences without retaining removed debug flags', () => {
+    vi.stubGlobal('window', {
+      localStorage: {
+        getItem: () => JSON.stringify({ currentRoute: false, placeNames: true, roads: true }),
+        setItem: () => undefined
+      }
+    });
+    try {
+      const layers = loadMapLayers();
+      expect(layers.currentRoute).toBe(false);
+      expect(layers).not.toHaveProperty('placeNames');
+      expect(layers).not.toHaveProperty('roads');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('hides visited or unvisited markers from their filters but keeps the current place', () => {
@@ -83,9 +88,9 @@ describe('map marker and filter visibility', () => {
 });
 
 describe('map interaction contracts', () => {
-  it('keeps leftover label styles from intercepting pointer events and does not paint names on nodes', () => {
-    expect(cssSource).toMatch(/\.map-location-label\s*\{[\s\S]*?pointer-events:\s*none/);
+  it('does not paint obsolete name labels on nodes', () => {
     expect(mapSource).not.toContain('className="map-location-label"');
+    expect(cssSource).not.toContain('.map-location-label');
   });
 
   it('selects a location without changing current travel state', () => {
@@ -177,11 +182,11 @@ describe('map interaction contracts', () => {
     expect(appSource).not.toContain('getCoordinatesForLocation');
   });
 
-  it('keeps detection debug overlays out of the ordinary play chrome', () => {
-    expect(mapSource).toContain('mapDebug &&');
+  it('keeps offline detection overlays out of the production map', () => {
+    expect(mapSource).not.toContain('mapDebug');
     expect(mapSource).not.toContain('Detected road mask');
     expect(mapSource).not.toMatch(/getImageData|createImageBitmap|OffscreenCanvas/);
-    expect(cssSource).toContain('.paper-map__debug-unsafe');
+    expect(cssSource).not.toContain('.paper-map__debug-unsafe');
   });
 
   it('draws reviewed water crossings as blue waterways instead of brown ink', () => {

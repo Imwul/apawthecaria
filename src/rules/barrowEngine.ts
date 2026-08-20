@@ -91,7 +91,7 @@ const removeBarrow = (state: BarrowRuntimeState, barrowId: string) => ({
   barrows: state.barrows.map(row => row.id === barrowId ? { ...row, removed: true } : row)
 });
 
-const commit = (transactionId: string, state: BarrowRuntimeState, next: BarrowRuntimeState): BarrowRuntimeState => ({
+const commit = (transactionId: string, next: BarrowRuntimeState): BarrowRuntimeState => ({
   ...next,
   appliedTransactionIds: [...next.appliedTransactionIds, transactionId]
 });
@@ -140,7 +140,7 @@ export const startBarrowDelve = (input: {
     ailmentId: null
   };
   const next = { ...input.state, activeDelve, movementBlocked: true, needsLocalHelp: false, journalEvents: [...input.state.journalEvents, journal(`${input.transactionId}:journal`, definition.name, input.journalNote.trim())] };
-  return { status: 'resolved', value: commit(input.transactionId, input.state, next), messages: [] };
+  return { status: 'resolved', value: commit(input.transactionId, next), messages: [] };
 };
 
 export const beginBarrowChallenge = (transactionId: string, state: BarrowRuntimeState): BarrowResolution => {
@@ -151,7 +151,7 @@ export const beginBarrowChallenge = (transactionId: string, state: BarrowRuntime
   const definition = BARROW_DELVE_BY_ID.get(activeDelve.delveId)!;
   return {
     status: 'resolved',
-    value: commit(transactionId, state, {
+    value: commit(transactionId, {
       ...state,
       activeDelve,
       journalEvents: [...state.journalEvents, journal(`${transactionId}:journal`, `${definition.name}: Challenge`, definition.challenge)]
@@ -175,7 +175,7 @@ export const fleeBarrowDelve = (transactionId: string, state: BarrowRuntimeState
     nextMoveSpeedOverride: 1,
     journalEvents: [...state.journalEvents, journal(`${transactionId}:journal`, 'Fled the Barrow', journalNote.trim())]
   };
-  return { status: 'resolved', value: commit(transactionId, state, next), messages: [] };
+  return { status: 'resolved', value: commit(transactionId, next), messages: [] };
 };
 
 const selectedPreparations = (state: BarrowRuntimeState, selections: DelveItemSelection[]) => selections.map(selection => {
@@ -231,7 +231,7 @@ export const resolveBarrowForageAttempt = (transactionId: string, state: BarrowR
       failure?.description || `Foraging attempt recorded; Timer is now ${timer}.`
     )]
   };
-  return { status: 'resolved', value: commit(transactionId, state, next), messages: failure ? [failure.description] : [] };
+  return { status: 'resolved', value: commit(transactionId, next), messages: failure ? [failure.description] : [] };
 };
 
 export const drawCollapsedEntranceCard = (transactionId: string, state: BarrowRuntimeState, card: RuleCard): BarrowResolution => {
@@ -257,7 +257,7 @@ export const drawCollapsedEntranceCard = (transactionId: string, state: BarrowRu
       journalEvents: [...next.journalEvents, journal(`${transactionId}:journal`, 'Collapsed Entrance: Bedchambers', `Reached 50 FP after ${timer} draws and completed the Delve.`)]
     };
   } else next = { ...next, activeDelve: { ...delve, progress, timer, cards, reward: { ...delve.reward, trinkets: delve.reward.trinkets + trinkets, reputation: delve.reward.reputation + reputation } } };
-  return { status: 'resolved', value: commit(transactionId, state, next), messages: [] };
+  return { status: 'resolved', value: commit(transactionId, next), messages: [] };
 };
 
 export const bidFarewellCollapsedEntrance = (transactionId: string, state: BarrowRuntimeState, journalNote = 'Bid farewell and continued the Journey.'): BarrowResolution => {
@@ -272,13 +272,13 @@ export const bidFarewellCollapsedEntrance = (transactionId: string, state: Barro
     movementBlocked: false,
     journalEvents: [...state.journalEvents, journal(`${transactionId}:journal`, 'Collapsed Entrance: Bid Farewell', journalNote.trim() || 'Bid farewell and continued the Journey.')]
   };
-  return { status: 'resolved', value: commit(transactionId, state, next), messages: [] };
+  return { status: 'resolved', value: commit(transactionId, next), messages: [] };
 };
 
 const finishSuccessfulDelve = (transactionId: string, state: BarrowRuntimeState, delve: BarrowDelveState, updates: Partial<BarrowRuntimeState>, note: string) => {
   let next = removeBarrow({ ...state, ...updates }, delve.barrowId);
   next = { ...next, activeDelve: null, movementBlocked: false, journalEvents: [...next.journalEvents, journal(`${transactionId}:journal`, BARROW_DELVE_BY_ID.get(delve.delveId)!.name, note)] };
-  return commit(transactionId, state, next);
+  return commit(transactionId, next);
 };
 
 export const submitBarrowRemedy = (input: { transactionId: string; state: BarrowRuntimeState; selections: DelveItemSelection[]; moveTargetId?: string; journalNote: string }): BarrowResolution => {
@@ -335,7 +335,7 @@ export const drawPilferCard = (transactionId: string, state: BarrowRuntimeState,
   const value = getRuleCardValue(card, 'delve');
   const total = delve.progress + value;
   const cards = [...delve.cards, { value: typeof card === 'number' ? card : 'value' in card ? card.value : card.val, ruleValue: value }];
-  if (total <= 21) return { status: 'resolved', value: commit(transactionId, state, { ...state, activeDelve: { ...delve, progress: total, cards } }), messages: [] };
+  if (total <= 21) return { status: 'resolved', value: commit(transactionId, { ...state, activeDelve: { ...delve, progress: total, cards } }), messages: [] };
   const selected = state.inventory.filter(item => escapeItemIds.includes(item.id));
   const crossbow = selected.find(item => item.canonicalToolId === 'crossbow');
   const bolts = selected.find(item => item.canonicalToolId === 'bolts');
@@ -359,7 +359,7 @@ export const drawPilferCard = (transactionId: string, state: BarrowRuntimeState,
       escapedWithCrossbow ? 'Used a Crossbow and discarded one Bolts instance.' : escapedWithCompanion ? 'Sacrificed the Cranky Contraption to escape.' : 'No Tool or Benefit could prevent the fatal outcome.'
     )]
   };
-  return { status: escaped ? 'resolved' : 'manual', value: commit(transactionId, state, next), messages: escaped ? [] : ['The Journey ends unless a specific Tool or Benefit permits escape.'] };
+  return { status: escaped ? 'resolved' : 'manual', value: commit(transactionId, next), messages: escaped ? [] : ['The Journey ends unless a specific Tool or Benefit permits escape.'] };
 };
 
 export const standPilfer = (input: { transactionId: string; state: BarrowRuntimeState; selectedToolId?: string; journalNote: string }): BarrowResolution => {
@@ -392,7 +392,7 @@ export const diagnoseBuildingTrust = (transactionId: string, state: BarrowRuntim
   const patients = [...(state.patients || []).filter(row => row.id !== patient.id), patient];
   return {
     status: 'resolved',
-    value: commit(transactionId, state, {
+    value: commit(transactionId, {
       ...state,
       patients,
       activePatientId: patient.id,
@@ -462,7 +462,7 @@ export const drawSuitableFurnishings = (transactionId: string, state: BarrowRunt
   if (!delve || delve.delveId !== 'suitable-furnishings' || cards.length !== 5) return { status: 'invalid', value: null, messages: ['Suitable Furnishings requires exactly five cards.'] };
   const requiredRarities = cards.map(card => getRuleCardValue(card, 'delve'));
   const storedCards = cards.map(card => ({ value: typeof card === 'number' ? card : 'value' in card ? card.value : card.val, ruleValue: getRuleCardValue(card, 'delve') }));
-  return { status: 'resolved', value: commit(transactionId, state, { ...state, activeDelve: { ...delve, requiredRarities, cards: [...delve.cards, ...storedCards] } }), messages: [] };
+  return { status: 'resolved', value: commit(transactionId, { ...state, activeDelve: { ...delve, requiredRarities, cards: [...delve.cards, ...storedCards] } }), messages: [] };
 };
 
 export const resolveSuitableFurnishings = (input: { transactionId: string; state: BarrowRuntimeState; selections: DelveItemSelection[]; journalNote: string }): BarrowResolution => {
@@ -490,7 +490,7 @@ export const resolvePotentPoison = (input: { transactionId: string; state: Barro
   const total = getRuleCardValue(input.card, 'delve') + identities.size * 2;
   if (total < 9) {
     const next = { ...input.state, activeDelve: null, movementBlocked: false, calendarDays: input.state.calendarDays + 1, journalEvents: [...input.state.journalEvents, journal(`${input.transactionId}:journal`, 'Potent Poison Failed', input.journalNote.trim())] };
-    return { status: 'resolved', value: commit(input.transactionId, input.state, next), messages: [] };
+    return { status: 'resolved', value: commit(input.transactionId, next), messages: [] };
   }
   const value = finishSuccessfulDelve(input.transactionId, input.state, delve, { inventory: consumeSelections(input.state.inventory, input.selections), trinkets: input.state.trinkets + 5, carry: input.state.carry + 1, calendarDays: input.state.calendarDays + 1 }, input.journalNote.trim());
   return { status: 'resolved', value, messages: [] };

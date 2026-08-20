@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ROAD_GEOMETRY_COVERAGE, buildRoadSegmentGeometry, isReviewedWaterwayPair, listAlignedRoadPolylines, listTracedRoadPolylines, listUnsafeRoadPolylines, listWaterwayPolylines } from '../roadGeometry';
-import { MAP_DETECTION_SUMMARY, MAP_DEBUG_STORAGE_KEY } from './mapDebug';
+import mapDetectionSummary from './mapDetectionSummary.json';
 import reviewedWaterCrossings from './reviewedWaterCrossings.json';
+
+const MAP_DETECTION_SUMMARY = mapDetectionSummary;
 
 describe('offline map detection contract', () => {
   it('keeps image, geometry, and markers in the same percent space', () => {
@@ -41,10 +43,5 @@ describe('offline map detection contract', () => {
     const invented = buildRoadSegmentGeometry({ id: 'off-map', x: 0.2, y: 0.2 }, { id: 'odoak', x: 47, y: 34 });
     expect(invented.mapped).toBe(false);
     expect(invented.points).toEqual([]);
-  });
-
-  it('keeps the debug flag out of ordinary storage keys used by play layers', () => {
-    expect(MAP_DEBUG_STORAGE_KEY).toBe('apawthecaria.mapDebug');
-    expect(MAP_DEBUG_STORAGE_KEY).not.toBe('apawthecaria.mapLayers.v1');
   });
 });

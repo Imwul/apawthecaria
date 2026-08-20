@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef } from 'react';
-import { localizeLocationName, localizeLocationTypeLabel, localizeRegionLabel, localizeSavedJourneyText } from '../localization/gameplayKo';
+import { localizeLocationName, localizeLocationTypeLabel, localizeRegionLabel, localizeSavedJourneyText, localizeSeasonLabel } from '../localization/gameplayKo';
 import { localizeGameplayMessage } from '../localization/engineMessagesKo';
 import { referenceForJournalTab } from '../rulebook/context';
 import type { RulebookReferenceRequest } from '../rulebook/types';
@@ -66,19 +66,15 @@ const CHAPTER_EMOJIS = {
   journals: '✒️'
 };
 
-const seasonLabel = (season: string | undefined) => ({ Spring: '봄', Summer: '여름', Autumn: '가을', Winter: '겨울' } as Record<string, string>)[season || ''] || season || '계절 미기록';
-
 export function ChapterOpening({
   tab,
   state,
-  currentWeight,
   maxCarry,
   onReturnToToday,
   onOpenReference
 }: {
   tab: ChapterTab;
   state: any;
-  currentWeight: number;
   maxCarry: number;
   onReturnToToday: () => void;
   onOpenReference: (request: RulebookReferenceRequest) => void;
@@ -102,19 +98,19 @@ export function ChapterOpening({
         : patientName
           ? `${patientName}의 병증 이름은 아직 기록되지 않았습니다. 관찰을 이어가며 아래 병증 기록과 징후를 대조해보세요.`
           : '아직 기다리는 환자는 없습니다. 길 위에서 누군가를 만나면 증상과 관찰, 처방의 순서가 이곳에 이어집니다.',
-      notes: [ailmentName || '병증 미기록', patient ? displayTimer(patient) : legacyAilment ? `${legacyAilment.timer}시간` : '기한 없음', seasonLabel(state.currentSeason)]
+      notes: [ailmentName || '병증 미기록', patient ? displayTimer(patient) : legacyAilment ? `${legacyAilment.timer}시간` : '기한 없음', localizeSeasonLabel(state.currentSeason)]
     },
     reagents: {
       kicker: '약재 기록',
       title: '약초 도감',
       body: `${localizeRegionLabel(state.currentRegion)}에서 만날 수 있는 잎과 뿌리, 꽃과 균류의 쓰임을 기록합니다. 이름보다 생김새와 조제법을 먼저 읽어보세요.`,
-      notes: [seasonLabel(state.currentSeason), `${localizeRegionLabel(state.currentRegion)} 관찰`, `${bagCount}점 소지`]
+      notes: [localizeSeasonLabel(state.currentSeason), `${localizeRegionLabel(state.currentRegion)} 관찰`, `${bagCount}점 소지`]
     },
     bio: {
       kicker: '여행 채비',
       title: '배낭과 약제사',
       body: '여행 도구와 길동무, 모아둔 약재를 한데 펼쳐보고 다음 걸음을 준비하는 페이지입니다.',
-      notes: [`속도 ${state.bio?.speed ?? '미기록'} · 소지 ${maxCarry}`, `평판 ${state.reputation ?? 0} · 마친 계절 ${state.completedSeasons ?? 0}`, `${seasonLabel(state.currentSeason)} · 누적 ${state.cumulativeDays ?? 0}일`]
+      notes: [`속도 ${state.bio?.speed ?? '미기록'} · 소지 ${maxCarry}`, `평판 ${state.reputation ?? 0} · 마친 계절 ${state.completedSeasons ?? 0}`, `${localizeSeasonLabel(state.currentSeason)} · 누적 ${state.cumulativeDays ?? 0}일`]
     },
     map: {
       kicker: '지도 기록',
@@ -126,7 +122,7 @@ export function ChapterOpening({
       kicker: '들녘의 참고 기록',
       title: '자연사 색인',
       body: '병증, 약재, 도구와 길 위의 만남을 서로 대조해 읽는 자연사 색인입니다. 필요한 말에서 시작해 관련 기록으로 천천히 건너가세요.',
-      notes: [`${discoveryCount}건의 발견`, seasonLabel(state.currentSeason), state.currentRegion ? localizeRegionLabel(state.currentRegion) : '전 지역']
+      notes: [`${discoveryCount}건의 발견`, localizeSeasonLabel(state.currentSeason), state.currentRegion ? localizeRegionLabel(state.currentRegion) : '전 지역']
     },
     patientArchive: {
       kicker: '진료 기록철',
@@ -144,7 +140,7 @@ export function ChapterOpening({
       kicker: '계절의 기억',
       title: '들녘의 일지',
       body: '하루의 사건을 숫자로 세지 않고 문장으로 남기는 곳입니다. 계절과 장소를 따라 지난 여행을 다시 읽어보세요.',
-      notes: [`${journalCount}편의 일지`, seasonLabel(state.currentSeason), localizeLocationName(state.currentLocationName)]
+      notes: [`${journalCount}편의 일지`, localizeSeasonLabel(state.currentSeason), localizeLocationName(state.currentLocationName)]
     }
   };
 
@@ -220,7 +216,7 @@ export function TodayOverview({
         <span className="today-scene__mark emoji-icon" aria-hidden="true">🧭</span>
         <span className="today-scene__folio" aria-hidden="true">FIELD NOTE / 01</span>
         <div className="today-scene__copy">
-          <span className="today-scene__season"><span className="emoji-icon" aria-hidden="true">🌤️</span> {seasonLabel(state.currentSeason)}</span>
+          <span className="today-scene__season"><span className="emoji-icon" aria-hidden="true">🌤️</span> {localizeSeasonLabel(state.currentSeason)}</span>
           <p>오늘의 들녘 기록</p>
           <h2 id="today-title">
             <span className="today-title__place">{dayPlace}</span>
@@ -250,7 +246,7 @@ export function TodayOverview({
             <span className="journal-note-label">캠페인 이어보기</span>
             <h3 id="campaign-continuity-title">{continuity.label}</h3>
           </div>
-          <span className="campaign-continuity__season">{seasonLabel(state.currentSeason)}</span>
+          <span className="campaign-continuity__season">{localizeSeasonLabel(state.currentSeason)}</span>
         </div>
         <dl className="campaign-continuity__facts">
           <div><dt>현재 위치</dt><dd>{localizeLocationName(state.currentLocationName)}</dd></div>
@@ -305,7 +301,7 @@ export function TodayOverview({
         <article className="today-place">
           <span className="journal-note-label">지금 머무는 곳</span>
           <h3>{localizeLocationName(state.currentLocationName)}</h3>
-          <p>{localizeRegionLabel(state.currentRegion)} · {localizeLocationTypeLabel(state.currentLocationType)} · {seasonLabel(state.currentSeason)}</p>
+          <p>{localizeRegionLabel(state.currentRegion)} · {localizeLocationTypeLabel(state.currentLocationType)} · {localizeSeasonLabel(state.currentSeason)}</p>
           <button type="button" className="journal-text-action" onClick={() => onNavigate('map')}>
             <span className="emoji-icon" aria-hidden="true">🗺️</span> 지도에 짚어보기
           </button>

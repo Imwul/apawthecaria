@@ -589,26 +589,6 @@ button:active {
   color: var(--text-dim) !important;
 }
 
-.status-strip {
-  display: grid;
-  grid-template-columns: minmax(190px, 0.75fr) minmax(0, 2fr);
-  gap: var(--space-6);
-  padding: var(--space-4) 0 var(--space-6);
-  margin-bottom: var(--space-6);
-  border-bottom: 2px solid var(--border-cozy);
-}
-
-.status-strip__primary {
-  display: flex;
-  flex-direction: column;
-}
-
-.status-strip__primary strong {
-  font-family: var(--font-display);
-  font-size: 1.45rem;
-}
-
-.status-strip dl,
 .barrow-panel dl {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -616,21 +596,18 @@ button:active {
   margin: 0;
 }
 
-.status-strip dl > div,
 .barrow-panel dl > div {
   border-left: 2px solid var(--primary);
   padding-left: var(--space-3);
   min-width: 0;
 }
 
-.status-strip dt,
 .barrow-panel dt {
   color: var(--text-muted);
   font-size: 0.72rem;
   font-weight: 700;
 }
 
-.status-strip dd,
 .barrow-panel dd {
   margin: 2px 0 0;
   font-variant-numeric: tabular-nums;
@@ -1011,8 +988,6 @@ button:active {
 .panel-loading { min-height: 240px; display: grid; place-items: center; color: var(--text-muted); }
 
 @media (max-width: 720px) {
-  .status-strip { grid-template-columns: 1fr; gap: var(--space-4); }
-  .status-strip dl,
   .barrow-panel dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .almanack__controls { grid-template-columns: 1fr; }
   .almanack-entry { grid-template-columns: 44px minmax(0, 1fr); }
@@ -5468,55 +5443,6 @@ button,
   stroke-dasharray: 0.35 0.28 0.7 0.28;
 }
 
-.paper-map__debug-aligned {
-  stroke: rgba(46, 160, 67, 0.72);
-  stroke-width: 0.22;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.paper-map__debug-unsafe {
-  stroke: rgba(214, 64, 69, 0.7);
-  stroke-width: 0.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.paper-map__debug-waterway {
-  stroke: rgba(40, 120, 210, 0.82);
-  stroke-width: 0.28;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 0.4 0.3 0.8 0.3;
-}
-
-.paper-map__debug-junction {
-  fill: rgba(255, 140, 0, 0.85);
-}
-
-.paper-map__debug-anchor {
-  fill: none;
-  stroke-width: 0.18;
-}
-
-.paper-map__debug-anchor--verified {
-  stroke: rgba(40, 180, 90, 0.95);
-}
-
-.paper-map__debug-anchor--probable {
-  stroke: rgba(230, 160, 20, 0.95);
-}
-
-.paper-map__debug-anchor--unmatched,
-.paper-map__debug-anchor--manual {
-  stroke: rgba(220, 40, 40, 0.95);
-}
-
-.paper-map__debug-anchor-link {
-  stroke: rgba(230, 160, 20, 0.8);
-  stroke-width: 0.12;
-}
-
 .paper-map__clinic {
   fill: rgba(196, 72, 54, 0.04);
   stroke: rgba(196, 72, 54, 0.38);
@@ -6008,21 +5934,6 @@ button,
 
 .map-location-hit.is-visited .map-location-dot {
   opacity: 0.78;
-}
-
-.map-location-label {
-  position: absolute;
-  left: 20px;
-  top: 5px;
-  padding: 0;
-  border: 0;
-  background: none;
-  box-shadow: none;
-  color: rgba(62, 49, 36, 0.78);
-  font-size: 0.68rem;
-  line-height: 1;
-  white-space: nowrap;
-  pointer-events: none;
 }
 
 @media (max-width: 720px) {

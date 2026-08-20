@@ -1,5 +1,5 @@
 import { BARROW_DELVE_BY_ID, type BarrowDelveId } from '../rules';
-import { localizeBehemothClass, localizeRegionLabel, localizeSeasonLabel } from '../localization/gameplayKo';
+import { localizeBehemothClass } from '../localization/gameplayKo';
 import { localizeGameplayMessage } from '../localization/engineMessagesKo';
 
 const delveStepLabels: Record<string, string> = {
@@ -8,16 +8,6 @@ const delveStepLabels: Record<string, string> = {
   'awaiting-choice': '선택 대기',
   resolved: '귀환'
 };
-
-export function JourneyStatusStrip({ state, currentWeight, maxCarry }: { state: any; currentWeight: number; maxCarry: number }) {
-  const patient = state.patients?.find((row: any) => row.id === state.activePatientId);
-  const timer = patient?.timers?.filter((row: any) => row.status === 'active').sort((a: any, b: any) => a.current - b.current)[0];
-  const pending = state.pendingEncounter ? '조우 선택' : state.pendingBarter ? '거래 판정' : state.pendingForaging ? '채집 판정' : state.pendingManualEffect ? '직접 판정' : state.activeDelve ? '고분 탐사' : null;
-  return <section className="status-strip" aria-label="현재 진행 상황">
-    <div className="status-strip__primary"><span className="document-kicker">현재 들녘 상태</span><strong>{state.currentLocationName}</strong><span>{localizeSeasonLabel(state.currentSeason)} · {localizeRegionLabel(state.currentRegion)} · {state.journeyActive ? state.journeyDestination || '여정 진행 중' : '휴식 중'}</span></div>
-    <dl><div><dt>환자</dt><dd>{patient?.name || '없음'}</dd></div><div><dt>가장 낮은 타이머</dt><dd>{timer ? `${timer.current}시간` : '없음'}</dd></div><div><dt>배낭</dt><dd>{currentWeight.toFixed(1)} / {maxCarry}</dd></div><div><dt>다음 행동</dt><dd>{pending || '여정을 준비하세요'}</dd></div></dl>
-  </section>;
-}
 
 export function BarrowPanel({ delve }: { delve: any }) {
   if (!delve) return null;

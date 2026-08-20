@@ -1,26 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   buildRoadRouteGeometry,
-  listAlignedRoadPolylines,
-  listTracedRoadPolylines,
-  listUnsafeRoadPolylines,
-  listWaterwayPolylines,
   pointsToPolyString,
   type RoadRouteGeometry
 } from './roadGeometry';
 import {
-  DEFAULT_MAP_LAYERS,
   isPlaceMarkerVisible,
   loadMapLayers,
   saveMapLayers,
   type MapLayerState,
   type MapPlace
 } from './mapLayers';
-import {
-  mapDebugJunctions,
-  mapDebugLocationAnchors,
-  useMapDebugEnabled
-} from './detection/mapDebug';
 import { MapGlyph } from './mapGlyphs';
 import type { MapGlyphKind, MapTerrain } from './mapGlyphTypes';
 import { MapNodeAppearance } from './MapNodeAppearance';
@@ -53,7 +43,6 @@ export type MapCreatePlaceRequest = {
 type PaperMapProps = {
   places: MapPlace[];
   clinicOverlays?: MapClinicOverlay[];
-  highlightPlaceIds?: string[];
   selectedPlaceId?: string | null;
   historyAnchors?: Array<{ id: string; x: number; y: number }>;
   variant?: 'full' | 'companion';
@@ -88,12 +77,6 @@ type PaperMapProps = {
 };
 
 const EMPTY_ROUTE: RoadRouteGeometry = { segments: [], missingPairs: [], total: 0 };
-const ROAD_POLYLINES = listTracedRoadPolylines();
-const ALIGNED_ROAD_POLYLINES = listAlignedRoadPolylines();
-const UNSAFE_ROAD_POLYLINES = listUnsafeRoadPolylines();
-const WATERWAY_POLYLINES = listWaterwayPolylines();
-const DEBUG_LOCATION_ANCHORS = mapDebugLocationAnchors();
-const DEBUG_JUNCTIONS = mapDebugJunctions();
 const MIN_SCALE = 1;
 const MAX_SCALE = 4;
 const MAP_VEIL_STORAGE_KEY = 'apawthecaria.mapVeil.v1';
@@ -141,7 +124,6 @@ const placeGlyph = (place: MapPlace): { kind: MapGlyphKind; terrain: MapTerrain 
 export function PaperMap({
   places,
   clinicOverlays = [],
-  highlightPlaceIds = [],
   selectedPlaceId = null,
   historyAnchors = [],
   variant = 'full',
@@ -170,7 +152,6 @@ export function PaperMap({
   showRoutePreview = true
 }: PaperMapProps) {
   const isCompanion = variant === 'companion';
-  const mapDebug = useMapDebugEnabled();
   const viewportRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ active: boolean; moved: boolean; startX: number; startY: number; scrollLeft: number; scrollTop: number; modify: boolean } | null>(null);
@@ -196,8 +177,6 @@ export function PaperMap({
   const [layersOpen, setLayersOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [focusedId, setFocusedId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(selectedPlaceId);
   const [seenSelectedPlaceId, setSeenSelectedPlaceId] = useState(selectedPlaceId);
   if (selectedPlaceId !== seenSelectedPlaceId) {
@@ -563,67 +542,6 @@ export function PaperMap({
           />
           {veilVisible && <div className="paper-map__veil" aria-hidden="true" />}
           <svg className="paper-map__overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            {mapDebug && layers.roads && ROAD_POLYLINES.map((points, index) => (
-              <polyline
-                key={`road:${index}`}
-                className="paper-map__roads"
-                points={pointsToPolyString(points)}
-                fill="none"
-              />
-            ))}
-            {mapDebug && ALIGNED_ROAD_POLYLINES.map((points, index) => (
-              <polyline
-                key={`debug-aligned:${index}`}
-                className="paper-map__debug-aligned"
-                points={pointsToPolyString(points)}
-                fill="none"
-              />
-            ))}
-            {mapDebug && UNSAFE_ROAD_POLYLINES.map((points, index) => (
-              <polyline
-                key={`debug-unsafe:${index}`}
-                className="paper-map__debug-unsafe"
-                points={pointsToPolyString(points)}
-                fill="none"
-              />
-            ))}
-            {mapDebug && WATERWAY_POLYLINES.map((points, index) => (
-              <polyline
-                key={`debug-waterway:${index}`}
-                className="paper-map__debug-waterway"
-                points={pointsToPolyString(points)}
-                fill="none"
-              />
-            ))}
-            {mapDebug && DEBUG_JUNCTIONS.map(node => (
-              <circle
-                key={`debug-junction:${node.id}`}
-                className="paper-map__debug-junction"
-                cx={node.x}
-                cy={node.y}
-                r={0.28}
-              />
-            ))}
-            {mapDebug && DEBUG_LOCATION_ANCHORS.map(anchor => (
-              <g key={`debug-anchor:${anchor.id}`}>
-                <rect
-                  className={`paper-map__debug-anchor paper-map__debug-anchor--${anchor.status.toLowerCase()}`}
-                  x={anchor.x - 0.45}
-                  y={anchor.y - 0.45}
-                  width={0.9}
-                  height={0.9}
-                />
-                {anchor.candidate && (
-                  <line
-                    className="paper-map__debug-anchor-link"
-                    x1={anchor.x}
-                    y1={anchor.y}
-                    x2={anchor.candidate.x}
-                    y2={anchor.candidate.y}
-                  />
-                )}
-              </g>
-            ))}
             {historyGeometry.segments.map((segment, index) => (
               <polyline
                 key={`history:${segment.id}:${index}`}
@@ -728,10 +646,6 @@ export function PaperMap({
                     markerMoveRef.current = { id: place.id, moved: false };
                     selectPlace(place.id);
                   }}
-                  onMouseEnter={() => setHoveredId(place.id)}
-                  onMouseLeave={() => setHoveredId(current => current === place.id ? null : current)}
-                  onFocus={() => setFocusedId(place.id)}
-                  onBlur={() => setFocusedId(current => current === place.id ? null : current)}
                   onClick={event => {
                     event.stopPropagation();
                     if (skipMarkerClickRef.current) {
@@ -866,7 +780,6 @@ export function PaperMap({
           <section>
             <h3>장소</h3>
             <label><input type="checkbox" checked={layers.placeMarkers} onChange={event => setLayers(current => ({ ...current, placeMarkers: event.target.checked }))} /> 장소 표시</label>
-            <label><input type="checkbox" checked={layers.placeNames} onChange={event => setLayers(current => ({ ...current, placeNames: event.target.checked }))} /> 지명</label>
             <label><input type="checkbox" checked={layers.visitedPlaces} onChange={event => setLayers(current => ({ ...current, visitedPlaces: event.target.checked }))} /> 방문한 곳</label>
             <label><input type="checkbox" checked={layers.unvisitedPlaces} onChange={event => setLayers(current => ({ ...current, unvisitedPlaces: event.target.checked }))} /> 미방문</label>
             {presentTypes.length > 0 && (
@@ -900,10 +813,6 @@ export function PaperMap({
           <section>
             <h3>서비스</h3>
             <label><input type="checkbox" checked={layers.clinicService} onChange={event => setLayers(current => ({ ...current, clinicService: event.target.checked }))} /> 약제소 / 서비스</label>
-          </section>
-          <section>
-            <h3>고급</h3>
-            <label><input type="checkbox" checked={layers.roads} onChange={event => setLayers(current => ({ ...current, roads: event.target.checked }))} /> 도로 추적</label>
           </section>
         </div>
       )}
