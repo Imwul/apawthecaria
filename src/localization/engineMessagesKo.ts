@@ -166,6 +166,7 @@ const exactEngineMessages: Record<string, string> = {
   "Resolve the pending Barter before starting another.": "새 물물교환을 시작하기 전에 대기 중인 물물교환을 판정하세요.",
   "Resolve the pending Encounter or Delve before Moving On.": "다음 단계로 넘어가기 전에 대기 중인 조우 또는 고분 탐사를 판정하세요.",
   "Resolve the pending Encounter or Delve first.": "먼저 대기 중인 조우 또는 고분 탐사를 판정하세요.",
+  "Resolve the Season boundary before starting the next Journey.": "다음 여정을 시작하기 전에 계절을 정산하고 전환하세요.",
   "Resolving a Delve requires a journal note.": "고분 탐사를 판정하려면 일지 기록이 필요합니다.",
   "Result summary and journal note are required.": "결과 요약과 일지 기록이 필요합니다.",
   "Retrieval cannot request a Titan Reagent.": "Retrieval로 Titan 영약재를 요청할 수 없습니다.",

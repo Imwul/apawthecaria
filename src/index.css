@@ -6993,3 +6993,388 @@ details.rulebook-source-text > summary {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Campaign continuity: keep long-running state legible without changing the field-journal identity. */
+.campaign-continuity {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(240px, 0.95fr);
+  gap: 0.85rem 1.2rem;
+  padding: 1rem 1.1rem;
+  border-block: 1px solid rgba(77, 70, 56, 0.24);
+  background: color-mix(in srgb, var(--paper) 86%, var(--primary-light));
+}
+
+.campaign-continuity__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.campaign-continuity__heading h3 {
+  margin: 0.18rem 0 0;
+  color: var(--primary);
+  font-family: var(--font-fancy);
+  font-size: clamp(1.05rem, 2.2vw, 1.35rem);
+}
+
+.campaign-continuity__season {
+  flex: 0 0 auto;
+  padding: 0.22rem 0.55rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.58);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.campaign-continuity__facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-column: 1 / -1;
+  gap: 0;
+  margin: 0;
+  border-block: 1px dashed rgba(77, 70, 56, 0.24);
+}
+
+.campaign-continuity__facts > div {
+  min-width: 0;
+  padding: 0.58rem 0.7rem;
+  border-right: 1px dashed rgba(77, 70, 56, 0.2);
+}
+
+.campaign-continuity__facts > div:last-child {
+  border-right: 0;
+}
+
+.campaign-continuity__facts dt {
+  color: var(--text-dim);
+  font-size: 0.68rem;
+}
+
+.campaign-continuity__facts dd {
+  margin: 0.16rem 0 0;
+  overflow-wrap: anywhere;
+  color: var(--text-bright);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.campaign-continuity__next {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  align-content: center;
+  gap: 0.18rem;
+  padding-left: 1rem;
+  border-left: 3px solid var(--secondary);
+}
+
+.campaign-continuity__next span {
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.campaign-continuity__next strong {
+  color: var(--text-bright);
+  font-size: 0.9rem;
+}
+
+.campaign-continuity__next p,
+.campaign-continuity__empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.campaign-continuity__history,
+.campaign-continuity__empty {
+  grid-column: 1 / -1;
+}
+
+.campaign-continuity__history summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.campaign-continuity__history ol {
+  margin: 0.45rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.downtime-stage {
+  display: grid;
+  gap: 0.42rem;
+  margin-top: 0.9rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed var(--glass-border);
+}
+
+.downtime-stage__steps {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding: 0.08rem 0 0.3rem;
+  scrollbar-width: thin;
+}
+
+.downtime-stage__steps span {
+  flex: 0 0 auto;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  color: var(--text-dim);
+  background: #fff;
+  font-size: 0.72rem;
+}
+
+.downtime-stage__steps .is-current {
+  border-color: var(--secondary);
+  color: var(--secondary);
+  background: var(--secondary-light);
+  font-weight: 800;
+}
+
+.downtime-stage__steps .is-done::before {
+  content: '✓ ';
+  color: var(--primary);
+}
+
+.downtime-stage > strong {
+  color: var(--primary);
+  font-size: 0.9rem;
+}
+
+.downtime-stage > p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.downtime-activity-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.downtime-activity-stack > legend {
+  width: 100%;
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-block: 1px solid var(--border-cozy);
+  color: var(--primary);
+  background: #faf6ee;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.downtime-activity-lock {
+  padding: 0.7rem 0.85rem;
+  border: 1px dashed var(--glass-border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  background: #f7f4ed;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.downtime-activity-stack:disabled > .cute-card {
+  opacity: 0.6;
+}
+
+.nav-tab-btn:disabled {
+  cursor: not-allowed !important;
+  opacity: 0.52;
+}
+
+.travel-season-status {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.55rem 0.8rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.68rem 0.78rem;
+  border-block: 1px dashed var(--glass-border);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.travel-season-status__value {
+  white-space: nowrap;
+}
+
+.travel-season-status__value strong {
+  color: var(--secondary);
+}
+
+.travel-season-status__reason {
+  min-width: 0;
+  line-height: 1.45;
+}
+
+.travel-season-status button {
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.character-continuity {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0 0 1.4rem;
+  padding: 0.95rem 1rem;
+  border-block: 1px solid var(--border-cozy);
+  background: #faf7ef;
+}
+
+.character-continuity__heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: flex-start;
+}
+
+.character-continuity__heading h3 {
+  margin: 0.15rem 0 0;
+  color: var(--primary);
+  font-family: var(--font-fancy);
+  font-size: 1.2rem;
+}
+
+.character-continuity__heading > span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-align: right;
+}
+
+.character-continuity dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 0;
+}
+
+.character-continuity dl > div {
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border-left: 2px solid var(--secondary);
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.character-continuity dt {
+  color: var(--text-dim);
+  font-size: 0.7rem;
+}
+
+.character-continuity dd {
+  margin: 0.15rem 0 0;
+  color: var(--text-bright);
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.character-continuity dd small {
+  display: block;
+  margin-top: 0.08rem;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.character-continuity > p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.calendar-ledger-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.65rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.calendar-ledger-heading h4 {
+  margin: 0;
+  color: var(--secondary);
+  font-family: var(--font-fancy);
+  font-size: 1.1rem;
+}
+
+.calendar-ledger-heading label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  .campaign-continuity {
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline: 0.85rem;
+  }
+
+  .campaign-continuity__next {
+    grid-column: 1;
+    grid-row: auto;
+    padding: 0.65rem 0 0;
+    border-left: 0;
+    border-top: 2px solid var(--secondary);
+  }
+
+  .campaign-continuity__facts,
+  .character-continuity dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .campaign-continuity__facts > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .campaign-continuity__facts > div:nth-child(-n + 2) {
+    border-bottom: 1px dashed rgba(77, 70, 56, 0.2);
+  }
+
+  .travel-season-status {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .travel-season-status__value {
+    white-space: normal;
+  }
+
+  .travel-season-status button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 440px) {
+  .campaign-continuity__heading,
+  .character-continuity__heading,
+  .calendar-ledger-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .character-continuity__heading > span {
+    text-align: left;
+  }
+}

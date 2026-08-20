@@ -290,6 +290,17 @@ describe('Phase 3 Journey, Goal, and Ending engines', () => {
     expect(started.value?.inventory.find(row => row.name === 'Evidence')?.weight).toBe(1);
   });
 
+  it('[JOURNEY-001] requires the completed Downtime to cross the Season boundary before another Journey', () => {
+    const waitingForSeason = { ...journeyRuntime(), downtimeCompleted: true };
+    const result = resolveJourneyStart({
+      transactionId: 'journey-before-season', state: waitingForSeason, graph: journeyGraph(), originId: 'origin', season: 'Spring',
+      destinationCard: { value: 1, suit: '♥' }, destinationId: 'north-5', goalCard: 1,
+      reason: 'Leave too early', startDate: 1, rulesetId: 'original-1e-3p'
+    });
+    expect(result.status).toBe('invalid');
+    expect(result.messages).toContain('Resolve the Season boundary before starting the next Journey.');
+  });
+
   it('[JOURNEY-003/JOURNEY-004] supports the printed choose-destination and invent-goal paths', () => {
     const started = resolveJourneyStart({
       transactionId: 'journey-chosen-custom', state: journeyRuntime(), graph: journeyGraph(), originId: 'origin', season: 'Spring',

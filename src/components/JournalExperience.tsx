@@ -3,6 +3,7 @@ import { localizeLocationName, localizeLocationTypeLabel, localizeRegionLabel, l
 import { localizeGameplayMessage } from '../localization/engineMessagesKo';
 import { referenceForJournalTab } from '../rulebook/context';
 import type { RulebookReferenceRequest } from '../rulebook/types';
+import { getCampaignContinuity } from '../campaignContinuity';
 
 const LocalizedManualEffectText = lazy(() => import('./LocalizedManualEffectText'));
 
@@ -104,7 +105,7 @@ export function ChapterOpening({
       kicker: '여행 채비',
       title: '배낭과 약제사',
       body: '여행 도구와 길동무, 모아둔 약재를 한데 펼쳐보고 다음 걸음을 준비하는 페이지입니다.',
-      notes: [`${currentWeight.toFixed(1)} / ${maxCarry} 무게`, state.bio?.familiarName ? `길동무 ${state.bio.familiarName}` : '길동무 미기록', seasonLabel(state.currentSeason)]
+      notes: [`속도 ${state.bio?.speed ?? '미기록'} · 소지 ${maxCarry}`, `평판 ${state.reputation ?? 0} · 마친 계절 ${state.completedSeasons ?? 0}`, `${seasonLabel(state.currentSeason)} · 누적 ${state.cumulativeDays ?? 0}일`]
     },
     map: {
       kicker: '지도 기록',
@@ -197,6 +198,8 @@ export function TodayOverview({
   const ailmentName = legacyAilment?.name || ailment?.legacyName || '살펴볼 병증이 없습니다';
   const requirements = requirementWords(legacyAilment?.tags || ailment?.requirementSnapshot || '');
   const recentJournal = state.journals?.[0];
+  const continuity = getCampaignContinuity(state);
+  const recentTimeChanges = (state.calendarHistory || []).slice(-2).reverse();
   const dayPlace = state.journeyActive
     ? localizeLocationName(state.journeyDestination || '다음 마을')
     : localizeLocationName(state.currentLocationName);
@@ -216,7 +219,7 @@ export function TodayOverview({
           </h2>
           <div className="today-scene__actions">
             <button type="button" onClick={onContinue}>
-              <span className="emoji-icon" aria-hidden="true">🧭</span> 이어서 걷기
+              <span className="emoji-icon" aria-hidden="true">🧭</span> {continuity.continueLabel}
             </button>
             <button
               type="button"
@@ -231,6 +234,35 @@ export function TodayOverview({
           </div>
         </div>
       </div>
+
+      <section className={`campaign-continuity campaign-continuity--${continuity.stage}`} aria-labelledby="campaign-continuity-title">
+        <div className="campaign-continuity__heading">
+          <div>
+            <span className="journal-note-label">캠페인 이어보기</span>
+            <h3 id="campaign-continuity-title">{continuity.label}</h3>
+          </div>
+          <span className="campaign-continuity__season">{seasonLabel(state.currentSeason)}</span>
+        </div>
+        <dl className="campaign-continuity__facts">
+          <div><dt>현재 위치</dt><dd>{localizeLocationName(state.currentLocationName)}</dd></div>
+          <div><dt>누적 경과</dt><dd>{Math.max(0, state.cumulativeDays || 0)}일</dd></div>
+          <div><dt>마친 계절</dt><dd>{Math.max(0, state.completedSeasons || 0)}회</dd></div>
+          <div><dt>길드 평판</dt><dd>{Math.max(0, state.reputation || 0)}</dd></div>
+        </dl>
+        <div className="campaign-continuity__next">
+          <span>다음 단계</span>
+          <strong>{continuity.nextAction}</strong>
+          <p>{continuity.guidance}</p>
+        </div>
+        {recentTimeChanges.length > 0 ? (
+          <details className="campaign-continuity__history">
+            <summary>최근 시간 변화 {recentTimeChanges.length}건</summary>
+            <ol>{recentTimeChanges.map((line: string, index: number) => <li key={`${line}:${index}`}>{line}</li>)}</ol>
+          </details>
+        ) : (
+          <p className="campaign-continuity__empty">아직 기록된 시간 변화가 없습니다. Move나 수동 달력 보정이 생기면 여기에 남습니다.</p>
+        )}
+      </section>
 
       <div className="today-story">
         <article className="today-patient">

@@ -125,6 +125,7 @@ export interface JourneyRuntimeState {
   journey: JourneyState | null;
   pendingEnding: { journeyId: string; blockers: string[]; evaluation: GoalEvaluation } | null;
   downtimeRequired: boolean;
+  downtimeCompleted?: boolean;
   journalEvents: EngineJournalEvent[];
   appliedTransactionIds: string[];
 }
@@ -332,6 +333,7 @@ export const resolveJourneyStart = (input: {
   if (!input.transactionId || input.state.appliedTransactionIds.includes(input.transactionId)) return { status: 'invalid', value: null, messages: ['Journey transaction is missing or already applied.'] };
   if (input.state.journey?.status === 'active') return { status: 'invalid', value: null, messages: ['End the active Journey first.'] };
   if (input.state.downtimeRequired) return { status: 'invalid', value: null, messages: ['Complete one Downtime activity first.'] };
+  if (input.state.downtimeCompleted) return { status: 'invalid', value: null, messages: ['Resolve the Season boundary before starting the next Journey.'] };
   if (!input.reason.trim()) return { status: 'invalid', value: null, messages: ['Journey Reason is required.'] };
   const choosesDestination = input.destinationSelection === 'choose';
   if (choosesDestination) {

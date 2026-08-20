@@ -270,6 +270,7 @@ import { referenceForJournalTab } from './rulebook/context';
 import { fuzzyReferenceTextMatch } from './rulebook/referenceRegistry';
 import { PaperMap, type MapClinicOverlay, type MapPickLocation } from './map/PaperMap';
 import { type MapPlace, type MapPlaceType } from './map/mapLayers';
+import { applyManualCalendarAdjustment, getCampaignContinuity, inferCompletedSeasons } from './campaignContinuity';
 
 const AlmanackPanel = lazy(() => import('./components/AlmanackPanel'));
 const LocalizedManualEffectText = lazy(() => import('./components/LocalizedManualEffectText'));
@@ -2199,6 +2200,7 @@ const toJourneyRuntime = (s: GameState): JourneyRuntimeState => ({
   journey: s.journey,
   pendingEnding: s.pendingEnding,
   downtimeRequired: s.downtimeRequired,
+  downtimeCompleted: s.downtimeCompleted,
   journalEvents: [],
   appliedTransactionIds: s.appliedTransactionIds
 });
@@ -3892,9 +3894,7 @@ const migrateState = (s: any): GameState => {
     soddenLogHarvestedThisAilment: s.soddenLogHarvestedThisAilment || false,
     goodwillDonationsVal: s.goodwillDonationsVal || 0,
     cumulativeDays: s.cumulativeDays || 0,
-    completedSeasons: Number.isInteger(s.completedSeasons)
-      ? Math.max(0, s.completedSeasons)
-      : Math.max(0, Math.floor((s.cumulativeDays || 0) / 30)),
+    completedSeasons: inferCompletedSeasons(s),
     completedReconnecting: s.completedReconnecting || false,
     journeyGoalCounter: s.journeyGoalCounter || 0,
     journeyGoalChecklist: s.journeyGoalChecklist || [],
@@ -6696,8 +6696,8 @@ export default function App() {
                 </div>
 
                 {state.rulesetId === 'sandbox' && <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.8rem' }}>
-                  <button onClick={() => updateState(s => ({ ...s, calendarDays: s.calendarDays + 1 }))} style={{ flex: 1, padding: '0.3rem', background: 'var(--primary-light)', border: '1px solid var(--primary)', color: 'var(--primary)', borderRadius: '4px', fontSize: '0.8rem' }}>+1일 경과</button>
-                  <button onClick={() => updateState(s => ({ ...s, calendarDays: Math.max(0, s.calendarDays - 1) }))} style={{ padding: '0.3rem 0.5rem', background: '#f5f5f5', color: '#666', borderRadius: '4px', fontSize: '0.8rem' }}>-1</button>
+                  <button onClick={() => updateState(s => applyManualCalendarAdjustment(s, s.calendarDays + 1))} style={{ flex: 1, padding: '0.3rem', background: 'var(--primary-light)', border: '1px solid var(--primary)', color: 'var(--primary)', borderRadius: '4px', fontSize: '0.8rem' }}>+1일 경과</button>
+                  <button onClick={() => updateState(s => applyManualCalendarAdjustment(s, s.calendarDays - 1))} style={{ padding: '0.3rem 0.5rem', background: '#f5f5f5', color: '#666', borderRadius: '4px', fontSize: '0.8rem' }}>-1</button>
                 </div>}
               </div>
             ) : (
@@ -6756,7 +6756,10 @@ export default function App() {
 
                     const preferredActionIds: string[] = [];
                     if (!state.journeyActive) {
-                      preferredActionIds.push('start-journey', 'downtime-activities', 'downtime-shop');
+                      if (state.downtimeRequired && !state.downtimeCompleted) preferredActionIds.push('downtime-activities');
+                      else if (state.downtimeCompleted) preferredActionIds.push('season-advance');
+                      else preferredActionIds.push('start-journey');
+                      preferredActionIds.push('downtime-shop');
                     } else {
                       if (state.pendingEncounter) preferredActionIds.push('pending-encounter');
                       if (state.pendingForaging) preferredActionIds.push('pending-foraging');
@@ -6783,7 +6786,9 @@ export default function App() {
                       }
 
                       const fallbackPanels = !state.journeyActive
-                        ? ['journey-start-panel', 'downtime-panel']
+                        ? state.downtimeRequired || state.downtimeCompleted
+                          ? ['downtime-panel']
+                          : ['journey-start-panel', 'downtime-panel']
                         : (() => {
                           const panels = [];
                           if (state.pendingPatientArchive) panels.push('pending-archive-panel');
@@ -8580,18 +8585,11 @@ function PlayView({
     setIsBookmarkedDraft(false);
   };
 
-  const [localSeason, setLocalSeason] = useState(state.currentSeason);
   const [replenishReagentIndexes, setReplenishReagentIndexes] = useState<number[]>([]);
   const [replenishNote, setReplenishNote] = useState('');
   const [selectedToolToUpgrade, setSelectedToolToUpgrade] = useState('');
   const [selectedUpgradeOption, setSelectedUpgradeOption] = useState('');
   const [travelChoiceSource, setTravelChoiceSource] = useState<'seasoned' | 'news' | 'pondSkimmer' | 'logistical-map' | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    queueMicrotask(() => { if (!cancelled) setLocalSeason(state.currentSeason); });
-    return () => { cancelled = true; };
-  }, [state.currentSeason]);
 
   const currentClinicLocationId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
   const clinicRuntimeForArea: ClinicRuntimeState = {
@@ -9365,6 +9363,10 @@ function PlayView({
     }
     if (state.downtimeRequired) {
       showAlert('이전 여정을 마친 뒤 다운타임 활동 하나를 먼저 완료해야 합니다.');
+      return;
+    }
+    if (state.downtimeCompleted) {
+      showAlert('휴식기 혜택이 저장되었습니다. 다음 여정을 시작하기 전에 계절 정산 및 전환을 완료하세요.');
       return;
     }
 
@@ -11095,7 +11097,7 @@ function PlayView({
   };
 
   const handleSettleSeasonTipsAndDonations = (_requestedSeason?: 'Spring' | 'Summer' | 'Autumn' | 'Winter') => {
-    const transactionId = `season:${Date.now()}`;
+    const transactionId = createClientTransaction('season').id;
     const result = resolveSeason({
       transactionId,
       state: {
@@ -11163,7 +11165,6 @@ function PlayView({
       }
       return next;
     });
-    setLocalSeason(outcome.nextSeason);
     showAlert(`${localizeSeasonLabel(outcome.nextSeason)}으로 계절이 바뀌었습니다. 장신구 +${outcome.clinicIncome}, 명성 +${outcome.goodwillReputation}.`);
   };
 
@@ -12035,6 +12036,7 @@ function PlayView({
     state.activePatientId ? getBarterAttemptsRemaining(state.barterAttemptHistory, state.activePatientId, option.key, option.type) : 0
   ), 0);
   const journeyGoalDone = state.journeyActive ? checkJourneyGoalSatisfaction(state) : false;
+  const campaignContinuity = getCampaignContinuity(state);
   const hubLocation = `${localizeRegionLabel(state.currentRegion)} · ${locationTypeLabel(state.currentLocationType)} · ${state.currentLocationName}`;
   const playMapMode: 'destination' | 'travel' | 'inspect' = !state.journeyActive && downtimeTab === 'start'
     ? 'destination'
@@ -12417,23 +12419,37 @@ function PlayView({
   }
 
   if (!state.journeyActive) {
-    addActionHubItem({
-      id: 'start-journey',
-      label: '새 여정 출발',
-      detail: '목적지와 여정 목표 카드를 뽑아 다음 여행을 시작합니다.',
-      meta: `현재 위치: ${state.currentLocationName}`,
-      targetId: 'journey-start-panel',
-      tone: 'primary',
-      activate: () => setDowntimeTab('start')
-    });
-    addActionHubItem({
-      id: 'downtime-activities',
-      label: '휴식기 활동',
-      detail: '본부 업무, 유산 클리닉, 기부와 회복을 정리합니다.',
-      targetId: 'downtime-panel',
-      tone: 'neutral',
-      activate: () => setDowntimeTab('activities')
-    });
+    if (state.downtimeRequired && !state.downtimeCompleted) {
+      addActionHubItem({
+        id: 'downtime-activities',
+        label: '휴식기 활동 하나 선택',
+        detail: '지난 여정 뒤 받을 혜택 하나를 골라 적용합니다.',
+        meta: '룰북 p.40–42 · 완료 전 새 여정 잠김',
+        targetId: 'downtime-activity-choice',
+        tone: 'primary',
+        activate: () => setDowntimeTab('activities')
+      });
+    } else if (state.downtimeCompleted) {
+      addActionHubItem({
+        id: 'season-advance',
+        label: '계절 정산 및 전환',
+        detail: '휴식기 혜택이 저장되었습니다. 다음 계절 효과를 한 번에 반영합니다.',
+        meta: `${localizeSeasonLabel(state.currentSeason)} 마감`,
+        targetId: 'downtime-panel',
+        tone: 'primary',
+        activate: () => void handleAdvanceSeason()
+      });
+    } else {
+      addActionHubItem({
+        id: 'start-journey',
+        label: '새 여정 출발',
+        detail: '목적지와 여정 목표 카드를 뽑아 다음 여행을 시작합니다.',
+        meta: `현재 위치: ${state.currentLocationName}`,
+        targetId: 'journey-start-panel',
+        tone: 'primary',
+        activate: () => setDowntimeTab('start')
+      });
+    }
     addActionHubItem({
       id: 'downtime-shop',
       label: '마차와 동료 정비',
@@ -12551,7 +12567,7 @@ function PlayView({
   }
 
   const actionHubStatus = [
-    { label: '상태', value: state.journeyActive ? '여정 중' : '휴식기' },
+    { label: '상태', value: campaignContinuity.label },
     { label: '위치', value: hubLocation },
     { label: '가방', value: `${formatWeight(currentWeight)} / ${maxCarry}` },
     state.journeyActive
@@ -12911,9 +12927,16 @@ function PlayView({
                 </div>
               </div>
             </div>
-            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
-              여정을 안전하게 마친 후 머무는 동안, 도구를 정비하고 마차를 개조하거나 새로운 조수(동반자)를 영입해 다음 모험을 탄탄히 준비하세요.
-            </p>
+            <div className={`downtime-stage downtime-stage--${campaignContinuity.stage}`}>
+              <div className="downtime-stage__steps" aria-label="계절 사이 진행 단계">
+                <span className="is-done">1. 여정 마감</span>
+                <span className={state.downtimeRequired ? 'is-current' : state.downtimeCompleted ? 'is-done' : ''}>2. 활동 하나</span>
+                <span className={state.downtimeCompleted ? 'is-current' : ''}>3. 계절 정산</span>
+                <span className={!state.downtimeRequired && !state.downtimeCompleted ? 'is-current' : ''}>4. 새 여정</span>
+              </div>
+              <strong>{campaignContinuity.nextAction}</strong>
+              <p>{campaignContinuity.guidance}</p>
+            </div>
             {state.downtimeCompleted && (
               <div className="downtime-season-action">
                 <div>
@@ -12953,9 +12976,11 @@ function PlayView({
             <button
               className={`nav-tab-btn ${downtimeTab === 'start' ? 'active' : ''}`}
               onClick={() => setDowntimeTab('start')}
+              disabled={state.downtimeRequired || state.downtimeCompleted}
+              title={state.downtimeRequired ? '휴식기 활동을 먼저 완료하세요.' : state.downtimeCompleted ? '계절 정산을 먼저 완료하세요.' : undefined}
               style={{ padding: '0.6rem 1rem', fontSize: '0.9rem', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}
             >
-              새 여정 출발
+              {state.downtimeRequired ? '휴식기 활동 후 출발' : state.downtimeCompleted ? '계절 정산 후 출발' : '새 여정 출발'}
             </button>
           </div>
 
@@ -13263,6 +13288,20 @@ function PlayView({
                   </div>
                 );
               })()}
+
+              <fieldset
+                id="downtime-activity-choice"
+                className="downtime-activity-stack"
+                disabled={!state.downtimeRequired || state.downtimeCompleted}
+              >
+                <legend>이번 휴식기 활동 · 아래에서 정확히 하나 선택</legend>
+                {!state.downtimeRequired || state.downtimeCompleted ? (
+                  <div className="downtime-activity-lock" role="status">
+                    {state.downtimeCompleted
+                      ? '이번 휴식기 활동은 이미 완료되었습니다. 계절을 정산하면 다음 여정 뒤 다시 선택할 수 있습니다.'
+                      : '휴식기 활동은 여정을 마친 직후에 한 번 선택합니다. 지금은 새 여정을 시작할 차례입니다.'}
+                  </div>
+                ) : null}
 
               {/* Listening to Rumours (City Only) */}
               <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
@@ -13802,6 +13841,8 @@ function PlayView({
                   </button>
                 </div>
               </div>
+
+              </fieldset>
 
               {/* Clinic Construction Panel */}
               {state.currentLocationType === 'Wilds' && state.curedAilmentInThisWilds && (
@@ -14570,29 +14611,22 @@ function PlayView({
             <div className="prose-summary" style={{ marginBottom: '0.8rem' }}>
               📍 <strong>{localizeRegionLabel(state.currentRegion)}</strong> 지역 {state.currentLocationType === 'City' ? '도시' : state.currentLocationType === 'Settlement' ? '정착지' : state.currentLocationType === 'Wilds' ? '야생' : state.currentLocationType === 'Ruin' ? '유적지' : state.currentLocationType === 'Barrow' ? '야수 고분' : state.currentLocationType} <strong>{state.currentLocationName}</strong>에 머무는 중.
             </div>
-            <div style={{ display: 'flex', gap: '1rem', fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-              <span>계절:
-                <select
-                  value={localSeason}
-                  onChange={e => setLocalSeason(e.target.value as any)}
-                  disabled={state.rulesetId === 'original-1e-3p'}
-                  style={{ height: '30px', padding: '0 0.5rem', fontSize: '0.85rem', marginLeft: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
-                >
-                  <option value="Spring">🌸 봄</option>
-                  <option value="Summer">☀️ 여름</option>
-                  <option value="Autumn">🍂 가을</option>
-                  <option value="Winter">❄️ 겨울</option>
-                </select>
+            <div className="travel-season-status">
+              <span className="travel-season-status__value">현재 계절 <strong>{localizeSeasonLabel(state.currentSeason)}</strong></span>
+              <span className="travel-season-status__reason">
+                {state.journeyActive
+                  ? '이 여정을 마친 뒤 휴식기 활동 하나를 완료하면 계절을 전환할 수 있습니다.'
+                  : state.downtimeRequired
+                    ? '지난 여정의 휴식기 활동 하나를 먼저 선택하세요.'
+                    : state.downtimeCompleted
+                      ? '휴식기 혜택이 저장되었습니다. 계절 정산을 진행할 수 있습니다.'
+                      : '새 여정을 시작할 준비가 되었습니다.'}
               </span>
-              <button
-                type="button"
-                onClick={handleAdvanceSeason}
-                disabled={!state.downtimeCompleted || state.journeyActive}
-                className="btn-cozy-secondary"
-                style={{ padding: '0.2rem 0.6rem', fontSize: '0.8rem', marginLeft: '10px' }}
-              >
-                {state.downtimeCompleted ? '계절 정산 및 전환' : '다운타임 완료 후 계절 전환'}
-              </button>
+              {state.downtimeCompleted && !state.journeyActive ? (
+                <button type="button" onClick={handleAdvanceSeason} className="btn-cozy-secondary">
+                  계절 정산 및 전환
+                </button>
+              ) : null}
             </div>
 
             {/* Travel Form */}
@@ -16308,6 +16342,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
   const [newBagItemName, setNewBagItemName] = useState("");
   const [newBagItemWeight, setNewBagItemWeight] = useState<number>(1/3);
   const [patienceOverride, setPatienceOverride] = useState(false);
+  const [calendarOverride, setCalendarOverride] = useState(false);
 
   const handleSaveBio = (e: React.FormEvent) => {
     e.preventDefault();
@@ -16412,6 +16447,9 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
     });
   };
 
+  const reputationLevel = state.reputation >= 35 ? '신뢰받음' : state.reputation >= 25 ? '명망 높음' : state.reputation >= 15 ? '인지도 있음' : '미등록';
+  const recentProgress = state.journals.find(entry => /Downtime|휴식|계절|여정|속도|소지|평판|은퇴|자원봉사|자기 계발/.test(entry.title));
+
   return (
     <div className="parchment-panel cute-border" style={{ padding: '1.8rem', background: '#fffdf9' }}>
 
@@ -16435,6 +16473,26 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
       </div>
 
       <CharacterCreationWizard state={state} updateState={updateState} />
+
+      <section className="character-continuity" aria-labelledby="character-continuity-title">
+        <div className="character-continuity__heading">
+          <div>
+            <span className="document-kicker">현재 적용값</span>
+            <h3 id="character-continuity-title">{state.bio.name || '이름 없는 약제사'}의 지금</h3>
+          </div>
+          <span>{localizeSeasonLabel(state.currentSeason)} · {state.currentLocationName}</span>
+        </div>
+        <dl>
+          <div><dt>이동 속도</dt><dd>{getTravelSpeed(state, currentWeight)} <small>기본 {state.bio.speed}</small></dd></div>
+          <div><dt>소지 한도</dt><dd>{getMaxCarry(state)} <small>기본 {state.bio.carry}</small></dd></div>
+          <div><dt>길드 평판</dt><dd>{state.reputation} <small>{reputationLevel}</small></dd></div>
+          <div><dt>캠페인 시간</dt><dd>{state.cumulativeDays || 0}일 <small>계절 {state.completedSeasons || 0}회 완료</small></dd></div>
+        </dl>
+        <p>
+          <strong>최근 장기 변화</strong>{' '}
+          {recentProgress ? `${localizeGameplayMessage(recentProgress.title)} — ${localizeGameplayMessage(recentProgress.text).slice(0, 150)}` : '아직 기록된 휴식기·계절·여정 변화가 없습니다.'}
+        </p>
+      </section>
 
       {!editing ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -16750,7 +16808,15 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
 
               {/* Calendar stamp grid */}
               <div style={{ borderTop: '1.5px dashed var(--border-cozy)', paddingTop: '0.8rem', marginTop: '0.8rem' }}>
-                <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', color: 'var(--secondary)', fontFamily: 'var(--font-fancy)' }}>📅 일정 소모 기록</h4>
+                <div className="calendar-ledger-heading">
+                  <h4>📅 일정 소모 기록</h4>
+                  {state.journeyActive ? (
+                    <label>
+                      <input type="checkbox" checked={calendarOverride} onChange={event => setCalendarOverride(event.target.checked)} />
+                      앱 밖 판정 보정
+                    </label>
+                  ) : null}
+                </div>
                 {state.journeyActive ? (
                   <div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
@@ -16759,11 +16825,14 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
                         return (
                           <button
                             key={idx}
+                            type="button"
+                            disabled={!calendarOverride}
                             onClick={() => {
+                              if (!calendarOverride) return;
                               if (isPassed) {
-                                updateState((s: any) => ({ ...s, calendarDays: idx }));
+                                updateState((s: GameState) => applyManualCalendarAdjustment(s, idx));
                               } else {
-                                updateState((s: any) => ({ ...s, calendarDays: idx + 1 }));
+                                updateState((s: GameState) => applyManualCalendarAdjustment(s, idx + 1));
                               }
                             }}
                             style={{
@@ -16777,7 +16846,8 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              cursor: 'pointer',
+                              cursor: calendarOverride ? 'pointer' : 'default',
+                              opacity: calendarOverride || isPassed ? 1 : 0.72,
                               boxShadow: isPassed ? 'none' : '0 2px 4px rgba(0,0,0,0.05)'
                             }}
                           >
@@ -16787,7 +16857,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
                       })}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem', textAlign: 'center' }}>
-                      하루 소모 시 각 칸을 눌러 도장(印)을 찍으세요. ({state.calendarDays} / {state.calendarMaxDays}일 경과)
+                      Move와 앱 내 판정은 자동으로 표시됩니다. 종이 저널·앱 밖 판정을 옮길 때만 보정을 켜세요. 누적 경과일과 변경 이력도 함께 조정됩니다. ({state.calendarDays} / {state.calendarMaxDays}일 경과)
                     </div>
                   </div>
                 ) : (
