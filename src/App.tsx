@@ -271,6 +271,12 @@ import { fuzzyReferenceTextMatch } from './rulebook/referenceRegistry';
 import { PaperMap, type MapClinicOverlay, type MapPickLocation } from './map/PaperMap';
 import { type MapPlace, type MapPlaceType } from './map/mapLayers';
 import { applyManualCalendarAdjustment, getCampaignContinuity, inferCompletedSeasons } from './campaignContinuity';
+import {
+  isRulebookHistoryState,
+  journalHash,
+  journalHistoryState,
+  journalTabFromHash
+} from './sessionNavigation';
 
 const AlmanackPanel = lazy(() => import('./components/AlmanackPanel'));
 const LocalizedManualEffectText = lazy(() => import('./components/LocalizedManualEffectText'));
@@ -332,6 +338,8 @@ const withTimeout = (promise: Promise<any>, ms: number = 10000) => {
 };
 
 let cloudSaveQueue: Promise<void> = Promise.resolve();
+let saveRequestSequence = 0;
+let saveFailureNotified = false;
 const SAVE_OUTBOX_KEY = 'apawthecaria_save_outbox';
 const readSaveOutbox = (): OfflineSaveEntry[] => {
   try { return JSON.parse(localStorage.getItem(SAVE_OUTBOX_KEY) || '[]'); } catch { return []; }
@@ -411,10 +419,11 @@ const store = {
       localStorage.setItem(key, jsonString);
     } catch (e) {
       console.error('로컬 저장 에러:', e);
+      return false;
     }
     if (jsonString.length >= 950000) {
       console.warn('클라우드 저장 한도에 가까워 로컬에만 저장했습니다.');
-      return false;
+      return true;
     }
     if (isFirebaseConfigured && db && auth?.currentUser) {
       if (!campaignSaveHasNamedApothecary(value)) {
@@ -4521,7 +4530,9 @@ export default function App() {
   const [storedState, setState] = useState<GameState | null>(null);
   const state = storedState ? withCanonicalPatientView(storedState) : null;
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<JournalTab>('play');
+  const [activeTab, setActiveTab] = useState<JournalTab>(() => journalTabFromHash(window.location.hash));
+  const activeTabRef = useRef<JournalTab>(activeTab);
+  const tabScrollPositions = useRef<Partial<Record<JournalTab, number>>>({});
   const [highlightedPatientId, setHighlightedPatientId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [showCloudSlots, setShowCloudSlots] = useState(false);
@@ -4538,6 +4549,7 @@ export default function App() {
   const [rulebookRequest, setRulebookRequest] = useState<RulebookReferenceRequest | null>(null);
   const [pendingMapTravel, setPendingMapTravel] = useState<MapPickLocation | null>(null);
   const [saveLoadError, setSaveLoadError] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'ready' | 'saving' | 'saved' | 'error'>('ready');
   const initialSetupRouted = useRef(false);
 
   const requestControlledPrompt = useCallback((request: ControlledPromptRequest) => new Promise<string | null>(resolve => {
@@ -4585,9 +4597,62 @@ export default function App() {
   const [barterPaymentTrinkets, setBarterPaymentTrinkets] = useState(0);
   const [rumourCards, setRumourCards] = useState<{ suit: string; val: string; text?: string }[]>([]);
 
-  const changeActiveTab = (tab: JournalTab) => {
+  const changeActiveTab = (tab: JournalTab, options: { replace?: boolean; restoreScroll?: boolean } = {}) => {
+    tabScrollPositions.current[activeTabRef.current] = window.scrollY;
+    const nextHash = journalHash(tab);
+    if (window.location.hash !== nextHash || activeTabRef.current !== tab) {
+      const nextState = journalHistoryState(tab, window.history.state);
+      if (options.replace) window.history.replaceState(nextState, '', nextHash);
+      else window.history.pushState(nextState, '', nextHash);
+    }
+    activeTabRef.current = tab;
     setActiveTab(tab);
-    window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+    setRulebookRequest(null);
+    const top = options.restoreScroll ? tabScrollPositions.current[tab] || 0 : 0;
+    window.requestAnimationFrame(() => window.scrollTo({ top, left: 0, behavior: 'auto' }));
+  };
+
+  useEffect(() => {
+    window.history.replaceState(
+      journalHistoryState(activeTabRef.current, window.history.state),
+      '',
+      window.location.href
+    );
+
+    const handleHistoryNavigation = () => {
+      tabScrollPositions.current[activeTabRef.current] = window.scrollY;
+      const tab = journalTabFromHash(window.location.hash);
+      activeTabRef.current = tab;
+      setActiveTab(tab);
+      setRulebookRequest(null);
+      window.requestAnimationFrame(() => window.scrollTo({
+        top: tabScrollPositions.current[tab] || 0,
+        left: 0,
+        behavior: 'auto'
+      }));
+    };
+
+    window.addEventListener('popstate', handleHistoryNavigation);
+    return () => window.removeEventListener('popstate', handleHistoryNavigation);
+  }, []);
+
+  const openRulebookReference = (request: RulebookReferenceRequest) => {
+    if (!isRulebookHistoryState(window.history.state)) {
+      window.history.pushState(
+        journalHistoryState(activeTabRef.current, window.history.state, 'rulebook'),
+        '',
+        window.location.href
+      );
+    }
+    setRulebookRequest(request);
+  };
+
+  const closeRulebookReference = () => {
+    if (isRulebookHistoryState(window.history.state)) {
+      window.history.back();
+      return;
+    }
+    setRulebookRequest(null);
   };
   const [rumourBarrowName, setRumourBarrowName] = useState("");
   const [rumourLocName, setRumourLocName] = useState("");
@@ -4740,6 +4805,7 @@ export default function App() {
         }
         setState(migrated.state);
         setSaveLoadError(null);
+        setSaveStatus('saved');
         setLoading(false);
         return;
       }
@@ -4749,11 +4815,13 @@ export default function App() {
         if (migrated.ok) {
           setState(migrated.state);
           setSaveLoadError(null);
+          setSaveStatus('saved');
         } else {
           failLoad('저장 데이터를 올리지 못했습니다. 기존 기록은 디스크에서 지우지 않았습니다.');
         }
       } else {
         setState(syncWorldMemory(INITIAL_STATE));
+        setSaveStatus('ready');
       }
       setLoading(false);
     };
@@ -4764,7 +4832,12 @@ export default function App() {
     if (loading || !state || initialSetupRouted.current) return;
     initialSetupRouted.current = true;
     if (state.bio.name.trim()) return;
-    queueMicrotask(() => setActiveTab('bio'));
+    queueMicrotask(() => {
+      activeTabRef.current = 'bio';
+      window.history.replaceState(journalHistoryState('bio', window.history.state), '', journalHash('bio'));
+      setActiveTab('bio');
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    });
   }, [loading, state]);
 
   useEffect(() => {
@@ -4853,6 +4926,8 @@ export default function App() {
 
   // Auto-save wrapper
   const updateState = (updater: (prev: GameState) => GameState) => {
+    const requestId = ++saveRequestSequence;
+    setSaveStatus('saving');
     setState(prev => {
       if (!prev) return prev;
       let next = updater(withCanonicalPatientView(prev));
@@ -4863,7 +4938,27 @@ export default function App() {
       };
       next = syncWorldMemory(next);
 
-      store.set(CAMPAIGN_SAVE_KEY, next);
+      void store.set(CAMPAIGN_SAVE_KEY, next).then(saved => {
+        if (requestId !== saveRequestSequence) return;
+        if (saved) {
+          setSaveStatus('saved');
+          saveFailureNotified = false;
+          return;
+        }
+        setSaveStatus('error');
+        if (!saveFailureNotified) {
+          saveFailureNotified = true;
+          showAlert('기기에 자동 저장하지 못했습니다. 브라우저 저장 공간을 확인하고, 이 화면을 닫기 전에 기록을 내보내 주세요.');
+        }
+      }).catch(error => {
+        console.error('자동 저장 에러:', error);
+        if (requestId !== saveRequestSequence) return;
+        setSaveStatus('error');
+        if (!saveFailureNotified) {
+          saveFailureNotified = true;
+          showAlert('기기에 자동 저장하지 못했습니다. 브라우저 저장 공간을 확인하고, 이 화면을 닫기 전에 기록을 내보내 주세요.');
+        }
+      });
       return next;
     });
   };
@@ -6542,90 +6637,78 @@ export default function App() {
     || ailment.displayName === state.activeAilment?.name
   );
   const referenceRequirements = referenceAilmentDefinition ? requirementTagThresholds(referenceAilmentDefinition.requirements) : [];
+  const isOnboarding = !state.bio.name.trim();
+  const saveStatusText = saveStatus === 'saving'
+    ? '저장 중…'
+    : saveStatus === 'error'
+      ? '저장 실패'
+      : saveStatus === 'saved'
+        ? isFirebaseConfigured && user
+          ? state.offlineOutbox.length > 0 ? '기기에 저장됨 · 동기화 대기' : '기기에 저장됨 · 동기화 연결'
+          : '기기에 저장됨'
+        : '자동 저장 준비됨';
 
   return (
-    <div className={`journal-app journal-app--${activeTab}`}>
+    <div className={`journal-app journal-app--${activeTab} ${isOnboarding ? 'journal-app--onboarding' : ''}`}>
       {/* Header Banner */}
       <header className="journal-header">
-        <button type="button" className="journal-brand" onClick={() => changeActiveTab('play')} aria-label="오늘의 여행 첫 페이지로 돌아가기">
+        <button type="button" className="journal-brand" onClick={() => changeActiveTab('play')} disabled={isOnboarding} aria-label={isOnboarding ? 'Apawthecaria 새 기록 설정' : '오늘의 여행 첫 페이지로 돌아가기'}>
           <span className="journal-brand__eyebrow">Bristley Woods · A travelling apothecary's field notes</span>
           <h1 className="journal-brand__title"><span>APAW</span><span>THECARIA</span></h1>
           <span className="journal-brand__edition">들녘 일지 · 제1권</span>
         </button>
 
         <div className="journal-header__utilities">
-          <button type="button" className="journal-header__action" onClick={() => setRulebookRequest(currentRulebookRequest)} aria-label="현재 페이지의 룰북 맥락 열기" title="현재 페이지의 룰북 맥락">
+          <button type="button" className="journal-header__action" onClick={() => openRulebookReference(currentRulebookRequest)} aria-label="현재 페이지의 룰북 맥락 열기" title="현재 페이지의 룰북 맥락">
             <span className="emoji-icon" aria-hidden="true">📚</span><span>룰북</span>
           </button>
-          {isFirebaseConfigured && auth && (
-            user ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.3rem 0.8rem', background: 'var(--primary-light)', borderRadius: '20px', border: '1.5px solid var(--glass-border)' }}>
-                {user.photoURL ? (
-                  <img src={user.photoURL} alt="프로필" style={{ width: '22px', height: '22px', borderRadius: '50%' }} />
+          {!isOnboarding && (
+            <>
+              {isFirebaseConfigured && auth && (
+                user ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.3rem 0.8rem', background: 'var(--primary-light)', borderRadius: '20px', border: '1.5px solid var(--glass-border)' }}>
+                    {user.photoURL ? (
+                      <img src={user.photoURL} alt="프로필" style={{ width: '22px', height: '22px', borderRadius: '50%' }} />
+                    ) : (
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>사용자</span>
+                    )}
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary)' }}>{user.displayName || '약제사'}</span>
+                    <button type="button" className="journal-header__icon-button" onClick={() => void openCloudSlots()} aria-label="클라우드 기록" title="클라우드 기록">
+                      <span className="emoji-icon" aria-hidden="true">☁️</span><span>클라우드 기록</span>
+                    </button>
+                    <button className="journal-header__icon-button" onClick={handleSignOut} title="동기화 연결 해제">
+                      <span className="emoji-icon" aria-hidden="true">🚪</span><span>로그아웃</span>
+                    </button>
+                  </div>
                 ) : (
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700 }}>사용자</span>
-                )}
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary)' }}>{user.displayName || '약제사'}</span>
-                <button type="button" className="journal-header__icon-button" onClick={() => void openCloudSlots()} aria-label="클라우드 기록" title="클라우드 기록">
-                  <span className="emoji-icon" aria-hidden="true">☁️</span><span>클라우드 기록</span>
-                </button>
-                <button className="journal-header__icon-button" onClick={handleSignOut} title="동기화 연결 해제">
-                  <span className="emoji-icon" aria-hidden="true">🚪</span><span>로그아웃</span>
-                </button>
-              </div>
-            ) : (
-              <button onClick={handleSignIn} className="journal-header__action" aria-label="Google 기록 동기화" title="Google 기록 동기화">
-                <span className="emoji-icon" aria-hidden="true">☁️</span><span>Google 기록 동기화</span>
+                  <button onClick={handleSignIn} className="journal-header__action" aria-label="Google 기록 동기화" title="Google 기록 동기화">
+                    <span className="emoji-icon" aria-hidden="true">☁️</span><span>Google 기록 동기화</span>
+                  </button>
+                )
+              )}
+              <button onClick={handleReset} className="journal-header__action journal-header__action--reset" aria-label="현재 진행을 지우고 새 약제사 시작" title="현재 진행을 지우고 새 약제사 시작">
+                <span className="emoji-icon" aria-hidden="true">↺</span><span>새 약제사로 초기화</span>
               </button>
-            )
+              {state.manualEffectQueue.length > 0 && !state.pendingManualEffect && (
+                <button type="button" className="pending-action-button" onClick={() => updateState(s => ({ ...s, pendingManualEffect: s.manualEffectQueue[0] || null, manualEffectDraft: s.manualEffectQueue[0] || null }))}>
+                  보류 판정 {state.manualEffectQueue.length}개
+                </button>
+              )}
+            </>
           )}
-          <button onClick={handleReset} className="journal-header__action journal-header__action--reset" aria-label="새 기록지 시작" title="새 기록지 시작">
-            <span className="emoji-icon" aria-hidden="true">🔄</span><span>새 기록지 시작</span>
-          </button>
-          {state.manualEffectQueue.length > 0 && !state.pendingManualEffect && (
-            <button type="button" className="pending-action-button" onClick={() => updateState(s => ({ ...s, pendingManualEffect: s.manualEffectQueue[0] || null, manualEffectDraft: s.manualEffectQueue[0] || null }))}>
-              보류 판정 {state.manualEffectQueue.length}개
-            </button>
-          )}
-          <span className="save-state" role="status" aria-live="polite">
-            {isFirebaseConfigured && user ? (state.offlineOutbox.length > 0 ? '로컬 저장 · 동기화 대기' : '로컬 우선 · 동기화 연결') : '로컬 저장'}
+          <span className={`save-state save-state--${saveStatus}`} role={saveStatus === 'error' ? 'alert' : 'status'} aria-live="polite" title={saveStatus === 'error' ? '기기 저장 공간을 확인하고 기록을 내보내 주세요.' : undefined}>
+            {saveStatusText}
           </span>
         </div>
       </header>
 
-      <JournalNavigation activeTab={activeTab} onChange={changeActiveTab} />
+      {!isOnboarding && <JournalNavigation activeTab={activeTab} onChange={changeActiveTab} />}
 
-      <div className="grid-dashboard">
+      <div className={`grid-dashboard ${isOnboarding ? 'grid-dashboard--onboarding' : ''}`}>
         {/* =================================================================
             SIDEBAR PANEL
            ================================================================= */}
-        <aside style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-          {/* Navigation panel */}
-          <div className="glass-panel cute-border" style={{ padding: '0.8rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
-              {[
-                { id: 'play', label: '여정 일지', sub: '여정과 달력' },
-                { id: 'bio', label: '약제사 정보', sub: '초상과 배낭' },
-                { id: 'reagents', label: '약초 관찰기', sub: '약재와 제조법' },
-                { id: 'ailments', label: '진료 기록', sub: '병증과 처방' },
-                { id: 'almanack', label: '자연사 색인', sub: '규칙과 도감 색인' },
-                { id: 'patientArchive', label: '환자 기록장', sub: '기억 속 야수들' },
-                { id: 'livingArchive', label: '살아 있는 기록들', sub: '표본과 이야기' },
-                { id: 'map', label: '접어둔 지도', sub: '가시덤불 숲' },
-                { id: 'journals', label: '들녘의 일지', sub: '방랑기' }
-              ].map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => changeActiveTab(t.id as JournalTab)}
-                  className={`nav-tab-btn ${activeTab === t.id ? 'active' : ''}`}
-                >
-                  <span style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{t.label}</span>
-                  <span style={{ fontSize: '0.65rem', opacity: 0.8, marginTop: '2px' }}>{t.sub}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
+        {!isOnboarding && <aside style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
           {/* Quick Profile Summary */}
           <div className="glass-panel" style={{ padding: '1.2rem', background: '#fffefa' }}>
             <h3 style={{ borderBottom: '1.5px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.8rem', color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -6706,12 +6789,38 @@ export default function App() {
               </div>
             )}
           </div>
-        </aside>
+        </aside>}
 
         {/* =================================================================
             MAIN CONTENT VIEWS
            ================================================================= */}
         <main className="glass-panel main-content-panel">
+          {isOnboarding ? (
+            <section className="onboarding-focus" aria-labelledby="onboarding-title">
+              <header className="onboarding-focus__intro">
+                <span className="document-kicker">새 들녘 일지</span>
+                <h2 id="onboarding-title">약제사와 길동무를 먼저 기록하세요</h2>
+                <p>룰북 p.10–16의 순서만 따라갑니다. 완성하면 이 페이지를 거치지 않고 첫 여정 준비로 바로 이어집니다.</p>
+              </header>
+              <CharacterCreationWizard
+                state={state}
+                updateState={updateState}
+                focused
+                onComplete={() => {
+                  changeActiveTab('play', { replace: true });
+                  window.setTimeout(() => {
+                    const firstJourney = document.querySelector<HTMLButtonElement>('#action-hub .action-step[data-play-action-id="start-journey"]');
+                    if (firstJourney) {
+                      firstJourney.click();
+                      firstJourney.focus({ preventScroll: true });
+                    } else {
+                      document.getElementById('action-hub')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }, 120);
+                }}
+              />
+            </section>
+          ) : <>
           {state.pendingManualFollowUps.some(row => row.status === 'pending') && (
             <section id="pending-follow-ups" className="pending-follow-ups" aria-labelledby="pending-follow-ups-title">
               <header><span className="document-kicker">잊지 말아야 할 일</span><h2 id="pending-follow-ups-title">남은 후속 판정</h2></header>
@@ -6731,7 +6840,7 @@ export default function App() {
                 state={state}
                 currentWeight={currentWeight}
                 maxCarry={maxCarry}
-                onNavigate={setActiveTab}
+                onNavigate={changeActiveTab}
                 onContinue={() => {
                   const focusContinueTarget = () => {
                     const encounterDialog = document.querySelector<HTMLElement>('.encounter-dialog-backdrop .encounter-dialog');
@@ -6815,7 +6924,7 @@ export default function App() {
                   if (focusContinueTarget()) return;
                   (pendingFollowUps || actionHub)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
-                onOpenReference={setRulebookRequest}
+                onOpenReference={openRulebookReference}
               />
               <BarrowPanel delve={state.activeDelve} />
               <PlayView
@@ -6842,7 +6951,7 @@ export default function App() {
                 handleBarterProgressToDeal={handleBarterProgressToDeal}
                 handleBarterFinalize={handleBarterFinalize}
                 requestControlledPrompt={requestControlledPrompt}
-                onOpenReference={setRulebookRequest}
+                onOpenReference={openRulebookReference}
                 onOpenFullMap={() => changeActiveTab('map')}
                 onOpenPatientArchive={() => changeActiveTab('patientArchive')}
                 pendingMapTravel={pendingMapTravel}
@@ -6858,10 +6967,10 @@ export default function App() {
                 currentWeight={currentWeight}
                 maxCarry={maxCarry}
                 onReturnToToday={() => {
-                  setActiveTab('play');
+                  changeActiveTab('play');
                   window.setTimeout(() => document.getElementById('action-hub')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
                 }}
-                onOpenReference={setRulebookRequest}
+                onOpenReference={openRulebookReference}
               />
               <section
                 className={`journal-chapter journal-chapter--${activeTab}`}
@@ -6876,7 +6985,7 @@ export default function App() {
                   journals: '들녘의 일지'
                 } as Record<string, string>)[activeTab] || '현재 기록'} 장`}
               >
-                {activeTab === 'bio' && <BioView state={state} updateState={updateState} currentWeight={currentWeight} handleRetireClick={handleRetireClick} onOpenReference={setRulebookRequest} />}
+                {activeTab === 'bio' && <BioView state={state} updateState={updateState} currentWeight={currentWeight} handleRetireClick={handleRetireClick} onOpenReference={openRulebookReference} />}
                 {activeTab === 'reagents' && (
                   <ReagentsView
                     state={state}
@@ -6887,7 +6996,7 @@ export default function App() {
                     setFilter={setReagentFilter}
                     typeFilter={reagentTypeFilter}
                     setTypeFilter={setReagentTypeFilter}
-                    onOpenReference={setRulebookRequest}
+                    onOpenReference={openRulebookReference}
                   />
                 )}
                 {activeTab === 'ailments' && (
@@ -6939,7 +7048,7 @@ export default function App() {
                   <AtlasMapPanel
                     state={state}
                     updateState={updateState}
-                    onOpenReference={setRulebookRequest}
+                    onOpenReference={openRulebookReference}
                   />
                 )}
                 {activeTab === 'journals' && (
@@ -6953,12 +7062,13 @@ export default function App() {
               </section>
             </>
           )}
+          </>}
         </main>
       </div>
 
       {rulebookRequest && (
         <Suspense fallback={<div className="rulebook-drawer-backdrop"><div className="rulebook-drawer rulebook-drawer--loading" role="status">룰북 맥락을 여는 중...</div></div>}>
-          <RulebookReferenceDrawer key={rulebookRequest.entryId || rulebookRequest.query || `p.${rulebookRequest.page || 6}`} request={rulebookRequest} onClose={() => setRulebookRequest(null)} />
+          <RulebookReferenceDrawer key={rulebookRequest.entryId || rulebookRequest.query || `p.${rulebookRequest.page || 6}`} request={rulebookRequest} onClose={closeRulebookReference} />
         </Suspense>
       )}
 
@@ -15829,7 +15939,17 @@ const WizardChoiceSelect = ({ value, onChange, items, labelKey = 'name' }: { val
 );
 
 // =================================================================
-function CharacterCreationWizard({ state, updateState }: { state: GameState; updateState: any }) {
+function CharacterCreationWizard({
+  state,
+  updateState,
+  focused = false,
+  onComplete
+}: {
+  state: GameState;
+  updateState: any;
+  focused?: boolean;
+  onComplete?: () => void;
+}) {
   const bioChoices = GAME_DATA.bioChoices;
   const initialDescriptor = bioChoices.descriptors.find((d: any) => d.examples === state.bio.examples) || bioChoices.descriptors[2];
   const initialTravel = bioChoices.travelStyles.find((t: any) => t.name === state.bio.travelStyle || (t.speed === state.bio.speed && t.carry === state.bio.carry)) || bioChoices.travelStyles[1];
@@ -15968,7 +16088,7 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
       }, timestamp)
     }));
     setOpen(false);
-    showAlert("룰북 절차에 따라 약제사 시트가 완성되었습니다.");
+    onComplete?.();
   };
 
   const animalChips = (examples: string, onPick: (value: string) => void) => (
@@ -16001,7 +16121,7 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
   }
 
   return (
-    <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1rem', background: '#fffdf8', marginBottom: '1.4rem' }}>
+    <div className={`character-wizard ${focused ? 'character-wizard--focused' : ''}`} style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1rem', background: '#fffdf8', marginBottom: '1.4rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.75rem', marginBottom: '0.9rem' }}>
         <div>
           <h3 style={{ margin: 0, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)', fontSize: '1.35rem' }}>룰북 따라 캐릭터 만들기</h3>

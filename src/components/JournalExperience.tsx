@@ -1,13 +1,14 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { localizeLocationName, localizeLocationTypeLabel, localizeRegionLabel, localizeSavedJourneyText } from '../localization/gameplayKo';
 import { localizeGameplayMessage } from '../localization/engineMessagesKo';
 import { referenceForJournalTab } from '../rulebook/context';
 import type { RulebookReferenceRequest } from '../rulebook/types';
 import { getCampaignContinuity } from '../campaignContinuity';
+import type { JournalTab } from '../sessionNavigation';
+
+export type { JournalTab } from '../sessionNavigation';
 
 const LocalizedManualEffectText = lazy(() => import('./LocalizedManualEffectText'));
-
-export type JournalTab = 'play' | 'bio' | 'reagents' | 'ailments' | 'almanack' | 'patientArchive' | 'livingArchive' | 'map' | 'journals';
 
 type ChapterTab = Exclude<JournalTab, 'play'>;
 
@@ -24,15 +25,23 @@ const NAVIGATION = [
 ] as const;
 
 export function JournalNavigation({ activeTab, onChange }: { activeTab: JournalTab; onChange: (tab: JournalTab) => void }) {
+  const tabRefs = useRef<Partial<Record<JournalTab, HTMLButtonElement | null>>>({});
+
+  useEffect(() => {
+    tabRefs.current[activeTab]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+  }, [activeTab]);
+
   return (
     <nav className="journal-tabs" aria-label="여행 일지 책갈피">
       {NAVIGATION.map((item, index) => {
         return (
           <button
             key={item.id}
+            ref={node => { tabRefs.current[item.id] = node; }}
             type="button"
             className={`journal-tab journal-tab--${item.id} ${activeTab === item.id ? 'journal-tab--active' : ''}`}
             aria-current={activeTab === item.id ? 'page' : undefined}
+            aria-label={`${String(index + 1).padStart(2, '0')} ${item.label}`}
             title={item.label}
             onClick={() => onChange(item.id)}
           >

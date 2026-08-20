@@ -7378,3 +7378,166 @@ details.rulebook-source-text > summary {
     text-align: left;
   }
 }
+
+/* Session shell: keep the player in the current chapter and make first setup
+   a single focused task instead of exposing the finished campaign shell. */
+.journal-header__action--reset {
+  color: #7d342f;
+  border-bottom-color: rgba(125, 52, 47, 0.55);
+}
+
+.journal-header__action--reset:hover {
+  background: rgba(125, 52, 47, 0.08);
+  color: #692823;
+}
+
+.save-state--saving {
+  opacity: 0.72;
+}
+
+.save-state--error {
+  border-bottom-color: #9d2f2f;
+  color: #8f2424;
+  font-weight: 800;
+}
+
+.grid-dashboard--onboarding {
+  display: block;
+  width: min(100% - 2rem, 920px);
+  padding-top: 2.25rem;
+}
+
+.journal-app--onboarding .journal-header {
+  min-height: 210px;
+  padding-top: 3.25rem;
+}
+
+.journal-app--onboarding .journal-header .journal-brand__title {
+  font-size: 5.2rem !important;
+}
+
+.journal-app--onboarding .journal-brand {
+  cursor: default;
+}
+
+.onboarding-focus {
+  border: var(--editorial-rule);
+  background: color-mix(in srgb, var(--editorial-yellow) 42%, var(--editorial-paper));
+}
+
+.onboarding-focus__intro {
+  padding: 2rem 2rem 1.15rem;
+  border-bottom: var(--editorial-rule);
+}
+
+.onboarding-focus__intro h2 {
+  max-width: 18ch;
+  margin: 0.3rem 0 0.65rem;
+  color: var(--editorial-ink);
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 0.98;
+}
+
+.onboarding-focus__intro p {
+  max-width: 62ch;
+  margin: 0;
+  color: rgba(37, 33, 28, 0.76);
+  line-height: 1.65;
+}
+
+.character-wizard--focused {
+  margin: 0 !important;
+  padding: 1.5rem 2rem 2rem !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: rgba(255, 253, 248, 0.82) !important;
+}
+
+.journal-tab:focus-visible,
+.journal-header__action:focus-visible,
+.journal-header__icon-button:focus-visible,
+.journal-brand:focus-visible {
+  outline: 3px solid #2f6f7b;
+  outline-offset: -3px;
+}
+
+@media (max-width: 800px) {
+  .journal-tabs {
+    min-height: 68px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-padding-inline: 0.4rem;
+    scroll-snap-type: x proximity;
+    touch-action: pan-x;
+  }
+
+  .journal-tab {
+    min-width: 92px;
+    min-height: 70px;
+    flex: 0 0 92px;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    gap: 0.08rem 0.28rem;
+    padding: 0.4rem 0.35rem;
+    scroll-snap-align: start;
+  }
+
+  .journal-tab__emoji {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .journal-tab > span:last-child {
+    display: -webkit-box;
+    grid-row: 1;
+    grid-column: 2;
+    overflow: hidden;
+    font-size: 0.62rem;
+    line-height: 1.15;
+    text-align: left;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .journal-tab__index {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+
+  .journal-app--onboarding .journal-header {
+    min-height: 180px;
+    padding-top: 3.4rem !important;
+  }
+
+  .journal-app--onboarding .journal-header .journal-brand__title {
+    font-size: 2.8rem !important;
+  }
+
+  .grid-dashboard--onboarding {
+    width: min(100% - 1.25rem, 920px);
+    padding: 0.75rem 0 3rem;
+  }
+
+  .onboarding-focus__intro {
+    padding: 1.4rem 1rem 1rem;
+  }
+
+  .character-wizard--focused {
+    padding: 1rem !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .journal-header__action,
+  .journal-header__icon-button {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .journal-app--onboarding .journal-header .journal-brand__title {
+    font-size: 2.3rem !important;
+  }
+}
