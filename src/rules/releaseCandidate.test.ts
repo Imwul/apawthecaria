@@ -27,6 +27,7 @@ import {
   resolveManualEffectTransaction,
   resolvePatient,
   resolveSeasonBoundary,
+  resolveTimer,
   resolveTravel,
   resolveTreatment,
   resolveTreatmentTransaction,
@@ -219,11 +220,12 @@ describe('Release Candidate rulebook closure', () => {
   it('[AILMENT-005/REMEDY-003/BARROW-005/SAVE-001/SAVE-005] preserves failed treatment, rare Replacement, death, and hostile-save recovery', () => {
     const dire = AILMENTS.find(ailment => ailment.canonicalName === 'Titan Touched')!;
     const patient = resolvePatient({ id: 'rc:patient', name: 'Rowan', species: 'Vole', ailmentIds: [dire.id] }).value!;
+    const expiredPatient = resolveTimer({ patient, hours: dire.timer }).value!;
     const failure = resolveTreatmentTransaction({
       mode: 'fail-expired',
       transactionId: 'rc:treatment:failure',
-      state: { inventory: [], patient, reputation: 12, trinkets: 0, journalEvents: [], appliedTransactionIds: [] },
-      ailmentInstanceIds: patient.ailments.map(ailment => ailment.id),
+      state: { inventory: [], patient: expiredPatient, reputation: 12, trinkets: 0, journalEvents: [], appliedTransactionIds: [] },
+      ailmentInstanceIds: expiredPatient.ailments.map(ailment => ailment.id),
       journalText: 'The printed consequence was recorded before leaving.'
     });
     expect(failure.value?.nextState.patient.status).toBe('failed');

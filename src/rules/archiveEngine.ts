@@ -149,9 +149,32 @@ export const upsertPatientArchive = (
   const existing = archive.find(row => row.caseId === record.caseId);
   if (!existing) return [...archive, record];
   const transactionIds = [...new Set([...existing.transactionIds, ...record.transactionIds])];
+  const hasNewTransaction = record.transactionIds.some(id => !existing.transactionIds.includes(id));
+  const merged: CanonicalPatientArchiveRecord = {
+    ...record,
+    encounteredAt: existing.encounteredAt || record.encounteredAt,
+    treatedAt: record.treatedAt ?? existing.treatedAt,
+    remedyParts: [...new Set([...existing.remedyParts, ...record.remedyParts])],
+    reward: hasNewTransaction
+      ? {
+        trinkets: existing.reward.trinkets + record.reward.trinkets,
+        reputation: existing.reward.reputation + record.reward.reputation
+      }
+      : existing.reward,
+    penalty: hasNewTransaction
+      ? {
+        trinkets: existing.penalty.trinkets + record.penalty.trinkets,
+        reputation: existing.penalty.reputation + record.penalty.reputation
+      }
+      : existing.penalty,
+    specialEffects: [...new Set([...existing.specialEffects, ...record.specialEffects])],
+    journalEntryIds: [...new Set([...existing.journalEntryIds, ...record.journalEntryIds])],
+    sourceJourneyId: record.sourceJourneyId || existing.sourceJourneyId,
+    transactionIds
+  };
   const preserveFailure = existing.status === 'failed' && record.status === 'treated' && record.treatmentResult !== 'success';
   const next = preserveFailure
-    ? { ...record, status: existing.status, treatmentResult: existing.treatmentResult, success: false, failure: true, transactionIds }
-    : { ...record, transactionIds };
+    ? { ...merged, status: existing.status, treatmentResult: existing.treatmentResult, success: false, failure: true }
+    : merged;
   return archive.map(row => row.caseId === record.caseId ? next : row);
 };

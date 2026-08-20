@@ -6,7 +6,7 @@ import { resolveBadIdeaOutcomeEffect, type BadIdeaOutcomeChoice } from './ailmen
 import type { EngineInventoryItem, ProvidedTags, TreatmentTransactionState } from './gameplay';
 import { evaluateRequirement, type RequirementEvaluation } from './requirements';
 import type { PatientAilmentState, PatientState, TreatmentHistoryEntry } from './state';
-import { resolveToolEffects, toolWeight } from './toolEngine';
+import { resolveToolEffects, toolWeight, type CanonicalToolState } from './toolEngine';
 import type { AilmentSeverity, ReagentPreparation, RequirementExpression, RuleTag, StructuredRuleEffect } from './types';
 
 const PREPARATION_BY_ID = new Map<string, { reagentId: string; preparation: ReagentPreparation }>(
@@ -110,6 +110,8 @@ export interface TreatmentEngineResolution {
 
 export interface TreatmentSelectionPreview {
   ready: boolean;
+  requiresCatalyse: boolean;
+  catalyseTags: Array<Exclude<RuleTag, 'FAIR' | 'FOUL'>>;
   providedTags: ProvidedTags;
   requirement: RequirementEvaluation | null;
   fair: number;
@@ -119,10 +121,32 @@ export interface TreatmentSelectionPreview {
   messages: string[];
 }
 
-const toolIdsForInventory = (inventory: readonly EngineInventoryItem[], selectedToolIds: readonly string[]): Set<string> =>
+const toolIdsForInventory = (
+  inventory: readonly EngineInventoryItem[],
+  selectedToolIds: readonly string[],
+  toolStates: readonly CanonicalToolState[] = []
+): Set<string> =>
   new Set(inventory
-    .filter(item => item.type === 'tool' && selectedToolIds.includes(item.id))
+    .filter(item => {
+      if (item.type !== 'tool'
+        || (!selectedToolIds.includes(item.id) && item.canonicalToolId !== 'fairwind-spices')) return false;
+      const toolState = toolStates.find(tool => tool.instanceId === item.id);
+      return !toolState || (!toolState.broken && !toolState.consumed);
+    })
     .flatMap(item => [item.canonicalToolId, item.id].filter((id): id is string => Boolean(id))));
+
+const inventoryQuantity = (item: EngineInventoryItem): number => item.quantity === undefined
+  ? 1
+  : Math.max(0, Math.floor(item.quantity));
+
+const availablePreparationUses = (item: EngineInventoryItem, preparation: ReagentPreparation): number => {
+  const quantity = inventoryQuantity(item);
+  if (quantity === 0) return 0;
+  const currentUses = item.usesRemaining === undefined
+    ? preparation.uses
+    : Math.max(0, Math.floor(item.usesRemaining));
+  return currentUses + Math.max(0, quantity - 1) * preparation.uses;
+};
 
 const consumeItems = (inventory: readonly EngineInventoryItem[], selectedIds: readonly string[], usesPerItem = 1): {
   inventory: EngineInventoryItem[];
@@ -133,8 +157,13 @@ const consumeItems = (inventory: readonly EngineInventoryItem[], selectedIds: re
   const next = inventory.flatMap(item => {
     if (!selected.has(item.id)) return [item];
     consumedIds.push(item.id);
-    const uses = item.usesRemaining || 1;
-    return uses > usesPerItem ? [{ ...item, usesRemaining: uses - usesPerItem }] : [];
+    const preparation = item.preparationId ? PREPARATION_BY_ID.get(item.preparationId)?.preparation : null;
+    if (!preparation) return [item];
+    const remainingUses = availablePreparationUses(item, preparation) - usesPerItem;
+    if (remainingUses <= 0) return [];
+    const quantity = Math.ceil(remainingUses / preparation.uses);
+    const usesRemaining = remainingUses - Math.max(0, quantity - 1) * preparation.uses;
+    return [{ ...item, quantity, usesRemaining }];
   });
   return { inventory: next, consumedIds };
 };
@@ -206,6 +235,7 @@ export const previewTreatmentSelection = ({
   inventory,
   selectedItemIds,
   selectedToolIds,
+  toolStates = [],
   overrides = [],
   purify = false,
   purifyEligible = false
@@ -215,15 +245,20 @@ export const previewTreatmentSelection = ({
   inventory: readonly EngineInventoryItem[];
   selectedItemIds: readonly string[];
   selectedToolIds: readonly string[];
+  toolStates?: readonly CanonicalToolState[];
   overrides?: readonly TreatmentAilmentTagOverride[];
   purify?: boolean;
   purifyEligible?: boolean;
 }): TreatmentSelectionPreview => {
+  if (!patient || !Array.isArray(patient.ailments) || !Array.isArray(patient.timers)) {
+    return { ready: false, requiresCatalyse: false, catalyseTags: [], providedTags: {}, requirement: null, fair: 0, foul: 0, rawFoul: 0, missingToolIds: [], messages: ['Patient state is malformed.'] };
+  }
   const ailment = patient.ailments.find(row => row.id === ailmentInstanceId && row.status === 'active');
   const definition = ailment?.ailmentId ? AILMENT_BY_ID.get(ailment.ailmentId) : null;
   if (!ailment || !definition) {
-    return { ready: false, providedTags: {}, requirement: null, fair: 0, foul: 0, rawFoul: 0, missingToolIds: [], messages: ['Active canonical Ailment instance not found.'] };
+    return { ready: false, requiresCatalyse: false, catalyseTags: [], providedTags: {}, requirement: null, fair: 0, foul: 0, rawFoul: 0, missingToolIds: [], messages: ['Active canonical Ailment instance not found.'] };
   }
+  const duplicateItemIds = selectedItemIds.length !== new Set(selectedItemIds).size;
   const selectedItems = selectedItemIds.flatMap(id => {
     const item = inventory.find(row => row.id === id);
     return item?.type === 'reagent' && item.preparationId ? [item] : [];
@@ -232,27 +267,57 @@ export const previewTreatmentSelection = ({
     const preparation = item.preparationId ? PREPARATION_BY_ID.get(item.preparationId)?.preparation : null;
     return preparation ? [{ item, preparation }] : [];
   });
-  const tools = toolIdsForInventory(inventory, selectedToolIds);
+  const depletedItems = selected.filter(row => availablePreparationUses(row.item, row.preparation) < 1);
+  const selectedCanonicalTools = toolStates.filter(tool => selectedToolIds.includes(tool.instanceId) && !tool.broken && !tool.consumed);
+  const tools = toolIdsForInventory(inventory, selectedToolIds, toolStates);
+  selectedCanonicalTools.forEach(tool => tools.add(tool.toolId));
   const missingToolIds = Array.from(new Set(selected.flatMap(row => row.preparation.requiredTools)
     .filter(tool => tool !== 'none' && !tools.has(tool))));
-  const collected = collectTags(selected, tools, []);
+  const boilOrBrew = selected.filter(row => /BOIL|BREW/i.test(row.preparation.method));
+  const hasDoubleBoiler = selectedCanonicalTools.some(tool => tool.upgradeId === 'double-boiler');
+  const potencyBoost = hasDoubleBoiler && boilOrBrew.length === 1
+    ? { itemId: boilOrBrew[0].item.id, amount: 1 }
+    : undefined;
+  const collected = collectTags(selected, tools, [], potencyBoost);
   const requirement = evaluateRequirement(
     applyAilmentTagOverrides(definition.requirements, definition.id, overrides),
     collected.tags
   );
+  const specialState = ailment.specialState || {};
   const specialRequirements = [
-    ...(Array.isArray(ailment.specialState.additionalRequirements)
-      ? ailment.specialState.additionalRequirements as Array<{ tag: RuleTag; threshold: number }>
+    ...(Array.isArray(specialState.additionalRequirements)
+      ? specialState.additionalRequirements as Array<{ tag: RuleTag; threshold: number }>
       : []),
-    ...(typeof ailment.specialState.poisonRequirement === 'number'
-      ? [{ tag: 'POISON' as RuleTag, threshold: ailment.specialState.poisonRequirement }]
+    ...(typeof specialState.poisonRequirement === 'number'
+      ? [{ tag: 'POISON' as RuleTag, threshold: specialState.poisonRequirement }]
       : [])
   ];
   const missingSpecial = specialRequirements
     .filter(row => (collected.tags[row.tag] || 0) < row.threshold)
     .map(row => `${row.tag} ${row.threshold}`);
+  const first = selected[0];
+  const second = selected[1];
+  const catalyseTags = first && second && tools.has('glass-alembic')
+    ? first.preparation.tags
+      .map(row => row.tag)
+      .filter((tag): tag is Exclude<RuleTag, 'FAIR' | 'FOUL'> => tag !== 'FAIR' && tag !== 'FOUL')
+      .filter(tag => second.preparation.tags.some(row => row.tag === tag))
+      .filter((tag, index, rows) => rows.indexOf(tag) === index)
+      .filter(tag => {
+        const catalysed = collectTags(selected, tools, [{ tag, itemIds: [first.item.id, second.item.id] }], potencyBoost);
+        const catalysedRequirement = evaluateRequirement(
+          applyAilmentTagOverrides(definition.requirements, definition.id, overrides),
+          catalysed.tags
+        );
+        const catalysedSpecial = specialRequirements.every(row => (catalysed.tags[row.tag] || 0) >= row.threshold);
+        return catalysedRequirement.satisfied && catalysedSpecial;
+      })
+    : [];
+  const requiresCatalyse = catalyseTags.length > 0 && (!requirement.satisfied || missingSpecial.length > 0);
   const messages = [
     ...(selected.length === 0 ? ['Select at least one prepared Reagent.'] : []),
+    ...(duplicateItemIds ? ['The same Remedy ingredient cannot be selected more than once.'] : []),
+    ...depletedItems.map(row => `Selected Reagent has no remaining Uses: ${row.item.name}`),
     ...missingToolIds.map(tool => `Required Tool is not selected: ${tool}`),
     ...requirement.missing,
     ...missingSpecial,
@@ -262,9 +327,12 @@ export const previewTreatmentSelection = ({
   const foul = purify && purifyEligible ? 0 : collected.foul;
   if (definition.canonicalName === 'Bad Idea' && foul > 0) messages.push('Bad Idea cannot be treated with a Remedy containing FOUL.');
   return {
-    ready: selected.length > 0 && missingToolIds.length === 0 && requirement.satisfied && missingSpecial.length === 0
+    ready: selected.length > 0 && !duplicateItemIds && depletedItems.length === 0 && missingToolIds.length === 0
+      && (requirement.satisfied || requiresCatalyse) && (missingSpecial.length === 0 || requiresCatalyse)
       && !(purify && !purifyEligible) && collected.messages.length === 0
       && !(definition.canonicalName === 'Bad Idea' && foul > 0),
+    requiresCatalyse,
+    catalyseTags,
     providedTags: collected.tags,
     requirement,
     fair: collected.fair,
@@ -296,7 +364,8 @@ export const canTreatAilmentWithInventory = (
   const prepared = inventory.flatMap(item => {
     if (item.type !== 'reagent' || !item.preparationId) return [];
     const preparation = PREPARATION_BY_ID.get(item.preparationId)?.preparation;
-    if (!preparation || preparation.requiredTools.some(tool => tool !== 'none' && !tools.has(tool))) return [];
+    if (!preparation || availablePreparationUses(item, preparation) < 1
+      || preparation.requiredTools.some(tool => tool !== 'none' && !tools.has(tool))) return [];
     return [{ item, preparation }];
   });
   if (prepared.length === 0) return false;
@@ -333,18 +402,18 @@ const updateAilment = (
   treatment: TreatmentHistoryEntry,
   status: 'treated' | 'failed'
 ): PatientState => {
-  const timers = patient.timers.map(timer => ailment.timerIds.includes(timer.id)
+  const timers = patient.timers.map(timer => (ailment.timerIds || []).includes(timer.id)
     ? { ...timer, status: 'stopped' as const }
     : timer);
   const ailments = patient.ailments.map(row => row.id === ailment.id
     ? {
       ...row,
       status,
-      treatmentHistoryIds: [...row.treatmentHistoryIds, treatment.id],
+      treatmentHistoryIds: [...(row.treatmentHistoryIds || []), treatment.id],
       successResolved: status === 'treated',
       failureResolved: status === 'failed',
       consequenceResolved: status === 'failed',
-      effectIds: [...row.effectIds, treatment.id]
+      effectIds: [...(row.effectIds || []), treatment.id]
     }
     : row);
   const allResolved = ailments.every(row => row.status !== 'active');
@@ -353,12 +422,15 @@ const updateAilment = (
     status: allResolved ? (ailments.some(row => row.status === 'failed') ? 'failed' : 'cured') : 'active',
     ailments,
     timers,
-    treatmentHistory: [...patient.treatmentHistory, treatment]
+    treatmentHistory: [...(patient.treatmentHistory || []), treatment]
   };
 };
 
 export const resolveTreatmentTransaction = (input: TreatmentEngineInput): TreatmentEngineResolution => {
   if (!input.transactionId) return { status: 'invalid', value: null, messages: ['Treatment requires a transaction ID.'] };
+  if (!input.state.patient || !Array.isArray(input.state.patient.ailments) || !Array.isArray(input.state.patient.timers)) {
+    return { status: 'invalid', value: null, messages: ['Patient state is malformed.'] };
+  }
   if (input.state.appliedTransactionIds.includes(input.transactionId)) {
     return { status: 'resolved', value: {
       transactionId: input.transactionId,
@@ -378,11 +450,22 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
   }
 
   if (input.mode === 'fail-expired') {
+    if (input.ailmentInstanceIds.length === 0 || input.ailmentInstanceIds.length !== new Set(input.ailmentInstanceIds).size) {
+      return { status: 'invalid', value: null, messages: ['Expired Ailment instances must be a non-empty unique list.'] };
+    }
+    const expiring = input.ailmentInstanceIds.map(id => input.state.patient.ailments.find(row => row.id === id));
+    const invalidExpired = expiring.some(ailment => !ailment
+      || ailment.status !== 'failed'
+      || !ailment.failureResolved
+      || ailment.consequenceResolved
+      || !(ailment.timerIds || []).some(timerId => input.state.patient.timers.find(timer => timer.id === timerId)?.status === 'expired'));
+    if (invalidExpired) {
+      return { status: 'invalid', value: null, messages: ['Every failed Ailment must have a newly expired Timer and an unresolved Consequence.'] };
+    }
     let patient = input.state.patient;
     let reputationLoss = 0;
     for (const id of input.ailmentInstanceIds) {
-      const ailment = patient.ailments.find(row => row.id === id && (row.status === 'active' || row.status === 'failed'));
-      if (!ailment) continue;
+      const ailment = patient.ailments.find(row => row.id === id)!;
       const treatment: TreatmentHistoryEntry = {
         id: `${input.transactionId}:${id}`,
         ailmentInstanceIds: [id],
@@ -435,6 +518,9 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
   if (!ailment || !ailment.ailmentId) return { status: 'invalid', value: null, messages: ['Active canonical Ailment instance not found.'] };
   const definition = AILMENT_BY_ID.get(ailment.ailmentId);
   if (!definition) return { status: 'invalid', value: null, messages: ['Canonical Ailment definition not found.'] };
+  if (input.selectedItemIds.length !== new Set(input.selectedItemIds).size) {
+    return { status: 'invalid', value: null, messages: ['The same Remedy ingredient cannot be selected more than once.'] };
+  }
   const selectedItems = input.selectedItemIds.map(id => input.state.inventory.find(item => item.id === id));
   if (selectedItems.length === 0 || selectedItems.some(item => !item || item.type !== 'reagent' || !item.preparationId)) {
     return { status: 'invalid', value: null, messages: ['Every selected Remedy ingredient must be a canonical prepared Reagent in Inventory.'] };
@@ -444,9 +530,16 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
     preparation: PREPARATION_BY_ID.get(item!.preparationId!)?.preparation
   }));
   if (selected.some(row => !row.preparation)) return { status: 'invalid', value: null, messages: ['Selected Inventory contains an unknown Preparation.'] };
+  const doseCount = Math.max(1, Math.floor(input.doseCount || 1));
+  if (doseCount > 1 && (definition.canonicalName !== 'Stingshock' || doseCount !== 2)) {
+    return { status: 'invalid', value: null, messages: ['Only Stingshock may use exactly two complete Remedy doses in one treatment.'] };
+  }
+  if (selected.some(row => availablePreparationUses(row.item!, row.preparation!) < doseCount)) {
+    return { status: 'invalid', value: null, messages: ['Every selected Remedy ingredient needs enough remaining Uses for the complete dose.'] };
+  }
   let resolvedTools = input.state.tools || [];
   const selectedCanonicalTools = resolvedTools.filter(tool => input.selectedToolIds.includes(tool.instanceId) && !tool.broken && !tool.consumed);
-  const tools = toolIdsForInventory(input.state.inventory, input.selectedToolIds);
+  const tools = toolIdsForInventory(input.state.inventory, input.selectedToolIds, resolvedTools);
   selectedCanonicalTools.forEach(tool => tools.add(tool.toolId));
   const missingTool = selected.find(row => row.preparation!.requiredTools.some(tool => tool !== 'none' && !tools.has(tool)));
   if (missingTool) return { status: 'invalid', value: null, messages: [`Required Tool is not selected: ${missingTool.preparation!.requiredTools.join(', ')}`] };
@@ -460,7 +553,7 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
 
   let potencyBoost: { itemId: string; amount: number } | undefined;
   const boilOrBrew = selected.filter(row => /BOIL|BREW/i.test(row.preparation!.method));
-  const doubleBoilers = selectedCanonicalTools.filter(tool => tool.upgradeId === 'double-boiler' && !tool.broken && !tool.consumed);
+  const doubleBoilers = selectedCanonicalTools.filter(tool => tool.upgradeId === 'double-boiler' && !tool.broken && !tool.consumed).slice(0, 1);
   if (doubleBoilers.length > 0 && boilOrBrew.length === 1) {
     const resolved = resolveToolEffects({
       transactionId: `${input.transactionId}:tool:double-boiler`,
@@ -526,11 +619,12 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
     badIdeaTools = inspiration.value.tools;
     badIdeaAppliedTransactionIds = inspiration.value.appliedTransactionIds;
   }
-  const additionalRequirements = Array.isArray(ailment.specialState.additionalRequirements)
-    ? ailment.specialState.additionalRequirements as Array<{ tag: RuleTag; threshold: number }>
+  const specialState = ailment.specialState || {};
+  const additionalRequirements = Array.isArray(specialState.additionalRequirements)
+    ? specialState.additionalRequirements as Array<{ tag: RuleTag; threshold: number }>
     : [];
-  const quagmirePoison = typeof ailment.specialState.poisonRequirement === 'number'
-    ? [{ tag: 'POISON' as const, threshold: ailment.specialState.poisonRequirement }]
+  const quagmirePoison = typeof specialState.poisonRequirement === 'number'
+    ? [{ tag: 'POISON' as const, threshold: specialState.poisonRequirement }]
     : [];
   const unmetSpecial = [...additionalRequirements, ...quagmirePoison]
     .filter(row => (collected.tags[row.tag] || 0) < row.threshold)
@@ -545,10 +639,6 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
   const unconfirmedManual = requirement.manual.filter(message => !confirmed.has(message));
   if (unconfirmedManual.length > 0) return { status: 'manual', value: null, messages: unconfirmedManual };
 
-  const doseCount = Math.max(1, Math.floor(input.doseCount || 1));
-  if (definition.canonicalName === 'Stingshock' && doseCount > 1 && selectedItems.some(item => (item?.usesRemaining || 1) < doseCount)) {
-    return { status: 'invalid', value: null, messages: ['Each selected Stingshock ingredient needs enough remaining Uses for both complete doses.'] };
-  }
   const consumed = consumeItems(input.state.inventory, input.selectedItemIds, doseCount);
   const netFair = definition.canonicalName === 'Wormridden'
     ? Math.max(0, collected.fair - effectiveFoul)
@@ -556,7 +646,7 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
   const baseReward = Math.max(0, severityValue(definition.severity) + Math.trunc(netFair / 2));
   const gifting = Boolean(input.gifting && baseReward > 0);
   const trinketReward = gifting ? 0 : baseReward + Math.max(0, Math.floor(input.trinketRewardBonus || 0));
-  const brandCareChange = definition.canonicalName === 'Brand Care' && ailment.specialState.brandCareChoice !== 'treat' ? -2 : 0;
+  const brandCareChange = definition.canonicalName === 'Brand Care' && specialState.brandCareChoice !== 'treat' ? -2 : 0;
   const stingshockChange = definition.canonicalName === 'Stingshock' && doseCount >= 2 ? 3 : 0;
   const cookedWakeChange = definition.canonicalName === 'Wake'
     && selected.some(row => row.preparation?.method.toUpperCase().includes('COOK')) ? 2 : 0;

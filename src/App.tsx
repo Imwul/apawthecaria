@@ -8307,6 +8307,21 @@ function PlayView({
   const treatmentPatient = state.patients.find(row => row.id === state.activePatientId);
   const treatmentAilment = treatmentPatient?.ailments.find(row => row.status === 'active' && row.id === state.activeAilment?.id)
     || treatmentPatient?.ailments.find(row => row.status === 'active');
+  const treatmentCanonicalTools = useMemo(() => canonicalToolsFromState(state), [state]);
+  const availableTreatmentReagents = useMemo(() => state.bag.flatMap(item => {
+    if (item.type !== 'reagent' || !item.canonicalReagentId || !item.preparationId) return [];
+    const preparation = REAGENT_BY_ID.get(item.canonicalReagentId)?.preparations.find(row => row.id === item.preparationId);
+    if (!preparation) return [];
+    const quantity = item.qty === undefined ? 1 : Math.max(0, Math.floor(item.qty));
+    const currentUses = item.usesRemaining === undefined ? preparation.uses : Math.max(0, Math.floor(item.usesRemaining));
+    const totalUses = quantity > 0 ? currentUses + Math.max(0, quantity - 1) * preparation.uses : 0;
+    return totalUses > 0 ? [{ item, preparation, totalUses }] : [];
+  }), [state.bag]);
+  const availableTreatmentTools = useMemo(() => state.bag.filter(item => {
+    if (item.type !== 'tool') return false;
+    const tool = treatmentCanonicalTools.find(row => row.instanceId === item.id);
+    return !tool || (!tool.broken && !tool.consumed);
+  }), [state.bag, treatmentCanonicalTools]);
   const purifyLearned = (state.manualConditions || []).includes('purify-trained');
   const lastSelectedReagent = [...state.bag].reverse().find(item => item.type === 'reagent' && selectedBagItems.includes(item.id));
   const purifyEligible = Boolean(lastSelectedReagent?.provenance?.source === 'forage'
@@ -8318,6 +8333,7 @@ function PlayView({
       inventory: toEngineInventory(state.bag),
       selectedItemIds: selectedBagItems,
       selectedToolIds: selectedTools,
+      toolStates: treatmentCanonicalTools,
       overrides: state.ailmentTagOverrides,
       purify: usePurify,
       purifyEligible
@@ -8375,16 +8391,17 @@ function PlayView({
 
   useEffect(() => {
     const draft = state.treatmentDraft;
-    if (!draft || draft.status !== 'draft' || draft.patientId !== state.activePatientId) return;
+    if (!draft || draft.status !== 'draft' || draft.patientId !== state.activePatientId
+      || draft.ailmentInstanceId !== treatmentAilment?.id) return;
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
-      setSelectedBagItems(draft.selectedParts.map(part => part.itemId).filter(id => state.bag.some(item => item.id === id)));
-      setSelectedTools(draft.selectedToolIds.filter(id => state.bag.some(item => item.id === id)));
+      setSelectedBagItems(draft.selectedParts.map(part => part.itemId).filter(id => availableTreatmentReagents.some(row => row.item.id === id)));
+      setSelectedTools(draft.selectedToolIds.filter(id => availableTreatmentTools.some(item => item.id === id)));
       setUsePurify(Boolean(draft.purify && purifyLearned));
     });
     return () => { cancelled = true; };
-  }, [state.treatmentDraft, state.activePatientId, state.bag, purifyLearned]);
+  }, [state.treatmentDraft, state.activePatientId, treatmentAilment?.id, availableTreatmentReagents, availableTreatmentTools, purifyLearned]);
 
   // Manual Card Selector State
   const travelFormRef = useRef<HTMLFormElement>(null);
@@ -11593,7 +11610,7 @@ function PlayView({
     treatmentSubmitPending.current = true;
     setIsTreatmentSubmitting(true);
     try {
-    const canonicalTools = canonicalToolsFromState(state);
+    const canonicalTools = treatmentCanonicalTools;
     const ingenuitiveTool = canonicalTools.find(tool => tool.acquiredBy === 'familiar-ingenuitive' && !tool.broken && !tool.consumed);
     const effectiveSelectedTools = Array.from(new Set([
       ...selectedTools,
@@ -11601,16 +11618,19 @@ function PlayView({
     ]));
     const selectedAlembic = canonicalTools.find(tool => effectiveSelectedTools.includes(tool.instanceId) && tool.toolId === 'glass-alembic');
     let catalyse: any[] | undefined;
-    if (selectedAlembic && selectedBagItems.length >= 2 && askWindowConfirm('Glass Alembic으로 CATALYSE를 적용하시겠습니까?')) {
+    const useCatalyse = Boolean(selectedAlembic && selectedBagItems.length >= 2
+      && (treatmentPreview?.requiresCatalyse || askWindowConfirm('Glass Alembic으로 CATALYSE를 적용하시겠습니까?')));
+    if (useCatalyse) {
       const tag = (await requestControlledPrompt({
         title: 'CATALYSE 태그',
         message: '합산할 태그 이름을 입력하세요. 예: MOOD',
-        defaultValue: 'MOOD',
+        defaultValue: treatmentPreview?.catalyseTags[0] || 'MOOD',
         kicker: '치료제 조제',
         label: '태그'
       }))?.trim().toUpperCase();
       const first = state.bag.find(item => item.id === selectedBagItems[0]);
       const second = state.bag.find(item => item.id === selectedBagItems[1]);
+      if (!tag && treatmentPreview?.requiresCatalyse) return;
       if (tag && first && second) catalyse = [{ tag, itemIds: [first.id, second.id] }];
     }
     const preserve = canonicalTools.some(tool =>
@@ -11619,6 +11639,12 @@ function PlayView({
       && !tool.broken
       && !tool.consumed
     ) && askWindowConfirm('Big Iron Cauldron으로 이 치료제를 PRESERVE 처리할까요?');
+    const currentAilmentDefinition = AILMENTS.find(row => row.id === ailment.ailmentId);
+    const canPrepareTwoDoses = currentAilmentDefinition?.canonicalName === 'Stingshock'
+      && selectedBagItems.every(itemId => (availableTreatmentReagents.find(row => row.item.id === itemId)?.totalUses || 0) >= 2);
+    const doseCount = canPrepareTwoDoses && askWindowConfirm('Stingshock 치료제를 두 번의 완전한 투약분으로 만들까요? 재료 사용 횟수를 각각 2회 소비하고 명성 +3을 받습니다.')
+      ? 2
+      : 1;
     const transactionId = `treatment:${Date.now()}`;
     const journalChoice = await requestControlledPrompt({
       title: '치료 기록',
@@ -11655,6 +11681,7 @@ function PlayView({
       purifyEligible,
       toolCards,
       trinketRewardBonus: getActiveFamiliarMechanic(state) === 'shrewd' ? 1 : 0,
+      doseCount,
       journalText
     };
     let treatmentInput: typeof baseInput & { badIdeaOutcome?: BadIdeaOutcomeChoice; confirmedManualRequirements?: string[]; gifting?: boolean } = baseInput;
@@ -11754,8 +11781,7 @@ function PlayView({
         continuation: 'ailment-close'
       })
       : null;
-    const nextAilmentState = nextPatient.ailments.find(row => row.status === 'active');
-    const nextDefinition = nextAilmentState ? AILMENTS.find(row => row.id === nextAilmentState.ailmentId) : null;
+    const treatedDefinition = AILMENTS.find(row => row.id === ailment.ailmentId);
     const remainingTime = nextPatient.timers.length > 0
       ? Math.min(...nextPatient.timers.map(timer => timer.current))
       : 0;
@@ -11783,7 +11809,7 @@ function PlayView({
         scroungingMode: outcome.allAilmentsResolved && remainingTime > 0,
         scroungingTimer: outcome.allAilmentsResolved ? remainingTime : 0,
         journals: [{
-          id: `${transactionId}:journal`, title: `치료: ${nextDefinition?.displayName || state.activeAilment?.name}`,
+          id: `${transactionId}:journal`, title: `치료: ${treatedDefinition?.displayName || state.activeAilment?.name}`,
           text: `${journalText}\nFAIR ${outcome.fair}, FOUL ${outcome.foul}${outcome.remedyFlags.includes('PRESERVED') ? ', PRESERVED' : ''}; 명성 ${outcome.reputationChange >= 0 ? '+' : ''}${outcome.reputationChange}, 장신구 +${outcome.trinketReward}${outcome.badIdeaOutcomeApplied ? '\nBad Idea Inspiration을 도구에 적용했다.' : ''}`,
           timestamp: Date.now()
         }, ...s.journals]
@@ -15717,7 +15743,7 @@ function PlayView({
                   {(() => {
                     const alternative = state.pendingAlternativeAcquisition;
                     const makeDoMatches = alternative?.kind === 'make-do'
-                      ? state.bag.filter(item => {
+                      ? availableTreatmentReagents.map(row => row.item).filter(item => {
                         const preparation = item.canonicalReagentId && item.preparationId
                           ? REAGENT_BY_ID.get(item.canonicalReagentId)?.preparations.find(row => row.id === item.preparationId)
                           : null;
@@ -15728,7 +15754,7 @@ function PlayView({
                       <>
                         <div className={`treatment-readiness ${treatmentPreview?.ready ? 'treatment-readiness--ready' : ''}`} role="status">
                           <div className="treatment-readiness__heading">
-                            <strong>{treatmentPreview?.ready ? '처방 준비 완료' : selectedBagItems.length ? '처방을 확인하세요' : '재료를 선택하세요'}</strong>
+                            <strong>{treatmentPreview?.ready ? (treatmentPreview.requiresCatalyse ? 'CATALYSE 선택 후 준비 완료' : '처방 준비 완료') : selectedBagItems.length ? '처방을 확인하세요' : '재료를 선택하세요'}</strong>
                             <span>{state.activeAilment.tags || '질환 카드의 요구 태그'}</span>
                           </div>
                           <div className="treatment-readiness__facts">
@@ -15788,7 +15814,7 @@ function PlayView({
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                           {discovered.map((recipe, idx) => {
                             const missingReagents = recipe.filter(name => {
-                              const matchingInBag = state.bag.some(item => item.type === 'reagent' && item.name.split(' (')[0] === name);
+                              const matchingInBag = availableTreatmentReagents.some(({ item }) => item.name.split(' (')[0] === name);
                               return !matchingInBag;
                             });
                             const canAutoFill = missingReagents.length === 0;
@@ -15800,7 +15826,7 @@ function PlayView({
                                   type="button"
                                   onClick={() => {
                                     const nextSelected: string[] = [];
-                                    const bagCopy = [...state.bag];
+                                    const bagCopy = availableTreatmentReagents.map(row => row.item);
                                     recipe.forEach(name => {
                                       const found = bagCopy.find(item => item.type === 'reagent' && item.name.split(' (')[0] === name && !nextSelected.includes(item.id));
                                       if (found) {
@@ -15832,7 +15858,8 @@ function PlayView({
                     );
                   })()}
 
-                  {state.treatmentDraft?.status === 'draft' && state.treatmentDraft.patientId === state.activePatientId && (
+                  {state.treatmentDraft?.status === 'draft' && state.treatmentDraft.patientId === state.activePatientId
+                    && state.treatmentDraft.ailmentInstanceId === treatmentAilment?.id && (
                     <div className="treatment-draft-note" role="status">
                       <div>
                         <span className="journal-note-label">저장된 처방 초안</span>
@@ -15849,13 +15876,10 @@ function PlayView({
                     <div style={{ background: '#fafafa', padding: '0.8rem', borderRadius: '8px', border: '1px solid #ddd', maxHeight: '180px', overflowY: 'auto' }}>
                       <strong style={{ fontSize: '0.85rem' }}>🎒 가방 내 영약재 선택:</strong>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginTop: '0.5rem' }}>
-                        {state.bag.filter(item => item.type === 'reagent').length === 0 ? (
+                        {availableTreatmentReagents.length === 0 ? (
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>가방에 쓸 수 있는 영약재가 없습니다.</span>
                         ) : (
-                          state.bag.filter(item => item.type === 'reagent').map(item => {
-                            const preparation = item.canonicalReagentId && item.preparationId
-                              ? REAGENT_BY_ID.get(item.canonicalReagentId)?.preparations.find(row => row.id === item.preparationId)
-                              : null;
+                          availableTreatmentReagents.map(({ item, preparation, totalUses }) => {
                             const selected = selectedBagItems.includes(item.id);
                             return <label key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '7px', minHeight: '44px', padding: '0.35rem', border: selected ? '1px solid #8aa58e' : '1px solid transparent', borderRadius: '6px', background: selected ? '#f0f7f1' : 'transparent', fontSize: '0.85rem', cursor: 'pointer' }}>
                               <input
@@ -15869,7 +15893,7 @@ function PlayView({
                               <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
                                 {localizeInventoryItemName(item.name)}
                                 {preparation && <small style={{ display: 'block', color: 'var(--text-muted)', lineHeight: 1.35 }}>
-                                  {preparation.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음'} · {item.usesRemaining || preparation.uses}회분 · 무게 {formatWeight(item.weight)}
+                                  {preparation.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음'} · {totalUses}회분 · 무게 {formatWeight(item.weight)}
                                 </small>}
                               </span>
                             </label>;
@@ -15882,10 +15906,10 @@ function PlayView({
                     <div style={{ background: '#fafafa', padding: '0.8rem', borderRadius: '8px', border: '1px solid #ddd' }}>
                       <strong style={{ fontSize: '0.85rem' }}>⚒️ 선택한 부위에 사용할 도구:</strong>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginTop: '0.5rem' }}>
-                        {state.bag.filter(item => item.type === 'tool').length === 0 && (
+                        {availableTreatmentTools.length === 0 && (
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>가방에 도구가 없습니다. 도구가 필요 없는 부위는 그대로 사용할 수 있습니다.</span>
                         )}
-                        {state.bag.filter(item => item.type === 'tool').map(item => {
+                        {availableTreatmentTools.map(item => {
                           const isRequired = treatmentPreview?.missingToolIds.includes(item.canonicalToolId || item.id)
                             || selectedBagItems.some(itemId => {
                               const ingredient = state.bag.find(row => row.id === itemId);
@@ -15932,7 +15956,9 @@ function PlayView({
                     aria-describedby="treatment-submit-help"
                     style={{ width: '100%', minHeight: '48px', padding: '0.8rem', background: treatmentPreview?.ready && !isTreatmentSubmitting ? 'var(--primary)' : '#a8a29e', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '1rem', marginTop: '1rem', cursor: treatmentPreview?.ready && !isTreatmentSubmitting ? 'pointer' : 'not-allowed' }}
                   >
-                    {isTreatmentSubmitting ? '치료 결과를 기록하는 중…' : treatmentPreview?.ready ? '🧪 치료제 완성하기' : '요구조건을 충족하면 완성할 수 있습니다'}
+                    {isTreatmentSubmitting ? '치료 결과를 기록하는 중…' : treatmentPreview?.ready
+                      ? treatmentPreview.requiresCatalyse ? '🧪 CATALYSE로 치료제 완성하기' : '🧪 치료제 완성하기'
+                      : '요구조건을 충족하면 완성할 수 있습니다'}
                   </button>
                   <div id="treatment-submit-help" style={{ textAlign: 'center', marginTop: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                     완성 전에는 재료가 소비되지 않습니다. 기록·보상 선택을 취소해도 현재 처방 초안이 유지됩니다.

@@ -499,13 +499,17 @@ describe('foraging and treatment transactions', () => {
     const required = [...new Set([boiledMood, covering].flatMap(row => row.part.requiredTools).filter(id => id !== 'none' && id !== 'camp-kettle'))];
     const toolItems: EngineInventoryItem[] = [
       { id: 'double:tool', name: 'Double Boiler', type: 'tool', weight: 1, canonicalToolId: 'camp-kettle' },
+      { id: 'double:tool:second', name: 'Second Double Boiler', type: 'tool', weight: 1, canonicalToolId: 'camp-kettle' },
       ...required.map(id => ({ id: `double:${id}`, name: id, type: 'tool' as const, weight: 0, canonicalToolId: id }))
     ];
     const result = resolveTreatment({
       mode: 'treat', transactionId: 'double:treatment',
       state: {
         inventory: [...ingredients, ...toolItems], patient, reputation: 0, trinkets: 0, journalEvents: [], appliedTransactionIds: [],
-        tools: [{ instanceId: 'double:tool', toolId: 'camp-kettle', upgradeId: 'double-boiler', charges: null, broken: false, consumed: false, acquiredBy: 'test', appliedEffectIds: [] }]
+        tools: [
+          { instanceId: 'double:tool', toolId: 'camp-kettle', upgradeId: 'double-boiler', charges: null, broken: false, consumed: false, acquiredBy: 'test', appliedEffectIds: [] },
+          { instanceId: 'double:tool:second', toolId: 'camp-kettle', upgradeId: 'double-boiler', charges: null, broken: false, consumed: false, acquiredBy: 'test', appliedEffectIds: [] }
+        ]
       },
       ailmentInstanceId: patient.ailments[0].id,
       selectedItemIds: ingredients.map(item => item.id), selectedToolIds: toolItems.map(item => item.id), journalText: 'Double boiled.'
@@ -513,6 +517,7 @@ describe('foraging and treatment transactions', () => {
     expect(result.value?.providedTags.MOOD).toBe(2);
     expect(result.value?.nextState.patient.ailments[0].status).toBe('treated');
     expect(result.value?.nextState.tools?.[0].appliedEffectIds).toContain('double:treatment:tool:double-boiler');
+    expect(result.value?.nextState.tools?.[1].appliedEffectIds).not.toContain('double:treatment:tool:double-boiler');
   });
 
   it('[TOOL-003/REMEDY-004] resolves Comb contribution and breakage in the same treatment transaction', () => {
