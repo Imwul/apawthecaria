@@ -1,6 +1,6 @@
 # Apawthecaria
 
-Apawthecaria의 전체 캠페인을 브라우저에서 진행할 수 있도록 구성한 한국어 field journal입니다. Journey, Travel, Foraging, Patient, Treatment, Barter, Barrow, Downtime, Clinic, Guild Service, Season과 Archive를 canonical Rule Engine과 schema v8 저장 형식으로 연결합니다.
+Apawthecaria의 전체 캠페인을 브라우저에서 진행할 수 있도록 구성한 한국어 field journal입니다. Journey, Travel, Foraging, Patient, Treatment, Barter, Barrow, Downtime, Clinic, Guild Service, Season과 Archive를 canonical Rule Engine과 schema v9 저장 형식으로 연결합니다.
 
 ## Release
 
@@ -26,7 +26,7 @@ Version `1.0.0`의 검증 범위와 제한 사항은 다음 문서에 고정돼 
 - [Source ambiguities](SOURCE_AMBIGUITIES.md)
 - [Migration notes](MIGRATION_NOTES.md)
 
-저장 데이터는 브라우저에 우선 보존됩니다. 중요한 캠페인은 앱의 내보내기 기능으로 별도 보관하고, 기존 schema v6/v7/v8 저장은 현재 schema v8로 migration합니다.
+저장 데이터는 브라우저에 우선 보존됩니다. 중요한 캠페인은 앱의 내보내기 기능으로 별도 보관하고, 버전이 없던 legacy save부터 schema v8까지 순차 migration하여 현재 schema v9로 복원합니다.
 
 ## Local Verification
 

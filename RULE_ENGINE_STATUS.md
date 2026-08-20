@@ -13,7 +13,7 @@
 | `resolveRumour()` | Implemented + UI | 네 장 표, actual graph 방향·Region·Path 후보, redraw, Downtime 1회 | `DOWNTIME-002` |
 | Clinic resolvers | Implemented | completed-Season commission, next Season, 3 Paths service area, 10 global Agenda action/Income/Patient consumers | `CLINIC-001-006` |
 | Almanack/manual resolvers | Implemented | trigger별 347개 직접 판정 task, effect-specific input, canonical preview/commit, Defer/Override, pending follow-up | `CORE-002`, `TRAVEL-009`, `FORAGE-006`, `AILMENT-003/005/007`, `UX-001` |
-| Save queue | Implemented | schema v8, v7 additive Barrow/Tool/Downtime migration, treatment/manual draft, resolution/override/follow-up, local-first outbox | `SAVE-001/004/005/006-008`, `OFFLINE-001-003` |
+| Save queue | Implemented | schema v9, v0-v9 sequential migration, route/treatment/manual draft recovery, monotonic revision, local-first outbox | `SAVE-001/004/005/006-008`, `OFFLINE-001-003` |
 
 ## Release Candidate 보강
 
@@ -78,7 +78,7 @@
 - 미해결 Encounter는 저장 상태를 유지한 채 화면에서 보류할 수 있고, 진행판에서 다시 열 수 있다.
 - Save import 결과는 blocking alert 대신 화면 상태 메시지로 표시한다.
 - canonical Archive가 존재하면 legacy casebook이 비어 있어도 잘못된 빈 상태를 표시하지 않는다.
-- schema v8은 v7 상태를 보존하면서 active Barrow Delve, stable duplicate Tool instance, `nextMoveSpeedOverride`, canonical Wagon과 영구 Ailment Tag override를 정규화한다.
+- schema v8은 v7 상태를 보존하면서 active Barrow Delve, stable duplicate Tool instance, `nextMoveSpeedOverride`, canonical Wagon과 영구 Ailment Tag override를 정규화하고, schema v9은 편집 중 Route draft를 canonical node/connector 상태로 복원한다.
 - Almanack은 registry 하나를 사용해 자동 처리, 선택 필요, 직접 처리, 모호함을 표시하고 필터링한다.
 - Barrow field note는 8개 Delve의 canonical 정의와 저장된 진행 단계뿐 아니라 모든 실행 버튼을 pure resolver transaction에 연결한다.
 - `activeAilment`, `activeBarter`, legacy casebook은 구버전 migration/read adapter로만 남아 있다. `original-1e-3p`의 저장 wrapper는 legacy Patient/Companion 포인터 write를 제거하며 Building Trust와 Leave는 canonical 결과만 commit한다.

@@ -99,6 +99,20 @@ describe('cloud save slots', () => {
     expect(result.records[0]).toBeNull();
   });
 
+  it('recovers revision metadata from the payload when slot metadata is malformed', () => {
+    const result = readCloudSlotsFromDocument({
+      [CLOUD_SLOTS_FIELD]: {
+        1: {
+          payload: namedSave('복구', 17),
+          uploadedAt: '2026-08-16T13:00:00.000Z',
+          name: '복구',
+          saveRevision: -99
+        }
+      }
+    });
+    expect(result.records[0]?.saveRevision).toBe(17);
+  });
+
   it('asks before a manual download or upload overwrites an occupied record', () => {
     const confirm = vi.fn(() => false);
     expect(confirmManualSlotDownload({

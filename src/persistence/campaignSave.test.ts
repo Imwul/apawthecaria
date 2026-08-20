@@ -3,6 +3,7 @@ import {
   CAMPAIGN_SAVE_KEY,
   campaignSaveHasProgress,
   decideCloudSaveAction,
+  isRecognizableCampaignSave,
   parseCampaignSaveRaw,
   readCampaignSaveWithoutWipe,
   tryMigrateCampaignSave
@@ -15,6 +16,17 @@ describe('campaign save safety', () => {
     expect(campaignSaveHasProgress({ bio: { name: 'Bramble' } })).toBe(true);
     expect(campaignSaveHasProgress({ journals: [{ id: '1' }] })).toBe(true);
     expect(campaignSaveHasProgress({ journeyActive: true })).toBe(true);
+    expect(campaignSaveHasProgress({ routeDraft: { stops: [{ id: 'a' }, { id: 'b' }] } })).toBe(true);
+    expect(campaignSaveHasProgress({ patients: [{ id: 'patient' }] })).toBe(true);
+    expect(campaignSaveHasProgress({ saveRevision: '4' })).toBe(true);
+  });
+
+  it('recognizes partial historical saves without requiring bio and bag', () => {
+    expect(isRecognizableCampaignSave({ schemaVersion: 3, patients: [] })).toBe(true);
+    expect(isRecognizableCampaignSave({ activeAilment: { id: 'legacy' } })).toBe(true);
+    expect(isRecognizableCampaignSave({ routeDraft: { stops: [] } })).toBe(true);
+    expect(isRecognizableCampaignSave({ unrelated: true })).toBe(false);
+    expect(isRecognizableCampaignSave([])).toBe(false);
   });
 
   it('keeps the raw payload when migrate throws and never calls removeItem', () => {
@@ -45,6 +57,7 @@ describe('campaign save safety', () => {
     const migrated = tryMigrateCampaignSave({ schemaVersion: 8 }, value => ({ ...(value as object), ok: true }));
     expect(migrated).toEqual({ ok: true, state: { schemaVersion: 8, ok: true } });
     expect(tryMigrateCampaignSave(null, value => value).ok).toBe(false);
+    expect(tryMigrateCampaignSave([], value => value).ok).toBe(false);
   });
 
   it('asks before a newer cloud save overwrites local progress', () => {
@@ -80,16 +93,31 @@ describe('campaign save safety', () => {
       cloudHasNamedApothecary: true,
       confirmOverwrite: () => false
     })).toBe('load-cloud');
+
+    expect(decideCloudSaveAction({
+      localRaw: JSON.stringify({ bio: { name: 'Bramble' }, saveRevision: 4 }),
+      cloudRevision: Number.POSITIVE_INFINITY,
+      cloudHasNamedApothecary: false,
+      confirmOverwrite: () => false
+    })).toBe('upload-local');
   });
 
-  it('never uploads an unnamed local save over a named cloud apothecary', () => {
+  it('does not silently overwrite an unnamed but progressed local save with cloud data', () => {
+    const confirmOverwrite = vi.fn(() => false);
     expect(decideCloudSaveAction({
       localRaw: JSON.stringify({ bio: { name: '' }, journals: [], saveRevision: 12 }),
       cloudRevision: 3,
       cloudHasNamedApothecary: true,
-      confirmOverwrite: () => {
-        throw new Error('should not confirm when local has no apothecary');
-      }
+      confirmOverwrite
+    })).toBe('keep-local');
+    expect(confirmOverwrite).toHaveBeenCalledTimes(1);
+
+    confirmOverwrite.mockReturnValueOnce(true);
+    expect(decideCloudSaveAction({
+      localRaw: JSON.stringify({ bio: { name: '' }, patients: [{ id: 'unsaved-name' }], saveRevision: 12 }),
+      cloudRevision: 3,
+      cloudHasNamedApothecary: true,
+      confirmOverwrite
     })).toBe('load-cloud');
   });
 });

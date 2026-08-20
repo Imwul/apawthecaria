@@ -4,6 +4,7 @@ import {
   campaignSaveHasProgress,
   parseCampaignSaveRaw
 } from './campaignSave';
+import { normalizeSaveRevision } from './revision';
 
 export const CLOUD_SLOT_COUNT = 3;
 export const CLOUD_SLOTS_FIELD = 'apawthecaria_cloud_slots';
@@ -94,7 +95,7 @@ const nameFromPayload = (payload: string): string => {
 const revisionFromPayload = (payload: string): number => {
   const parsed = parseCampaignSaveRaw(payload);
   if (!parsed.ok || !parsed.value || typeof parsed.value !== 'object') return 0;
-  return Number((parsed.value as { saveRevision?: number }).saveRevision || 0);
+  return normalizeSaveRevision((parsed.value as { saveRevision?: unknown }).saveRevision);
 };
 
 export const cloudSlotRecordFromPayload = (
@@ -113,12 +114,13 @@ const recordFromUnknown = (slot: CloudSlotId, value: unknown, fallbackUploadedAt
   if (!value || typeof value !== 'object') return null;
   const row = value as { payload?: unknown; uploadedAt?: unknown; name?: unknown; saveRevision?: unknown };
   if (typeof row.payload !== 'string' || !row.payload) return null;
+  const storedRevision = normalizeSaveRevision(row.saveRevision);
   return {
     slot,
     payload: row.payload,
     uploadedAt: parseUploadedAt(row.uploadedAt) || fallbackUploadedAt || new Date().toISOString(),
     name: typeof row.name === 'string' && row.name.trim() ? row.name.trim() : nameFromPayload(row.payload),
-    saveRevision: Number(row.saveRevision || revisionFromPayload(row.payload) || 0)
+    saveRevision: storedRevision || revisionFromPayload(row.payload)
   };
 };
 

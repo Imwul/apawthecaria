@@ -89,7 +89,7 @@ describe('sequential save migration', () => {
     expect(migrated.patients[0].timers[0]).toMatchObject({ current: 6, maximum: 10 });
   });
 
-  it('[SAVE-005] keeps already-versioned patient graphs stable', () => {
+  it('[SAVE-005] normalizes already-versioned partial saves once and then remains stable', () => {
     const saved = {
       schemaVersion: CURRENT_SCHEMA_VERSION,
       rulesetId: 'original-1e-3p',
@@ -97,7 +97,15 @@ describe('sequential save migration', () => {
       patients: [],
       custom: 42
     } as const;
-    expect(migrateSavedRulesState(saved)).toEqual({ ...saved, routeDraft: { stops: [], edgeKinds: [] } });
+    const migrated = migrateSavedRulesState(saved);
+    expect(migrated).toMatchObject({
+      ...saved,
+      routeDraft: { stops: [], edgeKinds: [] },
+      currentSeason: 'Spring',
+      patientArchive: [],
+      saveRevision: 0
+    });
+    expect(migrateSavedRulesState(JSON.parse(JSON.stringify(migrated)))).toEqual(migrated);
   });
 
   it('[SAVE-004/SAVE-005] migrates and safely restores an in-progress route draft', () => {

@@ -156,5 +156,5 @@ export const GOLDEN_MIGRATION_FIXTURES: Record<string, Record<string, unknown>> 
     bag: [{ id: 'golden-tool', name: 'Mortar and Pestle', type: 'tool', canonicalToolId: 'mortar-and-pestle', weight: 1 / 3 }]
   },
   schemaV8: { ...baseSave(), saveRevision: 8 },
-  finalReleaseSchema: { ...baseSave(), saveRevision: 10, appliedTransactionIds: ['golden-final-release'] }
+  finalReleaseSchema: { ...baseSave(), schemaVersion: 8, saveRevision: 10, appliedTransactionIds: ['golden-final-release'] }
 };

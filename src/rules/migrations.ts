@@ -4,9 +4,10 @@ import { normalizeLegacyArchiveRecord } from './archiveEngine';
 import { normalizeLegacyManualEffectDraft } from './almanackEngine';
 import { BARROW_DELVE_BY_ID, type BarrowDelveId, type BehemothClass } from './data/barrows';
 import { normalizeRouteDraft } from '../map/routeComposer';
+import { normalizeSaveRevision } from '../persistence/revision';
 import { migrateRulesetMetadata } from './rulesets';
 import { CURRENT_SCHEMA_VERSION, type PatientState, type TreatmentDraft } from './state';
-import type { AilmentSeverity, RulebookEdition, RulesetId } from './types';
+import type { AilmentSeverity, RulebookEdition, RulesetId, RuleTag } from './types';
 
 export interface LegacyBagItem {
   id?: string;
@@ -81,12 +82,114 @@ interface LegacyAilmentState {
 type SaveRecord = Record<string, unknown>;
 type SaveMigration = (saved: SaveRecord) => SaveRecord;
 
+const isSaveRecord = (value: unknown): value is SaveRecord =>
+  Boolean(value && typeof value === 'object' && !Array.isArray(value));
+
+const stringArray = (value: unknown): string[] => Array.isArray(value)
+  ? value.filter((row): row is string | number => typeof row === 'string' || typeof row === 'number').map(String)
+  : [];
+
+const recordArray = (value: unknown): SaveRecord[] => Array.isArray(value)
+  ? value.filter(isSaveRecord)
+  : [];
+
 const severityFromLegacy = (value?: string): AilmentSeverity => {
   const normalized = value?.toLowerCase();
   return normalized === 'intermediate' || normalized === 'severe' || normalized === 'dire'
     ? normalized
     : 'lesser';
 };
+
+const normalizePatient = (value: unknown, patientIndex: number): PatientState | null => {
+  if (!isSaveRecord(value)) return null;
+  const patientId = typeof value.id === 'string' && value.id.trim()
+    ? value.id.trim()
+    : `legacy-patient-${patientIndex + 1}`;
+  const ailments: PatientState['ailments'] = recordArray(value.ailments).map((ailment, index) => {
+    const id = typeof ailment.id === 'string' && ailment.id.trim()
+      ? ailment.id.trim()
+      : `${patientId}-ailment-${index + 1}`;
+    const instance = Number.isInteger(ailment.instance) && Number(ailment.instance) > 0
+      ? Number(ailment.instance)
+      : index + 1;
+    return {
+      ...ailment,
+      id,
+      ailmentId: typeof ailment.ailmentId === 'string' ? ailment.ailmentId : null,
+      severity: severityFromLegacy(typeof ailment.severity === 'string' ? ailment.severity : undefined),
+      timerIds: stringArray(ailment.timerIds),
+      conditionIds: stringArray(ailment.conditionIds),
+      treatmentHistoryIds: stringArray(ailment.treatmentHistoryIds),
+      status: (ailment.status === 'treated' || ailment.status === 'failed' ? ailment.status : 'active') as PatientState['ailments'][number]['status'],
+      instance,
+      repeatIndex: Number.isInteger(ailment.repeatIndex) && Number(ailment.repeatIndex) > 0
+        ? Number(ailment.repeatIndex)
+        : instance,
+      specialState: isSaveRecord(ailment.specialState) ? ailment.specialState : {},
+      successResolved: Boolean(ailment.successResolved),
+      failureResolved: Boolean(ailment.failureResolved),
+      consequenceResolved: Boolean(ailment.consequenceResolved),
+      effectIds: stringArray(ailment.effectIds)
+    };
+  });
+  const timers: PatientState['timers'] = recordArray(value.timers).map((timer, index) => {
+    const maximum = Number.isFinite(Number(timer.maximum)) ? Math.max(0, Number(timer.maximum)) : 0;
+    const current = Number.isFinite(Number(timer.current)) ? Math.max(0, Number(timer.current)) : maximum;
+    return {
+      ...timer,
+      id: typeof timer.id === 'string' && timer.id ? timer.id : `${patientId}-timer-${index + 1}`,
+      ailmentInstanceId: typeof timer.ailmentInstanceId === 'string'
+        ? timer.ailmentInstanceId
+        : ailments[index]?.id || '',
+      current,
+      maximum,
+      status: (timer.status === 'expired' || timer.status === 'stopped' ? timer.status : 'active') as PatientState['timers'][number]['status']
+    };
+  });
+  const conditions = recordArray(value.conditions).map((condition, index) => ({
+    ...condition,
+    id: typeof condition.id === 'string' && condition.id ? condition.id : `${patientId}-condition-${index + 1}`,
+    code: typeof condition.code === 'string' ? condition.code : '',
+    description: typeof condition.description === 'string' ? condition.description : '',
+    active: condition.active !== false
+  }));
+  const treatmentHistory: PatientState['treatmentHistory'] = recordArray(value.treatmentHistory).map((entry, index) => ({
+    ...entry,
+    id: typeof entry.id === 'string' && entry.id ? entry.id : `${patientId}-treatment-${index + 1}`,
+    ailmentInstanceIds: stringArray(entry.ailmentInstanceIds),
+    preparationIds: stringArray(entry.preparationIds),
+    providedTags: (isSaveRecord(entry.providedTags) ? entry.providedTags : {}) as PatientState['treatmentHistory'][number]['providedTags'],
+    outcome: (entry.outcome === 'success' || entry.outcome === 'failure' ? entry.outcome : 'pending') as PatientState['treatmentHistory'][number]['outcome'],
+    effects: (Array.isArray(entry.effects) ? entry.effects : []) as PatientState['treatmentHistory'][number]['effects']
+  }));
+  const journalEvents = recordArray(value.journalEvents).map((event, index) => ({
+    ...event,
+    id: typeof event.id === 'string' && event.id ? event.id : `${patientId}-journal-${index + 1}`,
+    type: ['diagnosis', 'timer', 'treatment', 'success', 'failure', 'note'].includes(String(event.type))
+      ? event.type as PatientState['journalEvents'][number]['type']
+      : 'note',
+    text: typeof event.text === 'string' ? event.text : ''
+  }));
+  return {
+    ...value,
+    id: patientId,
+    name: typeof value.name === 'string' ? value.name : '',
+    species: typeof value.species === 'string' ? value.species : '',
+    status: value.status === 'cured' || value.status === 'failed' || value.status === 'departed' ? value.status : 'active',
+    foragingPoints: Number.isFinite(Number(value.foragingPoints)) ? Math.max(0, Number(value.foragingPoints)) : 0,
+    reagentsGathered: stringArray(value.reagentsGathered),
+    ailments,
+    timers,
+    conditions,
+    treatmentHistory,
+    journalEvents
+  };
+};
+
+const normalizePatients = (value: unknown): PatientState[] =>
+  (Array.isArray(value) ? value : [])
+    .map(normalizePatient)
+    .filter((patient): patient is PatientState => Boolean(patient));
 
 const canonicalAilmentId = (legacy: LegacyAilmentState): string | null => {
   const legacyName = normalize(legacy.name || '');
@@ -103,9 +206,13 @@ export const migrateLegacyPatientState = (saved: SaveRecord): {
   patients: PatientState[];
 } => {
   if (Array.isArray(saved.patients)) {
+    const patients = normalizePatients(saved.patients);
+    const requestedActiveId = typeof saved.activePatientId === 'string' ? saved.activePatientId : null;
     return {
-      activePatientId: typeof saved.activePatientId === 'string' ? saved.activePatientId : null,
-      patients: saved.patients as PatientState[]
+      activePatientId: requestedActiveId && patients.some(patient => patient.id === requestedActiveId)
+        ? requestedActiveId
+        : null,
+      patients
     };
   }
   const legacyRows = Array.isArray(saved.activeAilments) && saved.activeAilments.length > 0
@@ -194,26 +301,13 @@ const migrateV2ToV3: SaveMigration = saved => ({
   pendingForaging: saved.pendingForaging && typeof saved.pendingForaging === 'object' ? saved.pendingForaging : null,
   downtimeCompleted: typeof saved.downtimeCompleted === 'boolean' ? saved.downtimeCompleted : false,
   downtimeRequired: typeof saved.downtimeRequired === 'boolean' ? saved.downtimeRequired : false,
-  saveRevision: Number.isInteger(saved.saveRevision) ? saved.saveRevision : 0,
+  saveRevision: normalizeSaveRevision(saved.saveRevision),
   schemaVersion: 3
 });
 
 const migrateV3ToV4: SaveMigration = saved => ({
   ...saved,
-  patients: Array.isArray(saved.patients)
-    ? (saved.patients as PatientState[]).map(patient => ({
-      ...patient,
-      ailments: (patient.ailments || []).map((ailment, index) => ({
-        ...ailment,
-        repeatIndex: Number.isInteger(ailment.repeatIndex) ? ailment.repeatIndex : ailment.instance || index + 1,
-        specialState: ailment.specialState && typeof ailment.specialState === 'object' ? ailment.specialState : {},
-        successResolved: Boolean(ailment.successResolved),
-        failureResolved: Boolean(ailment.failureResolved),
-        consequenceResolved: Boolean(ailment.consequenceResolved),
-        effectIds: Array.isArray(ailment.effectIds) ? ailment.effectIds : []
-      }))
-    }))
-    : [],
+  patients: normalizePatients(saved.patients),
   pendingBarter: saved.pendingBarter && typeof saved.pendingBarter === 'object'
     ? saved.pendingBarter
     : saved.activeBarter && typeof saved.activeBarter === 'object'
@@ -241,9 +335,9 @@ const migrateV3ToV4: SaveMigration = saved => ({
     ? saved.pendingAlternativeAcquisition
     : null,
   patientArchive: Array.isArray(saved.patientArchive)
-    ? saved.patientArchive.map(row => normalizeLegacyArchiveRecord(row as SaveRecord))
+    ? recordArray(saved.patientArchive).map(row => normalizeLegacyArchiveRecord(row))
     : Array.isArray(saved.patientCasebook)
-      ? saved.patientCasebook.map(row => normalizeLegacyArchiveRecord(row as SaveRecord))
+      ? recordArray(saved.patientCasebook).map(row => normalizeLegacyArchiveRecord(row))
       : [],
   schemaVersion: 4
 });
@@ -262,12 +356,12 @@ const migrateV4ToV5: SaveMigration = saved => ({
   companionStates: Array.isArray(saved.companionStates)
     ? saved.companionStates
     : Array.isArray(saved.companions)
-      ? saved.companions.map((row, index) => ({ instanceId: String((row as SaveRecord).id || `legacy-companion-${index + 1}`), companionId: String((row as SaveRecord).name || ''), pathsTravelled: Number(saved.companionTravelPaths || 0), seasonsTravelled: Number((row as SaveRecord).seasonsTravelled || 0), usedThisJourney: false, pendingForage: null, pendingForageDraws: 0, migratedFromLegacy: true }))
+      ? recordArray(saved.companions).map((row, index) => ({ instanceId: String(row.id || `legacy-companion-${index + 1}`), companionId: String(row.name || ''), pathsTravelled: Number(saved.companionTravelPaths || 0), seasonsTravelled: Number(row.seasonsTravelled || 0), usedThisJourney: false, pendingForage: null, pendingForageDraws: 0, migratedFromLegacy: true }))
       : [],
   companionHiveStates: Array.isArray(saved.companionHiveStates)
     ? saved.companionHiveStates
     : Array.isArray(saved.companionHive)
-      ? saved.companionHive.map((row, index) => ({ instanceId: String((row as SaveRecord).id || `legacy-hive-companion-${index + 1}`), companionId: String((row as SaveRecord).name || ''), pathsTravelled: 0, seasonsTravelled: Number((row as SaveRecord).seasonsTravelled || 0), usedThisJourney: false, pendingForage: null, pendingForageDraws: 0, migratedFromLegacy: true }))
+      ? recordArray(saved.companionHive).map((row, index) => ({ instanceId: String(row.id || `legacy-hive-companion-${index + 1}`), companionId: String(row.name || ''), pathsTravelled: 0, seasonsTravelled: Number(row.seasonsTravelled || 0), usedThisJourney: false, pendingForage: null, pendingForageDraws: 0, migratedFromLegacy: true }))
       : [],
   rumours: Array.isArray(saved.rumours) ? saved.rumours : [],
   clinics: Array.isArray(saved.clinics) ? saved.clinics : [],
@@ -284,42 +378,52 @@ const migrateV4ToV5: SaveMigration = saved => ({
   schemaVersion: 5
 });
 
-const migrateV5ToV6: SaveMigration = saved => {
-  const raw = saved.treatmentDraft && typeof saved.treatmentDraft === 'object'
-    ? saved.treatmentDraft as SaveRecord
-    : null;
-  const draft: TreatmentDraft | null = raw && typeof raw.patientId === 'string' && typeof raw.ailmentInstanceId === 'string'
+const normalizeTreatmentDraft = (value: unknown, appliedTransactionIds: string[]): TreatmentDraft | null => {
+  const raw = isSaveRecord(value) ? value : null;
+  if (!raw || typeof raw.patientId !== 'string' || typeof raw.ailmentInstanceId !== 'string') return null;
+  const createdAt = Number.isFinite(Number(raw.createdAt)) ? Number(raw.createdAt) : 0;
+  const replacement = isSaveRecord(raw.replacementContext)
+    && (raw.replacementContext.kind === 'make-do' || raw.replacementContext.kind === 'replacement')
+    && typeof raw.replacementContext.targetTag === 'string'
+    && Number.isFinite(Number(raw.replacementContext.requiredPotency))
     ? {
-        id: typeof raw.id === 'string' ? raw.id : `treatment-draft:${raw.patientId}:${raw.ailmentInstanceId}`,
-        patientId: raw.patientId,
-        ailmentInstanceId: raw.ailmentInstanceId,
-        selectedParts: Array.isArray(raw.selectedParts)
-          ? raw.selectedParts.filter(row => row && typeof row === 'object').map(row => {
-              const part = row as SaveRecord;
-              return {
-                itemId: String(part.itemId || ''),
-                reagentId: typeof part.reagentId === 'string' ? part.reagentId : null,
-                preparationId: typeof part.preparationId === 'string' ? part.preparationId : null
-              };
-            }).filter(row => row.itemId)
-          : [],
-        selectedPreparationIds: Array.isArray(raw.selectedPreparationIds) ? raw.selectedPreparationIds.map(String) : [],
-        selectedToolIds: Array.isArray(raw.selectedToolIds) ? raw.selectedToolIds.map(String) : [],
-        catalyse: Array.isArray(raw.catalyse) ? raw.catalyse as TreatmentDraft['catalyse'] : [],
-        fair: Number(raw.fair || 0),
-        foul: Number(raw.foul || 0),
-        purify: Boolean(raw.purify),
-        replacementContext: raw.replacementContext && typeof raw.replacementContext === 'object'
-          ? raw.replacementContext as TreatmentDraft['replacementContext']
-          : null,
-        status: raw.status === 'committed' || raw.status === 'discarded' ? raw.status : 'draft',
-        committedTransactionId: typeof raw.committedTransactionId === 'string' ? raw.committedTransactionId : null,
-        createdAt: Number(raw.createdAt || Date.now()),
-        updatedAt: Number(raw.updatedAt || raw.createdAt || Date.now())
+        kind: raw.replacementContext.kind as 'make-do' | 'replacement',
+        targetTag: raw.replacementContext.targetTag as RuleTag,
+        requiredPotency: Number(raw.replacementContext.requiredPotency)
       }
     : null;
-  const applied = Array.isArray(saved.appliedTransactionIds) ? saved.appliedTransactionIds.map(String) : [];
-  const safeDraft = draft?.committedTransactionId && applied.includes(draft.committedTransactionId) ? null : draft;
+  const draft: TreatmentDraft = {
+    id: typeof raw.id === 'string' ? raw.id : `treatment-draft:${raw.patientId}:${raw.ailmentInstanceId}`,
+    patientId: raw.patientId,
+    ailmentInstanceId: raw.ailmentInstanceId,
+    selectedParts: recordArray(raw.selectedParts).map(part => ({
+      itemId: String(part.itemId || ''),
+      reagentId: typeof part.reagentId === 'string' ? part.reagentId : null,
+      preparationId: typeof part.preparationId === 'string' ? part.preparationId : null
+    })).filter(row => row.itemId),
+    selectedPreparationIds: stringArray(raw.selectedPreparationIds),
+    selectedToolIds: stringArray(raw.selectedToolIds),
+    catalyse: recordArray(raw.catalyse).map(row => ({
+      tag: String(row.tag || '') as TreatmentDraft['catalyse'][number]['tag'],
+      itemIds: stringArray(row.itemIds)
+    })).filter(row => row.tag),
+    fair: Number.isFinite(Number(raw.fair)) ? Number(raw.fair) : 0,
+    foul: Number.isFinite(Number(raw.foul)) ? Number(raw.foul) : 0,
+    purify: Boolean(raw.purify),
+    replacementContext: replacement,
+    status: raw.status === 'committed' || raw.status === 'discarded' ? raw.status : 'draft',
+    committedTransactionId: typeof raw.committedTransactionId === 'string' ? raw.committedTransactionId : null,
+    createdAt,
+    updatedAt: Number.isFinite(Number(raw.updatedAt)) ? Number(raw.updatedAt) : createdAt
+  };
+  return draft.committedTransactionId && appliedTransactionIds.includes(draft.committedTransactionId)
+    ? null
+    : draft;
+};
+
+const migrateV5ToV6: SaveMigration = saved => {
+  const applied = stringArray(saved.appliedTransactionIds);
+  const safeDraft = normalizeTreatmentDraft(saved.treatmentDraft, applied);
   const rawAcquisition = saved.pendingAlternativeAcquisition && typeof saved.pendingAlternativeAcquisition === 'object'
     ? saved.pendingAlternativeAcquisition as SaveRecord
     : null;
@@ -496,43 +600,150 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   8: migrateV8ToV9
 };
 
+const normalizeSeason = (value: unknown): 'Spring' | 'Summer' | 'Autumn' | 'Winter' => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'summer') return 'Summer';
+  if (normalized === 'autumn' || normalized === 'fall') return 'Autumn';
+  if (normalized === 'winter') return 'Winter';
+  return 'Spring';
+};
+
+const normalizeCard = (value: unknown): { value: number; suit?: string } | null => {
+  const cardValue = Number(isSaveRecord(value) ? value.value : Number.NaN);
+  if (!isSaveRecord(value) || !Number.isInteger(cardValue) || cardValue < 1 || cardValue > 13) return null;
+  const suit = typeof value.suit === 'string' ? value.suit : undefined;
+  return { value: cardValue, ...(suit ? { suit } : {}) };
+};
+
+const normalizePendingEncounter = (value: unknown): SaveRecord | null => {
+  if (!isSaveRecord(value) || typeof value.transactionId !== 'string' || !isSaveRecord(value.encounter)) return null;
+  const card = normalizeCard(value.card);
+  if (!card) return null;
+  return {
+    ...value,
+    card,
+    phase: value.phase === 'manual' || value.phase === 'resolved' ? value.phase : 'pending',
+    unresolvedEffectCodes: stringArray(value.unresolvedEffectCodes)
+  };
+};
+
+const normalizePendingForaging = (value: unknown): SaveRecord | null => {
+  if (!isSaveRecord(value) || typeof value.transactionId !== 'string') return null;
+  const card = normalizeCard(value.card);
+  const validRegions = ['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain', 'Titan'];
+  if (!card || !validRegions.includes(String(value.region))) return null;
+  const validPhases = ['choose-reagent', 'encounter', 'timer', 'resolved'];
+  return {
+    ...value,
+    card,
+    locationRelation: value.locationRelation === 'adjacent' ? 'adjacent' : 'current',
+    timerCostAfterEncounter: Number.isFinite(Number(value.timerCostAfterEncounter))
+      ? Math.max(0, Number(value.timerCostAfterEncounter))
+      : 0,
+    encounterId: typeof value.encounterId === 'string' ? value.encounterId : null,
+    phase: validPhases.includes(String(value.phase)) ? value.phase : 'choose-reagent'
+  };
+};
+
+const normalizeCurrentSave = (saved: SaveRecord): SaveRecord => {
+  const withMetadata = migrateRulesetMetadata(saved);
+  const patients = normalizePatients(withMetadata.patients);
+  const requestedActivePatientId = typeof withMetadata.activePatientId === 'string'
+    ? withMetadata.activePatientId
+    : null;
+  const appliedTransactionIds = [...new Set(stringArray(withMetadata.appliedTransactionIds))];
+  const pendingManualEffect = normalizeLegacyManualEffectDraft(withMetadata.pendingManualEffect);
+  const manualEffectDraft = normalizeLegacyManualEffectDraft(withMetadata.manualEffectDraft);
+  const manualEffectQueue = Array.isArray(withMetadata.manualEffectQueue)
+    ? withMetadata.manualEffectQueue
+      .map(row => normalizeLegacyManualEffectDraft(row))
+      .filter((row): row is NonNullable<typeof row> => Boolean(row))
+    : [];
+  const uniqueManualQueue = [...new Map(manualEffectQueue.map(row => [row.effectId, row])).values()];
+  const companionHiveStates = Array.isArray(withMetadata.companionHiveStates)
+    ? withMetadata.companionHiveStates
+    : recordArray(withMetadata.companionHive).map((row, index) => ({
+        instanceId: String(row.id || `legacy-hive-companion-${index + 1}`),
+        companionId: String(row.name || ''),
+        pathsTravelled: 0,
+        seasonsTravelled: Number(row.seasonsTravelled || 0),
+        usedThisJourney: false,
+        pendingForage: null,
+        pendingForageDraws: 0,
+        migratedFromLegacy: true
+      }));
+  return {
+    ...withMetadata,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    currentSeason: normalizeSeason(withMetadata.currentSeason),
+    bag: recordArray(withMetadata.bag).map(item => migrateLegacyBagItem(item)),
+    routeDraft: normalizeRouteDraft(withMetadata.routeDraft),
+    activePatientId: requestedActivePatientId && patients.some(patient => patient.id === requestedActivePatientId)
+      ? requestedActivePatientId
+      : null,
+    patients,
+    appliedTransactionIds,
+    appliedEncounterEffectIds: [...new Set(stringArray(withMetadata.appliedEncounterEffectIds))],
+    pendingEncounter: normalizePendingEncounter(withMetadata.pendingEncounter),
+    pendingForaging: normalizePendingForaging(withMetadata.pendingForaging),
+    pendingBarter: isSaveRecord(withMetadata.pendingBarter) ? withMetadata.pendingBarter : null,
+    journey: isSaveRecord(withMetadata.journey) ? withMetadata.journey : null,
+    pendingEnding: isSaveRecord(withMetadata.pendingEnding) ? withMetadata.pendingEnding : null,
+    pendingLeaveObligation: isSaveRecord(withMetadata.pendingLeaveObligation) ? withMetadata.pendingLeaveObligation : null,
+    pendingAlternativeAcquisition: isSaveRecord(withMetadata.pendingAlternativeAcquisition) ? withMetadata.pendingAlternativeAcquisition : null,
+    patientArchive: recordArray(withMetadata.patientArchive).map(row => normalizeLegacyArchiveRecord(row)),
+    barrows: Array.isArray(withMetadata.barrows) ? withMetadata.barrows : [],
+    activeDelve: isSaveRecord(withMetadata.activeDelve) ? withMetadata.activeDelve : null,
+    pendingServices: Array.isArray(withMetadata.pendingServices) ? withMetadata.pendingServices : [],
+    serviceMapMutations: Array.isArray(withMetadata.serviceMapMutations) ? withMetadata.serviceMapMutations : [],
+    toolStates: canonicalToolStates(withMetadata),
+    wagonState: isSaveRecord(withMetadata.wagonState) ? withMetadata.wagonState : null,
+    companionStates: Array.isArray(withMetadata.companionStates) ? withMetadata.companionStates : [],
+    companionHiveStates,
+    rumours: Array.isArray(withMetadata.rumours) ? withMetadata.rumours : [],
+    clinics: Array.isArray(withMetadata.clinics) ? withMetadata.clinics : [],
+    clinicAgendaIds: stringArray(withMetadata.clinicAgendaIds),
+    ailmentTagOverrides: Array.isArray(withMetadata.ailmentTagOverrides) ? withMetadata.ailmentTagOverrides : [],
+    trinketRecords: Array.isArray(withMetadata.trinketRecords) ? withMetadata.trinketRecords : [],
+    legacyTrinketCount: Number.isInteger(withMetadata.legacyTrinketCount) && Number(withMetadata.legacyTrinketCount) >= 0
+      ? Number(withMetadata.legacyTrinketCount)
+      : 0,
+    pendingManualEffect,
+    treatmentDraft: normalizeTreatmentDraft(withMetadata.treatmentDraft, appliedTransactionIds),
+    manualEffectDraft,
+    manualEffectQueue: uniqueManualQueue,
+    manualEffectRecords: Array.isArray(withMetadata.manualEffectRecords) ? withMetadata.manualEffectRecords : [],
+    pendingManualFollowUps: Array.isArray(withMetadata.pendingManualFollowUps) ? withMetadata.pendingManualFollowUps : [],
+    manualConditions: stringArray(withMetadata.manualConditions),
+    offlineOutbox: Array.isArray(withMetadata.offlineOutbox) ? withMetadata.offlineOutbox : [],
+    downtimeCompleted: typeof withMetadata.downtimeCompleted === 'boolean' ? withMetadata.downtimeCompleted : false,
+    downtimeRequired: typeof withMetadata.downtimeRequired === 'boolean' ? withMetadata.downtimeRequired : false,
+    saveRevision: normalizeSaveRevision(withMetadata.saveRevision)
+  };
+};
+
 export const migrateSavedRulesState = <T extends Record<string, unknown>>(saved: T | null | undefined) => {
   let migrated: SaveRecord = { ...(saved || {}) };
-  let version = Number.isInteger(migrated.schemaVersion) ? Number(migrated.schemaVersion) : 0;
+  const parsedVersion = Number(migrated.schemaVersion);
+  let version = Number.isInteger(parsedVersion) ? parsedVersion : 0;
+  if (version > CURRENT_SCHEMA_VERSION) {
+    throw new Error(`Save schema version ${version} is newer than supported version ${CURRENT_SCHEMA_VERSION}`);
+  }
   while (version < CURRENT_SCHEMA_VERSION) {
     const migration = SAVE_MIGRATIONS[version];
     if (!migration) throw new Error(`Missing save migration from schema version ${version}`);
     migrated = migration(migrated);
     version = Number(migrated.schemaVersion);
   }
-  const companionHiveStates = Array.isArray(migrated.companionHiveStates)
-    ? migrated.companionHiveStates
-    : Array.isArray(migrated.companionHive)
-      ? migrated.companionHive.map((row, index) => ({
-          instanceId: String((row as SaveRecord).id || `legacy-hive-companion-${index + 1}`),
-          companionId: String((row as SaveRecord).name || ''), pathsTravelled: 0,
-          seasonsTravelled: Number((row as SaveRecord).seasonsTravelled || 0),
-          usedThisJourney: false, pendingForage: null, pendingForageDraws: 0, migratedFromLegacy: true
-        }))
-      : null;
-  migrated = {
-    ...migrated,
-    routeDraft: normalizeRouteDraft(migrated.routeDraft),
-    patients: Array.isArray(migrated.patients)
-      ? (migrated.patients as PatientState[]).map(patient => ({
-          ...patient,
-          foragingPoints: Number.isFinite(patient.foragingPoints) ? Math.max(0, Number(patient.foragingPoints)) : 0,
-          reagentsGathered: Array.isArray(patient.reagentsGathered) ? patient.reagentsGathered.map(String) : []
-        }))
-      : []
-  };
-  if (companionHiveStates) migrated = { ...migrated, companionHiveStates };
+  migrated = normalizeCurrentSave(migrated);
   return migrated as T & {
     schemaVersion: number;
     rulesetId: RulesetId;
     rulebookEdition: RulebookEdition;
     activePatientId: string | null;
     patients: PatientState[];
+    appliedTransactionIds: string[];
+    appliedEncounterEffectIds: string[];
     pendingBarter: unknown | null;
     journey: unknown | null;
     pendingEnding: unknown | null;
@@ -560,6 +771,10 @@ export const migrateSavedRulesState = <T extends Record<string, unknown>>(saved:
     pendingManualFollowUps: unknown[];
     manualConditions: string[];
     offlineOutbox: unknown[];
+    downtimeCompleted: boolean;
+    downtimeRequired: boolean;
+    saveRevision: number;
+    currentSeason: 'Spring' | 'Summer' | 'Autumn' | 'Winter';
     routeDraft: ReturnType<typeof normalizeRouteDraft>;
   };
 };

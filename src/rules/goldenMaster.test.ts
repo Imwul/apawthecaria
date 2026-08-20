@@ -63,7 +63,7 @@ const frozenRuleSnapshot = JSON.parse(readFileSync(fixtureFile('rule-registry.sn
 const frozenPrintedEffectSnapshot = JSON.parse(readFileSync(fixtureFile('printed-effects.snapshot.json'), 'utf8'));
 
 describe('v1.0.0 Golden Master regression contract', () => {
-  it('[SAVE-001] preserves every synthetic campaign fixture at schema v8', () => {
+  it('[SAVE-001] preserves every synthetic campaign fixture at the current schema', () => {
     expect(Object.keys(GOLDEN_SAVE_FIXTURES).sort()).toEqual([
       'activeBarrow', 'activeJourney', 'activePatient', 'archiveHeavy', 'clinicAndService', 'freshCampaign',
       'midDowntime', 'pendingManualResolution', 'postSeason', 'toolAndUpgrade', 'wagonAndCompanion'

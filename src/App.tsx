@@ -8,9 +8,11 @@ import {
   CAMPAIGN_SAVE_KEY,
   campaignSaveHasNamedApothecary,
   decideCloudSaveAction,
+  isRecognizableCampaignSave,
   parseCampaignSaveRaw,
   tryMigrateCampaignSave
 } from "./persistence/campaignSave";
+import { nextCampaignSaveRevision, normalizeSaveRevision } from "./persistence/revision";
 import {
   type CloudSlotId,
   type CloudSlotRecord,
@@ -265,7 +267,7 @@ import {
 } from './localization/gameplayKo';
 import { localizeGameplayMessage } from './localization/engineMessagesKo';
 import { localizeManualEffectValue } from './localization/manualEffectKo';
-import { enqueueOfflineSave, flushOfflineSaves, resolveRevisionConflict, type OfflineSaveEntry } from './persistence/saveQueue';
+import { enqueueOfflineSave, flushOfflineSaves, normalizeOfflineSaveEntries, resolveRevisionConflict, type OfflineSaveEntry } from './persistence/saveQueue';
 import type { RulebookReferenceRequest } from './rulebook/types';
 import { referenceForJournalTab } from './rulebook/context';
 import { fuzzyReferenceTextMatch } from './rulebook/referenceRegistry';
@@ -343,7 +345,7 @@ let saveRequestSequence = 0;
 let saveFailureNotified = false;
 const SAVE_OUTBOX_KEY = 'apawthecaria_save_outbox';
 const readSaveOutbox = (): OfflineSaveEntry[] => {
-  try { return JSON.parse(localStorage.getItem(SAVE_OUTBOX_KEY) || '[]'); } catch { return []; }
+  try { return normalizeOfflineSaveEntries(JSON.parse(localStorage.getItem(SAVE_OUTBOX_KEY) || '[]')); } catch { return []; }
 };
 const writeSaveOutbox = (entries: OfflineSaveEntry[]) => localStorage.setItem(SAVE_OUTBOX_KEY, JSON.stringify(entries));
 
@@ -415,8 +417,9 @@ const writeCloudSlotRecord = async (record: CloudSlotRecord) => {
 
 const store = {
   set: async (key: string, value: any) => {
-    const jsonString = JSON.stringify(value);
+    let jsonString: string;
     try {
+      jsonString = JSON.stringify(value);
       localStorage.setItem(key, jsonString);
     } catch (e) {
       console.error('로컬 저장 에러:', e);
@@ -430,7 +433,7 @@ const store = {
       if (!campaignSaveHasNamedApothecary(value)) {
         return true;
       }
-      const revision = Number(value?.saveRevision || 0);
+      const revision = normalizeSaveRevision(value?.saveRevision);
       const queuedAt = Date.now();
       writeSaveOutbox(enqueueOfflineSave(readSaveOutbox(), { id: `${key}:${revision}:${queuedAt}`, key, payload: jsonString, revision, queuedAt }));
       cloudSaveQueue = cloudSaveQueue.catch(() => undefined).then(async () => {
@@ -3896,7 +3899,7 @@ const migrateState = (s: any): GameState => {
     ...INITIAL_STATE,
     ...s,
     rulebookEdition: s.rulebookEdition || RULEBOOK_EDITION,
-    schemaVersion: s.schemaVersion || CURRENT_SCHEMA_VERSION,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     rulesetId: s.rulesetId || 'legacy-campaign',
     bio: {
       ...INITIAL_BIO,
@@ -4007,7 +4010,7 @@ const migrateState = (s: any): GameState => {
     offlineOutbox: s.offlineOutbox || [],
     downtimeCompleted: s.downtimeCompleted || false,
     downtimeRequired: s.downtimeRequired || false,
-    saveRevision: s.saveRevision || 0
+    saveRevision: normalizeSaveRevision(s.saveRevision)
   });
 };
 
@@ -4755,12 +4758,12 @@ export default function App() {
               const localStr = localStorage.getItem(CAMPAIGN_SAVE_KEY);
               if (localStr) {
                 const localParsed = parseCampaignSaveRaw(localStr);
-                const localRevision = Number(
+                const localRevision = normalizeSaveRevision(
                   localParsed.ok && localParsed.value && typeof localParsed.value === 'object'
                     ? (localParsed.value as { saveRevision?: number }).saveRevision || 0
                     : 0
                 );
-                const cloudRevision = Number((parsed as { saveRevision?: number }).saveRevision || 0);
+                const cloudRevision = normalizeSaveRevision((parsed as { saveRevision?: number }).saveRevision);
                 const cloudHasNamedApothecary = campaignSaveHasNamedApothecary(parsed);
                 const action = decideCloudSaveAction({
                   localRaw: localStr,
@@ -4979,7 +4982,7 @@ export default function App() {
       next = {
         ...withoutLegacyPatientWrite(next),
         schemaVersion: CURRENT_SCHEMA_VERSION,
-        saveRevision: (prev.saveRevision || 0) + 1
+        saveRevision: nextCampaignSaveRevision(prev.saveRevision, next.saveRevision)
       };
       next = syncWorldMemory(next);
 
@@ -18904,7 +18907,7 @@ function JournalsView({
     reader.onload = (event) => {
       try {
         const parsed = JSON.parse(event.target?.result as string);
-        if (parsed.bio && parsed.bag) {
+        if (isRecognizableCampaignSave(parsed)) {
           const migrated = migrateCampaignSave(parsed);
           if (!migrated.ok) {
             setImportNotice({ kind: 'error', text: '세이브 파일을 올리지 못했습니다. 현재 기록은 그대로 둡니다.' });

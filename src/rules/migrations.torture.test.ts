@@ -1,0 +1,205 @@
+import { describe, expect, it } from 'vitest';
+import { migrateSavedRulesState, SAVE_MIGRATIONS } from './migrations';
+import { CURRENT_SCHEMA_VERSION } from './state';
+
+const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+
+const richSaveAt = (schemaVersion: number | string) => ({
+  schemaVersion,
+  rulesetId: 'original-1e-3p',
+  rulebookEdition: 'first-edition-third-printing-may-2023',
+  bio: { name: 'Migration Tester', speed: 3, carry: 6 },
+  bag: [
+    { id: 'tool-mortar', name: 'Mortar and Pestle', type: 'tool', canonicalToolId: 'mortar-and-pestle', weight: 1 / 3 },
+    { id: 'reagent-dandelion', name: 'Dandelions', type: 'reagent', canonicalReagentId: 'dandelions', usesRemaining: 2, weight: 1 / 3 }
+  ],
+  currentSeason: 'Fall',
+  calendarDays: 8,
+  completedSeasons: 2,
+  currentLocationName: 'Odoak',
+  routeDraft: {
+    stops: [
+      { id: 'origin', name: 'Origin', kind: 'Wilds', terrain: 'Forest', hasClinic: false, x: 10, y: 20 },
+      { id: 'loch', name: 'Loch Waypoint', kind: 'Wilds', terrain: 'Loch', hasClinic: false, x: 20, y: 30 },
+      { id: 'loch-settlement', name: 'Loch Settlement', kind: 'Settlement', terrain: 'Loch', hasClinic: false, x: 30, y: 40 },
+      { id: 'destination', name: 'Destination', kind: 'Settlement', terrain: 'Forest', hasClinic: false, x: 40, y: 50 }
+    ],
+    edgeKinds: ['path', 'waterway', 'river']
+  },
+  activePatientId: 'patient-1',
+  patients: [{
+    id: 'patient-1', name: 'Moss', species: 'Mouse', status: 'active', foragingPoints: 3,
+    reagentsGathered: ['reagent-dandelion'],
+    ailments: [{
+      id: 'ailment-1', ailmentId: 'paw-rot', severity: 'lesser', status: 'active', instance: 1,
+      timerIds: ['timer-1'], conditionIds: [], treatmentHistoryIds: []
+    }],
+    timers: [{ id: 'timer-1', ailmentInstanceId: 'ailment-1', current: 4, maximum: 8, status: 'active' }],
+    conditions: [], treatmentHistory: [], journalEvents: []
+  }],
+  patientArchive: [{ caseId: 'archive-1', patientId: 'old-patient', status: 'treated', success: true, failure: false }],
+  journey: { journeyId: 'journey-1', originId: 'origin', destinationId: 'destination', status: 'active' },
+  pendingForaging: {
+    transactionId: 'forage-pending', region: 'Forest', locationRelation: 'current',
+    card: { value: 7, suit: '♥' }, timerCostAfterEncounter: 1, encounterId: null, phase: 'choose-reagent'
+  },
+  treatmentDraft: {
+    id: 'draft-1', patientId: 'patient-1', ailmentInstanceId: 'ailment-1', selectedParts: [],
+    selectedPreparationIds: [], selectedToolIds: ['tool-mortar'], catalyse: [], fair: 0, foul: 0,
+    purify: false, replacementContext: null, status: 'draft', committedTransactionId: null,
+    createdAt: 100, updatedAt: 100
+  },
+  toolStates: [{ instanceId: 'tool-mortar', toolId: 'mortar-and-pestle', upgradeId: null, charges: null, broken: false, consumed: false, acquiredBy: 'test', appliedEffectIds: [] }],
+  downtimeRequired: true,
+  downtimeCompleted: false,
+  saveRevision: '27',
+  unknownCampaignMemory: { preserve: 'exactly' }
+});
+
+describe('save migration torture matrix', () => {
+  it('has a complete migration function for every supported historical version', () => {
+    expect(Object.keys(SAVE_MIGRATIONS).map(Number).sort((a, b) => a - b))
+      .toEqual(Array.from({ length: CURRENT_SCHEMA_VERSION }, (_, index) => index));
+  });
+
+  it.each(Array.from({ length: CURRENT_SCHEMA_VERSION + 1 }, (_, index) => index))(
+    'migrates schema v%i to the current canonical state without losing gameplay data',
+    schemaVersion => {
+      const migrated = migrateSavedRulesState(clone(richSaveAt(schemaVersion)));
+      expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+      expect(migrated.bio).toMatchObject({ name: 'Migration Tester', speed: 3, carry: 6 });
+      expect(migrated.bag).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: 'tool-mortar', canonicalToolId: 'mortar-and-pestle' }),
+        expect.objectContaining({ id: 'reagent-dandelion', usesRemaining: 2 })
+      ]));
+      expect(migrated.routeDraft.edgeKinds).toEqual(['path', 'waterway', 'river']);
+      expect(migrated.routeDraft.stops.map(stop => stop.id)).toEqual(['origin', 'loch', 'loch-settlement', 'destination']);
+      expect(migrated.activePatientId).toBe('patient-1');
+      expect(migrated.patients[0]).toMatchObject({ id: 'patient-1', foragingPoints: 3, reagentsGathered: ['reagent-dandelion'] });
+      expect(migrated.patientArchive).toHaveLength(1);
+      expect(migrated.toolStates).toEqual(expect.arrayContaining([expect.objectContaining({ instanceId: 'tool-mortar', toolId: 'mortar-and-pestle' })]));
+      expect(migrated.journey).toMatchObject({ journeyId: 'journey-1', destinationId: 'destination' });
+      expect(migrated.pendingForaging).toMatchObject({ transactionId: 'forage-pending', region: 'Forest', phase: 'choose-reagent' });
+      expect(migrated.treatmentDraft).toMatchObject({ id: 'draft-1', patientId: 'patient-1', selectedToolIds: ['tool-mortar'], status: 'draft' });
+      expect(migrated).toMatchObject({ currentSeason: 'Autumn', calendarDays: 8, completedSeasons: 2, downtimeRequired: true, saveRevision: 27 });
+      expect(migrated.unknownCampaignMemory).toEqual({ preserve: 'exactly' });
+    }
+  );
+
+  it('also accepts an unversioned v0 save and a numeric-string schema version', () => {
+    const unversioned = richSaveAt(0);
+    delete (unversioned as { schemaVersion?: number | string }).schemaVersion;
+    expect(migrateSavedRulesState(unversioned).schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrateSavedRulesState(richSaveAt('8')).routeDraft.edgeKinds).toEqual(['path', 'waterway', 'river']);
+  });
+
+  it('is idempotent and JSON round-trip stable for every supported version', () => {
+    for (let version = 0; version <= CURRENT_SCHEMA_VERSION; version += 1) {
+      const once = migrateSavedRulesState(clone(richSaveAt(version)));
+      const twice = migrateSavedRulesState(clone(once));
+      const roundTripped = migrateSavedRulesState(JSON.parse(JSON.stringify(once)));
+      expect(twice, `idempotency v${version}`).toEqual(once);
+      expect(roundTripped, `round trip v${version}`).toEqual(once);
+    }
+  });
+
+  it('recovers partial current-schema arrays, patients, route data, and legacy enum values', () => {
+    const migrated = migrateSavedRulesState({
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      currentSeason: 'Fall',
+      bag: 'not-an-array',
+      patients: [null, {
+        name: 'Partial Patient',
+        foragingPoints: -4,
+        reagentsGathered: null,
+        ailments: [{ severity: 'unknown', timerIds: null }],
+        timers: [{ current: '3', maximum: '7' }]
+      }],
+      activePatientId: 'missing-patient',
+      routeDraft: {
+        stops: [
+          null,
+          { id: 'a', name: 'A', kind: 'Wilds', terrain: 'Forest', x: -100, y: 999 },
+          { id: 'a', name: 'A duplicate', kind: 'Wilds', terrain: 'Forest' },
+          { id: 'b', name: 'B', kind: 'Wilds', terrain: 'Loch' }
+        ],
+        edgeKinds: ['unknown', 'waterway', 'river']
+      },
+      appliedTransactionIds: 'bad',
+      manualConditions: null,
+      toolStates: {},
+      pendingForaging: { transactionId: 'missing-required-fields' },
+      pendingEncounter: { transactionId: 'missing-required-fields' },
+      treatmentDraft: {
+        patientId: 'legacy-patient-2', ailmentInstanceId: 'legacy-patient-2-ailment-1',
+        replacementContext: { kind: 'invalid', targetTag: 'PAIN', requiredPotency: 3 }
+      },
+      patientArchive: [null, { id: 'legacy-case', outcome: 'failure' }],
+      saveRevision: '12.8',
+      unknownNonCriticalField: { keep: true }
+    });
+
+    expect(migrated.currentSeason).toBe('Autumn');
+    expect(migrated.bag).toEqual([]);
+    expect(migrated.activePatientId).toBeNull();
+    expect(migrated.patients).toHaveLength(1);
+    expect(migrated.patients[0]).toMatchObject({
+      id: 'legacy-patient-2', name: 'Partial Patient', status: 'active', foragingPoints: 0,
+      reagentsGathered: [], conditions: [], treatmentHistory: [], journalEvents: []
+    });
+    expect(migrated.patients[0].ailments[0]).toMatchObject({
+      id: 'legacy-patient-2-ailment-1', severity: 'lesser', timerIds: [], specialState: {}, effectIds: []
+    });
+    expect(migrated.patients[0].timers[0]).toMatchObject({ current: 3, maximum: 7, status: 'active' });
+    expect(migrated.routeDraft.stops.map(stop => stop.id)).toEqual(['a', 'b']);
+    expect(migrated.routeDraft.stops[0]).toMatchObject({ x: 0, y: 100 });
+    expect(migrated.routeDraft.edgeKinds).toEqual(['waterway']);
+    expect(migrated.appliedTransactionIds).toEqual([]);
+    expect(migrated.pendingForaging).toBeNull();
+    expect(migrated.pendingEncounter).toBeNull();
+    expect(migrated.treatmentDraft).toMatchObject({
+      patientId: 'legacy-patient-2', ailmentInstanceId: 'legacy-patient-2-ailment-1', replacementContext: null
+    });
+    expect(migrated.patientArchive).toHaveLength(1);
+    expect(migrated.saveRevision).toBe(12);
+    expect(migrated.unknownNonCriticalField).toEqual({ keep: true });
+  });
+
+  it('remains stable across repeated gameplay mutation, serialization, and reload cycles', () => {
+    let state = migrateSavedRulesState(clone(richSaveAt(0)));
+    state = migrateSavedRulesState(JSON.parse(JSON.stringify({
+      ...state,
+      saveRevision: Number(state.saveRevision) + 1,
+      bag: [...(state.bag as unknown[]), { id: 'new-resource', name: 'New Resource', type: 'reagent', weight: 1 / 3, usesRemaining: 1 }],
+      routeDraft: {
+        ...state.routeDraft,
+        edgeKinds: ['river', 'waterway', 'path']
+      },
+      patients: state.patients.map(patient => ({
+        ...patient,
+        timers: patient.timers.map(timer => ({ ...timer, current: Math.max(0, timer.current - 1) }))
+      }))
+    })));
+
+    expect((state.bag as Array<{ id?: string }>).some(item => item.id === 'new-resource')).toBe(true);
+    expect(state.routeDraft.edgeKinds).toEqual(['river', 'waterway', 'path']);
+    expect(state.patients[0].timers[0].current).toBe(3);
+
+    state = migrateSavedRulesState(JSON.parse(JSON.stringify({
+      ...state,
+      saveRevision: Number(state.saveRevision) + 1,
+      currentSeason: 'Winter',
+      downtimeRequired: false,
+      downtimeCompleted: true,
+      appliedTransactionIds: [...state.appliedTransactionIds, 'cycle-2', 'cycle-2']
+    })));
+
+    expect(state).toMatchObject({ saveRevision: 29, currentSeason: 'Winter', downtimeRequired: false, downtimeCompleted: true });
+    expect(state.appliedTransactionIds.filter(id => id === 'cycle-2')).toHaveLength(1);
+  });
+
+  it('rejects a future schema instead of silently reinterpreting it as current', () => {
+    expect(() => migrateSavedRulesState({ schemaVersion: CURRENT_SCHEMA_VERSION + 1, patients: [] }))
+      .toThrow(/newer than supported/);
+  });
+});
