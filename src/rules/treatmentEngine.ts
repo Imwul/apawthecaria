@@ -55,6 +55,9 @@ export interface TreatmentSuccessInput {
   selectedToolIds: string[];
   catalyse?: CatalyseSelection[];
   preserve?: boolean;
+  /** PURIFY is learned from Special Technique and only legal when the last gathered Reagent was gathered in Mountains (p.180). */
+  purify?: boolean;
+  purifyEligible?: boolean;
   gifting?: boolean;
   trinketRewardBonus?: number;
   doseCount?: number;
@@ -103,6 +106,17 @@ export interface TreatmentEngineResolution {
     }>;
     lightenTargets: Array<{ toolInstanceId: string; toolId: string; currentWeight: number }>;
   };
+}
+
+export interface TreatmentSelectionPreview {
+  ready: boolean;
+  providedTags: ProvidedTags;
+  requirement: RequirementEvaluation | null;
+  fair: number;
+  foul: number;
+  rawFoul: number;
+  missingToolIds: string[];
+  messages: string[];
 }
 
 const toolIdsForInventory = (inventory: readonly EngineInventoryItem[], selectedToolIds: readonly string[]): Set<string> =>
@@ -167,11 +181,97 @@ const collectTags = (
     }
     tags[selection.tag] = chosen[0].value + chosen[1].value;
   });
+  const fair = (contributions.get('FAIR') || []).reduce((total, row) => total + row.value, 0);
+  const foul = (contributions.get('FOUL') || []).reduce((total, row) => total + row.value, 0);
+  // FAIR and FOUL are the exception to normal Remedy Tags: every copy stacks,
+  // then the two totals cancel one another. Ailments that explicitly require
+  // FAIR/FOUL must therefore see the remaining net value.
+  tags.FAIR = Math.max(0, fair - foul);
+  tags.FOUL = Math.max(0, foul - fair);
   return {
     tags,
-    fair: (contributions.get('FAIR') || []).reduce((total, row) => total + row.value, 0),
-    foul: (contributions.get('FOUL') || []).reduce((total, row) => total + row.value, 0),
+    fair,
+    foul,
     messages
+  };
+};
+
+/**
+ * Side-effect-free preview used by the treatment workspace. It deliberately
+ * does not guess narrative/manual requirements or optional Tool choices.
+ */
+export const previewTreatmentSelection = ({
+  patient,
+  ailmentInstanceId,
+  inventory,
+  selectedItemIds,
+  selectedToolIds,
+  overrides = [],
+  purify = false,
+  purifyEligible = false
+}: {
+  patient: PatientState;
+  ailmentInstanceId: string;
+  inventory: readonly EngineInventoryItem[];
+  selectedItemIds: readonly string[];
+  selectedToolIds: readonly string[];
+  overrides?: readonly TreatmentAilmentTagOverride[];
+  purify?: boolean;
+  purifyEligible?: boolean;
+}): TreatmentSelectionPreview => {
+  const ailment = patient.ailments.find(row => row.id === ailmentInstanceId && row.status === 'active');
+  const definition = ailment?.ailmentId ? AILMENT_BY_ID.get(ailment.ailmentId) : null;
+  if (!ailment || !definition) {
+    return { ready: false, providedTags: {}, requirement: null, fair: 0, foul: 0, rawFoul: 0, missingToolIds: [], messages: ['Active canonical Ailment instance not found.'] };
+  }
+  const selectedItems = selectedItemIds.flatMap(id => {
+    const item = inventory.find(row => row.id === id);
+    return item?.type === 'reagent' && item.preparationId ? [item] : [];
+  });
+  const selected = selectedItems.flatMap(item => {
+    const preparation = item.preparationId ? PREPARATION_BY_ID.get(item.preparationId)?.preparation : null;
+    return preparation ? [{ item, preparation }] : [];
+  });
+  const tools = toolIdsForInventory(inventory, selectedToolIds);
+  const missingToolIds = Array.from(new Set(selected.flatMap(row => row.preparation.requiredTools)
+    .filter(tool => tool !== 'none' && !tools.has(tool))));
+  const collected = collectTags(selected, tools, []);
+  const requirement = evaluateRequirement(
+    applyAilmentTagOverrides(definition.requirements, definition.id, overrides),
+    collected.tags
+  );
+  const specialRequirements = [
+    ...(Array.isArray(ailment.specialState.additionalRequirements)
+      ? ailment.specialState.additionalRequirements as Array<{ tag: RuleTag; threshold: number }>
+      : []),
+    ...(typeof ailment.specialState.poisonRequirement === 'number'
+      ? [{ tag: 'POISON' as RuleTag, threshold: ailment.specialState.poisonRequirement }]
+      : [])
+  ];
+  const missingSpecial = specialRequirements
+    .filter(row => (collected.tags[row.tag] || 0) < row.threshold)
+    .map(row => `${row.tag} ${row.threshold}`);
+  const messages = [
+    ...(selected.length === 0 ? ['Select at least one prepared Reagent.'] : []),
+    ...missingToolIds.map(tool => `Required Tool is not selected: ${tool}`),
+    ...requirement.missing,
+    ...missingSpecial,
+    ...(purify && !purifyEligible ? ['PURIFY requires the last gathered Reagent to have been gathered in a Mountain Location.'] : []),
+    ...collected.messages
+  ];
+  const foul = purify && purifyEligible ? 0 : collected.foul;
+  if (definition.canonicalName === 'Bad Idea' && foul > 0) messages.push('Bad Idea cannot be treated with a Remedy containing FOUL.');
+  return {
+    ready: selected.length > 0 && missingToolIds.length === 0 && requirement.satisfied && missingSpecial.length === 0
+      && !(purify && !purifyEligible) && collected.messages.length === 0
+      && !(definition.canonicalName === 'Bad Idea' && foul > 0),
+    providedTags: collected.tags,
+    requirement,
+    fair: collected.fair,
+    foul,
+    rawFoul: collected.foul,
+    missingToolIds,
+    messages: Array.from(new Set(messages))
   };
 };
 
@@ -179,16 +279,20 @@ export const canTreatAilmentWithInventory = (
   patient: PatientState,
   ailmentInstanceId: string,
   inventory: readonly EngineInventoryItem[],
-  overrides: readonly TreatmentAilmentTagOverride[] = []
+  overrides: readonly TreatmentAilmentTagOverride[] = [],
+  availableToolIds: readonly string[] = []
 ): boolean => {
   const ailment = patient.ailments.find(row => row.id === ailmentInstanceId && row.status === 'active');
   if (!ailment?.ailmentId) return false;
   const definition = AILMENT_BY_ID.get(ailment.ailmentId);
   if (!definition) return false;
 
-  const tools = new Set(inventory
+  const tools = new Set([
+    ...availableToolIds,
+    ...inventory
     .filter(item => item.type === 'tool')
-    .flatMap(item => [item.canonicalToolId, item.id].filter((id): id is string => Boolean(id))));
+    .flatMap(item => [item.canonicalToolId, item.id].filter((id): id is string => Boolean(id)))
+  ]);
   const prepared = inventory.flatMap(item => {
     if (item.type !== 'reagent' || !item.preparationId) return [];
     const preparation = PREPARATION_BY_ID.get(item.preparationId)?.preparation;
@@ -213,6 +317,15 @@ export const canTreatAilmentWithInventory = (
   }
   return evaluateRequirement(applyAilmentTagOverrides(definition.requirements, definition.id, overrides), tags).satisfied;
 };
+
+/** p.33: if any active Ailment can now be treated, create that Remedy before decreasing any Timers. */
+export const hasImmediatelyTreatableAilment = (
+  patient: PatientState,
+  inventory: readonly EngineInventoryItem[],
+  overrides: readonly TreatmentAilmentTagOverride[] = [],
+  availableToolIds: readonly string[] = []
+): boolean => patient.ailments.some(ailment => ailment.status === 'active'
+  && canTreatAilmentWithInventory(patient, ailment.id, inventory, overrides, availableToolIds));
 
 const updateAilment = (
   patient: PatientState,
@@ -314,6 +427,10 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
     };
   }
 
+  if (input.purify && !input.purifyEligible) {
+    return { status: 'invalid', value: null, messages: ['PURIFY requires the last gathered Reagent to have been gathered in a Mountain Location.'] };
+  }
+
   const ailment = input.state.patient.ailments.find(row => row.id === input.ailmentInstanceId && row.status === 'active');
   if (!ailment || !ailment.ailmentId) return { status: 'invalid', value: null, messages: ['Active canonical Ailment instance not found.'] };
   const definition = AILMENT_BY_ID.get(ailment.ailmentId);
@@ -372,7 +489,8 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
     potencyBoost
   );
   if (collected.messages.length > 0) return { status: 'invalid', value: null, messages: collected.messages };
-  if (definition.canonicalName === 'Bad Idea' && collected.foul > 0) {
+  const effectiveFoul = input.purify ? 0 : collected.foul;
+  if (definition.canonicalName === 'Bad Idea' && effectiveFoul > 0) {
     return { status: 'invalid', value: null, messages: ['Bad Idea cannot be treated with a Remedy containing FOUL.'] };
   }
   const badIdeaQualifies = definition.canonicalName === 'Bad Idea'
@@ -433,8 +551,8 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
   }
   const consumed = consumeItems(input.state.inventory, input.selectedItemIds, doseCount);
   const netFair = definition.canonicalName === 'Wormridden'
-    ? Math.max(0, collected.fair - collected.foul)
-    : collected.fair - collected.foul;
+    ? Math.max(0, collected.fair - effectiveFoul)
+    : collected.fair - effectiveFoul;
   const baseReward = Math.max(0, severityValue(definition.severity) + Math.trunc(netFair / 2));
   const gifting = Boolean(input.gifting && baseReward > 0);
   const trinketReward = gifting ? 0 : baseReward + Math.max(0, Math.floor(input.trinketRewardBonus || 0));
@@ -482,7 +600,7 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
       providedTags: collected.tags,
       remedyFlags,
       fair: collected.fair,
-      foul: collected.foul,
+      foul: effectiveFoul,
       trinketReward,
       reputationChange,
       consumedItemIds: consumed.consumedIds,

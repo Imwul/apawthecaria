@@ -54,6 +54,10 @@ const stopTerrainLabel = (stop: RouteStop): string =>
 const stopMeta = (stop: RouteStop): string =>
   `${stopKindLabel(stop)}${stopTerrainLabel(stop) ? ` · ${stopTerrainLabel(stop)}` : ''}`;
 
+const displayWeight = (value: number): string => Number.isInteger(value)
+  ? String(value)
+  : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+
 export function RouteComposer({
   draft,
   speed,
@@ -148,7 +152,7 @@ export function RouteComposer({
 
       <div className="route-composer__conditions" aria-label="이번 이동 조건">
         <span>속도 <strong>{evaluation.effectiveSpeed}</strong></span>
-        <span>짐 <strong>{weight}/{carry}</strong></span>
+        <span>짐 <strong>{displayWeight(weight)}/{displayWeight(carry)}</strong></span>
         {seasonLabel && <span>계절 <strong>{seasonLabel}</strong></span>}
         {daysRemaining !== null && <span>기한 <strong>{Math.max(0, daysRemaining)}일 남음</strong></span>}
       </div>

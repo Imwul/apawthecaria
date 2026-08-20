@@ -399,7 +399,13 @@ export const resolveForagingEngine = (input: ForagingEngineInput): ForagingEngin
       canonicalReagentId: reagent.id,
       preparationId: preparation!.id,
       usesRemaining: preparation!.uses,
-      ruinedWhenSoaked: true
+      ruinedWhenSoaked: true,
+      provenance: {
+        acquisitionId: `${input.transactionId}:${preparation!.id}:${index + 1}`,
+        source: 'forage',
+        sourceTransactionId: input.transactionId,
+        region: input.forageRegion
+      }
     }))
   );
   const partCount = gatheredItems.length;

@@ -85,7 +85,8 @@ import {
   TOOL_BY_ID,
   TOOL_UPGRADE_BY_ID,
   PRINTED_EFFECT_BY_OWNER,
-  canTreatAilmentWithInventory,
+  hasImmediatelyTreatableAilment,
+  previewTreatmentSelection,
   calculatePawnReward,
   beginBarrowChallenge,
   bidFarewellCollapsedEntrance,
@@ -190,6 +191,7 @@ import {
   getPatientPersonalityChoices,
   isHouseRuleEnabled,
   migrateSavedRulesState,
+  normalizeLegacyArchiveRecord,
   upsertPatientArchive,
   type BarterMapNode,
   type BarterRuntimeState,
@@ -3894,7 +3896,9 @@ const migrateState = (s: any): GameState => {
     patientCasebook: (s.patientCasebook && s.patientCasebook.length > 0)
       ? s.patientCasebook.map(normalizeCaseRecord)
       : legacyCaseRecordsFromJournals(s),
-    patientArchive: s.patientArchive || [],
+    patientArchive: Array.isArray(s.patientArchive)
+      ? s.patientArchive.map((record: unknown) => normalizeLegacyArchiveRecord(record as Record<string, unknown>))
+      : [],
     pendingPatientArchive: s.pendingPatientArchive || null,
     worldAlmanac: s.worldAlmanac || [],
     journals: mergeCharacterJournals(Array.isArray(s.journals) ? s.journals : [], { ...INITIAL_BIO, ...(s.bio || {}) }),
@@ -5582,30 +5586,6 @@ export default function App() {
     onAdded?.();
   };
 
-  const applyPostForageTimer = (encounter: any | null) => {
-    const baseTimerCost = Number(encounter?.timerBaseCost || 0);
-    if (baseTimerCost <= 0) return;
-
-    const gatheredPartCount = Math.max(0, Number(encounter?.gatheredPartCount || 0));
-    const timerCost = baseTimerCost + Math.max(0, gatheredPartCount - 1);
-    if (timerCost <= 0) return;
-
-    updateState((s: GameState) => {
-      const patient = s.patients.find(row => row.id === s.activePatientId);
-      const activeAilment = patient?.ailments.find(ailment => ailment.status === 'active');
-      if (!patient || (activeAilment && canTreatAilmentWithInventory(patient, activeAilment.id, toEngineInventory(s.bag), s.ailmentTagOverrides))) {
-        return { ...s, pendingForaging: null };
-      }
-      const timerResult = resolveTimer({ patient, hours: timerCost });
-      if (!timerResult.value) return s;
-      return {
-        ...s,
-        patients: s.patients.map(row => row.id === patient.id ? timerResult.value! : row),
-        pendingForaging: null
-      };
-    });
-  };
-
   const handleRecordForageMiss = (find: ForageFind) => {
     const pending = state.pendingForaging;
     if (!pending || !find.reagentId) return;
@@ -5676,38 +5656,76 @@ export default function App() {
       showAlert('이 영약재를 준비하는 데 필요한 도구가 없습니다.');
       return;
     }
-    const chosen = await requestControlledPrompt({
-      title: '채집할 부위를 선택하세요',
-      message: reagent.displayName,
-      defaultValue: '1',
-      kicker: '채집 기록',
-      options: availableParts.map((part, partIndex) => ({
-        value: String(partIndex + 1),
-        label: `${partIndex + 1}. ${localizePreparationName(part.name)} (${localizePreparationMethod(part.method)}, ${part.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음'}, 무게 ${formatWeight(part.weight)}, ${part.uses}회분)`
-      }))
-    });
-    if (chosen === null) return;
-    const preparation = availableParts[Math.max(0, (parseInt(chosen, 10) || 1) - 1)] || availableParts[0];
-    const quantityInput = await requestControlledPrompt({
-      title: '채집 수량',
-      message: `${localizePreparationName(preparation.name)}을 몇 개 채집하나요?`,
-      defaultValue: '1',
-      kicker: '채집 기록',
-      label: '수량',
-      inputMode: 'number'
-    });
-    if (quantityInput === null) return;
-    const quantity = Math.max(1, parseInt(quantityInput, 10) || 1);
+    const selectionPatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
+    const selectionAilment = selectionPatient?.ailments.find(ailment => ailment.status === 'active');
+    const selectionAilmentDefinition = AILMENTS.find(ailment => ailment.id === selectionAilment?.ailmentId);
+    const treatmentNeededTags = new Set(selectionAilmentDefinition
+      ? requirementRuleTags(selectionAilmentDefinition.requirements)
+      : []);
+    const preferredPartIndex = availableParts.findIndex(part => part.tags.some(tag => treatmentNeededTags.has(tag.tag)));
+    const partSelections: Array<{ preparationId: string; quantity: number }> = [];
+    const selectedPreparationDefs: typeof availableParts = [];
+    let addAnotherPart = true;
+    while (addAnotherPart) {
+      const chosen = await requestControlledPrompt({
+        title: partSelections.length > 0 ? '다른 부위도 채집하세요' : '채집할 부위를 선택하세요',
+        message: `${reagent.displayName} · 같은 영약재에서 서로 다른 부위나 여러 개를 함께 가져올 수 있습니다. 첫 부위 이후 각 추가 부위마다 타이머 비용이 1시간 늘어납니다.`,
+        defaultValue: String((preferredPartIndex >= 0 ? preferredPartIndex : 0) + 1),
+        kicker: '채집 기록',
+        options: availableParts.map((part, partIndex) => ({
+          value: String(partIndex + 1),
+          label: `${partIndex + 1}. ${localizePreparationName(part.name)} (${localizePreparationMethod(part.method)}, ${part.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음'}, 무게 ${formatWeight(part.weight)}, ${part.uses}회분)${part.tags.some(tag => treatmentNeededTags.has(tag.tag)) ? ' · 현재 치료에 맞음' : ''}`
+        }))
+      });
+      if (chosen === null) {
+        if (partSelections.length === 0) return;
+        break;
+      }
+      const preparation = availableParts[Math.max(0, (parseInt(chosen, 10) || 1) - 1)] || availableParts[0];
+      const quantityInput = await requestControlledPrompt({
+        title: '채집 수량',
+        message: `${localizePreparationName(preparation.name)}을 몇 개 채집하나요?`,
+        defaultValue: '1',
+        kicker: '채집 기록',
+        label: '수량',
+        inputMode: 'number'
+      });
+      if (quantityInput === null) {
+        if (partSelections.length === 0) return;
+        break;
+      }
+      const quantity = Math.max(1, parseInt(quantityInput, 10) || 1);
+      const existing = partSelections.find(row => row.preparationId === preparation.id);
+      if (existing) existing.quantity += quantity;
+      else {
+        partSelections.push({ preparationId: preparation.id, quantity });
+        selectedPreparationDefs.push(preparation);
+      }
+      const continueChoice = await requestControlledPrompt({
+        title: '같은 영약재에서 더 채집할까요?',
+        message: `현재 ${partSelections.reduce((sum, row) => sum + row.quantity, 0)}개 부위를 선택했습니다. 첫 부위 이후 각 추가 부위마다 타이머 비용이 1시간 늘어납니다.`,
+        defaultValue: 'done',
+        kicker: reagent.displayName,
+        label: '다음 선택',
+        options: [
+          { value: 'another', label: '다른 부위 또는 수량 추가' },
+          { value: 'done', label: '이대로 채집 확정' }
+        ]
+      });
+      if (continueChoice === null) return;
+      addAnotherPart = continueChoice === 'another';
+    }
     const graniteMortar = canonicalToolsFromState(state).find(tool => tool.upgradeId === 'granite-mortar' && !tool.broken && !tool.consumed);
-    const poundWithGranite = Boolean(graniteMortar && reagent.type === 'PLANT' && /BREW/i.test(preparation.method)
-      && askWindowConfirm('Granite Mortar로 이 부위를 무게 없는 Powder/Tea로 POUND할까요?'));
+    const poundWithGranite = Boolean(graniteMortar && reagent.type === 'PLANT'
+      && selectedPreparationDefs.length > 0 && selectedPreparationDefs.every(part => /BREW/i.test(part.method))
+      && askWindowConfirm('Granite Mortar로 선택한 부위를 무게 없는 Powder/Tea로 POUND할까요?'));
     const spendGap = !find.cardSuccess && !find.fpAvailable && (find.gapCost || 0) > 0
       ? askWindowConfirm(`카드와 희귀도 차이 ${find.gapCost}만큼 채집 포인트를 사용하시겠습니까? 취소하면 채집에 실패하고 채집 포인트 1을 얻습니다.`)
       : false;
     const activePatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
     const hasEfficientKettle = canonicalToolsFromState(state).some(tool => tool.upgradeId === 'efficient-copper-kettle' && !tool.broken && !tool.consumed);
     let gatherTimerId: string | undefined;
-    if (hasEfficientKettle && /BOIL|BREW/i.test(preparation.method) && activePatient) {
+    if (hasEfficientKettle && selectedPreparationDefs.some(part => /BOIL|BREW/i.test(part.method)) && activePatient) {
       const activeTimers = activePatient.timers.filter(timer => timer.status === 'active');
       if (activeTimers.length === 1) gatherTimerId = activeTimers[0].id;
       else if (activeTimers.length > 1) {
@@ -5746,7 +5764,7 @@ export default function App() {
       reagentTypeFilter: pending.reagentTypeFilter,
       source: pending.source,
       targetReagentId: reagent.id,
-      parts: [{ preparationId: preparation.id, quantity }],
+      parts: partSelections,
       spendForagingPoints: spendGap,
       gatherTimerId,
       ...canonicalForagingModifiers(state),
@@ -6330,10 +6348,16 @@ export default function App() {
       canonicalActions: ['Forecast protection committed', ...manualDraft.canonicalActions]
     };
     let patient: PatientState | null = runtime.patient ? { ...runtime.patient, foragingPoints: runtime.foragingPoints } : null;
-    const activeAilment = patient?.ailments.find(ailment => ailment.status === 'active');
-    // Every standard Forage spends its printed 1/2-hour Timer cost. Completing
-    // the last missing Remedy tag does not retroactively make that Forage free.
-    if (patient && activeAilment) {
+    // p.33 checks the bag after the encounter. If any active Ailment can now be
+    // treated, the Remedy is created before any Timer is decreased.
+    if (patient && !hasImmediatelyTreatableAilment(
+      patient,
+      runtime.inventory,
+      state.ailmentTagOverrides,
+      canonicalToolsFromState(state)
+        .filter(tool => !tool.broken && !tool.consumed)
+        .map(tool => tool.toolId)
+    )) {
       patient = resolveTimer({ patient, hours: pending.timerCostAfterEncounter }).value || patient;
     }
     updateState(s => {
@@ -6346,7 +6370,12 @@ export default function App() {
         patients: patient ? s.patients.map(row => row.id === patient!.id ? patient! : row) : s.patients,
         appliedEncounterEffectIds: runtime.appliedEffectIds,
         pendingForaging: null,
-        manualConditions: remapEncounterConditions(runtime.conditions, s),
+        manualConditions: Array.from(new Set([
+          ...remapEncounterConditions(runtime.conditions, s),
+          ...((printedEffect?.ownerName || encounter.title || '').includes('Special Technique') && s.reputation >= 25
+            ? ['purify-trained']
+            : [])
+        ])),
         journals: [{
           id: `${pending.transactionId}:${manualDraft ? 'pending-manual' : 'resolved'}`, title: `${manualDraft ? '판정 대기' : '채집 조우'}: ${printedEffect?.ownerName || encounter.title}`,
           text: `${printedEffect?.printedText || encounter.prompt}${manualDraft ? '\n\n전용 직접 판정에서 선택과 상태 변화를 완료해야 합니다.' : `\n\n${[note, scurryResolutionNote].filter(Boolean).join(' · ') || '인쇄된 채집 조우를 해결했다.'}`}`,
@@ -6719,6 +6748,7 @@ export default function App() {
                 requestControlledPrompt={requestControlledPrompt}
                 onOpenReference={setRulebookRequest}
                 onOpenFullMap={() => changeActiveTab('map')}
+                onOpenPatientArchive={() => changeActiveTab('patientArchive')}
                 pendingMapTravel={pendingMapTravel}
                 onConsumePendingMapTravel={() => setPendingMapTravel(null)}
               />
@@ -7111,24 +7141,33 @@ export default function App() {
         const forageAilmentDefinition = AILMENTS.find(ailment => ailment.id === forageAilment?.ailmentId);
         const neededForageTags = new Set(forageAilmentDefinition ? requirementRuleTags(forageAilmentDefinition.requirements) : []);
         const currentForagingPoints = foragePatient?.foragingPoints || 0;
+        const forageToolIds = new Set(canonicalToolsFromState(state)
+          .filter(tool => !tool.broken && !tool.consumed)
+          .map(tool => tool.toolId));
         const normalizeForageFind = (find: ForageFind | string): ForageFind => typeof find === 'string'
           ? { name: find.replace(/\s*\(.*/, ''), rarity: 0 }
           : find;
         const matchingForageParts = (find: ForageFind): string[] => {
           const reagent = REAGENTS.find(row => row.id === find.reagentId);
           if (!reagent || neededForageTags.size === 0) return [];
-          return reagent.preparations.flatMap(part => {
+          return reagent.preparations
+            .filter(part => part.requiredTools.every(tool => tool === 'none' || forageToolIds.has(tool)))
+            .flatMap(part => {
             const relevant = part.tags.filter(tag => neededForageTags.has(tag.tag));
             return relevant.length > 0
               ? [`${localizePreparationName(part.name)}: ${relevant.map(tag => `${tag.tag} ${tag.value}`).join(' · ')}`]
               : [];
-          });
+            });
         };
-        const displayedForageFinds = (activeForageEncounter.foundReagents || [])
+        const sortedForageFinds = (activeForageEncounter.foundReagents || [])
           .map(normalizeForageFind)
           .sort((a: ForageFind, b: ForageFind) => Number(matchingForageParts(b).length > 0) - Number(matchingForageParts(a).length > 0)
             || a.rarity - b.rarity
             || a.name.localeCompare(b.name));
+        const treatmentForageFinds = sortedForageFinds.filter((find: ForageFind) => matchingForageParts(find).length > 0);
+        const displayedForageFinds = !activeForageEncounter.showAllFinds && treatmentForageFinds.length > 0
+          ? treatmentForageFinds
+          : sortedForageFinds;
         const closeForageEncounter = async () => {
           if (await resolveCanonicalForageEncounter('')) {
             if (state.pendingLeaveObligation?.kind === 'foraging-encounter') {
@@ -7204,6 +7243,18 @@ export default function App() {
 
               <div style={{ marginTop: '1rem', background: '#f0f9f4', padding: '1rem', borderRadius: '10px', borderLeft: '4.5px solid var(--secondary)' }}>
                 <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--secondary)', fontSize: '0.95rem' }}>🌿 채집 발견 처리</h4>
+                {treatmentForageFinds.length > 0 && sortedForageFinds.length > treatmentForageFinds.length && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.65rem', flexWrap: 'wrap', marginBottom: '0.7rem', fontSize: '0.78rem', color: '#4f6d58' }}>
+                    <span>현재 질환에 맞는 후보 {treatmentForageFinds.length}개를 먼저 표시합니다.</span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveForageEncounter((current: any) => current ? { ...current, showAllFinds: !current.showAllFinds } : current)}
+                      style={{ minHeight: '40px', padding: '0.4rem 0.7rem', border: '1px solid #86a892', borderRadius: '6px', background: '#fff', color: '#2b5e3d', fontWeight: 700, flexShrink: 0 }}
+                    >
+                      {activeForageEncounter.showAllFinds ? `치료 후보만 보기 (${treatmentForageFinds.length})` : `전체 후보 보기 (${sortedForageFinds.length})`}
+                    </button>
+                  </div>
+                )}
                 {displayedForageFinds.length > 0 ? (
                   <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
                     {displayedForageFinds.map((normalizedFind: ForageFind, idx: number) => {
@@ -7816,6 +7867,7 @@ function PlayView({
   requestControlledPrompt,
   onOpenReference,
   onOpenFullMap,
+  onOpenPatientArchive,
   pendingMapTravel,
   onConsumePendingMapTravel
 }: {
@@ -7844,6 +7896,7 @@ function PlayView({
   requestControlledPrompt: (request: ControlledPromptRequest) => Promise<string | null>;
   onOpenReference: (request: RulebookReferenceRequest) => void;
   onOpenFullMap: () => void;
+  onOpenPatientArchive: () => void;
   pendingMapTravel: MapPickLocation | null;
   onConsumePendingMapTravel: () => void;
 }) {
@@ -7926,6 +7979,27 @@ function PlayView({
   const [selectedBagItems, setSelectedBagItems] = useState<string[]>([]);
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [usePurify, setUsePurify] = useState(false);
+  const [isTreatmentSubmitting, setIsTreatmentSubmitting] = useState(false);
+  const treatmentSubmitPending = useRef(false);
+  const treatmentPatient = state.patients.find(row => row.id === state.activePatientId);
+  const treatmentAilment = treatmentPatient?.ailments.find(row => row.status === 'active' && row.id === state.activeAilment?.id)
+    || treatmentPatient?.ailments.find(row => row.status === 'active');
+  const purifyLearned = (state.manualConditions || []).includes('purify-trained');
+  const lastSelectedReagent = [...state.bag].reverse().find(item => item.type === 'reagent' && selectedBagItems.includes(item.id));
+  const purifyEligible = Boolean(lastSelectedReagent?.provenance?.source === 'forage'
+    && lastSelectedReagent.provenance.region === 'Mountain');
+  const treatmentPreview = treatmentPatient && treatmentAilment
+    ? previewTreatmentSelection({
+      patient: treatmentPatient,
+      ailmentInstanceId: treatmentAilment.id,
+      inventory: toEngineInventory(state.bag),
+      selectedItemIds: selectedBagItems,
+      selectedToolIds: selectedTools,
+      overrides: state.ailmentTagOverrides,
+      purify: usePurify,
+      purifyEligible
+    })
+    : null;
 
   const persistTreatmentDraft = (nextItemIds: string[], nextToolIds: string[], nextPurify: boolean) => {
     setSelectedBagItems(nextItemIds);
@@ -7984,10 +8058,10 @@ function PlayView({
       if (cancelled) return;
       setSelectedBagItems(draft.selectedParts.map(part => part.itemId).filter(id => state.bag.some(item => item.id === id)));
       setSelectedTools(draft.selectedToolIds.filter(id => state.bag.some(item => item.id === id)));
-      setUsePurify(draft.purify);
+      setUsePurify(Boolean(draft.purify && purifyLearned));
     });
     return () => { cancelled = true; };
-  }, [state.treatmentDraft, state.activePatientId, state.bag]);
+  }, [state.treatmentDraft, state.activePatientId, state.bag, purifyLearned]);
 
   // Manual Card Selector State
   const travelFormRef = useRef<HTMLFormElement>(null);
@@ -10279,7 +10353,19 @@ function PlayView({
 
   const handleAbandonPatient = async () => {
     const patient = state.patients.find(row => row.id === state.activePatientId);
-    if (!patient || !askWindowConfirm(`${patient.name}의 해결되지 않은 질환 결과를 적용하고 떠나보냅니까?`)) return;
+    if (!patient) return;
+    const confirmation = await requestControlledPrompt({
+      title: '환자를 떠나보내시겠습니까?',
+      message: `${patient.name}의 해결되지 않은 질환 결과가 적용되고, 이 환자는 다시 치료할 수 없습니다.`,
+      defaultValue: 'keep',
+      kicker: '되돌릴 수 없는 선택',
+      label: '선택',
+      options: [
+        { value: 'keep', label: '계속 치료하기' },
+        { value: 'abandon', label: '결과를 적용하고 떠나보내기' }
+      ]
+    });
+    if (confirmation !== 'abandon') return;
     const note = (await requestControlledPrompt({
       title: '환자를 떠나보낸 기록',
       message: '떠나보낸 장면과 남은 여파를 기록하세요.',
@@ -11116,6 +11202,7 @@ function PlayView({
   };
 
   const handleConcoctRemedy = async () => {
+    if (treatmentSubmitPending.current) return;
     const patient = state.patients.find(row => row.id === state.activePatientId);
     const ailment = patient?.ailments.find(row => row.status === 'active' && row.id === state.activeAilment?.id)
       || patient?.ailments.find(row => row.status === 'active');
@@ -11127,6 +11214,13 @@ function PlayView({
       showAlert('치료제에 사용할 준비된 영약재를 선택해 주세요.');
       return;
     }
+    if (!treatmentPreview?.ready) {
+      showAlert(`아직 치료제를 완성할 수 없습니다.\n${(treatmentPreview?.messages || ['질환 요구조건과 선택한 재료를 확인해 주세요.']).map(localizeGameplayMessage).join('\n')}`);
+      return;
+    }
+    treatmentSubmitPending.current = true;
+    setIsTreatmentSubmitting(true);
+    try {
     const canonicalTools = canonicalToolsFromState(state);
     const ingenuitiveTool = canonicalTools.find(tool => tool.acquiredBy === 'familiar-ingenuitive' && !tool.broken && !tool.consumed);
     const effectiveSelectedTools = Array.from(new Set([
@@ -11154,14 +11248,16 @@ function PlayView({
       && !tool.consumed
     ) && askWindowConfirm('Big Iron Cauldron으로 이 치료제를 PRESERVE 처리할까요?');
     const transactionId = `treatment:${Date.now()}`;
-    const journalText = await requestControlledPrompt({
+    const journalChoice = await requestControlledPrompt({
       title: '치료 기록',
       message: '이번 치료제와 환자에 대한 기록을 남겨 주세요.',
       defaultValue: `${patient.name}의 치료제를 조제했다.`,
       kicker: '환자 기록',
       label: '기록',
       inputMode: 'multiline'
-    }) || `${patient.name}의 치료제를 조제했다.`;
+    });
+    if (journalChoice === null) return;
+    const journalText = journalChoice.trim() || `${patient.name}의 치료제를 조제했다.`;
     const toolCards = Object.fromEntries(canonicalTools
       .filter(tool => effectiveSelectedTools.includes(tool.instanceId) && tool.toolId === 'fine-toothed-comb' && !tool.broken && !tool.consumed)
       .map(tool => [tool.instanceId, drawPlayingCard()]));
@@ -11183,6 +11279,8 @@ function PlayView({
       selectedToolIds: effectiveSelectedTools,
       catalyse,
       preserve,
+      purify: usePurify,
+      purifyEligible,
       toolCards,
       trinketRewardBonus: getActiveFamiliarMechanic(state) === 'shrewd' ? 1 : 0,
       journalText
@@ -11318,15 +11416,22 @@ function PlayView({
           timestamp: Date.now()
         }, ...s.journals]
       };
+      const existingArchive = s.patientArchive.find(row => row.caseId === nextPatient.id);
+      const remedyPartNames = selectedBagItems.map(itemId => state.bag.find(item => item.id === itemId)?.name || itemId);
       const archive = createPatientArchiveRecord({
         caseId: nextPatient.id,
         patient: nextPatient,
         location: s.currentLocationName,
-        encounteredAt: state.journey?.startDate || Date.now(),
+        encounteredAt: existingArchive?.encounteredAt || Date.now(),
         treatedAt: Date.now(),
-        remedyParts: selectedBagItems,
+        remedyParts: remedyPartNames,
         treatmentResult: outcome.allAilmentsResolved ? 'success' : 'pending',
         reward: { trinkets: outcome.trinketReward, reputation: outcome.reputationChange },
+        specialEffects: [
+          ...(usePurify ? ['PURIFY · FOUL removed'] : []),
+          ...(outcome.remedyFlags.includes('PRESERVED') ? ['PRESERVED'] : []),
+          ...outcome.manualEffects.map(effect => effect.effect.type)
+        ],
         journalEntryIds: [`${transactionId}:journal`],
         sourceJourneyId: s.journey?.journeyId || null,
         transactionIds: [transactionId]
@@ -11365,7 +11470,12 @@ function PlayView({
     setSelectedBagItems([]);
     setSelectedTools([]);
     setUsePurify(false);
-    showAlert(`치료가 완료되었습니다. 명성 ${outcome.reputationChange >= 0 ? '+' : ''}${outcome.reputationChange}, 장신구 +${outcome.trinketReward}.${outcome.badIdeaOutcomeApplied ? '\nInspiration 도구 보상도 함께 저장했습니다.' : ''}${treatmentManualDraft ? '\n이어지는 인쇄 효과는 전용 직접 판정에 열었습니다.' : ''}`);
+    const consumedNames = selectedBagItems.map(itemId => localizeInventoryItemName(state.bag.find(item => item.id === itemId)?.name || itemId));
+    showAlert(`치료가 완료되었습니다.\n소비: ${consumedNames.join(', ')}\n명성 ${outcome.reputationChange >= 0 ? '+' : ''}${outcome.reputationChange} · 장신구 +${outcome.trinketReward}\n남은 치료 시간: ${remainingTime}시간${outcome.badIdeaOutcomeApplied ? '\nInspiration 도구 보상도 함께 저장했습니다.' : ''}${treatmentManualDraft ? '\n이어지는 인쇄 효과는 전용 직접 판정에 열었습니다.' : ''}`);
+    } finally {
+      treatmentSubmitPending.current = false;
+      setIsTreatmentSubmitting(false);
+    }
   };
 
 
@@ -14575,6 +14685,23 @@ function PlayView({
                   🎉 환자 치료에 성공했습니다! 남은 치료 시간 동안 주변 지역에서 여분 채집을 진행해 약초를 추가로 얻을 수 있습니다.
                 </p>
 
+                {(() => {
+                  const receipt = [...state.patientArchive]
+                    .filter(record => record.status === 'treated')
+                    .sort((a, b) => (b.treatedAt || 0) - (a.treatedAt || 0))[0];
+                  if (!receipt) return null;
+                  return <div className="treatment-result-receipt" role="status">
+                    <div>
+                      <span className="journal-note-label">방금 끝난 진료</span>
+                      <strong>{receipt.patientName || receipt.descriptor || '이름 없는 환자'} · 치료 성공</strong>
+                    </div>
+                    <div><span>사용한 부위</span><strong>{receipt.remedyParts.length > 0 ? receipt.remedyParts.map(localizeInventoryItemName).join(', ') : '기록 없음'}</strong></div>
+                    <div><span>보상</span><strong>명성 +{receipt.reward.reputation} · 장신구 +{receipt.reward.trinkets}</strong></div>
+                    <div><span>다음 선택</span><strong>남은 {state.scroungingTimer}시간으로 여분 채집하거나 바로 마감</strong></div>
+                    <button type="button" onClick={onOpenPatientArchive} className="btn-cozy-secondary">환자 기록에서 자세히 보기</button>
+                  </div>;
+                })()}
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                   {/* Action 1: Forage Current Location (1 Hour) */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#faf8f5', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
@@ -14795,7 +14922,7 @@ function PlayView({
                   현재 돌보는 환자가 없습니다. 카드 절차로 환자의 성격, 묘사, 중증도와 질환을 생성합니다.
                 </p>
                 <form onSubmit={handleDiagnoseAilment} style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', marginTop: '0.8rem' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '0.5rem' }}>
+                  <div className="patient-intake-fields" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '0.5rem' }}>
                     <input
                       type="text"
                       placeholder="환자 이름 (선택)"
@@ -14846,6 +14973,9 @@ function PlayView({
                     {(state.activeAilment.patientName || state.activeAilment.species || state.activeAilment.initialRememberedNote) && (
                       <div style={{ marginTop: '0.5rem', padding: '0.65rem', border: '1px dashed var(--glass-border)', background: '#fffefa', borderRadius: '4px', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
                         <div><strong>환자:</strong> {state.activeAilment.patientName || '이름 모를 야수'} {state.activeAilment.species ? ` / ${state.activeAilment.species}` : ''}</div>
+                        {(treatmentPatient?.personality || treatmentPatient?.descriptor) && (
+                          <div style={{ marginTop: '0.25rem' }}><strong>첫인상:</strong> {[treatmentPatient.personality ? patientPersonalityLabel(treatmentPatient.personality) : '', treatmentPatient.descriptor ? localizeCharacterDescriptor(treatmentPatient.descriptor) : ''].filter(Boolean).join(' · ')}</div>
+                        )}
                         {state.activeAilment.initialRememberedNote && (
                           <div style={{ marginTop: '0.35rem', whiteSpace: 'pre-wrap' }}>{state.activeAilment.initialRememberedNote}</div>
                         )}
@@ -15108,7 +15238,7 @@ function PlayView({
                         <strong style={{ color: '#7c5a2a' }}>떠나기 전 담보 판매</strong>
                         <div style={{ display: 'grid', gap: '0.35rem', marginTop: '0.45rem' }}>
                           {saleableOddments.map(item => (
-                            <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem' }}>
+                            <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minHeight: '44px', padding: '0.2rem 0', fontSize: '0.78rem' }}>
                               <input
                                 type="checkbox"
                                 checked={pawnItemIds.includes(item.id)}
@@ -15118,7 +15248,7 @@ function PlayView({
                             </label>
                           ))}
                         </div>
-                        <button type="button" onClick={handleSellOddment} disabled={pawnItemIds.length === 0} style={{ marginTop: '0.5rem', padding: '0.4rem 0.65rem', background: '#fffaf0', border: '1px solid #d8b16c', borderRadius: '6px', color: '#7c5a2a', fontSize: '0.78rem', fontWeight: 'bold' }}>
+                        <button type="button" onClick={handleSellOddment} disabled={pawnItemIds.length === 0} style={{ marginTop: '0.5rem', minHeight: '44px', padding: '0.4rem 0.65rem', background: '#fffaf0', border: '1px solid #d8b16c', borderRadius: '6px', color: '#7c5a2a', fontSize: '0.78rem', fontWeight: 'bold' }}>
                           전체 무게 {formatWeight(preview.totalWeight)} · 장신구 {preview.trinketReward}개 받기
                         </button>
                       </div>
@@ -15134,28 +15264,6 @@ function PlayView({
                   </p>
 
                   {(() => {
-                    const selectedReagents = [
-                      ...state.bag.filter(item => selectedBagItems.includes(item.id)),
-                      ...selectedToolEffectItems(state.bag, selectedTools)
-                    ];
-                    const validation = validateConcoction(state.activeAilment, selectedReagents, state.bag, state, usePurify);
-                    const canonicalPatient = state.patients.find(patient => patient.id === state.activePatientId);
-                    const canonicalAilment = canonicalPatient?.ailments.find(ailment =>
-                      ailment.status === 'active' && ailment.id === state.activeAilment?.id
-                    ) || canonicalPatient?.ailments.find(ailment => ailment.status === 'active');
-                    const selectedCanonicalInventory = toEngineInventory(state.bag.filter(item =>
-                      selectedBagItems.includes(item.id) || selectedTools.includes(item.id)
-                    ));
-                    const canonicalSelectionComplete = Boolean(
-                      canonicalPatient
-                      && canonicalAilment
-                      && canTreatAilmentWithInventory(
-                        canonicalPatient,
-                        canonicalAilment.id,
-                        selectedCanonicalInventory,
-                        state.ailmentTagOverrides
-                      )
-                    );
                     const alternative = state.pendingAlternativeAcquisition;
                     const makeDoMatches = alternative?.kind === 'make-do'
                       ? state.bag.filter(item => {
@@ -15166,17 +15274,32 @@ function PlayView({
                       })
                       : [];
                     return (
-                      <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#fff8ee', border: '1px dashed #d4a853', borderRadius: '8px', fontSize: '0.82rem', lineHeight: 1.45 }}>
-                        <strong style={{ color: '#8b5e1a' }}>🧩 약재 대체 및 대안 (Replacement, p.30)</strong>
-                        <div style={{ marginTop: '0.25rem', color: '#6f604d' }}>
-                          {state.rulesetId === 'original-1e-3p'
-                            ? canonicalSelectionComplete
-                              ? '현재 선택이 이 질환의 요구조건을 충족합니다.'
-                              : `현재 선택은 아직 요구조건을 충족하지 않습니다. 필요: ${state.activeAilment.tags || '질환 카드의 요구 태그'}`
-                            : `현재 선택 기준 미충족: ${validation.missingRequirements.length > 0 ? validation.missingRequirements.join(', ') : '없음'}`}
+                      <>
+                        <div className={`treatment-readiness ${treatmentPreview?.ready ? 'treatment-readiness--ready' : ''}`} role="status">
+                          <div className="treatment-readiness__heading">
+                            <strong>{treatmentPreview?.ready ? '처방 준비 완료' : selectedBagItems.length ? '처방을 확인하세요' : '재료를 선택하세요'}</strong>
+                            <span>{state.activeAilment.tags || '질환 카드의 요구 태그'}</span>
+                          </div>
+                          <div className="treatment-readiness__facts">
+                            <div><span>선택한 약효</span><strong>{Object.entries(treatmentPreview?.providedTags || {}).length > 0
+                              ? Object.entries(treatmentPreview?.providedTags || {}).map(([tag, value]) => `${tag} ${value}`).join(' · ')
+                              : '없음'}</strong></div>
+                            <div><span>치료 시 소비</span><strong>{selectedBagItems.length > 0
+                              ? selectedBagItems.map(id => localizeInventoryItemName(state.bag.find(item => item.id === id)?.name || id)).join(', ')
+                              : '선택 전'}</strong></div>
+                            <div><span>보상 계산</span><strong>FAIR {treatmentPreview?.fair || 0} · FOUL {treatmentPreview?.foul || 0}</strong></div>
+                          </div>
+                          {!treatmentPreview?.ready && (treatmentPreview?.messages.length || 0) > 0 && (
+                            <ul className="treatment-readiness__missing">
+                              {treatmentPreview!.messages.map(message => <li key={message}>{localizeGameplayMessage(message)}</li>)}
+                            </ul>
+                          )}
+                          <small>일반 약효 태그는 가장 높은 값만 사용하며 서로 더하지 않습니다. FAIR와 FOUL만 합산한 뒤 서로 상쇄합니다.</small>
                         </div>
-                        {alternative && (
-                          <div style={{ marginTop: '0.55rem', padding: '0.55rem', background: '#fff', border: '1px solid #dfcfaa', borderRadius: '4px' }}>
+                        <details style={{ marginBottom: '1rem', padding: '0.65rem 0', borderBottom: '1px dashed #d4a853', fontSize: '0.82rem', lineHeight: 1.45 }} open={Boolean(alternative)}>
+                          <summary style={{ cursor: 'pointer', color: '#8b5e1a', fontWeight: 700, minHeight: '40px', display: 'flex', alignItems: 'center' }}>🧩 필요한 약효가 없나요? Make Do / Replacement (p.30)</summary>
+                          {alternative && (
+                            <div style={{ marginTop: '0.55rem', padding: '0.55rem', background: '#fff', border: '1px solid #dfcfaa', borderRadius: '4px' }}>
                             <strong>{alternative.kind === 'make-do' ? 'Make Do 탐색 중' : 'Replacement 탐색 중'}</strong>
                             <div>{alternative.targetTag} {alternative.requiredPotency} · 채집 또는 흥정으로 실제 획득 필요</div>
                             {alternative.kind === 'replacement' && <div>희귀도 12 · 무게 2/3 · {alternative.name} ({alternative.preparation})</div>}
@@ -15189,16 +15312,17 @@ function PlayView({
                                 ))}
                               </div>
                             )}
-                          </div>
-                        )}
-                        <button
-                          type="button"
-                          onClick={handleCreateReplacementReagent}
-                          style={{ marginTop: '0.55rem', padding: '0.45rem 0.75rem', background: '#f5efe2', border: '1px solid #c9a66b', borderRadius: '6px', color: '#6f4e23', fontWeight: 'bold', cursor: 'pointer' }}
-                        >
-                          🧩 Make Do / Replacement 탐색 조건 정하기
-                        </button>
-                      </div>
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={handleCreateReplacementReagent}
+                            style={{ marginTop: '0.55rem', minHeight: '42px', padding: '0.45rem 0.75rem', background: '#f5efe2', border: '1px solid #c9a66b', borderRadius: '6px', color: '#6f4e23', fontWeight: 'bold', cursor: 'pointer' }}
+                          >
+                            탐색 조건 정하기
+                          </button>
+                        </details>
+                      </>
                     );
                   })()}
 
@@ -15277,29 +15401,49 @@ function PlayView({
                         {state.bag.filter(item => item.type === 'reagent').length === 0 ? (
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>가방에 쓸 수 있는 영약재가 없습니다.</span>
                         ) : (
-                          state.bag.filter(item => item.type === 'reagent').map(item => (
-                            <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                          state.bag.filter(item => item.type === 'reagent').map(item => {
+                            const preparation = item.canonicalReagentId && item.preparationId
+                              ? REAGENT_BY_ID.get(item.canonicalReagentId)?.preparations.find(row => row.id === item.preparationId)
+                              : null;
+                            const selected = selectedBagItems.includes(item.id);
+                            return <label key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '7px', minHeight: '44px', padding: '0.35rem', border: selected ? '1px solid #8aa58e' : '1px solid transparent', borderRadius: '6px', background: selected ? '#f0f7f1' : 'transparent', fontSize: '0.85rem', cursor: 'pointer' }}>
                               <input
                                 type="checkbox"
-                                checked={selectedBagItems.includes(item.id)}
+                                checked={selected}
                                 onChange={e => {
                                   if (e.target.checked) persistTreatmentDraft([...selectedBagItems, item.id], selectedTools, usePurify);
                                   else persistTreatmentDraft(selectedBagItems.filter(id => id !== item.id), selectedTools, usePurify);
                                 }}
                               />
-                              {localizeInventoryItemName(item.name)}
-                            </label>
-                          ))
+                              <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+                                {localizeInventoryItemName(item.name)}
+                                {preparation && <small style={{ display: 'block', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+                                  {preparation.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음'} · {item.usesRemaining || preparation.uses}회분 · 무게 {formatWeight(item.weight)}
+                                </small>}
+                              </span>
+                            </label>;
+                          })
                         )}
                       </div>
                     </div>
 
                     {/* Tools selection */}
                     <div style={{ background: '#fafafa', padding: '0.8rem', borderRadius: '8px', border: '1px solid #ddd' }}>
-                      <strong style={{ fontSize: '0.85rem' }}>⚒️ 사용할 기본 도구/조제법:</strong>
+                      <strong style={{ fontSize: '0.85rem' }}>⚒️ 선택한 부위에 사용할 도구:</strong>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginTop: '0.5rem' }}>
-                        {state.bag.filter(item => item.type === 'tool').map(item => (
-                          <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                        {state.bag.filter(item => item.type === 'tool').length === 0 && (
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>가방에 도구가 없습니다. 도구가 필요 없는 부위는 그대로 사용할 수 있습니다.</span>
+                        )}
+                        {state.bag.filter(item => item.type === 'tool').map(item => {
+                          const isRequired = treatmentPreview?.missingToolIds.includes(item.canonicalToolId || item.id)
+                            || selectedBagItems.some(itemId => {
+                              const ingredient = state.bag.find(row => row.id === itemId);
+                              const preparation = ingredient?.canonicalReagentId && ingredient.preparationId
+                                ? REAGENT_BY_ID.get(ingredient.canonicalReagentId)?.preparations.find(row => row.id === ingredient.preparationId)
+                                : null;
+                              return preparation?.requiredTools.some(toolId => toolId === (item.canonicalToolId || item.id));
+                            });
+                          return <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '7px', minHeight: '44px', padding: '0.25rem 0.35rem', borderRadius: '5px', background: isRequired ? '#fff8e8' : 'transparent', fontSize: '0.85rem', cursor: 'pointer' }}>
                             <input
                               type="checkbox"
                               checked={selectedTools.includes(item.id)}
@@ -15308,32 +15452,40 @@ function PlayView({
                                 else persistTreatmentDraft(selectedBagItems, selectedTools.filter(id => id !== item.id), usePurify);
                               }}
                             />
-                            {localizeInventoryItemName(item.name)}
-                          </label>
-                        ))}
-                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '5px', fontSize: '0.85rem', cursor: 'pointer', marginTop: '0.4rem', paddingTop: '0.45rem', borderTop: '1px dashed #ddd' }}>
+                            <span>{localizeInventoryItemName(item.name)}{isRequired ? <small style={{ display: 'block', color: '#8b5e1a' }}>선택한 부위에 필요</small> : null}</span>
+                          </label>;
+                        })}
+                        {purifyLearned && <label style={{ display: 'flex', alignItems: 'flex-start', gap: '7px', minHeight: '44px', fontSize: '0.85rem', cursor: purifyEligible ? 'pointer' : 'not-allowed', marginTop: '0.4rem', paddingTop: '0.55rem', borderTop: '1px dashed #ddd' }}>
                           <input
                             type="checkbox"
                             checked={usePurify}
+                            disabled={!purifyEligible}
                             onChange={e => persistTreatmentDraft(selectedBagItems, selectedTools, e.target.checked)}
                           />
                           <span>
                             정화하기 [PURIFY] 적용
                             <small style={{ display: 'block', color: 'var(--text-muted)', lineHeight: 1.35 }}>
-                              산맥의 특별 조제법을 사용해 이 치료제의 [FOUL]을 0으로 계산합니다.
+                              {purifyEligible
+                                ? `마지막으로 모은 ${lastSelectedReagent ? localizeInventoryItemName(lastSelectedReagent.name) : '영약재'}가 산맥에서 왔습니다. 이 치료제의 FOUL을 0으로 계산합니다.`
+                                : '선택한 영약재 중 마지막으로 모은 부위가 산맥에서 온 경우에만 사용할 수 있습니다.'}
                             </small>
                           </span>
-                        </label>
+                        </label>}
                       </div>
                     </div>
                   </div>
 
                   <button
                     onClick={handleConcoctRemedy}
-                    style={{ width: '100%', padding: '0.8rem', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '1rem', marginTop: '1rem' }}
+                    disabled={!treatmentPreview?.ready || isTreatmentSubmitting}
+                    aria-describedby="treatment-submit-help"
+                    style={{ width: '100%', minHeight: '48px', padding: '0.8rem', background: treatmentPreview?.ready && !isTreatmentSubmitting ? 'var(--primary)' : '#a8a29e', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '1rem', marginTop: '1rem', cursor: treatmentPreview?.ready && !isTreatmentSubmitting ? 'pointer' : 'not-allowed' }}
                   >
-                    🧪 치료제 완성하기
+                    {isTreatmentSubmitting ? '치료 결과를 기록하는 중…' : treatmentPreview?.ready ? '🧪 치료제 완성하기' : '요구조건을 충족하면 완성할 수 있습니다'}
                   </button>
+                  <div id="treatment-submit-help" style={{ textAlign: 'center', marginTop: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    완성 전에는 재료가 소비되지 않습니다. 기록·보상 선택을 취소해도 현재 처방 초안이 유지됩니다.
+                  </div>
                 </div>
               </div>
             )}
@@ -17815,7 +17967,7 @@ function PatientArchiveView({
   const successCount = records.filter(r => r.outcome === 'success').length
     + state.patientArchive.filter(record => record.success).length;
   const failureCount = records.filter(r => r.outcome === 'failure').length
-    + state.patientArchive.filter(record => record.failure).length;
+    + state.patientArchive.filter(record => record.failure || record.status === 'abandoned').length;
   const archiveCount = records.length + state.patientArchive.length;
 
   useEffect(() => {
@@ -17847,7 +17999,7 @@ function PatientArchiveView({
       </h2>
       <p style={{ fontSize: '0.92rem', color: 'var(--text-muted)', marginTop: 0 }}>
         들녘에서 만난 야수들, 그들이 건넨 이야기와 약제사 배낭에서 꺼내어 조제해준 약의 흔적들을 모은 기록장입니다.
-        {archiveCount > 0 && ` 지금까지 온전히 나아 돌아간 야수들 ${successCount}마리와, 끝내 병세를 꺾지 못한 ${failureCount}마리의 이야기가 기록되어 있습니다.`}
+        {archiveCount > 0 && ` 지금까지 온전히 나아 돌아간 야수들 ${successCount}마리와, 끝내 병세를 꺾지 못했거나 떠나보낸 ${failureCount}마리의 이야기가 기록되어 있습니다.`}
       </p>
 
       {state.patientArchive.length > 0 && (
@@ -17856,17 +18008,43 @@ function PatientArchiveView({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: '0.6rem' }}>
             {[...state.patientArchive].sort((a, b) => b.encounteredAt - a.encounteredAt).map(record => {
               const patient = state.patients.find(row => row.id === record.patientId);
+              const ailmentDetails = record.ailments.map(ailment => {
+                const definition = ailment.ailmentId ? AILMENTS.find(row => row.id === ailment.ailmentId) : null;
+                return `${definition?.displayName || definition?.canonicalName || ailment.ailmentId || '질환 미기록'} · ${localizeSeverityLabel(ailment.severity)}`;
+              });
+              const historyPreparationIds = patient?.treatmentHistory.flatMap(entry => entry.preparationIds) || [];
+              const recordedRemedyParts = record.remedyParts.map(part => {
+                const matched = REAGENTS.flatMap(reagent => reagent.preparations.map(preparation => ({ reagent, preparation })))
+                  .find(row => row.preparation.id === part);
+                return matched
+                  ? `${matched.reagent.displayName} · ${localizePreparationName(matched.preparation.name)}`
+                  : localizeInventoryItemName(part);
+              });
+              const historyRemedyParts = historyPreparationIds.flatMap(preparationId => {
+                const matched = REAGENTS.flatMap(reagent => reagent.preparations.map(preparation => ({ reagent, preparation })))
+                  .find(row => row.preparation.id === preparationId);
+                return matched ? [`${matched.reagent.displayName} · ${localizePreparationName(matched.preparation.name)}`] : [];
+              });
+              const remedyParts = recordedRemedyParts.some(part => !part.includes('treatment:') && !part.includes('forage:'))
+                ? recordedRemedyParts
+                : historyRemedyParts;
+              const activeTimer = record.timers.length > 0 ? Math.min(...record.timers.map(timer => timer.current)) : null;
               const statusLabel: Record<CanonicalPatientArchiveRecord['status'], string> = {
                 encountered: '만남', active: '치료 중', treated: '치료 성공', failed: '치료 실패', abandoned: '떠나보냄', unresolved: '미해결'
               };
               return (
-                <article key={record.caseId} style={{ padding: '0.7rem', border: `1px solid ${record.failure ? '#fca5a5' : record.success ? '#86efac' : '#d6d3d1'}`, borderRadius: '6px', background: '#fff' }}>
+                <article key={record.caseId} style={{ padding: '0.85rem', border: `1px solid ${record.failure ? '#fca5a5' : record.success ? '#86efac' : '#d6d3d1'}`, borderRadius: '6px', background: '#fff', minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
                     <strong>{patient?.name || record.patientName || record.descriptor || record.patientId}</strong>
                     <span style={{ fontSize: '0.72rem', fontWeight: 700, color: record.failure ? '#b91c1c' : record.success ? '#166534' : '#57534e' }}>{statusLabel[record.status]}</span>
                   </div>
-                  <div style={{ marginTop: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{record.location || '위치 미기록'} · 질환 {record.ailments.length} · 타이머 {record.timers.length}</div>
-                  <div style={{ marginTop: '0.25rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>결과: {localizeTreatmentResult(record.treatmentResult)} · 성공 {record.success ? '예' : '아니오'} · 실패 {record.failure ? '예' : '아니오'}</div>
+                  {(record.personality || record.descriptor) && <div style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{[record.personality ? patientPersonalityLabel(record.personality) : '', record.descriptor ? localizeCharacterDescriptor(record.descriptor) : ''].filter(Boolean).join(' · ')}</div>}
+                  <div style={{ marginTop: '0.45rem', fontSize: '0.76rem', color: 'var(--text-muted)', overflowWrap: 'anywhere' }}>{record.location || '위치 미기록'}{activeTimer !== null ? ` · 남은 타이머 ${activeTimer}시간` : ''}</div>
+                  {ailmentDetails.length > 0 && <div style={{ marginTop: '0.4rem', fontSize: '0.78rem' }}><strong>질환</strong><br />{ailmentDetails.join(' / ')}</div>}
+                  {remedyParts.length > 0 && <div style={{ marginTop: '0.4rem', fontSize: '0.78rem', overflowWrap: 'anywhere' }}><strong>처방</strong><br />{remedyParts.join(' + ')}</div>}
+                  {(record.reward.reputation !== 0 || record.reward.trinkets !== 0) && <div style={{ marginTop: '0.4rem', fontSize: '0.76rem', color: '#166534' }}>보상 · 명성 +{record.reward.reputation} · 장신구 +{record.reward.trinkets}</div>}
+                  {(record.penalty.reputation !== 0 || record.penalty.trinkets !== 0) && <div style={{ marginTop: '0.4rem', fontSize: '0.76rem', color: '#b91c1c' }}>손실 · 명성 −{record.penalty.reputation} · 장신구 −{record.penalty.trinkets}</div>}
+                  {record.specialEffects.length > 0 && <div style={{ marginTop: '0.4rem', fontSize: '0.73rem', color: 'var(--text-muted)' }}>특수 결과 · {record.specialEffects.join(' · ')}</div>}
                 </article>
               );
             })}

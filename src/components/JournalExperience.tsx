@@ -73,7 +73,7 @@ export function ChapterOpening({
   onReturnToToday: () => void;
   onOpenReference: (request: RulebookReferenceRequest) => void;
 }) {
-  const patient = state.patients?.find((row: any) => row.id === state.activePatientId);
+  const patient = state.patients?.find((row: any) => row.id === state.activePatientId && row.status === 'active');
   const ailment = patient?.ailments?.find((row: any) => row.status === 'active');
   const legacyAilment = state.activeAilment;
   const patientName = patient?.name || legacyAilment?.patientName;

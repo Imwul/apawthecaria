@@ -3,6 +3,8 @@ import {
   AILMENTS,
   REAGENTS,
   canTreatAilmentWithInventory,
+  hasImmediatelyTreatableAilment,
+  previewTreatmentSelection,
   canonicalMetadata,
   listLegalMoveStops,
   previewMoveStops,
@@ -292,6 +294,88 @@ describe('foraging and treatment transactions', () => {
     expect(result.value?.gatheredItems).toHaveLength(2);
     expect(result.value?.timerCostAfterEncounter).toBe(3);
     expect(new Set(result.value?.gatheredItems.map(item => item.canonicalReagentId))).toEqual(new Set([candidate.reagentId]));
+    expect(result.value?.gatheredItems.every(item => item.provenance?.region === 'Bog')).toBe(true);
+    expect(result.value?.gatheredItems.every(item => item.provenance?.source === 'forage')).toBe(true);
+  });
+
+  it('[REMEDY-001/FORAGE-006/UX-001] previews selected Parts, required Tools, and the p.33 immediate-Remedy checkpoint', () => {
+    const ailment = AILMENTS.find(row => row.canonicalName === 'Anxious Scratching')!;
+    const patient = resolvePatient({ id: 'preview-patient', name: 'Patient', species: 'Mouse', ailmentIds: [ailment.id] }).value!;
+    const reagents: EngineInventoryItem[] = REAGENTS.flatMap(reagent => reagent.preparations.map((part, index) => ({
+      id: `preview:${reagent.id}:${index}`, name: part.name, type: 'reagent' as const, weight: part.weight,
+      canonicalReagentId: reagent.id, preparationId: part.id, usesRemaining: part.uses
+    })));
+    const toolIds = ['belt-knife', 'mortar-and-pestle', 'camp-kettle', 'teeth', 'paws', 'copper-frying-pan', 'big-iron-cauldron'];
+    const tools: EngineInventoryItem[] = toolIds.map(id => ({ id: `preview-tool:${id}`, name: id, type: 'tool', weight: 0, canonicalToolId: id }));
+
+    const empty = previewTreatmentSelection({
+      patient, ailmentInstanceId: patient.ailments[0].id, inventory: [...reagents, ...tools], selectedItemIds: [], selectedToolIds: []
+    });
+    expect(empty.ready).toBe(false);
+    expect(empty.messages.join(' ')).toMatch(/select at least one/i);
+
+    const complete = previewTreatmentSelection({
+      patient, ailmentInstanceId: patient.ailments[0].id, inventory: [...reagents, ...tools],
+      selectedItemIds: reagents.map(item => item.id), selectedToolIds: tools.map(item => item.id)
+    });
+    expect(complete.ready).toBe(true);
+    expect(complete.rawFoul).toBeGreaterThan(0);
+    expect(hasImmediatelyTreatableAilment(patient, [...reagents, ...tools])).toBe(true);
+    expect(hasImmediatelyTreatableAilment(patient, reagents, [], toolIds)).toBe(true);
+
+    const waen = AILMENTS.find(row => row.canonicalName === 'Waen Drops')!;
+    const waenPatient = resolvePatient({ id: 'waen-preview', name: 'Patient', species: 'Mouse', ailmentIds: [waen.id] }).value!;
+    const marigold = REAGENTS.find(row => row.canonicalName === 'Marigold')!;
+    const beehive = REAGENTS.find(row => row.canonicalName === 'Beehive')!;
+    const painPart = marigold.preparations.find(part => part.tags.some(tag => tag.tag === 'PAIN' && tag.value >= 2))!;
+    const fairPart = beehive.preparations.find(part => part.tags.some(tag => tag.tag === 'FAIR' && tag.value >= 4))!;
+    const waenItems: EngineInventoryItem[] = [painPart, fairPart].map((part, index) => ({
+      id: `waen-part:${index}`, name: part.name, type: 'reagent', weight: part.weight,
+      preparationId: part.id, usesRemaining: part.uses
+    }));
+    const waenMortar: EngineInventoryItem = {
+      id: 'waen-tool:mortar', name: 'Mortar and Pestle', type: 'tool', weight: 0,
+      canonicalToolId: 'mortar-and-pestle'
+    };
+    const waenPreview = previewTreatmentSelection({
+      patient: waenPatient,
+      ailmentInstanceId: waenPatient.ailments[0].id,
+      inventory: [...waenItems, waenMortar],
+      selectedItemIds: waenItems.map(item => item.id),
+      selectedToolIds: [waenMortar.id]
+    });
+    expect(waenPreview.ready).toBe(true);
+    expect(waenPreview.providedTags).toMatchObject({ PAIN: 2, FAIR: 4, FOUL: 0 });
+    expect(hasImmediatelyTreatableAilment(waenPatient, waenItems)).toBe(false);
+    expect(hasImmediatelyTreatableAilment(waenPatient, waenItems, [], ['mortar-and-pestle'])).toBe(true);
+  });
+
+  it('[REMEDY-004/TOOL-003] only removes FOUL with a learned, Mountain-eligible PURIFY use', () => {
+    const ailment = AILMENTS.find(row => row.canonicalName === 'Anxious Scratching')!;
+    const patient = resolvePatient({ id: 'purify-patient', name: 'Patient', species: 'Mouse', ailmentIds: [ailment.id] }).value!;
+    const reagents: EngineInventoryItem[] = REAGENTS.flatMap(reagent => reagent.preparations.map((part, index) => ({
+      id: `purify:${reagent.id}:${index}`, name: part.name, type: 'reagent' as const, weight: part.weight,
+      canonicalReagentId: reagent.id, preparationId: part.id, usesRemaining: part.uses,
+      provenance: { acquisitionId: `purify:${index}`, source: 'forage' as const, sourceTransactionId: 'forage:mountain', region: 'Mountain' as const }
+    })));
+    const tools: EngineInventoryItem[] = ['belt-knife', 'mortar-and-pestle', 'camp-kettle', 'teeth', 'paws', 'copper-frying-pan', 'big-iron-cauldron']
+      .map(id => ({ id: `purify-tool:${id}`, name: id, type: 'tool' as const, weight: 0, canonicalToolId: id }));
+    const eligible = previewTreatmentSelection({
+      patient, ailmentInstanceId: patient.ailments[0].id, inventory: [...reagents, ...tools],
+      selectedItemIds: reagents.map(item => item.id), selectedToolIds: tools.map(item => item.id), purify: true, purifyEligible: true
+    });
+    expect(eligible.rawFoul).toBeGreaterThan(0);
+    expect(eligible.foul).toBe(0);
+    expect(eligible.ready).toBe(true);
+
+    const rejected = resolveTreatment({
+      mode: 'treat', transactionId: 'purify-invalid',
+      state: { inventory: [...reagents, ...tools], patient, reputation: 0, trinkets: 0, journalEvents: [], appliedTransactionIds: [] },
+      ailmentInstanceId: patient.ailments[0].id, selectedItemIds: reagents.map(item => item.id),
+      selectedToolIds: tools.map(item => item.id), purify: true, purifyEligible: false, journalText: ''
+    });
+    expect(rejected.status).toBe('invalid');
+    expect(rejected.messages.join(' ')).toMatch(/Mountain/i);
   });
 
   it('[CHARACTER-005/FORAGE-001/FORAGE-006] resolves Independent Familiar foraging with a real draw and no Encounter or Timer cost', () => {

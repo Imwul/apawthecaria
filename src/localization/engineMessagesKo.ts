@@ -178,6 +178,7 @@ const exactEngineMessages: Record<string, string> = {
   "Select a canonical Juicy Gossip note from Inventory.": "가방에서 정식 Juicy Gossip 기록을 선택하세요.",
   "Select a canonical Reagent and Preparation.": "정식 영약재와 조제 부위를 선택하세요.",
   "Select at least one pawnable item with remaining Weight.": "무게가 남아 있고 전당 잡힐 수 있는 아이템을 하나 이상 선택하세요.",
+  "Select at least one prepared Reagent.": "조제된 영약재 부위를 하나 이상 선택하세요.",
   "Select one Preparation belonging to the target Reagent.": "대상 영약재에 속한 조제 부위 하나를 선택하세요.",
   "Select one printed encounter choice before resolving.": "판정하기 전에 인쇄된 조우 선택지 하나를 고르세요.",
   "Selected Inventory contains an unknown Preparation.": "선택한 가방 아이템에 알 수 없는 조제 부위가 있습니다.",
@@ -231,6 +232,7 @@ const exactEngineMessages: Record<string, string> = {
   "Travel requires a transaction ID.": "이동에는 트랜잭션 ID가 필요합니다.",
   "Treat the Barrow Patient before resolving Building Trust as a success.": "Building Trust를 성공으로 판정하기 전에 고분 환자를 치료하세요.",
   "Treatment requires a transaction ID.": "치료에는 트랜잭션 ID가 필요합니다.",
+  "PURIFY requires the last gathered Reagent to have been gathered in a Mountain Location.": "PURIFY는 마지막으로 모은 영약재가 산맥 장소에서 왔을 때만 사용할 수 있습니다.",
   "Uneasy Sleep success must move exactly 1 Path away.": "Uneasy Sleep 성공 시 정확히 경로 1개만큼 이동해야 합니다.",
   "Unknown Guild Service.": "알 수 없는 Guild 서비스입니다.",
   "Unknown Guild delivery.": "알 수 없는 Guild 배달입니다.",
@@ -396,6 +398,7 @@ const dynamicEngineMessages: Array<[RegExp, (...matches: string[]) => string]> =
   [/^Commissioning or expanding a Wagon requires a City and (.+) Trinkets\.$/, cost => `마차 제작 또는 확장에는 City와 장신구 ${cost}개가 필요합니다.`],
   [/^CATALYSE (.+) requires two different selected Reagents with that Tag\.$/, tag => `CATALYSE ${tag}에는 해당 태그를 지닌 서로 다른 영약재 두 개가 필요합니다.`],
   [/^Required Tool is not selected: (.+)$/, tools => `필요한 도구가 선택되지 않았습니다: ${tools}`],
+  [/^([A-Z]+) (.+) \(provided (.+)\)$/, (tag, required, provided) => `${tag} ${required} 필요 · 현재 ${provided}`],
   [/^(.+) requires (.+) Timer hours, and no Timer may already be 0\.$/, (project, hours) => `${project}에는 타이머 ${hours}시간이 필요하며 이미 0인 타이머가 없어야 합니다.`]
   ,[/^Barter: (.+)$/, reagent => `물물교환: ${reagent}`]
   ,[/^BR (.+); paid (.+) Trinkets and (.+) Reputation\.$/, (br, trinkets, reputation) => `기본 희귀도 ${br}; 장신구 ${trinkets}개와 길드 명성 ${reputation}점을 지불했습니다.`]

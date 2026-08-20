@@ -30,6 +30,8 @@ export interface EngineInventoryItem {
     acquisitionId: string;
     source: 'forage' | 'barter';
     sourceTransactionId: string;
+    /** Region where this exact Part was gathered. Needed by PURIFY (p.180). */
+    region?: TravelRegion;
   };
 }
 
