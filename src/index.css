@@ -874,6 +874,53 @@ button:active {
   width: min(560px, 100%);
 }
 
+.cloud-account-context,
+.cloud-upload-source {
+  display: grid;
+  gap: 0.18rem;
+  margin: 0 1.2rem 0.7rem;
+  padding: 0.65rem 0.75rem;
+  border-left: 3px solid var(--herb, #657255);
+  background: rgba(101, 114, 85, 0.08);
+}
+
+.cloud-account-context span,
+.cloud-upload-source span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.cloud-account-context strong,
+.cloud-upload-source strong {
+  overflow-wrap: anywhere;
+  color: var(--editorial-ink, #25211c);
+  font-size: 0.86rem;
+}
+
+.cloud-account-context em,
+.cloud-upload-source em,
+.cloud-upload-source small {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-style: normal;
+}
+
+.controlled-prompt.app-dialog .cloud-slots__warning,
+.controlled-prompt.app-dialog .cloud-slots__status {
+  margin: 0 1.2rem 0.7rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid rgba(140, 64, 85, 0.35);
+  color: var(--editorial-ink, #25211c);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.controlled-prompt.app-dialog .cloud-slots__status {
+  border-color: rgba(101, 114, 85, 0.35);
+  background: rgba(101, 114, 85, 0.06);
+}
+
 .cloud-slots {
   display: grid;
   gap: 0.7rem;
@@ -911,10 +958,16 @@ button:active {
 }
 
 .cloud-slot__meta time,
-.cloud-slot__meta em {
+.cloud-slot__meta em,
+.cloud-slot__meta small {
   color: var(--text-muted);
   font-size: 0.74rem;
   font-style: normal;
+}
+
+.cloud-slot__meta em {
+  color: var(--herb, #657255);
+  font-weight: 700;
 }
 
 .cloud-slot__actions {

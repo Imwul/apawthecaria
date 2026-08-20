@@ -1,12 +1,13 @@
 import { useState, useEffect, useEffectEvent, useRef, useCallback, useMemo, memo, Fragment, lazy, Suspense } from "react";
 import { db, isFirebaseConfigured, auth, googleProvider, storage, googleSignInErrorMessage, shouldUseRedirectSignIn, firebaseProjectId } from "./firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, runTransaction } from "firebase/firestore";
 import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, type User } from "firebase/auth";
 import { deleteObject, getDownloadURL, ref as storageRef, uploadString } from "firebase/storage";
 import { GAME_DATA } from "./gameData";
 import {
   CAMPAIGN_SAVE_KEY,
   campaignSaveHasNamedApothecary,
+  campaignSaveHasProgress,
   decideCloudSaveAction,
   isRecognizableCampaignSave,
   parseCampaignSaveRaw,
@@ -16,17 +17,25 @@ import { nextCampaignSaveRevision, normalizeSaveRevision } from "./persistence/r
 import {
   type CloudSlotId,
   type CloudSlotRecord,
+  type CloudUploadSourceView,
   type CloudSlotView,
+  CLOUD_DOCUMENT_SAFE_BYTES,
   assembleCloudSlotDocument,
-  assembleNewCloudSlotDocument,
+  cloudSaveDocumentId,
   cloudSlotRecordFromPayload,
   confirmManualSlotDownload,
   confirmManualSlotUpload,
   emptyCloudSlotViews,
+  estimateCloudSlotDocumentBytes,
+  formatCloudPayloadBytes,
   formatCloudSlotUploadedAt,
+  mergeCloudSlotRecord,
   parseUploadedAt,
   readActiveCloudSlot,
+  readCloudAccountBinding,
   readCloudSlotsFromDocument,
+  summarizeCloudUploadSource,
+  writeCloudAccountBinding,
   writeActiveCloudSlot
 } from "./persistence/cloudSlots";
 import { MARKER_BY_ID, MARKER_EDGES, markerEdgeKind } from "./map/markerGraph";
@@ -259,7 +268,7 @@ import {
 } from './localization/gameplayKo';
 import { localizeGameplayMessage } from './localization/engineMessagesKo';
 import { localizeManualEffectValue } from './localization/manualEffectKo';
-import { enqueueOfflineSave, flushOfflineSaves, normalizeOfflineSaveEntries, resolveRevisionConflict, type OfflineSaveEntry } from './persistence/saveQueue';
+import { enqueueOfflineSave, flushOfflineSaves, normalizeOfflineSaveEntries, reconcileOfflineSaveFlush, removeOfflineSavesThroughRevision, resolveRevisionConflict, type OfflineSaveEntry } from './persistence/saveQueue';
 import type { RulebookReferenceRequest } from './rulebook/types';
 import { referenceForJournalTab } from './rulebook/context';
 import { fuzzyReferenceTextMatch } from './rulebook/referenceRegistry';
@@ -328,8 +337,8 @@ const canResolveSeverityAtReputation = (severity: string, reputation: number) =>
 // =================================================================
 // 1. SYNC & STORAGE SYSTEM
 // =================================================================
-const withTimeout = (promise: Promise<any>, ms: number = 10000) => {
-  return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
+const withTimeout = <T,>(promise: Promise<T>, ms: number = 10000): Promise<T> => {
+  return Promise.race([promise, new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
 };
 
 let cloudSaveQueue: Promise<void> = Promise.resolve();
@@ -339,11 +348,20 @@ const SAVE_OUTBOX_KEY = 'apawthecaria_save_outbox';
 const readSaveOutbox = (): OfflineSaveEntry[] => {
   try { return normalizeOfflineSaveEntries(JSON.parse(localStorage.getItem(SAVE_OUTBOX_KEY) || '[]')); } catch { return []; }
 };
-const writeSaveOutbox = (entries: OfflineSaveEntry[]) => localStorage.setItem(SAVE_OUTBOX_KEY, JSON.stringify(entries));
+const writeSaveOutbox = (entries: OfflineSaveEntry[]) => {
+  try {
+    localStorage.setItem(SAVE_OUTBOX_KEY, JSON.stringify(entries));
+    return true;
+  } catch (error) {
+    console.error('클라우드 재시도 큐를 저장하지 못했습니다:', error);
+    return false;
+  }
+};
 
-const userSaveDocRef = () => {
-  if (!db || !auth?.currentUser) return null;
-  return doc(db, 'saves', `uid_${auth.currentUser.uid}`);
+const userSaveDocRef = (expectedUid?: string) => {
+  const uid = auth?.currentUser?.uid;
+  if (!db || !uid || (expectedUid && expectedUid !== uid)) return null;
+  return doc(db, 'saves', cloudSaveDocumentId(uid));
 };
 
 const snapshotUpdatedAt = (snap: object) => {
@@ -356,7 +374,7 @@ const fetchCloudDocumentUpdatedAt = async (uid: string): Promise<string | null> 
     const token = await auth?.currentUser?.getIdToken();
     if (!token) return null;
     const response = await fetch(
-      `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/(default)/documents/saves/uid_${uid}`,
+      `https://firestore.googleapis.com/v1/projects/${firebaseProjectId}/databases/(default)/documents/saves/${cloudSaveDocumentId(uid)}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     if (!response.ok) return null;
@@ -373,6 +391,15 @@ const cloudWriteErrorMessage = (error: { code?: string; message?: string } | nul
   if (code === 'not-signed-in' || message === 'not-signed-in') {
     return '구글 계정에 먼저 로그인해 주세요.';
   }
+  if (code === 'cloud-document-too-large' || message === 'cloud-document-too-large') {
+    return '세 슬롯을 합친 클라우드 기록이 저장 한도를 넘습니다. 사진이 적은 기록으로 슬롯을 덮어쓰거나 이 기기의 기록을 먼저 내보내 보관해 주세요.';
+  }
+  if (code === 'cloud-slot-changed' || message === 'cloud-slot-changed') {
+    return '확인하는 동안 다른 기기에서 이 슬롯이 변경되었습니다. 최신 슬롯을 다시 확인한 뒤 올려 주세요.';
+  }
+  if (code === 'cloud-slot-newer' || message === 'cloud-slot-newer') {
+    return '다른 기기의 더 최신 기록이 있어 자동 업로드하지 않았습니다. 클라우드 기록을 열어 두 기록을 확인해 주세요.';
+  }
   if (code === 'permission-denied' || code.endsWith('/permission-denied')) {
     return '이 구글 계정으로 클라우드에 쓸 권한이 없습니다. 같은 계정으로 다시 로그인해 주세요.';
   }
@@ -385,26 +412,90 @@ const cloudWriteErrorMessage = (error: { code?: string; message?: string } | nul
   return '클라우드에 올리지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.';
 };
 
-const writeCloudSlotRecord = async (record: CloudSlotRecord) => {
-  const docRef = userSaveDocRef();
-  if (!docRef) {
-    throw new Error('not-signed-in');
-  }
-  const snap = await withTimeout(getDoc(docRef), 20000);
-  if (!snap.exists()) {
-    await withTimeout(setDoc(docRef, assembleNewCloudSlotDocument(record)), 20000);
-    return;
-  }
-  const current = readCloudSlotsFromDocument(
-    snap.data() as Record<string, unknown>,
-    snapshotUpdatedAt(snap)
-  );
-  const records: Array<CloudSlotRecord | null> = [null, null, null];
-  current.records.forEach((row, index) => {
-    if (row) records[index] = row;
+type ManualCloudWriteExpectation = {
+  occupied: boolean;
+  saveRevision: number;
+  uploadedAt: string | null;
+};
+
+const writeCloudSlotRecord = async (
+  record: CloudSlotRecord,
+  expectedUid?: string,
+  manualExpectation?: ManualCloudWriteExpectation
+): Promise<CloudSlotView[]> => {
+  const uid = expectedUid || auth?.currentUser?.uid;
+  const docRef = uid ? userSaveDocRef(uid) : null;
+  if (!docRef || !uid) throw new Error('not-signed-in');
+  return withTimeout(runTransaction(db!, async transaction => {
+    if (auth?.currentUser?.uid !== uid) throw new Error('not-signed-in');
+    const snap = await transaction.get(docRef);
+    const current = readCloudSlotsFromDocument(
+      snap.exists() ? snap.data() as Record<string, unknown> : null,
+      snap.exists() ? snapshotUpdatedAt(snap) : null
+    );
+    const currentRecord = current.records[record.slot - 1];
+    if (manualExpectation) {
+      const stillOccupied = Boolean(currentRecord);
+      const sameRevision = normalizeSaveRevision(currentRecord?.saveRevision) === normalizeSaveRevision(manualExpectation.saveRevision);
+      const sameUploadTime = (currentRecord?.uploadedAt || null) === manualExpectation.uploadedAt;
+      if (stillOccupied !== manualExpectation.occupied || (stillOccupied && (!sameRevision || !sameUploadTime))) {
+        const error = new Error('cloud-slot-changed') as Error & { code?: string };
+        error.code = 'cloud-slot-changed';
+        throw error;
+      }
+    } else if (currentRecord) {
+      if (currentRecord.saveRevision > record.saveRevision
+        || (currentRecord.saveRevision === record.saveRevision && currentRecord.payload !== record.payload)) {
+        const error = new Error('cloud-slot-newer') as Error & { code?: string };
+        error.code = 'cloud-slot-newer';
+        throw error;
+      }
+      if (currentRecord.saveRevision === record.saveRevision && currentRecord.payload === record.payload) {
+        return current.views;
+      }
+    }
+    const records = mergeCloudSlotRecord(current.records, record);
+    if (estimateCloudSlotDocumentBytes(records) >= CLOUD_DOCUMENT_SAFE_BYTES) {
+      const error = new Error('cloud-document-too-large') as Error & { code?: string };
+      error.code = 'cloud-document-too-large';
+      throw error;
+    }
+    transaction.set(docRef, assembleCloudSlotDocument(records), { merge: true });
+    return readCloudSlotsFromDocument(assembleCloudSlotDocument(records), record.uploadedAt).views;
+  }), 20000);
+};
+
+const pendingCloudSaveCountForUser = (uid: string | null | undefined, entries = readSaveOutbox()) =>
+  uid ? entries.filter(entry => entry.ownerUid === uid && entry.slot !== null).length : 0;
+
+const flushQueuedCloudSavesForCurrentUser = async (): Promise<OfflineSaveEntry[]> => {
+  const uid = auth?.currentUser?.uid;
+  if (!uid) return readSaveOutbox();
+  let result = readSaveOutbox();
+  cloudSaveQueue = cloudSaveQueue.catch(() => undefined).then(async () => {
+    const allEntries = readSaveOutbox();
+    const eligible = allEntries.filter(entry => entry.ownerUid === uid && entry.slot !== null);
+    const flushed = await flushOfflineSaves(eligible, async entry => {
+      if (!entry.slot) return;
+      await writeCloudSlotRecord(
+        cloudSlotRecordFromPayload(entry.slot, entry.payload, new Date().toISOString()),
+        uid
+      );
+    });
+    result = reconcileOfflineSaveFlush(readSaveOutbox(), flushed);
+    writeSaveOutbox(result);
+  }).catch(error => {
+    console.error('Firebase 저장 에러:', error);
+    result = readSaveOutbox();
   });
-  records[record.slot - 1] = record;
-  await withTimeout(setDoc(docRef, assembleCloudSlotDocument(records), { merge: true }), 20000);
+  await cloudSaveQueue;
+  return result;
+};
+
+type SaveWriteResult = {
+  localSaved: boolean;
+  pendingCloudSaves: number;
+  cloudStatus: 'local-only' | 'synced' | 'pending';
 };
 
 const store = {
@@ -415,31 +506,41 @@ const store = {
       localStorage.setItem(key, jsonString);
     } catch (e) {
       console.error('로컬 저장 에러:', e);
-      return false;
+      return { localSaved: false, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
     }
-    if (jsonString.length >= 950000) {
+    if (summarizeCloudUploadSource(jsonString).payloadBytes >= CLOUD_DOCUMENT_SAFE_BYTES) {
       console.warn('클라우드 저장 한도에 가까워 로컬에만 저장했습니다.');
-      return true;
+      return { localSaved: true, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
     }
-    if (isFirebaseConfigured && db && auth?.currentUser) {
+    const uid = auth?.currentUser?.uid;
+    if (isFirebaseConfigured && db && uid && readCloudAccountBinding() === uid) {
       if (!campaignSaveHasNamedApothecary(value)) {
-        return true;
+        return { localSaved: true, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
       }
       const revision = normalizeSaveRevision(value?.saveRevision);
       const queuedAt = Date.now();
-      writeSaveOutbox(enqueueOfflineSave(readSaveOutbox(), { id: `${key}:${revision}:${queuedAt}`, key, payload: jsonString, revision, queuedAt }));
-      cloudSaveQueue = cloudSaveQueue.catch(() => undefined).then(async () => {
-        if (auth?.currentUser) {
-          const flushed = await flushOfflineSaves(readSaveOutbox(), async entry => {
-            const slot = readActiveCloudSlot();
-            await writeCloudSlotRecord(cloudSlotRecordFromPayload(slot, entry.payload, new Date().toISOString()));
-          });
-          writeSaveOutbox(flushed.remaining);
-        }
-      }).catch(e => console.error('Firebase 저장 에러:', e));
-      await cloudSaveQueue;
+      const slot = readActiveCloudSlot();
+      const queued = enqueueOfflineSave(readSaveOutbox(), {
+        id: `${uid}:${slot}:${key}:${revision}:${queuedAt}`,
+        key,
+        payload: jsonString,
+        revision,
+        ownerUid: uid,
+        slot,
+        queuedAt
+      });
+      if (!writeSaveOutbox(queued)) {
+        return { localSaved: true, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
+      }
+      const remaining = await flushQueuedCloudSavesForCurrentUser();
+      const pendingCloudSaves = pendingCloudSaveCountForUser(uid, remaining);
+      return {
+        localSaved: true,
+        pendingCloudSaves,
+        cloudStatus: pendingCloudSaves > 0 ? 'pending' : 'synced'
+      } satisfies SaveWriteResult;
     }
-    return true;
+    return { localSaved: true, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
   },
   load: async (key: string, fallback: any) => {
     let localValue: any = null;
@@ -450,8 +551,8 @@ const store = {
     if (isFirebaseConfigured && db) {
       try {
         const currentUser = auth?.currentUser;
-        if (currentUser) {
-          const docRef = doc(db, 'saves', `uid_${currentUser.uid}`);
+        if (currentUser && readCloudAccountBinding() === currentUser.uid) {
+          const docRef = doc(db, 'saves', cloudSaveDocumentId(currentUser.uid));
           const snap = await withTimeout(getDoc(docRef));
           if (snap.exists()) {
             const data = snap.data() as Record<string, unknown>;
@@ -4220,6 +4321,11 @@ const isGuildServiceAvailableAtLocation = (service: any, s: GameState, bypass: b
   return ['Bog', 'Forest', 'Meadow', 'Loch', 'Mountain'].some(region => places.includes(region) && s.currentRegion === region);
 };
 
+type CloudSlotOperation =
+  | { kind: 'loading' }
+  | { kind: 'uploading' | 'downloading'; slot: CloudSlotId }
+  | null;
+
 export default function App() {
   const [storedState, setState] = useState<GameState | null>(null);
   const state = storedState ? withCanonicalPatientView(storedState) : null;
@@ -4231,7 +4337,10 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [showCloudSlots, setShowCloudSlots] = useState(false);
   const [cloudSlotViews, setCloudSlotViews] = useState<CloudSlotView[]>(emptyCloudSlotViews);
-  const [cloudSlotBusy, setCloudSlotBusy] = useState(false);
+  const [cloudSlotOperation, setCloudSlotOperation] = useState<CloudSlotOperation>(null);
+  const cloudSlotBusy = cloudSlotOperation !== null;
+  const [pendingCloudSaveCount, setPendingCloudSaveCount] = useState(0);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<'local-only' | 'synced' | 'pending'>('local-only');
   const [activeCloudSlot, setActiveCloudSlot] = useState<CloudSlotId>(() => readActiveCloudSlot());
   const [activeTravelEncounter, setActiveTravelEncounter] = useState<any | null>(null);
   const [deferredEncounterId, setDeferredEncounterId] = useState<string | null>(null);
@@ -4375,97 +4484,150 @@ export default function App() {
     if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
-      if (u) {
-        try {
-          const userDocRef = doc(db!, 'saves', `uid_${u.uid}`);
-          const snap = await getDoc(userDocRef);
-          const cloudData = snap.exists() ? snap.data() : null;
-          const documentUpdatedAt = snap.exists()
-            ? snapshotUpdatedAt(snap) || await fetchCloudDocumentUpdatedAt(u.uid)
-            : null;
-          const slots = readCloudSlotsFromDocument(cloudData as Record<string, unknown> | null, documentUpdatedAt);
-          setCloudSlotViews(slots.views);
-          if (slots.migratedFromLegacy && slots.records[0]) {
-            await writeCloudSlotRecord(slots.records[0]);
-          }
-          const slot1 = slots.records[0];
-          const cloudPayload = slot1?.payload ?? (typeof cloudData?.[CAMPAIGN_SAVE_KEY] === 'string' ? cloudData[CAMPAIGN_SAVE_KEY] : null);
-          if (cloudPayload) {
-              const parsed = JSON.parse(cloudPayload);
-              const localStr = localStorage.getItem(CAMPAIGN_SAVE_KEY);
-              if (localStr) {
-                const localParsed = parseCampaignSaveRaw(localStr);
-                const localRevision = normalizeSaveRevision(
-                  localParsed.ok && localParsed.value && typeof localParsed.value === 'object'
-                    ? (localParsed.value as { saveRevision?: number }).saveRevision || 0
-                    : 0
-                );
-                const cloudRevision = normalizeSaveRevision((parsed as { saveRevision?: number }).saveRevision);
-                const cloudHasNamedApothecary = campaignSaveHasNamedApothecary(parsed);
-                const action = decideCloudSaveAction({
-                  localRaw: localStr,
-                  cloudRevision,
-                  cloudHasNamedApothecary,
-                  confirmOverwrite: () => askWindowConfirm(
-                    cloudRevision > localRevision
-                      ? '클라우드 기록이 더 최근입니다. 지금 기기의 로컬 기록을 덮어쓸까요?'
-                      : '구글 클라우드에 백업된 아포테카리아 데이터를 발견했습니다. 불러오시겠습니까?\n(불러오면 현재 진행 중인 로컬 데이터는 덮어씌워집니다.)'
-                  )
-                });
-                if (action === 'load-cloud') {
-                  const migrated = migrateCampaignSave(parsed);
-                  if (!migrated.ok) {
-                    showAlert('클라우드 저장을 올리지 못했습니다. 로컬 기록은 그대로 둡니다.');
-                  } else {
-                    setState(migrated.state);
-                    localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(migrated.state));
-                    writeActiveCloudSlot(1);
-                    setActiveCloudSlot(1);
-                    const name = migrated.state.bio?.name?.trim();
-                    showAlert(name ? `${name} 약제사 기록을 불러왔습니다.` : '클라우드 기록을 불러왔습니다.');
-                  }
-                } else if (action === 'upload-local') {
-                  const uploaded = cloudSlotRecordFromPayload(1, localStr, new Date().toISOString());
-                  await writeCloudSlotRecord(uploaded);
-                  setCloudSlotViews(readCloudSlotsFromDocument({
-                    [CAMPAIGN_SAVE_KEY]: localStr,
-                    ...assembleNewCloudSlotDocument(uploaded)
-                  }, uploaded.uploadedAt).views);
-                }
-              } else {
-                const migrated = migrateCampaignSave(parsed);
-                if (!migrated.ok) {
-                  showAlert('클라우드 저장을 올리지 못했습니다. 로컬 기록은 그대로 둡니다.');
-                } else {
-                  setState(migrated.state);
-                  localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(migrated.state));
-                  writeActiveCloudSlot(1);
-                  setActiveCloudSlot(1);
-                  const name = migrated.state.bio?.name?.trim();
-                  showAlert(name ? `${name} 약제사 기록을 불러왔습니다.` : '클라우드 기록을 불러왔습니다.');
-                }
-              }
-          } else {
-            const localStr = localStorage.getItem(CAMPAIGN_SAVE_KEY);
-            const localParsed = parseCampaignSaveRaw(localStr);
-            const localHasName = localParsed.ok && campaignSaveHasNamedApothecary(localParsed.value);
-            if (localStr && localHasName) {
-              await writeCloudSlotRecord(cloudSlotRecordFromPayload(1, localStr, new Date().toISOString()));
-              setCloudSlotViews(readCloudSlotsFromDocument({
-                [CAMPAIGN_SAVE_KEY]: localStr
-              }, new Date().toISOString()).views);
-            } else {
-              showAlert('이 구글 계정에는 저장된 약제사가 없습니다. 원래 기기에서 같은 계정으로 로그인한 뒤 ‘클라우드 기록’에서 올려 주세요.');
-            }
-          }
-        } catch (err) {
-          console.error("Failed to check cloud save during login:", err);
-          showAlert('구글 기록을 불러오지 못했습니다. 네트워크와 로그인 계정을 확인한 뒤 다시 시도해 주세요.');
+      if (!u) {
+        setPendingCloudSaveCount(0);
+        setCloudSyncStatus('local-only');
+        return;
+      }
+      try {
+        const remaining = await flushQueuedCloudSavesForCurrentUser();
+        const pendingCount = pendingCloudSaveCountForUser(u.uid, remaining);
+        setPendingCloudSaveCount(pendingCount);
+        setCloudSyncStatus(pendingCount > 0 ? 'pending' : readCloudAccountBinding() === u.uid ? 'synced' : 'local-only');
+        const userDocRef = userSaveDocRef(u.uid);
+        if (!userDocRef) return;
+        const snap = await getDoc(userDocRef);
+        const cloudData = snap.exists() ? snap.data() as Record<string, unknown> : null;
+        const documentUpdatedAt = snap.exists()
+          ? snapshotUpdatedAt(snap) || await fetchCloudDocumentUpdatedAt(u.uid)
+          : null;
+        let slots = readCloudSlotsFromDocument(cloudData, documentUpdatedAt);
+        if (slots.migratedFromLegacy && slots.records[0]) {
+          const migratedViews = await writeCloudSlotRecord(slots.records[0], u.uid);
+          slots = { ...slots, views: migratedViews };
         }
+        setCloudSlotViews(slots.views);
+
+        const preferredSlot = readActiveCloudSlot();
+        const cloudRecord = slots.records[preferredSlot - 1] || slots.records.find(Boolean) || null;
+        const localRaw = localStorage.getItem(CAMPAIGN_SAVE_KEY);
+        const localParsed = parseCampaignSaveRaw(localRaw);
+        const localHasProgress = localParsed.ok && campaignSaveHasProgress(localParsed.value);
+        const boundUid = readCloudAccountBinding();
+        const accountMatches = boundUid === u.uid;
+
+        const loadCloudRecord = (record: CloudSlotRecord) => {
+          const parsed = parseCampaignSaveRaw(record.payload);
+          const migrated = parsed.ok ? migrateCampaignSave(parsed.value) : { ok: false as const };
+          if (!migrated.ok) {
+            showAlert('클라우드 기록을 읽지 못했습니다. 이 기기의 기록은 그대로 둡니다.');
+            return false;
+          }
+          setState(migrated.state);
+          localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(migrated.state));
+          writeActiveCloudSlot(record.slot);
+          setActiveCloudSlot(record.slot);
+          writeCloudAccountBinding(u.uid);
+          setCloudSyncStatus('synced');
+          const cleaned = removeOfflineSavesThroughRevision(readSaveOutbox(), {
+            key: CAMPAIGN_SAVE_KEY,
+            ownerUid: u.uid,
+            slot: record.slot,
+            revision: record.saveRevision
+          });
+          writeSaveOutbox(cleaned);
+          setPendingCloudSaveCount(pendingCloudSaveCountForUser(u.uid, cleaned));
+          const name = migrated.state.bio?.name?.trim() || record.name;
+          showAlert(name ? `${name} 약제사 기록을 불러왔습니다.` : '클라우드 기록을 불러왔습니다.');
+          return true;
+        };
+
+        if (cloudRecord) {
+          if (!localHasProgress) {
+            loadCloudRecord(cloudRecord);
+            return;
+          }
+          if (!accountMatches && localRaw === cloudRecord.payload) {
+            writeCloudAccountBinding(u.uid);
+            writeActiveCloudSlot(cloudRecord.slot);
+            setActiveCloudSlot(cloudRecord.slot);
+            setCloudSyncStatus('synced');
+            return;
+          }
+          if (!accountMatches) {
+            setCloudSyncStatus('local-only');
+            const accountLabel = u.email || u.displayName || '현재 Google 계정';
+            const shouldLoad = askWindowConfirm(
+              `이 기기의 기록은 ${boundUid ? '다른 Google 계정과 연결되어 있습니다' : '아직 Google 계정과 연결되지 않았습니다'}.\n\n${accountLabel}의 슬롯 ${cloudRecord.slot} 기록을 이 기기로 내려받아 연결할까요?\n현재 기기 기록은 덮어쓰게 됩니다.`
+            );
+            if (shouldLoad) loadCloudRecord(cloudRecord);
+            else showAlert('현재 기기 기록을 유지했습니다. 계정을 명시적으로 연결하기 전까지 자동 클라우드 업로드는 멈춰 있습니다.');
+            return;
+          }
+
+          const localRevision = localParsed.ok && localParsed.value && typeof localParsed.value === 'object'
+            ? normalizeSaveRevision((localParsed.value as { saveRevision?: unknown }).saveRevision)
+            : 0;
+          const action = decideCloudSaveAction({
+            localRaw,
+            cloudRevision: cloudRecord.saveRevision,
+            cloudHasNamedApothecary: Boolean(cloudRecord.name),
+            confirmOverwrite: () => askWindowConfirm(
+              cloudRecord.saveRevision > localRevision
+                ? `슬롯 ${cloudRecord.slot}의 클라우드 기록이 더 최근입니다. 지금 기기의 기록을 덮어쓸까요?`
+                : `슬롯 ${cloudRecord.slot}의 클라우드 기록을 이 기기로 내려받을까요? 현재 기기 기록은 덮어쓰게 됩니다.`
+            )
+          });
+          if (action === 'load-cloud') {
+            loadCloudRecord(cloudRecord);
+          } else if (action === 'upload-local' && localRaw) {
+            const uploaded = cloudSlotRecordFromPayload(cloudRecord.slot, localRaw, new Date().toISOString());
+            setCloudSlotViews(await writeCloudSlotRecord(uploaded, u.uid));
+            setCloudSyncStatus('synced');
+          }
+          return;
+        }
+
+        if (localRaw && localParsed.ok && campaignSaveHasNamedApothecary(localParsed.value)) {
+          if (!accountMatches) {
+            setCloudSyncStatus('local-only');
+            showAlert('이 Google 계정에는 클라우드 기록이 없습니다. 다른 사람의 로컬 기록이 자동으로 올라가지 않도록 업로드를 멈췄습니다. ‘클라우드 기록’에서 계정과 슬롯을 확인한 뒤 직접 올려 주세요.');
+            return;
+          }
+          const slot = readActiveCloudSlot();
+          const uploaded = cloudSlotRecordFromPayload(slot, localRaw, new Date().toISOString());
+          setCloudSlotViews(await writeCloudSlotRecord(uploaded, u.uid));
+          setCloudSyncStatus('synced');
+          return;
+        }
+
+        if (!localHasProgress) {
+          writeCloudAccountBinding(u.uid);
+          setCloudSyncStatus('synced');
+        } else {
+          setCloudSyncStatus('local-only');
+          showAlert('이 Google 계정에는 저장된 약제사가 없습니다. 현재 기기 기록은 자동 업로드하지 않았습니다. ‘클라우드 기록’에서 계정과 슬롯을 확인해 주세요.');
+        }
+      } catch (err) {
+        console.error("Failed to check cloud save during login:", err);
+        showAlert('구글 기록을 불러오지 못했습니다. 네트워크와 로그인 계정을 확인한 뒤 다시 시도해 주세요.');
       }
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const retryPendingCloudSaves = () => {
+      void flushQueuedCloudSavesForCurrentUser().then(entries => {
+        const pendingCount = pendingCloudSaveCountForUser(user.uid, entries);
+        setPendingCloudSaveCount(pendingCount);
+        setCloudSyncStatus(pendingCount > 0 ? 'pending' : readCloudAccountBinding() === user.uid ? 'synced' : 'local-only');
+      });
+    };
+    window.addEventListener('online', retryPendingCloudSaves);
+    return () => window.removeEventListener('online', retryPendingCloudSaves);
+  }, [user]);
 
   // Load initial state
   useEffect(() => {
@@ -4623,9 +4785,11 @@ export default function App() {
       };
       next = syncWorldMemory(next);
 
-      void store.set(CAMPAIGN_SAVE_KEY, next).then(saved => {
+      void store.set(CAMPAIGN_SAVE_KEY, next).then(result => {
         if (requestId !== saveRequestSequence) return;
-        if (saved) {
+        setPendingCloudSaveCount(result.pendingCloudSaves);
+        setCloudSyncStatus(result.cloudStatus);
+        if (result.localSaved) {
           setSaveStatus('saved');
           saveFailureNotified = false;
           return;
@@ -5090,6 +5254,9 @@ export default function App() {
         await signOut(auth);
         setShowCloudSlots(false);
         setCloudSlotViews(emptyCloudSlotViews());
+        setCloudSlotOperation(null);
+        setPendingCloudSaveCount(0);
+        setCloudSyncStatus('local-only');
         const loaded = await store.load(CAMPAIGN_SAVE_KEY, null);
         if (loaded) {
           const migrated = migrateCampaignSave(loaded);
@@ -5108,45 +5275,44 @@ export default function App() {
     const docRef = userSaveDocRef();
     if (!docRef) {
       setCloudSlotViews(emptyCloudSlotViews());
-      return;
+      return readCloudSlotsFromDocument(null);
     }
     const snap = await getDoc(docRef);
     const documentUpdatedAt = snap.exists()
       ? snapshotUpdatedAt(snap) || (auth?.currentUser ? await fetchCloudDocumentUpdatedAt(auth.currentUser.uid) : null)
       : null;
-    const slots = readCloudSlotsFromDocument(snap.exists() ? snap.data() as Record<string, unknown> : null, documentUpdatedAt);
+    let slots = readCloudSlotsFromDocument(snap.exists() ? snap.data() as Record<string, unknown> : null, documentUpdatedAt);
     if (slots.migratedFromLegacy && slots.records[0]) {
-      await writeCloudSlotRecord(slots.records[0]);
+      const views = await writeCloudSlotRecord(slots.records[0], auth?.currentUser?.uid);
+      slots = { ...slots, views };
     }
     setCloudSlotViews(slots.views);
+    return slots;
   };
 
   const openCloudSlots = async () => {
     setShowCloudSlots(true);
-    setCloudSlotBusy(true);
+    setCloudSlotOperation({ kind: 'loading' });
     try {
       await refreshCloudSlots();
     } catch (error) {
       console.error('Failed to load cloud slots:', error);
       showAlert('클라우드 슬롯을 불러오지 못했습니다. 네트워크와 로그인 계정을 확인한 뒤 다시 시도해 주세요.');
     } finally {
-      setCloudSlotBusy(false);
+      setCloudSlotOperation(null);
     }
   };
 
   const handleDownloadCloudSlot = async (slot: CloudSlotId) => {
     if (cloudSlotBusy) return;
-    setCloudSlotBusy(true);
+    setCloudSlotOperation({ kind: 'downloading', slot });
     try {
-      const docRef = userSaveDocRef();
-      if (!docRef) {
+      const uid = auth?.currentUser?.uid;
+      if (!uid || !userSaveDocRef(uid)) {
         showAlert('구글 계정에 먼저 로그인해 주세요.');
         return;
       }
-      const snap = await getDoc(docRef);
-      const documentUpdatedAt = snap.exists() ? snapshotUpdatedAt(snap) : null;
-      const slots = readCloudSlotsFromDocument(snap.exists() ? snap.data() as Record<string, unknown> : null, documentUpdatedAt);
-      setCloudSlotViews(slots.views);
+      const slots = await refreshCloudSlots();
       const record = slots.records[slot - 1];
       if (!record) {
         showAlert(`슬롯 ${slot}은 비어 있습니다.`);
@@ -5158,40 +5324,54 @@ export default function App() {
         localRaw: localStr,
         cloudName: record.name
       })) return;
-      const migrated = migrateCampaignSave(JSON.parse(record.payload));
+      const parsed = parseCampaignSaveRaw(record.payload);
+      const migrated = parsed.ok ? migrateCampaignSave(parsed.value) : { ok: false as const };
       if (!migrated.ok) {
-        showAlert('클라우드 저장을 올리지 못했습니다. 로컬 기록은 그대로 둡니다.');
+        showAlert('클라우드 기록을 읽지 못했습니다. 로컬 기록은 그대로 둡니다.');
         return;
       }
       setState(migrated.state);
       localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(migrated.state));
       writeActiveCloudSlot(slot);
       setActiveCloudSlot(slot);
+      writeCloudAccountBinding(uid);
+      setCloudSyncStatus('synced');
+      const cleaned = removeOfflineSavesThroughRevision(readSaveOutbox(), {
+        key: CAMPAIGN_SAVE_KEY,
+        ownerUid: uid,
+        slot,
+        revision: record.saveRevision
+      });
+      writeSaveOutbox(cleaned);
+      setPendingCloudSaveCount(pendingCloudSaveCountForUser(uid, cleaned));
       const name = migrated.state.bio?.name?.trim() || record.name;
       showAlert(name ? `슬롯 ${slot}에서 ${name} 약제사 기록을 내려받았습니다.` : `슬롯 ${slot} 기록을 내려받았습니다.`);
     } catch (error) {
       console.error('Failed to download cloud slot:', error);
       showAlert('클라우드 기록을 내려받지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.');
     } finally {
-      setCloudSlotBusy(false);
+      setCloudSlotOperation(null);
     }
   };
 
   const handleUploadCloudSlot = async (slot: CloudSlotId) => {
     if (cloudSlotBusy) return;
-    setCloudSlotBusy(true);
+    setCloudSlotOperation({ kind: 'uploading', slot });
     try {
-      if (!userSaveDocRef()) {
+      const currentUser = auth?.currentUser;
+      const uid = currentUser?.uid;
+      if (!uid || !userSaveDocRef(uid)) {
         showAlert('구글 계정에 먼저 로그인해 주세요.');
         return;
       }
       const localStr = localStorage.getItem(CAMPAIGN_SAVE_KEY) || (state ? JSON.stringify(state) : null);
-      if (!localStr) {
+      const source = summarizeCloudUploadSource(localStr);
+      if (!source.available || !localStr) {
         showAlert('이 기기에 올릴 기록이 없습니다.');
         return;
       }
-      if (localStr.length >= 950000) {
-        showAlert('기록이 너무 커서 클라우드에 올릴 수 없습니다. 로컬에만 저장됩니다.');
+      if (source.payloadBytes >= CLOUD_DOCUMENT_SAFE_BYTES) {
+        showAlert(`이 기기 기록이 ${formatCloudPayloadBytes(source.payloadBytes)}라서 클라우드 한도를 넘습니다. 사진이 포함된 일지를 줄인 뒤 다시 시도해 주세요.`);
         return;
       }
       const parsed = parseCampaignSaveRaw(localStr);
@@ -5199,24 +5379,51 @@ export default function App() {
         showAlert('약제사 이름이 있는 기록만 클라우드에 올릴 수 있습니다.');
         return;
       }
-      const currentView = cloudSlotViews.find(row => row.slot === slot);
+      const freshSlots = await refreshCloudSlots();
+      const currentView = freshSlots.views.find(row => row.slot === slot);
+      const record = cloudSlotRecordFromPayload(slot, localStr, new Date().toISOString());
+      const mergedRecords = mergeCloudSlotRecord(freshSlots.records, record);
+      if (estimateCloudSlotDocumentBytes(mergedRecords) >= CLOUD_DOCUMENT_SAFE_BYTES) {
+        showAlert('이 기록 하나는 올릴 수 있지만 세 슬롯을 합치면 클라우드 저장 한도를 넘습니다. 사진이 적은 기록으로 기존 슬롯을 덮어써 주세요.');
+        return;
+      }
       if (!confirmManualSlotUpload({
         slot,
         localRaw: localStr,
         occupied: Boolean(currentView && !currentView.empty),
-        cloudName: currentView?.name || null
+        cloudName: currentView?.name || null,
+        cloudRevision: currentView?.saveRevision,
+        cloudUploadedAt: currentView?.uploadedAt,
+        accountLabel: currentUser.email || currentUser.displayName,
+        accountChanged: readCloudAccountBinding() !== uid
       })) return;
-      const record = cloudSlotRecordFromPayload(slot, localStr, new Date().toISOString());
-      await writeCloudSlotRecord(record);
+      const views = await writeCloudSlotRecord(record, uid, {
+        occupied: Boolean(currentView && !currentView.empty),
+        saveRevision: currentView?.saveRevision || 0,
+        uploadedAt: currentView?.uploadedAt || null
+      });
+      writeCloudAccountBinding(uid);
+      setCloudSyncStatus('synced');
       writeActiveCloudSlot(slot);
       setActiveCloudSlot(slot);
-      await refreshCloudSlots();
-      showAlert(record.name ? `슬롯 ${slot}에 ${record.name} 기록을 올렸습니다.` : `슬롯 ${slot}에 기록을 올렸습니다.`);
+      const cleaned = removeOfflineSavesThroughRevision(readSaveOutbox(), {
+        key: CAMPAIGN_SAVE_KEY,
+        ownerUid: uid,
+        slot,
+        revision: record.saveRevision
+      });
+      writeSaveOutbox(cleaned);
+      setPendingCloudSaveCount(pendingCloudSaveCountForUser(uid, cleaned));
+      setCloudSlotViews(views);
+      const accountLabel = currentUser.email || currentUser.displayName;
+      showAlert(record.name
+        ? `슬롯 ${slot}에 ${record.name} 기록을 올렸습니다.${accountLabel ? ` (${accountLabel})` : ''}`
+        : `슬롯 ${slot}에 기록을 올렸습니다.`);
     } catch (error) {
       console.error('Failed to upload cloud slot:', error);
       showAlert(cloudWriteErrorMessage(error as { code?: string; message?: string }));
     } finally {
-      setCloudSlotBusy(false);
+      setCloudSlotOperation(null);
     }
   };
 
@@ -6319,13 +6526,23 @@ export default function App() {
   );
   const referenceRequirements = referenceAilmentDefinition ? requirementTagThresholds(referenceAilmentDefinition.requirements) : [];
   const isOnboarding = !state.bio.name.trim();
+  const cloudAccountLinked = Boolean(user && readCloudAccountBinding() === user.uid);
+  const cloudUploadSource = summarizeCloudUploadSource(
+    showCloudSlots ? localStorage.getItem(CAMPAIGN_SAVE_KEY) || JSON.stringify(state) : null
+  );
   const saveStatusText = saveStatus === 'saving'
     ? '저장 중…'
     : saveStatus === 'error'
       ? '저장 실패'
       : saveStatus === 'saved'
         ? isFirebaseConfigured && user
-          ? state.offlineOutbox.length > 0 ? '기기에 저장됨 · 동기화 대기' : '기기에 저장됨 · 동기화 연결'
+          ? pendingCloudSaveCount > 0
+            ? `기기에 저장됨 · 클라우드 재시도 ${pendingCloudSaveCount}건`
+            : !cloudAccountLinked
+              ? '기기에 저장됨 · 클라우드 연결 선택 필요'
+              : cloudSyncStatus === 'synced'
+                ? '기기·클라우드에 저장됨'
+                : '기기에 저장됨 · 클라우드 연결됨'
           : '기기에 저장됨'
         : '자동 저장 준비됨';
 
@@ -7500,7 +7717,11 @@ export default function App() {
         <CloudSlotsDialog
           slots={cloudSlotViews}
           activeSlot={activeCloudSlot}
-          busy={cloudSlotBusy}
+          operation={cloudSlotOperation}
+          localSource={cloudUploadSource}
+          accountLabel={user?.email || user?.displayName || '현재 Google 계정'}
+          accountLinked={cloudAccountLinked}
+          pendingSaveCount={pendingCloudSaveCount}
           onDownload={slot => void handleDownloadCloudSlot(slot)}
           onUpload={slot => void handleUploadCloudSlot(slot)}
           onClose={() => setShowCloudSlots(false)}
@@ -7579,18 +7800,34 @@ interface ControlledPromptRequest {
 function CloudSlotsDialog({
   slots,
   activeSlot,
-  busy,
+  operation,
+  localSource,
+  accountLabel,
+  accountLinked,
+  pendingSaveCount,
   onDownload,
   onUpload,
   onClose
 }: {
   slots: CloudSlotView[];
   activeSlot: CloudSlotId;
-  busy: boolean;
+  operation: CloudSlotOperation;
+  localSource: CloudUploadSourceView;
+  accountLabel: string;
+  accountLinked: boolean;
+  pendingSaveCount: number;
   onDownload: (slot: CloudSlotId) => void;
   onUpload: (slot: CloudSlotId) => void;
   onClose: () => void;
 }) {
+  const busy = operation !== null;
+  const operationText = operation?.kind === 'loading'
+    ? '클라우드의 최신 슬롯을 확인하고 있습니다…'
+    : operation?.kind === 'uploading'
+      ? `슬롯 ${operation.slot}에 올리고 있습니다…`
+      : operation?.kind === 'downloading'
+        ? `슬롯 ${operation.slot}에서 내려받고 있습니다…`
+        : null;
   return (
     <div
       className="phase4-modal-backdrop controlled-prompt-backdrop app-dialog-backdrop"
@@ -7605,6 +7842,7 @@ function CloudSlotsDialog({
         aria-modal="true"
         aria-labelledby="cloud-slots-title"
         aria-describedby="cloud-slots-message"
+        aria-busy={busy}
       >
         <header className="app-dialog__header">
           <div>
@@ -7613,8 +7851,33 @@ function CloudSlotsDialog({
           </div>
         </header>
         <p id="cloud-slots-message" className="app-dialog__message">
-          슬롯은 최대 3개입니다. 지금 클라우드에 있던 기록은 슬롯 1에 있습니다. 다른 기기에서 맞추려면 슬롯을 고른 뒤 내려받거나 올리세요.
+          슬롯은 최대 3개입니다. 올리기는 이 기기 기록으로 해당 슬롯을 바꾸고, 내려받기는 이 기기 기록을 해당 슬롯 내용으로 바꿉니다.
         </p>
+        <div className="cloud-account-context">
+          <span>로그인 계정</span>
+          <strong>{accountLabel}</strong>
+          <em>{accountLinked ? '이 기기 자동 저장과 연결됨' : '이 기기 기록과 아직 연결되지 않음'}</em>
+        </div>
+        {!accountLinked && (
+          <p className="cloud-slots__warning" role="status">
+            다른 사람의 기록이 이 계정에 자동으로 올라가지 않도록 동기화를 멈췄습니다. 아래에서 내려받거나 올릴 슬롯을 직접 선택하면 이 계정과 연결됩니다.
+          </p>
+        )}
+        <div className="cloud-upload-source">
+          <span>이 기기에서 올릴 기록</span>
+          <strong>{localSource.name || (localSource.available ? '이름 없는 기록' : '기록 없음')}</strong>
+          {localSource.available && (
+            <small>저장 버전 {localSource.saveRevision} · {formatCloudPayloadBytes(localSource.payloadBytes)}</small>
+          )}
+          {!localSource.canUpload && localSource.available && (
+            <em>{localSource.name ? '클라우드 저장 한도를 확인해 주세요.' : '약제사 이름을 입력해야 올릴 수 있습니다.'}</em>
+          )}
+        </div>
+        {(operationText || pendingSaveCount > 0) && (
+          <p className="cloud-slots__status" aria-live="polite">
+            {operationText || `네트워크가 복구되면 다시 올릴 기록 ${pendingSaveCount}건`}
+          </p>
+        )}
         <ol className="cloud-slots">
           {slots.map(slot => (
             <li key={slot.slot} className={`cloud-slot${slot.empty ? ' cloud-slot--empty' : ''}${slot.slot === activeSlot ? ' cloud-slot--active' : ''}`}>
@@ -7624,14 +7887,17 @@ function CloudSlotsDialog({
                 <time dateTime={slot.uploadedAt || undefined}>
                   마지막 업로드 {slot.empty ? '없음' : formatCloudSlotUploadedAt(slot.uploadedAt)}
                 </time>
-                {slot.slot === activeSlot && !slot.empty && <em>이 기기 자동 저장</em>}
+                {!slot.empty && <small>저장 버전 {slot.saveRevision} · {formatCloudPayloadBytes(slot.payloadBytes)}</small>}
+                {slot.slot === activeSlot && <em>자동 저장 대상 슬롯</em>}
               </div>
               <div className="cloud-slot__actions">
                 <button type="button" disabled={busy || slot.empty} onClick={() => onDownload(slot.slot)}>
-                  데이터 내려받기
+                  {operation?.kind === 'downloading' && operation.slot === slot.slot ? '내려받는 중…' : '이 기기로 내려받기'}
                 </button>
-                <button type="button" className="app-dialog__primary" disabled={busy} onClick={() => onUpload(slot.slot)}>
-                  클라우드에 올리기
+                <button type="button" className="app-dialog__primary" disabled={busy || !localSource.canUpload} onClick={() => onUpload(slot.slot)}>
+                  {operation?.kind === 'uploading' && operation.slot === slot.slot
+                    ? '올리는 중…'
+                    : slot.empty ? '이 슬롯에 올리기' : '이 기록으로 덮어쓰기'}
                 </button>
               </div>
             </li>

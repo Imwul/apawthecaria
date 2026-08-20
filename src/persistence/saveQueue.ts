@@ -10,6 +10,8 @@ export interface OfflineSaveEntry {
   key: string;
   payload: string;
   revision: number;
+  ownerUid: string | null;
+  slot: 1 | 2 | 3 | null;
   attempts: number;
   queuedAt: number;
   lastError: string | null;
@@ -26,6 +28,8 @@ export const normalizeOfflineSaveEntries = (value: unknown): OfflineSaveEntry[] 
       key: row.key,
       payload: row.payload,
       revision: normalizeSaveRevision(row.revision),
+      ownerUid: typeof row.ownerUid === 'string' && row.ownerUid.trim() ? row.ownerUid.trim() : null,
+      slot: row.slot === 1 || row.slot === 2 || row.slot === 3 ? row.slot : null,
       attempts: Number.isInteger(row.attempts) && Number(row.attempts) >= 0 ? Number(row.attempts) : 0,
       queuedAt: Number.isFinite(Number(row.queuedAt)) ? Number(row.queuedAt) : 0,
       lastError: typeof row.lastError === 'string' ? row.lastError : null
@@ -34,6 +38,9 @@ export const normalizeOfflineSaveEntries = (value: unknown): OfflineSaveEntry[] 
 };
 
 const stablePayload = (value: RevisionedSave) => JSON.stringify(value);
+
+const offlineSaveTarget = (entry: Pick<OfflineSaveEntry, 'key' | 'ownerUid' | 'slot'>) =>
+  `${entry.ownerUid || 'unbound'}:${entry.slot || 'unbound'}:${entry.key}`;
 
 export const resolveRevisionConflict = <T extends RevisionedSave>(local: T | null, cloud: T | null) => {
   if (!local) return { source: 'cloud' as const, state: cloud, conflict: false };
@@ -47,10 +54,31 @@ export const resolveRevisionConflict = <T extends RevisionedSave>(local: T | nul
 };
 
 export const enqueueOfflineSave = (outbox: OfflineSaveEntry[], input: Omit<OfflineSaveEntry, 'attempts' | 'lastError'>): OfflineSaveEntry[] => {
-  if (outbox.some(row => row.key === input.key && row.revision > input.revision)) return outbox;
-  const withoutOlder = outbox.filter(row => row.key !== input.key || row.revision > input.revision);
-  if (withoutOlder.some(row => row.key === input.key && row.revision === input.revision && row.payload === input.payload)) return withoutOlder;
+  const target = offlineSaveTarget(input);
+  if (outbox.some(row => offlineSaveTarget(row) === target && row.revision > input.revision)) return outbox;
+  const withoutOlder = outbox.filter(row => offlineSaveTarget(row) !== target || row.revision > input.revision);
+  if (withoutOlder.some(row => offlineSaveTarget(row) === target && row.revision === input.revision && row.payload === input.payload)) return withoutOlder;
   return [...withoutOlder, { ...input, attempts: 0, lastError: null }].sort((a, b) => a.queuedAt - b.queuedAt);
+};
+
+export const removeOfflineSavesThroughRevision = (
+  outbox: OfflineSaveEntry[],
+  input: { key: string; ownerUid: string; slot: 1 | 2 | 3; revision: number }
+): OfflineSaveEntry[] => {
+  const target = offlineSaveTarget(input);
+  return outbox.filter(entry => offlineSaveTarget(entry) !== target || entry.revision > input.revision);
+};
+
+export const reconcileOfflineSaveFlush = (
+  latestOutbox: OfflineSaveEntry[],
+  flushResult: { completed: string[]; remaining: OfflineSaveEntry[] }
+): OfflineSaveEntry[] => {
+  const completedIds = new Set(flushResult.completed);
+  const failedById = new Map(flushResult.remaining.map(entry => [entry.id, entry]));
+  return latestOutbox
+    .filter(entry => !completedIds.has(entry.id))
+    .map(entry => failedById.get(entry.id) || entry)
+    .sort((left, right) => left.queuedAt - right.queuedAt);
 };
 
 export const flushOfflineSaves = async (outbox: OfflineSaveEntry[], write: (entry: OfflineSaveEntry) => Promise<void>) => {
@@ -58,9 +86,10 @@ export const flushOfflineSaves = async (outbox: OfflineSaveEntry[], write: (entr
   const completed: string[] = [];
   const newestByKey = new Map<string, OfflineSaveEntry>();
   for (const entry of outbox) {
-    const previous = newestByKey.get(entry.key);
+    const target = offlineSaveTarget(entry);
+    const previous = newestByKey.get(target);
     if (!previous || entry.revision > previous.revision || (entry.revision === previous.revision && entry.queuedAt > previous.queuedAt)) {
-      newestByKey.set(entry.key, entry);
+      newestByKey.set(target, entry);
     }
   }
   const canonicalOutbox = [...newestByKey.values()].sort((left, right) => left.queuedAt - right.queuedAt);

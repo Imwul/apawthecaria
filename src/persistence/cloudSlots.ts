@@ -9,6 +9,8 @@ import { normalizeSaveRevision } from './revision';
 export const CLOUD_SLOT_COUNT = 3;
 export const CLOUD_SLOTS_FIELD = 'apawthecaria_cloud_slots';
 export const ACTIVE_CLOUD_SLOT_KEY = 'apawthecaria_active_cloud_slot';
+export const CLOUD_ACCOUNT_BINDING_KEY = 'apawthecaria_cloud_account_uid';
+export const CLOUD_DOCUMENT_SAFE_BYTES = 950_000;
 
 export type CloudSlotId = 1 | 2 | 3;
 
@@ -26,11 +28,26 @@ export type CloudSlotView = {
   name: string | null;
   uploadedAt: string | null;
   saveRevision: number;
+  payloadBytes: number;
+};
+
+export type CloudUploadSourceView = {
+  available: boolean;
+  canUpload: boolean;
+  name: string | null;
+  saveRevision: number;
+  payloadBytes: number;
 };
 
 const SLOT_IDS: CloudSlotId[] = [1, 2, 3];
 
 export const cloudSlotMapKey = (slot: CloudSlotId) => `slot-${slot}`;
+
+export const cloudSaveDocumentId = (uid: string) => `uid_${uid.trim()}`;
+
+export const cloudPayloadByteLength = (payload: string) => new TextEncoder().encode(payload).byteLength;
+
+export const formatCloudPayloadBytes = (bytes: number) => `${Math.max(0, Math.ceil(bytes / 1024)).toLocaleString('ko-KR')}KB`;
 
 const isCloudSlotId = (value: unknown): value is CloudSlotId =>
   value === 1 || value === 2 || value === 3;
@@ -44,7 +61,7 @@ const slotRecordFields = (record: CloudSlotRecord) => ({
 });
 
 export const emptyCloudSlotViews = (): CloudSlotView[] =>
-  SLOT_IDS.map(slot => ({ slot, empty: true, name: null, uploadedAt: null, saveRevision: 0 }));
+  SLOT_IDS.map(slot => ({ slot, empty: true, name: null, uploadedAt: null, saveRevision: 0, payloadBytes: 0 }));
 
 export const readActiveCloudSlot = (storage: Pick<Storage, 'getItem'> = localStorage): CloudSlotId => {
   const raw = Number(storage.getItem(ACTIVE_CLOUD_SLOT_KEY) || 1);
@@ -53,6 +70,16 @@ export const readActiveCloudSlot = (storage: Pick<Storage, 'getItem'> = localSto
 
 export const writeActiveCloudSlot = (slot: CloudSlotId, storage: Pick<Storage, 'setItem'> = localStorage) => {
   storage.setItem(ACTIVE_CLOUD_SLOT_KEY, String(slot));
+};
+
+export const readCloudAccountBinding = (storage: Pick<Storage, 'getItem'> = localStorage): string | null => {
+  const uid = storage.getItem(CLOUD_ACCOUNT_BINDING_KEY)?.trim();
+  return uid || null;
+};
+
+export const writeCloudAccountBinding = (uid: string, storage: Pick<Storage, 'setItem'> = localStorage) => {
+  const normalized = uid.trim();
+  if (normalized) storage.setItem(CLOUD_ACCOUNT_BINDING_KEY, normalized);
 };
 
 export const parseUploadedAt = (value: unknown): string | null => {
@@ -96,6 +123,21 @@ const revisionFromPayload = (payload: string): number => {
   const parsed = parseCampaignSaveRaw(payload);
   if (!parsed.ok || !parsed.value || typeof parsed.value !== 'object') return 0;
   return normalizeSaveRevision((parsed.value as { saveRevision?: unknown }).saveRevision);
+};
+
+export const summarizeCloudUploadSource = (payload: string | null): CloudUploadSourceView => {
+  if (!payload) return { available: false, canUpload: false, name: null, saveRevision: 0, payloadBytes: 0 };
+  const parsed = parseCampaignSaveRaw(payload);
+  const payloadBytes = cloudPayloadByteLength(payload);
+  if (!parsed.ok) return { available: true, canUpload: false, name: null, saveRevision: 0, payloadBytes };
+  const name = nameFromPayload(payload) || null;
+  return {
+    available: true,
+    canUpload: Boolean(name) && payloadBytes < CLOUD_DOCUMENT_SAFE_BYTES,
+    name,
+    saveRevision: revisionFromPayload(payload),
+    payloadBytes
+  };
 };
 
 export const cloudSlotRecordFromPayload = (
@@ -158,9 +200,10 @@ export const readCloudSlotsFromDocument = (
           empty: false,
           name: record.name || null,
           uploadedAt: record.uploadedAt,
-          saveRevision: record.saveRevision
+          saveRevision: record.saveRevision,
+          payloadBytes: cloudPayloadByteLength(record.payload)
         }
-      : { slot: SLOT_IDS[index], empty: true, name: null, uploadedAt: null, saveRevision: 0 }
+      : { slot: SLOT_IDS[index], empty: true, name: null, uploadedAt: null, saveRevision: 0, payloadBytes: 0 }
   ));
 
   return { records, views, migratedFromLegacy };
@@ -207,6 +250,9 @@ export const mergeCloudSlotRecord = (
   return next;
 };
 
+export const estimateCloudSlotDocumentBytes = (records: Array<CloudSlotRecord | null | undefined>): number =>
+  cloudPayloadByteLength(JSON.stringify(assembleCloudSlotDocument(records)));
+
 const askBoundWindowConfirm = (message: string) => window.confirm.call(window, message);
 
 export const confirmManualSlotDownload = (input: {
@@ -232,17 +278,32 @@ export const confirmManualSlotUpload = (input: {
   localRaw: string;
   occupied: boolean;
   cloudName: string | null;
+  cloudRevision?: number;
+  cloudUploadedAt?: string | null;
+  accountLabel?: string | null;
+  accountChanged?: boolean;
   confirm?: (message: string) => boolean;
 }): boolean => {
   const parsed = parseCampaignSaveRaw(input.localRaw);
   if (!parsed.ok || !campaignSaveHasNamedApothecary(parsed.value)) return false;
-  if (!input.occupied) return true;
+  if (!input.occupied && !input.accountChanged) return true;
   const localName = nameFromPayload(input.localRaw) || '로컬';
+  const localRevision = revisionFromPayload(input.localRaw);
   const cloudName = input.cloudName?.trim();
   const ask = input.confirm ?? askBoundWindowConfirm;
-  return ask(
-    cloudName
+  const accountNotice = input.accountChanged
+    ? `현재 기기 기록은 다른 Google 계정과 연결되어 있습니다. ${input.accountLabel || '지금 로그인한 계정'}에 새로 연결합니다.\n\n`
+    : '';
+  const newerCloudNotice = input.occupied && normalizeSaveRevision(input.cloudRevision) > localRevision
+    ? `\n\n주의: 클라우드 기록(저장 버전 ${normalizeSaveRevision(input.cloudRevision)})이 이 기기 기록(저장 버전 ${localRevision})보다 최신입니다.`
+    : '';
+  const uploadedAtNotice = input.occupied && input.cloudUploadedAt
+    ? `\n마지막 업로드: ${formatCloudSlotUploadedAt(input.cloudUploadedAt)}`
+    : '';
+  const action = input.occupied
+    ? cloudName
       ? `슬롯 ${input.slot}에 이미 ${cloudName} 기록이 있습니다. 지금 이 기기의 ${localName} 기록으로 덮어쓸까요?`
       : `슬롯 ${input.slot}에 이미 기록이 있습니다. 지금 이 기기의 ${localName} 기록으로 덮어쓸까요?`
-  );
+    : `빈 슬롯 ${input.slot}에 이 기기의 ${localName} 기록을 올릴까요?`;
+  return ask(`${accountNotice}${action}${uploadedAtNotice}${newerCloudNotice}`);
 };
