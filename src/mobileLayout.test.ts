@@ -70,4 +70,14 @@ describe('mobile layout regression guards', () => {
     expect(cssSource).toMatch(/\.inventory-bandolier-button\s*\{[\s\S]*?min-height:\s*44px/);
     expect(cssSource).toMatch(/\.forage-candidate > button\s*\{[\s\S]*?width:\s*100%/);
   });
+
+  it('keeps the field reference browse, history, and long filters usable on mobile', () => {
+    expect(appSource).toContain('className="herbarium-field-guide"');
+    expect(appSource).toContain('className="herbarium-entry__summary"');
+    expect(appSource).toContain('className="forage-reference-link"');
+    expect(appSource).toContain('className="inventory-reference-button"');
+    expect(cssSource).toMatch(/@media \(max-width: 820px\)[\s\S]*?\.rulebook-context-shelf,[\s\S]*?\.herbarium-context,[\s\S]*?\.herbarium-entry__detail[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+    expect(cssSource).toMatch(/@media \(max-width: 480px\)[\s\S]*?\.herbarium-controls\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+    expect(cssSource).toMatch(/\.rulebook-reference-detail__actions button,[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px/);
+  });
 });

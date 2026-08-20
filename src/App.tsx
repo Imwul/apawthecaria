@@ -267,6 +267,7 @@ import { localizeGameplayMessage } from './localization/engineMessagesKo';
 import { enqueueOfflineSave, flushOfflineSaves, resolveRevisionConflict, type OfflineSaveEntry } from './persistence/saveQueue';
 import type { RulebookReferenceRequest } from './rulebook/types';
 import { referenceForJournalTab } from './rulebook/context';
+import { fuzzyReferenceTextMatch } from './rulebook/referenceRegistry';
 import { PaperMap, type MapClinicOverlay, type MapPickLocation } from './map/PaperMap';
 import { type MapPlace, type MapPlaceType } from './map/mapLayers';
 
@@ -6532,6 +6533,16 @@ export default function App() {
       ? { entryId: activeForageEncounter.id ? `encounter:${activeForageEncounter.id}` : undefined, page: activeForageEncounter.sourcePage, query: activeForageEncounter.title, title: '현재 Foraging Encounter' }
       : referenceForJournalTab(activeTab, state);
 
+  const referencePatient = getActivePatient(state);
+  const referencePatientAilment = referencePatient?.ailments.find(ailment => ailment.status === 'active') || null;
+  const referenceAilmentDefinition = AILMENTS.find(ailment =>
+    ailment.id === referencePatientAilment?.ailmentId
+    || ailment.id === state.activeAilment?.id
+    || ailment.canonicalName === state.activeAilment?.name
+    || ailment.displayName === state.activeAilment?.name
+  );
+  const referenceRequirements = referenceAilmentDefinition ? requirementTagThresholds(referenceAilmentDefinition.requirements) : [];
+
   return (
     <div className={`journal-app journal-app--${activeTab}`}>
       {/* Header Banner */}
@@ -6860,7 +6871,7 @@ export default function App() {
                   journals: '들녘의 일지'
                 } as Record<string, string>)[activeTab] || '현재 기록'} 장`}
               >
-                {activeTab === 'bio' && <BioView state={state} updateState={updateState} currentWeight={currentWeight} handleRetireClick={handleRetireClick} />}
+                {activeTab === 'bio' && <BioView state={state} updateState={updateState} currentWeight={currentWeight} handleRetireClick={handleRetireClick} onOpenReference={setRulebookRequest} />}
                 {activeTab === 'reagents' && (
                   <ReagentsView
                     state={state}
@@ -6871,6 +6882,7 @@ export default function App() {
                     setFilter={setReagentFilter}
                     typeFilter={reagentTypeFilter}
                     setTypeFilter={setReagentTypeFilter}
+                    onOpenReference={setRulebookRequest}
                   />
                 )}
                 {activeTab === 'ailments' && (
@@ -6888,6 +6900,16 @@ export default function App() {
                     <AlmanackPanel
                       ownedIds={state.bag.flatMap(item => [item.canonicalReagentId, item.canonicalToolId].filter((id): id is string => Boolean(id)))}
                       discoveredIds={(state.worldAlmanac || []).map(row => row.name)}
+                      gameplayContext={{
+                        currentLocationName: state.currentLocationName,
+                        currentRegion: state.currentRegion,
+                        currentSeason: state.currentSeason,
+                        patientName: referencePatient?.name || state.activeAilment?.patientName,
+                        ailmentName: referenceAilmentDefinition?.displayName || state.activeAilment?.name,
+                        activeAilmentId: referenceAilmentDefinition?.id,
+                        requirements: referenceRequirements
+                      }}
+                      onReturnToGameplay={() => changeActiveTab('play')}
                       pendingManualEffects={state.manualEffectQueue}
                       manualEffectRecords={state.manualEffectRecords}
                     />
@@ -6931,7 +6953,7 @@ export default function App() {
 
       {rulebookRequest && (
         <Suspense fallback={<div className="rulebook-drawer-backdrop"><div className="rulebook-drawer rulebook-drawer--loading" role="status">룰북 맥락을 여는 중...</div></div>}>
-          <RulebookReferenceDrawer request={rulebookRequest} onClose={() => setRulebookRequest(null)} />
+          <RulebookReferenceDrawer key={rulebookRequest.entryId || rulebookRequest.query || `p.${rulebookRequest.page || 6}`} request={rulebookRequest} onClose={() => setRulebookRequest(null)} />
         </Suspense>
       )}
 
@@ -15224,6 +15246,7 @@ function PlayView({
                                 {row.alwaysAvailable ? ' · 지역 제한 무시' : ''}
                                 {' → '}희귀도 {row.breakdown.finalRarity} · 보유 {row.owned}
                               </small>
+                              <button type="button" className="forage-reference-link" aria-label={`${row.reagent.displayName} 도감과 원문 보기`} onClick={() => onOpenReference({ entryId: `ingredient:${row.reagent.id}`, title: `${row.reagent.displayName} 채집 기록` })}>도감·원문 보기</button>
                             </div>
                             <div className="forage-match-row__parts">
                               {row.parts.map(({ part, relevantTags, missingTools }) => (
@@ -16256,7 +16279,7 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
   );
 }
 
-function BioView({ state, updateState, currentWeight, handleRetireClick }: { state: GameState; updateState: any; currentWeight: number; handleRetireClick: () => void }) {
+function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenReference }: { state: GameState; updateState: any; currentWeight: number; handleRetireClick: () => void; onOpenReference: (request: RulebookReferenceRequest) => void }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(state.bio.name);
   const [familiarName, setFamiliarName] = useState(state.bio.familiarName);
@@ -16559,6 +16582,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
                                           : '';
                                     return <>{toolState?.broken && <small className="inventory-ledger__warning">파손됨 · 수리 전 효과 없음</small>}{context && <small className="inventory-ledger__context">{context}</small>}</>;
                                   })()}
+                                  {item.canonicalToolId && <button type="button" className="inventory-reference-button" aria-label={`${localizeInventoryItemName(item.name)} 원문 효과 보기`} onClick={() => onOpenReference({ entryId: `tool:${item.canonicalToolId}`, title: `${localizeInventoryItemName(item.name)} 효과` })}>원문 효과 보기</button>}
                                 </td>
                                 <td style={{ padding: '0.4rem 0.5rem' }}>{formatWeight(item.weight)}</td>
                                 <td style={{ padding: '0.4rem 0.5rem' }}>
@@ -17132,162 +17156,97 @@ function BioView({ state, updateState, currentWeight, handleRetireClick }: { sta
 // =================================================================
 // 7. REAGENTS VIEW COMPONENT
 // =================================================================
-function ReagentsView({ state, updateState, search, setSearch, filter, setFilter, typeFilter, setTypeFilter }: { state: GameState; updateState: any; search: string; setSearch: any; filter: string; setFilter: any; typeFilter: string; setTypeFilter: any }) {
-  const filtered = REAGENTS.map(reagentDisplayRecord).filter(r => {
-    const matchesSearch = r.name.toLowerCase().includes(search.toLowerCase()) || r.rawName.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter = !filter || r.preps.toLowerCase().includes(filter.toLowerCase());
-    const matchesType = !typeFilter || r.type === typeFilter;
-    return matchesSearch && matchesFilter && matchesType;
+function ReagentsView({ state, updateState, search, setSearch, filter, setFilter, typeFilter, setTypeFilter, onOpenReference }: { state: GameState; updateState: any; search: string; setSearch: any; filter: string; setFilter: any; typeFilter: string; setTypeFilter: any; onOpenReference: (request: RulebookReferenceRequest) => void }) {
+  const currentRegion = state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion;
+  const [regionFilter, setRegionFilter] = useState('');
+  const [seasonFilter, setSeasonFilter] = useState('');
+  const [patientOnly, setPatientOnly] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const patient = getActivePatient(state);
+  const activeAilmentDefinitions = (patient?.ailments || [])
+    .filter(ailment => ailment.status === 'active')
+    .map(ailment => AILMENTS.find(definition => definition.id === ailment.ailmentId))
+    .filter((definition): definition is (typeof AILMENTS)[number] => Boolean(definition));
+  const activeRequirements = activeAilmentDefinitions.flatMap(definition => requirementTagThresholds(definition.requirements));
+
+  const rows = REAGENTS.map(reagent => {
+    const display = reagentDisplayRecord(reagent);
+    const matchingParts = reagent.preparations.map(part => ({
+      part,
+      relevantTags: treatmentRelevantPreparationTags(part.tags, activeRequirements)
+    })).filter(row => row.relevantTags.length > 0);
+    const owned = state.bag.filter(item => item.canonicalReagentId === reagent.id).length;
+    const inCurrentRegion = reagent.regionAvailability[currentRegion as keyof typeof reagent.regionAvailability] !== 'Unavailable';
+    const inCurrentSeason = reagent.seasonAvailability[state.currentSeason] !== 'Unavailable';
+    return { reagent, display, matchingParts, owned, inCurrentRegion, inCurrentSeason };
+  }).filter(row => {
+    const searchText = [row.reagent.displayName, row.reagent.canonicalName, row.reagent.description, ...row.reagent.preparations.flatMap(part => [part.name, part.method, ...part.tags.map(tag => `${tag.tag} ${tag.value}`)])].join(' ');
+    if (search && !fuzzyReferenceTextMatch(searchText, search)) return false;
+    if (filter && !row.reagent.preparations.some(part => part.tags.some(tag => tag.tag.toLowerCase() === filter.toLowerCase()))) return false;
+    if (typeFilter && row.reagent.type !== typeFilter) return false;
+    if (regionFilter && row.reagent.regionAvailability[regionFilter as keyof typeof row.reagent.regionAvailability] === 'Unavailable') return false;
+    if (seasonFilter && row.reagent.seasonAvailability[seasonFilter as keyof typeof row.reagent.seasonAvailability] === 'Unavailable') return false;
+    if (patientOnly && row.matchingParts.length === 0) return false;
+    return true;
+  }).sort((left, right) => {
+    const score = (row: typeof left) => Number(row.matchingParts.length > 0) * 4 + Number(row.owned > 0) * 2 + Number(row.inCurrentRegion && row.inCurrentSeason);
+    return score(right) - score(left) || left.reagent.sourcePage - right.reagent.sourcePage || left.reagent.canonicalName.localeCompare(right.reagent.canonicalName);
   });
 
+  const clearFilters = () => {
+    setSearch('');
+    setFilter('');
+    setTypeFilter('');
+    setRegionFilter('');
+    setSeasonFilter('');
+    setPatientOnly(false);
+  };
+
   return (
-    <div>
-      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>영약재 관찰 기록</h2>
-      <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)' }}>
-        각 영약재 부위는 특정한 조제법(빻기, 끓이기, 바르기 등)을 통과해 질병 증상을 치료할 수 있는 고유 약효를 냅니다.
-      </p>
+    <div className="herbarium-field-guide">
+      <header className="herbarium-field-guide__intro">
+        <div><span className="document-kicker">FIELD HERBARIUM</span><h2>영약재 관찰 기록</h2><p>지역이나 계절에서 먼저 훑고, 필요한 한 항목만 펼쳐 부위·조제법·약효를 확인하세요.</p></div>
+        <button type="button" onClick={() => onOpenReference({ entryId: 'chapter:reagents', title: 'Reagent와 Preparation' })}>식별 규칙 p.126</button>
+      </header>
 
-      {/* Search and Filters */}
-      <div style={{ display: 'flex', gap: '0.5rem', margin: '1rem 0' }}>
-        <input
-          type="text"
-          placeholder="기록장에서 영약재 이름 뒤적이기..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ flex: 1 }}
-        />
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-          <option value="">모든 분류</option>
-          <option value="PLANT">풀과 나무</option>
-          <option value="ANIMAL">야수의 흔적</option>
-          <option value="INSECT">곤충과 벌레</option>
-          <option value="EARTH">흙과 돌</option>
-          <option value="TITAN">거수의 조각</option>
-        </select>
-        <select value={filter} onChange={e => setFilter(e.target.value)}>
-          <option value="">약효별로 대조하기</option>
-          <option value="pain">통증</option>
-          <option value="wound">상처</option>
-          <option value="infection">감염</option>
-          <option value="parasite">기생충</option>
-          <option value="senses">감각</option>
-          <option value="sleep">수면</option>
-          <option value="breath">호흡</option>
-          <option value="burn">화상</option>
-          <option value="fur">털</option>
-          <option value="feather">깃털</option>
-          <option value="hide">가죽</option>
-          <option value="scale">비늘</option>
-          <option value="poison">독</option>
-          <option value="stomach">위장</option>
-          <option value="temperature">체온</option>
-          <option value="joy">기쁨</option>
-          <option value="mood">기분</option>
-          <option value="instinct">본능</option>
-          <option value="elsewhere">저편</option>
-        </select>
+      <section className="herbarium-context" aria-label="현재 채집 참고">
+        <button type="button" aria-pressed={regionFilter === currentRegion && seasonFilter === state.currentSeason} onClick={() => { setRegionFilter(currentRegion); setSeasonFilter(state.currentSeason); setPatientOnly(false); }}>
+          <span>지금 이곳</span><strong>{state.currentLocationName} · {localizeRegionLabel(currentRegion)} · {localizeSeasonLabel(state.currentSeason)}</strong><small>현재 지역·계절에서 찾기</small>
+        </button>
+        <button type="button" disabled={!activeRequirements.length} aria-pressed={patientOnly} onClick={() => { setPatientOnly(value => !value); setRegionFilter(''); setSeasonFilter(''); }}>
+          <span>현재 환자</span><strong>{patient?.name || '진료 중인 환자 없음'}</strong><small>{activeRequirements.length ? activeRequirements.map(row => `${row.tag} ${row.threshold}`).join(' · ') : '필요 약효가 생기면 연결됩니다'}</small>
+        </button>
+        <div><span>펼쳐둔 배낭</span><strong>{state.bag.filter(item => item.type === 'reagent').length}개 영약재</strong><small>보유 항목은 목록에서 먼저 표시됩니다</small></div>
+      </section>
+
+      <div className="herbarium-controls">
+        <label><span>이름·부위·약효 검색</span><input type="search" placeholder="예: Marigold, 꽃잎, PAIN 2" value={search} onChange={event => setSearch(event.target.value)} /></label>
+        <label><span>분류</span><select value={typeFilter} onChange={event => setTypeFilter(event.target.value)}><option value="">모든 분류</option><option value="PLANT">풀과 나무</option><option value="ANIMAL">야수의 흔적</option><option value="INSECT">곤충과 벌레</option><option value="EARTH">흙과 돌</option><option value="TITAN">거수의 조각</option></select></label>
+        <label><span>지역</span><select value={regionFilter} onChange={event => setRegionFilter(event.target.value)}><option value="">모든 지역</option>{['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain', 'Titan'].map(region => <option key={region} value={region}>{localizeRegionLabel(region)}</option>)}</select></label>
+        <label><span>계절</span><select value={seasonFilter} onChange={event => setSeasonFilter(event.target.value)}><option value="">모든 계절</option>{['Spring', 'Summer', 'Autumn', 'Winter'].map(season => <option key={season} value={season}>{localizeSeasonLabel(season)}</option>)}</select></label>
+        <label><span>약효</span><select value={filter} onChange={event => setFilter(event.target.value)}><option value="">모든 약효</option>{RULE_TAGS.map(tag => <option key={tag} value={tag}>{tag}</option>)}</select></label>
       </div>
 
-      <div className="grid-reagents" style={{ padding: '0.5rem' }}>
-        {filtered.map((r, i) => (
-          <div key={i} className="cute-card" style={{ background: '#fafafa' }}>
-            <h4 style={{ margin: 0, color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1.1rem', fontWeight: 'bold' }}>
-              <span>{r.name}</span>
-              <span style={{ fontSize: '0.85rem', background: '#eee', padding: '0.2rem 0.5rem', borderRadius: '4px', color: '#555' }}>
-                기본 희귀도: {r.br}
-              </span>
-            </h4>
+      <div className="herbarium-result-summary"><span aria-live="polite">관찰 기록 {rows.length}개</span>{(search || filter || typeFilter || regionFilter || seasonFilter || patientOnly) && <button type="button" onClick={clearFilters}>전체 도감 보기</button>}</div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem', fontSize: '0.85rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: 'bold', color: 'var(--text-muted)' }}>분류:</span>
-                <span style={{ fontSize: '0.78rem', fontWeight: 'bold', background: '#eef2f7', color: '#3182ce', padding: '0.1rem 0.4rem', borderRadius: '4px', textTransform: 'uppercase' }}>
-                  {localizeReagentType(r.type)}
-                </span>
-
-                {r.regions && r.regions.length > 0 && (
-                  <>
-                    <span style={{ color: 'var(--text-dim)' }}>|</span>
-                    <span style={{ fontWeight: 'bold', color: 'var(--text-muted)' }}>자생지:</span>
-                    <div style={{ display: 'flex', gap: '0.2rem' }}>
-                      {r.regions.map((reg, idx) => {
-                        const koReg: { [key: string]: string } = {
-                          'Bog': '늪지', 'Forest': '숲', 'Loch': '호수', 'Meadow': '초원', 'Mountain': '산맥', 'Titan': '티탄유적'
-                        };
-                        return (
-                          <span key={idx} style={{ fontSize: '0.78rem', background: 'var(--primary-light)', color: 'var(--primary)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 'bold' }}>
-                            {koReg[reg] || reg}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-
-                {r.seasons && r.seasons.length > 0 && (
-                  <>
-                    <span style={{ color: 'var(--text-dim)' }}>|</span>
-                    <span style={{ fontWeight: 'bold', color: 'var(--text-muted)' }}>채집 계절:</span>
-                    <div style={{ display: 'flex', gap: '0.2rem' }}>
-                      {r.seasons.map((seas, idx) => {
-                        const koSeas: { [key: string]: string } = {
-                          'Spring': '봄', 'Summer': '여름', 'Autumn': '가을', 'Winter': '겨울'
-                        };
-                        const seasLabel = koSeas[seas] || seas;
-                        let bg = '#fff5f5';
-                        let co = '#e53e3e';
-                        if (seasLabel === '봄') { bg = '#f0fff4'; co = '#38a169'; }
-                        if (seasLabel === '여름') { bg = '#ebf8ff'; co = '#3182ce'; }
-                        if (seasLabel === '가을') { bg = '#fffaf0'; co = '#dd6b20'; }
-                        if (seasLabel === '겨울') { bg = '#f7fafc'; co = '#4a5568'; }
-                        return (
-                          <span key={idx} style={{ fontSize: '0.78rem', background: bg, color: co, padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 'bold' }}>
-                            {seasLabel}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
-              {r.description && (
-                <p style={{ margin: '0.3rem 0 0 0', color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.88rem', lineHeight: '1.4' }}>
-                  {r.description}
-                </p>
-              )}
-            </div>
-
-            <div style={{ marginTop: '0.6rem', fontSize: '0.92rem', background: '#fff', padding: '0.8rem', borderRadius: '6px', border: '1px solid #eee' }}>
-              <strong>📋 부위별 조제 성분:</strong>
-              <div style={{ marginTop: '0.3rem', lineHeight: '1.5', color: '#333' }}>
-                {renderPreps(r.preps)}
-              </div>
-            </div>
-
-            {state.journeyActive && state.rulesetId === 'sandbox' && (
-              <button
-                onClick={() => {
-                  const parts = splitReagentPreparations(r.preps);
-                  const chosenPart = window.prompt(`가방에 넣을 ${r.name} 부위를 선택하세요:\n${parts.map((p, i) => `${i + 1}. ${p.trim()}`).join('\n')}`);
-                  if (!chosenPart) return;
-                  const partText = parts[Math.max(0, (parseInt(chosenPart) || 1) - 1)] || parts[0];
-                  updateState(s => {
-                    const item = createPreparedReagentItem(r, partText, 'user_reag');
-                    return {
-                      ...s,
-                      bag: [...s.bag, item]
-                    };
-                  });
-                  showAlert(`${r.name}을 수동으로 배낭에 추가했습니다.`);
-                }}
-                style={{ width: '100%', padding: '0.3rem', marginTop: '0.6rem', background: 'var(--primary-light)', color: 'var(--primary)', border: '1px solid var(--primary)', borderRadius: '6px', fontSize: '0.8rem' }}
-              >
-                🧺 배낭에 수동 획득 추가
-              </button>
-            )}
-          </div>
-        ))}
+      <div className="herbarium-index" role="list">
+        {rows.map(({ reagent, display, matchingParts, owned, inCurrentRegion, inCurrentSeason }) => {
+          const expanded = expandedId === reagent.id;
+          return <article key={reagent.id} className={`herbarium-entry ${expanded ? 'is-expanded' : ''}`} role="listitem">
+            <button type="button" className="herbarium-entry__summary" aria-expanded={expanded} onClick={() => setExpandedId(current => current === reagent.id ? null : reagent.id)}>
+              <span className="herbarium-entry__folio">p.{reagent.sourcePage}</span>
+              <div><span className="document-kicker">{localizeReagentType(reagent.type)} · 기본 희귀도 {reagent.baseRarity}</span><h3>{reagent.displayName}<small>{reagent.canonicalName}</small></h3><p>{reagent.description}</p><div className="herbarium-entry__marks">{owned > 0 && <span>보유 {owned}</span>}{matchingParts.length > 0 && <span>현재 환자에 기여</span>}{inCurrentRegion && <span>{localizeRegionLabel(currentRegion)}에서 발견</span>}{inCurrentSeason && <span>{localizeSeasonLabel(state.currentSeason)}에 발견</span>}</div></div>
+              <span className="herbarium-entry__toggle">{expanded ? '접기' : '펼치기'}</span>
+            </button>
+            {expanded && <div className="herbarium-entry__detail">
+              <div className="herbarium-entry__relations"><strong>어디서·언제</strong><div>{Object.entries(reagent.regionAvailability).filter(([, availability]) => availability !== 'Unavailable').map(([region, availability]) => <button type="button" key={region} onClick={() => setRegionFilter(region)}>{localizeRegionLabel(region)} · {localizeAvailabilityLabel(availability)}</button>)}{Object.entries(reagent.seasonAvailability).filter(([, availability]) => availability !== 'Unavailable').map(([season, availability]) => <button type="button" key={season} onClick={() => setSeasonFilter(season)}>{localizeSeasonLabel(season)} · {localizeAvailabilityLabel(availability)}</button>)}</div></div>
+              <div className="herbarium-parts"><strong>부위와 조제</strong>{reagent.preparations.map(part => { const relevant = treatmentRelevantPreparationTags(part.tags, activeRequirements); return <div key={part.id} className={relevant.length ? 'is-patient-relevant' : ''}><div><strong>{localizePreparationName(part.name)}</strong><span>{localizePreparationMethod(part.method)}</span></div><p>{part.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음'} · 무게 {formatWeight(part.weight)} · {part.uses}회분</p>{part.requiredTools.filter(tool => tool !== 'none').length > 0 && <small>필요 도구: {part.requiredTools.filter(tool => tool !== 'none').map(tool => localizeInventoryItemName(TOOL_BY_ID.get(tool)?.canonicalName || tool)).join(', ')}</small>}{relevant.length > 0 && <em>현재 환자에게 {relevant.map(tag => `${tag.tag} ${tag.value}`).join(' · ')} 기여</em>}</div>; })}</div>
+              <div className="herbarium-entry__actions"><button type="button" onClick={() => onOpenReference({ entryId: `ingredient:${reagent.id}`, title: `${reagent.displayName} 관련 기록` })}>원문·관련 기록 보기</button>{state.journeyActive && state.rulesetId === 'sandbox' && <button type="button" onClick={() => { const parts = splitReagentPreparations(display.preps); const chosenPart = window.prompt(`가방에 넣을 ${display.name} 부위를 선택하세요:\n${parts.map((part, index) => `${index + 1}. ${part.trim()}`).join('\n')}`); if (!chosenPart) return; const partText = parts[Math.max(0, (parseInt(chosenPart) || 1) - 1)] || parts[0]; updateState((current: GameState) => ({ ...current, bag: [...current.bag, createPreparedReagentItem(display, partText, 'user_reag')] })); showAlert(`${display.name}을 수동으로 배낭에 추가했습니다.`); }}>배낭에 수동 획득 추가</button>}</div>
+            </div>}
+          </article>;
+        })}
       </div>
+      {rows.length === 0 && <div className="herbarium-empty"><strong>조건에 맞는 영약재가 없습니다.</strong><p>지역·계절·약효 필터를 하나씩 풀거나 원문 이름 일부로 다시 찾아보세요.</p><button type="button" onClick={clearFilters}>전체 도감 보기</button></div>}
     </div>
   );
 }

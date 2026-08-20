@@ -13,6 +13,7 @@ import {
   SOCIAL_ENCOUNTERS,
   TAG_DEFINITIONS,
   TOOLS,
+  TOOL_REFERENCE_EFFECTS,
   TOOL_UPGRADES,
   TRAVEL_ENCOUNTERS,
   WAGON_EXPANSIONS,
@@ -52,7 +53,7 @@ const ruleEffectText = (effect: RuleEffect): string => {
 };
 
 const structuredEffectsText = (effects: StructuredRuleEffect[]) => effects.length
-  ? effects.map(row => `${row.support}: ${ruleEffectText(row.effect)}`).join(' / ')
+  ? effects.map(row => `${({ implemented: '앱에서 자동 적용', 'structured-but-not-executed': '플레이어가 직접 적용', 'manual-only': '플레이어가 직접 판정', ambiguous: '원문 확인 필요' } as const)[row.support]}: ${ruleEffectText(row.effect)}`).join(' / ')
   : '없음';
 
 const createEntry = (input: Omit<RulebookReferenceEntry, 'searchText'> & { search?: string[] }): RulebookReferenceEntry => {
@@ -195,15 +196,31 @@ const INGREDIENT_ENTRIES = REAGENTS.map(row => createEntry({
   id: `ingredient:${row.id}`, kind: 'ingredient', title: row.displayName || row.canonicalName, summary: row.description,
   sourcePage: row.sourcePage, ownerId: row.id, ruleIds: [], runtimeStatus: 'canonical',
   details: [detail('Canonical name', row.canonicalName), detail('Type', row.type), detail('Base Rarity', row.baseRarity), detail('Preparation', `${row.preparations.length}개`), detail('Region', Object.entries(row.regionAvailability).map(([id, value]) => `${id}: ${value}`).join(' / ')), detail('Season', Object.entries(row.seasonAvailability).map(([id, value]) => `${id}: ${value}`).join(' / '))],
-  relatedIds: row.preparations.map(preparation => `remedy:${preparation.id}`), search: [row.canonicalName, row.description]
+  relatedIds: [
+    ...row.preparations.map(preparation => `remedy:${preparation.id}`),
+    ...Object.entries(row.regionAvailability).filter(([, value]) => value !== 'Unavailable').map(([id]) => `region:${id}`),
+    ...Object.entries(row.seasonAvailability).filter(([, value]) => value !== 'Unavailable').map(([id]) => `season:${id}`)
+  ],
+  search: [
+    row.canonicalName,
+    row.description,
+    ...Object.entries(row.regionAvailability).filter(([, value]) => value !== 'Unavailable').map(([id, value]) => `${id} ${value}`),
+    ...Object.entries(row.seasonAvailability).filter(([, value]) => value !== 'Unavailable').map(([id, value]) => `${id} ${value}`),
+    ...row.preparations.flatMap(preparation => [preparation.name, preparation.method, ...preparation.tags.map(tag => `${tag.tag} ${tag.value}`)])
+  ]
 }));
 
 const REMEDY_ENTRIES = REAGENTS.flatMap(reagent => reagent.preparations.map(preparation => createEntry({
-  id: `remedy:${preparation.id}`, kind: 'remedy', title: `${reagent.displayName || reagent.canonicalName} · ${preparation.name}`,
+  id: `remedy:${preparation.id}`, kind: 'remedy', title: `${reagent.displayName || reagent.canonicalName} · ${preparation.name} · ${preparation.method}`,
   summary: `${preparation.method} · Potency ${preparation.tags.map(tag => `${tag.tag} ${tag.value}`).join(', ') || '특수'}`,
   sourcePage: preparation.sourcePage, ownerId: preparation.id, ruleIds: ['TREATMENT-001'], runtimeStatus: 'canonical',
   details: [detail('Ingredient', reagent.canonicalName), detail('Preparation', preparation.method), detail('Potency', preparation.tags.map(tag => `${tag.tag} ${tag.value}`).join(' / ') || '원문 특수'), detail('Weight', preparation.weight), detail('Uses', preparation.uses), detail('Required Tool', preparation.requiredTools.join(', ') || preparation.requiredTool), detail('Restrictions', structuredEffectsText(preparation.specialRules))],
-  relatedIds: [`ingredient:${reagent.id}`, ...preparation.tags.map(tag => `tag:${tag.tag}`), 'procedure:treatment'],
+  relatedIds: [
+    `ingredient:${reagent.id}`,
+    ...preparation.tags.map(tag => `tag:${tag.tag}`),
+    ...preparation.requiredTools.filter(toolId => toolId !== 'none').map(toolId => `tool:${toolId}`),
+    'procedure:treatment'
+  ],
   search: [reagent.canonicalName, preparation.method, preparation.tags.map(tag => tag.tag).join(' ')]
 })));
 
@@ -218,15 +235,28 @@ const TAG_MEANINGS: Record<string, string> = {
 const TAG_ENTRIES = TAG_DEFINITIONS.map(row => createEntry({
   id: `tag:${row.id}`, kind: 'tag', title: row.id, summary: TAG_MEANINGS[row.id] || row.id, sourcePage: row.sourcePage,
   ownerId: row.id, ruleIds: ['TREATMENT-001'], runtimeStatus: 'canonical',
-  details: [detail('Category', row.category), detail('Stacks', row.stacks ? 'Yes' : 'No'), detail('Related remedies', REMEDY_ENTRIES.filter(entry => entry.relatedIds.includes(`tag:${row.id}`)).length)],
-  relatedIds: REMEDY_ENTRIES.filter(entry => entry.relatedIds.includes(`tag:${row.id}`)).map(entry => entry.id), search: [TAG_MEANINGS[row.id] || '']
+  details: [
+    detail('Category', row.category),
+    detail('Stacks', row.stacks ? 'Yes' : 'No'),
+    detail('Related remedies', REMEDY_ENTRIES.filter(entry => entry.relatedIds.includes(`tag:${row.id}`)).length),
+    detail('Related ailments', AILMENT_ENTRIES.filter(entry => entry.relatedIds.includes(`tag:${row.id}`)).length)
+  ],
+  relatedIds: [
+    ...AILMENT_ENTRIES.filter(entry => entry.relatedIds.includes(`tag:${row.id}`)).map(entry => entry.id),
+    ...REMEDY_ENTRIES.filter(entry => entry.relatedIds.includes(`tag:${row.id}`)).map(entry => entry.id)
+  ], search: [TAG_MEANINGS[row.id] || '']
 }));
 
 const TOOL_ENTRIES = TOOLS.map(row => createEntry({
-  id: `tool:${row.id}`, kind: 'tool', title: row.canonicalName, summary: `${row.category} · Weight ${row.weight}${row.cost == null ? '' : ` · Cost ${row.cost}`}`,
+  id: `tool:${row.id}`, kind: 'tool', title: row.canonicalName, summary: TOOL_REFERENCE_EFFECTS[row.id] || `${row.category} · Weight ${row.weight}${row.cost == null ? '' : ` · Cost ${row.cost}`}`,
   sourcePage: row.sourcePage, ownerId: row.id, ruleIds: ['ALMANACK-005', 'TOOL-003'], runtimeStatus: 'canonical',
-  details: [detail('Weight', row.weight), detail('Cost', row.cost ?? 'Not sold'), detail('Location', row.purchaseLocations.join(', ') || 'Starting / special'), detail('Preparation', row.preparationMethods.join(', ') || '없음'), detail('Replacement', row.replacesToolIds?.join(', ') || '아님'), detail('Canonical consumer', 'resolveToolEffects')],
-  relatedIds: ['procedure:tools', ...TOOL_UPGRADES.filter(upgrade => upgrade.baseToolId === row.id).map(upgrade => `tool:${upgrade.id}`)], search: [row.purchaseLocations.join(' '), row.preparationMethods.join(' ')]
+  details: [detail('Effect', TOOL_REFERENCE_EFFECTS[row.id] || '원문 페이지 참조'), detail('Weight', row.weight), detail('Cost', row.cost ?? 'Not sold'), detail('Location', row.purchaseLocations.join(', ') || 'Starting / special'), detail('Preparation', row.preparationMethods.join(', ') || '없음'), detail('Replacement', row.replacesToolIds?.join(', ') || '아님'), detail('Canonical consumer', 'resolveToolEffects')],
+  relatedIds: [
+    'procedure:tools',
+    ...TOOL_UPGRADES.filter(upgrade => upgrade.baseToolId === row.id).map(upgrade => `tool:${upgrade.id}`),
+    ...REMEDY_ENTRIES.filter(remedy => remedy.relatedIds.includes(`tool:${row.id}`)).map(remedy => remedy.id)
+  ],
+  search: [TOOL_REFERENCE_EFFECTS[row.id] || '', row.purchaseLocations.join(' '), row.preparationMethods.join(' ')]
 }));
 
 const UPGRADE_ENTRIES = TOOL_UPGRADES.map(row => createEntry({
@@ -323,13 +353,22 @@ const REMEDY_CROSS_LINKED_ENTRIES = REMEDY_ENTRIES.map(entry => ({
 const REGION_CROSS_LINKED_ENTRIES = REGION_ENTRIES.map(entry => {
   const regionName = entry.ownerId?.toLowerCase() || '';
   const tables = TABLES.filter(table => table.searchText.includes(regionName)).map(table => table.id);
-  return { ...entry, relatedIds: unique([...entry.relatedIds, ...tables, ...SEASON_ENTRIES.map(season => season.id)]) };
+  const ingredients = INGREDIENT_ENTRIES.filter(ingredient => ingredient.relatedIds.includes(entry.id)).map(ingredient => ingredient.id);
+  return { ...entry, relatedIds: unique([...entry.relatedIds, ...ingredients, ...tables, ...SEASON_ENTRIES.map(season => season.id)]) };
 });
+
+const SEASON_CROSS_LINKED_ENTRIES = SEASON_ENTRIES.map(entry => ({
+  ...entry,
+  relatedIds: unique([
+    ...entry.relatedIds,
+    ...INGREDIENT_ENTRIES.filter(ingredient => ingredient.relatedIds.includes(entry.id)).map(ingredient => ingredient.id)
+  ])
+}));
 
 export const RULEBOOK_REFERENCE_ENTRIES: RulebookReferenceEntry[] = [
   ...RULEBOOK_CHAPTERS, ...PROCEDURES, ...TABLES, ...ENCOUNTER_ENTRIES, ...AILMENT_CROSS_LINKED_ENTRIES, ...PRINTED_EFFECT_ENTRIES,
   ...INGREDIENT_ENTRIES, ...REMEDY_CROSS_LINKED_ENTRIES, ...TAG_ENTRIES, ...TOOL_ENTRIES, ...UPGRADE_ENTRIES, ...SERVICE_ENTRIES,
-  ...CLINIC_ENTRIES, ...WAGON_ENTRIES, ...COMPANION_ENTRIES, ...BARROW_ENTRIES, ...REGION_CROSS_LINKED_ENTRIES, ...SEASON_ENTRIES, ...DOWNTIME_ENTRIES, ...GUIDANCE_ENTRIES, ...EXAMPLE_ENTRIES
+  ...CLINIC_ENTRIES, ...WAGON_ENTRIES, ...COMPANION_ENTRIES, ...BARROW_ENTRIES, ...REGION_CROSS_LINKED_ENTRIES, ...SEASON_CROSS_LINKED_ENTRIES, ...DOWNTIME_ENTRIES, ...GUIDANCE_ENTRIES, ...EXAMPLE_ENTRIES
 ];
 
 export const RULEBOOK_REFERENCE_BY_ID = new Map(RULEBOOK_REFERENCE_ENTRIES.map(entry => [entry.id, entry]));
@@ -363,18 +402,65 @@ export const RULEBOOK_COVERAGE = {
   sourceLinkage: RULEBOOK_REFERENCE_ENTRIES.filter(entry => Number.isInteger(entry.sourcePage) && entry.sourcePage > 0).length
 } as const;
 
-export const searchReferenceEntries = (query: string, kind: RulebookReferenceKind | 'all' = 'all') => {
-  const normalized = query.trim().toLowerCase();
-  const pageMatch = normalized.match(/^p(?:age)?\.?\s*(\d+)$/i);
-  return RULEBOOK_REFERENCE_ENTRIES.filter(entry => {
-    if (kind !== 'all' && entry.kind !== kind) return false;
-    if (!normalized) return true;
-    if (pageMatch) {
-      const page = Number(pageMatch[1]);
-      return page >= entry.sourcePage && page <= (entry.endPage || entry.sourcePage);
+const normalizeSearchValue = (value: string) => value.normalize('NFKC').trim().toLowerCase();
+
+const editDistance = (left: string, right: string): number => {
+  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    const current = [leftIndex];
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      current[rightIndex] = Math.min(
+        current[rightIndex - 1] + 1,
+        previous[rightIndex] + 1,
+        previous[rightIndex - 1] + (left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1)
+      );
     }
-    return entry.searchText.includes(normalized);
+    previous.splice(0, previous.length, ...current);
+  }
+  return previous[right.length];
+};
+
+export const fuzzyReferenceTextMatch = (text: string, query: string): boolean => {
+  const normalizedText = normalizeSearchValue(text);
+  const normalizedQuery = normalizeSearchValue(query);
+  if (!normalizedQuery) return true;
+  if (normalizedText.includes(normalizedQuery)) return true;
+  const words = normalizedText.split(/[^a-z0-9가-힣]+/).filter(Boolean);
+  const queryWords = normalizedQuery.split(/[^a-z0-9가-힣]+/).filter(Boolean);
+  return queryWords.length > 0 && queryWords.every(queryWord => {
+    if (queryWord.length < 5) return false;
+    const threshold = queryWord.length >= 8 ? 2 : 1;
+    return words.some(word => Math.abs(word.length - queryWord.length) <= threshold && editDistance(word, queryWord) <= threshold);
   });
+};
+
+export type ReferenceSearchReason = '이름' | '설명·관계' | '비슷한 이름' | '원문 페이지' | '';
+
+export const referenceSearchReason = (entry: RulebookReferenceEntry, query: string): ReferenceSearchReason => {
+  const normalized = normalizeSearchValue(query);
+  if (!normalized) return '';
+  const pageMatch = normalized.match(/^p(?:age)?\.?\s*(\d+)$/i);
+  if (pageMatch) {
+    const page = Number(pageMatch[1]);
+    return page >= entry.sourcePage && page <= (entry.endPage || entry.sourcePage) ? '원문 페이지' : '';
+  }
+  if (normalizeSearchValue(entry.title).includes(normalized)) return '이름';
+  if (normalizeSearchValue(entry.searchText).includes(normalized)) return '설명·관계';
+  return fuzzyReferenceTextMatch(`${entry.title} ${entry.ownerId || ''}`, normalized) ? '비슷한 이름' : '';
+};
+
+export const searchReferenceEntries = (query: string, kind: RulebookReferenceKind | 'all' = 'all') => {
+  const normalized = normalizeSearchValue(query);
+  const rows = RULEBOOK_REFERENCE_ENTRIES.filter(entry => kind === 'all' || entry.kind === kind);
+  if (!normalized) return rows;
+  return rows
+    .map(entry => ({ entry, reason: referenceSearchReason(entry, normalized) }))
+    .filter(row => Boolean(row.reason))
+    .sort((left, right) => {
+      const score = (reason: ReferenceSearchReason) => reason === '이름' ? 0 : reason === '원문 페이지' ? 1 : reason === '설명·관계' ? 2 : 3;
+      return score(left.reason) - score(right.reason) || left.entry.title.localeCompare(right.entry.title);
+    })
+    .map(row => row.entry);
 };
 
 export const validateRulebookReferenceDrift = (): string[] => {

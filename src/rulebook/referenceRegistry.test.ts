@@ -48,6 +48,26 @@ describe('personal rulebook transplant registry', () => {
     const pageRows = searchReferenceEntries('p.171');
     expect(pageRows.length).toBeGreaterThan(0);
     expect(pageRows.every(row => row.sourcePage <= 171 && (row.endPage || row.sourcePage) >= 171)).toBe(true);
+    expect(searchReferenceEntries('mariglod').some(row => row.id === 'ingredient:reagent-marigold')).toBe(true);
+  });
+
+  it('links field-reference relationships in both directions', () => {
+    const marigold = RULEBOOK_REFERENCE_BY_ID.get('ingredient:reagent-marigold');
+    expect(marigold?.relatedIds).toEqual(expect.arrayContaining([
+      'region:Forest',
+      'region:Meadow',
+      'season:Spring',
+      'season:Summer',
+      'season:Autumn',
+      'remedy:marigold-petals-crushed-3'
+    ]));
+    expect(RULEBOOK_REFERENCE_BY_ID.get('region:Forest')?.relatedIds).toContain('ingredient:reagent-marigold');
+    expect(RULEBOOK_REFERENCE_BY_ID.get('season:Spring')?.relatedIds).toContain('ingredient:reagent-marigold');
+    expect(RULEBOOK_REFERENCE_BY_ID.get('remedy:marigold-petals-crushed-3')?.relatedIds).toContain('tool:mortar-and-pestle');
+    expect(RULEBOOK_REFERENCE_BY_ID.get('tool:mortar-and-pestle')?.relatedIds).toContain('remedy:marigold-petals-crushed-3');
+    const waenDrops = RULEBOOK_REFERENCE_ENTRIES.find(entry => entry.kind === 'ailment' && entry.title.includes('Waen Drops'))!;
+    expect(RULEBOOK_REFERENCE_BY_ID.get('tag:PAIN')?.relatedIds).toContain(waenDrops.id);
+    expect(waenDrops.relatedIds).toContain('tag:PAIN');
   });
 
   it('renders canonical numbers and manual semantics directly from runtime data', () => {
@@ -70,6 +90,7 @@ describe('personal rulebook transplant registry', () => {
       const detail = detailsFor(`tool:${tool.id}`);
       expect(detail.Weight).toBe(String(tool.weight));
       expect(detail.Cost).toBe(String(tool.cost ?? 'Not sold'));
+      expect(detail.Effect).toBeTruthy();
     });
     TOOL_UPGRADES.forEach(upgrade => expect(detailsFor(`tool:${upgrade.id}`).Effect).toBe(upgrade.effect));
     GUILD_SERVICES.forEach(service => expect(detailsFor(`service:${service.id}`).Duration).toBe(service.duration));
@@ -112,6 +133,11 @@ describe('personal rulebook transplant registry', () => {
     expect(almanackSource).toContain("querySelector('#rulebook-reference-detail > header')");
     expect(almanackSource).toContain("behavior: 'instant', block: 'center'");
     expect(almanackSource).toContain('}, [pageResults.length, selectedId]);');
+    expect(almanackSource).toContain('className="rulebook-context-shelf"');
+    expect(almanackSource).toContain('aria-label="이전 참고 기록"');
+    expect(almanackSource).toContain('setTrail(current =>');
+    expect(drawerSource).toContain('aria-label="이전 참고 기록"');
+    expect(drawerSource).toContain('플레이로 돌아가기');
     expect(almanackSource).toContain('개인 참고 기록 정말 비우기');
     expect(cssSource).toMatch(/@media \(max-width: 820px\)[\s\S]*?\.rulebook-drawer\s*\{[\s\S]*?width:\s*100vw/);
     expect(cssSource).toContain('@media (prefers-reduced-motion: reduce)');
