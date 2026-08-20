@@ -13,8 +13,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -67,8 +66,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -85,8 +83,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -139,8 +136,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -157,8 +153,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -193,8 +188,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -211,8 +205,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -247,8 +240,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -265,8 +257,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -301,8 +292,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -319,8 +309,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -337,8 +326,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -355,8 +343,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -409,8 +396,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -427,8 +413,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -445,8 +430,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -463,8 +447,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -553,8 +536,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -607,8 +589,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -661,8 +642,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -679,8 +659,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -697,8 +676,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -733,8 +711,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -751,8 +728,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {
@@ -4309,8 +4285,8 @@
     "id": "printed:travel-forest-a-2",
     "ownerId": "travel-forest-a-2",
     "sourcePage": 78,
-    "status": "manual",
-    "classification": "narrative",
+    "status": "implemented",
+    "classification": "deterministic",
     "executor": "executeEncounter",
     "ruleIds": [
       "CORE-002",

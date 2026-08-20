@@ -147,7 +147,7 @@ describe('Phase 6 printed-effect classification', () => {
     const forestFollowUp = PRINTED_EFFECT_BY_OWNER.get('travel-forest-a-2')!;
     expect(classifyPrintedEffect(brandCare)).toBe('structured-choice');
     expect(classifyPrintedEffect(pinned)).toBe('deterministic');
-    expect(classifyPrintedEffect(forestFollowUp)).toBe('narrative');
-    expect(printedAutomationLabel(forestFollowUp)).toBe('직접 처리');
+    expect(classifyPrintedEffect(forestFollowUp)).toBe('deterministic');
+    expect(printedAutomationLabel(forestFollowUp)).toBe('자동 처리');
   });
 });

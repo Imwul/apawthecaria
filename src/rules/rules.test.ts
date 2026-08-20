@@ -7,6 +7,7 @@ import {
   CURRENT_SCHEMA_VERSION,
   ENCOUNTERS,
   FORAGING_ENCOUNTERS,
+  PRINTED_EFFECT_BY_OWNER,
   REAGENTS,
   REGIONS,
   RULESETS,
@@ -182,6 +183,12 @@ describe('canonical ailment data', () => {
     expect(AILMENT_MONARCH_RULES.intermediate).toEqual({ kind: 'drawMultiple', count: 2, severity: 'lesser' });
     expect(AILMENT_MONARCH_RULES.severe).toEqual({ kind: 'drawMultiple', count: 2, severity: 'intermediate' });
     expect(AILMENT_MONARCH_RULES.dire).toEqual({ kind: 'drawMultiple', count: 2, severity: 'severe' });
+  });
+
+  it('[AILMENT-003/AILMENT-007] does not invent a Trinket Outcome where the printed ailment has none', () => {
+    const dullsweats = AILMENTS.find(row => row.canonicalName === 'Dullsweats');
+    expect(dullsweats?.successEffects).toEqual([]);
+    expect(PRINTED_EFFECT_BY_OWNER.get(dullsweats!.id)?.supportedTriggers).toEqual(['treatment-failure']);
   });
 
   it('[AILMENT-003/AILMENT-006] preserves boolean and special requirement structures with registered tags', () => {

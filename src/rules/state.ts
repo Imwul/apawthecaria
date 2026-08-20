@@ -1,7 +1,7 @@
 import type { CompanionState, WagonState } from './data/mobility';
 import type { AilmentSeverity, RuleTag, RulesetId, Season, StructuredRuleEffect } from './types';
 
-export const CURRENT_SCHEMA_VERSION = 8 as const;
+export const CURRENT_SCHEMA_VERSION = 9 as const;
 
 export type PatientStatus = 'active' | 'cured' | 'failed' | 'departed';
 export type AilmentStatus = 'active' | 'treated' | 'failed';

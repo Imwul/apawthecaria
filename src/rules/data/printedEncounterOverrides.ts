@@ -20,8 +20,30 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
   'travel-forest-a-2': {
     title: 'In Bloom',
     prompt: 'Draw a card and collect a Forest Plant Reagent Part whose Base Value equals the card.',
-    mandatoryEffects: [manual('DRAW_AND_CHOOSE_FOREST_PLANT', 'Draw a follow-up card, then choose one eligible Forest Plant Part with matching Base Value.')],
+    mandatoryEffects: [],
     choices: [],
+    support: 'implemented'
+  },
+  // The legacy transcription omitted the printed Weight 1 from the Parcel.
+  // Keep it in the runtime prompt so the bag transaction and player-facing
+  // choice both use the rulebook value on p.86.
+  'travel-meadow-7-8': {
+    prompt: "Something falls out of a passing Noonmessenger’s satchel. Call out to the Messenger - Gain 1 Reputation. Deliver the Parcel - Add a 'Parcel' (Weight 1) to your Bags. Choose a Location 4 Paths away for its address. Gain 3 Trinkets if you go to that Location, delivering it. Keep the Parcel - Choose and Gain a Tool or Upgrade from the Almanac, and lose 1 Reputation."
+  },
+  'foraging-forest-m-spring': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'mark-barrow',
+        label: '물러나기 — 현재 위치를 Towering Behemoth Barrow로 표시하고 이후 Scurry 규칙을 적용합니다.',
+        effects: []
+      },
+      {
+        id: 'appease',
+        label: 'Appease — [FAIR 5]를 제공해 곰을 떠나보내고 이 고분을 제거합니다.',
+        effects: [manual('APPEASE_BEAR', 'Provide Reagent Parts with cumulative FAIR 5, then remove this bear Barrow from the map.')]
+      }
+    ],
     support: 'manual-only'
   },
   'travel-meadow-a-2': {

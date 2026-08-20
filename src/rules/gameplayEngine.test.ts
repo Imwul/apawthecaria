@@ -84,6 +84,40 @@ describe('travel and encounter execution', () => {
     expect(unvisited.status).toBe('invalid');
   });
 
+  it('[TRAVEL-007/TRAVEL-008] uses the seasonal Soar table for City landings and permits Loch landings', () => {
+    const soarGraph: Record<string, TravelGraphNode> = {
+      start: { id: 'start', name: 'Start', region: 'Bog', locationType: 'Wilds', edges: [] },
+      city: { id: 'city', name: 'New Dam', region: 'Forest', locationType: 'City', edges: [] },
+      loch: { id: 'loch', name: 'Open Water', region: 'Loch', locationType: 'Wilds', edges: [] }
+    };
+    const state = { ...travelState(), canSoar: true };
+    const city = resolveTravel({
+      transactionId: 'soar-city', state, graph: soarGraph, destinationId: 'city',
+      destinationRegion: 'Forest', destinationType: 'City', mode: 'soar', card: { suit: '♦', value: 11 },
+      season: 'Spring', canStopInLoch: false
+    });
+    expect(city.value?.nextState.currentLocationId).toBe('city');
+    expect(city.value?.encounter).toMatchObject({ encounterType: 'travel', region: 'Soar', season: 'Spring', cardKey: 'J' });
+
+    const loch = resolveTravel({
+      transactionId: 'soar-loch', state, graph: soarGraph, destinationId: 'loch',
+      destinationRegion: 'Loch', destinationType: 'Wilds', mode: 'soar', card: 3,
+      season: 'Spring', canStopInLoch: false
+    });
+    expect(loch.value?.nextState.currentLocationId).toBe('loch');
+    expect(loch.value?.encounter).toMatchObject({ encounterType: 'travel', region: 'Soar', cardKey: '3&4' });
+  });
+
+  it('[TRAVEL-004/SAVE-002] rejects re-entered destination metadata that disagrees with the map', () => {
+    const result = resolveTravel({
+      transactionId: 'travel-metadata', state: travelState(), graph: graph(), destinationId: 'end',
+      destinationRegion: 'Forest', destinationType: 'City', mode: 'move', card: 3,
+      season: 'Spring', canStopInLoch: false
+    });
+    expect(result.status).toBe('invalid');
+    expect(result.messages.join(' ')).toMatch(/match the selected map node/i);
+  });
+
   it('[TRAVEL-002/TRAVEL-005] limits an overencumbered move to one path and soaks vulnerable inventory on a waterway', () => {
     const state = travelState();
     state.inventory = [{ id: 'wet', name: 'Herb', type: 'reagent', weight: 5, ruinedWhenSoaked: true }];
@@ -226,6 +260,19 @@ describe('foraging and treatment transactions', () => {
     expect(result.status).toBe('resolved');
     expect(result.value?.gatheredItems).toHaveLength(0);
     expect(result.value?.foragingPointsGained).toBe(1);
+    expect(result.value?.nextState.foragingPoints).toBe(1);
+  });
+
+  it('[FORAGE-002/UX-001] records a known miss without asking for a Part or quantity', () => {
+    const state = { season: 'Spring' as const, currentRegion: 'Bog' as const, currentLocationType: 'Wilds' as const, foragingPoints: 0, inventory: [], toolIds: [] };
+    const preview = resolveForaging({ transactionId: 'forage-miss-preview', state, forageRegion: 'Bog', locationRelation: 'current', card: 1, skipEncounter: true });
+    const missed = preview.value!.candidates.find(candidate => candidate.rarity > 1)!;
+    const result = resolveForaging({
+      transactionId: 'forage-miss-direct', state, forageRegion: 'Bog', locationRelation: 'current', card: 1,
+      targetReagentId: missed.reagentId, declineGather: true, skipEncounter: true
+    });
+    expect(result.status).toBe('resolved');
+    expect(result.value).toMatchObject({ gatheredItems: [], foragingPointsGained: 1, timerCostAfterEncounter: 1 });
     expect(result.value?.nextState.foragingPoints).toBe(1);
   });
 

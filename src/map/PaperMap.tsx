@@ -21,7 +21,8 @@ import {
   mapDebugLocationAnchors,
   useMapDebugEnabled
 } from './detection/mapDebug';
-import { MapGlyph, type MapGlyphKind, type MapTerrain } from './mapGlyphs';
+import { MapGlyph } from './mapGlyphs';
+import type { MapGlyphKind, MapTerrain } from './mapGlyphTypes';
 import { MapNodeAppearance } from './MapNodeAppearance';
 import { glyphKindFromLocation, nearestTerrain, terrainFromRegion } from './routeComposer';
 
@@ -188,6 +189,7 @@ export function PaperMap({
     return indexes;
   }, [routePlaceIds]);
   const pinchRef = useRef<{ distance: number; scale: number } | null>(null);
+  const responsiveZoomAppliedRef = useRef(false);
   const [scale, setScale] = useState(1);
   const [viewportWidth, setViewportWidth] = useState(720);
   const [layers, setLayers] = useState<MapLayerState>(() => loadMapLayers());
@@ -216,6 +218,16 @@ export function PaperMap({
     observer.observe(viewport);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (responsiveZoomAppliedRef.current || viewportWidth > 520 || scale !== MIN_SCALE) return;
+    // At fit-to-width on a phone, hundreds of printed markers sit closer than
+    // their hit areas and a tap can select a neighbour. Start zoomed enough to
+    // make marker centres distinct; the existing “맞춤” control still restores
+    // the full-map overview whenever the player wants it.
+    responsiveZoomAppliedRef.current = true;
+    setScale(2.25);
+  }, [scale, viewportWidth]);
 
   const placeById = useMemo(() => new Map(places.map(place => [place.id, place])), [places]);
   const currentPlace = places.find(place => place.isCurrent) || null;
@@ -291,22 +303,6 @@ export function PaperMap({
   useEffect(() => {
     if (currentChanged && currentPlace) centerOnPlace(currentPlace);
   }, [centerOnPlace, currentChanged, currentPlace]);
-
-  useEffect(() => {
-    if (!panLocked) return;
-    const onMove = (event: MouseEvent) => {
-      if (markerMoveRef.current) moveDrag(event.clientX, event.clientY);
-    };
-    const onUp = () => {
-      if (markerMoveRef.current) finishMarkerMove();
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  });
 
   useEffect(() => {
     saveMapVeil(veilOn);
@@ -418,6 +414,22 @@ export function PaperMap({
     }
     return true;
   };
+
+  useEffect(() => {
+    if (!panLocked) return;
+    const onMove = (event: MouseEvent) => {
+      if (markerMoveRef.current) moveDrag(event.clientX, event.clientY);
+    };
+    const onUp = () => {
+      if (markerMoveRef.current) finishMarkerMove();
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  });
 
   const endBackgroundGesture = () => {
     if (finishMarkerMove()) return;

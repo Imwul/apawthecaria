@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { MapGlyph, MAP_GLYPH_KIND_LABELS, MAP_GLYPH_KINDS, MAP_TERRAIN_LABELS, MAP_TERRAINS, glyphUsesTerrain, type MapGlyphKind, type MapTerrain } from './mapGlyphs';
+import { MapGlyph } from './mapGlyphs';
+import { MAP_GLYPH_KIND_LABELS, MAP_GLYPH_KINDS, MAP_TERRAIN_LABELS, MAP_TERRAINS, glyphUsesTerrain, type MapGlyphKind, type MapTerrain } from './mapGlyphTypes';
 
 type MapNodeAppearanceProps = {
   kind: MapGlyphKind;

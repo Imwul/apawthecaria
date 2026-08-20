@@ -126,6 +126,11 @@ GAME_DATA.ailments.forEach(row => {
   if (!legacyByName.has(normalizeName(name))) legacyByName.set(normalizeName(name), row);
 });
 
+// Older translated data filled ailments without a printed Outcome with this
+// placeholder. It is not a rulebook reward (for example, Dullsweats on p.106
+// has only a Consequence), so it must never become a treatment-success effect.
+export const LEGACY_EMPTY_AILMENT_OUTCOME = '성공 보상 장신구 획득';
+
 export const AILMENTS: AilmentDefinition[] = expectedRows.map(expected => {
   const expectedAlias = aliases[expected.canonicalName] || expected.canonicalName;
   const legacy = legacyByName.get(normalizeName(expectedAlias));
@@ -167,7 +172,7 @@ export const AILMENTS: AilmentDefinition[] = expectedRows.map(expected => {
     severity: expected.severity,
     timer: isMissingBite ? 12 : legacy?.timer || 12,
     requirements,
-    successEffects: legacy?.outcome
+    successEffects: legacy?.outcome && legacy.outcome !== LEGACY_EMPTY_AILMENT_OUTCOME
       ? [specialRule('AILMENT_OUTCOME', legacy.outcome)]
       : [],
     failureEffects: legacy?.consequence

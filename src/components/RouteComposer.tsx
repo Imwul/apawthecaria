@@ -1,4 +1,5 @@
-import { MapGlyph, MAP_GLYPH_KINDS, MAP_TERRAINS, glyphUsesTerrain, type MapGlyphKind, type MapTerrain } from '../map/mapGlyphs';
+import { MapGlyph } from '../map/mapGlyphs';
+import { MAP_GLYPH_KINDS, MAP_TERRAINS, glyphUsesTerrain, type MapGlyphKind, type MapTerrain } from '../map/mapGlyphTypes';
 import {
   cycleRouteEdgeKind,
   evaluateRouteDraft,
@@ -20,6 +21,7 @@ type RouteComposerProps = {
   protectsFromSoaking: boolean;
   soakableItemNames: string[];
   canTravel: boolean;
+  movementMode?: 'move' | 'soar';
   travelBlockedReason?: string | null;
   onChangeStop: (index: number, patch: Partial<RouteStop>) => void;
   onChangeEdge: (index: number, kind: RouteEdgeKind) => void;
@@ -47,6 +49,7 @@ export function RouteComposer({
   protectsFromSoaking,
   soakableItemNames,
   canTravel,
+  movementMode = 'move',
   travelBlockedReason,
   onChangeStop,
   onChangeEdge,
@@ -69,7 +72,9 @@ export function RouteComposer({
     mustUseFullSpeed: true
   });
   const count = draft.stops.length;
-  const travelReady = canTravel && evaluation.reason === 'legal' && Boolean(destination);
+  const travelReady = canTravel
+    && Boolean(destination)
+    && (movementMode === 'soar' || evaluation.reason === 'legal');
 
   return (
     <section className="route-composer" aria-label="경로 짜기">
@@ -139,7 +144,7 @@ export function RouteComposer({
                         <button
                           type="button"
                           className="route-card__move-btn"
-                          disabled={index >= count - 1}
+                          disabled={index === 0 || index >= count - 1}
                           onClick={() => onMoveStop?.(index, index + 1)}
                           aria-label="오른쪽으로 이동"
                           title="오른쪽으로 이동"
@@ -229,12 +234,18 @@ export function RouteComposer({
       )}
 
       <div className="route-composer__summary">
-        <p>
-          {evaluation.pathCount}경로 · 육로 {evaluation.landCount} · 강 {evaluation.riverCount} · 수로 {evaluation.waterwayCount} · 이동 비용 {evaluation.movementCost} / 속도 {evaluation.effectiveSpeed}
-          {evaluation.overEncumbered ? ' · 과적이라 1경로만 갑니다' : ''}
-          {waterwaySpan > 1 ? ` · 연결된 수로 ${waterwaySpan}개가 1경로` : ''}
-        </p>
-        <p>{reasonText(evaluation.reason, evaluation.effectiveSpeed, evaluation.movementCost)}</p>
+        {movementMode === 'soar' ? (
+          <p>활공에서는 출발지와 마지막 노드만 사용합니다. 중간 노드와 연결 유형은 Move로 되돌릴 때 그대로 남습니다.</p>
+        ) : (
+          <>
+            <p>
+              {evaluation.pathCount}경로 · 육로 {evaluation.landCount} · 강 {evaluation.riverCount} · 수로 {evaluation.waterwayCount} · 이동 비용 {evaluation.movementCost} / 속도 {evaluation.effectiveSpeed}
+              {evaluation.overEncumbered ? ' · 과적이라 1경로만 갑니다' : ''}
+              {waterwaySpan > 1 ? ` · 연결된 수로 ${waterwaySpan}개가 1경로` : ''}
+            </p>
+            <p>{reasonText(evaluation.reason, evaluation.effectiveSpeed, evaluation.movementCost)}</p>
+          </>
+        )}
         {evaluation.overEncumbered && (
           <div style={{ padding: '0.4rem 0.6rem', background: '#fef2f2', border: '1px solid #f87171', borderRadius: '6px', color: '#991b1b', fontSize: '0.8rem', fontWeight: 600, marginTop: '0.3rem' }}>
             🎒 과적 상태 (무게 {weight}/{carry}): 일일 이동 속도가 1경로로 제한됩니다. (룰북 p.22)
@@ -267,7 +278,9 @@ export function RouteComposer({
           onClick={onTravel}
           disabled={!travelReady}
         >
-          {travelReady ? '이 경로로 이동' : (travelBlockedReason || '경로를 이은 뒤 이동합니다')}
+          {travelReady
+            ? (movementMode === 'soar' ? '마지막 위치로 활공' : '이 경로로 이동')
+            : (travelBlockedReason || '경로를 이은 뒤 이동합니다')}
         </button>
       </div>
     </section>

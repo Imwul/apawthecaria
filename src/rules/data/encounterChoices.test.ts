@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { executeEncounter } from '../encounterEngine';
-import { FORAGING_ENCOUNTERS, SOCIAL_ENCOUNTERS, findEncounter } from './encounters';
+import { BEAR_SCURRY_ENCOUNTER, FORAGING_ENCOUNTERS, SOCIAL_ENCOUNTERS, findEncounter } from './encounters';
 import { enrichEncounterChoices, leftoverNeeded, parseMechanicalEffects, splitEncounterChoices } from './encounterChoices';
+import { resolvePatient } from '../engine';
 
 describe('printed encounter choice execution', () => {
   it('splits labeled forage choices and applies reputation and timer changes', () => {
@@ -37,6 +38,26 @@ describe('printed encounter choice execution', () => {
     expect(leftoverNeeded('Lose 1 Reputation as the grouchy hare tells everyone they meet how rude you were.')).toBe(false);
   });
 
+  it('does not award a conditional or delayed reward when its choice is first selected', () => {
+    expect(parseMechanicalEffects("Add a 'Parcel' to your Bags. Gain 3 Trinkets if you go to that Location, delivering it."))
+      .not.toContainEqual({ support: 'implemented', effect: { type: 'modifyTrinkets', amount: 3 } });
+    expect(leftoverNeeded('Gain 3 Trinkets if you go to that Location, delivering it.')).toBe(true);
+
+    const encounter = findEncounter({ encounterType: 'travel', region: 'Meadow', card: 8 })!;
+    const deliver = encounter.choices.find(choice => choice.id === 'deliver-the-parcel')!;
+    const result = executeEncounter({
+      transactionId: 'parcel-pickup',
+      encounter,
+      choiceId: deliver.id,
+      state: {
+        reputation: 0, trinkets: 0, calendarDays: 0, foragingPoints: 0,
+        inventory: [], patient: null, movementBlocked: true, conditions: [], appliedEffectIds: []
+      }
+    });
+    expect(result.status).toBe('manual');
+    expect(result.value?.nextState.trinkets).toBe(0);
+  });
+
   it('lets the bog Ace interrupt complete without a leftover printed dump', () => {
     const encounter = findEncounter({
       encounterType: 'foraging',
@@ -62,6 +83,26 @@ describe('printed encounter choice execution', () => {
     });
     expect(result.status).toBe('resolved');
     expect(result.value?.nextState.reputation).toBe(4);
+  });
+
+  it('offers the two printed Bear’s Necessities branches and applies Scurry costs', () => {
+    const bear = findEncounter({ encounterType: 'foraging', region: 'Forest', card: 12, season: 'Spring' });
+    expect(bear?.choices.map(choice => choice.id)).toEqual(['mark-barrow', 'appease']);
+
+    const patient = resolvePatient({ id: 'bear-patient', name: 'Thistle', species: 'Squirrel', ailmentIds: ['ailment-dullsweats'] }).value!;
+    const before = patient.timers[0].current;
+    const result = executeEncounter({
+      transactionId: 'bear-scurry-cost',
+      encounter: BEAR_SCURRY_ENCOUNTER,
+      choiceId: 'lose-foraging-points',
+      state: {
+        reputation: 0, trinkets: 0, calendarDays: 0, foragingPoints: 5,
+        inventory: [], patient, movementBlocked: false, conditions: [], appliedEffectIds: []
+      }
+    });
+    expect(result.status).toBe('resolved');
+    expect(result.value?.nextState.foragingPoints).toBe(2);
+    expect(result.value?.nextState.patient?.timers[0].current).toBe(before - 2);
   });
 
   it('keeps every forage and social encounter selectable', () => {

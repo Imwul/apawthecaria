@@ -24,7 +24,7 @@ import { REAGENTS } from './data/reagents';
 import type { EngineInventoryItem } from './gameplay';
 import type { CardSuit, RuleTag } from './types';
 import { purchaseCanonicalTool, resolveToolEffects, upgradeCanonicalTool, type ToolTransactionState } from './toolEngine';
-import { resolveForagingEngine } from './foragingEngine';
+import { listInBloomCandidates, resolveForagingEngine } from './foragingEngine';
 import { resolvePatient } from './engine';
 import { resolveLeave, type LeaveRuntimeState } from './leaveEngine';
 import { migrateSavedRulesState } from './migrations';
@@ -324,6 +324,47 @@ describe('Step 3 canonical Tool identity and transactions', () => {
       parts: [{ preparationId: row.preparation.id, quantity: 1 }], spendForagingPoints: true, skipEncounter: true
     });
     expect(second.value?.nextState.patient?.timers[0].current).toBe(patient.timers[0].current + 1);
+  });
+});
+
+describe('Rulebook-linked Forest forage encounters', () => {
+  it('[TRAVEL-ENCOUNTER p.78] limits In Bloom to exact unmodified Base Value and collectible Forest Plant parts', () => {
+    expect(listInBloomCandidates({ value: 1, suit: '♣' }, 'Spring', [])).toEqual([]);
+
+    const everyPreparationTool = [...new Set(REAGENTS.flatMap(reagent =>
+      reagent.preparations.flatMap(preparation => preparation.requiredTools.filter(tool => tool !== 'none'))
+    ))];
+    const candidates = listInBloomCandidates({ value: 2, suit: '♥' }, 'Spring', everyPreparationTool);
+    expect(candidates.length).toBeGreaterThan(0);
+    candidates.forEach(candidate => {
+      const reagent = REAGENTS.find(row => row.id === candidate.reagentId)!;
+      expect(reagent).toMatchObject({ type: 'PLANT', baseRarity: 2 });
+      expect(reagent.regionAvailability.Forest).not.toBe('Unavailable');
+      expect(reagent.seasonAvailability.Spring).not.toBe('Unavailable');
+      expect(candidate.preparationIds.length).toBeGreaterThan(0);
+      expect(candidate.preparationIds.every(id => reagent.preparations.some(preparation => preparation.id === id))).toBe(true);
+    });
+  });
+
+  it('[FORAGING-ENCOUNTER p.162] replaces a nearby Bear Monarch with Scurry only after its Barrow is active', () => {
+    const state = {
+      season: 'Spring' as const,
+      currentRegion: 'Forest' as const,
+      currentLocationType: 'Wilds' as const,
+      foragingPoints: 0,
+      inventory: [],
+      toolIds: []
+    };
+    const firstBear = resolveForagingEngine({
+      transactionId: 'bear:first', state, forageRegion: 'Forest', locationRelation: 'current', card: 12
+    });
+    const scurry = resolveForagingEngine({
+      transactionId: 'bear:scurry', state, forageRegion: 'Forest', locationRelation: 'current', card: 12,
+      bearScurryActive: true
+    });
+
+    expect(firstBear.value?.encounter?.id).toBe('foraging-forest-m-spring');
+    expect(scurry.value?.encounter?.id).toBe('foraging-forest-bear-scurry');
   });
 });
 

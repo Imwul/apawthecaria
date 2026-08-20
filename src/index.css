@@ -4186,7 +4186,8 @@ button,
 }
 
 .route-composer__card {
-  width: 14rem;
+  width: 18.5rem;
+  flex: 0 0 18.5rem;
   padding: 0.6rem 0.7rem;
   background: #fdfbf5;
   border: 1.5px solid #7c6858;
@@ -4225,7 +4226,8 @@ button,
 .route-card__name-input {
   flex: 1;
   min-width: 0;
-  height: 1.8rem;
+  height: 2.75rem;
+  min-height: 2.75rem;
   padding: 0 0.4rem;
   font-size: 0.8rem;
   border: 1px solid #c2b5a5;
@@ -4238,11 +4240,16 @@ button,
   display: flex;
   align-items: center;
   gap: 0.2rem;
+  flex: 0 0 auto;
 }
 
 .route-card__move-btn {
-  height: 1.8rem;
-  padding: 0 0.35rem;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  flex: 0 0 2.75rem;
   font-size: 0.7rem;
   border: 1px solid #a39281;
   border-radius: 4px;
@@ -4257,9 +4264,14 @@ button,
   cursor: not-allowed;
 }
 
-.route-card__remove-btn {
-  height: 1.8rem;
-  padding: 0 0.4rem;
+.route-composer .route-card__remove-btn {
+  min-width: 44px;
+  height: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0 0.55rem;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: 0.72rem;
   border: 1px solid #b85c5c;
   border-radius: 4px;
@@ -4280,7 +4292,8 @@ button,
 .route-card__select {
   flex: 1;
   min-width: 0;
-  height: 1.8rem;
+  height: 2.75rem;
+  min-height: 2.75rem;
   padding: 0 0.3rem;
   font-size: 0.75rem;
   border: 1px solid #c2b5a5;
@@ -4313,7 +4326,7 @@ button,
   background: #1c6da8;
 }
 
-.route-connector__btn {
+.route-composer .route-connector__btn {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
@@ -4329,7 +4342,10 @@ button,
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   transition: transform 0.15s, background-color 0.15s;
   z-index: 1;
-  min-width: 3.4rem;
+  min-width: 44px;
+  min-height: 44px;
+  flex: 0 0 auto;
+  touch-action: manipulation;
 }
 
 .route-connector__btn:hover {
@@ -4385,7 +4401,7 @@ button,
 }
 
 .route-composer__actions button {
-  min-height: 2.5rem;
+  min-height: 44px;
   padding: 0.4rem 0.75rem;
   border: 1px solid #6a5344;
   border-radius: 4px;
@@ -4403,6 +4419,68 @@ button,
 
 .route-composer__go:disabled {
   opacity: 0.55;
+}
+
+.travel-destination-facts {
+  display: grid;
+  align-content: center;
+  gap: 0.12rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  background: #fffdf8;
+}
+
+.travel-destination-facts span {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.travel-destination-facts strong {
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+  color: var(--text-bright);
+}
+
+.journey-choice-fieldset {
+  display: grid;
+  gap: 0.7rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+}
+
+.journey-choice-fieldset legend {
+  padding: 0 0.3rem;
+  color: var(--primary);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.journey-choice-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.journey-choice-toggle button {
+  min-height: 2.75rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--glass-border);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--text-muted);
+}
+
+.journey-choice-toggle button[aria-pressed="true"] {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
 }
 
 @media (max-width: 720px) {
@@ -4979,6 +5057,8 @@ button,
   position: relative;
   width: 24px;
   height: 24px;
+  min-width: 24px;
+  min-height: 24px;
   padding: 0;
   border: 0;
   border-radius: 999px;
@@ -5071,6 +5151,11 @@ button,
 
   .paper-map__controls {
     max-width: calc(100% - 1rem);
+  }
+
+  .paper-map__controls button {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 

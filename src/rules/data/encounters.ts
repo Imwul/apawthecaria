@@ -336,6 +336,37 @@ export const SOCIAL_ENCOUNTERS: EncounterDefinition[] = [
   }))
 ].map(enrichEncounterChoices);
 
+/** p.162 persistent replacement for a future Monarch near Bear's Necessities. */
+export const BEAR_SCURRY_ENCOUNTER: EncounterDefinition = {
+  id: 'foraging-forest-bear-scurry',
+  encounterType: 'foraging',
+  region: 'Forest',
+  isSettlement: false,
+  isTitan: false,
+  title: 'Scurry!',
+  prompt: '곰이 냄새를 맡았습니다. 환자 타이머를 2 줄이고, 채집 포인트 3 또는 가방의 영약재 부위 1개를 잃은 뒤 서둘러 물러납니다.',
+  mandatoryEffects: [{ support: 'implemented', effect: { type: 'modifyTimer', amount: -2, target: 'all' } }],
+  choices: [
+    {
+      id: 'lose-foraging-points',
+      label: '채집 포인트 3을 잃습니다 (타이머 -2는 자동 적용)',
+      effects: [{ support: 'implemented', effect: { type: 'modifyForagingPoints', amount: -3 } }]
+    },
+    {
+      id: 'lose-reagent',
+      label: '가방의 영약재 부위 1개를 버립니다 (타이머 -2는 자동 적용)',
+      effects: []
+    },
+    {
+      id: 'nothing-to-lose',
+      label: '잃을 채집 포인트나 영약재가 없습니다 (타이머 -2만 적용)',
+      effects: []
+    }
+  ],
+  ...canonicalMetadata(162),
+  support: 'implemented'
+};
+
 export const ENCOUNTERS: EncounterDefinition[] = [
   ...TRAVEL_ENCOUNTERS,
   ...FORAGING_ENCOUNTERS,

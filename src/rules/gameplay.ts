@@ -48,6 +48,7 @@ export interface PendingEncounterState {
   selectedChoiceId?: string;
   unresolvedEffectCodes: string[];
   card: { value: number; suit?: string };
+  secondaryCard?: { value: number; suit: string };
   ignoreNegativeEncounterEffects?: boolean;
   encounterProtection?: 'negative' | 'all';
 }
@@ -57,6 +58,7 @@ export interface PendingForagingState {
   region: Exclude<TravelRegion, 'Soar'>;
   locationRelation: 'current' | 'adjacent';
   card: { value: number; suit?: string };
+  secondaryCard?: { value: number; suit: string };
   selectedReagentId?: string;
   timerCostAfterEncounter: number;
   encounterId: string | null;

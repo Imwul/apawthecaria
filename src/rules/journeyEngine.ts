@@ -18,7 +18,8 @@ export type JourneyGoalId =
   | 'restock'
   | 'closure'
   | 'finality'
-  | 'wanderlust';
+  | 'wanderlust'
+  | 'custom';
 
 export type JourneyDirection = 'north' | 'south' | 'east' | 'west';
 export type JourneyStatus = 'setup' | 'active' | 'ending' | 'completed' | 'abandoned';
@@ -78,11 +79,13 @@ export interface JourneyState {
   journeyId: string;
   originId: string;
   season: Season;
-  destinationCard: { value: number; suit: CardSuit };
-  destinationRequirements: JourneyDestinationRequirements;
+  destinationCard?: { value: number; suit: CardSuit };
+  destinationRequirements?: JourneyDestinationRequirements;
+  destinationSelection?: 'draw' | 'choose';
   destinationId: string;
   reason: string;
   goalId: JourneyGoalId;
+  customGoal?: { title: string; requiredState: string } | null;
   goalState: JourneyGoalState;
   urgency: { label: 'Relaxed' | 'Important' | 'Urgent' | 'Dire'; days: number };
   startDate: number;
@@ -118,6 +121,7 @@ export interface JourneyRuntimeState {
   pendingEncounter: unknown | null;
   pendingBarter: unknown | null;
   pendingForaging: unknown | null;
+  needsLocalHelp?: boolean;
   journey: JourneyState | null;
   pendingEnding: { journeyId: string; blockers: string[]; evaluation: GoalEvaluation } | null;
   downtimeRequired: boolean;
@@ -201,17 +205,32 @@ export const findJourneyDestinationCandidates = (input: {
   const distances = pathDistances(input.graph, input.originId);
   return Object.values(input.graph)
     .filter(node => node.id !== input.originId)
+    .filter(node => node.locationType === requirements.locationType)
     .filter(node => liesInDirection(origin, node, requirements.direction))
     .map(node => ({ node, paths: distances.get(node.id) }))
     .filter((row): row is { node: JourneyMapNode; paths: number } => row.paths !== undefined)
     .filter(row => row.paths >= requirements.minimumPaths && (requirements.maximumPaths === null || row.paths <= requirements.maximumPaths))
-    .sort((a, b) => {
-      const typeRank = (type: JourneyMapNode['locationType']) => type === requirements.locationType ? 0 : type === 'Settlement' || type === 'City' ? 1 : 2;
-      return typeRank(a.node.locationType) - typeRank(b.node.locationType)
-        || a.paths - b.paths
-        || a.node.name.localeCompare(b.node.name);
-    })
+    .sort((a, b) => a.paths - b.paths || a.node.name.localeCompare(b.node.name))
     .map(({ node, paths }) => ({ id: node.id, name: node.name, paths, region: node.region, locationType: node.locationType }));
+};
+
+export const listJourneyDestinationChoices = (input: {
+  graph: Record<string, JourneyMapNode>;
+  originId: string;
+}): Array<{ id: string; name: string; paths: number | null; region: Region; locationType: JourneyMapNode['locationType'] }> => {
+  if (!input.graph[input.originId]) return [];
+  const distances = pathDistances(input.graph, input.originId);
+  return Object.values(input.graph)
+    .filter(node => node.id !== input.originId)
+    .map(node => ({
+      id: node.id,
+      name: node.name,
+      paths: distances.get(node.id) ?? null,
+      region: node.region,
+      locationType: node.locationType
+    }))
+    .sort((a, b) => (a.paths ?? Number.POSITIVE_INFINITY) - (b.paths ?? Number.POSITIVE_INFINITY)
+      || a.name.localeCompare(b.name));
 };
 
 export const urgencyFor = (reputation: number): JourneyState['urgency'] => {
@@ -281,6 +300,14 @@ export const evaluateJourneyGoal = (journey: JourneyState, runtime: Pick<Journey
     const regions = new Set(events.filter(row => row.type === 'journal').map(row => row.region));
     ['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain'].forEach(region => add(`visit-${region}`, `Journal in ${region}`, regions.has(region as Region), false));
   }
+  if (journey.goalId === 'custom') {
+    add(
+      'custom-goal',
+      journey.customGoal?.requiredState || journey.customGoal?.title || 'Player-invented Journey Goal',
+      journey.goalState.playerDeclaredComplete,
+      false
+    );
+  }
   const automaticComplete = evidence.length > 0 && evidence.every(row => row.satisfied);
   const manualConfirmationRequired = evidence.some(row => !row.automatic);
   const complete = automaticComplete && (!manualConfirmationRequired || journey.goalState.playerDeclaredComplete || journey.goalState.gmOverride);
@@ -293,9 +320,11 @@ export const resolveJourneyStart = (input: {
   graph: Record<string, JourneyMapNode>;
   originId: string;
   season: Season;
-  destinationCard: { value: number; suit: CardSuit };
+  destinationCard?: { value: number; suit: CardSuit } | null;
+  destinationSelection?: 'draw' | 'choose';
   destinationId: string;
-  goalCard: RuleCard;
+  goalCard?: RuleCard | null;
+  customGoal?: { title: string; requiredState: string } | null;
   reason: string;
   startDate: number;
   rulesetId: RulesetId;
@@ -304,18 +333,40 @@ export const resolveJourneyStart = (input: {
   if (input.state.journey?.status === 'active') return { status: 'invalid', value: null, messages: ['End the active Journey first.'] };
   if (input.state.downtimeRequired) return { status: 'invalid', value: null, messages: ['Complete one Downtime activity first.'] };
   if (!input.reason.trim()) return { status: 'invalid', value: null, messages: ['Journey Reason is required.'] };
-  const candidates = findJourneyDestinationCandidates({ graph: input.graph, originId: input.originId, card: input.destinationCard });
-  if (!candidates.some(row => row.id === input.destinationId)) return { status: 'invalid', value: null, messages: ['Choose a legal destination candidate for the drawn card. Redraw when no candidate exists.'] };
-  const goalId = goalIdFromCard(input.goalCard);
+  const choosesDestination = input.destinationSelection === 'choose';
+  if (choosesDestination) {
+    if (!input.graph[input.destinationId] || input.destinationId === input.originId) {
+      return { status: 'invalid', value: null, messages: ['Choose another mapped Location as the Journey Destination.'] };
+    }
+  } else {
+    if (!input.destinationCard) return { status: 'invalid', value: null, messages: ['Draw or enter a Destination card.'] };
+    const candidates = findJourneyDestinationCandidates({ graph: input.graph, originId: input.originId, card: input.destinationCard });
+    if (!candidates.some(row => row.id === input.destinationId)) return { status: 'invalid', value: null, messages: ['Choose a legal destination candidate for the drawn card. Redraw when no candidate exists.'] };
+  }
+  const customGoal = input.customGoal && input.customGoal.title.trim() && input.customGoal.requiredState.trim()
+    ? { title: input.customGoal.title.trim(), requiredState: input.customGoal.requiredState.trim() }
+    : null;
+  if (input.customGoal && !customGoal) {
+    return { status: 'invalid', value: null, messages: ['An invented Goal needs both a purpose/title and a clear completion condition.'] };
+  }
+  if (!customGoal && !input.goalCard) return { status: 'invalid', value: null, messages: ['Draw, choose, or invent a Journey Goal.'] };
+  const goalId: JourneyGoalId = customGoal ? 'custom' : goalIdFromCard(input.goalCard!);
+  const destinationRequirements = input.destinationCard && !choosesDestination
+    ? getDestinationRequirements(input.destinationCard)
+    : undefined;
   const baseJourney: JourneyState = {
     journeyId: input.transactionId,
     originId: input.originId,
     season: input.season,
-    destinationCard: { value: getRuleCardValue(input.destinationCard), suit: input.destinationCard.suit },
-    destinationRequirements: getDestinationRequirements(input.destinationCard),
+    ...(input.destinationCard && !choosesDestination ? {
+      destinationCard: { value: getRuleCardValue(input.destinationCard), suit: input.destinationCard.suit },
+      destinationRequirements
+    } : {}),
+    destinationSelection: choosesDestination ? 'choose' : 'draw',
     destinationId: input.destinationId,
     reason: input.reason.trim(),
     goalId,
+    customGoal,
     goalState: { events: [], playerDeclaredComplete: false, gmOverride: false, evaluation: { goalId, complete: false, automaticComplete: false, evidence: [], manualConfirmationRequired: false } },
     urgency: urgencyFor(input.state.reputation),
     startDate: input.startDate,
@@ -340,7 +391,7 @@ export const resolveJourneyStart = (input: {
       appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
       journalEvents: [...input.state.journalEvents, {
         id: `${input.transactionId}:journal`, type: 'travel', title: 'Journey started',
-        text: `${input.originId} to ${input.destinationId}. Reason: ${input.reason.trim()}. Goal: ${JOURNEY_GOAL_BY_ID.get(goalId)?.title}.`
+        text: `${input.originId} to ${input.destinationId}. Reason: ${input.reason.trim()}. Goal: ${customGoal?.title || JOURNEY_GOAL_BY_ID.get(goalId)?.title}.`
       }]
     },
     messages: []
@@ -373,6 +424,7 @@ export const resolveJourneyEnding = (input: {
   if (input.state.pendingEncounter) blockers.push('Resolve the pending Encounter.');
   if (input.state.pendingBarter) blockers.push('Resolve the pending Barter.');
   if (input.state.pendingForaging) blockers.push('Resolve the pending Foraging action.');
+  if (input.state.needsLocalHelp) blockers.push('Resolve a local beast’s Ailment before ending the Move at this Location.');
   if (input.state.patients.some(patient => patient.status === 'active' && (patient.ailments.some(row => row.status === 'active') || patient.timers.some(row => row.status === 'active')))) blockers.push('Resolve or leave every active Patient and Timer.');
   if (blockers.length > 0) return { status: 'invalid', value: null, messages: blockers };
   const declaredJourney = {

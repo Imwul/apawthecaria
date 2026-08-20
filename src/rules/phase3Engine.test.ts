@@ -265,8 +265,10 @@ describe('Phase 3 Journey, Goal, and Ending engines', () => {
   it('[JOURNEY-003] filters actual graph candidates by direction, distance, and location type', () => {
     const graph = journeyGraph();
     expect(findJourneyDestinationCandidates({ graph, originId: 'origin', card: { value: 1, suit: '♥' } }).map(row => row.id)).toContain('north-5');
+    expect(findJourneyDestinationCandidates({ graph, originId: 'origin', card: { value: 1, suit: '♥' } }).map(row => row.id)).not.toContain('north-1');
     expect(findJourneyDestinationCandidates({ graph, originId: 'origin', card: { value: 8, suit: '♦' } }).map(row => row.id)).toContain('south-15');
     expect(findJourneyDestinationCandidates({ graph, originId: 'origin', card: { value: 13, suit: '♣' } }).map(row => row.id)).toContain('east-24');
+    expect(findJourneyDestinationCandidates({ graph, originId: 'origin', card: { value: 13, suit: '♣' } }).map(row => row.id)).not.toContain('east-15');
   });
 
   it('[JOURNEY-001/JOURNEY-003/JOURNEY-004] requires Reason and starts Justice with Weight 1 Evidence', () => {
@@ -275,12 +277,36 @@ describe('Phase 3 Journey, Goal, and Ending engines', () => {
       destinationCard: { value: 1, suit: '♥' }, destinationId: 'north-5', goalCard: 8, reason: '', startDate: 1, rulesetId: 'original-1e-3p'
     });
     expect(invalid.status).toBe('invalid');
+    const wrongLocationType = resolveJourneyStart({
+      transactionId: 'journey-wilds', state: journeyRuntime(), graph: journeyGraph(), originId: 'origin', season: 'Spring',
+      destinationCard: { value: 1, suit: '♥' }, destinationId: 'north-1', goalCard: 8, reason: 'Carry the truth', startDate: 1, rulesetId: 'original-1e-3p'
+    });
+    expect(wrongLocationType.status).toBe('invalid');
     const started = resolveJourneyStart({
       transactionId: 'journey-start', state: journeyRuntime(), graph: journeyGraph(), originId: 'origin', season: 'Spring',
       destinationCard: { value: 1, suit: '♥' }, destinationId: 'north-5', goalCard: 8, reason: 'Carry the truth', startDate: 1, rulesetId: 'original-1e-3p'
     });
     expect(started.value?.journey?.reason).toBe('Carry the truth');
     expect(started.value?.inventory.find(row => row.name === 'Evidence')?.weight).toBe(1);
+  });
+
+  it('[JOURNEY-003/JOURNEY-004] supports the printed choose-destination and invent-goal paths', () => {
+    const started = resolveJourneyStart({
+      transactionId: 'journey-chosen-custom', state: journeyRuntime(), graph: journeyGraph(), originId: 'origin', season: 'Spring',
+      destinationSelection: 'choose', destinationId: 'north-1', destinationCard: null,
+      goalCard: null, customGoal: { title: 'Return a borrowed recipe', requiredState: 'Journal the handoff at the Destination.' },
+      reason: 'Keep a promise', startDate: 1, rulesetId: 'original-1e-3p'
+    });
+    expect(started.status).toBe('resolved');
+    expect(started.value?.journey).toMatchObject({
+      destinationId: 'north-1', destinationSelection: 'choose', goalId: 'custom',
+      customGoal: { title: 'Return a borrowed recipe' }
+    });
+    expect(started.value?.journey?.destinationCard).toBeUndefined();
+    const journey = structuredClone(started.value!.journey!);
+    expect(evaluateJourneyGoal(journey, { inventory: [], reputation: 5, patients: [] }).complete).toBe(false);
+    journey.goalState.playerDeclaredComplete = true;
+    expect(evaluateJourneyGoal(journey, { inventory: [], reputation: 5, patients: [] }).complete).toBe(true);
   });
 
   it('[JOURNEY-004] defines all 12 printed Goals and evaluates state evidence instead of a free counter', () => {
@@ -327,6 +353,14 @@ describe('Phase 3 Journey, Goal, and Ending engines', () => {
     expect(arrived.status).toBe('resolved');
     expect(arrived.value?.reputation).toBe(5);
     expect(arrived.value?.downtimeRequired).toBe(true);
+
+    const untreatedArrival = resolveJourneyEnding({
+      transactionId: 'end-before-local-ailment',
+      state: { ...journeyRuntime(), currentLocationId: journey.destinationId, journey, reputation: 5, needsLocalHelp: true },
+      endedAt: 2, outcome: 'success', journalText: 'I tried to leave before earning my keep.'
+    });
+    expect(untreatedArrival.status).toBe('invalid');
+    expect(untreatedArrival.messages.join(' ')).toMatch(/local beast.*Ailment/i);
   });
 });
 

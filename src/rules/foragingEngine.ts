@@ -1,5 +1,5 @@
 import { getRuleCardValue, type RuleCard } from './cards';
-import { findEncounter } from './data/encounters';
+import { BEAR_SCURRY_ENCOUNTER, findEncounter } from './data/encounters';
 import { REAGENT_BY_ID, REAGENTS } from './data/reagents';
 import type { EngineInventoryItem, GameplayLocationType } from './gameplay';
 import type { PatientState } from './state';
@@ -41,6 +41,9 @@ export interface ForagingEngineInput {
   source?: 'standard' | 'companion-wasp' | 'familiar-independent' | 'barrow-delve';
   gatherTimerId?: string;
   weatherProtectionActive?: boolean;
+  declineGather?: boolean;
+  /** A Towering bear Barrow is at this Location or one Path away (p.162). */
+  bearScurryActive?: boolean;
 }
 
 export interface ForagingCandidate {
@@ -159,6 +162,37 @@ export const calculateCanonicalForageRarity = (
 const hasPreparationTools = (preparation: ReagentPreparation, toolIds: readonly string[]): boolean =>
   preparation.requiredTools.every(tool => tool === 'none' || toolIds.includes(tool));
 
+export interface InBloomCandidate {
+  reagentId: string;
+  canonicalName: string;
+  preparationIds: string[];
+}
+
+/**
+ * Forest A/2 travel encounter, p.78: the follow-up card must equal the
+ * Reagent's unmodified Base Value. Region/season availability and preparation
+ * tools still determine whether that Part can actually be collected.
+ */
+export const listInBloomCandidates = (
+  card: RuleCard,
+  season: Season,
+  toolIds: readonly string[]
+): InBloomCandidate[] => {
+  const value = getRuleCardValue(card, 'travel');
+  return REAGENTS.flatMap(reagent => {
+    if (reagent.type !== 'PLANT'
+      || reagent.baseRarity !== value
+      || reagent.regionAvailability.Forest === 'Unavailable'
+      || reagent.seasonAvailability[season] === 'Unavailable') return [];
+    const preparationIds = reagent.preparations
+      .filter(preparation => hasPreparationTools(preparation, toolIds))
+      .map(preparation => preparation.id);
+    return preparationIds.length > 0
+      ? [{ reagentId: reagent.id, canonicalName: reagent.canonicalName, preparationIds }]
+      : [];
+  });
+};
+
 const candidateFor = (
   reagent: ReagentDefinition,
   input: ForagingEngineInput,
@@ -238,14 +272,48 @@ export const resolveForagingEngine = (input: ForagingEngineInput): ForagingEngin
     .map(reagent => candidateFor(reagent, input, cardValue))
     .filter((candidate): candidate is ForagingCandidate => candidate !== null);
   const skipsPrintedEncounter = input.skipEncounter || input.source === 'familiar-independent';
-  const encounter = skipsPrintedEncounter ? null : findEncounter({
-    encounterType: 'foraging',
-    region: input.forageRegion,
-    card: input.card,
-    season: input.state.season
-  });
+  const encounter = skipsPrintedEncounter
+    ? null
+    : input.bearScurryActive && cardValue === 12
+      ? BEAR_SCURRY_ENCOUNTER
+      : findEncounter({
+          encounterType: 'foraging',
+          region: input.forageRegion,
+          card: input.card,
+          season: input.state.season
+        });
   const ignoredNegativeEncounterEffects = Boolean(input.weatherProtectionActive && encounter?.tags?.includes('Weather'));
   if (!skipsPrintedEncounter && !encounter) return { status: 'invalid', value: null, messages: ['No canonical Foraging Encounter matches this draw.'] };
+
+  if (input.declineGather) {
+    const declined = input.targetReagentId
+      ? candidates.find(candidate => candidate.reagentId === input.targetReagentId)
+      : undefined;
+    if (input.targetReagentId && !declined) {
+      return { status: 'invalid', value: null, messages: ['The missed Reagent is unavailable in this Region or Season.'] };
+    }
+    if (declined?.cardSuccess || declined?.automaticWithForagingPoints) {
+      return { status: 'invalid', value: null, messages: ['This Reagent can already be gathered without spending Foraging Points.'] };
+    }
+    const toolGain = applyForagingPointTool(input, 1);
+    return {
+      status: encounter?.support === 'implemented' || skipsPrintedEncounter ? 'resolved' : 'manual',
+      value: {
+        transactionId: input.transactionId,
+        nextState: { ...input.state, tools: toolGain.tools, foragingPoints: input.state.foragingPoints + toolGain.gain },
+        candidates,
+        selectedReagentId: declined?.reagentId || null,
+        gatheredItems: [],
+        foragingPointsSpent: 0,
+        foragingPointsGained: toolGain.gain,
+        timerCostAfterEncounter: input.source === 'familiar-independent' ? 0 : input.locationRelation === 'adjacent' ? 2 : 1,
+        encounter,
+        ignoredNegativeEncounterEffects,
+        ailmentInterruption: null
+      },
+      messages: [`Card ${cardValue} was too low for the listed Reagent; gained ${toolGain.gain} Foraging Point${toolGain.gain === 1 ? '' : 's'}.`]
+    };
+  }
 
   if (!input.targetReagentId) {
     const regionBonus = (input.state.conditions || []).some(condition =>

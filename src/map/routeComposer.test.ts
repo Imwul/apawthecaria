@@ -9,6 +9,7 @@ import {
   glyphKindFromLocation,
   nearestTerrain,
   moveRouteStop,
+  normalizeRouteDraft,
   removeRouteStopAt,
   setRouteEdgeKind,
   stopFromPlace,
@@ -67,6 +68,28 @@ describe('route composer draft', () => {
     draft = moveRouteStop(draft, 2, 1);
     expect(draft.stops.map(row => row.id)).toEqual(['a', 'c', 'b']);
     expect(draft.edgeKinds).toHaveLength(2);
+  });
+
+  it('keeps the current-location origin fixed when reordering', () => {
+    let draft = appendRouteStop(draftFromOrigin(stop('origin')), stop('b'));
+    draft = appendRouteStop(draft, stop('c'));
+    expect(moveRouteStop(draft, 0, 1)).toBe(draft);
+    expect(moveRouteStop(draft, 1, 0)).toBe(draft);
+  });
+
+  it('repairs malformed persisted drafts without inventing connector counts', () => {
+    const restored = normalizeRouteDraft({
+      stops: [
+        stop('origin'),
+        { ...stop('lake'), terrain: 'Loch', x: 500 },
+        null,
+        { name: 'missing id' }
+      ],
+      edgeKinds: ['waterway', 'bogus', 'river']
+    });
+    expect(restored.stops.map(row => row.id)).toEqual(['origin', 'lake']);
+    expect(restored.stops[1].x).toBe(100);
+    expect(restored.edgeKinds).toEqual(['waterway']);
   });
 });
 

@@ -40,6 +40,7 @@ import {
   mapKindFromGlyph,
   moveRouteStop,
   nearestTerrain,
+  normalizeRouteDraft,
   removeRouteStopAt,
   routeEdgeLabel,
   setRouteEdgeKind,
@@ -72,6 +73,7 @@ import parsedPrepsList from "../parsed_preps_list.json";
 import {
   CURRENT_SCHEMA_VERSION,
   AILMENTS,
+  LEGACY_EMPTY_AILMENT_OUTCOME,
   ALMANACK_TOOLS,
   BARROW_DELVE_BY_ID,
   GUILD_SERVICE_BY_ID,
@@ -99,6 +101,7 @@ import {
   drawPilferCard,
   diagnoseBuildingTrust,
   findJourneyDestinationCandidates,
+  listJourneyDestinationChoices,
   getBarterAttemptLimit,
   getBarterAttemptsRemaining,
   getGuildLedgerForagingPointBonus,
@@ -116,6 +119,7 @@ import {
   resolveCanonicalDowntime,
   resolveEncounter,
   resolveForaging,
+  listInBloomCandidates,
   resolveJourneyEnding,
   resolveJourneyStart,
   urgencyFor,
@@ -204,6 +208,7 @@ import {
   type ClinicAgendaRuntimeState,
   type DowntimeEngineOutcome,
   type EngineInventoryItem,
+  type EncounterDefinition,
   type GameplayLocationType,
   type GuildServiceId,
   type JourneyMapNode,
@@ -768,6 +773,7 @@ interface GameState {
   clinics?: Clinic[];
   customMapLocations?: CustomMapLocation[];
   customMapEdges?: CustomMapEdge[];
+  routeDraft: RouteDraft;
   guildServiceTravelRerolls?: number;
   forecastMoves?: number;
   forecastActiveAtLocation?: boolean;
@@ -937,6 +943,7 @@ const INITIAL_STATE: GameState = {
   clinics: [],
   customMapLocations: [],
   customMapEdges: [],
+  routeDraft: { stops: [], edgeKinds: [] },
   guildServiceTravelRerolls: 0,
   forecastMoves: 0,
   forecastActiveAtLocation: false,
@@ -1630,7 +1637,10 @@ const findMapLocationKey = (name: string, customLocations: CustomMapLocation[] =
   );
   if (custom) return custom.id;
 
-  const direct = Object.entries(MAP_LOCATIONS).find(([key, node]) =>
+  // Wild route nodes are first-class map locations too. Looking only through
+  // the named-location table made the current-position button and selection
+  // highlight disappear as soon as a Journey stopped in the wilds.
+  const direct = Object.entries(MAP_GRAPH_NODES).find(([key, node]) =>
     key === normalized || normalizeMapLocationName(node.label) === normalized || (node.aliases || []).some(alias => normalizeMapLocationName(alias) === normalized)
   );
   return direct?.[0] || '';
@@ -1984,6 +1994,52 @@ const createPrintedManualDraft = (
   return createManualEffectDraft(effect, trigger, context, createdAt);
 };
 
+const encounterChoiceSlug = (value: string): string => value
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-|-$/g, '');
+
+const prefillManualDraftFromEncounterChoice = (
+  draft: ManualEffectDraft,
+  encounter: EncounterDefinition,
+  selectedChoiceId?: string,
+  secondaryCard?: PlayingCard | null
+): ManualEffectDraft => {
+  if (!selectedChoiceId) return draft;
+  const selectedChoice = encounter.choices.find(choice => choice.id === selectedChoiceId);
+  if (!selectedChoice) return draft;
+  const choiceText = selectedChoice.label.replace(/\s+/g, ' ').toLowerCase();
+  const matchingOption = draft.inputFields
+    .filter(field => field.type === 'choice')
+    .flatMap(field => (field.options || []).map(option => ({ fieldId: field.id, option })))
+    .find(({ option }) => encounterChoiceSlug(option) === selectedChoiceId || choiceText.startsWith(option.toLowerCase()));
+  const immediateBagActions = draft.actionTemplates.filter(action =>
+    action.kind === 'gain-inventory'
+    && /\badd\b[\s\S]{0,80}\bto\s+(?:your\s+)?bags?\b/i.test(action.sourceText)
+    && choiceText.includes(action.sourceText.replace(/\s+/g, ' ').toLowerCase())
+  );
+  const actionTargets = { ...draft.actionTargets };
+  immediateBagActions.forEach(action => {
+    const match = action.sourceText.match(/\badd\s+(?:an?\s+)?['“”"]?([^.;]{1,60}?)['“”"]?\s+to\s+(?:your\s+)?bags?\b/i);
+    if (match) actionTargets[action.id] = match[1].trim();
+  });
+  const secondaryInput = secondaryCard
+    ? draft.inputFields.find(field => field.type === 'card-reference')
+    : undefined;
+  return {
+    ...draft,
+    inputValues: {
+      ...draft.inputValues,
+      ...(matchingOption ? { [matchingOption.fieldId]: matchingOption.option } : {}),
+      ...(secondaryInput && secondaryCard
+        ? { [secondaryInput.id]: `${secondaryCard.suit} ${cardDisplayValue(secondaryCard.value)} · 룰 표기 ${cardRuleValue(secondaryCard)}` }
+        : {})
+    },
+    selectedActionIds: [...new Set([...draft.selectedActionIds, ...immediateBagActions.map(action => action.id)])],
+    actionTargets
+  };
+};
+
 const enqueueManualDrafts = (state: GameState, drafts: Array<ManualEffectDraft | null>, open = true): GameState => {
   const incoming = drafts.filter((draft): draft is ManualEffectDraft => Boolean(draft));
   if (incoming.length === 0) return state;
@@ -2119,6 +2175,7 @@ const toJourneyRuntime = (s: GameState): JourneyRuntimeState => ({
   pendingEncounter: s.pendingEncounter,
   pendingBarter: s.pendingBarter && !['completed', 'abandoned'].includes(s.pendingBarter.status) ? s.pendingBarter : null,
   pendingForaging: s.pendingForaging,
+  needsLocalHelp: Boolean(s.needsLocalHelpBeforeMove),
   journey: s.journey,
   pendingEnding: s.pendingEnding,
   downtimeRequired: s.downtimeRequired,
@@ -2454,6 +2511,15 @@ const encounterNeedsPlayerChoice = (encounter: { choices?: Array<{ id: string }>
   const choices = encounter?.choices || [];
   if (choices.length === 0) return false;
   return !defaultEncounterChoiceId(encounter, selectedChoiceId);
+};
+
+const encounterChoiceRequiresSecondaryCard = (
+  encounter: { choices?: Array<{ id: string; label?: string }> } | null | undefined,
+  selectedChoiceId?: string
+): boolean => {
+  const choice = encounter?.choices?.find(row => row.id === selectedChoiceId)
+    || (encounter?.choices?.length === 1 ? encounter.choices[0] : undefined);
+  return /\bdraw\s+(?:a|an|another|one|two|three|\d+)?\s*cards?\b/i.test(choice?.label || '');
 };
 
 const getLocalizedLocationName = (name: string): string => localizeLocationName(name);
@@ -3245,33 +3311,32 @@ const CardDrawSlot = ({
 // =================================================================
 // 3.4b. TRAVEL SECONDARY DRAW SLOT (inline, self-contained)
 // =================================================================
-const TravelSecondaryDrawSlot = () => {
-  const [drawnCard, setDrawnCard] = useState<PlayingCard | null>(null);
+const TravelSecondaryDrawSlot = ({ card, onDraw }: { card: PlayingCard | null; onDraw: (card: PlayingCard) => void }) => {
   const [isDrawing, setIsDrawing] = useState(false);
 
   const handleDraw = () => {
     if (isDrawing) return;
     setIsDrawing(true);
     window.setTimeout(() => {
-      setDrawnCard(drawPlayingCard());
+      onDraw(drawPlayingCard());
       setIsDrawing(false);
     }, 380);
   };
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-      {drawnCard ? (
+      {card ? (
         <>
           <img
-            src={getCardSvgUrl(drawnCard.suit, drawnCard.value)}
-            alt={`${drawnCard.suit} ${cardDisplayValue(drawnCard.value)}`}
+            src={getCardSvgUrl(card.suit, card.value)}
+            alt={`${card.suit} ${cardDisplayValue(card.value)}`}
             style={{ width: '56px', height: '82px', objectFit: 'contain', borderRadius: '5px', boxShadow: '0 3px 8px rgba(0,0,0,0.15)' }}
           />
           <div>
             <div style={{ fontWeight: 'bold', color: '#3a4c8a', fontSize: '0.92rem' }}>
-              {drawnCard.suit} {cardDisplayValue(drawnCard.value)}
+              {card.suit} {cardDisplayValue(card.value)}
             </div>
-            <div style={{ fontSize: '0.78rem', color: '#666' }}>룰 표기: {cardRuleValue(drawnCard)}</div>
+            <div style={{ fontSize: '0.78rem', color: '#666' }}>룰 표기: {cardRuleValue(card)}</div>
             <button
               type="button"
               onClick={handleDraw}
@@ -3783,6 +3848,7 @@ const migrateState = (s: any): GameState => {
     clinics: s.clinics || [],
     customMapLocations: s.customMapLocations || [],
     customMapEdges: s.customMapEdges || [],
+    routeDraft: normalizeRouteDraft(s.routeDraft),
     guildServiceTravelRerolls: s.guildServiceTravelRerolls || 0,
     forecastMoves: s.forecastMoves || 0,
     forecastActiveAtLocation: s.forecastActiveAtLocation || false,
@@ -3927,6 +3993,7 @@ const ailmentDisplayRecord = (row: (typeof AILMENTS)[number]) => {
       .map(item => item.effect.type === 'customEffect' ? item.effect.description : '')
       .filter(Boolean)
       .join('\n');
+  const printedOutcome = legacy?.outcome === LEGACY_EMPTY_AILMENT_OUTCOME ? '' : legacy?.outcome || '';
   return {
     name: row.displayName,
     rawName: row.canonicalName,
@@ -3934,7 +4001,7 @@ const ailmentDisplayRecord = (row: (typeof AILMENTS)[number]) => {
     timer: row.timer,
     tags: legacy?.tags || '',
     description: legacy?.description || '',
-    outcome: legacy?.outcome || effectText(row.successEffects),
+    outcome: printedOutcome || effectText(row.successEffects),
     consequence: legacy?.consequence || effectText(row.failureEffects)
   };
 };
@@ -4056,6 +4123,7 @@ const hasSafeWaterwayTravel = (s: GameState): boolean =>
 const isRuinedWhenSoaked = (item: BagItem): boolean => {
   const text = `${item.id} ${item.name} ${item.tags || ''} ${item.preps || ''}`.toLowerCase();
   return item.type === 'reagent' ||
+    item.ruinedWhenSoaked === true ||
     text.includes('evidence') ||
     text.includes('ruined if soaked') ||
     item.name.includes('증거');
@@ -4104,6 +4172,18 @@ const getTravelSpeed = (s: GameState, weight: number): number => {
   return base;
 };
 
+const hasNearbyBearBarrow = (s: GameState): boolean => {
+  const graph = toRuleMapGraph(s);
+  const currentId = findMapLocationKey(s.currentLocationName, s.customMapLocations || [])
+    || normalizeMapLocationName(s.currentLocationName);
+  const nearbyIds = new Set([currentId, ...(graph[currentId]?.neighbors || [])]);
+  return (s.barrows || []).some(barrow =>
+    !barrow.removed
+    && barrow.id.startsWith('bear-barrow:')
+    && nearbyIds.has(barrow.locationId || findMapLocationKey(barrow.locationName, s.customMapLocations || []) || normalizeMapLocationName(barrow.locationName))
+  );
+};
+
 const canonicalForagingModifiers = (s: GameState) => {
   const mechanic = getActiveFamiliarMechanic(s);
   const plantCompanion = (s.companionStates || []).some(row => row.companionId === 'butterfly')
@@ -4119,7 +4199,8 @@ const canonicalForagingModifiers = (s: GameState) => {
       TITAN: mechanic === 'titanwise' ? -2 : 0
     },
     alwaysAvailableReagentIds: resourceful ? [resourceful] : [],
-    weatherProtectionActive: Boolean(s.forecastActiveAtLocation)
+    weatherProtectionActive: Boolean(s.forecastActiveAtLocation),
+    bearScurryActive: hasNearbyBearBarrow(s)
   };
 };
 
@@ -4405,6 +4486,7 @@ export default function App() {
   const [rulebookRequest, setRulebookRequest] = useState<RulebookReferenceRequest | null>(null);
   const [pendingMapTravel, setPendingMapTravel] = useState<MapPickLocation | null>(null);
   const [saveLoadError, setSaveLoadError] = useState<string | null>(null);
+  const initialSetupRouted = useRef(false);
 
   const requestControlledPrompt = useCallback((request: ControlledPromptRequest) => new Promise<string | null>(resolve => {
     setControlledPromptResolver(() => resolve);
@@ -4627,6 +4709,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (loading || !state || initialSetupRouted.current) return;
+    initialSetupRouted.current = true;
+    if (state.bio.name.trim()) return;
+    queueMicrotask(() => setActiveTab('bio'));
+  }, [loading, state]);
+
+  useEffect(() => {
     if (!state?.pendingEncounter || activeTravelEncounter || deferredEncounterId === state.pendingEncounter.transactionId) return;
     const pending = state.pendingEncounter;
     let cancelled = false;
@@ -4642,7 +4731,8 @@ export default function App() {
         region: pending.encounter.region,
         locName: state.currentLocationName,
         transactionId: pending.transactionId,
-        selectedChoiceId: pending.selectedChoiceId
+        selectedChoiceId: pending.selectedChoiceId,
+        secondaryCard: pending.secondaryCard || null
       });
     });
     return () => { cancelled = true; };
@@ -4692,7 +4782,8 @@ export default function App() {
         region: pending.region, season: state.currentSeason,
         timerBaseCost: pending.locationRelation === 'adjacent' ? 2 : 1,
         gatheredPartCount: 0, selectedReagentId: pending.selectedReagentId,
-        transactionId: pending.transactionId
+        transactionId: pending.transactionId,
+        secondaryCard: pending.secondaryCard || null
       });
     });
     return () => { cancelled = true; };
@@ -5293,7 +5384,7 @@ export default function App() {
   const handleReset = () => {
     if (askWindowConfirm("⚠️ 경고: 정말 모든 진행상황과 연대기를 초기화하고 새로운 약제사로 시작하시겠습니까? (저널 일지 기록도 함께 삭제됩니다.)")) {
       updateState(() => syncWorldMemory(INITIAL_STATE));
-      changeActiveTab('play');
+      changeActiveTab('bio');
     }
   };
 
@@ -5515,11 +5606,72 @@ export default function App() {
     });
   };
 
+  const handleRecordForageMiss = (find: ForageFind) => {
+    const pending = state.pendingForaging;
+    if (!pending || !find.reagentId) return;
+    const activePatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
+    const result = resolveForaging({
+      transactionId: pending.transactionId,
+      state: {
+        season: state.currentSeason,
+        currentRegion: (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as Exclude<TravelRegion, 'Soar'>,
+        currentLocationType: canonicalLocationType(state.currentLocationType),
+        adjacentRegions: adjacentRuleRegions(state),
+        foragingPoints: state.activeAilment?.foragingPoints || 0,
+        inventory: toEngineInventory(state.bag),
+        toolIds: canonicalToolsFromState(state).filter(tool => !tool.broken && !tool.consumed).map(tool => tool.toolId),
+        tools: canonicalToolsFromState(state),
+        patient: activePatient,
+        conditions: state.manualConditions || []
+      },
+      forageRegion: pending.region,
+      locationRelation: pending.locationRelation,
+      card: pending.card,
+      reagentTypeFilter: pending.reagentTypeFilter,
+      source: pending.source,
+      targetReagentId: find.reagentId,
+      declineGather: true,
+      ...canonicalForagingModifiers(state),
+      weatherProtectionActive: pending.ignoreNegativeEncounterEffects || state.forecastActiveAtLocation
+    });
+    if (!result.value) return showAlert(result.messages.join('\n'));
+    const outcome = result.value;
+    updateState(s => ({
+      ...s,
+      toolStates: outcome.nextState.tools || canonicalToolsFromState(s),
+      patients: outcome.nextState.patient
+        ? s.patients.map(patient => patient.id === outcome.nextState.patient!.id
+          ? { ...outcome.nextState.patient!, foragingPoints: outcome.nextState.foragingPoints }
+          : patient)
+        : updateActivePatient(s, patient => ({ ...patient, foragingPoints: outcome.nextState.foragingPoints })),
+      pendingForaging: {
+        ...pending,
+        selectedReagentId: find.reagentId,
+        timerCostAfterEncounter: outcome.timerCostAfterEncounter,
+        encounterId: outcome.encounter?.id || null,
+        phase: 'encounter'
+      },
+      appliedTransactionIds: Array.from(new Set([...s.appliedTransactionIds, pending.transactionId]))
+    }));
+    setActiveForageEncounter((current: any) => current ? {
+      ...current,
+      foundReagents: [find],
+      selectedReagentId: find.reagentId,
+      gatheredPartCount: 0,
+      timerBaseCost: outcome.timerCostAfterEncounter,
+      forageFailed: true
+    } : current);
+    showAlert(result.messages.join('\n'));
+  };
+
   const handleAddForageFindToBag = async (find: ForageFind, _idx: number) => {
     const pending = state.pendingForaging;
     const reagent = REAGENTS.find(row => row.id === find.reagentId);
     if (!pending || !reagent) return;
-    const availableParts = reagent.preparations.filter(part => part.requiredTools.every(tool => tool === 'none' || state.bag.some(item => item.canonicalToolId === tool)));
+    const availableToolIds = new Set(canonicalToolsFromState(state)
+      .filter(tool => !tool.broken && !tool.consumed)
+      .map(tool => tool.toolId));
+    const availableParts = reagent.preparations.filter(part => part.requiredTools.every(tool => tool === 'none' || availableToolIds.has(tool)));
     if (availableParts.length === 0) {
       showAlert('이 영약재를 준비하는 데 필요한 도구가 없습니다.');
       return;
@@ -5531,7 +5683,7 @@ export default function App() {
       kicker: '채집 기록',
       options: availableParts.map((part, partIndex) => ({
         value: String(partIndex + 1),
-        label: `${partIndex + 1}. ${localizePreparationName(part.name)} (${localizePreparationMethod(part.method)}, 무게 ${formatWeight(part.weight)}, ${part.uses}회분)`
+        label: `${partIndex + 1}. ${localizePreparationName(part.name)} (${localizePreparationMethod(part.method)}, ${part.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음'}, 무게 ${formatWeight(part.weight)}, ${part.uses}회분)`
       }))
     });
     if (chosen === null) return;
@@ -5583,7 +5735,7 @@ export default function App() {
         adjacentRegions: adjacentRuleRegions(state),
         foragingPoints: state.activeAilment?.foragingPoints || 0,
         inventory: toEngineInventory(state.bag),
-        toolIds: state.bag.flatMap(item => item.canonicalToolId ? [item.canonicalToolId] : []),
+        toolIds: canonicalToolsFromState(state).filter(tool => !tool.broken && !tool.consumed).map(tool => tool.toolId),
         tools: canonicalToolsFromState(state),
         patient: activePatient,
         conditions: state.manualConditions || []
@@ -5884,7 +6036,7 @@ export default function App() {
     };
   };
 
-  const resolveCanonicalEncounter = (note: string) => {
+  const resolveCanonicalEncounter = async (note: string) => {
     const pending = state.pendingEncounter;
     if (!pending) {
       setActiveTravelEncounter(null);
@@ -5893,6 +6045,65 @@ export default function App() {
     if (encounterNeedsPlayerChoice(pending.encounter, activeTravelEncounter?.selectedChoiceId || pending.selectedChoiceId)) {
       showAlert('인쇄된 선택지 중 하나를 고른 뒤 판정을 계속하세요.');
       return;
+    }
+    const selectedChoiceId = activeTravelEncounter?.selectedChoiceId || pending.selectedChoiceId;
+    const secondaryCard = activeTravelEncounter?.secondaryCard || pending.secondaryCard || null;
+    if ((encounterChoiceRequiresSecondaryCard(pending.encounter, selectedChoiceId)
+      || pending.encounter.id === 'travel-forest-a-2') && !secondaryCard) {
+      showAlert('선택한 조우 분기의 추가 카드를 먼저 뽑아 주세요. 뽑은 카드는 저장 후에도 유지됩니다.');
+      return;
+    }
+    let inBloomReward: EngineInventoryItem | null = null;
+    let inBloomNote = '';
+    if (pending.encounter.id === 'travel-forest-a-2' && secondaryCard) {
+      const toolIds = canonicalToolsFromState(state)
+        .filter(tool => !tool.broken && !tool.consumed)
+        .map(tool => tool.toolId);
+      const candidates = listInBloomCandidates(secondaryCard, state.currentSeason, toolIds);
+      if (candidates.length === 0) {
+        inBloomNote = `${getRuleCardLabel(secondaryCard)}와 Base Value가 같은 현재 계절의 숲 식물 부위가 없어 획득하지 못했다.`;
+      } else {
+        const reagentChoice = await requestControlledPrompt({
+          title: 'In Bloom · 숲 식물 선택',
+          message: `후속 카드 ${getRuleCardLabel(secondaryCard)}와 Base Value가 같은 숲 식물입니다. 하나를 선택하세요.`,
+          kicker: '여정 조우 p.78',
+          defaultValue: '1',
+          options: candidates.map((candidate, index) => ({
+            value: String(index + 1),
+            label: `${index + 1}. ${REAGENT_BY_ID.get(candidate.reagentId)?.displayName || candidate.canonicalName}`
+          }))
+        });
+        if (reagentChoice === null) return;
+        const candidate = candidates[Math.max(0, (parseInt(reagentChoice, 10) || 1) - 1)];
+        const reagent = candidate ? REAGENT_BY_ID.get(candidate.reagentId) : null;
+        if (!candidate || !reagent) return showAlert('선택한 숲 식물을 도감에서 찾지 못했습니다.');
+        const preparations = reagent.preparations.filter(preparation => candidate.preparationIds.includes(preparation.id));
+        const partChoice = await requestControlledPrompt({
+          title: 'In Bloom · 부위 선택',
+          message: `${reagent.displayName}에서 가방에 넣을 부위를 고르세요.`,
+          kicker: '여정 조우 p.78',
+          defaultValue: '1',
+          options: preparations.map((preparation, index) => ({
+            value: String(index + 1),
+            label: `${index + 1}. ${localizePreparationName(preparation.name)} · ${localizePreparationMethod(preparation.method)} · ${preparation.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 없음'}`
+          }))
+        });
+        if (partChoice === null) return;
+        const preparation = preparations[Math.max(0, (parseInt(partChoice, 10) || 1) - 1)];
+        if (!preparation) return showAlert('선택한 식물 부위를 찾지 못했습니다.');
+        inBloomReward = {
+          id: `${pending.transactionId}:in-bloom:${preparation.id}`,
+          name: `${reagent.displayName} (${preparation.name})`,
+          type: 'reagent',
+          weight: preparation.weight,
+          quantity: 1,
+          canonicalReagentId: reagent.id,
+          preparationId: preparation.id,
+          usesRemaining: preparation.uses,
+          ruinedWhenSoaked: true
+        };
+        inBloomNote = `${reagent.displayName} ${localizePreparationName(preparation.name)}을(를) 가방에 넣었다.`;
+      }
     }
     const activePatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
     const result = resolveEncounter({
@@ -5917,7 +6128,9 @@ export default function App() {
       return;
     }
     const outcome = result.value;
-    const runtime = outcome.nextState;
+    const runtime = inBloomReward
+      ? { ...outcome.nextState, inventory: [...outcome.nextState.inventory, inBloomReward] }
+      : outcome.nextState;
     let manualDraft = outcome.unresolvedEffects.length > 0
       ? createPrintedManualDraft(pending.encounter.id, 'encounter', {
         encounterTransactionId: pending.transactionId,
@@ -5926,6 +6139,12 @@ export default function App() {
         continuation: 'travel'
       })
       : null;
+    if (manualDraft) manualDraft = prefillManualDraftFromEncounterChoice(
+      manualDraft,
+      pending.encounter,
+      selectedChoiceId,
+      pending.secondaryCard || activeTravelEncounter?.secondaryCard || null
+    );
     const printedEffect = PRINTED_EFFECT_BY_OWNER.get(pending.encounter.id);
     if (manualDraft && note.trim()) manualDraft = { ...manualDraft, resultSummary: note.trim(), journalNote: note.trim() };
     if ((pending.encounterProtection || pending.ignoreNegativeEncounterEffects) && manualDraft) manualDraft = {
@@ -5940,6 +6159,9 @@ export default function App() {
           ? { ...runtime.patient!, foragingPoints: runtime.foragingPoints }
           : patient)
         : s.patients;
+      const goalProgress = inBloomReward?.canonicalReagentId
+        ? checkReagentGatherForGoal(s, REAGENT_BY_ID.get(inBloomReward.canonicalReagentId)?.canonicalName || inBloomReward.name)
+        : { nextGoalCounter: s.journeyGoalCounter, nextChecklist: s.journeyGoalChecklist };
       const next: GameState = {
         ...s,
         reputation: runtime.reputation,
@@ -5949,11 +6171,13 @@ export default function App() {
         patients,
         appliedEncounterEffectIds: runtime.appliedEffectIds,
         pendingEncounter: null,
+        journeyGoalCounter: goalProgress.nextGoalCounter,
+        journeyGoalChecklist: goalProgress.nextChecklist,
         manualConditions: remapEncounterConditions(runtime.conditions, s),
         journals: [{
           id: `${pending.transactionId}:${manualDraft ? 'pending-manual' : 'resolved'}`,
           title: `${manualDraft ? '판정 대기' : '여정 조우'}: ${printedEffect?.ownerName || pending.encounter.title}`,
-          text: `[p.${pending.encounter.sourcePage}] ${printedEffect?.printedText || pending.encounter.prompt}${manualDraft ? '\n\n전용 직접 판정에서 선택과 상태 변화를 완료해야 합니다.' : `\n\n나의 선택: ${note || '인쇄된 지시를 해결했다.'}`}`,
+          text: `[p.${pending.encounter.sourcePage}] ${printedEffect?.printedText || pending.encounter.prompt}${manualDraft ? '\n\n전용 직접 판정에서 선택과 상태 변화를 완료해야 합니다.' : `\n\n나의 선택: ${[note, inBloomNote].filter(Boolean).join(' · ') || '인쇄된 지시를 해결했다.'}`}`,
           timestamp: Date.now()
         }, ...s.journals]
       };
@@ -5962,12 +6186,19 @@ export default function App() {
     setActiveTravelEncounter(null);
   };
 
-  const resolveCanonicalForageEncounter = (note: string): boolean => {
+  const resolveCanonicalForageEncounter = async (note: string): Promise<boolean> => {
     const pending = state.pendingForaging;
     if (!pending) return true;
     if (pending.source !== 'familiar-independent'
       && encounterNeedsPlayerChoice(activeForageEncounter, activeForageEncounter?.selectedChoiceId || pending.selectedChoiceId)) {
       showAlert('인쇄된 채집 선택지 중 하나를 고른 뒤 판정을 계속하세요.');
+      return false;
+    }
+    const selectedChoiceId = activeForageEncounter?.selectedChoiceId || pending.selectedChoiceId;
+    if (pending.source !== 'familiar-independent'
+      && encounterChoiceRequiresSecondaryCard(activeForageEncounter, selectedChoiceId)
+      && !pending.secondaryCard) {
+      showAlert('선택한 채집 조우 분기의 추가 카드를 먼저 뽑아 주세요. 뽑은 카드는 저장 후에도 유지됩니다.');
       return false;
     }
     if (pending.phase === 'choose-reagent' && (activeForageEncounter?.foundReagents?.length || 0) > 0) {
@@ -5989,6 +6220,58 @@ export default function App() {
     }
     const activePatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
     const encounter = activeForageEncounter as any;
+    let bearName: string | null = null;
+    let scurryDiscardId: string | null = null;
+    let scurryResolutionNote = '';
+    if (encounter.id === 'foraging-forest-m-spring' && selectedChoiceId === 'mark-barrow') {
+      bearName = await requestControlledPrompt({
+        title: 'Bear’s Necessities · 곰 이름',
+        message: '현재 위치를 Towering Behemoth Barrow로 표시합니다. 이후 이 위치 또는 인접 경로에서 Monarch를 뽑으면 Scurry!를 해결합니다.',
+        kicker: '채집 조우 p.162',
+        label: '곰 이름',
+        defaultValue: '굶주린 숲곰'
+      });
+      if (bearName === null) return false;
+    }
+    if (encounter.id === 'foraging-forest-bear-scurry') {
+      const foragingPoints = activePatient?.foragingPoints ?? state.activeAilment?.foragingPoints ?? 0;
+      const reagentItems = toEngineInventory(state.bag).filter(item => item.type === 'reagent' && Math.max(1, item.quantity || 1) > 0);
+      if (selectedChoiceId === 'lose-foraging-points') {
+        if (foragingPoints < 3) {
+          showAlert(`채집 포인트가 ${foragingPoints}뿐이라 3을 잃는 선택을 할 수 없습니다. 영약재를 버리거나, 둘 다 없다면 마지막 선택을 사용하세요.`);
+          return false;
+        }
+        scurryResolutionNote = '채집 포인트 3을 잃었다.';
+      } else if (selectedChoiceId === 'lose-reagent') {
+        if (reagentItems.length === 0) {
+          showAlert('버릴 영약재 부위가 없습니다. 채집 포인트를 잃거나, 둘 다 없다면 마지막 선택을 사용하세요.');
+          return false;
+        }
+        scurryDiscardId = await requestControlledPrompt({
+          title: 'Scurry! · 영약재 버리기',
+          message: '곰을 피해 달아나며 버릴 영약재 부위 1개를 선택하세요.',
+          kicker: '채집 조우 p.162',
+          defaultValue: reagentItems[0].id,
+          options: reagentItems.map(item => ({
+            value: item.id,
+            label: `${item.name}${(item.quantity || 1) > 1 ? ` · ${item.quantity}개 중 1개` : ''}`
+          }))
+        });
+        if (scurryDiscardId === null) return false;
+        const discarded = reagentItems.find(item => item.id === scurryDiscardId);
+        if (!discarded) {
+          showAlert('선택한 영약재를 가방에서 찾지 못했습니다.');
+          return false;
+        }
+        scurryResolutionNote = `${discarded.name} 1개를 버렸다.`;
+      } else if (selectedChoiceId === 'nothing-to-lose') {
+        if (foragingPoints >= 3 || reagentItems.length > 0) {
+          showAlert('잃을 수 있는 채집 포인트 3 또는 영약재가 남아 있습니다. 해당 선택지 중 하나를 사용하세요.');
+          return false;
+        }
+        scurryResolutionNote = '잃을 채집 포인트와 영약재가 없어 타이머 감소만 적용했다.';
+      }
+    }
     const encounterResult = resolveEncounter({
       transactionId: `${pending.transactionId}:encounter`,
       encounter,
@@ -6011,7 +6294,19 @@ export default function App() {
       showAlert(encounterResult.messages.join('\n'));
       return false;
     }
-    const runtime = encounterResult.value.nextState;
+    let runtime = encounterResult.value.nextState;
+    if (scurryDiscardId) {
+      let removed = false;
+      runtime = {
+        ...runtime,
+        inventory: runtime.inventory.flatMap(item => {
+          if (removed || item.id !== scurryDiscardId) return [item];
+          removed = true;
+          const quantity = Math.max(1, item.quantity || 1);
+          return quantity > 1 ? [{ ...item, quantity: quantity - 1 }] : [];
+        })
+      };
+    }
     const printedEffect = PRINTED_EFFECT_BY_OWNER.get(encounter.id || pending.encounterId || '');
     let manualDraft = encounterResult.value.unresolvedEffects.length > 0
       ? createPrintedManualDraft(encounter.id || pending.encounterId || '', 'encounter', {
@@ -6021,6 +6316,12 @@ export default function App() {
         continuation: 'foraging'
       })
       : null;
+    if (manualDraft) manualDraft = prefillManualDraftFromEncounterChoice(
+      manualDraft,
+      encounter,
+      selectedChoiceId,
+      pending.secondaryCard || activeForageEncounter?.secondaryCard || null
+    );
     if (manualDraft && note.trim()) manualDraft = { ...manualDraft, resultSummary: note.trim(), journalNote: note.trim() };
     if (pending.ignoreNegativeEncounterEffects && manualDraft) manualDraft = {
       ...manualDraft,
@@ -6030,7 +6331,9 @@ export default function App() {
     };
     let patient: PatientState | null = runtime.patient ? { ...runtime.patient, foragingPoints: runtime.foragingPoints } : null;
     const activeAilment = patient?.ailments.find(ailment => ailment.status === 'active');
-    if (patient && activeAilment && !canTreatAilmentWithInventory(patient, activeAilment.id, runtime.inventory, state.ailmentTagOverrides)) {
+    // Every standard Forage spends its printed 1/2-hour Timer cost. Completing
+    // the last missing Remedy tag does not retroactively make that Forage free.
+    if (patient && activeAilment) {
       patient = resolveTimer({ patient, hours: pending.timerCostAfterEncounter }).value || patient;
     }
     updateState(s => {
@@ -6046,10 +6349,35 @@ export default function App() {
         manualConditions: remapEncounterConditions(runtime.conditions, s),
         journals: [{
           id: `${pending.transactionId}:${manualDraft ? 'pending-manual' : 'resolved'}`, title: `${manualDraft ? '판정 대기' : '채집 조우'}: ${printedEffect?.ownerName || encounter.title}`,
-          text: `${printedEffect?.printedText || encounter.prompt}${manualDraft ? '\n\n전용 직접 판정에서 선택과 상태 변화를 완료해야 합니다.' : `\n\n${note || '인쇄된 채집 조우를 해결했다.'}`}`,
+          text: `${printedEffect?.printedText || encounter.prompt}${manualDraft ? '\n\n전용 직접 판정에서 선택과 상태 변화를 완료해야 합니다.' : `\n\n${[note, scurryResolutionNote].filter(Boolean).join(' · ') || '인쇄된 채집 조우를 해결했다.'}`}`,
           timestamp: Date.now()
         }, ...s.journals]
       };
+      if (bearName !== null) {
+        const locationId = findMapLocationKey(s.currentLocationName, s.customMapLocations || [])
+          || normalizeMapLocationName(s.currentLocationName);
+        const barrow: Barrow = {
+          id: `bear-barrow:${locationId}`,
+          name: bearName.trim() || '굶주린 숲곰',
+          behemothClass: 'Towering',
+          direction: '현재 위치',
+          region: s.currentRegion,
+          distance: '현재 위치',
+          locationName: s.currentLocationName,
+          locationId,
+          removed: false
+        };
+        next = {
+          ...next,
+          barrows: [...(next.barrows || []).filter(row => row.id !== barrow.id), barrow],
+          journals: [{
+            id: `${pending.transactionId}:bear-barrow`,
+            title: `🐻 Towering Behemoth Barrow: ${barrow.name}`,
+            text: `${barrow.locationName}을(를) 곰의 고분으로 표시했다. 이 위치 또는 한 경로 거리에서 Monarch를 뽑으면 Bear’s Necessities 대신 Scurry!를 해결한다.`,
+            timestamp: Date.now()
+          }, ...next.journals]
+        };
+      }
       if (pending.source === 'barrow-delve' && next.activeDelve) {
         const attempt = resolveBarrowForageAttempt(`barrow:attempt:${pending.transactionId}`, toBarrowRuntime(next));
         if (attempt.value) next = applyBarrowRuntime(next, attempt.value);
@@ -6635,7 +6963,7 @@ export default function App() {
 
         return (
           <div className="encounter-dialog-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
-            <div className="glass-panel encounter-dialog" style={{ maxWidth: '600px', width: '100%', padding: '2rem', background: '#fff', position: 'relative', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', borderRadius: '20px', maxHeight: '92vh', overflowY: 'auto' }}>
+            <div className="glass-panel encounter-dialog" role="dialog" aria-modal="true" aria-label="여정 조우" style={{ maxWidth: '600px', width: '100%', padding: '2rem', background: '#fff', position: 'relative', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', borderRadius: '20px', maxHeight: '92vh', overflowY: 'auto' }}>
 
               {/* Card header */}
               <div style={{ textAlign: 'center', marginBottom: '1.2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -6686,7 +7014,13 @@ export default function App() {
                     이 조우는 추가 카드 뽑기를 요구합니다.<br />
                     실제 덱이나 앱의 카드 뽑기 도구를 사용해 다음 지시를 처리하십시오.
                   </div>
-                  <TravelSecondaryDrawSlot />
+                  <TravelSecondaryDrawSlot
+                    card={activeTravelEncounter.secondaryCard || state.pendingEncounter?.secondaryCard || null}
+                    onDraw={card => {
+                      setActiveTravelEncounter((current: any) => current ? { ...current, secondaryCard: card } : current);
+                      updateState(s => ({ ...s, pendingEncounter: s.pendingEncounter ? { ...s.pendingEncounter, secondaryCard: card } : null }));
+                    }}
+                  />
                 </div>
               )}
 
@@ -6772,8 +7106,31 @@ export default function App() {
           encText.toLowerCase().includes(phrase.toLowerCase()) ||
           encTitle.toLowerCase().includes(phrase.toLowerCase())
         );
-        const closeForageEncounter = () => {
-          if (resolveCanonicalForageEncounter('')) {
+        const foragePatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
+        const forageAilment = foragePatient?.ailments.find(ailment => ailment.status === 'active');
+        const forageAilmentDefinition = AILMENTS.find(ailment => ailment.id === forageAilment?.ailmentId);
+        const neededForageTags = new Set(forageAilmentDefinition ? requirementRuleTags(forageAilmentDefinition.requirements) : []);
+        const currentForagingPoints = foragePatient?.foragingPoints || 0;
+        const normalizeForageFind = (find: ForageFind | string): ForageFind => typeof find === 'string'
+          ? { name: find.replace(/\s*\(.*/, ''), rarity: 0 }
+          : find;
+        const matchingForageParts = (find: ForageFind): string[] => {
+          const reagent = REAGENTS.find(row => row.id === find.reagentId);
+          if (!reagent || neededForageTags.size === 0) return [];
+          return reagent.preparations.flatMap(part => {
+            const relevant = part.tags.filter(tag => neededForageTags.has(tag.tag));
+            return relevant.length > 0
+              ? [`${localizePreparationName(part.name)}: ${relevant.map(tag => `${tag.tag} ${tag.value}`).join(' · ')}`]
+              : [];
+          });
+        };
+        const displayedForageFinds = (activeForageEncounter.foundReagents || [])
+          .map(normalizeForageFind)
+          .sort((a: ForageFind, b: ForageFind) => Number(matchingForageParts(b).length > 0) - Number(matchingForageParts(a).length > 0)
+            || a.rarity - b.rarity
+            || a.name.localeCompare(b.name));
+        const closeForageEncounter = async () => {
+          if (await resolveCanonicalForageEncounter('')) {
             if (state.pendingLeaveObligation?.kind === 'foraging-encounter') {
               updateState((s: GameState) => ({
                 ...s,
@@ -6786,7 +7143,7 @@ export default function App() {
 
         return (
           <div className="encounter-dialog-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
-            <div className="glass-panel encounter-dialog" style={{ maxWidth: '600px', width: '100%', padding: '2rem', background: '#fff', position: 'relative', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', borderRadius: '20px', maxHeight: '92vh', overflowY: 'auto' }}>
+            <div className="glass-panel encounter-dialog" role="dialog" aria-modal="true" aria-label="채집 조우" style={{ maxWidth: '600px', width: '100%', padding: '2rem', background: '#fff', position: 'relative', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', borderRadius: '20px', maxHeight: '92vh', overflowY: 'auto' }}>
               <div style={{ textAlign: 'center', marginBottom: '1.2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <img
                   src={getCardSvgUrl(activeForageEncounter.suit, activeForageEncounter.cardValue)}
@@ -6835,28 +7192,47 @@ export default function App() {
                     이 조우는 추가 카드 뽑기를 요구합니다.<br />
                     실제 덱이나 앱의 카드 뽑기 도구를 사용해 다음 지시를 처리하십시오.
                   </div>
-                  <TravelSecondaryDrawSlot />
+                  <TravelSecondaryDrawSlot
+                    card={activeForageEncounter.secondaryCard || state.pendingForaging?.secondaryCard || null}
+                    onDraw={card => {
+                      setActiveForageEncounter((current: any) => current ? { ...current, secondaryCard: card } : current);
+                      updateState(s => ({ ...s, pendingForaging: s.pendingForaging ? { ...s.pendingForaging, secondaryCard: card } : null }));
+                    }}
+                  />
                 </div>
               )}
 
               <div style={{ marginTop: '1rem', background: '#f0f9f4', padding: '1rem', borderRadius: '10px', borderLeft: '4.5px solid var(--secondary)' }}>
                 <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--secondary)', fontSize: '0.95rem' }}>🌿 채집 발견 처리</h4>
-                {activeForageEncounter.foundReagents.length > 0 ? (
+                {displayedForageFinds.length > 0 ? (
                   <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                    {activeForageEncounter.foundReagents.map((find: ForageFind | string, idx: number) => {
-                      const normalizedFind: ForageFind = typeof find === 'string'
-                        ? { name: find.replace(/\s*\(.*/, ''), rarity: 0 }
-                        : find;
+                    {displayedForageFinds.map((normalizedFind: ForageFind, idx: number) => {
+                      const matchingParts = matchingForageParts(normalizedFind);
+                      const canSpendGap = !normalizedFind.cardSuccess
+                        && !normalizedFind.fpAvailable
+                        && (normalizedFind.gapCost || 0) > 0
+                        && currentForagingPoints >= (normalizedFind.gapCost || 0);
+                      const canGather = Boolean(normalizedFind.cardSuccess || normalizedFind.fpAvailable || canSpendGap);
+                      const status = normalizedFind.cardSuccess
+                        ? '카드 성공'
+                        : normalizedFind.fpAvailable
+                          ? `누적 FP ${currentForagingPoints}로 자동 성공`
+                          : canSpendGap
+                            ? `FP ${normalizedFind.gapCost} 사용 가능`
+                            : `현재 실패 · FP +1`;
                       return (
                         <li key={`${normalizedFind.name}_${idx}`} style={{ color: '#2b5e3d', fontWeight: 'bold' }}>
-                          <span>{normalizedFind.name} {normalizedFind.rarity ? `(희귀도: ${normalizedFind.rarity}${normalizedFind.fpAvailable ? ', 채집 포인트 사용 가능' : ''})` : ''}</span>
+                          <span>{normalizedFind.name} {normalizedFind.rarity ? `(희귀도 ${normalizedFind.rarity} · ${status})` : ''}</span>
+                          {matchingParts.length > 0 && <small style={{ display: 'block', marginTop: '0.15rem', color: '#4f6d58', fontWeight: 500 }}>치료 후보 · {matchingParts.join(' / ')}</small>}
                           <button
                             type="button"
-                            onClick={() => handleAddForageFindToBag(normalizedFind, idx)}
+                            onClick={() => canGather
+                              ? handleAddForageFindToBag(normalizedFind, idx)
+                              : handleRecordForageMiss(normalizedFind)}
                             disabled={Boolean(activeForageEncounter.selectedReagentId)}
-                            style={{ marginLeft: '0.5rem', padding: '0.25rem 0.55rem', fontSize: '0.75rem', background: 'var(--secondary)', color: '#fff', borderRadius: '4px', border: 'none' }}
+                            style={{ marginLeft: '0.5rem', minHeight: '44px', padding: '0.45rem 0.7rem', fontSize: '0.75rem', background: canGather ? 'var(--secondary)' : '#6b7280', color: '#fff', borderRadius: '6px', border: 'none' }}
                           >
-                            {activeForageEncounter.selectedReagentId ? '선택 완료' : '부위 선택 후 가방에 추가'}
+                            {activeForageEncounter.selectedReagentId ? '선택 완료' : canGather ? '부위 선택 후 가방에 추가' : '채집 실패 처리 · FP +1'}
                           </button>
                         </li>
                       );
@@ -6931,7 +7307,7 @@ export default function App() {
                         };
                       });
                     }
-                    closeForageEncounter();
+                    await closeForageEncounter();
                   }}
                   style={{ flex: 1, padding: '0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold' }}
                 >
@@ -6947,7 +7323,7 @@ export default function App() {
       {/* Seasoned (베테랑 여행자) 카드 선택 모달 */}
       {showSeasonedModal && seasonedDraws.length === 2 && (
         <div className="card-choice-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '2rem' }}>
-          <div className="glass-panel card-choice-dialog" style={{ maxWidth: '500px', width: '100%', padding: '2rem', background: '#fff', borderRadius: '20px', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', textAlign: 'center' }}>
+          <div className="glass-panel card-choice-dialog" role="dialog" aria-modal="true" aria-label="베테랑 여행자 조우 카드 선택" style={{ maxWidth: '500px', width: '100%', padding: '2rem', background: '#fff', borderRadius: '20px', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', textAlign: 'center' }}>
             <h3 style={{ color: 'var(--primary)', margin: '0 0 1rem 0' }}>🧭 베테랑 여행자 (Seasoned) 조우 선택</h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
               길동무의 베테랑 길잡이 혜택으로 2장의 카드 중 여정 조우에 적용할 카드를 선택합니다.
@@ -6957,9 +7333,11 @@ export default function App() {
                 const suitLabels: { [key: string]: string } = { '♥': '하트 ♥', '♦': '다이아 ♦', '♣': '클로버 ♣', '♠': '스페이드 ♠' };
                 const displayVal = card.val === 1 ? 'Ace' : card.val === 11 ? 'Jack' : card.val === 12 ? 'Queen' : card.val === 13 ? 'King' : card.val;
                 return (
-                  <div
+                  <button
+                    type="button"
                     className="card-choice-option"
                     key={idx}
+                    aria-label={`${suitLabels[card.suit]} ${displayVal} 선택`}
                     onClick={() => {
                       // We need to trigger executeTravelMove which is defined inside PlayView.
                       // Since executeTravelMove is in PlayView, we can trigger a custom event or pass callbacks.
@@ -6980,7 +7358,9 @@ export default function App() {
                       background: '#fffdf9',
                       transition: 'transform 0.2s',
                       width: '120px',
-                      boxShadow: 'var(--shadow-sm)'
+                      boxShadow: 'var(--shadow-sm)',
+                      color: 'inherit',
+                      font: 'inherit'
                     }}
                     onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                     onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
@@ -6992,7 +7372,7 @@ export default function App() {
                     />
                     <div style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>{suitLabels[card.suit]}</div>
                     <div style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 'bold' }}>{displayVal}</div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -7009,7 +7389,7 @@ export default function App() {
       {/* Titanwise (유적/고분 마스터) 카드 선택 모달 */}
       {showTitanwiseModal && titanwiseDraws.length === 2 && (
         <div className="card-choice-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '2rem' }}>
-          <div className="glass-panel card-choice-dialog" style={{ maxWidth: '500px', width: '100%', padding: '2rem', background: '#fff', borderRadius: '20px', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', textAlign: 'center' }}>
+          <div className="glass-panel card-choice-dialog" role="dialog" aria-modal="true" aria-label="유적 고분 마스터 채집 카드 선택" style={{ maxWidth: '500px', width: '100%', padding: '2rem', background: '#fff', borderRadius: '20px', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', textAlign: 'center' }}>
             <h3 style={{ color: 'var(--primary)', margin: '0 0 1rem 0' }}>🏛️ 유적/고분 마스터 (Titanwise) 채집 선택</h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
               티탄 유적이나 고분에서 2장의 카드 중 채집에 적용할 카드를 선택합니다.
@@ -7019,9 +7399,11 @@ export default function App() {
                 const suitLabels: { [key: string]: string } = { '♥': '하트 ♥', '♦': '다이아 ♦', '♣': '클로버 ♣', '♠': '스페이드 ♠' };
                 const displayVal = card.val === 1 ? 'Ace' : card.val === 11 ? 'Jack' : card.val === 12 ? 'Queen' : card.val === 13 ? 'King' : card.val;
                 return (
-                  <div
+                  <button
+                    type="button"
                     className="card-choice-option"
                     key={idx}
+                    aria-label={`${suitLabels[card.suit]} ${displayVal} 선택`}
                     onClick={() => {
                       (window as any)._onSelectTitanwiseCard?.(card.suit, card.val);
                       setShowTitanwiseModal(false);
@@ -7035,7 +7417,9 @@ export default function App() {
                       background: '#fffdf9',
                       transition: 'transform 0.2s',
                       width: '120px',
-                      boxShadow: 'var(--shadow-sm)'
+                      boxShadow: 'var(--shadow-sm)',
+                      color: 'inherit',
+                      font: 'inherit'
                     }}
                     onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                     onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
@@ -7047,7 +7431,7 @@ export default function App() {
                     />
                     <div style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>{suitLabels[card.suit]}</div>
                     <div style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 'bold' }}>{displayVal}</div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -7372,13 +7756,27 @@ function ControlledPromptDialog({
 function IsolatedTextarea({
   valueRef,
   initialValue = "",
+  suggestedValue,
   ...props
 }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
   valueRef: React.MutableRefObject<string>;
   initialValue?: string;
+  suggestedValue?: string;
 }) {
   const [value, setValue] = useState(initialValue);
-  valueRef.current = value;
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value, valueRef]);
+  useEffect(() => {
+    if (suggestedValue === undefined || suggestedValue === valueRef.current) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      valueRef.current = suggestedValue;
+      setValue(suggestedValue);
+    });
+    return () => { cancelled = true; };
+  }, [suggestedValue, valueRef]);
   return (
     <textarea
       {...props}
@@ -7454,6 +7852,12 @@ function PlayView({
   const journeyReasonRef = useRef("");
   const [destRegion, setDestRegion] = useState("Forest");
   const [destType, setDestType] = useState("Wilds");
+  const [travelMode, setTravelMode] = useState<'move' | 'soar'>('move');
+  const [journeyDestinationMode, setJourneyDestinationMode] = useState<'draw' | 'choose'>('draw');
+  const [journeyGoalMode, setJourneyGoalMode] = useState<'table' | 'invent'>('table');
+  const [customGoalTitle, setCustomGoalTitle] = useState('');
+  const [customGoalRequirement, setCustomGoalRequirement] = useState('');
+  const [journeyStartReflection, setJourneyStartReflection] = useState('');
   const [journeyDestinationCard, setJourneyDestinationCard] = useState<PlayingCard | null>(null);
   const [journeyGoalCard, setJourneyGoalCard] = useState<PlayingCard | null>(null);
   const urgencyPreview = useMemo(() => urgencyFor(state.reputation), [state.reputation]);
@@ -7465,7 +7869,7 @@ function PlayView({
 
   const journeyGraph = useMemo(
     () => toRuleMapGraph(state),
-    [state.customMapLocations, state.customMapEdges, state.currentRegion]
+    [state]
   );
   const journeyOriginId = useMemo(
     () => findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName),
@@ -7477,9 +7881,14 @@ function PlayView({
       : [],
     [journeyDestinationCard, journeyGraph, journeyOriginId]
   );
+  const journeyDestinationChoices = useMemo(
+    () => listJourneyDestinationChoices({ graph: journeyGraph, originId: journeyOriginId }),
+    [journeyGraph, journeyOriginId]
+  );
   const selectedJourneyDestination = useMemo(
-    () => journeyDestinationCandidates.find(row => row.id === destName) || null,
-    [journeyDestinationCandidates, destName]
+    () => (journeyDestinationMode === 'choose' ? journeyDestinationChoices : journeyDestinationCandidates)
+      .find(row => row.id === destName) || null,
+    [journeyDestinationCandidates, journeyDestinationChoices, journeyDestinationMode, destName]
   );
   const journeyCandidateGroups = useMemo(() => {
     if (journeyDestinationCandidates.length === 0) return [];
@@ -7501,7 +7910,7 @@ function PlayView({
   }, [journeyDestinationCard]);
   const scroungeAdjacentRegions = useMemo(
     () => adjacentRuleRegions(state),
-    [state.customMapLocations, state.customMapEdges, state.currentLocationName, state.currentSeason, state.currentRegion, state.bag]
+    [state]
   );
 
   const [newAilmentName, setNewAilmentName] = useState("");
@@ -7582,14 +7991,65 @@ function PlayView({
 
   // Manual Card Selector State
   const travelFormRef = useRef<HTMLFormElement>(null);
-  const [nextLocName, setNextLocName] = useState(pendingMapTravel?.name || "");
-  const [routeDraft, setRouteDraft] = useState<RouteDraft>({ stops: [], edgeKinds: [] });
+  const [nextLocName, setNextLocName] = useState(() => {
+    if (pendingMapTravel?.name) return pendingMapTravel.name;
+    const savedRoute = normalizeRouteDraft(state.routeDraft);
+    return savedRoute.stops.length > 1 ? savedRoute.stops.at(-1)?.name || '' : '';
+  });
+  const [routeDraft, setRouteDraftState] = useState<RouteDraft>(() => normalizeRouteDraft(state.routeDraft));
   const routeDraftRef = useRef(routeDraft);
-  routeDraftRef.current = routeDraft;
+  useEffect(() => {
+    routeDraftRef.current = routeDraft;
+  }, [routeDraft]);
+  const setRouteDraft = useCallback((updater: React.SetStateAction<RouteDraft>) => {
+    const previous = routeDraftRef.current;
+    const next = typeof updater === 'function'
+      ? (updater as (draft: RouteDraft) => RouteDraft)(previous)
+      : updater;
+    if (next === previous) return;
+    routeDraftRef.current = next;
+    setRouteDraftState(next);
+    updateState((current: GameState) => ({ ...current, routeDraft: next }));
+  }, [updateState]);
+  useEffect(() => {
+    const restored = normalizeRouteDraft(state.routeDraft);
+    const routeChanged = JSON.stringify(restored) !== JSON.stringify(routeDraftRef.current);
+    const destination = restored.stops.length > 1 ? restored.stops.at(-1) : null;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      if (routeChanged) {
+        routeDraftRef.current = restored;
+        setRouteDraftState(restored);
+      }
+      if (destination) {
+        setNextLocName(destination.name);
+        setDestType(locationTypeFromGlyph(destination.kind));
+        setDestRegion(destination.kind === 'Ruin' ? 'Titan' : (destination.terrain || state.currentRegion));
+      }
+    });
+    return () => { cancelled = true; };
+  }, [state.currentRegion, state.routeDraft]);
   const routeGraphNodes = useMemo(
     () => buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || []),
     [state.customMapLocations, state.customMapEdges]
   );
+  const selectedTravelNode = useMemo(() => {
+    const id = findGraphLocationKey(nextLocName, routeGraphNodes);
+    return id ? routeGraphNodes[id] : null;
+  }, [nextLocName, routeGraphNodes]);
+  const selectedTravelRegion = selectedTravelNode?.region && selectedTravelNode.region !== 'Wilds'
+    ? selectedTravelNode.region
+    : destRegion;
+  const selectedTravelType = selectedTravelNode
+    ? (selectedTravelNode.kind === 'settlement' ? 'Settlement'
+      : selectedTravelNode.kind === 'city' ? 'City'
+        : selectedTravelNode.kind === 'ruin' ? 'Ruin'
+          : selectedTravelNode.kind === 'barrow' ? 'Barrow'
+            : 'Wilds')
+    : destType;
+  const hasPendingTaxiMove = ((state.pendingServices || []) as ServiceRuntimeState['pendingServices'])
+    .some(service => service.serviceId === 'taxi-service' && service.status === 'pending-move');
   const currentRouteOrigin = useMemo<RouteStop | null>(() => {
     const currentId = findMapLocationKey(state.currentLocationName, state.customMapLocations || [])
       || normalizeMapLocationName(state.currentLocationName);
@@ -7620,12 +8080,17 @@ function PlayView({
   }, [routeGraphNodes, state.currentLocationName, state.currentLocationType, state.currentRegion, state.clinics, state.customMapLocations]);
   useEffect(() => {
     if (!currentRouteOrigin) return;
-    setRouteDraft(previous => {
-      if (previous.stops.length === 0) return draftFromOrigin(currentRouteOrigin);
-      if (previous.stops[0].id === currentRouteOrigin.id) return previous;
-      return draftFromOrigin(currentRouteOrigin);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setRouteDraft(previous => {
+        if (previous.stops.length === 0) return draftFromOrigin(currentRouteOrigin);
+        if (previous.stops[0].id === currentRouteOrigin.id) return previous;
+        return draftFromOrigin(currentRouteOrigin);
+      });
     });
-  }, [currentRouteOrigin]);
+    return () => { cancelled = true; };
+  }, [currentRouteOrigin, setRouteDraft]);
   const [travelCardMode, setTravelCardMode] = useState<'random' | 'manual'>('random');
   const [selectedTravelSuit, setSelectedTravelSuit] = useState('♥');
   const [selectedTravelValue, setSelectedTravelValue] = useState(1);
@@ -8546,12 +9011,29 @@ function PlayView({
 
   const handleStartJourney = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!journeyDestinationCard || !journeyGoalCard) {
-      showAlert('목적지 카드와 목표 카드를 모두 뽑아주세요.');
+    if (!state.bio.name.trim()) {
+      showAlert('여정을 시작하기 전에 ‘약제사’ 장의 캐릭터 생성 도우미로 시트를 완성해주세요.');
       return;
     }
-    if (!destName || !journeyDestinationCandidates.some(row => row.id === destName)) {
-      showAlert('이동 가능한 목적지 후보를 선택하세요. 후보가 없으면 카드를 다시 뽑으세요.');
+    if (journeyDestinationMode === 'draw' && !journeyDestinationCard) {
+      showAlert('목적지 카드를 뽑거나 직접 입력해주세요.');
+      return;
+    }
+    if (journeyGoalMode === 'table' && !journeyGoalCard) {
+      showAlert('목표 카드를 뽑거나 직접 입력해주세요.');
+      return;
+    }
+    if (journeyGoalMode === 'invent' && (!customGoalTitle.trim() || !customGoalRequirement.trim())) {
+      showAlert('직접 만든 목표의 이름과 명확한 완료 조건을 모두 적어주세요.');
+      return;
+    }
+    const destinationOptions = journeyDestinationMode === 'choose'
+      ? journeyDestinationChoices
+      : journeyDestinationCandidates;
+    if (!destName || !destinationOptions.some(row => row.id === destName)) {
+      showAlert(journeyDestinationMode === 'choose'
+        ? '지도에서 출발지가 아닌 목적지를 선택하세요.'
+        : '카드의 거리·방향·장소 유형을 충족하는 목적지를 선택하세요. 후보가 없으면 카드를 다시 뽑으세요.');
       return;
     }
     const journeyReason = journeyReasonRef.current;
@@ -8567,8 +9049,8 @@ function PlayView({
     const suitNames: { [key: string]: string } = { '♥': '북쪽', '♦': '남쪽', '♣': '동쪽', '♠': '서쪽' };
     const destinationCard = journeyDestinationCard;
     const goalCard = journeyGoalCard;
-    const randomSuit = destinationCard.suit;
-    const cardVal = getRuleCardValue(destinationCard, 'table');
+    const randomSuit = destinationCard?.suit || '';
+    const cardVal = destinationCard ? getRuleCardValue(destinationCard, 'table') : null;
     const transaction = createClientTransaction('journey');
     const transactionId = transaction.id;
     const result = resolveJourneyStart({
@@ -8577,9 +9059,15 @@ function PlayView({
       graph: journeyGraph,
       originId: journeyOriginId,
       season: state.currentSeason,
-      destinationCard: destinationCard as PlayingCard & { suit: CardSuit },
+      destinationCard: journeyDestinationMode === 'draw'
+        ? destinationCard as PlayingCard & { suit: CardSuit }
+        : null,
+      destinationSelection: journeyDestinationMode,
       destinationId: destName,
-      goalCard,
+      goalCard: journeyGoalMode === 'table' ? goalCard : null,
+      customGoal: journeyGoalMode === 'invent'
+        ? { title: customGoalTitle, requiredState: customGoalRequirement }
+        : null,
       reason: journeyReason,
       startDate: transaction.at,
       rulesetId: state.rulesetId
@@ -8589,8 +9077,10 @@ function PlayView({
       return;
     }
     const canonicalJourney = result.value.journey;
-    const goal = JOURNEY_GOAL_BY_ID.get(canonicalJourney.goalId)!;
-    const destination = journeyDestinationCandidates.find(row => row.id === destName)!;
+    const goal = JOURNEY_GOAL_BY_ID.get(canonicalJourney.goalId);
+    const goalTitle = canonicalJourney.customGoal?.title || goal?.title || '직접 만든 목표';
+    const goalRequirement = canonicalJourney.customGoal?.requiredState || goal?.requiredState || '';
+    const destination = destinationOptions.find(row => row.id === destName)!;
     const journeyWagon = canonicalWagonFromState(state);
     let clayPotReagentId: string | null = null;
     if (journeyWagon.commissioned && journeyWagon.expansionIds.includes('clay-pots')) {
@@ -8638,7 +9128,7 @@ function PlayView({
       const mobility = resolveMobilityJourneyStart({ transactionId: `${transactionId}:mobility`, state: toMobilityRuntime(withServices), clayPotReagentId });
       const next = mobility.value ? applyMobilityRuntime(withServices, mobility.value) : withServices;
       const nextBag = [...next.bag];
-      if (goalCard.value === 8 || goal.title === 'Justice' || goal.title === '정의') {
+      if (canonicalJourney.goalId === 'justice') {
         const hasEvidence = nextBag.some(item => item.name.toLowerCase().includes('evidence') || item.name.includes('증거'));
         if (!hasEvidence) {
           nextBag.push({
@@ -8657,15 +9147,15 @@ function PlayView({
         downtimeCompleted: false,
         journeyOrigin: s.currentLocationName,
         journeyDestination: destination.name,
-        journeyDistance: journeyDistanceBandText,
-        journeyTotalDistance: destination.paths,
-        journeyDirection: suitNames[randomSuit] || randomSuit,
-        journeyGoalTitle: goal.title,
-        journeyGoalDesc: goal.requiredState,
-        journeyGoalProgress: goal.requiredState,
+        journeyDistance: journeyDestinationMode === 'choose' ? '직접 선택' : journeyDistanceBandText,
+        journeyTotalDistance: destination.paths ?? 0,
+        journeyDirection: journeyDestinationMode === 'choose' ? '직접 선택' : suitNames[randomSuit] || randomSuit,
+        journeyGoalTitle: goalTitle,
+        journeyGoalDesc: goalRequirement,
+        journeyGoalProgress: goalRequirement,
         calendarDays: 0,
         calendarMaxDays: canonicalJourney.urgency.days,
-        calendarHistory: [`여정 시작: ${destination.name}로 출발 (목적지 ${randomSuit} ${cardDisplayValue(cardVal)}, 목표 ${goalCard.suit} ${cardDisplayValue(goalCard.value)}, Urgency ${canonicalJourney.urgency.days}일, 이유: ${journeyReason.trim()})`],
+        calendarHistory: [`여정 시작: ${destination.name}로 출발 (목적지 ${journeyDestinationMode === 'choose' ? '직접 선택' : `${randomSuit} ${cardDisplayValue(cardVal!)}`}, 목표 ${journeyGoalMode === 'invent' ? goalTitle : `${goalCard!.suit} ${cardDisplayValue(goalCard!.value)}`}, Urgency ${canonicalJourney.urgency.days}일, 이유: ${journeyReason.trim()})`],
         journeyGoalCounter: 0,
         journeyGoalChecklist: [],
         journeyStartReputation: s.reputation,
@@ -8673,14 +9163,23 @@ function PlayView({
         taxiSoarActive: false,
         resourcefulReagent,
         ingenuitiveTool,
-        journals: next.journals
+        journals: journeyStartReflection.trim() ? [{
+          id: `${transactionId}:reflection`,
+          title: `여정 출발 기록: ${s.currentLocationName}`,
+          text: `출발지 ${s.currentLocationName} · ${localizeSeasonLabel(s.currentSeason)} · Urgency ${canonicalJourney.urgency.days}일\n${journeyStartReflection.trim()}`,
+          timestamp: Date.now()
+        }, ...next.journals] : next.journals
       };
     });
 
     setDestName("");
     journeyReasonRef.current = "";
+    setJourneyReason('');
     setJourneyDestinationCard(null);
     setJourneyGoalCard(null);
+    setCustomGoalTitle('');
+    setCustomGoalRequirement('');
+    setJourneyStartReflection('');
   };
 
   const executeCanonicalTravelMove = async (drawnSuit: string, cardVal: number) => {
@@ -8696,7 +9195,6 @@ function PlayView({
       showAlert('현재 위치와 목적지는 지도 위의 실제 위치여야 합니다. 지도에 표시된 장소 이름을 선택해 주세요.');
       return;
     }
-    const destinationType = canonicalLocationType(destType);
     const canonicalWagon = canonicalWagonFromState(state);
     const wagonCapabilities = resolveWagonCapabilities(canonicalWagon);
     const pendingMoveService = ((state.pendingServices || []) as ServiceRuntimeState['pendingServices']).find(service =>
@@ -8707,13 +9205,22 @@ function PlayView({
     const engineGraph = Object.fromEntries(Object.entries(mapNodes).map(([id, node]) => [id, {
       id,
       name: node.label,
-      region: (node.region && node.region !== 'Wilds' ? node.region : destRegion === 'Soar' ? state.currentRegion : destRegion) as TravelRegion,
+      region: (node.region && node.region !== 'Wilds' ? node.region : destRegion) as TravelRegion,
       locationType: canonicalLocationType(node.kind === 'settlement' ? 'Settlement' : node.kind === 'city' ? 'City' : node.kind === 'ruin' ? 'Ruin' : node.kind === 'barrow' ? 'Barrow' : 'Wilds'),
       edges: node.neighbors.map(to => ({
         to,
         kind: mapEdgeKind(id, to, mapNodes, state.customMapEdges || [])
       }))
     }]));
+    const mappedDestination = engineGraph[destinationId];
+    if (!mappedDestination) {
+      showAlert('선택한 도착지의 지도 정보를 찾지 못했습니다. 지도에서 도착지를 다시 선택해 주세요.');
+      return;
+    }
+    const destinationRegion = mappedDestination.region;
+    const destinationType = mappedDestination.locationType;
+    const movementMode: 'move' | 'soar' = isTaxiMove || travelMode === 'soar' ? 'soar' : 'move';
+    const encounterRegion: TravelRegion = movementMode === 'soar' ? 'Soar' : destinationRegion;
     const transactionId = `travel:${Date.now()}`;
     let travelTools = canonicalToolsFromState(state);
     let repairedTentState: ReturnType<typeof repairCanonicalTool>['value'] = null;
@@ -8806,9 +9313,9 @@ function PlayView({
       },
       graph: engineGraph,
       destinationId,
-      destinationRegion: destRegion as TravelRegion,
+      destinationRegion,
       destinationType,
-      mode: destRegion === 'Soar' || isTaxiMove ? 'soar' : 'move',
+      mode: movementMode,
       card: { suit: drawnSuit, value: cardVal },
       season: state.currentSeason,
       route: composedMatches ? composedIds : undefined,
@@ -8831,7 +9338,7 @@ function PlayView({
     let braveInventory = outcome.nextState.inventory;
     if (braveApplies) {
       const candidates = REAGENTS.filter(reagent => reagent.baseRarity <= 6
-        && reagent.regionAvailability[toRuleRegion(destRegion, state.currentRegion)] !== 'Unavailable');
+        && reagent.regionAvailability[toRuleRegion(destinationRegion, state.currentRegion)] !== 'Unavailable');
       const reagentChoice = await requestControlledPrompt({
         title: '🐾 Brave: 지역 영약재 선택',
         message: 'Brave 길동무 효과: 획득할 지역 영약재를 선택하세요:',
@@ -8852,7 +9359,7 @@ function PlayView({
       if (!preparation) return;
       const brave = resolveBraveTravelEffect({
         transactionId: `${transactionId}:brave`, inventory: braveInventory, encounter: outcome.encounter,
-        region: toRuleRegion(destRegion, state.currentRegion), card: { suit: drawnSuit, value: cardVal },
+        region: toRuleRegion(destinationRegion, state.currentRegion), card: { suit: drawnSuit, value: cardVal },
         reagentId: reagent.id, preparationId: preparation.id
       });
       if (brave.status !== 'resolved') return showAlert(brave.messages.join('\n'));
@@ -8870,8 +9377,8 @@ function PlayView({
       transactionId: `${transactionId}:services`,
       state: toServiceRuntime(state),
       destinationId,
-      destinationRegion: isTaxiMove ? 'Soar' : destRegion as TravelRegion,
-      mode: destRegion === 'Soar' || isTaxiMove ? 'soar' : 'move',
+      destinationRegion: encounterRegion,
+      mode: movementMode,
       pathCount: outcome.pathCount
     });
     if (!servicePreview.value) {
@@ -8882,7 +9389,7 @@ function PlayView({
     let resolvedTravelTools = travelStartTools?.tools || travelTools;
     let toolProtectionAppliedTransactionIds: string[] = [];
     let toolProtectionJournals: ClinicAgendaRuntimeState['journalEvents'] = [];
-    if (destRegion === 'Titan' || destinationType === 'Titan Ruin') {
+    if (destinationRegion === 'Titan' || destinationType === 'Titan Ruin') {
       const titanSignal = resolveToolEffects({
         transactionId: `${transactionId}:tool:titan-proximity`, phase: 'travel', trigger: 'titan-proximity',
         tools: resolvedTravelTools, rulesetId: state.rulesetId
@@ -8959,7 +9466,7 @@ function PlayView({
       cardValue: cardDisplayValue(cardVal),
       suitLabel: suitLabels[drawnSuit],
       suit: drawnSuit,
-      region: destRegion,
+      region: encounterRegion,
       locName: outcome.nextState.currentLocationName,
       transactionId: outcome.pendingEncounter.transactionId
     });
@@ -8969,7 +9476,7 @@ function PlayView({
         state: toMobilityRuntime(s, travelInventory),
         paths: outcome.pathCount,
         destinationName: outcome.nextState.currentLocationName,
-        destinationType: destType,
+        destinationType,
         harvestClayPot
       });
       if (!mobility.value) return s;
@@ -8998,12 +9505,14 @@ function PlayView({
       next = {
       ...next,
       currentLocationName: outcome.nextState.currentLocationName,
-      currentRegion: destRegion,
-      currentLocationType: destType,
+      currentRegion: destinationRegion,
+      currentLocationType: destinationType === 'Titan Ruin' ? 'Ruin' : destinationType === 'Behemoth Barrow' ? 'Barrow' : destinationType,
       calendarDays: outcome.nextState.calendarDays,
       cumulativeDays: (s.cumulativeDays || 0) + (outcome.nextState.calendarDays - s.calendarDays),
       visitedLocations: Array.from(new Set([...(s.visitedLocations || []), outcome.nextState.currentLocationName])),
-      needsLocalHelpBeforeMove: encounterSkipped || encounterProtected ? false : outcome.nextState.needsLocalHelp,
+      // p.25 Earning Your Keep applies after every completed Move/Soar. Skipping
+      // or blocking an Encounter does not waive the separate Ailment obligation.
+      needsLocalHelpBeforeMove: outcome.nextState.needsLocalHelp,
       toolStates: resolvedTravelTools,
       nextMoveSpeedOverride: null,
       manualConditions: nextConditions,
@@ -9025,8 +9534,8 @@ function PlayView({
         transactionId: `${transactionId}:services`,
         state: toServiceRuntime(next),
         destinationId,
-        destinationRegion: isTaxiMove ? 'Soar' : destRegion as TravelRegion,
-        mode: destRegion === 'Soar' || isTaxiMove ? 'soar' : 'move',
+        destinationRegion: encounterRegion,
+        mode: movementMode,
         pathCount: outcome.pathCount
       });
       if (consumed.value) next = applyServiceRuntime(next, consumed.value.nextState);
@@ -9044,12 +9553,41 @@ function PlayView({
     setNextLocName('');
   };
 
+  const handleRecordExternalAilmentResolution = async () => {
+    const hasUnresolvedAppPatient = state.patients.some(patient => patient.status === 'active'
+      && patient.ailments.some(ailment => ailment.status === 'active'));
+    if (hasUnresolvedAppPatient) {
+      showAlert('앱에 진행 중인 환자가 있습니다. 아래 환자 진료에서 모든 질환을 해결하거나 실패 결과와 떠나기를 마쳐주세요.');
+      document.getElementById('patient-clinic-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    const note = (await requestControlledPrompt({
+      title: '앱 밖에서 해결한 질환 기록',
+      kicker: '룰북 p.25 · p.28–36',
+      message: '종이 기록 등 앱 밖에서 현지 야수의 질환 하나를 끝까지 해결한 경우에만 기록하세요. 단순 채집·숙박·조우 해결은 이동 제한을 해제하지 않습니다.',
+      label: '환자와 해결한 질환/결과',
+      defaultValue: '',
+      inputMode: 'multiline'
+    }))?.trim();
+    if (!note) return;
+    updateState((current: GameState) => ({
+      ...current,
+      needsLocalHelpBeforeMove: false,
+      journals: [{
+        id: `local-ailment-external:${Date.now()}`,
+        title: '현지 야수의 질환 해결 (외부 기록)',
+        text: `${current.currentLocationName}: ${note}`,
+        timestamp: Date.now()
+      }, ...current.journals]
+    }));
+  };
+
   const handleTravelMove = (e: React.FormEvent) => {
     e.preventDefault();
     if (!state.journeyActive) return;
 
     if (state.needsLocalHelpBeforeMove) {
-      showAlert("p.25 Earning Your Keep: 이동 후에는 현지 야수를 돕거나 고분 문제를 해결해야 다시 이동할 수 있습니다. 현재 환자 기록 또는 고분 델브를 마무리하세요.");
+      showAlert("p.25 Earning Your Keep: 이동 후 현지 야수의 질환 하나를 해결해야 다시 이동할 수 있습니다. 아래 환자 진료를 진행하세요.");
       return;
     }
 
@@ -9059,13 +9597,11 @@ function PlayView({
     }
 
     // Flight capability validation
-    if (destRegion === 'Soar') {
-      const hasPendingTaxi = ((state.pendingServices || []) as ServiceRuntimeState['pendingServices'])
-        .some(service => service.serviceId === 'taxi-service' && service.status === 'pending-move');
+    if (travelMode === 'soar' || hasPendingTaxiMove) {
       const hasFlightCapability =
         state.bio.travelStyle === '가볍고 신속하게' ||
         canonicalWagonFromState(state).expansionIds.includes('experimental-contraption') ||
-        hasPendingTaxi ||
+        hasPendingTaxiMove ||
         !!state.taxiSoarActive ||
         (isHouseRuleEnabled(state.rulesetId, 'companionFlightWaterPermissions')
           && (state.companions || []).some(comp => ['butterfly', 'honeybee', 'wasp'].includes(comp.name)));
@@ -9078,10 +9614,10 @@ function PlayView({
 
     const familiarMechanic = getActiveFamiliarMechanic(state);
     const canUseNewsReroll = (state.guildServiceTravelRerolls || 0) > 0;
-    const canUseLogisticalMap = destRegion !== 'Soar'
-      && hasGuildLogisticalMap(toEngineInventory(state.bag), destRegion as Region);
+    const canUseLogisticalMap = travelMode !== 'soar' && !hasPendingTaxiMove
+      && hasGuildLogisticalMap(toEngineInventory(state.bag), selectedTravelRegion as Region);
     const canUsePondSkimmer =
-      destRegion === 'Loch' &&
+      selectedTravelRegion === 'Loch' &&
       (state.companionStates || []).some(comp => comp.companionId === 'pond-skimmer' && !comp.usedThisJourney);
 
     if ((familiarMechanic === 'seasoned' || canUseNewsReroll || canUsePondSkimmer || canUseLogisticalMap) && !travelDrawCard) {
@@ -9370,7 +9906,7 @@ function PlayView({
         adjacentRegions: adjacentRuleRegions(state),
         foragingPoints: state.activeAilment?.foragingPoints || 0,
         inventory: toEngineInventory(state.bag),
-        toolIds: state.bag.flatMap(item => item.canonicalToolId ? [item.canonicalToolId] : []),
+        toolIds: canonicalToolsFromState(state).filter(tool => !tool.broken && !tool.consumed).map(tool => tool.toolId),
         tools: canonicalToolsFromState(state),
         patient: getActivePatient(state),
         conditions: state.manualConditions || []
@@ -9564,7 +10100,7 @@ function PlayView({
         adjacentRegions: adjacentRuleRegions(state),
         foragingPoints: state.activeAilment?.foragingPoints || 0,
         inventory: toEngineInventory(state.bag),
-        toolIds: state.bag.flatMap(item => item.canonicalToolId ? [item.canonicalToolId] : []),
+        toolIds: canonicalToolsFromState(state).filter(tool => !tool.broken && !tool.consumed).map(tool => tool.toolId),
         tools: canonicalToolsFromState(state),
         patient: getActivePatient(state),
         conditions: state.manualConditions || []
@@ -10297,10 +10833,20 @@ function PlayView({
     showAlert(`${localizeSeasonLabel(outcome.nextSeason)}으로 계절이 바뀌었습니다. 장신구 +${outcome.clinicIncome}, 명성 +${outcome.goodwillReputation}.`);
   };
 
-  const handleAdvanceSeason = () => {
-    if (askWindowConfirm(`${localizeSeasonLabel(state.currentSeason)}을 마치고 룰북 순서의 다음 계절로 전환하시겠습니까?`)) {
-      handleSettleSeasonTipsAndDonations();
-    }
+  const handleAdvanceSeason = async () => {
+    const nextSeason = ({ Spring: 'Summer', Summer: 'Autumn', Autumn: 'Winter', Winter: 'Spring' } as const)[state.currentSeason];
+    const confirmation = await requestControlledPrompt({
+      title: '계절 정산 및 전환',
+      message: `${localizeSeasonLabel(state.currentSeason)}을 마치고 ${localizeSeasonLabel(nextSeason)}으로 넘어갑니다. 약제소 수입·기부 명성·건설·동반자 계절 효과가 함께 정산됩니다.`,
+      defaultValue: 'advance',
+      kicker: '다운타임 완료',
+      label: '계절',
+      options: [
+        { value: 'advance', label: `${localizeSeasonLabel(nextSeason)}으로 전환` },
+        { value: 'stay', label: `${localizeSeasonLabel(state.currentSeason)}에 머무르기` }
+      ]
+    });
+    if (confirmation === 'advance') handleSettleSeasonTipsAndDonations();
   };
 
   // Bartering Resolution
@@ -10676,12 +11222,26 @@ function PlayView({
       showAlert(result.messages.join('\n'));
       return;
     }
-    if (result.value.trinketReward > 0 && askWindowConfirm(`치료 보상 장신구 ${result.value.trinketReward}개를 모두 선물하고 길드 명성 +2를 받으시겠습니까?`)) {
-      treatmentInput = { ...treatmentInput, gifting: true };
-      result = resolveTreatmentTransaction(treatmentInput);
-      if (!result.value) {
-        showAlert(result.messages.join('\n'));
-        return;
+    if (result.value.trinketReward > 0) {
+      const rewardChoice = await requestControlledPrompt({
+        title: '치료 보상 선택',
+        message: `Trading은 장신구 ${result.value.trinketReward}개를 받고, Gifting은 장신구를 받지 않는 대신 길드 명성 +2를 얻습니다.`,
+        defaultValue: 'trading',
+        kicker: '치료 완료',
+        label: '보상 방식',
+        options: [
+          { value: 'trading', label: `Trading · 장신구 ${result.value.trinketReward}개` },
+          { value: 'gifting', label: 'Gifting · 길드 명성 +2' }
+        ]
+      });
+      if (!rewardChoice) return;
+      if (rewardChoice === 'gifting') {
+        treatmentInput = { ...treatmentInput, gifting: true };
+        result = resolveTreatmentTransaction(treatmentInput);
+        if (!result.value) {
+          showAlert(result.messages.join('\n'));
+          return;
+        }
       }
     }
     const outcome = result.value;
@@ -10782,6 +11342,15 @@ function PlayView({
 
   const handleEndJourney = async () => {
     if (!state.journeyActive || !state.journey) return;
+    const preflight = resolveJourneyEnding({
+      transactionId: `${state.journey.journeyId}:ending-preflight`,
+      state: toJourneyRuntime(state),
+      endedAt: Date.now()
+    });
+    if (preflight.status === 'invalid') {
+      showAlert(preflight.messages.map(localizeGameplayMessage).join('\n'));
+      return;
+    }
     const evaluation = evaluateJourneyGoal(state.journey, {
       inventory: toEngineInventory(state.bag),
       reputation: state.reputation,
@@ -10837,9 +11406,22 @@ function PlayView({
       inputMode: 'multiline'
     });
     if (!memoir?.trim()) return;
-    const manualConfirmed = evaluation.manualConfirmationRequired
-      ? askWindowConfirm('이 목표의 서사적 조건을 직접 확인했습니까?')
-      : false;
+    let manualConfirmed = false;
+    if (evaluation.manualConfirmationRequired) {
+      const goalConfirmation = await requestControlledPrompt({
+        title: '서사 목표 달성 확인',
+        message: `${state.journeyGoalTitle}: ${state.journeyGoalDesc || '기록한 완료 조건'} — 이 조건을 실제 플레이에서 달성했는지 직접 확인하세요.`,
+        defaultValue: 'confirmed',
+        kicker: '여정 마감 · manual-by-design',
+        label: '달성 여부',
+        options: [
+          { value: 'confirmed', label: '달성함 · 근거를 회고에 기록함' },
+          { value: 'not-confirmed', label: '아직 달성하지 않음' }
+        ]
+      });
+      if (!goalConfirmation) return;
+      manualConfirmed = goalConfirmation === 'confirmed';
+    }
     const transactionId = `${state.journey.journeyId}:ending`;
     const result = resolveJourneyEnding({
       transactionId,
@@ -11063,7 +11645,9 @@ function PlayView({
       ? 'travel'
       : 'inspect';
   const playMapHighlightIds = useMemo(() => {
-    if (playMapMode === 'destination') return journeyDestinationCandidates.map(row => row.id);
+    if (playMapMode === 'destination') {
+      return journeyDestinationMode === 'draw' ? journeyDestinationCandidates.map(row => row.id) : [];
+    }
     const routeIds = routeDraft.stops.map(stop => stop.id);
     if (routeIds.length > 0) return routeIds;
     if (playMapMode === 'travel') {
@@ -11077,7 +11661,7 @@ function PlayView({
       });
     }
     return [];
-  }, [playMapMode, journeyDestinationCandidates, state, journeyOriginId, activeTravelSpeed, routeDraft.stops]);
+  }, [playMapMode, journeyDestinationCandidates, journeyDestinationMode, state, journeyOriginId, activeTravelSpeed, routeDraft.stops]);
   const playMapSelectedId = playMapMode === 'destination'
     ? destName || null
     : playMapMode === 'travel'
@@ -11093,10 +11677,13 @@ function PlayView({
   }, []);
 
   const handlePlayMapPick = useCallback((location: MapPickLocation) => {
-    if (playMapMode === 'destination' && journeyDestinationCandidates.some(row => row.id === location.id)) {
+    const legalChoice = journeyDestinationMode === 'choose'
+      ? location.id !== journeyOriginId && Boolean(journeyGraph[location.id])
+      : journeyDestinationCandidates.some(row => row.id === location.id);
+    if (playMapMode === 'destination' && legalChoice) {
       setDestName(location.id);
     }
-  }, [playMapMode, journeyDestinationCandidates]);
+  }, [playMapMode, journeyDestinationCandidates, journeyDestinationMode, journeyGraph, journeyOriginId]);
 
   const handlePlayMapTravel = useCallback((location: MapPickLocation) => {
     applyMapTravelLocation(location, true);
@@ -11184,7 +11771,7 @@ function PlayView({
       }
       return next;
     });
-  }, [routeGraphNodes, state.clinics, state.customMapLocations, state.currentRegion, state.customMapEdges, state.bag, state.wagonExpansions]);
+  }, [routeGraphNodes, setRouteDraft, state]);
 
   const handleCreateMapPlace = useCallback((request: { x: number; y: number; kind?: string; terrain?: string; name?: string }) => {
     const stop: RouteStop = {
@@ -11236,8 +11823,11 @@ function PlayView({
       currentRegion: stop.terrain || s.currentRegion,
       visitedLocations: Array.from(new Set([...(s.visitedLocations || []), stop.name]))
     }));
+    setNextLocName('');
+    setDestType('');
+    setDestRegion(stop.terrain || state.currentRegion);
     setRouteDraft(draftFromOrigin(stop));
-  }, [persistRouteStop, routeGraphNodes, updateState]);
+  }, [persistRouteStop, routeGraphNodes, setRouteDraft, state.currentRegion, updateState]);
 
   const handleRouteStopChange = useCallback((index: number, patch: Partial<RouteStop>) => {
     setRouteDraft(previous => {
@@ -11251,7 +11841,7 @@ function PlayView({
       }
       return next;
     });
-  }, [persistRouteStop, state.currentRegion]);
+  }, [persistRouteStop, setRouteDraft, state.currentRegion]);
 
   const handleRouteEdgeChange = useCallback((index: number, kind: 'path' | 'river' | 'waterway') => {
     setRouteDraft(previous => {
@@ -11261,7 +11851,7 @@ function PlayView({
       if (from && to) persistRouteEdge(from.id, to.id, kind);
       return next;
     });
-  }, [persistRouteEdge]);
+  }, [persistRouteEdge, setRouteDraft]);
 
   const handleRemoveRouteStop = useCallback((index: number) => {
     setRouteDraft(previous => {
@@ -11271,10 +11861,14 @@ function PlayView({
         setNextLocName(dest.name);
         setDestType(locationTypeFromGlyph(dest.kind));
         setDestRegion(dest.terrain || state.currentRegion);
+      } else {
+        setNextLocName('');
+        setDestType('');
+        setDestRegion(state.currentRegion);
       }
       return next;
     });
-  }, [state.currentRegion]);
+  }, [setRouteDraft, state.currentRegion]);
 
   const handleMoveRouteStop = useCallback((fromIndex: number, toIndex: number) => {
     setRouteDraft(previous => {
@@ -11287,11 +11881,14 @@ function PlayView({
       }
       return next;
     });
-  }, [state.currentRegion]);
+  }, [setRouteDraft, state.currentRegion]);
 
   const handleClearRouteSides = useCallback(() => {
+    setNextLocName('');
+    setDestType('');
+    setDestRegion(state.currentRegion);
     setRouteDraft(previous => draftFromOrigin(previous.stops[0] || currentRouteOrigin));
-  }, [currentRouteOrigin]);
+  }, [currentRouteOrigin, setRouteDraft, state.currentRegion]);
 
   const handleMoveMapPlace = useCallback((location: MapPickLocation) => {
     if (location.x === undefined || location.y === undefined) return;
@@ -11311,7 +11908,7 @@ function PlayView({
       x,
       y
     });
-  }, [persistRouteStop, routeGraphNodes]);
+  }, [persistRouteStop, routeGraphNodes, setRouteDraft]);
 
   const handleSaveMapPlaces = useCallback(() => {
     const draft = routeDraftRef.current;
@@ -11342,13 +11939,25 @@ function PlayView({
       ...previous,
       stops: previous.stops.map(row => row.id === stop.id ? { ...row, ...stop } : row)
     }));
-  }, [persistRouteStop, routeGraphNodes]);
+  }, [persistRouteStop, routeGraphNodes, setRouteDraft]);
 
   const handleDeleteMapPlace = useCallback((location: MapPickLocation) => {
     if (!isPlayerCreatedMapPlace(location.id)) {
       setRouteDraft(previous => {
         const index = previous.stops.findIndex(stop => stop.id === location.id);
-        return index > 0 ? removeRouteStopAt(previous, index) : previous;
+        if (index <= 0) return previous;
+        const next = removeRouteStopAt(previous, index);
+        const destination = next.stops.at(-1);
+        if (next.stops.length > 1 && destination) {
+          setNextLocName(destination.name);
+          setDestType(locationTypeFromGlyph(destination.kind));
+          setDestRegion(destination.terrain || state.currentRegion);
+        } else {
+          setNextLocName('');
+          setDestType('');
+          setDestRegion(state.currentRegion);
+        }
+        return next;
       });
       return;
     }
@@ -11359,15 +11968,26 @@ function PlayView({
     removePlayerMarkerRecords([location.id]);
     setRouteDraft(previous => {
       const index = previous.stops.findIndex(stop => stop.id === location.id);
-      if (index <= 0) return { ...previous, stops: previous.stops.filter(stop => stop.id !== location.id) };
-      return removeRouteStopAt(previous, index);
+      if (index <= 0) return previous;
+      const next = removeRouteStopAt(previous, index);
+      const destination = next.stops.at(-1);
+      if (next.stops.length > 1 && destination) {
+        setNextLocName(destination.name);
+        setDestType(locationTypeFromGlyph(destination.kind));
+        setDestRegion(destination.terrain || state.currentRegion);
+      } else {
+        setNextLocName('');
+        setDestType('');
+        setDestRegion(state.currentRegion);
+      }
+      return next;
     });
     updateState((s: GameState) => ({
       ...s,
       customMapLocations: (s.customMapLocations || []).filter(row => row.id !== location.id),
       customMapEdges: (s.customMapEdges || []).filter(edge => edge.from !== location.id && edge.to !== location.id)
     }));
-  }, [state.currentLocationName, state.customMapLocations, updateState]);
+  }, [setRouteDraft, state.currentLocationName, state.currentRegion, state.customMapLocations, updateState]);
 
   const handleComposerTravel = useCallback(() => {
     const draft = routeDraftRef.current;
@@ -11520,7 +12140,7 @@ function PlayView({
       addActionHubItem({
         id: 'local-help',
         label: '현지 기록 마무리',
-        detail: '이곳의 환자나 고분 문제를 해결해야 다음 이동이 열립니다.',
+        detail: '현지 야수의 질환 하나를 해결해야 다음 이동이 열립니다.',
         targetId: currentBarrow ? 'barrow-panel' : 'patient-clinic-panel',
         tone: 'warning'
       });
@@ -11739,18 +12359,22 @@ function PlayView({
             veiled
             showWaypointAction={false}
             travelEnabled={Boolean(state.journeyActive && !state.needsLocalHelpBeforeMove)}
-            travelBlockedReason={state.needsLocalHelpBeforeMove ? '현지 일을 마친 뒤 이동할 수 있습니다.' : null}
+            travelBlockedReason={state.needsLocalHelpBeforeMove ? '현지 야수의 질환을 해결한 뒤 이동할 수 있습니다.' : null}
             onOpenFullMap={onOpenFullMap}
             showRoutePreview={false}
             companionCaption={
               playMapMode === 'destination'
-                ? (journeyDestinationCard
+                ? (journeyDestinationMode === 'choose'
+                  ? (selectedJourneyDestination
+                    ? `직접 선택: ${selectedJourneyDestination.name}${selectedJourneyDestination.paths === null ? ' · 연결 경로 없음' : ` · ${selectedJourneyDestination.paths}경로`}`
+                    : '룰북 p.19의 직접 선택입니다. 지도에서 출발지가 아닌 위치를 골라 목적지로 지정하세요.')
+                  : journeyDestinationCard
                   ? (selectedJourneyDestination
                     ? `선택된 후보: ${selectedJourneyDestination.name} · 총거리 ${selectedJourneyDestination.paths}경로`
                     : journeyDestinationCandidates.length > 0
                       ? '여정 조건을 충족하는 후보를 지도에서 골라 목적지로 지정하세요. 오른쪽에서 들르는 자리도 이어서 확인할 수 있습니다.'
                       : '현재는 이동 가능한 후보가 없습니다. 목적지 카드를 다시 뽑으세요.')
-                  : '목적지 카드를 뽑으면 방향·거리 조건에 맞는 정착지가 지도에 표시됩니다.')
+                  : '목적지 카드를 뽑으면 방향·거리·장소 유형에 맞는 목적지가 지도에 표시됩니다.')
                 : `노드를 눌러 사이길을 잇고, 오른쪽에서 육로/수로를 고르세요. 빈 자리는 ⌘+클릭으로 표시합니다. 자리를 옮기려면 먼저 이동 잠금을 켜세요.${currentWeight > maxCarry ? ' 소지 한도를 넘어 1경로만 갑니다.' : ''}`
             }
           />
@@ -11771,22 +12395,31 @@ function PlayView({
               }}
             >
               <div style={{ fontSize: '0.84rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                도달 후보(이름/거리: A~6=12이하, 7~9=13~24, 10/J/M=24+)
+                {journeyDestinationMode === 'draw'
+                  ? '도달 후보(이름/거리: A~6=12이하, 7~9=13~24, 10/J/M=24+)'
+                  : '직접 고른 목적지'}
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                지도에서 표시되는 후보는 카드 값 구간으로 필터된 목적지들입니다. 왼쪽은 후보 이름, 오른쪽은 실제 경로 수입니다.
+                {journeyDestinationMode === 'draw'
+                  ? '지도 후보는 카드의 거리·방향·정착지/도시 유형을 모두 충족합니다.'
+                  : '지도에서 출발지가 아닌 위치를 누르거나 아래 여정 양식에서 검색해 고르세요.'}
               </div>
-              {!journeyDestinationCard && (
+              {journeyDestinationMode === 'choose' && selectedJourneyDestination && (
+                <div style={{ fontSize: '0.82rem', color: 'var(--primary)', fontWeight: 700 }}>
+                  {selectedJourneyDestination.name} · {selectedJourneyDestination.paths === null ? '연결 경로 없음' : `${selectedJourneyDestination.paths}경로`}
+                </div>
+              )}
+              {journeyDestinationMode === 'draw' && !journeyDestinationCard && (
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                   목적지 카드를 먼저 뽑으면 후보가 표시됩니다.
                 </div>
               )}
-              {journeyDestinationCard && journeyDestinationCandidates.length === 0 && (
+              {journeyDestinationMode === 'draw' && journeyDestinationCard && journeyDestinationCandidates.length === 0 && (
                 <div style={{ fontSize: '0.8rem', color: 'var(--accent-red)' }}>
                   현재는 이동 가능한 후보가 없습니다. 지도 카드 규칙을 다시 뽑아 주세요.
                 </div>
               )}
-              {journeyDestinationCard && journeyCandidateGroups.length > 0 && (
+              {journeyDestinationMode === 'draw' && journeyDestinationCard && journeyCandidateGroups.length > 0 && (
                 <div style={{ display: 'grid', gap: '0.45rem' }}>
                   {journeyCandidateGroups.map(group => (
                     <div key={group.key} style={{ display: 'grid', gap: '0.32rem' }}>
@@ -11832,11 +12465,12 @@ function PlayView({
             protectsFromSoaking={hasSafeWaterwayTravel(state)}
             soakableItemNames={state.bag.filter(item => isRuinedWhenSoaked(item)).map(item => item.name)}
             canTravel={Boolean(state.journeyActive && !state.needsLocalHelpBeforeMove)}
+            movementMode={hasPendingTaxiMove ? 'soar' : travelMode}
             travelBlockedReason={
               !state.journeyActive
                 ? '여정을 시작한 뒤 이 경로로 이동합니다.'
                 : state.needsLocalHelpBeforeMove
-                  ? '현지 일을 마친 뒤 이동할 수 있습니다.'
+                  ? '현지 야수의 질환을 해결한 뒤 이동할 수 있습니다.'
                   : null
             }
             onChangeStop={handleRouteStopChange}
@@ -13167,19 +13801,19 @@ function PlayView({
             <div id="journey-start-panel" className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem' }}>
               <h2 style={{ color: 'var(--secondary)', margin: '0 0 0.4rem 0', fontFamily: 'var(--font-fancy)' }}>새로운 여정 떠나기</h2>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 1.2rem 0' }}>
-                목적지·목표 카드를 뽑은 뒤, 옆 지도를 보며 후보를 골라 목적지 총 경로를 확인하세요.
+                룰북처럼 목적지는 뽑거나 고르고, 목표는 뽑거나 고르거나 직접 만들 수 있습니다. 선택 전 조건과 실제 지도 거리를 함께 확인하세요.
               </p>
 
               {/* First session tip */}
               {!state.cumulativeDays && (
                 <div style={{ padding: '0.6rem 0.8rem', borderRadius: '8px', background: '#f0fdf4', border: '1px solid #86efac', color: '#166534', fontSize: '0.82rem', marginBottom: '0.8rem', lineHeight: 1.5 }}>
-                  💡 <strong>첫 세션 권장:</strong> 오도크(Odoak) 정착지에서 봄(Spring)에 첫 여정을 시작하는 것을 추천합니다. <span style={{ color: '#15803d' }}>(룰북 p.18)</span>
+                  💡 <strong>첫 세션 권장:</strong> 숲의 도시 오도크(Odoak)에서 봄(Spring)에 첫 여정을 시작합니다. <span style={{ color: '#15803d' }}>(룰북 p.18)</span>
                 </div>
               )}
 
               <div style={{ padding: '0.8rem', borderRadius: '8px', border: '1px dashed var(--glass-border)', background: '#fffcf2', fontSize: '0.84rem', color: 'var(--text)', display: 'grid', gap: '0.35rem' }}>
-                <div><strong>여행 거리 형태:</strong> {journeyDestinationCard ? journeyDistanceBandText : '목적지 카드를 먼저 뽑으세요.'}</div>
-                <div><strong>지도에서 선택한 총 거리:</strong> {selectedJourneyDestination ? `${selectedJourneyDestination.paths}경로` : '선택된 후보가 없습니다'}</div>
+                <div><strong>목적지 방식:</strong> {journeyDestinationMode === 'choose' ? '직접 선택' : journeyDestinationCard ? journeyDistanceBandText : '목적지 카드를 먼저 뽑으세요.'}</div>
+                <div><strong>지도에서 선택한 총 거리:</strong> {selectedJourneyDestination ? selectedJourneyDestination.paths === null ? '연결된 경로 없음 (Soar 또는 지도 연결 필요)' : `${selectedJourneyDestination.paths}경로` : '선택된 목적지가 없습니다'}</div>
                 {selectedJourneyDestination && (
                   <div style={{ padding: '0.3rem 0.5rem', background: 'var(--secondary-light, #fffae0)', borderRadius: '5px', color: 'var(--secondary)' }}>
                     📍 <strong>{selectedJourneyDestination.name}</strong> · {selectedJourneyDestination.region ? selectedJourneyDestination.region : ''}{selectedJourneyDestination.locationType ? ` (${selectedJourneyDestination.locationType})` : ''}
@@ -13198,6 +13832,7 @@ function PlayView({
                     rows={2}
                     placeholder="왜 지금 이 길을 떠나는지 기록하세요."
                     valueRef={journeyReasonRef}
+                    suggestedValue={journeyReason}
                     style={{ padding: '0.55rem', border: '1px solid #ccc', borderRadius: '4px', resize: 'vertical' }}
                   />
                   {/* Quick suggestion chips */}
@@ -13220,23 +13855,75 @@ function PlayView({
                     ))}
                   </div>
                 </div>
+                <div style={{ display: 'grid', gap: '0.4rem', padding: '0.75rem', background: '#f8faf4', border: '1px solid #d7e3cf', borderRadius: '8px' }}>
+                  <strong style={{ fontSize: '0.86rem', color: 'var(--primary)' }}>출발 전 저널 맥락 (p.18, p.21)</strong>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                    출발지 <strong>{state.currentLocationName}</strong>은 어떤 의미인가요? <strong>{localizeSeasonLabel(state.currentSeason)}</strong>은 어떤 기분을 주나요? {urgencyPreview.days}일의 Urgency가 목표와 어떻게 이어지나요?
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={journeyStartReflection}
+                    onChange={event => setJourneyStartReflection(event.target.value)}
+                    placeholder="앱 저널에 남기려면 적으세요. 종이 저널에 썼다면 비워두어도 됩니다."
+                  />
+                </div>
                 <div style={{ display: 'grid', gap: '0.75rem', padding: '0.85rem', background: '#fffdf8', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
                   <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
-                    룰북 p.19-25 순서: 목적지/거리 카드와 목표 카드를 뽑고, 지도를 보며 후보를 골라 이동합니다.
+                    룰북 p.19–21: 목적지는 뽑기 또는 직접 선택, 목표는 표에서 뽑기/선택 또는 직접 만들기 중 하나를 고릅니다.
                   </div>
-                  <CardDrawSlot
-                    label="목적지와 방향 카드 (p.19)"
-                    helper="값은 검은 선으로 이어진 점 개수(A–6 ≤12, 7–9 13–24, 10/J/M 24+), 문양은 대략적인 방향입니다. 이름 없는 점도 후보가 됩니다."
-                    card={journeyDestinationCard}
-                    onCard={(card: PlayingCard) => { setJourneyDestinationCard(card); setDestName(''); }}
-                  />
-                  <CardDrawSlot
-                    label="여정 목표 카드 (p.20-21)"
-                    helper="값으로 목표 표를 찾습니다. Q/K는 Monarch(M) 목표로 처리합니다."
-                    card={journeyGoalCard}
-                    onCard={setJourneyGoalCard}
-                  />
-                  {journeyGoalCard && (
+                  <fieldset className="journey-choice-fieldset">
+                    <legend>목적지 정하기 (p.19)</legend>
+                    <div className="journey-choice-toggle" role="group" aria-label="목적지 결정 방식">
+                      <button type="button" aria-pressed={journeyDestinationMode === 'draw'} onClick={() => { setJourneyDestinationMode('draw'); setDestName(''); }}>카드로 뽑기</button>
+                      <button type="button" aria-pressed={journeyDestinationMode === 'choose'} onClick={() => { setJourneyDestinationMode('choose'); setDestName(''); }}>지도에서 직접 선택</button>
+                    </div>
+                    {journeyDestinationMode === 'draw' ? (
+                      <CardDrawSlot
+                        label="목적지와 방향 카드"
+                        helper="A–6은 12경로 이하 정착지, 7–9는 13–24경로 정착지, 10/J/M은 24경로 이상 도시입니다. 문양은 방향입니다."
+                        card={journeyDestinationCard}
+                        onCard={(card: PlayingCard) => { setJourneyDestinationCard(card); setDestName(''); }}
+                      />
+                    ) : (
+                      <div style={{ display: 'grid', gap: '0.4rem' }}>
+                        <label htmlFor="journey-direct-destination" style={{ fontSize: '0.82rem', fontWeight: 700 }}>지도 위치 검색/선택</label>
+                        <select id="journey-direct-destination" value={destName} onChange={event => setDestName(event.target.value)}>
+                          <option value="">— 출발지가 아닌 목적지를 고르세요 —</option>
+                          {journeyDestinationChoices.map(choice => (
+                            <option key={choice.id} value={choice.id}>
+                              {choice.name} · {choice.region} · {choice.locationType} · {choice.paths === null ? '연결 없음' : `${choice.paths}경로`}
+                            </option>
+                          ))}
+                        </select>
+                        <small style={{ color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                          Past the Edge는 전체 지도에서 가장자리 표식과 연결을 만든 뒤 그 표식을 고르세요. 지도 밖 서사는 플레이어가 저널로 판정합니다.
+                        </small>
+                      </div>
+                    )}
+                  </fieldset>
+
+                  <fieldset className="journey-choice-fieldset">
+                    <legend>목표 정하기 (p.20–21)</legend>
+                    <div className="journey-choice-toggle" role="group" aria-label="여정 목표 결정 방식">
+                      <button type="button" aria-pressed={journeyGoalMode === 'table'} onClick={() => setJourneyGoalMode('table')}>표에서 뽑기/선택</button>
+                      <button type="button" aria-pressed={journeyGoalMode === 'invent'} onClick={() => setJourneyGoalMode('invent')}>직접 만들기</button>
+                    </div>
+                    {journeyGoalMode === 'table' ? (
+                      <CardDrawSlot
+                        label="여정 목표 카드"
+                        helper="랜덤으로 뽑거나 원하는 카드 값을 직접 입력해 표의 목표를 선택합니다. Q/K는 Monarch(M)입니다."
+                        card={journeyGoalCard}
+                        onCard={setJourneyGoalCard}
+                      />
+                    ) : (
+                      <div style={{ display: 'grid', gap: '0.45rem' }}>
+                        <input value={customGoalTitle} onChange={event => setCustomGoalTitle(event.target.value)} placeholder="목표 이름/목적" />
+                        <textarea rows={3} value={customGoalRequirement} onChange={event => setCustomGoalRequirement(event.target.value)} placeholder="언제 달성인지 분명한 완료 조건" />
+                        <small style={{ color: 'var(--text-muted)' }}>앱이 자동 판정하지 않으며, 여정 마감 때 플레이어가 달성을 확인합니다.</small>
+                      </div>
+                    )}
+                  </fieldset>
+                  {journeyGoalMode === 'table' && journeyGoalCard && (
                     <div style={{ padding: '0.75rem', borderRadius: '7px', border: '1px dashed var(--glass-border)', background: '#fffdfa', color: 'var(--text)' }}>
                       <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
                         현재 카드: {journeyGoalCard.suit} {cardDisplayValue(journeyGoalCard.value)} · 규칙 표기: {cardRuleValue(journeyGoalCard)}
@@ -13499,57 +14186,27 @@ function PlayView({
             {state.needsLocalHelpBeforeMove && (
               <div style={{ borderTop: '1px dashed var(--glass-border)', padding: '0.9rem', background: '#fffaf0', borderRadius: '8px', border: '1.5px solid #f59e0b', color: 'var(--text)', fontSize: '0.86rem', lineHeight: 1.6, marginBottom: '0.5rem' }}>
                 <strong style={{ color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.9rem' }}>
-                  🔒 현지 봉사 미결 — 이동 전 완료 필요 (룰북 p.25 Earning Your Keep)
+                  🔒 현지 질환 미해결 — 다음 이동 전 치료 필요 (룰북 p.25)
                 </strong>
                 <p style={{ margin: '0.4rem 0 0.6rem 0', color: 'var(--text-muted)', fontSize: '0.83rem' }}>
-                  이곳에서 환자를 돌보거나 야수 고분 문제를 해결해야 다음 위치로 이동할 수 있습니다. 아래 버튼으로 봉사를 기록하세요.
+                  Move를 마친 뒤에는 현지 야수의 <strong>질환(Ailment)을 해결</strong>해야 다시 이동할 수 있습니다. 채집, 조우 완료, 고분 탐사는 이 의무를 대신하지 않습니다.
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                   <button
                     type="button"
                     style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', background: '#ecfdf5', border: '1px solid #6ee7b7', borderRadius: '8px', cursor: 'pointer', color: '#065f46', fontWeight: 600 }}
                     onClick={() => {
-                      const activePatient = state.patients.find(p => p.id === state.activePatientId);
-                      if (activePatient) {
-                        updateState((s: GameState) => ({
-                          ...s,
-                          needsLocalHelpBeforeMove: false,
-                          journals: [{ id: `local-help-patient-${Date.now()}`, title: '현지 봉사: 환자 돌봄', text: `${state.currentLocationName}에서 ${activePatient.name} 환자를 돌봤습니다.`, timestamp: new Date().toISOString() }, ...s.journals]
-                        }));
-                      } else {
-                        showAlert('현재 담당 환자가 없습니다. 환자 탭에서 먼저 환자를 선택해주세요.');
-                      }
+                      document.getElementById('patient-clinic-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }}
                   >
-                    🩺 환자 돌보기
-                  </button>
-                  <button
-                    type="button"
-                    style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', cursor: 'pointer', color: '#166534', fontWeight: 600 }}
-                    onClick={() => {
-                      updateState((s: GameState) => ({
-                        ...s,
-                        needsLocalHelpBeforeMove: false,
-                        journals: [{ id: `local-help-forage-${Date.now()}`, title: '현지 봉사: 약재 채집', text: `${state.currentLocationName}에서 현지 약재 채집 봉사를 완료했습니다.`, timestamp: new Date().toISOString() }, ...s.journals]
-                      }));
-                    }}
-                  >
-                    🌾 약재 채집하기
+                    🩺 환자 진료로 이동
                   </button>
                   <button
                     type="button"
                     style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: '8px', cursor: 'pointer', color: '#1e40af', fontWeight: 600 }}
-                    onClick={() => {
-                      if (askWindowConfirm('현지 봉사(환자 돌봄/야수 고분/약재 채집)를 완료했음을 기록하고 이동 제한을 해제할까요?')) {
-                        updateState((s: GameState) => ({
-                          ...s,
-                          needsLocalHelpBeforeMove: false,
-                          journals: [{ id: `local-help-done-${Date.now()}`, title: '현지 봉사 완료 기록', text: `${state.currentLocationName}에서 현지 봉사를 완료했습니다. (p.25 Earning Your Keep)`, timestamp: new Date().toISOString() }, ...s.journals]
-                        }));
-                      }
-                    }}
+                    onClick={handleRecordExternalAilmentResolution}
                   >
-                    ✅ 현지 봉사 완료 기록
+                    📝 앱 밖에서 해결한 질환 기록
                   </button>
                 </div>
               </div>
@@ -13585,26 +14242,31 @@ function PlayView({
                 ))}
               </datalist>
 
-              <select value={destRegion} onChange={e => setDestRegion(e.target.value)}>
-                <option value="Forest">🌿 숲</option>
-                <option value="Meadow">🌾 초원</option>
-                <option value="Loch">💧 호수/강</option>
-                <option value="Bog">🪵 수렁</option>
-                <option value="Mountain">🏔️ 산맥</option>
-                <option value="Titan">⚙️ Titan 유적</option>
-                <option value="Soar">🦅 활공</option>
-              </select>
+              <div className="travel-destination-facts" aria-live="polite">
+                <span>지도 판정</span>
+                <strong>
+                  {selectedTravelNode
+                    ? `${localizeRegionLabel(selectedTravelRegion)} · ${locationTypeLabel(selectedTravelType)}`
+                    : '지도에서 도착지를 선택하세요'}
+                </strong>
+              </div>
 
-              <select value={destType} onChange={e => setDestType(e.target.value)}>
-                <option value="Wilds">야생 구역</option>
-                <option value="Settlement">정착지</option>
-                <option value="City">대도시</option>
-                <option value="Ruin">유적지</option>
-                <option value="Barrow">거수 고분</option>
+              <select
+                value={hasPendingTaxiMove ? 'soar' : travelMode}
+                onChange={e => setTravelMode(e.target.value as 'move' | 'soar')}
+                disabled={hasPendingTaxiMove}
+                aria-label="이동 방식"
+              >
+                <option value="move">🚶 Move · 경로/속도 사용</option>
+                <option value="soar">🦅 Soar · 지도 위치로 활공</option>
               </select>
 
               <button type="submit" disabled={state.needsLocalHelpBeforeMove} style={{ background: state.needsLocalHelpBeforeMove ? '#d8d1c4' : 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold', cursor: state.needsLocalHelpBeforeMove ? 'not-allowed' : 'pointer' }}>
-                {state.needsLocalHelpBeforeMove ? '현지 일을 마친 뒤 이동 가능' : '🚶‍♂️ 경로 이동 및 카드 조우'}
+                {state.needsLocalHelpBeforeMove
+                  ? '현지 질환 해결 후 이동 가능'
+                  : (hasPendingTaxiMove || travelMode === 'soar')
+                    ? '🦅 활공 및 계절 조우'
+                    : '🚶‍♂️ 경로 이동 및 카드 조우'}
               </button>
 
               <div style={{ gridColumn: 'span 4', display: 'grid', gap: '0.75rem', fontSize: '0.85rem', background: '#faf8f5', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)', marginTop: '0.4rem' }}>
@@ -14432,6 +15094,23 @@ function PlayView({
                       ...selectedToolEffectItems(state.bag, selectedTools)
                     ];
                     const validation = validateConcoction(state.activeAilment, selectedReagents, state.bag, state, usePurify);
+                    const canonicalPatient = state.patients.find(patient => patient.id === state.activePatientId);
+                    const canonicalAilment = canonicalPatient?.ailments.find(ailment =>
+                      ailment.status === 'active' && ailment.id === state.activeAilment?.id
+                    ) || canonicalPatient?.ailments.find(ailment => ailment.status === 'active');
+                    const selectedCanonicalInventory = toEngineInventory(state.bag.filter(item =>
+                      selectedBagItems.includes(item.id) || selectedTools.includes(item.id)
+                    ));
+                    const canonicalSelectionComplete = Boolean(
+                      canonicalPatient
+                      && canonicalAilment
+                      && canTreatAilmentWithInventory(
+                        canonicalPatient,
+                        canonicalAilment.id,
+                        selectedCanonicalInventory,
+                        state.ailmentTagOverrides
+                      )
+                    );
                     const alternative = state.pendingAlternativeAcquisition;
                     const makeDoMatches = alternative?.kind === 'make-do'
                       ? state.bag.filter(item => {
@@ -14445,7 +15124,11 @@ function PlayView({
                       <div style={{ marginBottom: '1rem', padding: '0.75rem', background: '#fff8ee', border: '1px dashed #d4a853', borderRadius: '8px', fontSize: '0.82rem', lineHeight: 1.45 }}>
                         <strong style={{ color: '#8b5e1a' }}>🧩 약재 대체 및 대안 (Replacement, p.30)</strong>
                         <div style={{ marginTop: '0.25rem', color: '#6f604d' }}>
-                          현재 선택 기준 미충족: {validation.missingRequirements.length > 0 ? validation.missingRequirements.join(', ') : '없음'}
+                          {state.rulesetId === 'original-1e-3p'
+                            ? canonicalSelectionComplete
+                              ? '현재 선택이 이 질환의 요구조건을 충족합니다.'
+                              : `현재 선택은 아직 요구조건을 충족하지 않습니다. 필요: ${state.activeAilment.tags || '질환 카드의 요구 태그'}`
+                            : `현재 선택 기준 미충족: ${validation.missingRequirements.length > 0 ? validation.missingRequirements.join(', ') : '없음'}`}
                         </div>
                         {alternative && (
                           <div style={{ marginTop: '0.55rem', padding: '0.55rem', background: '#fff', border: '1px solid #dfcfaa', borderRadius: '4px' }}>
@@ -14728,8 +15411,14 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
   };
 
   const saveCharacter = () => {
-    if (!draft.name.trim() || !draft.animal.trim() || !draft.familiarName.trim() || !draft.familiarAnimal.trim()) {
-      showAlert("약제사 이름/동물, 길동무 이름/동물을 채우면 시트가 완성됩니다.");
+    const missingFields = [
+      !draft.name.trim() ? '약제사 이름' : null,
+      !draft.animal.trim() ? '약제사 실제 동물/외형' : null,
+      !draft.familiarName.trim() ? '길동무 이름' : null,
+      !draft.familiarAnimal.trim() ? '길동무 실제 동물/외형' : null
+    ].filter((field): field is string => Boolean(field));
+    if (missingFields.length > 0) {
+      showAlert(`시트를 저장하려면 다음 항목을 채워 주세요: ${missingFields.join(', ')}`);
       return;
     }
 
@@ -14814,7 +15503,9 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
           <h3 style={{ margin: 0, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)', fontSize: '1.35rem' }}>룰북 따라 캐릭터 만들기</h3>
           <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.86rem', color: 'var(--text-muted)' }}>p.10-16의 표를 따라 카드 드로우 또는 직접 선택으로 시트를 완성합니다.</p>
         </div>
-        <button type="button" onClick={() => setOpen(false)} style={{ padding: '0.35rem 0.65rem', background: '#eee', color: '#555', borderRadius: '6px' }}>접기</button>
+        {state.bio.name.trim() && (
+          <button type="button" onClick={() => setOpen(false)} style={{ padding: '0.35rem 0.65rem', background: '#eee', color: '#555', borderRadius: '6px' }}>접기</button>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
@@ -14861,7 +15552,7 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
               <div style={{ marginTop: '0.4rem' }}>
-                <WizardChoiceSelect value={draft.descriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, descriptor: item, animal: "" }))} />
+                <WizardChoiceSelect value={draft.descriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, descriptor: item }))} />
               </div>
             </details>
           </div>
@@ -14975,7 +15666,7 @@ function CharacterCreationWizard({ state, updateState }: { state: GameState; upd
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
               <div style={{ marginTop: '0.4rem' }}>
-                <WizardChoiceSelect value={draft.familiarDescriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, familiarDescriptor: item, familiarAnimal: "" }))} />
+                <WizardChoiceSelect value={draft.familiarDescriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, familiarDescriptor: item }))} />
               </div>
             </details>
           </div>
@@ -16172,7 +16863,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
               <div className="ailment-card__outcomes" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.9rem', background: '#fff', padding: '0.8rem', borderRadius: '6px' }}>
                 <div>
                   <strong style={{ color: 'var(--primary)' }}>💡 성공 시 특별 결과:</strong>
-                  <div style={{ marginTop: '4px', color: '#444', fontSize: '0.88rem', lineHeight: '1.5' }}>{localizeAilmentPresentationText(a.outcome || '성공 보상 장신구 획득')}</div>
+                  <div style={{ marginTop: '4px', color: '#444', fontSize: '0.88rem', lineHeight: '1.5' }}>{localizeAilmentPresentationText(a.outcome || '인쇄된 특별 결과 없음 · 일반 치료 보상만 적용')}</div>
                 </div>
                 <div>
                   <strong style={{ color: 'var(--accent-red)' }}>💥 실패 시 결과:</strong>

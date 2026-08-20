@@ -50,8 +50,8 @@ const completeRequiredInputs = (draft: ManualEffectDraft): ManualEffectDraft => 
 describe('Step 2 printed-effect registry coverage', () => {
   it('[CORE-002/TRAVEL-009/FORAGE-006/TABLE-004/AILMENT-003] has one reachable row for every canonical owner', () => {
     expect(PRINTED_EFFECT_REGISTRY).toHaveLength(358);
-    expect(PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'implemented')).toHaveLength(11);
-    expect(PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'manual')).toHaveLength(347);
+    expect(PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'implemented')).toHaveLength(12);
+    expect(PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'manual')).toHaveLength(346);
     expect(new Set(PRINTED_EFFECT_REGISTRY.map(row => `${row.ownerType}:${row.ownerId}`)).size).toBe(358);
     expect(PRINTED_EFFECT_REGISTRY.filter(row => row.ownerType === 'encounter' && ENCOUNTERS.find(owner => owner.id === row.ownerId)?.encounterType === 'travel')).toHaveLength(103);
     expect(PRINTED_EFFECT_REGISTRY.filter(row => row.ownerType === 'encounter' && ENCOUNTERS.find(owner => owner.id === row.ownerId)?.encounterType === 'foraging')).toHaveLength(144);
@@ -61,7 +61,7 @@ describe('Step 2 printed-effect registry coverage', () => {
     expect(PRINTED_EFFECT_REGISTRY.every(row => !/^[.,;:]\s/.test(row.printedText))).toBe(true);
   });
 
-  it('[CORE-002/UX-001] builds a source-complete, trigger-specific task for all 347 manual rows', () => {
+  it('[CORE-002/UX-001] builds a source-complete, trigger-specific task for all 346 manual rows', () => {
     const manual = PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'manual');
     for (const effect of manual) {
       for (const trigger of effect.supportedTriggers) {
@@ -175,6 +175,29 @@ describe('Step 2 manual resolution transaction', () => {
     expect(result.status).toBe('invalid');
     expect(before.inventory).toHaveLength(1);
     expect(before.appliedTransactionIds).toEqual([]);
+  });
+
+  it('[CORE-002/SAVE-004] adds a named printed Bag item instead of leaving a duplicate follow-up', () => {
+    const sourceDraft = createManualEffectDraft(
+      PRINTED_EFFECT_BY_OWNER.get('travel-meadow-7-8')!,
+      'encounter',
+      { encounterTransactionId: 'parcel-encounter', continuation: 'travel' },
+      100
+    );
+    const action = sourceDraft.actionTemplates.find(candidate =>
+      candidate.kind === 'gain-inventory' && /to\s+(?:your\s+)?bags?/i.test(candidate.sourceText)
+    )!;
+    const draft = completeRequiredInputs({
+      ...sourceDraft,
+      selectedActionIds: [action.id],
+      actionTargets: { [action.id]: 'Parcel' }
+    });
+    const result = resolveManualEffectTransaction({ draft, transactionId: 'manual-gain-parcel', state: manualState(), resolvedAt: 200 });
+    expect(result.status).toBe('resolved');
+    expect(result.value?.nextState.inventory).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Parcel', type: 'item', weight: 1, ruinedWhenSoaked: false })
+    ]));
+    expect(result.value?.nextState.pendingFollowUps).toHaveLength(0);
   });
 
   it('[CORE-002/SAVE-004] records override separately from normal resolution', () => {

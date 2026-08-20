@@ -174,7 +174,10 @@ const deriveActionTemplates = (ownerId: string, text: string): PrintedCanonicalA
     }
     if (forageGain) push('modify-foraging-points', `채집 포인트 +${forageGain[1]}`, clause, Number(forageGain[1]));
     if (forageLoss) push('modify-foraging-points', `채집 포인트 -${forageLoss[1]}`, clause, -Number(forageLoss[1]));
-    if (/(?:gain|collect|add).{0,50}\b(?:Reagent|Tool|Item|Trinket|Sketch|Gossip|Fruit)\b/i.test(clause)) {
+    const directBagItem = clause.match(/\badd\s+(?:an?\s+)?['“”"]?([^.;]{1,60}?)['“”"]?\s+to\s+(?:your\s+)?Bags?\b/i);
+    if (directBagItem) {
+      push('gain-inventory', `가방에 ${directBagItem[1].trim()} 추가`, clause, undefined, 'free-text');
+    } else if (/(?:gain|collect|add).{0,50}\b(?:Reagent|Plant|Insect|Tool|Item|Trinket|Sketch|Gossip|Fruit)\b/i.test(clause)) {
       push('gain-inventory', '원문이 지정한 물품 획득', clause, undefined, 'free-text');
     }
     if (/(?:lose|discard|drop|abandon|leave behind).{0,50}\b(?:Reagent|Tool|Item|Bags?|Weight)\b/i.test(clause)) {

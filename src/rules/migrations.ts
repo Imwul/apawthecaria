@@ -3,6 +3,7 @@ import { REAGENTS } from './data/reagents';
 import { normalizeLegacyArchiveRecord } from './archiveEngine';
 import { normalizeLegacyManualEffectDraft } from './almanackEngine';
 import { BARROW_DELVE_BY_ID, type BarrowDelveId, type BehemothClass } from './data/barrows';
+import { normalizeRouteDraft } from '../map/routeComposer';
 import { migrateRulesetMetadata } from './rulesets';
 import { CURRENT_SCHEMA_VERSION, type PatientState, type TreatmentDraft } from './state';
 import type { AilmentSeverity, RulebookEdition, RulesetId } from './types';
@@ -477,6 +478,12 @@ const migrateV7ToV8: SaveMigration = saved => {
   };
 };
 
+const migrateV8ToV9: SaveMigration = saved => ({
+  ...saved,
+  routeDraft: normalizeRouteDraft(saved.routeDraft),
+  schemaVersion: 9
+});
+
 export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   0: migrateV0ToV1,
   1: migrateV1ToV2,
@@ -485,7 +492,8 @@ export const SAVE_MIGRATIONS: Readonly<Record<number, SaveMigration>> = {
   4: migrateV4ToV5,
   5: migrateV5ToV6,
   6: migrateV6ToV7,
-  7: migrateV7ToV8
+  7: migrateV7ToV8,
+  8: migrateV8ToV9
 };
 
 export const migrateSavedRulesState = <T extends Record<string, unknown>>(saved: T | null | undefined) => {
@@ -509,6 +517,7 @@ export const migrateSavedRulesState = <T extends Record<string, unknown>>(saved:
       : null;
   migrated = {
     ...migrated,
+    routeDraft: normalizeRouteDraft(migrated.routeDraft),
     patients: Array.isArray(migrated.patients)
       ? (migrated.patients as PatientState[]).map(patient => ({
           ...patient,
@@ -551,5 +560,6 @@ export const migrateSavedRulesState = <T extends Record<string, unknown>>(saved:
     pendingManualFollowUps: unknown[];
     manualConditions: string[];
     offlineOutbox: unknown[];
+    routeDraft: ReturnType<typeof normalizeRouteDraft>;
   };
 };

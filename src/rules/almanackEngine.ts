@@ -209,6 +209,26 @@ const hasFieldValue = (value: string | number | boolean | undefined) => value ==
   || typeof value === 'number'
   || (typeof value === 'string' && value.trim().length > 0);
 
+const printedInventoryWeight = (target: string, sourceText: string): number => {
+  const text = `${target} ${sourceText}`
+    .replaceAll('⅓', '1/3')
+    .replaceAll('⅔', '2/3');
+  if (/\bNo Weight\b/i.test(text)) return 0;
+  const match = text.match(/\bWeight\s+(\d+(?:\.\d+)?)(?:\s*\/\s*(\d+(?:\.\d+)?))?/i);
+  if (!match) return 1 / 3;
+  const numerator = Number(match[1]);
+  const denominator = match[2] ? Number(match[2]) : 1;
+  return Number.isFinite(numerator) && Number.isFinite(denominator) && denominator > 0
+    ? numerator / denominator
+    : 1 / 3;
+};
+
+const printedInventoryName = (target: string): string => target
+  .replace(/\s*\(\s*Weight\s+(?:\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?|[⅓⅔])\s*\)\s*/ig, ' ')
+  .trim()
+  .replace(/^['‘’“”"]+|['‘’“”"]+$/g, '')
+  .trim();
+
 export const resolveManualEffectTransaction = (input: {
   draft: ManualEffectDraft;
   transactionId: string;
@@ -268,6 +288,19 @@ export const resolveManualEffectTransaction = (input: {
       }
       nextState.inventory = nextState.inventory.filter(item => item.id !== targetId);
     }
+    if (action.kind === 'gain-inventory') {
+      const rawItemName = input.draft.actionTargets[action.id]?.trim();
+      const itemName = rawItemName ? printedInventoryName(rawItemName) : '';
+      if (!itemName) return { status: 'invalid', value: null, messages: ['Name the printed Inventory item to gain.'] };
+      nextState.inventory.push({
+        id: `${input.transactionId}:inventory:${action.id}`,
+        name: itemName,
+        type: 'item',
+        weight: printedInventoryWeight(rawItemName!, action.sourceText),
+        quantity: 1,
+        ruinedWhenSoaked: /ruined if soaked/i.test(`${rawItemName} ${action.sourceText}`)
+      });
+    }
     if (action.kind === 'record-condition') {
       const description = input.draft.actionTargets[action.id] || action.sourceText;
       nextState.conditions = [...new Set([...nextState.conditions, `manual:${input.draft.ownerId}:${description}`])];
@@ -277,7 +310,7 @@ export const resolveManualEffectTransaction = (input: {
   const resolvedFollowUp = String(input.draft.inputValues['follow-up-result'] || '').trim();
   const pendingDescriptions = resolvedFollowUp ? [] : input.draft.followUpRequirements;
   for (const action of selectedActions as PrintedCanonicalActionTemplate[]) {
-    if (action.kind === 'gain-inventory' || action.kind === 'record-map-change' || action.kind === 'record-movement') {
+    if (action.kind === 'record-map-change' || action.kind === 'record-movement') {
       pendingDescriptions.push(input.draft.actionTargets[action.id] || action.sourceText);
     }
   }

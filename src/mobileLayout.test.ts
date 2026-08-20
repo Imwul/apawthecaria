@@ -37,7 +37,7 @@ describe('mobile layout regression guards', () => {
   it('exposes the season resolver after downtime outside an active journey', () => {
     expect(appSource).toContain('className="downtime-season-action"');
     expect(appSource).toMatch(/\{state\.downtimeCompleted && \([\s\S]*?onClick=\{handleAdvanceSeason\}[\s\S]*?계절 정산 및 전환/);
-    expect(appSource).toContain('const handleAdvanceSeason = () =>');
+    expect(appSource).toContain('const handleAdvanceSeason = async () =>');
     expect(cssSource).toMatch(/\.downtime-season-action\s*\{[\s\S]*?justify-content:\s*space-between/);
   });
 

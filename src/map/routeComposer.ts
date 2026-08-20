@@ -1,8 +1,9 @@
 import {
+  MAP_GLYPH_KINDS,
   MAP_TERRAINS,
   type MapGlyphKind,
   type MapTerrain
-} from './mapGlyphs';
+} from './mapGlyphTypes';
 
 export const ROUTE_EDGE_KINDS = ['path', 'river', 'waterway'] as const;
 export type RouteEdgeKind = (typeof ROUTE_EDGE_KINDS)[number];
@@ -113,6 +114,56 @@ export const mapKindFromGlyph = (kind: MapGlyphKind): 'named' | 'wild' | 'settle
 
 export const emptyRouteDraft = (): RouteDraft => ({ stops: [], edgeKinds: [] });
 
+const finiteCoordinate = (value: unknown, fallback: number): number => {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(100, parsed)) : fallback;
+};
+
+/**
+ * Safely restores an in-progress route from a campaign save. Invalid stops are
+ * discarded and connector data is rebuilt to exactly match the remaining
+ * stop order, so a malformed/legacy draft cannot break the editor.
+ */
+export const normalizeRouteDraft = (value: unknown): RouteDraft => {
+  if (!value || typeof value !== 'object') return emptyRouteDraft();
+  const raw = value as { stops?: unknown; edgeKinds?: unknown };
+  const stops = Array.isArray(raw.stops)
+    ? raw.stops.flatMap((entry, index): RouteStop[] => {
+        if (!entry || typeof entry !== 'object') return [];
+        const row = entry as Record<string, unknown>;
+        const id = typeof row.id === 'string' ? row.id.trim() : '';
+        if (!id) return [];
+        const kind = typeof row.kind === 'string' && (MAP_GLYPH_KINDS as readonly string[]).includes(row.kind)
+          ? row.kind as MapGlyphKind
+          : 'Wilds';
+        const terrain = typeof row.terrain === 'string' && (MAP_TERRAINS as readonly string[]).includes(row.terrain)
+          ? row.terrain as MapTerrain
+          : null;
+        return [{
+          id,
+          name: typeof row.name === 'string' ? row.name : id,
+          kind,
+          terrain: glyphUsesTerrainForRoute(kind) ? terrain : null,
+          hasClinic: kind === 'Clinic' || row.hasClinic === true,
+          x: finiteCoordinate(row.x, 50 + index),
+          y: finiteCoordinate(row.y, 50)
+        }];
+      })
+    : [];
+  const rawEdges = Array.isArray(raw.edgeKinds) ? raw.edgeKinds : [];
+  const edgeKinds: RouteEdgeKind[] = [];
+  for (let index = 0; index < Math.max(0, stops.length - 1); index += 1) {
+    const candidate = ROUTE_EDGE_KINDS.includes(rawEdges[index] as RouteEdgeKind)
+      ? rawEdges[index] as RouteEdgeKind
+      : 'path';
+    edgeKinds.push(canChooseRouteEdgeKind(candidate, stops[index], stops[index + 1]) ? candidate : 'path');
+  }
+  return { stops, edgeKinds };
+};
+
+const glyphUsesTerrainForRoute = (kind: MapGlyphKind): boolean =>
+  kind === 'Wilds' || kind === 'Settlement' || kind === 'City' || kind === 'Clinic';
+
 export const draftFromOrigin = (origin: RouteStop | null): RouteDraft =>
   origin ? { stops: [origin], edgeKinds: [] } : emptyRouteDraft();
 
@@ -147,6 +198,8 @@ export const removeRouteStopAt = (draft: RouteDraft, index: number): RouteDraft 
 };
 
 export const moveRouteStop = (draft: RouteDraft, fromIndex: number, toIndex: number): RouteDraft => {
+  // The first node is the campaign's current Location, not a movable waypoint.
+  if (fromIndex === 0 || toIndex === 0) return draft;
   if (fromIndex < 0 || fromIndex >= draft.stops.length) return draft;
   if (toIndex < 0 || toIndex >= draft.stops.length) return draft;
   if (fromIndex === toIndex) return draft;

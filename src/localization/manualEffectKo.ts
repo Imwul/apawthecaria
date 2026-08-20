@@ -51,6 +51,26 @@ const exactTranslations: Record<string, string> = {
   '- If you have a Titan Thingamabob, you may use it to activate the device and release the beast.': '- 타이탄 물건이 있으면 장치를 작동시켜 짐승을 풀어줄 수 있습니다.',
   'Helping Hand - If you have come across Bakar in this ruin, you can get him to break the Titan construct open.': '돕는 손 - 이 유적에서 바카르를 만났다면 타이탄 장치를 부수게 할 수 있습니다.',
   'Rescue - Draw a card: hearts or diamonds get the beast out, decrease the Timer by 1 and gain 2 Reputation; clubs or spades are a complication.': '구조 - 카드를 뽑습니다. 하트나 다이아면 구해내고 타이머를 1 줄이며 명성 2를 얻습니다. 클럽이나 스페이드면 문제가 생깁니다.'
+  ,'Collect a Plant Reagent Part that can be found in the Forest with a Base Value equal to the card’s.': '카드 값과 기본 희귀도가 같고 숲에서 발견되는 식물 영약재 부위 하나를 채집합니다.'
+  ,'The Gift of Knowledge - You can draw a Sketch (Weight 1/3) of this mysterious artefact, and add it to your bags.': '지식의 선물 - 이 신비한 유물을 스케치해 스케치(무게 1/3)를 가방에 넣을 수 있습니다.'
+  ,"Deliver the Parcel - Add a 'Parcel' to your Bags.": '소포 배달 - 소포를 가방에 넣습니다.'
+  ,'Add a Titan Thingamabob to your Bags.': '타이탄 물건 하나를 가방에 넣습니다.'
+  ,"You're able to clip some samples while you help; add any Part from Stinging Nettles to your Bags.": '돕는 동안 표본을 조금 자를 수 있습니다. 쐐기풀 부위 하나를 골라 가방에 넣습니다.'
+  ,'- Add a Shiny Object to your Bags.': '- 반짝이는 물건 하나를 가방에 넣습니다.'
+  ,'Complete it, and add Delicious Food to your bags.': '완료하고 맛있는 음식 하나를 가방에 넣습니다.'
+  ,'Add a Guild Rumour to your Bags.': '길드 소문 하나를 가방에 넣습니다.'
+  ,'Take - You may add a piece of Dense Charcoal and Animal Sheddings to your Bags.': '가져가기 - 단단한 숯과 동물 허물 부위 하나씩을 가방에 넣을 수 있습니다.'
+  ,'Add it to your Bags.': '그 물품을 가방에 넣습니다.'
+  ,'Add Rock Salt to your Bags.': '암염을 가방에 넣습니다.'
+  ,'Kite - Add a Kite to your Bags.': '연 - 연 하나를 가방에 넣습니다.'
+  ,'Add a ‘Cocoon’ (Weight 1/3) to your Bags.': '고치(무게 1/3)를 가방에 넣습니다.'
+  ,'Decrease any Timers by 1, and add Fresh Clams (Weight 2/3) to your Bags.': '원하는 타이머를 1 줄이고 신선한 조개(무게 2/3)를 가방에 넣습니다.'
+  ,'Add them to your Bags.': '그 물품들을 가방에 넣습니다.'
+  ,'For a thick coat, you may cut the fur back to increase this Ailment Timer by 2.': '털이 두껍다면 털을 잘라 이 질병 타이머를 2 늘릴 수 있습니다.'
+  ,'You may decrease this Ailment Timer by 2 to help put out the fire and gain 4 Reputation.': '불을 끄는 일을 도우려면 이 질병 타이머를 2 줄이고 길드 명성 4를 얻을 수 있습니다.'
+  ,'Treat three ailments and retain the seasonal map consequences.': '질병 세 개를 치료하고 계절 지도 결과를 유지합니다.'
+  ,"Something falls out of a passing Noonmessenger’s satchel. Call out to the Messenger - Gain 1 Reputation. Deliver the Parcel - Add a 'Parcel' (Weight 1) to your Bags. Choose a Location 4 Paths away for its address. Gain 3 Trinkets if you go to that Location, delivering it. Keep the Parcel - Choose and Gain a Tool or Upgrade from the Almanac, and lose 1 Reputation.": '지나가던 정오 전령의 가방에서 무언가가 떨어집니다. 전령 부르기 - 길드 명성 1을 얻습니다. 소포 배달 - 소포(무게 1)를 가방에 넣고 4경로 떨어진 배달 장소를 정합니다. 그곳에 도착해 배달하면 장신구 3개를 얻습니다. 소포 갖기 - 연감에서 도구 또는 개조 하나를 골라 얻고 길드 명성 1을 잃습니다.'
+  ,"Deliver the Parcel - Add a 'Parcel' (Weight 1) to your Bags.": '소포 배달 - 소포(무게 1)를 가방에 넣습니다.'
 };
 
 const optionTranslations: Record<string, string> = {

@@ -97,7 +97,26 @@ describe('sequential save migration', () => {
       patients: [],
       custom: 42
     } as const;
-    expect(migrateSavedRulesState(saved)).toEqual(saved);
+    expect(migrateSavedRulesState(saved)).toEqual({ ...saved, routeDraft: { stops: [], edgeKinds: [] } });
+  });
+
+  it('[SAVE-004/SAVE-005] migrates and safely restores an in-progress route draft', () => {
+    const migrated = migrateSavedRulesState({
+      schemaVersion: 8,
+      rulesetId: 'original-1e-3p',
+      routeDraft: {
+        stops: [
+          { id: 'odoak', name: 'Odoak', kind: 'City', terrain: 'Forest', hasClinic: false, x: 20, y: 30 },
+          { id: 'road', name: 'Road', kind: 'Wilds', terrain: 'Forest', hasClinic: false, x: 30, y: 30 }
+        ],
+        edgeKinds: ['river', 'invalid-extra']
+      }
+    });
+    expect(migrated.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+    expect(migrated.routeDraft).toMatchObject({
+      stops: [{ id: 'odoak' }, { id: 'road' }],
+      edgeKinds: ['river']
+    });
   });
 
   it('[MAP-005/SAVE-004/SAVE-005] migrates v2 gameplay state for idempotent Phase 2 transactions', () => {

@@ -175,9 +175,16 @@ const routeUsesWaterway = (graph: Record<string, TravelGraphNode>, route: readon
 export const resolveTravelEngine = (input: TravelEngineInput): TravelEngineResolution => {
   const { state } = input;
   if (!input.transactionId) return { status: 'invalid', value: null, messages: ['Travel requires a transaction ID.'] };
-  if (state.needsLocalHelp) return { status: 'invalid', value: null, messages: ['Help Local Beasts or finish the Barrow Delve before moving.'] };
+  if (state.needsLocalHelp) return { status: 'invalid', value: null, messages: ['Resolve a local beast\'s Ailment before moving again.'] };
   const destination = input.graph[input.destinationId];
   if (!destination) return { status: 'invalid', value: null, messages: ['Destination is not present in the map graph.'] };
+  if (destination.region !== input.destinationRegion || destination.locationType !== input.destinationType) {
+    return {
+      status: 'invalid',
+      value: null,
+      messages: ['Destination Region and Location type must match the selected map node.']
+    };
+  }
 
   const weight = inventoryWeight(state.inventory);
   const overEncumbered = weight > state.carry;
@@ -218,7 +225,8 @@ export const resolveTravelEngine = (input: TravelEngineInput): TravelEngineResol
     }
   }
 
-  const endsInLoch = input.destinationRegion === 'Loch'
+  const endsInLoch = input.mode === 'move'
+    && input.destinationRegion === 'Loch'
     && input.destinationType !== 'Settlement'
     && input.destinationType !== 'City';
   if (endsInLoch && !input.canStopInLoch) {
@@ -230,7 +238,13 @@ export const resolveTravelEngine = (input: TravelEngineInput): TravelEngineResol
     ? state.inventory.filter(item => item.type === 'reagent' || item.ruinedWhenSoaked).map(item => item.id)
     : [];
   const nextInventory = state.inventory.filter(item => !soakedItemIds.includes(item.id));
-  const encounterType = input.destinationType === 'Settlement' || input.destinationType === 'City' ? 'social' : 'travel';
+  // A Soar always uses the seasonal Soar table, even when it lands in a
+  // Settlement or City. Destination-based Social encounters apply to Move.
+  const encounterType = input.mode === 'soar'
+    ? 'travel'
+    : input.destinationType === 'Settlement' || input.destinationType === 'City'
+      ? 'social'
+      : 'travel';
   const encounter = findEncounter({
     encounterType,
     region: encounterRegion,
@@ -382,4 +396,3 @@ export const previewMoveStops = (input: {
 
 export const listLegalMoveStops = (input: Parameters<typeof previewMoveStops>[0]): string[] =>
   Object.values(previewMoveStops(input)).filter(row => row.reason === 'legal').map(row => row.id);
-
