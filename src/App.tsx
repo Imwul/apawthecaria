@@ -6975,10 +6975,10 @@ export default function App() {
       {/* Travel Encounter Dialog Modal */}
       {activeTravelEncounter && (() => {
         const printedEffect = PRINTED_EFFECT_BY_OWNER.get(activeTravelEncounter.id || state.pendingEncounter?.encounterId || '');
-        const encTitle: string = printedEffect?.ownerName || activeTravelEncounter.title || '';
+        const encTitle: string = localizeGameplayMessage(printedEffect?.ownerName || activeTravelEncounter.title || '');
         const rawEncounterText: string = activeTravelEncounter.text || '';
         const protectionNotice = rawEncounterText.startsWith('[보호 적용]');
-        const encText: string = printedEffect?.printedText || rawEncounterText;
+        const encText: string = localizeGameplayMessage(printedEffect?.printedText || rawEncounterText);
         const secondaryDrawPhrases = [
           'draw a card', 'draw another card', 'pull another card', 'draw from the deck',
           '추가 카드', '다시 카드', '카드를 뽑', 'draw two cards', 'draw one card'
@@ -7124,10 +7124,10 @@ export default function App() {
       {/* Foraging Encounter Dialog Modal */}
       {activeForageEncounter && (() => {
         const printedEffect = PRINTED_EFFECT_BY_OWNER.get(activeForageEncounter.id || state.pendingForaging?.encounterId || '');
-        const encTitle: string = printedEffect?.ownerName || activeForageEncounter.title || '';
+        const encTitle: string = localizeGameplayMessage(printedEffect?.ownerName || activeForageEncounter.title || '');
         const rawEncounterText: string = activeForageEncounter.text || '';
         const protectionNotice = rawEncounterText.startsWith('[Forecast]');
-        const encText: string = printedEffect?.printedText || rawEncounterText;
+        const encText: string = localizeGameplayMessage(printedEffect?.printedText || rawEncounterText);
         const secondaryDrawPhrases = [
           'draw a card', 'draw another card', 'pull another card', 'draw from the deck',
           '추가 카드', '다시 카드', '카드를 뽑', 'draw two cards', 'draw one card'
