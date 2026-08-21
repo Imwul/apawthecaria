@@ -26,6 +26,8 @@ type RouteComposerProps = {
   travelBlockedReason?: string | null;
   availableStops?: RouteStop[];
   journeyTarget?: RouteStop | null;
+  confirmedSegmentCount?: number;
+  journeyMinimumDistance?: number | null;
   seasonLabel?: string;
   daysRemaining?: number | null;
   onAddStop?: (stop: RouteStop) => void;
@@ -78,6 +80,8 @@ export function RouteComposer({
   travelBlockedReason,
   availableStops = [],
   journeyTarget = null,
+  confirmedSegmentCount = 0,
+  journeyMinimumDistance = null,
   seasonLabel,
   daysRemaining = null,
   onAddStop,
@@ -132,8 +136,8 @@ export function RouteComposer({
   }, [availableStopOptions, placeQuery]);
   const exactStopAlreadyAdded = Boolean(exactStopMatch && destination?.id === exactStopMatch.id);
   const targetIsMoveEnd = Boolean(journeyTarget && destination?.id === journeyTarget.id);
-  const targetAlreadyAdded = targetIsMoveEnd;
-  const targetCanAdd = Boolean(journeyTarget && availableStops.some(stop => stop.id === journeyTarget.id));
+  const pinnedTarget = journeyTarget && !targetIsMoveEnd ? journeyTarget : null;
+  const displayedCount = count + (pinnedTarget ? 1 : 0);
 
   useEffect(() => {
     const previousCount = previousCountRef.current;
@@ -141,12 +145,12 @@ export function RouteComposer({
     if (count <= previousCount || !trackContainerRef.current) return;
     const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
     trackContainerRef.current.scrollTo({ left: trackContainerRef.current.scrollWidth, behavior });
-  }, [count]);
+  }, [count, displayedCount]);
 
   const addStop = (stop: RouteStop) => {
     onAddStop?.(stop);
     setPlaceQuery('');
-    setRouteFeedback(`${stop.name || '위치'}을(를) 경로 끝에 추가했습니다.`);
+    setRouteFeedback(`${stop.name || '위치'}을(를) 이번 Move 경로에 추가했습니다.`);
   };
 
   const removeStop = (index: number, stop: RouteStop) => {
@@ -222,7 +226,7 @@ export function RouteComposer({
             <div className="route-composer__endpoint-info">
               <MapGlyph kind={journeyTarget.kind} terrain={journeyTarget.terrain} size={22} />
               <strong>{journeyTarget.name.trim() || '이름 없음'}</strong>
-              <em>{targetIsMoveEnd ? '이번 Move에서 도착' : stopMeta(journeyTarget)}</em>
+              <em>{targetIsMoveEnd ? '이번 Move에서 도착' : `${stopMeta(journeyTarget)} · 끝에 고정`}</em>
             </div>
           ) : (
             <strong>여정 설정에서 정하세요</strong>
@@ -237,7 +241,7 @@ export function RouteComposer({
             <span>
               {movementMode === 'soar'
                 ? '착륙할 지도 위치를 검색하세요. 중간 위치는 Move로 돌아갈 때 그대로 남습니다.'
-                : '룰북 지도를 보고 다음 위치를 고르세요. 연결 여부와 이동 순서는 플레이어가 판단합니다.'}
+                : '지도에서 다음 노드를 누르면 이번 Move 경로에 바로 들어갑니다. 여정 목적지는 항상 맨 뒤에 고정됩니다.'}
             </span>
           </div>
           <div className="route-composer__picker-controls">
@@ -263,14 +267,9 @@ export function RouteComposer({
               {exactStopAlreadyAdded ? '추가됨' : '경로에 추가'}
             </button>
           </div>
-          {journeyTarget && !targetAlreadyAdded && targetCanAdd && (
-            <button type="button" className="route-composer__target-shortcut" onClick={() => addStop(journeyTarget)}>
-              여정 목적지 <strong>{journeyTarget.name}</strong> 추가
-            </button>
-          )}
-          {journeyTarget && !targetAlreadyAdded && !targetCanAdd && (
+          {pinnedTarget && (
             <p className="route-composer__target-progress">
-              목적지는 아직 바로 이어지지 않습니다. 지도 경로를 따라 다음 위치부터 고르세요.
+              <strong>{pinnedTarget.name}</strong>은(는) 여정 목적지로 잠겨 있습니다. 오늘 도착하려면 지도에서 목적지 노드를 직접 누르세요.
             </p>
           )}
         </div>
@@ -279,7 +278,7 @@ export function RouteComposer({
       {/* Track of horizontal cards and interactive connector lines */}
       <div className="route-composer__strip-heading">
         <div className="route-composer__strip-labels">
-          <span>출발 → 경유 → 도착</span>
+          <span>현재 위치 → 이번 Move 경로 → 고정 목적지</span>
         </div>
         <div className="route-composer__strip-actions">
           <button
@@ -290,7 +289,7 @@ export function RouteComposer({
           >
             {compactView ? '세부 편집' : '간결 보기'}
           </button>
-          {count > 2 && (
+          {displayedCount > 2 && (
             <div className="route-composer__scroll-actions" aria-label="긴 경로 보기">
               <button type="button" onClick={() => scrollRoute(-1)} aria-label="이전 경로 보기">‹</button>
               <button type="button" onClick={() => scrollRoute(1)} aria-label="다음 경로 보기">›</button>
@@ -307,11 +306,12 @@ export function RouteComposer({
             {draft.stops.map((row, index) => {
               const edgeKind = draft.edgeKinds[index] || 'path';
               const nextStop = draft.stops[index + 1];
-              const roleLabel = index === 0 ? '출발' : index === count - 1 ? '도착' : `경유 ${index}`;
+              const isLockedTarget = Boolean(index > 0 && journeyTarget?.id === row.id && index === count - 1);
+              const roleLabel = index === 0 ? '출발' : isLockedTarget ? '여정 목적지' : index === count - 1 ? '오늘 도착' : `경유 ${index}`;
               return (
                 <div key={`${row.id}:${index}`} className="route-composer__step-unit">
                   {/* Rounded horizontal rectangular node card */}
-                  <div className={`route-composer__card${compactView ? ' route-composer__card--compact' : ''}`}>
+                  <div className={`route-composer__card${compactView ? ' route-composer__card--compact' : ''}${isLockedTarget ? ' route-composer__card--target' : ''}`}>
                     <div className="route-card__header">
                       <span className="route-card__index">{roleLabel}</span>
                       <MapGlyph kind={row.kind} terrain={row.terrain} size={18} />
@@ -323,10 +323,11 @@ export function RouteComposer({
                         title={row.name}
                         placeholder="이름 없음"
                         autoComplete="off"
+                        readOnly={isLockedTarget}
                         onChange={event => onChangeStop(index, { name: event.target.value })}
                       />
                     </div>
-                    {compactView ? (
+                    {compactView || isLockedTarget ? (
                       <span className="route-card__meta" title={stopMeta(row)}>{stopMeta(row)}</span>
                     ) : (
                       <div className="route-card__controls">
@@ -368,6 +369,18 @@ export function RouteComposer({
                     )}
                     {index === 0 ? (
                       <span className="route-card__fixed">현재 위치 · 순서 고정</span>
+                    ) : isLockedTarget ? (
+                      <div className="route-card__target-actions">
+                        <span className="route-card__fixed">여정 목적지 · 맨 뒤 고정</span>
+                        <button
+                          type="button"
+                          className="route-card__remove-btn"
+                          onClick={() => removeStop(index, row)}
+                          aria-label={`${row.name || '여정 목적지'}를 이번 Move 도착에서 제외`}
+                        >
+                          오늘 경로에서 빼기
+                        </button>
+                      </div>
                     ) : (
                       <div className="route-card__actions">
                         <button
@@ -425,6 +438,24 @@ export function RouteComposer({
                 </div>
               );
             })}
+            {pinnedTarget && (
+              <div className="route-composer__step-unit route-composer__step-unit--target" aria-label={`고정된 여정 목적지 ${pinnedTarget.name}`}>
+                <div className="route-connector route-connector--remaining" aria-hidden="true">
+                  <div className="route-connector__line route-connector__line--remaining" />
+                  <span className="route-connector__remaining-label">여정 계속</span>
+                  <div className="route-connector__line route-connector__line--remaining" />
+                </div>
+                <div className={`route-composer__card route-composer__card--target${compactView ? ' route-composer__card--compact' : ''}`}>
+                  <div className="route-card__header">
+                    <span className="route-card__index">여정 목적지</span>
+                    <MapGlyph kind={pinnedTarget.kind} terrain={pinnedTarget.terrain} size={18} />
+                    <strong className="route-card__target-name" title={pinnedTarget.name}>{pinnedTarget.name || '이름 없음'}</strong>
+                  </div>
+                  <span className="route-card__meta" title={stopMeta(pinnedTarget)}>{stopMeta(pinnedTarget)}</span>
+                  <span className="route-card__fixed">목적지 고정 · 이번 Move 거리에는 미포함</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
         </div>
@@ -444,10 +475,23 @@ export function RouteComposer({
         ) : (
           <>
             <p>
-              경로 {evaluation.pathCount}개 · 육로 {evaluation.landCount} · 강 {evaluation.riverCount} · 수로 {evaluation.waterwayCount} · 이번 Move {evaluation.movementCost}/{evaluation.effectiveSpeed}
+              선택한 이동 거리 <strong>{evaluation.pathCount}경로</strong> · 육로 {evaluation.landCount} · 강 {evaluation.riverCount} · 수로 {evaluation.waterwayCount} · 필요한 이동력 {evaluation.movementCost}/{evaluation.effectiveSpeed}
               {evaluation.overEncumbered ? ' · 과적으로 속도 1' : ''}
               {waterwaySpan > 1 ? ` · 이어진 수로 ${waterwaySpan}개를 1경로로 계산` : ''}
             </p>
+            {evaluation.pathCount > 0 && (
+              <p className={confirmedSegmentCount === evaluation.pathCount ? 'route-composer__confirmed' : 'route-composer__unconfirmed'}>
+                저장된 연결 {confirmedSegmentCount}/{evaluation.pathCount}구간
+                {confirmedSegmentCount === evaluation.pathCount
+                  ? ' · 선택한 이동 거리를 확정 연결로 계산했습니다.'
+                  : ` · ${evaluation.pathCount - confirmedSegmentCount}구간은 05 지도에서 아직 연결을 확정하지 않았습니다.`}
+              </p>
+            )}
+            {journeyTarget && (
+              <p className="route-composer__minimum-distance">
+                현재 위치 → {journeyTarget.name} 최소 거리: <strong>{journeyMinimumDistance === null ? '확정 연결 부족' : `${journeyMinimumDistance}경로`}</strong>
+              </p>
+            )}
             <p>{reasonText(evaluation.reason, evaluation.effectiveSpeed, evaluation.movementCost)}</p>
           </>
         )}

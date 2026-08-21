@@ -3,15 +3,18 @@ import {
   appendRouteStop,
   canChooseRouteEdgeKind,
   composedRouteCost,
+  confirmedRouteCoverage,
   cycleRouteEdgeKind,
   draftFromOrigin,
   evaluateRouteDraft,
   glyphKindFromLocation,
+  insertRouteStopBeforeTarget,
   nearestTerrain,
   moveRouteStop,
   normalizeRouteDraft,
   removeRouteStopAt,
   setRouteEdgeKind,
+  shortestConfirmedRouteDistance,
   stopFromPlace,
   terrainFromRegion,
   updateRouteStopAt,
@@ -44,6 +47,23 @@ describe('route composer draft', () => {
     const repeatedMiddle = appendRouteStop(draft, stop('middle'));
     expect(repeatedMiddle.stops.map(row => row.id)).toEqual(['oak', 'middle', 'end', 'middle']);
     expect(appendRouteStop(repeatedMiddle, stop('middle'))).toBe(repeatedMiddle);
+  });
+
+  it('inserts daily map clicks before a fixed Journey Destination', () => {
+    let draft = appendRouteStop(draftFromOrigin(stop('origin')), stop('target'));
+    draft = insertRouteStopBeforeTarget(draft, stop('wild-1'), 'target', (from, to) =>
+      `${from.id}-${to.id}` === 'wild-1-target' ? 'river' : 'path'
+    );
+    expect(draft.stops.map(row => row.id)).toEqual(['origin', 'wild-1', 'target']);
+    expect(draft.edgeKinds).toEqual(['path', 'river']);
+
+    const repeated = insertRouteStopBeforeTarget(draft, stop('wild-1'), 'target');
+    expect(repeated).toBe(draft);
+  });
+
+  it('keeps ordinary appending when the Journey Destination is only a pinned reference', () => {
+    const draft = insertRouteStopBeforeTarget(draftFromOrigin(stop('origin')), stop('wild-1'), 'target');
+    expect(draft.stops.map(row => row.id)).toEqual(['origin', 'wild-1']);
   });
 
   it('lets a player correct auto-filled kind and terrain', () => {
@@ -134,6 +154,34 @@ describe('route composer draft', () => {
     expect(restored.stops).toHaveLength(20);
     expect(restored.edgeKinds).toHaveLength(19);
     expect(restored.stops.at(-1)?.id).toBe('n3');
+  });
+});
+
+describe('player-confirmed route distances', () => {
+  const edges = [
+    { from: 'origin', to: 'a' },
+    { from: 'a', to: 'b' },
+    { from: 'b', to: 'target' },
+    { from: 'origin', to: 'detour' },
+    { from: 'detour', to: 'long-1' },
+    { from: 'long-1', to: 'long-2' },
+    { from: 'long-2', to: 'target' }
+  ];
+
+  it('finds the bidirectional minimum using only saved connections', () => {
+    expect(shortestConfirmedRouteDistance(edges, 'origin', 'target')).toBe(3);
+    expect(shortestConfirmedRouteDistance(edges, 'target', 'origin')).toBe(3);
+    expect(shortestConfirmedRouteDistance(edges, 'origin', 'missing')).toBeNull();
+  });
+
+  it('reports which selected Move segments still lack confirmation', () => {
+    let draft = appendRouteStop(draftFromOrigin(stop('origin')), stop('a'));
+    draft = appendRouteStop(draft, stop('unknown'));
+    expect(confirmedRouteCoverage(draft, edges)).toEqual({
+      confirmed: 1,
+      total: 2,
+      missingPairs: [{ from: 'a', to: 'unknown' }]
+    });
   });
 });
 

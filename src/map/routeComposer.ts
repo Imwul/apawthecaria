@@ -56,6 +56,17 @@ export type RouteDraft = {
   edgeKinds: RouteEdgeKind[];
 };
 
+export type ConfirmedRouteEdge = {
+  from: string;
+  to: string;
+};
+
+export type ConfirmedRouteCoverage = {
+  confirmed: number;
+  total: number;
+  missingPairs: Array<{ from: string; to: string }>;
+};
+
 export type RouteComposerReason = 'incomplete' | 'legal' | 'too-close' | 'too-far' | 'loch-locked';
 
 export type RouteComposerEvaluation = {
@@ -197,6 +208,31 @@ export const appendRouteStop = (
   };
 };
 
+/**
+ * Adds a daily Move stop while keeping an already-recorded Journey
+ * Destination at the far end of the strip. The destination remains a normal
+ * route stop only when the player explicitly chooses to reach it this Move.
+ */
+export const insertRouteStopBeforeTarget = (
+  draft: RouteDraft,
+  stop: RouteStop,
+  targetId: string | null | undefined,
+  resolveEdgeKind?: ResolveRouteEdgeKind
+): RouteDraft => {
+  if (draft.stops.length === 0 || !targetId || draft.stops.at(-1)?.id !== targetId) {
+    const last = draft.stops.at(-1);
+    return appendRouteStop(draft, stop, last && resolveEdgeKind ? resolveEdgeKind(last, stop) : 'path');
+  }
+  const target = draft.stops[draft.stops.length - 1];
+  if (stop.id === target.id) return draft;
+  const insertionIndex = draft.stops.length - 1;
+  const previousStop = draft.stops[insertionIndex - 1];
+  // Fast repeated taps on the same marker must never create duplicate stops.
+  if (previousStop?.id === stop.id) return draft;
+  const stops = [...draft.stops.slice(0, insertionIndex), stop, target];
+  return { stops, edgeKinds: rebuildRouteEdgeKinds(draft, stops, resolveEdgeKind) };
+};
+
 const routePairKey = (fromId: string, toId: string): string =>
   fromId < toId ? `${fromId}|${toId}` : `${toId}|${fromId}`;
 
@@ -223,6 +259,58 @@ const rebuildRouteEdgeKinds = (
     const candidate = previousKinds?.shift() || resolveEdgeKind?.(from, to) || 'path';
     return canChooseRouteEdgeKind(candidate, from, to) ? candidate : 'path';
   });
+};
+
+const confirmedPairSet = (edges: readonly ConfirmedRouteEdge[]): Set<string> =>
+  new Set(edges
+    .filter(edge => edge.from && edge.to && edge.from !== edge.to)
+    .map(edge => routePairKey(edge.from, edge.to)));
+
+/** Counts only player-saved map connections; inferred/printed graph guesses do not qualify. */
+export const confirmedRouteCoverage = (
+  draft: RouteDraft,
+  edges: readonly ConfirmedRouteEdge[]
+): ConfirmedRouteCoverage => {
+  const confirmedPairs = confirmedPairSet(edges);
+  const missingPairs = draft.stops.slice(0, -1).flatMap((from, index) => {
+    const to = draft.stops[index + 1];
+    return confirmedPairs.has(routePairKey(from.id, to.id)) ? [] : [{ from: from.id, to: to.id }];
+  });
+  const total = Math.max(0, draft.stops.length - 1);
+  return { confirmed: total - missingPairs.length, total, missingPairs };
+};
+
+/**
+ * Breadth-first minimum distance over player-confirmed connections only.
+ * `null` means that the saved connection data does not yet prove a route.
+ */
+export const shortestConfirmedRouteDistance = (
+  edges: readonly ConfirmedRouteEdge[],
+  fromId: string | null | undefined,
+  toId: string | null | undefined
+): number | null => {
+  if (!fromId || !toId) return null;
+  if (fromId === toId) return 0;
+  const neighbors = new Map<string, Set<string>>();
+  edges.forEach(edge => {
+    if (!edge.from || !edge.to || edge.from === edge.to) return;
+    if (!neighbors.has(edge.from)) neighbors.set(edge.from, new Set());
+    if (!neighbors.has(edge.to)) neighbors.set(edge.to, new Set());
+    neighbors.get(edge.from)!.add(edge.to);
+    neighbors.get(edge.to)!.add(edge.from);
+  });
+  const queue: Array<{ id: string; distance: number }> = [{ id: fromId, distance: 0 }];
+  const visited = new Set([fromId]);
+  for (let index = 0; index < queue.length; index += 1) {
+    const current = queue[index];
+    for (const next of neighbors.get(current.id) || []) {
+      if (visited.has(next)) continue;
+      if (next === toId) return current.distance + 1;
+      visited.add(next);
+      queue.push({ id: next, distance: current.distance + 1 });
+    }
+  }
+  return null;
 };
 
 export const removeRouteStopAt = (

@@ -175,6 +175,7 @@ describe('map interaction contracts', () => {
     expect(mapSource).toContain('quickConnect: event.shiftKey');
     expect(appSource).toContain('showTravelRoutes={false}');
     expect(appSource).toContain('showSavedConnections');
+    expect(appSource).toContain('veiled\n            showSavedConnections');
     expect(appSource).toContain('hideSelectedPlaceSheet={connectionEditMode}');
     expect(appSource).toContain('currentMapLocationId: stop.id');
     expect(appSource).toContain('resolveCurrentMapLocationKey(state) === id');
@@ -218,6 +219,20 @@ describe('map interaction contracts', () => {
     expect(mapSource).not.toMatch(/bezier/i);
     expect(mapSource).not.toMatch(/quadratic/i);
     expect(appSource).not.toContain('getCoordinatesForLocation');
+  });
+
+  it('keeps the map image, saved connections, and node markers in one zooming coordinate surface', () => {
+    const contentStart = mapSource.indexOf('<div ref={contentRef} className="paper-map__content"');
+    const contentEnd = mapSource.indexOf('<div className="paper-map__controls"', contentStart);
+    const content = mapSource.slice(contentStart, contentEnd);
+    expect(contentStart).toBeGreaterThan(-1);
+    expect(content).toContain('<img');
+    expect(content).toContain('className="paper-map__overlay" viewBox="0 0 100 100"');
+    expect(content).toContain('{places.map(place =>');
+    expect(mapSource).toContain('left: `${position.x}%`');
+    expect(mapSource).toContain('top: `${position.y}%`');
+    expect(cssSource).toContain('.paper-map__content > img');
+    expect(cssSource).toContain('.paper-map__overlay');
   });
 
   it('keeps offline detection overlays out of the production map', () => {

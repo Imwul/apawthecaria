@@ -42,17 +42,19 @@ import { MARKER_BY_ID, MARKER_EDGES, markerEdgeKind } from "./map/markerGraph";
 import manualMapReview from "./map/detection/manualMapReview.json";
 import { loadPlayerMarkers, removePlayerMarkerRecords, upsertPlayerMarkerRecords } from "./map/playerMarkerStore";
 import {
-  appendRouteStop,
   canChooseRouteEdgeKind,
+  confirmedRouteCoverage,
   draftFromOrigin,
   glyphKindFromLocation,
   locationTypeFromGlyph,
   mapKindFromGlyph,
   moveRouteStop,
   normalizeRouteDraft,
+  insertRouteStopBeforeTarget,
   removeRouteStopAt,
   setRouteEdgeKind,
   stopFromPlace,
+  shortestConfirmedRouteDistance,
   terrainFromRegion,
   updateRouteStopAt,
   type RouteDraft,
@@ -8425,7 +8427,7 @@ function PlayView({
   }, [routeEndId, routeGraphNodes, state.clinics, state.customMapLocations]);
   const routeJourneyTarget = useMemo<RouteStop | null>(() => {
     const targetId = state.journeyActive
-      ? findMapLocationKey(state.journeyDestination, state.customMapLocations || [])
+      ? state.journey?.destinationId || findMapLocationKey(state.journeyDestination, state.customMapLocations || [])
       : selectedJourneyDestination?.id;
     if (!targetId) return null;
     const node = routeGraphNodes[targetId];
@@ -8436,7 +8438,20 @@ function PlayView({
         findMapLocationKey(clinic.locationName, state.customMapLocations || []) === targetId
       )
     });
-  }, [routeGraphNodes, selectedJourneyDestination?.id, state.clinics, state.customMapLocations, state.journeyActive, state.journeyDestination]);
+  }, [routeGraphNodes, selectedJourneyDestination?.id, state.clinics, state.customMapLocations, state.journey, state.journeyActive, state.journeyDestination]);
+  const routeConfirmedCoverage = useMemo(
+    () => confirmedRouteCoverage(routeDraft, state.customMapEdges || []),
+    [routeDraft, state.customMapEdges]
+  );
+  const journeyMinimumDistance = useMemo(
+    () => shortestConfirmedRouteDistance(
+      state.customMapEdges || [],
+      currentRouteOrigin?.id,
+      routeJourneyTarget?.id
+    ),
+    [currentRouteOrigin?.id, routeJourneyTarget?.id, state.customMapEdges]
+  );
+  const routeJourneyTargetId = routeJourneyTarget?.id || null;
   useEffect(() => {
     if (!currentRouteOrigin) return;
     let cancelled = false;
@@ -12217,19 +12232,10 @@ function PlayView({
         locationType: location.kind,
         hasClinic: location.hasClinic
     });
-    const currentDraft = routeDraftRef.current;
-    const currentEnd = currentDraft.stops.at(-1);
-    if (currentEnd?.id === stop.id) return;
     setRouteDraft(previous => {
-      const last = previous.stops[previous.stops.length - 1];
-      // Repeated taps and accidental double-clicks must be idempotent. Removing
-      // a route stop is an explicit action in the editor, never a map-click side effect.
-      if (last?.id === stop.id) return previous;
-      const inferredKind = last
-        ? mapEdgeKind(last.id, stop.id, state.customMapEdges || [])
-        : 'path';
-      const edgeKind = last && canChooseRouteEdgeKind(inferredKind, last, stop) ? inferredKind : 'path';
-      const next = appendRouteStop(previous, stop, edgeKind);
+      // During an active Journey its Destination remains the final card. Map
+      // clicks add each daily waypoint immediately before that fixed endpoint.
+      const next = insertRouteStopBeforeTarget(previous, stop, routeJourneyTargetId, resolveDraftEdgeKind);
       if (next.stops.length > 1) {
         const dest = next.stops[next.stops.length - 1];
         setNextLocName(dest.name);
@@ -12237,7 +12243,7 @@ function PlayView({
       }
       return next;
     });
-  }, [routeGraphNodes, setRouteDraft, state]);
+  }, [resolveDraftEdgeKind, routeGraphNodes, routeJourneyTargetId, setRouteDraft, state]);
 
   const handleSetMappedCurrentLocation = useCallback((location: MapPickLocation) => {
     const node = routeGraphNodes[location.id];
@@ -12269,6 +12275,7 @@ function PlayView({
 
   const handleRouteStopChange = useCallback((index: number, patch: Partial<RouteStop>) => {
     setRouteDraft(previous => {
+      if (routeJourneyTargetId && previous.stops[index]?.id === routeJourneyTargetId) return previous;
       const next = updateRouteStopAt(previous, index, patch);
       const stop = next.stops[index];
       if (stop) persistRouteStop(stop);
@@ -12278,7 +12285,7 @@ function PlayView({
       }
       return next;
     });
-  }, [persistRouteStop, setRouteDraft, state.currentRegion]);
+  }, [persistRouteStop, routeJourneyTargetId, setRouteDraft, state.currentRegion]);
 
   const handleRouteEdgeChange = useCallback((index: number, kind: 'path' | 'river' | 'waterway') => {
     setRouteDraft(previous => {
@@ -12307,6 +12314,7 @@ function PlayView({
 
   const handleMoveRouteStop = useCallback((fromIndex: number, toIndex: number) => {
     setRouteDraft(previous => {
+      if (routeJourneyTargetId && previous.stops[fromIndex]?.id === routeJourneyTargetId) return previous;
       const next = moveRouteStop(previous, fromIndex, toIndex, resolveDraftEdgeKind);
       const dest = next.stops[next.stops.length - 1];
       if (next.stops.length > 1 && dest) {
@@ -12315,7 +12323,7 @@ function PlayView({
       }
       return next;
     });
-  }, [resolveDraftEdgeKind, setRouteDraft, state.currentRegion]);
+  }, [resolveDraftEdgeKind, routeJourneyTargetId, setRouteDraft, state.currentRegion]);
 
   const handleClearRouteSides = useCallback(() => {
     setNextLocName('');
@@ -12706,6 +12714,7 @@ function PlayView({
             onSavePlaces={undefined}
             canDeletePlace={undefined}
             veiled
+            showSavedConnections
             showWaypointAction={false}
             travelEnabled={Boolean(state.journeyActive && !state.needsLocalHelpBeforeMove)}
             travelBlockedReason={state.needsLocalHelpBeforeMove ? '현지 야수의 질환을 해결한 뒤 이동할 수 있습니다.' : null}
@@ -12834,6 +12843,8 @@ function PlayView({
             travelBlockedReason={routeTravelBlockedReason}
             availableStops={routeStopChoices}
             journeyTarget={routeJourneyTarget}
+            confirmedSegmentCount={routeConfirmedCoverage.confirmed}
+            journeyMinimumDistance={journeyMinimumDistance}
             seasonLabel={localizeSeasonLabel(state.currentSeason)}
             daysRemaining={state.journeyActive ? state.calendarMaxDays - state.calendarDays : null}
             onAddStop={stop => handleAddRouteWaypoint({

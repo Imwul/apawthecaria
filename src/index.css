@@ -4901,6 +4901,23 @@ button,
   box-shadow: 0 3px 8px rgba(52, 47, 39, 0.14);
 }
 
+.route-composer__card--target,
+.route-composer__card--target:hover {
+  border-color: #71805f;
+  background: #f1f5ea;
+  box-shadow: inset 0 0 0 1px rgba(113, 128, 95, 0.12);
+}
+
+.route-composer__card--target .route-card__index {
+  background: #657255;
+}
+
+.route-composer__card--target .route-card__name-input[readonly] {
+  background: #f7f9f3;
+  border-color: #b7c0ab;
+  cursor: default;
+}
+
 .route-composer__card--compact {
   width: 10.75rem;
   flex-basis: 10.75rem;
@@ -4920,7 +4937,8 @@ button,
 }
 
 .route-composer__card--compact .route-card__actions,
-.route-composer__card--compact .route-card__fixed {
+.route-composer__card--compact .route-card__fixed,
+.route-composer__card--compact .route-card__target-actions {
   margin-top: auto;
 }
 
@@ -4954,6 +4972,16 @@ button,
   border-radius: 4px;
   background: #fff;
   color: #342f27;
+}
+
+.route-card__target-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #35422f;
+  font-size: 0.88rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .route-card__actions {
@@ -5050,6 +5078,24 @@ button,
   font-size: 0.72rem;
 }
 
+.route-card__target-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.route-card__target-actions .route-card__fixed {
+  min-width: 0;
+}
+
+.route-composer .route-card__target-actions .route-card__remove-btn {
+  min-width: 5.5rem;
+  padding-inline: 0.4rem;
+  font-size: 0.65rem;
+  white-space: normal;
+}
+
 /* Connector Line & Edge Toggle Button */
 .route-connector {
   display: flex;
@@ -5063,6 +5109,17 @@ button,
   width: 3.5rem;
   flex-basis: 3.5rem;
   padding-inline: 0;
+}
+
+.route-connector--remaining {
+  width: 6rem;
+  flex-basis: 6rem;
+  gap: 0.18rem;
+}
+
+.route-composer__track--compact .route-connector--remaining {
+  width: 4.5rem;
+  flex-basis: 4.5rem;
 }
 
 .route-connector__line {
@@ -5079,6 +5136,22 @@ button,
 .route-connector__line--waterway {
   height: 3px;
   background: #1c6da8;
+}
+
+.route-connector__line--remaining {
+  height: 1px;
+  background: repeating-linear-gradient(90deg, #89947c 0 4px, transparent 4px 7px);
+}
+
+.route-connector__remaining-label {
+  flex: 0 0 auto;
+  color: #657255;
+  font-family: "Noto Sans KR", sans-serif;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .route-composer .route-connector__btn {
@@ -5183,6 +5256,15 @@ button,
 
 .route-composer__soak {
   color: #1c6da8;
+}
+
+.route-composer__confirmed,
+.route-composer__minimum-distance {
+  color: #526244;
+}
+
+.route-composer__unconfirmed {
+  color: #8b5b38;
 }
 
 .route-composer__blocker {
