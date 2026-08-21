@@ -113,13 +113,16 @@ describe('map interaction contracts', () => {
     expect(appSource).not.toMatch(/setJourneyReason\(e\.target\.value\)/);
   });
 
-  it('interprets a drawn destination card beside the card and asks for printed-map distance confirmation', () => {
+  it('interprets a drawn destination card and lists measured confirmed-route candidates', () => {
     expect(appSource).toContain('journey-card-result');
     expect(appSource).toContain('이 카드의 목적지');
     expect(appSource).toContain('journeyDestinationRequirement.direction.short');
-    expect(appSource).toContain('인쇄 지도 거리 확인');
+    expect(appSource).toContain('confirmedRouteSummariesFrom');
+    expect(appSource).toContain('최단 {candidate.routeSummary.distance}경로');
+    expect(appSource).toContain('강 {candidate.routeSummary.riverCount}');
+    expect(appSource).toContain('수로 {candidate.routeSummary.waterwayCount}');
     expect(appSource).toContain('destinationDistanceConfirmed');
-    expect(appSource).not.toContain('지도에서 선택한 총 거리:');
+    expect(appSource).not.toContain('거리 직접 확인');
   });
 
   it('only asks gameplay to travel from the Travel action', () => {
@@ -146,7 +149,7 @@ describe('map interaction contracts', () => {
     expect(appSource).toContain("onAddWaypoint={playMapMode === 'destination' ? undefined : handleAddRouteWaypoint}");
     expect(appSource).toContain("onSelectedPlaceChange={playMapMode === 'destination' ? handlePlayMapSelection : undefined}");
     expect(appSource).toContain("journeyDestinationMode === 'choose'\n      ? Boolean(journeyGraph[locationId])");
-    expect(appSource).toContain('도시·정착지·야생 위치를 한 번 누르거나');
+    expect(appSource).toContain('— 출발지가 아닌 목적지를 고르세요 —');
   });
 
   it('locks map panning before a marker can be dragged to a new place', () => {
@@ -184,6 +187,8 @@ describe('map interaction contracts', () => {
     expect(mapSource).toContain('paper-map__saved-connection--${connection.kind}');
     expect(mapSource).toContain('connectionHatches(connection)');
     expect(mapSource).toContain('return [-1, 1].map(offset =>');
+    expect(mapSource).toContain('{ across: -0.4, nudge: 0 }');
+    expect(mapSource).toContain('alongX * 0.18 * offset');
     expect(cssSource).toContain('.paper-map__saved-connection--path');
     expect(cssSource).toContain('.paper-map__saved-connection--river');
     expect(cssSource).toContain('.paper-map__saved-connection-hatch');

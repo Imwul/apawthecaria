@@ -49,6 +49,7 @@ import { loadPlayerMarkers, removePlayerMarkerRecords, upsertPlayerMarkerRecords
 import {
   canChooseRouteEdgeKind,
   confirmedRouteCoverage,
+  confirmedRouteSummariesFrom,
   draftFromOrigin,
   glyphKindFromLocation,
   locationTypeFromGlyph,
@@ -63,6 +64,7 @@ import {
   terrainFromRegion,
   updateRouteStopAt,
   type RouteDraft,
+  type ConfirmedRouteSummary,
   type RouteStop
 } from "./map/routeComposer";
 import { RouteComposer } from "./components/RouteComposer";
@@ -1477,6 +1479,9 @@ interface CustomMapEdge {
   label?: string;
   createdAt?: number;
 }
+
+const confirmedRouteSummaryText = (summary: ConfirmedRouteSummary): string =>
+  `최단 ${summary.distance}경로 · 육로 ${summary.landCount} · 강 ${summary.riverCount} · 수로 ${summary.waterwayCount}`;
 
 interface BarterLocationOption {
   key: string;
@@ -8276,7 +8281,6 @@ function PlayView({
   const [customGoalRequirement, setCustomGoalRequirement] = useState('');
   const [journeyStartReflection, setJourneyStartReflection] = useState('');
   const [journeyDestinationCard, setJourneyDestinationCard] = useState<PlayingCard | null>(null);
-  const [journeyDistanceConfirmationToken, setJourneyDistanceConfirmationToken] = useState<string | null>(null);
   const [journeyGoalCard, setJourneyGoalCard] = useState<PlayingCard | null>(null);
   const urgencyPreview = useMemo(() => urgencyFor(state.reputation), [state.reputation]);
   const journeyGoalPreview = useMemo(() => {
@@ -8293,15 +8297,39 @@ function PlayView({
     () => resolveCurrentMapLocationKey(state),
     [state]
   );
+  const confirmedJourneyRoutes = useMemo(
+    () => confirmedRouteSummariesFrom(state.customMapEdges || [], journeyOriginId),
+    [journeyOriginId, state.customMapEdges]
+  );
   const journeyDestinationCandidates = useMemo(
-    () => journeyDestinationCard
-      ? findJourneyDestinationMapCandidates({ graph: journeyGraph, originId: journeyOriginId, card: journeyDestinationCard as PlayingCard & { suit: CardSuit } })
-      : [],
-    [journeyDestinationCard, journeyGraph, journeyOriginId]
+    () => {
+      if (!journeyDestinationCard) return [];
+      const value = getRuleCardValue(journeyDestinationCard, 'table');
+      const minimumPaths = value <= 6 ? 0 : value <= 9 ? 13 : 24;
+      const maximumPaths = value <= 6 ? 12 : value <= 9 ? 24 : null;
+      return findJourneyDestinationMapCandidates({
+        graph: journeyGraph,
+        originId: journeyOriginId,
+        card: journeyDestinationCard as PlayingCard & { suit: CardSuit }
+      }).flatMap(candidate => {
+        const routeSummary = confirmedJourneyRoutes.get(candidate.id);
+        if (!routeSummary
+          || routeSummary.distance < minimumPaths
+          || (maximumPaths !== null && routeSummary.distance > maximumPaths)) return [];
+        return [{ ...candidate, paths: routeSummary.distance, routeSummary }];
+      }).sort((left, right) => left.paths - right.paths || left.name.localeCompare(right.name, 'ko'));
+    },
+    [confirmedJourneyRoutes, journeyDestinationCard, journeyGraph, journeyOriginId]
   );
   const journeyDestinationChoices = useMemo(
-    () => listJourneyDestinationChoices({ graph: journeyGraph, originId: journeyOriginId }),
-    [journeyGraph, journeyOriginId]
+    () => listJourneyDestinationChoices({ graph: journeyGraph, originId: journeyOriginId })
+      .map(choice => {
+        const routeSummary = confirmedJourneyRoutes.get(choice.id) || null;
+        return { ...choice, paths: routeSummary?.distance ?? null, routeSummary };
+      })
+      .sort((left, right) => (left.paths ?? Number.POSITIVE_INFINITY) - (right.paths ?? Number.POSITIVE_INFINITY)
+        || left.name.localeCompare(right.name, 'ko')),
+    [confirmedJourneyRoutes, journeyGraph, journeyOriginId]
   );
   const selectedJourneyDestination = useMemo(
     () => (journeyDestinationMode === 'choose' ? journeyDestinationChoices : journeyDestinationCandidates)
@@ -8331,12 +8359,9 @@ function PlayView({
       distance: value <= 6 ? '12경로 이하' : value <= 9 ? '13–24경로' : '24경로 이상'
     };
   }, [journeyDestinationCard]);
-  const activeJourneyDistanceConfirmationToken = journeyDestinationCard && destName
-    ? `${journeyDestinationCard.suit}:${getRuleCardValue(journeyDestinationCard, 'table')}:${destName}`
-    : null;
   const journeyDistanceConfirmed = Boolean(
-    activeJourneyDistanceConfirmationToken
-    && journeyDistanceConfirmationToken === activeJourneyDistanceConfirmationToken
+    journeyDestinationMode === 'draw'
+    && selectedJourneyDestination?.routeSummary
   );
   const scroungeAdjacentRegions = useMemo(
     () => adjacentRuleRegions(state),
@@ -9571,11 +9596,11 @@ function PlayView({
     if (!destName || !destinationOptions.some(row => row.id === destName)) {
       showAlert(journeyDestinationMode === 'choose'
         ? '지도에서 출발지가 아닌 목적지를 선택하세요.'
-        : '카드의 방향·장소 유형에 맞는 목적지를 선택하세요. 거리 구간은 인쇄 지도에서 직접 확인합니다.');
+        : '저장된 연결 거리와 카드의 방향·장소 유형을 모두 만족하는 목적지를 선택하세요.');
       return;
     }
     if (journeyDestinationMode === 'draw' && !journeyDistanceConfirmed) {
-      showAlert(`인쇄 지도에서 ${state.currentLocationName}부터 선택한 목적지까지 ${journeyDistanceBandText} 조건을 직접 확인해주세요.`);
+      showAlert(`05 접어둔 지도에서 ${state.currentLocationName}부터 목적지까지 이어지는 연결을 먼저 저장해주세요.`);
       return;
     }
     const journeyReason = journeyReasonRef.current;
@@ -9628,6 +9653,10 @@ function PlayView({
     const goalTitle = canonicalJourney.customGoal?.title || goal?.title || '직접 만든 목표';
     const goalRequirement = canonicalJourney.customGoal?.requiredState || goal?.requiredState || '';
     const destination = destinationOptions.find(row => row.id === destName)!;
+    const confirmedDestinationRoute = destination.routeSummary;
+    const destinationDistanceText = confirmedDestinationRoute
+      ? confirmedRouteSummaryText(confirmedDestinationRoute)
+      : journeyDestinationMode === 'choose' ? '직접 선택 · 연결 거리 미확정' : journeyDistanceBandText;
     const journeyWagon = canonicalWagonFromState(state);
     let clayPotReagentId: string | null = null;
     if (journeyWagon.commissioned && journeyWagon.expansionIds.includes('clay-pots')) {
@@ -9694,15 +9723,15 @@ function PlayView({
         downtimeCompleted: false,
         journeyOrigin: s.currentLocationName,
         journeyDestination: destination.name,
-        journeyDistance: journeyDestinationMode === 'choose' ? '직접 선택' : journeyDistanceBandText,
-        journeyTotalDistance: 0,
+        journeyDistance: destinationDistanceText,
+        journeyTotalDistance: confirmedDestinationRoute?.distance || 0,
         journeyDirection: journeyDestinationMode === 'choose' ? '직접 선택' : suitNames[randomSuit] || randomSuit,
         journeyGoalTitle: goalTitle,
         journeyGoalDesc: goalRequirement,
         journeyGoalProgress: goalRequirement,
         calendarDays: 0,
         calendarMaxDays: canonicalJourney.urgency.days,
-        calendarHistory: [`여정 시작: ${destination.name}로 출발 (목적지 ${journeyDestinationMode === 'choose' ? '직접 선택' : `${randomSuit} ${cardDisplayValue(cardVal!)}`}, 목표 ${journeyGoalMode === 'invent' ? goalTitle : `${goalCard!.suit} ${cardDisplayValue(goalCard!.value)}`}, Urgency ${canonicalJourney.urgency.days}일, 이유: ${journeyReason.trim()})`],
+        calendarHistory: [`여정 시작: ${destination.name}로 출발 (${destinationDistanceText}, 목적지 ${journeyDestinationMode === 'choose' ? '직접 선택' : `${randomSuit} ${cardDisplayValue(cardVal!)}`}, 목표 ${journeyGoalMode === 'invent' ? goalTitle : `${goalCard!.suit} ${cardDisplayValue(goalCard!.value)}`}, Urgency ${canonicalJourney.urgency.days}일, 이유: ${journeyReason.trim()})`],
         journeyGoalCounter: 0,
         journeyGoalChecklist: [],
         journeyStartReputation: s.reputation,
@@ -9723,7 +9752,6 @@ function PlayView({
     journeyReasonRef.current = "";
     setJourneyReason('');
     setJourneyDestinationCard(null);
-    setJourneyDistanceConfirmationToken(null);
     setJourneyGoalCard(null);
     setCustomGoalTitle('');
     setCustomGoalRequirement('');
@@ -12280,19 +12308,31 @@ function PlayView({
       const actualDirection = evaluation.relativeDirections.length > 0
         ? evaluation.relativeDirections.map(direction => directionLabels[direction]).join(' · ')
         : '출발지와 같은 좌표';
+      const confirmedRoute = confirmedJourneyRoutes.get(location.id) || null;
+      const cardValue = getRuleCardValue(journeyDestinationCard, 'table');
+      const minimumPaths = cardValue <= 6 ? 0 : cardValue <= 9 ? 13 : 24;
+      const maximumPaths = cardValue <= 6 ? 12 : cardValue <= 9 ? 24 : null;
+      const confirmedDistanceMatches = Boolean(confirmedRoute
+        && confirmedRoute.distance >= minimumPaths
+        && (maximumPaths === null || confirmedRoute.distance <= maximumPaths));
       const problems = [
         !evaluation.locationTypeMatches
           ? `장소 유형: ${placeLabels[evaluation.requirements.locationType]} 필요 · 실제 ${localizeLocationTypeLabel(evaluation.destination.locationType)}`
           : null,
         !evaluation.directionMatches
           ? `방향: ${directionLabels[evaluation.requirements.direction]} 필요 · 실제 ${actualDirection}`
+          : null,
+        !confirmedDistanceMatches
+          ? confirmedRoute
+            ? `거리: ${journeyDistanceBandText} 필요 · 저장된 최단 경로 ${confirmedRoute.distance}개`
+            : '거리: 현재 위치까지 이어지는 저장된 연결 경로가 없습니다.'
           : null
       ].filter((problem): problem is string => Boolean(problem));
-      showAlert(`${location.name}을(를) 고를 수 없는 이유\n\n${problems.join('\n')}\n\n거리 구간은 인쇄 지도에서 직접 확인하고, 방향·장소 유형에 맞는 강조 후보를 고르세요.`);
+      showAlert(`${location.name}을(를) 고를 수 없는 이유\n\n${problems.join('\n')}\n\n05 접어둔 지도에 저장한 연결을 기준으로 계산합니다.`);
       return;
     }
     setDestName(location.id);
-  }, [playMapMode, journeyDestinationCandidates, journeyDestinationCard, journeyDestinationMode, journeyGraph, journeyOriginId]);
+  }, [confirmedJourneyRoutes, journeyDistanceBandText, playMapMode, journeyDestinationCandidates, journeyDestinationCard, journeyDestinationMode, journeyGraph, journeyOriginId]);
 
   const handlePlayMapSelection = useCallback((locationId: string | null) => {
     if (playMapMode !== 'destination' || !locationId || locationId === journeyOriginId) return;
@@ -12850,85 +12890,16 @@ function PlayView({
                     : '룰북 p.19의 직접 선택입니다. 지도에서 출발지가 아닌 위치를 한 번 누르면 목적지로 선택됩니다.')
                   : journeyDestinationCard
                   ? (selectedJourneyDestination
-                    ? `선택된 후보: ${selectedJourneyDestination.name} · ${journeyDistanceBandText}는 인쇄 지도에서 직접 확인하세요.`
+                    ? `선택된 후보: ${selectedJourneyDestination.name} · ${selectedJourneyDestination.routeSummary ? confirmedRouteSummaryText(selectedJourneyDestination.routeSummary) : '연결 경로 미확정'}`
                     : journeyDestinationCandidates.length > 0
-                      ? '강조된 방향·장소 유형 후보를 한 번 누르세요. 거리 구간은 인쇄 지도에서 확인합니다.'
-                      : '현재 카드의 방향·장소 유형에 맞는 후보가 없습니다. 목적지 카드를 다시 뽑으세요.')
-                  : '목적지 카드를 뽑으면 방향과 장소 유형에 맞는 후보가 지도에 표시됩니다. 거리 구간은 인쇄 지도에서 확인합니다.')
+                      ? '거리·방향·장소 유형을 모두 만족하는 후보를 한 번 누르세요.'
+                      : '현재 카드 조건과 저장된 연결을 모두 만족하는 후보가 없습니다. 연결을 확인하거나 카드를 다시 뽑으세요.')
+                  : '목적지 카드를 뽑으면 저장된 연결의 최단 거리까지 계산한 후보가 지도에 표시됩니다.')
                 : `룰북 지도를 보고 다음 위치를 누르세요. Route Editor에서 연결 타입과 순서를 고를 수 있습니다.${currentWeight > maxCarry ? ' 현재 과적 상태라 속도는 1입니다.' : ''}`
             }
           />
         </aside>
         <div className="play-with-map__panels">
-          {!state.journeyActive && downtimeTab === 'start' && (
-            <section
-              className="journey-candidate-list"
-              aria-label="도달 후보 빠른 선택"
-              style={{
-                borderRadius: '10px',
-                border: '1px solid var(--glass-border)',
-                background: '#fffdfa',
-                padding: '0.8rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.55rem'
-              }}
-            >
-              <div style={{ fontSize: '0.84rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                {journeyDestinationMode === 'draw'
-                  ? '방향·장소 유형 후보'
-                  : '직접 고른 목적지'}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                {journeyDestinationMode === 'draw'
-                  ? `앱은 방향과 정착지/도시 유형만 확인합니다.${journeyDestinationCard ? ` ${journeyDistanceBandText}는 인쇄 지도에서 직접 확인하세요.` : ''}`
-                  : '지도에서 출발지가 아닌 도시·정착지·야생 위치를 한 번 누르거나, 아래 여정 양식에서 이름으로 고르세요.'}
-              </div>
-              {journeyDestinationMode === 'choose' && selectedJourneyDestination && (
-                <div style={{ fontSize: '0.82rem', color: 'var(--primary)', fontWeight: 700 }}>
-                  {selectedJourneyDestination.name} · {selectedJourneyDestination.region} · {localizeLocationTypeLabel(selectedJourneyDestination.locationType)}
-                </div>
-              )}
-              {journeyDestinationMode === 'draw' && !journeyDestinationCard && (
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  목적지 카드를 먼저 뽑으면 후보가 표시됩니다.
-                </div>
-              )}
-              {journeyDestinationMode === 'draw' && journeyDestinationCard && journeyDestinationCandidates.length === 0 && (
-                <div style={{ fontSize: '0.8rem', color: 'var(--accent-red)' }}>
-                  현재 카드의 방향·장소 유형에 맞는 후보가 없습니다. 목적지 카드를 다시 뽑아 주세요.
-                </div>
-              )}
-              {journeyDestinationMode === 'draw' && journeyDestinationCard && journeyDestinationCandidates.length > 0 && (
-                <div style={{ display: 'grid', gap: '0.45rem' }}>
-                  {journeyDestinationCandidates.map(candidate => (
-                    <button
-                      type="button"
-                      key={candidate.id}
-                      onClick={() => setDestName(candidate.id)}
-                      style={{
-                        borderRadius: '8px',
-                        border: `1.5px solid ${candidate.id === destName ? 'var(--primary)' : '#e9e0cf'}`,
-                        background: candidate.id === destName ? 'var(--paper)' : '#fff',
-                        padding: '0.45rem 0.55rem',
-                        textAlign: 'left',
-                        fontSize: '0.82rem',
-                        color: 'var(--text)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: '0.5rem'
-                      }}
-                    >
-                      <span>{candidate.name}</span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>거리 직접 확인</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </section>
-          )}
           {state.journeyActive && (
             <section className="travel-mode-switch" aria-label="이번 이동 방식">
               <div>
@@ -12951,44 +12922,46 @@ function PlayView({
               </select>
             </section>
           )}
-          <RouteComposer
-            draft={routeDraft}
-            speed={activeTravelSpeed}
-            carry={maxCarry}
-            weight={currentWeight}
-            waterwaySpan={activeTravelWagonCapabilities.waterwaySpan}
-            canStopInLoch={hasLochStoppingGear(state)}
-            protectsFromSoaking={hasSafeWaterwayTravel(state)}
-            soakableItemNames={state.bag.filter(item => isRuinedWhenSoaked(item)).map(item => item.name)}
-            canTravel={routeTravelBlockedReason === null}
-            movementMode={activeRouteMode}
-            travelBlockedReason={routeTravelBlockedReason}
-            availableStops={routeStopChoices}
-            journeyTarget={routeJourneyTarget}
-            confirmedSegmentCount={routeConfirmedCoverage.confirmed}
-            journeyMinimumDistance={journeyMinimumDistance}
-            seasonLabel={localizeSeasonLabel(state.currentSeason)}
-            daysRemaining={state.journeyActive ? state.calendarMaxDays - state.calendarDays : null}
-            onAddStop={stop => handleAddRouteWaypoint({
-              id: stop.id,
-              name: stop.name,
-              region: stop.terrain || undefined,
-              kind: locationTypeFromGlyph(stop.kind),
-              x: stop.x,
-              y: stop.y,
-              hasClinic: stop.hasClinic
-            })}
-            onChangeStop={handleRouteStopChange}
-            onChangeEdge={handleRouteEdgeChange}
-            onRemoveStop={handleRemoveRouteStop}
-            onMoveStop={handleMoveRouteStop}
-            onClear={handleClearRouteSides}
-            onTravel={handleComposerTravel}
-          />
+          {state.journeyActive && (
+            <RouteComposer
+              draft={routeDraft}
+              speed={activeTravelSpeed}
+              carry={maxCarry}
+              weight={currentWeight}
+              waterwaySpan={activeTravelWagonCapabilities.waterwaySpan}
+              canStopInLoch={hasLochStoppingGear(state)}
+              protectsFromSoaking={hasSafeWaterwayTravel(state)}
+              soakableItemNames={state.bag.filter(item => isRuinedWhenSoaked(item)).map(item => item.name)}
+              canTravel={routeTravelBlockedReason === null}
+              movementMode={activeRouteMode}
+              travelBlockedReason={routeTravelBlockedReason}
+              availableStops={routeStopChoices}
+              journeyTarget={routeJourneyTarget}
+              confirmedSegmentCount={routeConfirmedCoverage.confirmed}
+              journeyMinimumDistance={journeyMinimumDistance}
+              seasonLabel={localizeSeasonLabel(state.currentSeason)}
+              daysRemaining={state.journeyActive ? state.calendarMaxDays - state.calendarDays : null}
+              onAddStop={stop => handleAddRouteWaypoint({
+                id: stop.id,
+                name: stop.name,
+                region: stop.terrain || undefined,
+                kind: locationTypeFromGlyph(stop.kind),
+                x: stop.x,
+                y: stop.y,
+                hasClinic: stop.hasClinic
+              })}
+              onChangeStop={handleRouteStopChange}
+              onChangeEdge={handleRouteEdgeChange}
+              onRemoveStop={handleRemoveRouteStop}
+              onMoveStop={handleMoveRouteStop}
+              onClear={handleClearRouteSides}
+              onTravel={handleComposerTravel}
+            />
+          )}
 
       {/* 1. If journey is NOT active */}
       {!state.journeyActive && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+        <div className={`journey-downtime-stack${downtimeTab === 'start' ? ' journey-downtime-stack--start' : ''}`} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
           {/* Downtime record */}
           <div id="downtime-panel" className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem', boxShadow: 'var(--shadow-md)' }}>
@@ -14331,7 +14304,7 @@ function PlayView({
             <div id="journey-start-panel" className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem' }}>
               <h2 style={{ color: 'var(--secondary)', margin: '0 0 0.4rem 0', fontFamily: 'var(--font-fancy)' }}>새로운 여정 떠나기</h2>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 1.2rem 0' }}>
-                룰북처럼 목적지는 뽑거나 고르고, 목표는 뽑거나 고르거나 직접 만들 수 있습니다. 카드로 뽑았다면 인쇄 지도에서 거리 구간을 직접 확인하세요.
+                룰북처럼 목적지는 뽑거나 고르고, 목표는 뽑거나 고르거나 직접 만들 수 있습니다. 카드로 뽑으면 저장한 지도 연결에서 거리 조건까지 자동으로 확인합니다.
               </p>
 
               {/* First session tip */}
@@ -14347,6 +14320,7 @@ function PlayView({
                 {selectedJourneyDestination && (
                   <div style={{ padding: '0.3rem 0.5rem', background: 'var(--secondary-light, #fffae0)', borderRadius: '5px', color: 'var(--secondary)' }}>
                     📍 <strong>{selectedJourneyDestination.name}</strong> · {selectedJourneyDestination.region ? selectedJourneyDestination.region : ''}{selectedJourneyDestination.locationType ? ` (${selectedJourneyDestination.locationType})` : ''}
+                    {selectedJourneyDestination.routeSummary ? ` · ${confirmedRouteSummaryText(selectedJourneyDestination.routeSummary)}` : ''}
                   </div>
                 )}
                 <div><strong>현재 일일 이동력:</strong> {getTravelSpeed(state, currentWeight)}경로</div>
@@ -14428,7 +14402,7 @@ function PlayView({
                           <option value="">— 출발지가 아닌 목적지를 고르세요 —</option>
                           {journeyDestinationChoices.map(choice => (
                             <option key={choice.id} value={choice.id}>
-                              {choice.name} · {choice.region} · {localizeLocationTypeLabel(choice.locationType)}
+                              {choice.name} · {choice.region} · {localizeLocationTypeLabel(choice.locationType)} · {choice.routeSummary ? `${choice.routeSummary.distance}경로` : '연결 미확정'}
                             </option>
                           ))}
                         </select>
@@ -14437,20 +14411,44 @@ function PlayView({
                         </small>
                       </div>
                     )}
-                    {journeyDestinationMode === 'draw' && journeyDestinationCard && selectedJourneyDestination && (
-                      <label className="journey-distance-confirm">
-                        <input
-                          type="checkbox"
-                          checked={journeyDistanceConfirmed}
-                          onChange={event => setJourneyDistanceConfirmationToken(
-                            event.target.checked ? activeJourneyDistanceConfirmationToken : null
-                          )}
-                        />
-                        <span>
-                          <strong>인쇄 지도 거리 확인</strong>
-                          {state.currentLocationName} → {selectedJourneyDestination.name}이(가) {journeyDistanceBandText} 조건에 맞는지 직접 세어 확인했습니다.
-                        </span>
-                      </label>
+                    {journeyDestinationMode === 'choose' && selectedJourneyDestination && (
+                      <div className={`journey-route-summary${selectedJourneyDestination.routeSummary ? '' : ' is-unconfirmed'}`}>
+                        <strong>{selectedJourneyDestination.name}</strong>
+                        <span>{selectedJourneyDestination.routeSummary
+                          ? confirmedRouteSummaryText(selectedJourneyDestination.routeSummary)
+                          : '현재 위치까지 이어지는 저장된 연결이 없어 거리를 계산할 수 없습니다.'}</span>
+                      </div>
+                    )}
+                    {journeyDestinationMode === 'draw' && journeyDestinationCard && (
+                      <section className="journey-candidate-list" aria-label="거리 조건까지 계산한 목적지 후보">
+                        <header>
+                          <strong>거리·방향·장소 유형 후보</strong>
+                          <span>{state.currentLocationName}에서 05 지도에 저장한 연결만 사용합니다.</span>
+                        </header>
+                        {journeyDestinationCandidates.length === 0 ? (
+                          <p className="journey-candidate-list__empty">
+                            이 카드 조건을 만족하는 확정 경로가 없습니다. 05 접어둔 지도에서 연결을 더 저장하거나 목적지 카드를 다시 뽑으세요.
+                          </p>
+                        ) : (
+                          <div className="journey-candidate-list__options">
+                            {journeyDestinationCandidates.map(candidate => (
+                              <button
+                                type="button"
+                                key={candidate.id}
+                                className={candidate.id === destName ? 'is-selected' : ''}
+                                aria-pressed={candidate.id === destName}
+                                onClick={() => setDestName(candidate.id)}
+                              >
+                                <span className="journey-candidate-list__name">{candidate.name}</span>
+                                <span className="journey-candidate-list__route">
+                                  <strong>최단 {candidate.routeSummary.distance}경로</strong>
+                                  <small>육로 {candidate.routeSummary.landCount} · 강 {candidate.routeSummary.riverCount} · 수로 {candidate.routeSummary.waterwayCount}</small>
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </section>
                     )}
                   </fieldset>
 

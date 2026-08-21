@@ -4,6 +4,7 @@ import {
   canChooseRouteEdgeKind,
   composedRouteCost,
   confirmedRouteCoverage,
+  confirmedRouteSummariesFrom,
   cycleRouteEdgeKind,
   draftFromOrigin,
   evaluateRouteDraft,
@@ -159,9 +160,9 @@ describe('route composer draft', () => {
 
 describe('player-confirmed route distances', () => {
   const edges = [
-    { from: 'origin', to: 'a' },
-    { from: 'a', to: 'b' },
-    { from: 'b', to: 'target' },
+    { from: 'origin', to: 'a', kind: 'path' as const },
+    { from: 'a', to: 'b', kind: 'river' as const },
+    { from: 'b', to: 'target', kind: 'waterway' as const },
     { from: 'origin', to: 'detour' },
     { from: 'detour', to: 'long-1' },
     { from: 'long-1', to: 'long-2' },
@@ -172,6 +173,23 @@ describe('player-confirmed route distances', () => {
     expect(shortestConfirmedRouteDistance(edges, 'origin', 'target')).toBe(3);
     expect(shortestConfirmedRouteDistance(edges, 'target', 'origin')).toBe(3);
     expect(shortestConfirmedRouteDistance(edges, 'origin', 'missing')).toBeNull();
+  });
+
+  it('keeps land, river, and waterway counts on the minimum route', () => {
+    expect(confirmedRouteSummariesFrom(edges, 'origin').get('target')).toEqual({
+      distance: 3,
+      nodeIds: ['origin', 'a', 'b', 'target'],
+      edgeKinds: ['path', 'river', 'waterway'],
+      landCount: 1,
+      riverCount: 1,
+      waterwayCount: 1
+    });
+    expect(confirmedRouteSummariesFrom(edges, 'target').get('origin')).toMatchObject({
+      distance: 3,
+      landCount: 1,
+      riverCount: 1,
+      waterwayCount: 1
+    });
   });
 
   it('reports which selected Move segments still lack confirmation', () => {

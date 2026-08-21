@@ -310,7 +310,7 @@ describe('Phase 3 Journey, Goal, and Ending engines', () => {
       destinationId: 'west-5', goalCard: 1, reason: 'Follow the printed map', startDate: 1, rulesetId: 'original-1e-3p'
     });
     expect(confirmed.status).toBe('resolved');
-    expect(confirmed.value?.journey?.deviations).toContain('Destination path band confirmed manually against the printed map.');
+    expect(confirmed.value?.journey?.deviations).toContain('Destination path band confirmed against the map.');
 
     const wrongDirection = resolveJourneyStart({
       transactionId: 'journey-wrong-direction-confirmed', state: journeyRuntime(), graph, originId: 'origin', season: 'Spring',

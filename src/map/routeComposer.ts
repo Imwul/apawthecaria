@@ -59,6 +59,16 @@ export type RouteDraft = {
 export type ConfirmedRouteEdge = {
   from: string;
   to: string;
+  kind?: RouteEdgeKind | string;
+};
+
+export type ConfirmedRouteSummary = {
+  distance: number;
+  nodeIds: string[];
+  edgeKinds: RouteEdgeKind[];
+  landCount: number;
+  riverCount: number;
+  waterwayCount: number;
 };
 
 export type ConfirmedRouteCoverage = {
@@ -280,6 +290,59 @@ export const confirmedRouteCoverage = (
   return { confirmed: total - missingPairs.length, total, missingPairs };
 };
 
+const confirmedEdgeKind = (kind: string | null | undefined): RouteEdgeKind =>
+  kind === 'river' || kind === 'waterway' ? kind : 'path';
+
+/**
+ * Builds one deterministic shortest route to every node reachable through
+ * player-saved connections. Edge kinds are kept with the route so the UI can
+ * report whether that minimum uses land, river, or marked waterway segments.
+ */
+export const confirmedRouteSummariesFrom = (
+  edges: readonly ConfirmedRouteEdge[],
+  fromId: string | null | undefined
+): Map<string, ConfirmedRouteSummary> => {
+  const summaries = new Map<string, ConfirmedRouteSummary>();
+  if (!fromId) return summaries;
+  const neighbors = new Map<string, Array<{ to: string; kind: RouteEdgeKind }>>();
+  edges.forEach(edge => {
+    if (!edge.from || !edge.to || edge.from === edge.to) return;
+    const kind = confirmedEdgeKind(edge.kind);
+    const forward = neighbors.get(edge.from) || [];
+    forward.push({ to: edge.to, kind });
+    neighbors.set(edge.from, forward);
+    const reverse = neighbors.get(edge.to) || [];
+    reverse.push({ to: edge.from, kind });
+    neighbors.set(edge.to, reverse);
+  });
+  summaries.set(fromId, {
+    distance: 0,
+    nodeIds: [fromId],
+    edgeKinds: [],
+    landCount: 0,
+    riverCount: 0,
+    waterwayCount: 0
+  });
+  const queue = [fromId];
+  for (let index = 0; index < queue.length; index += 1) {
+    const currentId = queue[index];
+    const current = summaries.get(currentId)!;
+    for (const edge of neighbors.get(currentId) || []) {
+      if (summaries.has(edge.to)) continue;
+      summaries.set(edge.to, {
+        distance: current.distance + 1,
+        nodeIds: [...current.nodeIds, edge.to],
+        edgeKinds: [...current.edgeKinds, edge.kind],
+        landCount: current.landCount + (edge.kind === 'path' ? 1 : 0),
+        riverCount: current.riverCount + (edge.kind === 'river' ? 1 : 0),
+        waterwayCount: current.waterwayCount + (edge.kind === 'waterway' ? 1 : 0)
+      });
+      queue.push(edge.to);
+    }
+  }
+  return summaries;
+};
+
 /**
  * Breadth-first minimum distance over player-confirmed connections only.
  * `null` means that the saved connection data does not yet prove a route.
@@ -290,27 +353,7 @@ export const shortestConfirmedRouteDistance = (
   toId: string | null | undefined
 ): number | null => {
   if (!fromId || !toId) return null;
-  if (fromId === toId) return 0;
-  const neighbors = new Map<string, Set<string>>();
-  edges.forEach(edge => {
-    if (!edge.from || !edge.to || edge.from === edge.to) return;
-    if (!neighbors.has(edge.from)) neighbors.set(edge.from, new Set());
-    if (!neighbors.has(edge.to)) neighbors.set(edge.to, new Set());
-    neighbors.get(edge.from)!.add(edge.to);
-    neighbors.get(edge.to)!.add(edge.from);
-  });
-  const queue: Array<{ id: string; distance: number }> = [{ id: fromId, distance: 0 }];
-  const visited = new Set([fromId]);
-  for (let index = 0; index < queue.length; index += 1) {
-    const current = queue[index];
-    for (const next of neighbors.get(current.id) || []) {
-      if (visited.has(next)) continue;
-      if (next === toId) return current.distance + 1;
-      visited.add(next);
-      queue.push({ id: next, distance: current.distance + 1 });
-    }
-  }
-  return null;
+  return confirmedRouteSummariesFrom(edges, fromId).get(toId)?.distance ?? null;
 };
 
 export const removeRouteStopAt = (

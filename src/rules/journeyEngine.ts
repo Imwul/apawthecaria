@@ -458,7 +458,7 @@ export const resolveJourneyStart = (input: {
     status: 'active',
     journalPrompts: ['What does your Origin mean to you?', 'How does this Season make you feel?', 'Why are you travelling?', 'How does the Urgency relate to your Goal?'],
     deviations: input.destinationDistanceConfirmed && !choosesDestination
-      ? ['Destination path band confirmed manually against the printed map.']
+      ? ['Destination path band confirmed against the map.']
       : [],
     rulesetId: input.rulesetId,
     startReputation: input.state.reputation

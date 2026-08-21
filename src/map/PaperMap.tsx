@@ -145,15 +145,15 @@ const connectionHatches = (connection: MapSavedConnection): Array<{ points: stri
   const perpendicularX = -alongY;
   const perpendicularY = alongX;
   const wave = [
-    { across: -0.76, nudge: 0 },
-    { across: -0.34, nudge: 0.16 },
-    { across: 0, nudge: -0.16 },
-    { across: 0.34, nudge: 0.16 },
-    { across: 0.76, nudge: 0 }
+    { across: -0.4, nudge: 0 },
+    { across: -0.18, nudge: 0.08 },
+    { across: 0, nudge: -0.08 },
+    { across: 0.18, nudge: 0.08 },
+    { across: 0.4, nudge: 0 }
   ];
   return [-1, 1].map(offset => {
-    const centerX = connection.from.x + dx * 0.5 + alongX * 0.34 * offset;
-    const centerY = connection.from.y + dy * 0.5 + alongY * 0.34 * offset;
+    const centerX = connection.from.x + dx * 0.5 + alongX * 0.18 * offset;
+    const centerY = connection.from.y + dy * 0.5 + alongY * 0.18 * offset;
     const points = wave.map(point => {
       const x = centerX + perpendicularX * point.across + alongX * point.nudge;
       const y = centerY + perpendicularY * point.across + alongY * point.nudge;
