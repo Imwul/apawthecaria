@@ -202,6 +202,12 @@ describe('map interaction contracts', () => {
     expect(appearanceSource).toContain('이름 추가');
     expect(appearanceSource).toContain('이름 없음');
     expect(appearanceSource).toContain('glyphUsesTerrain');
+    expect(appearanceSource).toContain('value={draftName}');
+    expect(appearanceSource).toContain('if (name !== lastCommittedName)');
+    expect(appearanceSource).toContain('onChange={event => setDraftName(event.target.value)}');
+    expect(appearanceSource).toContain('onBlur={event => commitName(event.currentTarget.value)}');
+    expect(appearanceSource).toContain("!event.nativeEvent.isComposing");
+    expect(appearanceSource).not.toContain('onChange={event => emit({ kind, terrain, name: event.target.value })}');
     expect(appearanceSource).not.toContain('도시 이름');
     expect(appSource).toContain('label: stop.name.trim()');
     expect(appSource).toContain('!REVIEWED_MAP_LOCATION_BY_ID.get(location.id)?.hidden');

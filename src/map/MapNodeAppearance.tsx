@@ -12,6 +12,12 @@ type MapNodeAppearanceProps = {
 
 export function MapNodeAppearance({ kind, terrain, name = '', onChange, heading = '표시 형태' }: MapNodeAppearanceProps) {
   const [addingName, setAddingName] = useState(Boolean(name.trim()));
+  const [draftName, setDraftName] = useState(name);
+  const [lastCommittedName, setLastCommittedName] = useState(name);
+  if (name !== lastCommittedName) {
+    setLastCommittedName(name);
+    setDraftName(name);
+  }
   const showName = addingName || Boolean(name.trim());
   const showTerrain = glyphUsesTerrain(kind);
   const emit = (next: { kind: MapGlyphKind; terrain: MapTerrain | null; name?: string }) => {
@@ -19,6 +25,10 @@ export function MapNodeAppearance({ kind, terrain, name = '', onChange, heading 
       ...next,
       terrain: glyphUsesTerrain(next.kind) ? next.terrain : null
     });
+  };
+  const commitName = (nextName = draftName) => {
+    if (nextName === name) return;
+    emit({ kind, terrain, name: nextName });
   };
 
   return (
@@ -31,7 +41,7 @@ export function MapNodeAppearance({ kind, terrain, name = '', onChange, heading 
             type="button"
             className={`map-node-appearance__choice${kind === option ? ' is-on' : ''}`}
             aria-pressed={kind === option}
-            onClick={() => emit({ kind: option, terrain, name })}
+            onClick={() => emit({ kind: option, terrain, name: draftName })}
           >
             <MapGlyph kind={option} terrain={option === 'Ruin' ? null : terrain} size={20} />
             <span>{MAP_GLYPH_KIND_LABELS[option]}</span>
@@ -46,7 +56,7 @@ export function MapNodeAppearance({ kind, terrain, name = '', onChange, heading 
               type="button"
               className={`map-node-appearance__swatch${terrain === option ? ' is-on' : ''}`}
               aria-pressed={terrain === option}
-              onClick={() => emit({ kind, terrain: option, name })}
+              onClick={() => emit({ kind, terrain: option, name: draftName })}
             >
               <MapGlyph kind={kind} terrain={option} size={16} />
               <span>{MAP_TERRAIN_LABELS[option]}</span>
@@ -60,10 +70,14 @@ export function MapNodeAppearance({ kind, terrain, name = '', onChange, heading 
             <span>이름</span>
             <input
               type="text"
-              value={name}
+              value={draftName}
               placeholder="이름을 적으세요"
               autoComplete="off"
-              onChange={event => emit({ kind, terrain, name: event.target.value })}
+              onChange={event => setDraftName(event.target.value)}
+              onBlur={event => commitName(event.currentTarget.value)}
+              onKeyDown={event => {
+                if (event.key === 'Enter' && !event.nativeEvent.isComposing) event.currentTarget.blur();
+              }}
             />
           </label>
           <button
@@ -71,6 +85,7 @@ export function MapNodeAppearance({ kind, terrain, name = '', onChange, heading 
             className="map-node-appearance__add-name"
             onClick={() => {
               setAddingName(false);
+              setDraftName('');
               emit({ kind, terrain, name: '' });
             }}
           >
