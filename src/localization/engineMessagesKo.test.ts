@@ -44,7 +44,7 @@ const auditedEngineStrings = () => {
 
 describe('gameplay message Korean presentation layer', () => {
   it('covers every audited fixed engine message', () => {
-    expect(ENGINE_MESSAGE_TRANSLATION_COUNT).toBe(375);
+    expect(ENGINE_MESSAGE_TRANSLATION_COUNT).toBe(377);
   });
 
   it('preserves proper names while translating surrounding instructions', () => {
@@ -68,6 +68,8 @@ describe('gameplay message Korean presentation layer', () => {
   it('translates generated journal events without changing proper names', () => {
     expect(localizeGameplayMessage('Guild Services ready for Journey')).toBe('여정용 길드 서비스 준비');
     expect(localizeGameplayMessage('Guild Services ready for 여정')).toBe('여정용 길드 서비스 준비');
+    expect(localizeGameplayMessage('Journey started')).toBe('여정 시작');
+    expect(localizeGameplayMessage('여정 started')).toBe('여정 시작');
     expect(localizeGameplayMessage('Barter: Nettles')).toBe('물물교환: Nettles');
     expect(localizeGameplayMessage('Spring to Summer')).toBe('봄에서 여름으로');
   });

@@ -6,7 +6,10 @@ const leftover = (code: string, description: string): StructuredRuleEffect => ({
   effect: { type: 'customEffect', code, description }
 });
 
-const CHOICE_SPLIT = /(?:^|[.!?]\s+)([A-Z][A-Za-z0-9'&/!][A-Za-z0-9'&/ !]{0,42})\s+-\s+/g;
+// A valid printed heading can begin with the one-letter article “A” (for
+// example “A Stern Lecture”). Requiring a second non-space character merged
+// that branch into the preceding choice and changed the rule shown in the UI.
+const CHOICE_SPLIT = /(?:^|[.!?]\s+)([A-Z][A-Za-z0-9'&/! ]{0,43})\s+-\s+/g;
 
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'choice';
 

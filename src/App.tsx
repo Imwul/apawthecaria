@@ -276,7 +276,7 @@ import {
   localizeTravelStyle
 } from './localization/gameplayKo';
 import { localizeGameplayMessage } from './localization/engineMessagesKo';
-import { localizeManualEffectValue, localizeManualJournalText, localizeManualJournalTitle } from './localization/manualEffectKo';
+import { localizeEncounterTitle, localizeManualEffectValue, localizeManualJournalText, localizeManualJournalTitle } from './localization/manualEffectKo';
 import {
   formatReagentItemName,
   formatReagentName,
@@ -292,6 +292,7 @@ import { fuzzyReferenceTextMatch } from './rulebook/referenceRegistry';
 import { PaperMap, type MapClinicOverlay, type MapPickLocation, type MapSavedConnection, type MapSelectionIntent } from './map/PaperMap';
 import { type MapPlace, type MapPlaceType } from './map/mapLayers';
 import { applyManualCalendarAdjustment, getCampaignContinuity, inferCompletedSeasons } from './campaignContinuity';
+import { buildEncounterJournalText, isActivityJournalEntry, presentEncounterJournal } from './encounterJournal';
 import {
   isRulebookHistoryState,
   journalHash,
@@ -3525,15 +3526,15 @@ const CardDrawSlot = ({
         {result}
         {helper && <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', lineHeight: 1.35 }}>{helper}</div>}
         {isChoosing && (
-          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', padding: '0.5rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px' }}>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', width: '100%' }}>오프라인에서 뽑은 카드 입력</span>
-            <select value={manualSuit} onChange={e => setManualSuit(e.target.value)} disabled={disabled} style={{ height: '32px', fontSize: '0.8rem' }}>
+          <div className="card-draw-compact__manual">
+            <span>오프라인에서 뽑은 카드 입력</span>
+            <select aria-label="카드 문양" value={manualSuit} onChange={e => setManualSuit(e.target.value)} disabled={disabled}>
               <option value="♥">1. 문양: ♥ · 북쪽/위</option>
               <option value="♦">1. 문양: ♦ · 남쪽/아래</option>
               <option value="♣">1. 문양: ♣ · 동쪽/오른쪽</option>
               <option value="♠">1. 문양: ♠ · 서쪽/왼쪽</option>
             </select>
-            <select value={manualValue} onChange={e => setManualValue(Number(e.target.value))} disabled={disabled} style={{ height: '32px', fontSize: '0.8rem' }}>
+            <select aria-label="카드 숫자" value={manualValue} onChange={e => setManualValue(Number(e.target.value))} disabled={disabled}>
               <option value={1}>2. 숫자: A</option>
               <option value={2}>2. 숫자: 2</option>
               <option value={3}>2. 숫자: 3</option>
@@ -3548,7 +3549,7 @@ const CardDrawSlot = ({
               <option value={12}>2. 숫자: Q / Monarch</option>
               <option value={13}>2. 숫자: K / Monarch</option>
             </select>
-            <button type="button" onClick={applyManual} disabled={disabled} style={{ height: '32px', padding: '0 0.65rem', background: '#fff', color: 'var(--primary)', border: '1px solid var(--primary)', borderRadius: '5px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+            <button type="button" onClick={applyManual} disabled={disabled}>
               카드 채우기
             </button>
           </div>
@@ -4526,6 +4527,8 @@ export default function App() {
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'local-only' | 'synced' | 'pending'>('local-only');
   const [activeCloudSlot, setActiveCloudSlot] = useState<CloudSlotId>(() => readActiveCloudSlot());
   const [activeTravelEncounter, setActiveTravelEncounter] = useState<any | null>(null);
+  const [resolvingTravelEncounter, setResolvingTravelEncounter] = useState(false);
+  const resolvingTravelEncounterRef = useRef(false);
   const [deferredEncounterId, setDeferredEncounterId] = useState<string | null>(null);
   const [activeForageEncounter, setActiveForageEncounter] = useState<any | null>(null);
   const [controlledPrompt, setControlledPrompt] = useState<ControlledPromptRequest | null>(null);
@@ -6299,6 +6302,10 @@ export default function App() {
   };
 
   const resolveCanonicalEncounter = async (note: string) => {
+    if (resolvingTravelEncounterRef.current || activeTravelEncounter?.resolved) return;
+    resolvingTravelEncounterRef.current = true;
+    setResolvingTravelEncounter(true);
+    try {
     const pending = state.pendingEncounter;
     if (!pending) {
       setActiveTravelEncounter(null);
@@ -6418,6 +6425,19 @@ export default function App() {
       mandatoryConditions: [`보호 효과 적용: ${pending.encounterProtection === 'all' ? '조우 효과 전체' : '부정적 결과'}를 적용하지 않는다.`, ...manualDraft.mandatoryConditions],
       canonicalActions: ['Encounter protection committed', ...manualDraft.canonicalActions]
     };
+    const resolutionSummary = [
+      runtime.reputation !== state.reputation ? `길드 명성 ${runtime.reputation - state.reputation > 0 ? '+' : ''}${runtime.reputation - state.reputation}` : '',
+      runtime.trinkets !== state.trinkets.length ? `장신구 ${runtime.trinkets - state.trinkets.length > 0 ? '+' : ''}${runtime.trinkets - state.trinkets.length}` : '',
+      runtime.calendarDays !== state.calendarDays ? `달력 ${runtime.calendarDays - state.calendarDays > 0 ? '+' : ''}${runtime.calendarDays - state.calendarDays}일` : '',
+      runtime.foragingPoints !== (state.activeAilment?.foragingPoints || 0) ? `채집 포인트 ${runtime.foragingPoints - (state.activeAilment?.foragingPoints || 0) > 0 ? '+' : ''}${runtime.foragingPoints - (state.activeAilment?.foragingPoints || 0)}` : '',
+      runtime.inventory.length !== state.bag.length ? `가방 물품 ${runtime.inventory.length - state.bag.length > 0 ? '+' : ''}${runtime.inventory.length - state.bag.length}` : ''
+    ].filter(Boolean);
+    const receiptSummary = resolutionSummary.length > 0
+      ? resolutionSummary.join(' · ')
+      : '추가로 바뀐 수치 없이 장면을 기록했습니다.';
+    const selectedOutcome = pending.encounter.choices
+      .find(choice => choice.id === defaultEncounterChoiceId(pending.encounter, selectedChoiceId))
+      ?.label.split(/\s+[—-]\s+/)[0];
     updateState(s => {
       const patients = runtime.patient
         ? s.patients.map(patient => patient.id === runtime.patient!.id
@@ -6442,13 +6462,37 @@ export default function App() {
         journals: [{
           id: `${pending.transactionId}:${manualDraft ? 'pending-manual' : 'resolved'}`,
           title: `${manualDraft ? '판정 대기' : '여정 조우'}: ${printedEffect?.ownerName || pending.encounter.title}`,
-          text: `[p.${pending.encounter.sourcePage}] ${printedEffect?.printedText || pending.encounter.prompt}${manualDraft ? '\n\n전용 직접 판정에서 선택과 상태 변화를 완료해야 합니다.' : `\n\n나의 선택: ${[resolvedJournalNote, inBloomNote].filter(Boolean).join(' · ') || '인쇄된 지시를 해결했다.'}`}`,
+          text: buildEncounterJournalText({
+            printedText: printedEffect?.printedText || pending.encounter.prompt,
+            note: resolvedJournalNote,
+            supportingNote: inBloomNote,
+            location: state.currentLocationName,
+            season: state.currentSeason,
+            outcome: selectedOutcome || (manualDraft ? '직접 판정 이어짐' : '인쇄된 결과 적용'),
+            result: receiptSummary,
+            pendingManualResolution: Boolean(manualDraft)
+          }),
           timestamp: Date.now()
         }, ...s.journals]
       };
       return enqueueManualDrafts(manualDraft ? next : applyArrivalInstrumentEffects(next, pending.transactionId), [manualDraft]);
     });
-    setActiveTravelEncounter(null);
+    setActiveTravelEncounter((current: any) => current ? {
+      ...current,
+      resolved: true,
+      resolutionSummary: receiptSummary,
+      journalSaved: Boolean(resolvedJournalNote || inBloomNote),
+      manualFollowUp: Boolean(manualDraft),
+      nextStep: manualDraft
+        ? '직접 판정 기록에서 남은 인쇄 지시를 마무리하세요.'
+        : pending.encounter.encounterType === 'social'
+          ? '정착지 화면에서 현지 의무와 다음 행동을 확인하세요.'
+          : '여정 화면으로 돌아가 다음 Move를 준비하세요.'
+    } : null);
+    } finally {
+      resolvingTravelEncounterRef.current = false;
+      setResolvingTravelEncounter(false);
+    }
   };
 
   const resolveCanonicalForageEncounter = async (note: string): Promise<boolean> => {
@@ -6697,6 +6741,7 @@ export default function App() {
     : activeForageEncounter
       ? { entryId: activeForageEncounter.id ? `encounter:${activeForageEncounter.id}` : undefined, page: activeForageEncounter.sourcePage, query: activeForageEncounter.title, title: '현재 Foraging Encounter' }
       : referenceForJournalTab(activeTab, state);
+  const handleOpenCurrentRulebookReference = () => openRulebookReference(currentRulebookRequest);
 
   const referencePatient = getActivePatient(state);
   const referencePatientAilment = referencePatient?.ailments.find(ailment => ailment.status === 'active') || null;
@@ -7281,58 +7326,80 @@ export default function App() {
           activeTravelEncounter.tags?.includes('Beast') && !activeTravelEncounter.tags?.includes('Behemoth');
 
         return (
-          <div className="encounter-dialog-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
-            <div className="glass-panel encounter-dialog" role="dialog" aria-modal="true" aria-label="여정 조우" style={{ maxWidth: '600px', width: '100%', padding: '2rem', background: '#fff', position: 'relative', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', borderRadius: '20px', maxHeight: '92vh', overflowY: 'auto' }}>
-
-              {/* Card header */}
-              <div style={{ textAlign: 'center', marginBottom: '1.2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div className="encounter-dialog-backdrop">
+            <div className="glass-panel encounter-dialog" role="dialog" aria-modal="true" aria-label="여정 조우">
+              {activeTravelEncounter.resolved ? (
+                <div className="encounter-resolution" role="status" aria-live="polite">
+                  <span className="encounter-dialog__eyebrow">판정 완료</span>
+                  <h2><Suspense fallback="조우 제목을 번역하는 중…"><LocalizedManualEffectText kind="encounter-title" text={encTitle} /></Suspense></h2>
+                  <p className="encounter-resolution__summary">{activeTravelEncounter.resolutionSummary}</p>
+                  <p className="encounter-resolution__journal">
+                    {activeTravelEncounter.journalSaved
+                      ? '남긴 기억은 들녘의 일지에 저장했습니다.'
+                      : '메모를 남기지 않고 조우 기록만 저장했습니다.'}
+                  </p>
+                  <div className="encounter-resolution__next">
+                    <span>다음 행동</span>
+                    <strong>{activeTravelEncounter.nextStep}</strong>
+                  </div>
+                  <div className="encounter-dialog-actions">
+                    <button type="button" className="btn-cozy-secondary" onClick={handleOpenCurrentRulebookReference}>룰북 원문 확인</button>
+                    <button type="button" className="encounter-dialog__primary" onClick={() => setActiveTravelEncounter(null)}>
+                      {activeTravelEncounter.manualFollowUp ? '직접 판정 이어가기' : '여정으로 돌아가기'}
+                    </button>
+                  </div>
+                </div>
+              ) : <>
+              <header className="encounter-dialog__masthead">
                 <img
                   src={getCardSvgUrl(activeTravelEncounter.suit, activeTravelEncounter.cardValue)}
                   alt={`${activeTravelEncounter.suitLabel} ${activeTravelEncounter.cardValue}`}
-                  style={{ width: '100px', height: '150px', objectFit: 'contain', borderRadius: '6px', boxShadow: '0 4px 10px rgba(0,0,0,0.12)', marginBottom: '0.8rem' }}
                 />
-                <h2 style={{ color: 'var(--primary)', margin: '0.5rem 0 0 0' }}>여정 조우 <span style={{ fontWeight: 'normal', fontSize: '0.82em', color: 'var(--text-muted)' }}>p.{activeTravelEncounter.page}</span></h2>
-                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>뽑은 카드: <strong>{activeTravelEncounter.cardValue} {activeTravelEncounter.suitLabel}</strong></div>
-              </div>
+                <div>
+                  <span className="encounter-dialog__eyebrow">여정 조우 · p.{activeTravelEncounter.page}</span>
+                  <h2><Suspense fallback="조우 제목을 번역하는 중…"><LocalizedManualEffectText kind="encounter-title" text={encTitle} /></Suspense></h2>
+                  <p>{activeTravelEncounter.locName} · {activeTravelEncounter.cardValue} {activeTravelEncounter.suitLabel}</p>
+                </div>
+                <button type="button" className="encounter-dialog__reference" onClick={handleOpenCurrentRulebookReference}>룰북 원문</button>
+              </header>
 
-
-              {/* Encounter title */}
-              <h3 style={{ borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.8rem', color: 'var(--text-bright)' }}>
-                <Suspense fallback="조우 제목을 번역하는 중…"><LocalizedManualEffectText kind="encounter-title" text={encTitle} /></Suspense>
-              </h3>
-
-              {/* Encounter body text */}
-              <p style={{ fontSize: '1rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', maxHeight: '220px', overflowY: 'auto', background: '#faf8f4', padding: '1rem', borderRadius: '10px', color: 'var(--text-bright)', borderLeft: '4.5px solid var(--primary)' }}>
-                {protectionNotice && <>보호 효과가 적용되어 이 조우의 모든 부정적 결과를 무시합니다.{"\n\n"}</>}
-                <Suspense fallback="조우 내용을 정리하는 중…"><LocalizedManualEffectText kind="encounter" summary={encTitle} text={encText} /></Suspense>
-              </p>
+              <section className="encounter-dialog__stage" aria-labelledby="encounter-scene-heading">
+                <h3 id="encounter-scene-heading">무슨 일이 일어났나요</h3>
+                <p className="encounter-dialog__prompt">
+                  {protectionNotice && <>보호 효과가 적용되어 이 조우의 모든 부정적 결과를 무시합니다.{"\n\n"}</>}
+                  <Suspense fallback="조우 내용을 정리하는 중…"><LocalizedManualEffectText kind="encounter" summary={encTitle} text={encText} /></Suspense>
+                </p>
+              </section>
 
               {activeTravelEncounter.choices?.length > 0 && (
-                <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.9rem' }}>
-                  {activeTravelEncounter.choices.map((choice: any) => (
-                    <button
-                      key={choice.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveTravelEncounter((current: any) => ({ ...current, selectedChoiceId: choice.id }));
-                        updateState(s => ({ ...s, pendingEncounter: s.pendingEncounter ? { ...s.pendingEncounter, selectedChoiceId: choice.id } : null }));
-                      }}
-                      className="encounter-choice-button"
-                      style={{ padding: '0.65rem', textAlign: 'left', border: activeTravelEncounter.selectedChoiceId === choice.id ? '2px solid var(--primary)' : '1px solid var(--glass-border)', background: '#fff', borderRadius: '6px' }}
-                    >
-                      <Suspense fallback="선택지를 번역하는 중…"><LocalizedManualEffectText kind="option" text={choice.label} /></Suspense>
-                    </button>
-                  ))}
-                </div>
+                <section className="encounter-dialog__stage" aria-labelledby="encounter-choice-heading">
+                  <h3 id="encounter-choice-heading">해당하는 결과 선택</h3>
+                  <div className="encounter-choice-list">
+                    {activeTravelEncounter.choices.map((choice: any) => (
+                      <button
+                        key={choice.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveTravelEncounter((current: any) => ({ ...current, selectedChoiceId: choice.id }));
+                          updateState(s => ({ ...s, pendingEncounter: s.pendingEncounter ? { ...s.pendingEncounter, selectedChoiceId: choice.id } : null }));
+                        }}
+                        aria-pressed={activeTravelEncounter.selectedChoiceId === choice.id}
+                        className={`encounter-choice-button ${activeTravelEncounter.selectedChoiceId === choice.id ? 'is-selected' : ''}`}
+                      >
+                        <Suspense fallback="선택지를 번역하는 중…"><LocalizedManualEffectText kind="option" text={choice.label} /></Suspense>
+                      </button>
+                    ))}
+                  </div>
+                </section>
               )}
 
               <label className="encounter-journal-note">
-                <span>이 장면에서 남길 기억 <small>(선택)</small></span>
+                <span>이 장면에서 남길 기억 <small>선택 · 비워도 진행할 수 있습니다</small></span>
                 <textarea
                   key={activeTravelEncounter.transactionId || activeTravelEncounter.id}
                   rows={3}
                   defaultValue={activeTravelEncounter.journalNote || state.pendingEncounter?.journalNote || ''}
-                  placeholder="떠오른 장면이나 선택의 이유를 적어두면 들녘의 일지에 함께 남습니다."
+                  placeholder="떠오른 장면이나 선택의 이유를 적으면 들녘의 일지에 내 기록으로 남습니다."
                   onBlur={event => {
                     const journalNote = event.currentTarget.value;
                     updateState(s => ({
@@ -7343,14 +7410,10 @@ export default function App() {
                 />
               </label>
 
-              {/* Secondary draw guidance */}
               {hasSecondaryDraw && (
-                <div style={{ marginTop: '0.9rem', padding: '0.8rem 1rem', background: '#f0f4ff', border: '1.5px dashed #7a8ec9', borderRadius: '10px', fontSize: '0.88rem', lineHeight: 1.65 }}>
-                  <div style={{ fontWeight: 'bold', color: '#3a4c8a', marginBottom: '0.35rem' }}>🃏 추가 카드 뽑기 필요</div>
-                  <div style={{ color: '#3a4c8a', marginBottom: '0.6rem' }}>
-                    이 조우는 추가 카드 뽑기를 요구합니다.<br />
-                    실제 덱이나 앱의 카드 뽑기 도구를 사용해 다음 지시를 처리하십시오.
-                  </div>
+                <div className="encounter-dialog__secondary-draw">
+                  <strong>🃏 추가 카드가 필요합니다</strong>
+                  <p>실제 덱이나 아래 카드 도구로 한 장을 뽑은 뒤, 표시된 지시를 해결하세요.</p>
                   <TravelSecondaryDrawSlot
                     card={activeTravelEncounter.secondaryCard || state.pendingEncounter?.secondaryCard || null}
                     onDraw={card => {
@@ -7410,24 +7473,26 @@ export default function App() {
               )}
 
               {/* Action buttons */}
-              <div className="encounter-dialog-actions" style={{ marginTop: '1.25rem', display: 'flex', gap: '0.5rem' }}>
+              <div className="encounter-dialog-actions">
                 <button
+                  type="button"
+                  disabled={resolvingTravelEncounter}
                   onClick={event => {
                     const note = event.currentTarget.closest('.encounter-dialog')
                       ?.querySelector<HTMLTextAreaElement>('.encounter-journal-note textarea')
                       ?.value || '';
                     resolveCanonicalEncounter(note);
                   }}
-                  style={{ flex: 1, padding: '0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}
+                  className="encounter-dialog__primary"
                 >
-                  조우 판정 계속
+                  {resolvingTravelEncounter ? '판정 기록 중…' : '판정하고 기록하기'}
                 </button>
                 <button onClick={() => {
                   setDeferredEncounterId(state.pendingEncounter?.transactionId || null);
                   setActiveTravelEncounter(null);
-                }} style={{ padding: '0.8rem 1.2rem', background: '#eee', color: '#555', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>나중에 계속</button>
+                }} disabled={resolvingTravelEncounter} className="encounter-dialog__defer">나중에 계속</button>
               </div>
-
+              </>}
             </div>
           </div>
         );
@@ -12630,7 +12695,7 @@ function PlayView({
       id: 'pending-encounter',
       label: '미해결 이동 조우',
       detail: pendingEffect
-        ? `${pendingEffect.ownerName} 판정이 기다리고 있습니다.`
+        ? `${localizeEncounterTitle(pendingEffect.ownerName)} 판정이 기다리고 있습니다.`
         : '이동 조우 판정이 기다리고 있습니다.',
       meta: `p.${state.pendingEncounter.encounter.sourcePage}`,
       targetId: 'travel-panel',
@@ -19622,10 +19687,12 @@ function JournalsView({
           </form>
 
           {/* List journals */}
-          <div style={{ marginTop: '2rem' }}>
-            <h3>📖 과거 저널 기록 ({state.journals.length}개)</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem' }}>
-              {state.journals.map(j => (
+          <div className="journal-story-list">
+            <h3>📖 이야기 기록 ({state.journals.filter(j => !isActivityJournalEntry(j.title)).length}개)</h3>
+            <div className="journal-story-list__entries">
+              {state.journals.filter(j => !isActivityJournalEntry(j.title)).map(j => {
+                const presentation = presentEncounterJournal(j.title, j.text);
+                return (
                 <div key={j.id} className="cute-card" style={{ background: '#fff' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #eee', paddingBottom: '0.4rem' }}>
                     <h4 style={{ margin: 0, color: 'var(--primary)' }}><Suspense fallback={localizeGameplayMessage(j.title)}><LocalizedManualEffectText kind="journal-title" text={j.title} /></Suspense></h4>
@@ -19647,11 +19714,34 @@ function JournalsView({
                       <button onClick={() => handleRemoveJournal(j.id)} style={{ background: 'transparent', border: 'none', color: 'var(--accent-red)', cursor: 'pointer', fontSize: '0.8rem' }}>❌ 삭제</button>
                     </div>
                   </div>
-                  {j.text && (
+                  {j.text && presentation.isEncounter ? (
+                    <div className="encounter-journal-entry">
+                      {Object.keys(presentation.metadata).length > 0 && (
+                        <dl className="encounter-journal-entry__metadata">
+                          {presentation.metadata.location && <div><dt>장소</dt><dd>{localizeLocationName(presentation.metadata.location)}</dd></div>}
+                          {presentation.metadata.season && <div><dt>계절</dt><dd>{localizeSeasonLabel(presentation.metadata.season)}</dd></div>}
+                          {presentation.metadata.outcome && <div><dt>선택</dt><dd><Suspense fallback={presentation.metadata.outcome}><LocalizedManualEffectText kind="option" text={presentation.metadata.outcome} /></Suspense></dd></div>}
+                          {presentation.metadata.result && <div><dt>결과</dt><dd>{presentation.metadata.result}</dd></div>}
+                        </dl>
+                      )}
+                      <span>내가 남긴 기억</span>
+                      <p>{presentation.memory}</p>
+                      {presentation.context && (
+                        <details>
+                          <summary>조우 원문과 판정 맥락</summary>
+                          <div>
+                            <Suspense fallback={localizeGameplayMessage(localizeSavedJourneyText(presentation.context))}>
+                              <LocalizedManualEffectText kind="journal-text" text={localizeSavedJourneyText(presentation.context)} />
+                            </Suspense>
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                  ) : j.text ? (
                     <p style={{ fontSize: '0.9rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', color: 'var(--text-bright)', marginTop: '0.5rem' }}>
                       <Suspense fallback={localizeGameplayMessage(localizeSavedJourneyText(j.text))}><LocalizedManualEffectText kind="journal-text" text={localizeSavedJourneyText(j.text)} /></Suspense>
                     </p>
-                  )}
+                  ) : null}
                   {(j.photos || []).length > 0 && (
                     <div style={{ display: 'grid', gridTemplateColumns: (j.photos || []).length === 1 ? 'minmax(0, 760px)' : 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '1rem', marginTop: '1.1rem', alignItems: 'start' }}>
                       {(j.photos || []).map(photo => (
@@ -19672,13 +19762,30 @@ function JournalsView({
                     </div>
                   )}
                 </div>
-              ))}
-              {state.journals.length === 0 && (
+              );})}
+              {state.journals.filter(j => !isActivityJournalEntry(j.title)).length === 0 && (
                 <div style={{ fontStyle: 'italic', color: 'var(--text-dim)', textAlign: 'center', marginTop: '1rem' }}>
-                  아직 등록된 일지 기록이 없습니다. 여정 이동과 환자 완치 시 자동으로 기록되거나 직접 쓸 수 있습니다.
+                  아직 남긴 이야기가 없습니다. 조우에서 기억을 적거나 새 저널을 작성하면 이곳에 모입니다.
                 </div>
               )}
             </div>
+            {state.journals.some(j => isActivityJournalEntry(j.title)) && (
+              <details className="journal-activity-log">
+                <summary>진행 기록 {state.journals.filter(j => isActivityJournalEntry(j.title)).length}건</summary>
+                <p>이동과 시스템 상태 변화는 이야기와 분리해 보관합니다.</p>
+                <div>
+                  {state.journals.filter(j => isActivityJournalEntry(j.title)).map(j => (
+                    <article key={j.id}>
+                      <header>
+                        <strong>{localizeGameplayMessage(j.title)}</strong>
+                        <time>{formatDateTime(j.timestamp)}</time>
+                      </header>
+                      {j.text && <p>{localizeGameplayMessage(localizeSavedJourneyText(j.text))}</p>}
+                    </article>
+                  ))}
+                </div>
+              </details>
+            )}
           </div>
         </>
       )}

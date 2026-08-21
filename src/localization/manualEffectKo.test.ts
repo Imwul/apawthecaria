@@ -91,6 +91,29 @@ describe('printed effect Korean reading layer', () => {
     expect(restStop).not.toMatch(/\b78\b/);
   });
 
+  it('renders the Inspection encounter without machine-translated false friends', () => {
+    const inspection = ENCOUNTERS.find(encounter => encounter.title.startsWith('Inspection'))!;
+    expect(localizeEncounterDisplayText('Inspection', inspection.prompt)).toBe(
+      '현지 자원봉사자들이 여행자의 가방을 살피고 있습니다. 곡물처럼 귀중한 물자에 포자를 퍼뜨릴 수 있는 오염원을 막기 위한 검사입니다.'
+    );
+    expect(localizeManualEffectOption(inspection.choices[0].label)).toContain('그냥 통과');
+    expect(localizeManualEffectOption(inspection.choices[0].label)).not.toContain('과거에 손');
+    expect(localizeManualEffectOption(inspection.choices[1].label)).toContain('엄중한 주의');
+    expect(localizeManualEffectOption(inspection.choices[1].label)).not.toContain('엄중한 강의');
+  });
+
+  it('renders the Market encounter with natural rule terms', () => {
+    const market = ENCOUNTERS.find(encounter => encounter.title.startsWith('Market'))!;
+    expect(localizeEncounterDisplayText('Market', market.prompt)).toBe(
+      '나무로 된 거리가 숲 바닥에서 우듬지까지 빙 둘러 이어집니다.'
+    );
+    const choices = market.choices.map(choice => localizeManualEffectOption(choice.label));
+    expect(choices[0]).toContain('거절하기 힘든 거래');
+    expect(choices[1]).toContain('기분 좋은 호사');
+    expect(choices[2]).toContain('외지 영약재');
+    expect(choices.join(' ')).not.toMatch(/외국인 영약재|조제법 방법|유쾌한 방종/);
+  });
+
   it('gives every encounter popup a compact Korean title', () => {
     const titles = [...new Set(PRINTED_EFFECT_REGISTRY
       .filter(effect => effect.trigger === 'encounter')
@@ -107,6 +130,15 @@ describe('printed effect Korean reading layer', () => {
       encounterId: encounter.id,
       text: localizeManualEffectOption(choice.label)
     }))).filter(row => englishInstruction.test(row.text));
+    expect(unresolved).toEqual([]);
+  });
+
+  it('does not leave English instruction sentences in encounter context', () => {
+    const englishInstruction = /\b(?:the|this|that|your|you|they|their|with|from|after|before|gain|lose|draw|mark|location|region|reagent|timer|reputation|journal|path|forest|loch|winter|spring|summer|autumn)\b/i;
+    const unresolved = ENCOUNTERS.map(encounter => ({
+      encounterId: encounter.id,
+      text: localizeEncounterDisplayText(encounter.title, encounter.prompt)
+    })).filter(row => englishInstruction.test(row.text));
     expect(unresolved).toEqual([]);
   });
 

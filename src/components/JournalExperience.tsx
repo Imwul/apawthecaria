@@ -5,6 +5,7 @@ import { referenceForJournalTab } from '../rulebook/context';
 import type { RulebookReferenceRequest } from '../rulebook/types';
 import { getCampaignContinuity } from '../campaignContinuity';
 import type { JournalTab } from '../sessionNavigation';
+import { isActivityJournalEntry, presentEncounterJournal } from '../encounterJournal';
 
 export type { JournalTab } from '../sessionNavigation';
 
@@ -84,7 +85,7 @@ export function ChapterOpening({
   const legacyAilment = state.activeAilment;
   const patientName = patient?.name || legacyAilment?.patientName;
   const ailmentName = legacyAilment?.name || ailment?.legacyName;
-  const journalCount = state.journals?.length || 0;
+  const journalCount = state.journals?.filter((row: any) => !isActivityJournalEntry(row.title)).length || 0;
   const caseCount = state.patientArchive?.length || state.patientCasebook?.length || 0;
   const discoveryCount = state.worldAlmanac?.length || 0;
   const bagCount = state.bag?.reduce((sum: number, item: any) => sum + (item.qty || 1), 0) || 0;
@@ -202,7 +203,10 @@ export function TodayOverview({
   const legacyAilment = state.activeAilment;
   const ailmentName = legacyAilment?.name || ailment?.legacyName || '살펴볼 병증이 없습니다';
   const requirements = requirementWords(legacyAilment?.tags || ailment?.requirementSnapshot || '');
-  const recentJournal = state.journals?.[0];
+  const recentJournal = state.journals?.find((row: any) => !isActivityJournalEntry(row.title));
+  const recentJournalPresentation = recentJournal
+    ? presentEncounterJournal(recentJournal.title, recentJournal.text)
+    : null;
   const continuity = getCampaignContinuity(state);
   const recentTimeChanges = (state.calendarHistory || []).slice(-2).reverse();
   const dayPlace = state.journeyActive
@@ -322,7 +326,11 @@ export function TodayOverview({
         <article className="today-journal">
           <span className="journal-note-label">가장 최근의 문장</span>
           <h3>{recentJournal?.title ? <Suspense fallback={localizeGameplayMessage(recentJournal.title)}><LocalizedManualEffectText kind="journal-title" text={recentJournal.title} /></Suspense> : '아직 적힌 이야기가 없습니다'}</h3>
-          <p>{recentJournal?.text ? <Suspense fallback={localizeGameplayMessage(localizeSavedJourneyText(recentJournal.text)).slice(0, 180)}><LocalizedManualEffectText kind="journal-text" text={localizeSavedJourneyText(recentJournal.text)} maxLength={180} /></Suspense> : '첫 여행을 떠나면 이곳에 작은 기억이 남습니다.'}</p>
+          <p>{recentJournal?.text ? (
+            recentJournalPresentation?.isEncounter
+              ? recentJournalPresentation.memory
+              : <Suspense fallback={localizeGameplayMessage(localizeSavedJourneyText(recentJournal.text)).slice(0, 180)}><LocalizedManualEffectText kind="journal-text" text={localizeSavedJourneyText(recentJournal.text)} maxLength={180} /></Suspense>
+          ) : '첫 여행을 떠나면 이곳에 작은 기억이 남습니다.'}</p>
           <button type="button" className="journal-text-action" onClick={() => onNavigate('journals')}>
             <span className="emoji-icon" aria-hidden="true">✒️</span> 지난 기록 읽기
           </button>

@@ -264,7 +264,7 @@ export const ENCOUNTER_TITLE_KO: Record<string, string> = {
   'Oak Smoker': '참나무 훈연',
   Shanty: '뱃노래',
   Cranky: '심술궂은 손님',
-  Inspection: '검사',
+  Inspection: '가방 검역',
   Monuments: '기념물',
   Navigation: '길 찾기',
   Junction: '갈림길',

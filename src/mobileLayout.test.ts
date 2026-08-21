@@ -30,7 +30,7 @@ describe('mobile layout regression guards', () => {
   it('reflows conditional encounter and two-card choice dialogs', () => {
     expect(appSource.match(/className="card-choice-options"/g)).toHaveLength(2);
     expect(appSource.match(/className="card-choice-option"/g)).toHaveLength(2);
-    expect(appSource.match(/className="encounter-dialog-actions"/g)).toHaveLength(2);
+    expect(appSource.match(/className="encounter-dialog-actions"/g)).toHaveLength(3);
     expect(cssSource).toMatch(/\.card-choice-options\s*\{[\s\S]*?flex-wrap:\s*wrap/);
     expect(cssSource).toMatch(/\.encounter-dialog-actions\s*\{[\s\S]*?display:\s*grid\s*!important/);
     expect(appSource).toContain('className="encounter-journal-note"');
