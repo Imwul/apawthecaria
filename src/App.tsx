@@ -271,7 +271,7 @@ import { enqueueOfflineSave, flushOfflineSaves, normalizeOfflineSaveEntries, rec
 import type { RulebookReferenceRequest } from './rulebook/types';
 import { referenceForJournalTab } from './rulebook/context';
 import { fuzzyReferenceTextMatch } from './rulebook/referenceRegistry';
-import { PaperMap, type MapClinicOverlay, type MapPickLocation, type MapSavedConnection } from './map/PaperMap';
+import { PaperMap, type MapClinicOverlay, type MapPickLocation, type MapSavedConnection, type MapSelectionIntent } from './map/PaperMap';
 import { type MapPlace, type MapPlaceType } from './map/mapLayers';
 import { applyManualCalendarAdjustment, getCampaignContinuity, inferCompletedSeasons } from './campaignContinuity';
 import {
@@ -17410,6 +17410,7 @@ function AtlasMapPanel({
   const [linkFromId, setLinkFromId] = useState<string | null>(null);
   const [pendingLink, setPendingLink] = useState<{ from: string; to: string } | null>(null);
   const [connectionEditMode, setConnectionEditMode] = useState(false);
+  const [connectionQuickKind, setConnectionQuickKind] = useState<'path' | 'river' | 'waterway'>('path');
   const customLocations = state.customMapLocations || [];
   const nodes = buildMapGraphNodes(customLocations, state.customMapEdges || []);
   const selected = selectedId ? nodes[selectedId] : null;
@@ -17428,21 +17429,39 @@ function AtlasMapPanel({
       customMapLocations: upsertPlayerMapStop(s.customMapLocations || [], stop, buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || [])[stop.id])
     }));
   };
-  const persistLink = (from: string, to: string, kind: 'path' | 'river' | 'waterway') => {
+  const persistLink = useCallback((
+    from: string,
+    to: string,
+    kind: 'path' | 'river' | 'waterway',
+    continueFrom?: string | null
+  ) => {
     updateState(s => ({
       ...s,
       customMapEdges: upsertPlayerMapEdge(s.customMapEdges || [], from, to, kind)
     }));
     setPendingLink(null);
-  };
+    if (continueFrom !== undefined) setLinkFromId(continueFrom);
+  }, [updateState]);
   const clearPlaceSelection = (id: string) => {
     setSelectedId(current => current === id ? null : current);
     setLinkFromId(current => current === id ? null : current);
     setPendingLink(current => current && (current.from === id || current.to === id) ? null : current);
   };
-  const handleAtlasSelection = (id: string | null) => {
+  const handleAtlasSelection = (id: string | null, intent?: MapSelectionIntent) => {
     if (!id) {
       setSelectedId(null);
+      return;
+    }
+    if (intent?.quickConnect) {
+      setConnectionEditMode(true);
+      setSelectedId(id);
+      setPendingLink(null);
+      if (!linkFromId) {
+        setLinkFromId(id);
+        return;
+      }
+      if (id === linkFromId) return;
+      persistLink(linkFromId, id, connectionQuickKind, id);
       return;
     }
     if (connectionEditMode) {
@@ -17467,6 +17486,32 @@ function AtlasMapPanel({
     }
     setSelectedId(id);
   };
+  useEffect(() => {
+    const handleConnectionShortcut = (event: KeyboardEvent) => {
+      if (event.repeat) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setLinkFromId(null);
+        setPendingLink(null);
+        return;
+      }
+      const kind = event.key === '1'
+        ? 'path'
+        : event.key === '2'
+          ? 'river'
+          : event.key === '3'
+            ? 'waterway'
+            : null;
+      if (!kind) return;
+      event.preventDefault();
+      setConnectionQuickKind(kind);
+      if (pendingLink) persistLink(pendingLink.from, pendingLink.to, kind, pendingLink.to);
+    };
+    window.addEventListener('keydown', handleConnectionShortcut);
+    return () => window.removeEventListener('keydown', handleConnectionShortcut);
+  }, [pendingLink, persistLink]);
   const deletePlace = (id: string) => {
     if (findMapLocationKey(state.currentLocationName, customLocations) === id) {
       showAlert('지금 있는 자리의 표시는 지울 수 없습니다.');
@@ -17627,9 +17672,29 @@ function AtlasMapPanel({
           >
             {connectionEditMode ? '연결 편집 끝내기' : '연결 편집 시작'}
           </button>
-          {connectionEditMode && !linkFromId && !pendingLink && <p>① 지도에서 시작 노드를 누르세요.</p>}
+          <div className="map-atelier__quick-kinds" role="group" aria-label="빠른 연결 종류">
+            {([
+              ['path', '1 · 육로'],
+              ['river', '2 · 물길 실선'],
+              ['waterway', '3 · 물길 빗금']
+            ] as const).map(([kind, label]) => (
+              <button
+                key={kind}
+                type="button"
+                aria-keyshortcuts={kind === 'path' ? '1' : kind === 'river' ? '2' : '3'}
+                aria-pressed={connectionQuickKind === kind}
+                onClick={() => setConnectionQuickKind(kind)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="map-atelier__shortcut-help">
+            <kbd>Shift</kbd>를 누른 채 노드 두 개를 차례로 클릭하면 선택한 종류로 바로 잇습니다. 이후 노드를 계속 클릭해 연속으로 이을 수 있습니다. <kbd>Esc</kbd> 취소.
+          </p>
+          {connectionEditMode && !linkFromId && !pendingLink && <p>① 지도에서 시작 노드를 누르거나 <kbd>Shift</kbd>+클릭하세요.</p>}
           {connectionEditMode && linkFromId && (
-            <p>② <strong>{nodes[linkFromId]?.label || linkFromId}</strong>에서 이을 끝 노드를 누르세요.</p>
+            <p>② <strong>{nodes[linkFromId]?.label || linkFromId}</strong>에서 이을 끝 노드를 누르세요. <kbd>Shift</kbd>+클릭하면 선택한 종류로 즉시 저장됩니다.</p>
           )}
         </section>
 
@@ -17639,11 +17704,11 @@ function AtlasMapPanel({
             <strong>③ {nodes[pendingLink.from]?.label || pendingLink.from} → {nodes[pendingLink.to]?.label || pendingLink.to}</strong>
             <span>두 표시 사이에 저장할 연결 형태를 고르세요.</span>
             <div className="map-atelier__actions">
-              <button type="button" onClick={() => persistLink(pendingLink.from, pendingLink.to, 'path')}>육로로 잇기</button>
-              <button type="button" onClick={() => persistLink(pendingLink.from, pendingLink.to, 'river')}>물길 · 실선</button>
+              <button type="button" onClick={() => persistLink(pendingLink.from, pendingLink.to, 'path', pendingLink.to)}>육로로 잇기</button>
+              <button type="button" onClick={() => persistLink(pendingLink.from, pendingLink.to, 'river', pendingLink.to)}>물길 · 실선</button>
               <button
                 type="button"
-                onClick={() => persistLink(pendingLink.from, pendingLink.to, 'waterway')}
+                onClick={() => persistLink(pendingLink.from, pendingLink.to, 'waterway', pendingLink.to)}
               >
                 물길 · 빗금
               </button>
@@ -17824,7 +17889,7 @@ const MapView = memo(function MapView({
   hideSelectedPlaceSheet?: boolean;
   veiled?: boolean;
   showRoutePreview?: boolean;
-  onSelectedPlaceChange?: (placeId: string | null) => void;
+  onSelectedPlaceChange?: (placeId: string | null, intent?: MapSelectionIntent) => void;
   onOpenFullMap?: () => void;
   companionCaption?: string;
   travelEnabled?: boolean;

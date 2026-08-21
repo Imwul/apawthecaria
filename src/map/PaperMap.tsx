@@ -39,6 +39,10 @@ export type MapPickLocation = {
   hasClinic?: boolean;
 };
 
+export type MapSelectionIntent = {
+  quickConnect?: boolean;
+};
+
 export type MapCreatePlaceRequest = {
   x: number;
   y: number;
@@ -58,7 +62,7 @@ type PaperMapProps = {
   companionCaption?: string;
   travelEnabled?: boolean;
   travelBlockedReason?: string | null;
-  onSelectedPlaceChange?: (placeId: string | null) => void;
+  onSelectedPlaceChange?: (placeId: string | null, intent?: MapSelectionIntent) => void;
   onConfirmDestination?: (location: MapPickLocation) => void;
   onTravelRequest?: (location: MapPickLocation) => void;
   onAddWaypoint?: (location: MapPickLocation) => void;
@@ -279,9 +283,9 @@ export function PaperMap({
 
   const contentWidth = Math.round(viewportWidth * scale);
 
-  const selectPlace = useCallback((placeId: string | null) => {
+  const selectPlace = useCallback((placeId: string | null, intent?: MapSelectionIntent) => {
     setSelectedId(placeId);
-    onSelectedPlaceChange?.(placeId);
+    onSelectedPlaceChange?.(placeId, intent);
   }, [onSelectedPlaceChange]);
 
   const centerOnPlace = useCallback((place: MapPlace) => {
@@ -692,7 +696,7 @@ export function PaperMap({
                   data-map-place-id={place.id}
                   onMouseDown={event => {
                     event.stopPropagation();
-                    if (!panLocked || event.button !== 0) return;
+                    if (!panLocked || event.button !== 0 || event.shiftKey) return;
                     markerMoveRef.current = { id: place.id, moved: false };
                     selectPlace(place.id);
                   }}
@@ -710,7 +714,7 @@ export function PaperMap({
                       skipMarkerClickRef.current = false;
                       return;
                     }
-                    selectPlace(place.id);
+                    selectPlace(place.id, { quickConnect: event.shiftKey });
                     onAddWaypoint?.(placeToPick(place));
                   }}
                 >

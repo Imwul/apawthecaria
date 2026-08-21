@@ -168,6 +168,11 @@ describe('map interaction contracts', () => {
     expect(appSource).toContain('육로로 잇기');
     expect(appSource).toContain('물길 · 실선');
     expect(appSource).toContain('물길 · 빗금');
+    expect(appSource).toContain('Shift</kbd>를 누른 채 노드 두 개를 차례로 클릭');
+    expect(appSource).toContain("event.key === '1'");
+    expect(appSource).toContain("event.key === '2'");
+    expect(appSource).toContain("event.key === '3'");
+    expect(mapSource).toContain('quickConnect: event.shiftKey');
     expect(appSource).toContain('showTravelRoutes={false}');
     expect(appSource).toContain('showSavedConnections');
     expect(appSource).toContain('hideSelectedPlaceSheet={connectionEditMode}');
@@ -177,6 +182,7 @@ describe('map interaction contracts', () => {
     expect(cssSource).toContain('.paper-map__saved-connection--path');
     expect(cssSource).toContain('.paper-map__saved-connection--river');
     expect(cssSource).toContain('.paper-map__saved-connection-hatch');
+    expect(cssSource).toContain('.map-atelier__quick-kinds');
     expect(appSource).toContain('className="map-atelier__delete"');
     expect(appSource).toContain('hidden: true');
     expect(appSource).toContain('지운 인쇄 표시');
