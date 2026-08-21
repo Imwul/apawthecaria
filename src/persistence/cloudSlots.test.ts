@@ -16,6 +16,8 @@ import {
   cloudPayloadByteLength,
   cloudPayloadFingerprint,
   cloudSaveDocumentId,
+  cloudSlotPayloadDocumentBelongsToAccount,
+  cloudSlotPayloadDocumentId,
   cloudSlotPathBelongsToAccount,
   cloudSlotMapKey,
   cloudSlotRecordFromPayload,
@@ -99,17 +101,17 @@ describe('cloud save slots', () => {
     expect(readCloudSlotsFromDocument(document).records[1]?.name).toBe('다른약제사');
   });
 
-  it('stores large campaign bodies outside the Firestore slot document and preserves their metadata', () => {
+  it('stores campaign bodies in independent Firestore payload documents and preserves their metadata', () => {
     const inline = cloudSlotRecordFromPayload(1, namedSave('큰기록', 41), '2026-08-21T06:00:00.000Z');
-    const storagePath = cloudSlotStoragePath('user-a', inline, 'fixed');
-    const stored = { ...inline, payload: '', storagePath };
+    const payloadDocumentId = cloudSlotPayloadDocumentId('user-a', inline, 'fixed');
+    const stored = { ...inline, payload: '', payloadDocumentId };
     const document = assembleCloudSlotDocument([stored, null, null]);
     const slotFields = (document[CLOUD_SLOTS_FIELD] as Record<string, Record<string, unknown>>)[cloudSlotMapKey(1)];
 
     expect(document[CAMPAIGN_SAVE_KEY]).toBeUndefined();
     expect(slotFields.payload).toBeUndefined();
     expect(slotFields).toMatchObject({
-      storagePath,
+      payloadDocumentId,
       payloadBytes: inline.payloadBytes,
       payloadFingerprint: inline.payloadFingerprint,
       name: '큰기록',
@@ -117,7 +119,7 @@ describe('cloud save slots', () => {
     });
     expect(readCloudSlotsFromDocument(document).records[0]).toMatchObject({
       payload: '',
-      storagePath,
+      payloadDocumentId,
       payloadBytes: inline.payloadBytes,
       payloadFingerprint: inline.payloadFingerprint
     });
@@ -224,6 +226,9 @@ describe('cloud save slots', () => {
     const path = cloudSlotStoragePath('user-a', record, 'fixed');
     expect(cloudSlotPathBelongsToAccount(path, 'user-a')).toBe(true);
     expect(cloudSlotPathBelongsToAccount(path, 'user-b')).toBe(false);
+    const payloadDocumentId = cloudSlotPayloadDocumentId('user-a', record, 'fixed');
+    expect(cloudSlotPayloadDocumentBelongsToAccount(payloadDocumentId, 'user-a')).toBe(true);
+    expect(cloudSlotPayloadDocumentBelongsToAccount(payloadDocumentId, 'user-b')).toBe(false);
   });
 
   it('measures UTF-8 payload and the combined three-slot Firestore document', () => {
@@ -238,19 +243,19 @@ describe('cloud save slots', () => {
     ));
     expect(estimateCloudSlotDocumentBytes(records)).toBeGreaterThan(source.payloadBytes);
     expect(CLOUD_DOCUMENT_SAFE_BYTES).toBeLessThan(1_000_000);
-    expect(CLOUD_PAYLOAD_SAFE_BYTES).toBeGreaterThan(CLOUD_DOCUMENT_SAFE_BYTES);
+    expect(CLOUD_PAYLOAD_SAFE_BYTES).toBeLessThan(CLOUD_DOCUMENT_SAFE_BYTES);
     expect(cloudPayloadFingerprint('동일')).toBe(cloudPayloadFingerprint('동일'));
     expect(cloudPayloadFingerprint('동일')).not.toBe(cloudPayloadFingerprint('다름'));
   });
 
-  it('allows a valid campaign larger than the Firestore document limit to upload through Storage', () => {
+  it('allows a sizable slot that would overflow when three campaign bodies share one document', () => {
     const payload = JSON.stringify({
       bio: { name: '대용량 약제사' },
-      journals: [{ id: '1', body: '가'.repeat(400_000) }],
+      journals: [{ id: '1', body: 'x'.repeat(600_000) }],
       saveRevision: 9
     });
     const source = summarizeCloudUploadSource(payload);
-    expect(source.payloadBytes).toBeGreaterThan(CLOUD_DOCUMENT_SAFE_BYTES);
+    expect(source.payloadBytes * 3).toBeGreaterThan(CLOUD_DOCUMENT_SAFE_BYTES);
     expect(source.payloadBytes).toBeLessThan(CLOUD_PAYLOAD_SAFE_BYTES);
     expect(source.canUpload).toBe(true);
   });
@@ -284,10 +289,10 @@ describe('cloud save slots', () => {
     expect(appSource).toContain('handleDownloadCloudSlot');
     expect(appSource).toContain('handleUploadCloudSlot');
     expect(appSource).toContain('runTransaction');
-    expect(appSource).toContain("uploadString(storageRef(storage, storagePath), record.payload, 'raw'");
-    expect(appSource).toContain('getBytes(storageRef(storage, record.storagePath)');
+    expect(appSource).toContain("setDoc(doc(db, 'saves', payloadDocumentId)");
+    expect(appSource).toContain("getDoc(doc(db, 'saves', record.payloadDocumentId))");
     expect(appSource).toContain('[CAMPAIGN_SAVE_KEY]: deleteField()');
-    expect(appSource).toContain('cloudSlotPathBelongsToAccount');
+    expect(appSource).toContain('cloudSlotPayloadDocumentBelongsToAccount');
     expect(appSource).toContain('readCloudAccountBinding() === uid');
     expect(appSource).toContain('window.confirm.call(window, message)');
     expect(readFileSync(fileURLToPath(new URL('./cloudSlots.ts', import.meta.url)), 'utf8')).toContain('window.confirm.call(window, message)');

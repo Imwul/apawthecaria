@@ -11,7 +11,7 @@ export const CLOUD_SLOTS_FIELD = 'apawthecaria_cloud_slots';
 export const ACTIVE_CLOUD_SLOT_KEY = 'apawthecaria_active_cloud_slot';
 export const CLOUD_ACCOUNT_BINDING_KEY = 'apawthecaria_cloud_account_uid';
 export const CLOUD_DOCUMENT_SAFE_BYTES = 950_000;
-export const CLOUD_PAYLOAD_SAFE_BYTES = 20_000_000;
+export const CLOUD_PAYLOAD_SAFE_BYTES = 900_000;
 
 export type CloudSlotId = 1 | 2 | 3;
 
@@ -21,6 +21,7 @@ export type CloudSlotRecord = {
   uploadedAt: string;
   name: string;
   saveRevision: number;
+  payloadDocumentId?: string;
   storagePath?: string;
   payloadBytes?: number;
   payloadFingerprint?: string;
@@ -75,6 +76,18 @@ export const cloudSlotStoragePath = (uid: string, record: CloudSlotRecord, nonce
 export const cloudSlotPathBelongsToAccount = (path: string, uid: string) =>
   Boolean(path) && path.startsWith(cloudSlotStoragePrefix(uid));
 
+export const cloudSlotPayloadDocumentPrefix = (uid: string) =>
+  `${cloudSaveDocumentId(encodeURIComponent(uid.trim()))}_slot_`;
+
+export const cloudSlotPayloadDocumentId = (
+  uid: string,
+  record: CloudSlotRecord,
+  nonce = createCloudStorageNonce()
+) => `${cloudSlotPayloadDocumentPrefix(uid)}${record.slot}_${record.saveRevision}_${record.payloadFingerprint || cloudPayloadFingerprint(record.payload)}_${nonce}`;
+
+export const cloudSlotPayloadDocumentBelongsToAccount = (documentId: string, uid: string) =>
+  Boolean(documentId) && documentId.startsWith(cloudSlotPayloadDocumentPrefix(uid));
+
 export const formatCloudPayloadBytes = (bytes: number) => `${Math.max(0, Math.ceil(bytes / 1024)).toLocaleString('ko-KR')}KB`;
 
 const isCloudSlotId = (value: unknown): value is CloudSlotId =>
@@ -82,7 +95,11 @@ const isCloudSlotId = (value: unknown): value is CloudSlotId =>
 
 const slotRecordFields = (record: CloudSlotRecord) => ({
   slot: record.slot,
-  ...(record.storagePath ? {
+  ...(record.payloadDocumentId ? {
+    payloadDocumentId: record.payloadDocumentId,
+    payloadBytes: record.payloadBytes ?? cloudPayloadByteLength(record.payload),
+    payloadFingerprint: record.payloadFingerprint || cloudPayloadFingerprint(record.payload)
+  } : record.storagePath ? {
     storagePath: record.storagePath,
     payloadBytes: record.payloadBytes ?? cloudPayloadByteLength(record.payload),
     payloadFingerprint: record.payloadFingerprint || cloudPayloadFingerprint(record.payload)
@@ -196,10 +213,12 @@ const recordFromUnknown = (slot: CloudSlotId, value: unknown, fallbackUploadedAt
     storagePath?: unknown;
     payloadBytes?: unknown;
     payloadFingerprint?: unknown;
+    payloadDocumentId?: unknown;
   };
   const payload = typeof row.payload === 'string' ? row.payload : '';
   const storagePath = typeof row.storagePath === 'string' ? row.storagePath.trim() : '';
-  if (!payload && !storagePath) return null;
+  const payloadDocumentId = typeof row.payloadDocumentId === 'string' ? row.payloadDocumentId.trim() : '';
+  if (!payload && !storagePath && !payloadDocumentId) return null;
   const storedRevision = normalizeSaveRevision(row.saveRevision);
   const storedBytes = typeof row.payloadBytes === 'number' && Number.isFinite(row.payloadBytes) && row.payloadBytes >= 0
     ? Math.floor(row.payloadBytes)
@@ -210,6 +229,7 @@ const recordFromUnknown = (slot: CloudSlotId, value: unknown, fallbackUploadedAt
     uploadedAt: parseUploadedAt(row.uploadedAt) || fallbackUploadedAt || new Date().toISOString(),
     name: typeof row.name === 'string' && row.name.trim() ? row.name.trim() : nameFromPayload(payload),
     saveRevision: storedRevision || revisionFromPayload(payload),
+    ...(payloadDocumentId ? { payloadDocumentId } : {}),
     ...(storagePath ? { storagePath } : {}),
     ...(storedBytes !== undefined
       ? { payloadBytes: storedBytes }
@@ -267,7 +287,7 @@ export const cloudSlotWriteFields = (record: CloudSlotRecord): Record<string, un
   const fields: Record<string, unknown> = {
     [`${CLOUD_SLOTS_FIELD}.${cloudSlotMapKey(record.slot)}`]: slotRecordFields(record)
   };
-  if (record.slot === 1 && !record.storagePath) fields[CAMPAIGN_SAVE_KEY] = record.payload;
+  if (record.slot === 1 && !record.storagePath && !record.payloadDocumentId) fields[CAMPAIGN_SAVE_KEY] = record.payload;
   return fields;
 };
 
@@ -281,7 +301,7 @@ export const assembleCloudSlotDocument = (
   }
   const first = records[0] || null;
   return {
-    ...(first && !first.storagePath ? { [CAMPAIGN_SAVE_KEY]: first.payload } : {}),
+    ...(first && !first.storagePath && !first.payloadDocumentId ? { [CAMPAIGN_SAVE_KEY]: first.payload } : {}),
     [CLOUD_SLOTS_FIELD]: slots
   };
 };

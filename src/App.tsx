@@ -1,6 +1,6 @@
 import { useState, useEffect, useEffectEvent, useRef, useCallback, useMemo, memo, Fragment, lazy, Suspense, type ReactNode } from "react";
 import { db, isFirebaseConfigured, auth, googleProvider, storage, googleSignInErrorMessage, shouldUseRedirectSignIn, firebaseProjectId } from "./firebase";
-import { deleteField, doc, getDoc, runTransaction } from "firebase/firestore";
+import { deleteDoc, deleteField, doc, getDoc, runTransaction, setDoc } from "firebase/firestore";
 import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, type User } from "firebase/auth";
 import { deleteObject, getBytes, getDownloadURL, ref as storageRef, uploadString } from "firebase/storage";
 import { GAME_DATA } from "./gameData";
@@ -25,9 +25,10 @@ import {
   cloudPayloadByteLength,
   cloudPayloadFingerprint,
   cloudSaveDocumentId,
+  cloudSlotPayloadDocumentBelongsToAccount,
+  cloudSlotPayloadDocumentId,
   cloudSlotPathBelongsToAccount,
   cloudSlotRecordFromPayload,
-  cloudSlotStoragePath,
   confirmManualSlotDownload,
   confirmManualSlotUpload,
   emptyCloudSlotViews,
@@ -397,10 +398,10 @@ const cloudWriteErrorMessage = (error: { code?: string; message?: string } | nul
     return '구글 계정에 먼저 로그인해 주세요.';
   }
   if (code === 'cloud-storage-unavailable' || message === 'cloud-storage-unavailable') {
-    return '큰 기록을 보관할 클라우드 저장소를 사용할 수 없습니다. 잠시 뒤 다시 시도해 주세요.';
+    return '클라우드 슬롯 저장소를 사용할 수 없습니다. 잠시 뒤 다시 시도해 주세요.';
   }
   if (code === 'cloud-payload-too-large' || message === 'cloud-payload-too-large') {
-    return '이 기록은 클라우드 캠페인 파일 한도(약 20MB)를 넘습니다. 원본을 먼저 내보내 보관해 주세요.';
+    return `이 기록은 슬롯 하나의 안전한 저장 한도(약 ${Math.floor(CLOUD_PAYLOAD_SAFE_BYTES / 1000)}KB)를 넘습니다. 원본을 먼저 내보내 보관해 주세요.`;
   }
   if (code === 'cloud-payload-corrupt' || message === 'cloud-payload-corrupt') {
     return '클라우드 캠페인 파일이 메타데이터와 일치하지 않습니다. 이 기기의 기록은 그대로 두었습니다.';
@@ -454,34 +455,55 @@ const removeCloudSlotPayloadBestEffort = async (path: string | undefined) => {
   }
 };
 
-const uploadCloudSlotPayload = async (record: CloudSlotRecord, uid: string): Promise<CloudSlotRecord> => {
-  if (!storage) throw cloudSlotError('cloud-storage-unavailable');
+const removeCloudSlotPayloadDocumentBestEffort = async (documentId: string | undefined, uid: string) => {
+  if (!db || !documentId || !cloudSlotPayloadDocumentBelongsToAccount(documentId, uid)) return;
+  try {
+    await deleteDoc(doc(db, 'saves', documentId));
+  } catch (error) {
+    console.warn('이전 캠페인 클라우드 문서 삭제 실패:', error);
+  }
+};
+
+const writeCloudSlotPayloadDocument = async (record: CloudSlotRecord, uid: string): Promise<CloudSlotRecord> => {
+  if (!db) throw cloudSlotError('cloud-storage-unavailable');
   const payloadBytes = record.payloadBytes ?? cloudPayloadByteLength(record.payload);
   if (!record.payload || payloadBytes >= CLOUD_PAYLOAD_SAFE_BYTES) throw cloudSlotError('cloud-payload-too-large');
   const payloadFingerprint = record.payloadFingerprint || cloudPayloadFingerprint(record.payload);
-  const storagePath = cloudSlotStoragePath(uid, { ...record, payloadBytes, payloadFingerprint });
-  await withTimeout(uploadString(storageRef(storage, storagePath), record.payload, 'raw', {
-    contentType: 'application/json; charset=utf-8',
-    customMetadata: {
-      ownerUid: uid,
-      slot: String(record.slot),
-      saveRevision: String(record.saveRevision),
-      payloadFingerprint
-    }
+  const payloadDocumentId = cloudSlotPayloadDocumentId(uid, { ...record, payloadBytes, payloadFingerprint });
+  await withTimeout(setDoc(doc(db, 'saves', payloadDocumentId), {
+    payload: record.payload,
+    ownerUid: uid,
+    slot: record.slot,
+    uploadedAt: record.uploadedAt,
+    saveRevision: record.saveRevision,
+    payloadBytes,
+    payloadFingerprint
   }), 30000);
-  return { ...record, payload: '', storagePath, payloadBytes, payloadFingerprint };
+  return { ...record, payload: '', payloadDocumentId, payloadBytes, payloadFingerprint };
 };
 
 const readCloudSlotPayload = async (record: CloudSlotRecord, uid: string): Promise<string> => {
   if (record.payload) return record.payload;
-  if (!storage || !record.storagePath || !cloudSlotPathBelongsToAccount(record.storagePath, uid)) {
-    throw cloudSlotError('cloud-payload-corrupt');
+  let payload: string;
+  if (record.payloadDocumentId) {
+    if (!db || !cloudSlotPayloadDocumentBelongsToAccount(record.payloadDocumentId, uid)) {
+      throw cloudSlotError('cloud-payload-corrupt');
+    }
+    const snap = await withTimeout(getDoc(doc(db, 'saves', record.payloadDocumentId)), 30000);
+    if (!snap.exists()) throw cloudSlotError('cloud-payload-corrupt');
+    const data = snap.data() as Record<string, unknown>;
+    if (data.ownerUid !== uid || typeof data.payload !== 'string') throw cloudSlotError('cloud-payload-corrupt');
+    payload = data.payload;
+  } else {
+    if (!storage || !record.storagePath || !cloudSlotPathBelongsToAccount(record.storagePath, uid)) {
+      throw cloudSlotError('cloud-payload-corrupt');
+    }
+    const bytes = await withTimeout(
+      getBytes(storageRef(storage, record.storagePath), CLOUD_PAYLOAD_SAFE_BYTES),
+      30000
+    );
+    payload = new TextDecoder().decode(bytes);
   }
-  const bytes = await withTimeout(
-    getBytes(storageRef(storage, record.storagePath), CLOUD_PAYLOAD_SAFE_BYTES),
-    30000
-  );
-  const payload = new TextDecoder().decode(bytes);
   const payloadBytes = cloudPayloadByteLength(payload);
   const payloadFingerprint = cloudPayloadFingerprint(payload);
   if ((record.payloadBytes !== undefined && record.payloadBytes !== payloadBytes)
@@ -500,7 +522,7 @@ const writeCloudSlotRecord = async (
   const docRef = uid ? userSaveDocRef(uid) : null;
   if (!docRef || !uid) throw new Error('not-signed-in');
   if (auth?.currentUser?.uid !== uid) throw cloudSlotError('not-signed-in');
-  const storedRecord = await uploadCloudSlotPayload(record, uid);
+  const storedRecord = await writeCloudSlotPayloadDocument(record, uid);
   try {
     const result = await withTimeout(runTransaction(db!, async transaction => {
       if (auth?.currentUser?.uid !== uid) throw cloudSlotError('not-signed-in');
@@ -526,7 +548,12 @@ const writeCloudSlotRecord = async (
           throw cloudSlotError('cloud-slot-newer');
         }
         if (currentRecord.saveRevision === record.saveRevision && currentFingerprint === incomingFingerprint) {
-          return { views: current.views, usedNewPayload: false, obsoleteStoragePath: undefined as string | undefined };
+          return {
+            views: current.views,
+            usedNewPayload: false,
+            obsoletePayloadDocumentId: undefined as string | undefined,
+            obsoleteStoragePath: undefined as string | undefined
+          };
         }
       }
       const records = mergeCloudSlotRecord(current.records, storedRecord);
@@ -543,20 +570,24 @@ const writeCloudSlotRecord = async (
       return {
         views: readCloudSlotsFromDocument(compactDocument, record.uploadedAt).views,
         usedNewPayload: true,
+        obsoletePayloadDocumentId: currentRecord?.payloadDocumentId,
         obsoleteStoragePath: currentRecord?.storagePath
       };
     }), 30000);
     if (result.usedNewPayload) {
+      if (result.obsoletePayloadDocumentId && result.obsoletePayloadDocumentId !== storedRecord.payloadDocumentId) {
+        await removeCloudSlotPayloadDocumentBestEffort(result.obsoletePayloadDocumentId, uid);
+      }
       if (result.obsoleteStoragePath && result.obsoleteStoragePath !== storedRecord.storagePath) {
         await removeCloudSlotPayloadBestEffort(result.obsoleteStoragePath);
       }
     } else {
-      await removeCloudSlotPayloadBestEffort(storedRecord.storagePath);
+      await removeCloudSlotPayloadDocumentBestEffort(storedRecord.payloadDocumentId, uid);
     }
     return result.views;
   } catch (error) {
     if (String((error as Error)?.message || '') !== 'timeout') {
-      await removeCloudSlotPayloadBestEffort(storedRecord.storagePath);
+      await removeCloudSlotPayloadDocumentBestEffort(storedRecord.payloadDocumentId, uid);
     }
     throw error;
   }
@@ -5505,7 +5536,7 @@ export default function App() {
         return;
       }
       if (source.payloadBytes >= CLOUD_PAYLOAD_SAFE_BYTES) {
-        showAlert(`이 기기 기록이 ${formatCloudPayloadBytes(source.payloadBytes)}라서 캠페인 파일 한도(약 20MB)를 넘습니다. 원본을 먼저 내보내 보관해 주세요.`);
+        showAlert(`이 기기 기록이 ${formatCloudPayloadBytes(source.payloadBytes)}라서 슬롯 하나의 안전한 저장 한도(약 ${Math.floor(CLOUD_PAYLOAD_SAFE_BYTES / 1000)}KB)를 넘습니다. 원본을 먼저 내보내 보관해 주세요.`);
         return;
       }
       const parsed = parseCampaignSaveRaw(localStr);
@@ -7979,7 +8010,7 @@ function CloudSlotsDialog({
           </div>
         </header>
         <p id="cloud-slots-message" className="app-dialog__message">
-          슬롯은 최대 3개입니다. 캠페인 본문은 계정별 파일로 따로 보관하므로 슬롯을 채워도 서로의 저장 용량을 차지하지 않습니다.
+          슬롯은 최대 3개입니다. 캠페인 본문은 계정별·슬롯별 문서로 따로 보관하므로 슬롯끼리 저장 용량을 합산하지 않습니다.
           올리기는 이 기기 기록으로 해당 슬롯을 바꾸고, 내려받기는 이 기기 기록을 해당 슬롯 내용으로 바꿉니다.
         </p>
         <div className="cloud-account-context">
@@ -8000,7 +8031,7 @@ function CloudSlotsDialog({
           )}
           {!localSource.canUpload && localSource.available && (
             <em>{localSource.name
-              ? `캠페인 파일 한도(약 ${Math.round(CLOUD_PAYLOAD_SAFE_BYTES / 1_000_000)}MB)를 확인해 주세요.`
+              ? `슬롯 하나의 저장 한도(약 ${Math.floor(CLOUD_PAYLOAD_SAFE_BYTES / 1000)}KB)를 확인해 주세요.`
               : '약제사 이름을 입력해야 올릴 수 있습니다.'}</em>
           )}
         </div>
