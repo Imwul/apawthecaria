@@ -33,6 +33,27 @@ describe('mobile layout regression guards', () => {
     expect(appSource.match(/className="encounter-dialog-actions"/g)).toHaveLength(2);
     expect(cssSource).toMatch(/\.card-choice-options\s*\{[\s\S]*?flex-wrap:\s*wrap/);
     expect(cssSource).toMatch(/\.encounter-dialog-actions\s*\{[\s\S]*?display:\s*grid\s*!important/);
+    expect(appSource).toContain('className="encounter-journal-note"');
+    expect(appSource).toContain('defaultValue={activeTravelEncounter.journalNote || state.pendingEncounter?.journalNote || \'\'}');
+    expect(cssSource).toMatch(/\.encounter-journal-note textarea\s*\{[\s\S]*?font-size:\s*1rem\s*!important/);
+  });
+
+  it('keeps the current task ahead of historical and fallback material', () => {
+    expect(appSource).toContain('id="route-planning-panel"');
+    expect(appSource).toContain('id="treatment-workspace"');
+    expect(appSource).toContain('id="patient-acquisition-panel"');
+    expect(appSource).toContain('className="patient-intake__history"');
+    expect(cssSource).toMatch(/\.patient-workflow__treatment\s*\{[\s\S]*?order:\s*1/);
+    expect(cssSource).toMatch(/\.patient-workflow__acquisition\s*\{[\s\S]*?order:\s*2/);
+    expect(cssSource).toMatch(/\.patient-intake__history\s*\{[\s\S]*?order:\s*10/);
+  });
+
+  it('keeps gameplay controls and semantic copy above the fine-print scale', () => {
+    expect(cssSource).toMatch(/\.main-content-panel :is\(button, input, select, textarea\)[\s\S]*?font-size:\s*0\.9375rem\s*!important/);
+    expect(cssSource).toMatch(/\.main-content-panel :is\(p, li, dt, dd, label, td, th\)[\s\S]*?font-size:\s*max\(0\.875rem, 1em\)/);
+    expect(cssSource).toMatch(/\.save-state,[\s\S]*?\.action-hub__chip,[\s\S]*?font-size:\s*0\.875rem\s*!important/);
+    expect(cssSource).toMatch(/#treatment-workspace :is\(p, span, strong, small, summary, label\),[\s\S]*?font-size:\s*0\.875rem\s*!important/);
+    expect(cssSource).toMatch(/\.route-composer :is\(span, small, strong, em\)\s*\{[\s\S]*?font-size:\s*0\.875rem\s*!important/);
   });
 
   it('exposes the season resolver after downtime outside an active journey', () => {

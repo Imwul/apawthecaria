@@ -212,6 +212,7 @@ export function TodayOverview({
 
   return (
     <section className="today-overview" aria-labelledby="today-title">
+      <div className="today-focus">
       <div className="today-scene">
         <span className="today-scene__mark emoji-icon" aria-hidden="true">🧭</span>
         <span className="today-scene__folio" aria-hidden="true">FIELD NOTE / 01</span>
@@ -268,6 +269,7 @@ export function TodayOverview({
           <p className="campaign-continuity__empty">아직 기록된 시간 변화가 없습니다. Move나 수동 달력 보정이 생기면 여기에 남습니다.</p>
         )}
       </section>
+      </div>
 
       <div className="today-story">
         <article className="today-patient">

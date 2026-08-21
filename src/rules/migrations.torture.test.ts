@@ -43,6 +43,12 @@ const richSaveAt = (schemaVersion: number | string) => ({
     transactionId: 'forage-pending', region: 'Forest', locationRelation: 'current',
     card: { value: 7, suit: '♥' }, timerCostAfterEncounter: 1, encounterId: null, phase: 'choose-reagent'
   },
+  pendingEncounter: {
+    transactionId: 'encounter-pending', encounterId: 'forest-memory',
+    encounter: { id: 'forest-memory', title: 'Memories', text: 'What returns to mind?', sourcePage: 161 },
+    phase: 'pending', unresolvedEffectCodes: [], card: { value: 8, suit: '♠' },
+    journalNote: '바람 소리와 오래된 돌을 기억했다.'
+  },
   treatmentDraft: {
     id: 'draft-1', patientId: 'patient-1', ailmentInstanceId: 'ailment-1', selectedParts: [],
     selectedPreparationIds: [], selectedToolIds: ['tool-mortar'], catalyse: [], fair: 0, foul: 0,
@@ -80,6 +86,10 @@ describe('save migration torture matrix', () => {
       expect(migrated.toolStates).toEqual(expect.arrayContaining([expect.objectContaining({ instanceId: 'tool-mortar', toolId: 'mortar-and-pestle' })]));
       expect(migrated.journey).toMatchObject({ journeyId: 'journey-1', destinationId: 'destination' });
       expect(migrated.pendingForaging).toMatchObject({ transactionId: 'forage-pending', region: 'Forest', phase: 'choose-reagent' });
+      expect(migrated.pendingEncounter).toMatchObject({
+        transactionId: 'encounter-pending', encounterId: 'forest-memory',
+        journalNote: '바람 소리와 오래된 돌을 기억했다.'
+      });
       expect(migrated.treatmentDraft).toMatchObject({ id: 'draft-1', patientId: 'patient-1', selectedToolIds: ['tool-mortar'], status: 'draft' });
       expect(migrated).toMatchObject({ currentSeason: 'Autumn', calendarDays: 8, completedSeasons: 2, downtimeRequired: true, saveRevision: 27 });
       expect(migrated.unknownCampaignMemory).toEqual({ preserve: 'exactly' });

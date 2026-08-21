@@ -57,6 +57,8 @@ describe('gameplay message Korean presentation layer', () => {
     expect(localizeGameplayMessage('Route exceeds Speed 3.')).toBe('경로가 속도 3을 초과합니다.');
     expect(localizeGameplayMessage('Unknown ailment: ailment-17')).toBe('알 수 없는 질병입니다: ailment-17');
     expect(localizeGameplayMessage('Not enough Trinkets.\nTreatment requires a transaction ID.')).toBe('장신구가 부족합니다.\n치료에는 트랜잭션 ID가 필요합니다.');
+    expect(localizeGameplayMessage('One of: FUR 2 (provided 0) OR FEATHER 2 (provided 1)'))
+      .toBe('다음 중 하나 필요: FUR 2 필요 · 현재 0 또는 FEATHER 2 필요 · 현재 1');
   });
 
   it('translates generated journal events without changing proper names', () => {

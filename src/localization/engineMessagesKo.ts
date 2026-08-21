@@ -412,6 +412,10 @@ const dynamicEngineMessages: Array<[RegExp, (...matches: string[]) => string]> =
   [/^CATALYSE (.+) requires two different selected Reagents with that Tag\.$/, tag => `CATALYSE ${tag}에는 해당 태그를 지닌 서로 다른 영약재 두 개가 필요합니다.`],
   [/^Required Tool is not selected: (.+)$/, tools => `필요한 도구가 선택되지 않았습니다: ${tools}`],
   [/^Selected Reagent has no remaining Uses: (.+)$/, reagent => `선택한 영약재에 남은 사용 횟수가 없습니다: ${reagent}`],
+  [/^One of: (.+)$/, options => `다음 중 하나 필요: ${options.split(/\s+OR\s+/).map(option => {
+    const match = option.match(/^([A-Z]+) (.+) \(provided (.+)\)$/);
+    return match ? `${match[1]} ${match[2]} 필요 · 현재 ${match[3]}` : option;
+  }).join(' 또는 ')}`],
   [/^([A-Z]+) (.+) \(provided (.+)\)$/, (tag, required, provided) => `${tag} ${required} 필요 · 현재 ${provided}`],
   [/^(.+) requires (.+) Timer hours, and no Timer may already be 0\.$/, (project, hours) => `${project}에는 타이머 ${hours}시간이 필요하며 이미 0인 타이머가 없어야 합니다.`]
   ,[/^Barter: (.+)$/, reagent => `물물교환: ${reagent}`]

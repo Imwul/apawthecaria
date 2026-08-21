@@ -8044,3 +8044,396 @@ details.rulebook-source-text > summary {
     font-size: 2.3rem !important;
   }
 }
+
+/* Gameplay-first recomposition: preserve the field-journal character while
+   keeping the current decision and its controls in the first working view. */
+.journal-app:not(.journal-app--onboarding) .journal-header {
+  min-height: 150px;
+  padding: 2.55rem 2.5rem 1.25rem;
+}
+
+.journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title {
+  font-size: clamp(3.35rem, 6vw, 5rem) !important;
+  line-height: 0.88;
+}
+
+.journal-app:not(.journal-app--onboarding) .journal-brand__eyebrow {
+  margin-top: 0.55rem;
+}
+
+.journal-app:not(.journal-app--onboarding) .grid-dashboard {
+  padding-top: 1.5rem;
+}
+
+.journal-app:not(.journal-app--onboarding) .main-content-panel > * + * {
+  margin-top: 2rem;
+}
+
+.today-overview {
+  margin-bottom: 2.25rem;
+}
+
+.today-focus {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(23rem, 0.88fr);
+  border: var(--editorial-rule);
+}
+
+.today-focus .today-scene {
+  min-height: 310px;
+  grid-template-columns: minmax(0, 1fr);
+  border: 0;
+  border-right: var(--editorial-rule);
+}
+
+.today-focus .today-scene::after {
+  display: none;
+}
+
+.today-focus .today-scene__copy {
+  padding: 2rem 2.25rem;
+}
+
+.today-focus .today-scene__copy h2 {
+  max-width: 12ch;
+  margin-bottom: 1rem;
+  font-size: clamp(2.35rem, 4.2vw, 3.4rem);
+}
+
+.today-focus .today-scene__mark {
+  right: 1rem;
+  bottom: 1.2rem;
+  font-size: 5.4rem;
+  opacity: 0.52;
+}
+
+.today-focus .campaign-continuity {
+  align-content: start;
+  grid-template-columns: minmax(0, 1fr);
+  border: 0;
+  background: color-mix(in srgb, var(--paper) 78%, var(--primary-light));
+}
+
+.today-focus .campaign-continuity__next {
+  grid-column: 1;
+  grid-row: auto;
+  padding: 0.7rem 0 0;
+  border-top: 2px solid var(--secondary);
+  border-left: 0;
+}
+
+.today-focus .campaign-continuity__facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.today-focus .campaign-continuity__facts > div:nth-child(2) {
+  border-right: 0;
+}
+
+.today-focus .campaign-continuity__facts > div:nth-child(-n + 2) {
+  border-bottom: 1px dashed rgba(77, 70, 56, 0.2);
+}
+
+.today-story article {
+  min-height: 160px;
+  padding: 1.15rem 1.25rem;
+}
+
+.today-story article::before {
+  margin-bottom: 0.7rem;
+}
+
+.chapter-opening {
+  min-height: 230px;
+  margin-bottom: 1.75rem;
+}
+
+.chapter-opening::after {
+  width: 24%;
+  padding: 1.5rem;
+  font-size: 1.7rem;
+}
+
+.chapter-opening__copy {
+  min-height: 230px;
+  max-width: 76%;
+  padding: 1.7rem 2.25rem;
+}
+
+.chapter-opening__copy h2 {
+  margin-block: 0.25rem 0.5rem;
+  font-size: clamp(2.15rem, 4vw, 3rem);
+}
+
+.chapter-opening__body {
+  max-width: 68ch;
+  margin-block: 0.35rem 0.65rem;
+  font-size: 0.94rem;
+}
+
+.chapter-opening__mark {
+  right: 1rem;
+  bottom: 2.4rem;
+  font-size: 5.2rem;
+  opacity: 0.6;
+}
+
+.route-planning-workspace,
+#patient-clinic-panel,
+#patient-acquisition-panel,
+#treatment-workspace {
+  scroll-margin-top: 5.5rem;
+}
+
+.route-planning-workspace {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.patient-intake,
+.patient-workflow,
+.bio-sheet-sections {
+  display: flex;
+  flex-direction: column;
+}
+
+.patient-intake__history {
+  order: 10;
+  margin-top: 1.5rem;
+  margin-bottom: 0 !important;
+}
+
+.patient-workflow__treatment {
+  order: 1;
+  margin-top: 1rem !important;
+  padding: 1rem 0.9rem 1.15rem;
+  border-top: 3px double rgba(77, 70, 56, 0.48) !important;
+  background: rgba(255, 253, 246, 0.48);
+}
+
+.patient-workflow__acquisition {
+  order: 2;
+  margin-top: 1.4rem;
+  padding-top: 1.1rem;
+  border-top: 1px dashed var(--glass-border);
+}
+
+.patient-workflow__acquisition::before {
+  content: '재료가 부족하다면 · 채집과 거래';
+  display: block;
+  margin-bottom: 0.75rem;
+  color: var(--primary);
+  font-family: var(--font-fancy);
+  font-size: 1.12rem;
+  font-weight: 700;
+}
+
+.bio-workbench {
+  order: 1;
+}
+
+.bio-profile-summary {
+  order: 2;
+}
+
+.bio-extended-records {
+  order: 3;
+}
+
+.encounter-journal-note {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  color: var(--text-bright);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.encounter-journal-note small {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.encounter-journal-note textarea {
+  width: 100%;
+  min-height: 88px;
+  padding: 0.75rem 0.8rem;
+  resize: vertical;
+  border: 1px solid rgba(37, 33, 28, 0.58) !important;
+  background: rgba(255, 253, 246, 0.86) !important;
+  color: var(--editorial-ink);
+  font-size: 1rem !important;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+/* Readability floor for actionable copy. Tiny folios may stay decorative,
+   but controls and gameplay metadata must remain readable at normal zoom. */
+.journal-app:not(.journal-app--onboarding) :is(.journal-header__action, .journal-header__icon-button, .pending-action-button, .journal-tab),
+.journal-app:not(.journal-app--onboarding) .journal-chapter :is(button, input, select, textarea),
+.journal-app:not(.journal-app--onboarding) .play-with-map__panels :is(button, input, select, textarea),
+.journal-app:not(.journal-app--onboarding) .today-overview button,
+.app-dialog :is(button, input, select, textarea),
+.encounter-dialog :is(button, input, select, textarea) {
+  font-size: 0.875rem !important;
+  line-height: 1.4;
+}
+
+.journal-app:not(.journal-app--onboarding) :is(.journal-note-label, .document-kicker),
+.app-dialog__kicker,
+.controlled-prompt.app-dialog .app-dialog__field label {
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.journal-app:not(.journal-app--onboarding) .journal-chapter small,
+.journal-app:not(.journal-app--onboarding) .play-with-map__panels small,
+.encounter-dialog small {
+  font-size: 0.8rem !important;
+  line-height: 1.45;
+}
+
+.journal-app:not(.journal-app--onboarding) .journal-chapter table {
+  font-size: 0.875rem !important;
+}
+
+.controlled-prompt.app-dialog .app-dialog__header h2 {
+  font-size: 1.25rem;
+}
+
+.controlled-prompt.app-dialog .app-dialog__message {
+  font-size: 1rem;
+}
+
+/* Reading text may be quieter than headings, but must not become fine print.
+   This floor is limited to semantic copy and controls; folios, map marks, and
+   other decorative notation keep their compact scale. */
+.journal-app:not(.journal-app--onboarding) .main-content-panel :is(button, input, select, textarea),
+.app-dialog :is(button, input, select, textarea),
+.encounter-dialog :is(button, input, select, textarea) {
+  font-size: 0.9375rem !important;
+}
+
+.journal-app:not(.journal-app--onboarding) .main-content-panel :is(p, li, dt, dd, label, td, th),
+.app-dialog :is(p, li, label),
+.encounter-dialog :is(p, li, label) {
+  font-size: max(0.875rem, 1em);
+}
+
+.journal-app:not(.journal-app--onboarding) :is(
+  .save-state,
+  .journal-note-label,
+  .document-kicker,
+  .action-hub__chip,
+  .action-step span,
+  .action-step em,
+  .campaign-continuity__next > span
+) {
+  font-size: 0.875rem !important;
+  line-height: 1.45;
+}
+
+#treatment-workspace :is(p, span, strong, small, summary, label),
+#patient-acquisition-panel :is(p, span, strong, small, summary, label) {
+  font-size: 0.875rem !important;
+  line-height: 1.5;
+}
+
+.route-composer :is(span, small, strong, em) {
+  font-size: 0.875rem !important;
+  line-height: 1.4;
+}
+
+.route-composer .route-composer__eyebrow,
+.route-composer .route-connector__remaining-label {
+  font-size: 0.75rem !important;
+}
+
+.map-atelier__shortcut-help,
+.bio-sheet-sections label,
+.bio-extended-records p,
+.journal-chapter--journals label,
+.journal-chapter--journals .cute-card > p {
+  font-size: 0.875rem !important;
+  line-height: 1.5;
+}
+
+@media (max-width: 1080px) {
+  .today-focus {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .today-focus .today-scene {
+    border-right: 0;
+    border-bottom: var(--editorial-rule);
+  }
+}
+
+@media (max-width: 800px) {
+  .journal-app:not(.journal-app--onboarding) .journal-header {
+    min-height: 150px;
+    padding: 3.2rem 1rem 1rem !important;
+  }
+
+  .journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title {
+    font-size: clamp(2.35rem, 11vw, 3.1rem) !important;
+  }
+
+  .today-focus .today-scene {
+    min-height: 335px;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .today-focus .today-scene__copy {
+    padding: 1.4rem;
+  }
+
+  .today-story article {
+    min-height: 165px;
+  }
+
+  .chapter-opening {
+    display: block;
+    min-height: 270px;
+  }
+
+  .chapter-opening::after {
+    display: none;
+  }
+
+  .chapter-opening__copy {
+    min-height: 270px;
+    max-width: 100%;
+    padding: 1.4rem 1.25rem;
+  }
+
+  .chapter-opening__mark {
+    right: 0.5rem;
+    bottom: 0.6rem;
+    font-size: 4.2rem;
+    opacity: 0.34;
+  }
+}
+
+@media (max-width: 480px) {
+  .journal-app:not(.journal-app--onboarding) .grid-dashboard {
+    padding-top: 0.75rem;
+  }
+
+  .today-focus .today-scene {
+    min-height: 365px;
+  }
+
+  .today-focus .campaign-continuity__facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .today-focus .campaign-continuity__facts > div {
+    border-right: 0;
+  }
+
+  .patient-workflow__treatment {
+    padding-inline: 0;
+    background: transparent;
+  }
+}

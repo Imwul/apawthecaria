@@ -48,6 +48,8 @@ export interface PendingEncounterState {
   encounter: EncounterDefinition;
   phase: 'pending' | 'manual' | 'resolved';
   selectedChoiceId?: string;
+  /** Optional player-written memory kept with an interrupted encounter. */
+  journalNote?: string;
   unresolvedEffectCodes: string[];
   card: { value: number; suit?: string };
   secondaryCard?: { value: number; suit: string };

@@ -4877,6 +4877,7 @@ export default function App() {
         locName: state.currentLocationName,
         transactionId: pending.transactionId,
         selectedChoiceId: pending.selectedChoiceId,
+        journalNote: pending.journalNote || '',
         secondaryCard: pending.secondaryCard || null
       });
     });
@@ -6294,6 +6295,9 @@ export default function App() {
       return;
     }
     const selectedChoiceId = activeTravelEncounter?.selectedChoiceId || pending.selectedChoiceId;
+    // The uncontrolled textarea is read at submit time, so typing does not
+    // rewrite the entire campaign state and a saved note can still be cleared.
+    const resolvedJournalNote = note.trim();
     const secondaryCard = activeTravelEncounter?.secondaryCard || pending.secondaryCard || null;
     if ((encounterChoiceRequiresSecondaryCard(pending.encounter, selectedChoiceId)
       || pending.encounter.id === 'travel-forest-a-2') && !secondaryCard) {
@@ -6393,7 +6397,7 @@ export default function App() {
       pending.secondaryCard || activeTravelEncounter?.secondaryCard || null
     );
     const printedEffect = PRINTED_EFFECT_BY_OWNER.get(pending.encounter.id);
-    if (manualDraft && note.trim()) manualDraft = { ...manualDraft, resultSummary: note.trim(), journalNote: note.trim() };
+    if (manualDraft && resolvedJournalNote) manualDraft = { ...manualDraft, resultSummary: resolvedJournalNote, journalNote: resolvedJournalNote };
     if ((pending.encounterProtection || pending.ignoreNegativeEncounterEffects) && manualDraft) manualDraft = {
       ...manualDraft,
       printedText: `[보호 적용] ${pending.encounterProtection === 'all' ? '이 조우의 기계적 효과 전체' : '부정적 결과'}는 무효입니다.\n\n${manualDraft.printedText}`,
@@ -6424,7 +6428,7 @@ export default function App() {
         journals: [{
           id: `${pending.transactionId}:${manualDraft ? 'pending-manual' : 'resolved'}`,
           title: `${manualDraft ? '판정 대기' : '여정 조우'}: ${printedEffect?.ownerName || pending.encounter.title}`,
-          text: `[p.${pending.encounter.sourcePage}] ${printedEffect?.printedText || pending.encounter.prompt}${manualDraft ? '\n\n전용 직접 판정에서 선택과 상태 변화를 완료해야 합니다.' : `\n\n나의 선택: ${[note, inBloomNote].filter(Boolean).join(' · ') || '인쇄된 지시를 해결했다.'}`}`,
+          text: `[p.${pending.encounter.sourcePage}] ${printedEffect?.printedText || pending.encounter.prompt}${manualDraft ? '\n\n전용 직접 판정에서 선택과 상태 변화를 완료해야 합니다.' : `\n\n나의 선택: ${[resolvedJournalNote, inBloomNote].filter(Boolean).join(' · ') || '인쇄된 지시를 해결했다.'}`}`,
           timestamp: Date.now()
         }, ...s.journals]
       };
@@ -6966,7 +6970,7 @@ export default function App() {
                           if (state.pendingEncounter || state.pendingForaging) panels.push('travel-panel');
                           if (state.activeDelve || ((state.barrows || []).some(b => !b.removed && b.locationName === state.currentLocationName)) || state.needsLocalHelpBeforeMove) panels.push('barrow-panel');
                           if (state.activeAilment || state.scroungingMode || state.pursuedByBehemoth) panels.push('patient-clinic-panel');
-                          if (!state.pursuedByBehemoth && !state.needsLocalHelpBeforeMove) panels.push('travel-panel');
+                          if (!state.pursuedByBehemoth && !state.needsLocalHelpBeforeMove) panels.push('route-planning-panel');
                           return panels;
                         })();
 
@@ -7307,6 +7311,23 @@ export default function App() {
                 </div>
               )}
 
+              <label className="encounter-journal-note">
+                <span>이 장면에서 남길 기억 <small>(선택)</small></span>
+                <textarea
+                  key={activeTravelEncounter.transactionId || activeTravelEncounter.id}
+                  rows={3}
+                  defaultValue={activeTravelEncounter.journalNote || state.pendingEncounter?.journalNote || ''}
+                  placeholder="떠오른 장면이나 선택의 이유를 적어두면 들녘의 일지에 함께 남습니다."
+                  onBlur={event => {
+                    const journalNote = event.currentTarget.value;
+                    updateState(s => ({
+                      ...s,
+                      pendingEncounter: s.pendingEncounter ? { ...s.pendingEncounter, journalNote } : null
+                    }));
+                  }}
+                />
+              </label>
+
               {/* Secondary draw guidance */}
               {hasSecondaryDraw && (
                 <div style={{ marginTop: '0.9rem', padding: '0.8rem 1rem', background: '#f0f4ff', border: '1.5px dashed #7a8ec9', borderRadius: '10px', fontSize: '0.88rem', lineHeight: 1.65 }}>
@@ -7376,7 +7397,12 @@ export default function App() {
               {/* Action buttons */}
               <div className="encounter-dialog-actions" style={{ marginTop: '1.25rem', display: 'flex', gap: '0.5rem' }}>
                 <button
-                  onClick={() => resolveCanonicalEncounter('')}
+                  onClick={event => {
+                    const note = event.currentTarget.closest('.encounter-dialog')
+                      ?.querySelector<HTMLTextAreaElement>('.encounter-journal-note textarea')
+                      ?.value || '';
+                    resolveCanonicalEncounter(note);
+                  }}
                   style={{ flex: 1, padding: '0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}
                 >
                   조우 판정 계속
@@ -12593,7 +12619,7 @@ function PlayView({
         id: 'behemoth-chase',
         label: '거수 추격 대응',
         detail: `선행 거리 ${state.pursuedByBehemoth.headStart}경로. 이동 계획이나 탈출 도구를 확인합니다.`,
-        targetId: 'travel-panel',
+        targetId: 'route-planning-panel',
         tone: 'warning'
       });
     }
@@ -12633,7 +12659,7 @@ function PlayView({
         label: '환자 치료 진행',
         detail: `${state.activeAilment.name} 치료 기한 ${state.activeAilment.timer}시간, 채집 포인트 ${state.activeAilment.foragingPoints}.`,
         meta: `가방 약재 ${patientReagentCount}개`,
-        targetId: 'patient-clinic-panel',
+        targetId: 'treatment-workspace',
         tone: 'primary'
       });
 
@@ -12647,7 +12673,7 @@ function PlayView({
           detail: barterRemaining > 0
             ? `${barterLocationSummary}에서 이 환자에게 ${barterRemaining}회 더 거래할 수 있습니다.`
             : `${barterLocationSummary} 거래 한도를 모두 사용했습니다.`,
-          targetId: 'patient-clinic-panel',
+          targetId: 'patient-acquisition-panel',
           tone: barterRemaining > 0 ? 'neutral' : 'warning',
           disabled: barterRemaining <= 0
         });
@@ -12670,7 +12696,7 @@ function PlayView({
         label: '다음 위치로 이동',
         detail: `현재 이동 속도 ${activeTravelSpeed}. 새 장소와 지역을 정합니다.`,
         meta: journeyGoalDone ? '여정 목표 충족' : '여정 목표 진행 중',
-        targetId: 'travel-panel',
+        targetId: 'route-planning-panel',
         tone: journeyGoalDone ? 'done' : 'neutral'
       });
     }
@@ -12679,7 +12705,7 @@ function PlayView({
       id: 'clinic-open',
       label: state.activeAilment ? '치료제 조제 확인' : '새 환자 진료',
       detail: state.activeAilment ? '요구 태그와 선택 재료를 함께 검토합니다.' : '현재 위치에서 환자를 진단하거나 채집을 시작합니다.',
-      targetId: 'patient-clinic-panel',
+      targetId: state.activeAilment ? 'treatment-workspace' : 'patient-clinic-panel',
       tone: 'neutral'
     });
   }
@@ -12900,6 +12926,7 @@ function PlayView({
           />
         </aside>
         <div className="play-with-map__panels">
+          <section id="route-planning-panel" className="route-planning-workspace" aria-label="이번 이동 경로 짜기">
           {state.journeyActive && (
             <section className="travel-mode-switch" aria-label="이번 이동 방식">
               <div>
@@ -12958,6 +12985,7 @@ function PlayView({
               onTravel={handleComposerTravel}
             />
           )}
+          </section>
 
       {/* 1. If journey is NOT active */}
       {!state.journeyActive && (
@@ -15159,7 +15187,7 @@ function PlayView({
                 </button>
               </div>
             ) : !state.activeAilment ? (
-              <div style={{ marginTop: '1rem' }}>
+              <div className="patient-intake" style={{ marginTop: '1rem' }}>
                 {state.lostPatientLegacy && (
                   <div className="cute-card" style={{ border: '1.5px dashed #c4b5a3', background: '#fbf9f4', padding: '1.25rem', marginBottom: '1.2rem', position: 'relative', boxShadow: 'inset 0 0 12px rgba(139, 90, 43, 0.04)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -15197,7 +15225,7 @@ function PlayView({
                 )}
 
                 {/* Workshop Shelves */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: '1.2rem', marginBottom: '1.5rem', background: '#faf9f5', border: '1px solid #dcd3c1', padding: '1.1rem', borderRadius: '8px' }}>
+                <div className="patient-intake__history" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: '1.2rem', marginBottom: '1.5rem', background: '#faf9f5', border: '1px solid #dcd3c1', padding: '1.1rem', borderRadius: '8px' }}>
                   <div>
                     <h4 style={{ margin: '0 0 0.6rem 0', color: 'var(--primary)', fontSize: '0.92rem', fontFamily: 'var(--font-fancy)' }}>
                       🌿 최근 다녀간 이들
@@ -15293,7 +15321,7 @@ function PlayView({
                 </form>
               </div>
             ) : (
-              <div style={{ marginTop: '1rem' }}>
+              <div className="patient-workflow" style={{ marginTop: '1rem' }}>
                 {(() => {
                   const patient = state.patients.find(row => row.id === state.activePatientId);
                   if (!patient || patient.ailments.filter(row => row.status === 'active').length <= 1) return null;
@@ -15342,6 +15370,7 @@ function PlayView({
                   </div>
                 </div>
 
+                <section id="patient-acquisition-panel" className="patient-workflow__acquisition" aria-label="치료 재료 마련">
                 <section className="forage-context" aria-label="현재 채집 조건">
                   <div className="forage-context__summary">
                     <div><span>현재 위치</span><strong>{state.currentLocationName} · {locationTypeLabel(state.currentLocationType)}</strong></div>
@@ -15649,8 +15678,10 @@ function PlayView({
                   })()}
                 </div>
 
+                </section>
+
                 {/* Concocting Remedy Panel */}
-                <div style={{ borderTop: '1px dashed var(--glass-border)', marginTop: '1.5rem', paddingTop: '1rem' }}>
+                <div id="treatment-workspace" className="patient-workflow__treatment" style={{ borderTop: '1px dashed var(--glass-border)', marginTop: '1.5rem', paddingTop: '1rem' }}>
                   <h4>🔬 치료제 조제하기</h4>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
                     가방 속 영약재들을 도구를 사용하여 가공한 뒤 환자의 증상을 치료해 치료제를 만듭니다.
@@ -16591,10 +16622,10 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
       </section>
 
       {!editing ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div className="bio-sheet-sections" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
           {/* Top Row: PoulticePounder Profile & Familiar Box */}
-          <div className="grid-2col">
+          <div className="grid-2col bio-profile-summary">
 
             {/* PoulticePounder (약제사) */}
             <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff', position: 'relative' }}>
@@ -16660,7 +16691,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
           </div>
 
           {/* Middle Row: Bags Table & Journey Calendar */}
-          <div className="grid-bio-middle">
+          <div className="grid-bio-middle bio-workbench">
 
             {/* Bags (배낭 보관함) */}
             <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff' }}>
@@ -17052,7 +17083,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
           </div>
 
           {/* Bottom Row: Companions, Guild, Trinkets */}
-          <div className="grid-2col">
+          <div className="grid-2col bio-extended-records">
 
             {/* Companions & Trinkets */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
