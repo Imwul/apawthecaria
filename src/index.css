@@ -4634,7 +4634,7 @@ button,
 
 .route-composer {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.68rem;
   padding: 0.9rem 0.95rem 1rem;
   border: 1px solid #6a5344;
   border-radius: 8px;
@@ -4644,9 +4644,9 @@ button,
 }
 
 .route-composer__title-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
   gap: 0.8rem;
 }
 
@@ -4689,6 +4689,7 @@ button,
 .route-composer__conditions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-start;
   gap: 0.35rem;
 }
 
@@ -4708,7 +4709,7 @@ button,
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
-  padding: 0.7rem 0;
+  padding: 0.55rem 0;
   border-block: 1px dashed #d6c8b4;
 }
 
@@ -4764,8 +4765,10 @@ button,
 
 .route-composer__picker {
   display: grid;
-  gap: 0.5rem;
-  padding: 0.7rem;
+  grid-template-columns: minmax(8.5rem, 0.36fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.45rem 0.7rem;
+  padding: 0.6rem 0.7rem;
   border: 1px solid #d6c8b4;
   border-radius: 7px;
   background: #fffaf0;
@@ -4774,6 +4777,7 @@ button,
 .route-composer__picker-copy {
   display: grid;
   gap: 0.12rem;
+  min-width: 0;
 }
 
 .route-composer__picker-copy strong {
@@ -4830,13 +4834,6 @@ button,
   border-color: #7c976d;
   background: #edf5e8;
   color: #35512f;
-}
-
-.route-composer__target-progress {
-  margin: 0;
-  color: #6b5343;
-  font-size: 0.75rem;
-  line-height: 1.45;
 }
 
 .route-composer__ring {
@@ -5006,6 +5003,12 @@ button,
   align-items: center;
   gap: 0.35rem 0.55rem;
   min-width: 0;
+}
+
+.route-composer__strip-labels em {
+  color: #657255;
+  font-style: normal;
+  font-weight: 600;
 }
 
 .route-composer__strip-actions {
@@ -5418,7 +5421,8 @@ button,
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0.25rem 0.4rem;
+  gap: 0.16rem;
+  padding: 0.28rem 0.35rem;
   border: 1.5px solid #8b7666;
   border-radius: 6px;
   background: #f4ead8;
@@ -5426,8 +5430,8 @@ button,
   font-size: 0.7rem;
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  transition: transform 0.15s, background-color 0.15s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  transition: transform 0.15s, background-color 0.15s, border-color 0.15s;
   z-index: 1;
   min-width: 44px;
   min-height: 44px;
@@ -5443,21 +5447,10 @@ button,
   padding-inline: 0.2rem;
 }
 
-.route-composer__track--compact .route-connector__action {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
 .route-connector__btn:hover {
   transform: translateY(-1px);
   background: #eee0c8;
+  border-color: #657255;
 }
 
 .route-connector__btn--river,
@@ -5472,24 +5465,58 @@ button,
   background: #d4e6f3;
 }
 
-.route-connector__icon {
-  font-size: 0.85rem;
-  line-height: 1;
+.route-connector__mark {
+  position: relative;
+  display: block;
+  width: 1.45rem;
+  height: 0.55rem;
+  color: currentColor;
+}
+
+.route-connector__mark::before {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: currentColor;
+  content: "";
+  transform: translateY(-50%);
+}
+
+.route-connector__mark--river::before,
+.route-connector__mark--waterway::before {
+  height: 3px;
+}
+
+.route-connector__mark--waterway::after {
+  position: absolute;
+  top: 0.02rem;
+  left: 50%;
+  width: 0.42rem;
+  height: 0.48rem;
+  border-inline: 2px solid currentColor;
+  content: "";
+  transform: translateX(-50%) skewX(-20deg);
 }
 
 .route-connector__label {
-  font-size: 0.65rem;
+  font-size: 0.72rem;
   font-weight: 600;
   line-height: 1.1;
-  margin-top: 0.1rem;
 }
 
-.route-connector__action {
-  margin-top: 0.08rem;
-  font-size: 0.52rem;
-  font-weight: 500;
-  line-height: 1;
-  opacity: 0.76;
+.route-composer__departure {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid #ded3c3;
+}
+
+.route-composer__departure--ready {
+  border-top-color: #9caf8f;
 }
 
 .route-composer__summary {
@@ -5498,6 +5525,11 @@ button,
   font-size: 0.8rem;
   line-height: 1.45;
   color: #4a3628;
+}
+
+.route-composer__distance-line strong {
+  color: #342f27;
+  font-size: 1rem;
 }
 
 .route-composer__feedback {
@@ -5534,11 +5566,26 @@ button,
   font-weight: 700;
 }
 
+.route-composer__rule-alert {
+  padding: 0.45rem 0.6rem;
+  border-left: 3px solid #b77a25;
+  background: #fff8e8;
+  color: #76511d;
+  font-weight: 700;
+}
+
+.route-composer__rule-alert--danger {
+  border-left-color: #a7664f;
+  background: #fbf0e7;
+  color: #79422f;
+}
+
 .route-composer__actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(7.25rem, auto);
   gap: 0.45rem;
-  justify-content: flex-end;
+  justify-items: stretch;
+  min-width: 12rem;
 }
 
 .route-composer__actions button {
@@ -5551,6 +5598,7 @@ button,
   font-family: "Noto Sans KR", sans-serif;
   font-size: 0.82rem;
   line-height: normal;
+  white-space: normal;
 }
 
 .route-composer__go {
@@ -5790,6 +5838,15 @@ button,
     padding-inline: 0.75rem;
   }
 
+  .route-composer__title-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .route-composer__conditions {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
   .route-composer__header {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
@@ -5800,6 +5857,15 @@ button,
     padding-left: 0;
     border-top: 1px solid #ded3c3;
     border-left: 0;
+  }
+
+  .route-composer__departure {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .route-composer__actions {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    min-width: 0;
   }
 
   .route-composer__card {
@@ -5833,6 +5899,10 @@ button,
   }
 
   .route-composer__picker-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .route-composer__picker {
     grid-template-columns: minmax(0, 1fr);
   }
 

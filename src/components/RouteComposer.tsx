@@ -11,6 +11,7 @@ import {
   type RouteEdgeKind,
   type RouteStop
 } from '../map/routeComposer';
+import { routeReadinessText } from './routeComposerPresentation';
 
 type RouteComposerProps = {
   draft: RouteDraft;
@@ -114,6 +115,16 @@ export function RouteComposer({
   const travelReady = canTravel
     && Boolean(destination)
     && (movementMode === 'soar' || evaluation.reason === 'legal');
+  const readinessText = routeReadinessText({
+    movementMode,
+    travelReady,
+    hasDestination: Boolean(destination),
+    canTravel,
+    travelBlockedReason,
+    reason: evaluation.reason,
+    speed: evaluation.effectiveSpeed,
+    cost: evaluation.movementCost
+  });
   const availableStopOptions = useMemo(() => {
     const nameCounts = new Map<string, number>();
     availableStops.forEach(stop => {
@@ -163,6 +174,12 @@ export function RouteComposer({
     setRouteFeedback(`${stop.name || `${fromIndex + 1}번 위치`}을(를) ${toIndex + 1}번으로 옮겼습니다.`);
   };
 
+  const changeEdge = (index: number, currentKind: RouteEdgeKind, from: RouteStop, to?: RouteStop) => {
+    const nextKind = cycleRouteEdgeKind(currentKind, from, to);
+    onChangeEdge(index, nextKind);
+    setRouteFeedback(`${from.name || '이 위치'} → ${to?.name || '다음 위치'} 구간을 ${routeEdgeLabel(nextKind)}로 바꿨습니다.`);
+  };
+
   const scrollRoute = (direction: -1 | 1) => {
     const container = trackContainerRef.current;
     if (!container) return;
@@ -177,22 +194,15 @@ export function RouteComposer({
           <span className="route-composer__eyebrow">이번 MOVE</span>
           <h2>경로 짜기</h2>
         </div>
-        <div className={`route-composer__readiness route-composer__readiness--${travelReady ? 'ready' : 'editing'}`} role="status" aria-live="polite">
-          {movementMode === 'soar'
-            ? (travelReady ? '활공 준비 완료' : destination ? '이동 전 확인 필요' : '착륙 위치를 고르세요')
-            : evaluation.reason === 'legal' && canTravel
-              ? 'Move 준비 완료'
-              : travelBlockedReason
-                ? '이동 전 확인 필요'
-              : `경로 ${evaluation.movementCost}/${evaluation.effectiveSpeed}`}
+        <div className="route-composer__conditions" aria-label="이번 이동 조건">
+          <span>속도 <strong>{evaluation.effectiveSpeed}</strong></span>
+          <span>짐 <strong>{displayWeight(weight)}/{displayWeight(carry)}</strong></span>
+          {seasonLabel && <span>계절 <strong>{seasonLabel}</strong></span>}
+          {daysRemaining !== null && <span>기한 <strong>{Math.max(0, daysRemaining)}일</strong></span>}
         </div>
-      </div>
-
-      <div className="route-composer__conditions" aria-label="이번 이동 조건">
-        <span>속도 <strong>{evaluation.effectiveSpeed}</strong></span>
-        <span>짐 <strong>{displayWeight(weight)}/{displayWeight(carry)}</strong></span>
-        {seasonLabel && <span>계절 <strong>{seasonLabel}</strong></span>}
-        {daysRemaining !== null && <span>기한 <strong>{Math.max(0, daysRemaining)}일 남음</strong></span>}
+        <div className={`route-composer__readiness route-composer__readiness--${travelReady ? 'ready' : 'editing'}`} role="status" aria-live="polite">
+          {readinessText}
+        </div>
       </div>
 
       <header className="route-composer__header">
@@ -237,11 +247,11 @@ export function RouteComposer({
       {onAddStop && availableStops.length > 0 && (
         <div className="route-composer__picker">
           <div className="route-composer__picker-copy">
-            <strong>위치 추가</strong>
+            <strong>다음 위치</strong>
             <span>
               {movementMode === 'soar'
-                ? '착륙할 지도 위치를 검색하세요. 중간 위치는 Move로 돌아갈 때 그대로 남습니다.'
-                : '지도에서 다음 노드를 누르면 이번 Move 경로에 바로 들어갑니다. 여정 목적지는 항상 맨 뒤에 고정됩니다.'}
+                ? '지도에서 착륙 지점을 누르거나 검색하세요.'
+                : '지도에서 누르거나 이름으로 검색하세요.'}
             </span>
           </div>
           <div className="route-composer__picker-controls">
@@ -267,18 +277,14 @@ export function RouteComposer({
               {exactStopAlreadyAdded ? '추가됨' : '경로에 추가'}
             </button>
           </div>
-          {pinnedTarget && (
-            <p className="route-composer__target-progress">
-              <strong>{pinnedTarget.name}</strong>은(는) 여정 목적지로 잠겨 있습니다. 오늘 도착하려면 지도에서 목적지 노드를 직접 누르세요.
-            </p>
-          )}
         </div>
       )}
 
       {/* Track of horizontal cards and interactive connector lines */}
       <div className="route-composer__strip-heading">
         <div className="route-composer__strip-labels">
-          <span>현재 위치 → 이번 Move 경로 → 고정 목적지</span>
+          <span>선택 순서 · 출발 → 경유 → 오늘 도착</span>
+          {pinnedTarget && <em>여정 목적지는 끝에 고정</em>}
         </div>
         <div className="route-composer__strip-actions">
           <button
@@ -422,15 +428,13 @@ export function RouteComposer({
                       <button
                         type="button"
                         className={`route-connector__btn route-connector__btn--${edgeKind}`}
-                        onClick={() => onChangeEdge(index, cycleRouteEdgeKind(edgeKind, row, nextStop))}
+                        onClick={() => changeEdge(index, edgeKind, row, nextStop)}
                         aria-label={`구간 ${index + 1}: ${row.name || '이름 없음'}에서 ${nextStop?.name || '이름 없음'}까지, 클릭하여 타입 변경 (현재: ${routeEdgeLabel(edgeKind)})`}
                         title={`클릭하여 육로/수로/강 전환 (현재: ${routeEdgeLabel(edgeKind)})`}
                       >
-                        <span className="route-connector__icon">
-                          {edgeKind === 'waterway' ? '⛵' : edgeKind === 'river' ? '🌊' : '🌲'}
-                        </span>
+                        <span className={`route-connector__mark route-connector__mark--${edgeKind}`} aria-hidden="true" />
                         <span className="route-connector__label">{routeEdgeLabel(edgeKind)}</span>
-                        <span className="route-connector__action">눌러 변경</span>
+                        <span className="sr-only">눌러 변경</span>
                       </button>
                       <div className={`route-connector__line route-connector__line--${edgeKind}`} />
                     </div>
@@ -469,70 +473,69 @@ export function RouteComposer({
         </p>
       )}
 
-      <div className="route-composer__summary">
-        {movementMode === 'soar' ? (
-          <p>활공에서는 출발지와 마지막 노드만 사용합니다. 중간 노드와 연결 유형은 Move로 되돌릴 때 그대로 남습니다.</p>
-        ) : (
-          <>
-            <p>
-              선택한 이동 거리 <strong>{evaluation.pathCount}경로</strong> · 육로 {evaluation.landCount} · 강 {evaluation.riverCount} · 수로 {evaluation.waterwayCount} · 필요한 이동력 {evaluation.movementCost}/{evaluation.effectiveSpeed}
-              {evaluation.overEncumbered ? ' · 과적으로 속도 1' : ''}
-              {waterwaySpan > 1 ? ` · 이어진 수로 ${waterwaySpan}개를 1경로로 계산` : ''}
+      <footer className={`route-composer__departure${travelReady ? ' route-composer__departure--ready' : ''}`} aria-label="이동 전 확인과 출발">
+        <div className="route-composer__summary">
+          {movementMode === 'soar' ? (
+            <p>활공에서는 출발지와 마지막 노드만 사용합니다. 중간 노드와 연결 유형은 Move로 되돌릴 때 그대로 남습니다.</p>
+          ) : (
+            <>
+              <p className="route-composer__distance-line">
+                <strong>{evaluation.pathCount}경로</strong> · 육로 {evaluation.landCount} · 강 {evaluation.riverCount} · 수로 {evaluation.waterwayCount} · 이동력 {evaluation.movementCost}/{evaluation.effectiveSpeed}
+                {evaluation.overEncumbered ? ' · 과적으로 속도 1' : ''}
+                {waterwaySpan > 1 ? ` · 이어진 수로 ${waterwaySpan}개를 1경로로 계산` : ''}
+              </p>
+              {evaluation.pathCount > 0 && confirmedSegmentCount !== evaluation.pathCount && (
+                <p className="route-composer__unconfirmed">
+                  저장된 연결 {confirmedSegmentCount}/{evaluation.pathCount}구간 · {evaluation.pathCount - confirmedSegmentCount}구간은 05 지도에서 아직 연결을 확정하지 않았습니다.
+                </p>
+              )}
+              {journeyTarget && journeyMinimumDistance !== null && (
+                <p className="route-composer__minimum-distance">
+                  {journeyTarget.name}까지 저장된 최소 거리 <strong>{journeyMinimumDistance}경로</strong>
+                </p>
+              )}
+              <p className="route-composer__guidance">{reasonText(evaluation.reason, evaluation.effectiveSpeed, evaluation.movementCost)}</p>
+            </>
+          )}
+          {evaluation.overEncumbered && (
+            <div className="route-composer__rule-alert route-composer__rule-alert--danger">
+              과적 상태(무게 {weight}/{carry})라 이번 Move의 속도는 1경로입니다. (룰북 p.24)
+            </div>
+          )}
+          {evaluation.reason === 'loch-locked' && (
+            <div className="route-composer__rule-alert">
+              호수·강 야생에 멈추려면 Bark Coracle 또는 Sealed Carriage가 필요합니다. (룰북 p.24)
+            </div>
+          )}
+          {evaluation.usesWaterTravel && (
+            <p className="route-composer__soak">
+              {protectsFromSoaking
+                ? '방수 도구 또는 안전한 수상 이동 능력이 있어 소지품이 젖지 않습니다.'
+                : evaluation.soakedItemIds.length
+                  ? `방수 없이 물길을 건너면 물품이 젖어 파손됩니다 (${soakableItemNames.join(', ')})`
+                  : '방수 없이 물길을 건너면 방수되지 않은 약재와 물품이 젖습니다.'}
             </p>
-            {evaluation.pathCount > 0 && (
-              <p className={confirmedSegmentCount === evaluation.pathCount ? 'route-composer__confirmed' : 'route-composer__unconfirmed'}>
-                저장된 연결 {confirmedSegmentCount}/{evaluation.pathCount}구간
-                {confirmedSegmentCount === evaluation.pathCount
-                  ? ' · 선택한 이동 거리를 확정 연결로 계산했습니다.'
-                  : ` · ${evaluation.pathCount - confirmedSegmentCount}구간은 05 지도에서 아직 연결을 확정하지 않았습니다.`}
-              </p>
-            )}
-            {journeyTarget && (
-              <p className="route-composer__minimum-distance">
-                현재 위치 → {journeyTarget.name} 최소 거리: <strong>{journeyMinimumDistance === null ? '확정 연결 부족' : `${journeyMinimumDistance}경로`}</strong>
-              </p>
-            )}
-            <p>{reasonText(evaluation.reason, evaluation.effectiveSpeed, evaluation.movementCost)}</p>
-          </>
-        )}
-        {evaluation.overEncumbered && (
-          <div style={{ padding: '0.4rem 0.6rem', background: '#fef2f2', border: '1px solid #f87171', borderRadius: '6px', color: '#991b1b', fontSize: '0.8rem', fontWeight: 600, marginTop: '0.3rem' }}>
-            🎒 과적 상태 (무게 {weight}/{carry}): 일일 이동 속도가 1경로로 제한됩니다. (룰북 p.24)
-          </div>
-        )}
-        {evaluation.reason === 'loch-locked' && (
-          <div style={{ padding: '0.4rem 0.6rem', background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: '6px', color: '#92400e', fontSize: '0.8rem', fontWeight: 600, marginTop: '0.3rem' }}>
-            ⛵ 호수/강 정차 제한 (룰북 p.24): 호수(Loch) 야생에서 멈추려면 자작나무 보트(Bark Coracle)나 밀폐식 마차(Sealed Carriage)가 필요합니다.
-          </div>
-        )}
-        {evaluation.usesWaterTravel && (
-          <p className="route-composer__soak">
-            {protectsFromSoaking
-              ? '✨ 방수 도구 또는 안전한 수상 이동 능력이 있어 소지품이 젖지 않습니다.'
-              : evaluation.soakedItemIds.length
-                ? `⚠️ 주의: 방수 장비 없이 물길을 건너면 물품이 젖어 파손됩니다 (${soakableItemNames.join(', ')})`
-                : '⚠️ 주의: 방수 장비 없이 물길을 건너면 방수되지 않은 약재와 물품이 젖어 버려집니다.'}
-          </p>
-        )}
-        {lastRouteStop(draft) && count === 1 && (
-          <p>지도나 위치 검색에서 첫 경유지를 고르세요.</p>
-        )}
-        {travelBlockedReason && <p className="route-composer__blocker">{travelBlockedReason}</p>}
-      </div>
+          )}
+          {lastRouteStop(draft) && count === 1 && (
+            <p>지도나 위치 검색에서 첫 경유지를 고르세요.</p>
+          )}
+          {travelBlockedReason && <p className="route-composer__blocker">{travelBlockedReason}</p>}
+        </div>
 
-      <div className="route-composer__actions">
-        <button type="button" onClick={onClear} disabled={count <= 1}>경로 초기화</button>
-        <button
-          type="button"
-          className="route-composer__go"
-          onClick={onTravel}
-          disabled={!travelReady}
-        >
-          {travelReady
-            ? (movementMode === 'soar' ? '마지막 위치로 활공' : '이 경로로 이동')
-            : (travelBlockedReason || (movementMode === 'soar' ? '착륙 위치를 고르세요' : blockedActionText(evaluation.reason)))}
-        </button>
-      </div>
+        <div className="route-composer__actions">
+          <button type="button" onClick={onClear} disabled={count <= 1}>경로 초기화</button>
+          <button
+            type="button"
+            className="route-composer__go"
+            onClick={onTravel}
+            disabled={!travelReady}
+          >
+            {travelReady
+              ? (movementMode === 'soar' ? '마지막 위치로 활공' : '이 경로로 이동')
+              : (travelBlockedReason || (movementMode === 'soar' ? '착륙 위치를 고르세요' : blockedActionText(evaluation.reason)))}
+          </button>
+        </div>
+      </footer>
     </section>
   );
 }
