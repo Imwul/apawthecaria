@@ -56,6 +56,15 @@ describe('mobile layout regression guards', () => {
     expect(cssSource).toMatch(/\.route-composer :is\(span, small, strong, em\)\s*\{[\s\S]*?font-size:\s*0\.875rem\s*!important/);
   });
 
+  it('keeps treatment comparison, selection, and its primary action in one responsive workspace', () => {
+    expect(appSource).toContain('className="treatment-comparison"');
+    expect(appSource).toContain('className="treatment-workspace"');
+    expect(appSource).toContain('className={`treatment-submit-bar');
+    expect(cssSource).toMatch(/#treatment-workspace \.treatment-workspace\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\)/);
+    expect(cssSource).toMatch(/\.treatment-submit-bar > button\s*\{[\s\S]*?min-height:\s*50px/);
+    expect(cssSource).toMatch(/@media \(max-width: 560px\)[\s\S]*?#treatment-workspace \.treatment-workspace,[\s\S]*?\.treatment-submit-bar\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/);
+  });
+
   it('exposes the season resolver after downtime outside an active journey', () => {
     expect(appSource).toContain('className="downtime-season-action"');
     expect(appSource).toMatch(/\{state\.downtimeCompleted && \([\s\S]*?onClick=\{handleAdvanceSeason\}[\s\S]*?계절 정산 및 전환/);

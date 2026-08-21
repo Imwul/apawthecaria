@@ -262,8 +262,61 @@ export const localizeAilmentPresentationText = (value: string): string => value
   .replace(/반드시 Overstay your Welcome을 적용합니다\./g, '반드시 환대 기간 초과를 적용합니다.')
   .replace(/영구적으로 Unavailable이 됩니다\./g, '영구적으로 채집할 수 없게 됩니다.');
 
+const canonicalToolNamesKo: Record<string, string> = {
+  'belt-knife': '벨트 칼',
+  'Belt Knife': '벨트 칼',
+  'mortar-and-pestle': '나무 절구와 공이',
+  'Wooden Mortar and Pestle': '나무 절구와 공이',
+  'camp-kettle': '낡은 캠프 주전자',
+  'Battered Camp Kettle': '낡은 캠프 주전자',
+  teeth: '이빨',
+  Jaws: '이빨',
+  paws: '앞발/발톱',
+  'Paws/Claws': '앞발/발톱',
+  'canvas-tent': '가죽 텐트',
+  'Canvas Tent': '가죽 텐트',
+  'copper-frying-pan': '구리 프라이팬',
+  'Copper Frying Pan': '구리 프라이팬',
+  'big-iron-cauldron': '철제 가마솥',
+  'Big Iron Cauldron': '철제 가마솥',
+  'bark-coracle': '자작나무 보트',
+  'Bark Coracle': '자작나무 보트',
+  'basic-tools-replacement': '기본 도구 교체품',
+  'Basic Tools': '기본 도구 교체품',
+  crossbow: '석궁',
+  Crossbow: '석궁',
+  bolts: '석궁 볼트',
+  Bolts: '석궁 볼트',
+  'greenpaw-bandolier': '그린포 반도리어',
+  'Greenpaw Bandolier': '그린포 반도리어',
+  'glass-alembic': '유리 증류기',
+  'Glass Alembic': '유리 증류기',
+  'fine-spidersilk-net': '스파이더실크 그물',
+  'Fine Spidersilk Net': '스파이더실크 그물',
+  'fairwind-spices': '페어윈드 양념',
+  'Fairwind Spices': '페어윈드 양념',
+  'fine-toothed-comb': '참빗',
+  'Fine-toothed Comb': '참빗',
+  'knitting-needles': '뜨개바늘',
+  'Knitting Needles': '뜨개바늘',
+  instruments: '악기',
+  Instruments: '악기',
+  'titan-thingamabob': '티탄 장치',
+  'Titan Thingamabob': '티탄 장치',
+  saddlebags: '안장가방',
+  Saddlebags: '안장가방',
+  'waxed-satchel': '방수 가방',
+  'Waxed Satchel': '방수 가방',
+  stilts: '죽마',
+  Stilts: '죽마'
+};
+
+export const localizeCanonicalToolName = (value: string): string => canonicalToolNamesKo[value] || value;
+
 export const localizeInventoryItemName = (value: string): string => {
   if (value === '기념품 (Memento)') return '기념품';
+  const canonicalToolName = localizeCanonicalToolName(value);
+  if (canonicalToolName !== value) return canonicalToolName;
   const preparedReagent = value.match(/^(.+?) \(([^,]+),\s*([^)]+)\)$/);
   if (preparedReagent) {
     return `${preparedReagent[1]} (${localizePreparationName(preparedReagent[2].trim())}, ${localizePreparationMethod(preparedReagent[3].trim())})`;

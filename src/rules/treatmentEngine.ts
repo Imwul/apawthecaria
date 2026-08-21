@@ -24,7 +24,7 @@ export interface TreatmentAilmentTagOverride {
   replacementTag: RuleTag;
 }
 
-const applyAilmentTagOverrides = (
+export const applyAilmentTagOverrides = (
   requirement: RequirementExpression,
   ailmentId: string,
   overrides: readonly TreatmentAilmentTagOverride[] = []

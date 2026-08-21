@@ -4,6 +4,7 @@ import {
   localizeAvailabilityLabel,
   localizeBehemothClass,
   localizeCharacterDescriptor,
+  localizeCanonicalToolName,
   localizeInventoryItemName,
   localizeJourneyGoalText,
   localizeLocationName,
@@ -43,6 +44,9 @@ describe('gameplay presentation localization', () => {
     expect(localizeInventoryItemName('Nettles (Leaves, BREWED)')).toBe('Nettles (잎, 우려냄)');
     expect(localizeInventoryItemName('Nettles (Leaves)')).toBe('Nettles (잎)');
     expect(localizeInventoryItemName('기념품 (Memento)')).toBe('기념품');
+    expect(localizeCanonicalToolName('paws')).toBe('앞발/발톱');
+    expect(localizeInventoryItemName('Paws/Claws')).toBe('앞발/발톱');
+    expect(localizeCanonicalToolName('glass-alembic')).toBe('유리 증류기');
     expect(localizeSavedJourneyText('목표 ♦ 2, Urgency 12일, 이유: 기록')).toBe('목표 ♦ 2, 긴급도 12일, 이유: 기록');
     expect(localizeSavedJourneyText('Suspicious · Befurred\n첫 열병 (Firstfever)')).toBe('의심 많은 · 풍성한 털을 지닌 포유류\n첫 열병 (Firstfever)');
   });

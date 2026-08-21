@@ -97,6 +97,7 @@ import {
   TOOL_UPGRADE_BY_ID,
   PRINTED_EFFECT_BY_OWNER,
   hasImmediatelyTreatableAilment,
+  applyAilmentTagOverrides,
   previewTreatmentSelection,
   calculatePawnReward,
   beginBarrowChallenge,
@@ -276,6 +277,7 @@ import {
 } from './localization/gameplayKo';
 import { localizeGameplayMessage } from './localization/engineMessagesKo';
 import { localizeManualEffectValue } from './localization/manualEffectKo';
+import { buildTreatmentRequirementRows } from './treatmentWorkspace';
 import { enqueueOfflineSave, flushOfflineSaves, normalizeOfflineSaveEntries, reconcileOfflineSaveFlush, removeOfflineSavesThroughRevision, resolveRevisionConflict, type OfflineSaveEntry } from './persistence/saveQueue';
 import type { RulebookReferenceRequest } from './rulebook/types';
 import { referenceForJournalTab } from './rulebook/context';
@@ -8443,6 +8445,64 @@ function PlayView({
       purifyEligible
     })
     : null;
+  const treatmentAilmentDefinition = treatmentAilment?.ailmentId
+    ? AILMENTS.find(row => row.id === treatmentAilment.ailmentId) || null
+    : null;
+  const treatmentWorkspaceRequirement: RequirementExpression | null = (() => {
+    if (!treatmentAilmentDefinition) return null;
+    const specialState = treatmentAilment?.specialState as {
+      additionalRequirements?: Array<{ tag: RuleTag; threshold: number }>;
+      poisonRequirement?: number;
+    } | undefined;
+    const dynamicRequirements: RequirementExpression[] = [
+      ...(Array.isArray(specialState?.additionalRequirements)
+        ? specialState.additionalRequirements.map(row => ({ kind: 'tag' as const, tag: row.tag, threshold: row.threshold }))
+        : []),
+      ...(typeof specialState?.poisonRequirement === 'number'
+        ? [{ kind: 'tag' as const, tag: 'POISON' as const, threshold: specialState.poisonRequirement }]
+        : [])
+    ];
+    return dynamicRequirements.length > 0
+      ? { kind: 'allOf', requirements: [treatmentAilmentDefinition.requirements, ...dynamicRequirements] }
+      : treatmentAilmentDefinition.requirements;
+  })();
+  const appliedTreatmentRequirement = treatmentWorkspaceRequirement && treatmentAilmentDefinition
+    ? applyAilmentTagOverrides(treatmentWorkspaceRequirement, treatmentAilmentDefinition.id, state.ailmentTagOverrides)
+    : null;
+  const treatmentRequirementTags = new Set(appliedTreatmentRequirement ? requirementRuleTags(appliedTreatmentRequirement) : []);
+  const treatmentOwnedPreview = treatmentPatient && treatmentAilment
+    ? previewTreatmentSelection({
+      patient: treatmentPatient,
+      ailmentInstanceId: treatmentAilment.id,
+      inventory: toEngineInventory(state.bag),
+      selectedItemIds: availableTreatmentReagents.map(row => row.item.id),
+      selectedToolIds: availableTreatmentTools.map(item => item.id),
+      toolStates: treatmentCanonicalTools,
+      overrides: state.ailmentTagOverrides,
+      purify: false,
+      purifyEligible: false
+    })
+    : null;
+  const treatmentRequirementRows = treatmentWorkspaceRequirement && treatmentAilmentDefinition
+    ? buildTreatmentRequirementRows({
+      requirement: treatmentWorkspaceRequirement,
+      ailmentId: treatmentAilmentDefinition.id,
+      overrides: state.ailmentTagOverrides,
+      selectedTags: treatmentPreview?.providedTags || {},
+      ownedTags: treatmentOwnedPreview?.providedTags || {},
+      catalyseTags: treatmentOwnedPreview?.catalyseTags || []
+    })
+    : [];
+  const sortedTreatmentReagents = availableTreatmentReagents
+    .map((row, index) => ({
+      ...row,
+      index,
+      relevant: row.preparation.tags.some(tag => treatmentRequirementTags.has(tag.tag))
+    }))
+    .sort((left, right) => Number(right.relevant) - Number(left.relevant) || left.index - right.index);
+  const treatmentBlockingMessage = treatmentPreview?.ready
+    ? '선택한 부위와 도구를 확인했습니다. 완성하면 각 부위의 1회분이 소비됩니다.'
+    : localizeGameplayMessage(treatmentPreview?.messages[0] || '필요 약효와 준비 도구를 확인하세요.');
 
   const persistTreatmentDraft = (nextItemIds: string[], nextToolIds: string[], nextPurify: boolean) => {
     setSelectedBagItems(nextItemIds);
@@ -11446,7 +11506,7 @@ function PlayView({
         kicker: '물꼬 거래',
         options: reagent.preparations.map((row, index) => ({
           value: String(index + 1),
-          label: `${index + 1}. ${localizePreparationName(row.name)} · 무게 ${formatWeight(row.weight)} · ${row.uses}회분`
+          label: `${index + 1}. ${localizePreparationName(row.name)} · ${localizePreparationMethod(row.method)} · ${row.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 없음'} · 무게 ${formatWeight(row.weight)} · ${row.uses}회분`
         }))
       });
     if (!preparationChoice) return;
@@ -11926,6 +11986,9 @@ function PlayView({
     setUsePurify(false);
     const consumedNames = selectedBagItems.map(itemId => localizeInventoryItemName(state.bag.find(item => item.id === itemId)?.name || itemId));
     showAlert(`치료가 완료되었습니다.\n소비: ${consumedNames.join(', ')}\n명성 ${outcome.reputationChange >= 0 ? '+' : ''}${outcome.reputationChange} · 장신구 +${outcome.trinketReward}\n남은 치료 시간: ${remainingTime}시간${outcome.badIdeaOutcomeApplied ? '\nInspiration 도구 보상도 함께 저장했습니다.' : ''}${treatmentManualDraft ? '\n이어지는 인쇄 효과는 전용 직접 판정에 열었습니다.' : ''}`);
+    window.setTimeout(() => {
+      document.getElementById('patient-clinic-panel')?.scrollIntoView({ block: 'start' });
+    }, 0);
     } finally {
       treatmentSubmitPending.current = false;
       setIsTreatmentSubmitting(false);
@@ -15682,10 +15745,22 @@ function PlayView({
 
                 {/* Concocting Remedy Panel */}
                 <div id="treatment-workspace" className="patient-workflow__treatment" style={{ borderTop: '1px dashed var(--glass-border)', marginTop: '1.5rem', paddingTop: '1rem' }}>
-                  <h4>🔬 치료제 조제하기</h4>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
-                    가방 속 영약재들을 도구를 사용하여 가공한 뒤 환자의 증상을 치료해 치료제를 만듭니다.
-                  </p>
+                  <header className="treatment-workbench__header">
+                    <div>
+                      <span className="document-kicker">환자 → 요구 약효 → 가방 → 판정</span>
+                      <h4>🔬 치료제 조제하기</h4>
+                      <p>준비한 영약재가 환자의 요구 약효를 채우는지 비교한 뒤 치료제를 완성합니다.</p>
+                    </div>
+                    {treatmentAilmentDefinition && (
+                      <button
+                        type="button"
+                        className="treatment-reference-link"
+                        onClick={() => onOpenReference({ entryId: `ailment:${treatmentAilmentDefinition.id}`, title: `${treatmentAilmentDefinition.displayName} 원문` })}
+                      >
+                        질환·원문 보기
+                      </button>
+                    )}
+                  </header>
 
                   {(() => {
                     const alternative = state.pendingAlternativeAcquisition;
@@ -15699,26 +15774,30 @@ function PlayView({
                       : [];
                     return (
                       <>
-                        <div className={`treatment-readiness ${treatmentPreview?.ready ? 'treatment-readiness--ready' : ''}`} role="status">
-                          <div className="treatment-readiness__heading">
-                            <strong>{treatmentPreview?.ready ? (treatmentPreview.requiresCatalyse ? 'CATALYSE 선택 후 준비 완료' : '처방 준비 완료') : selectedBagItems.length ? '처방을 확인하세요' : '재료를 선택하세요'}</strong>
-                            <span>{state.activeAilment.tags || '질환 카드의 요구 태그'}</span>
+                        <div className="treatment-comparison" role="status" aria-label="필요 약효와 가방 비교">
+                          <div className="treatment-comparison__head" aria-hidden="true">
+                            <span>필요한 약효</span>
+                            <span>현재 선택</span>
+                            <span>가방에 있는 약효</span>
+                            <span>상태</span>
                           </div>
-                          <div className="treatment-readiness__facts">
-                            <div><span>선택한 약효</span><strong>{Object.entries(treatmentPreview?.providedTags || {}).length > 0
-                              ? Object.entries(treatmentPreview?.providedTags || {}).map(([tag, value]) => `${tag} ${value}`).join(' · ')
-                              : '없음'}</strong></div>
-                            <div><span>치료 시 소비</span><strong>{selectedBagItems.length > 0
+                          {treatmentRequirementRows.map(row => (
+                            <div key={row.id} className={`treatment-comparison__row treatment-comparison__row--${row.state}`}>
+                              <strong>{row.label}</strong>
+                              <span data-label="현재 선택">{row.selectedProgress}</span>
+                              <span data-label="가방">{row.ownedProgress}</span>
+                              <em>{row.stateLabel}</em>
+                            </div>
+                          ))}
+                          <div className="treatment-comparison__summary">
+                            <span>치료 시 소비</span>
+                            <strong>{selectedBagItems.length > 0
                               ? selectedBagItems.map(id => localizeInventoryItemName(state.bag.find(item => item.id === id)?.name || id)).join(', ')
-                              : '선택 전'}</strong></div>
-                            <div><span>보상 계산</span><strong>FAIR {treatmentPreview?.fair || 0} · FOUL {treatmentPreview?.foul || 0}</strong></div>
+                              : '아직 선택하지 않음'}</strong>
+                            <span>보상 계산</span>
+                            <strong>FAIR {treatmentPreview?.fair || 0} · FOUL {treatmentPreview?.foul || 0}</strong>
                           </div>
-                          {!treatmentPreview?.ready && (treatmentPreview?.messages.length || 0) > 0 && (
-                            <ul className="treatment-readiness__missing">
-                              {treatmentPreview!.messages.map(message => <li key={message}>{localizeGameplayMessage(message)}</li>)}
-                            </ul>
-                          )}
-                          <small>일반 약효 태그는 가장 높은 값만 사용하며 서로 더하지 않습니다. FAIR와 FOUL만 합산한 뒤 서로 상쇄합니다.</small>
+                          <small>일반 약효는 가장 높은 값만 사용합니다. FAIR와 FOUL만 합산한 뒤 서로 상쇄합니다.</small>
                         </div>
                         <details style={{ marginBottom: '1rem', padding: '0.65rem 0', borderBottom: '1px dashed #d4a853', fontSize: '0.82rem', lineHeight: 1.45 }} open={Boolean(alternative)}>
                           <summary style={{ cursor: 'pointer', color: '#8b5e1a', fontWeight: 700, minHeight: '40px', display: 'flex', alignItems: 'center' }}>🧩 필요한 약효가 없나요? Make Do / Replacement (p.30)</summary>
@@ -15805,58 +15884,65 @@ function PlayView({
                     );
                   })()}
 
-                  {state.treatmentDraft?.status === 'draft' && state.treatmentDraft.patientId === state.activePatientId
-                    && state.treatmentDraft.ailmentInstanceId === treatmentAilment?.id && (
-                    <div className="treatment-draft-note" role="status">
-                      <div>
-                        <span className="journal-note-label">저장된 처방 초안</span>
-                        <strong>{state.treatmentDraft.selectedParts.length}개 부위 · 도구 {state.treatmentDraft.selectedToolIds.length}개</strong>
-                      </div>
-                      <div><span>FAIR</span><strong>{state.treatmentDraft.fair}</strong></div>
-                      <div><span>FOUL</span><strong>{state.treatmentDraft.foul}</strong></div>
-                      <div><span>상태</span><strong>{state.treatmentDraft.selectedParts.length ? '조제 검토 중' : '재료 선택 전'}</strong></div>
-                    </div>
-                  )}
-
-                  <div className="grid-2col treatment-workspace" style={{ gap: '1.0rem' }}>
+                  <div className="treatment-workspace">
                     {/* Reagents selection */}
-                    <div style={{ background: '#fafafa', padding: '0.8rem', borderRadius: '8px', border: '1px solid #ddd', maxHeight: '180px', overflowY: 'auto' }}>
-                      <strong style={{ fontSize: '0.85rem' }}>🎒 가방 내 영약재 선택:</strong>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginTop: '0.5rem' }}>
+                    <section className="treatment-selection" aria-labelledby="treatment-reagent-title">
+                      <header>
+                        <strong id="treatment-reagent-title">🎒 가방 내 영약재</strong>
+                        <span>{availableTreatmentReagents.length}개 부위 · {selectedBagItems.length}개 선택</span>
+                      </header>
+                      <div className="treatment-option-list">
                         {availableTreatmentReagents.length === 0 ? (
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>가방에 쓸 수 있는 영약재가 없습니다.</span>
+                          <p className="treatment-selection__empty">가방에 쓸 수 있는 영약재가 없습니다. 아래의 채집·거래에서 필요한 부위를 마련하세요.</p>
                         ) : (
-                          availableTreatmentReagents.map(({ item, preparation, totalUses }) => {
+                          sortedTreatmentReagents.map(({ item, preparation, totalUses, relevant }) => {
                             const selected = selectedBagItems.includes(item.id);
-                            return <label key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '7px', minHeight: '44px', padding: '0.35rem', border: selected ? '1px solid #8aa58e' : '1px solid transparent', borderRadius: '6px', background: selected ? '#f0f7f1' : 'transparent', fontSize: '0.85rem', cursor: 'pointer' }}>
-                              <input
-                                type="checkbox"
-                                checked={selected}
-                                onChange={e => {
-                                  if (e.target.checked) persistTreatmentDraft([...selectedBagItems, item.id], selectedTools, usePurify);
-                                  else persistTreatmentDraft(selectedBagItems.filter(id => id !== item.id), selectedTools, usePurify);
-                                }}
-                              />
-                              <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-                                {localizeInventoryItemName(item.name)}
-                                {preparation && <small style={{ display: 'block', color: 'var(--text-muted)', lineHeight: 1.35 }}>
-                                  {preparation.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음'} · {totalUses}회분 · 무게 {formatWeight(item.weight)}
-                                </small>}
-                              </span>
-                            </label>;
+                            const relevantTags = preparation.tags.filter(tag => treatmentRequirementTags.has(tag.tag));
+                            const requiredToolIds = preparation.requiredTools.filter(toolId => toolId !== 'none');
+                            const missingOwnedTools = requiredToolIds.filter(toolId => !availableTreatmentTools.some(tool => (tool.canonicalToolId || tool.id) === toolId));
+                            const unselectedRequiredTools = requiredToolIds.filter(toolId => availableTreatmentTools.some(tool => (tool.canonicalToolId || tool.id) === toolId && !selectedTools.includes(tool.id)));
+                            return <div key={item.id} className={`treatment-option${selected ? ' is-selected' : ''}${relevant ? ' is-relevant' : ''}${missingOwnedTools.length ? ' is-blocked' : ''}`}>
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={e => {
+                                    if (e.target.checked) persistTreatmentDraft([...selectedBagItems, item.id], selectedTools, usePurify);
+                                    else persistTreatmentDraft(selectedBagItems.filter(id => id !== item.id), selectedTools, usePurify);
+                                  }}
+                                />
+                                <span>
+                                  <strong>{localizeInventoryItemName(item.name)}</strong>
+                                  <small>{preparation.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음'} · {totalUses}회분 · 무게 {formatWeight(item.weight)}</small>
+                                  <small className="treatment-option__state">
+                                    {relevantTags.length > 0 ? `현재 요구에 기여 · ${relevantTags.map(tag => `${tag.tag} ${tag.value}`).join(' · ')}` : '현재 요구 약효와 직접 일치하지 않음'}
+                                    {missingOwnedTools.length > 0
+                                      ? ` · 도구 없음: ${missingOwnedTools.map(toolId => localizeInventoryItemName(TOOL_BY_ID.get(toolId)?.canonicalName || toolId)).join(', ')}`
+                                      : unselectedRequiredTools.length > 0
+                                        ? ` · 도구 선택 필요: ${unselectedRequiredTools.map(toolId => localizeInventoryItemName(TOOL_BY_ID.get(toolId)?.canonicalName || toolId)).join(', ')}`
+                                        : requiredToolIds.length > 0 ? ' · 준비 도구 선택됨' : ''}
+                                  </small>
+                                </span>
+                              </label>
+                              {item.canonicalReagentId && <button type="button" className="treatment-reference-link" onClick={() => onOpenReference({ entryId: `ingredient:${item.canonicalReagentId}`, title: `${localizeInventoryItemName(item.name)} 원문` })}>원문</button>}
+                            </div>;
                           })
                         )}
                       </div>
-                    </div>
+                    </section>
 
                     {/* Tools selection */}
-                    <div style={{ background: '#fafafa', padding: '0.8rem', borderRadius: '8px', border: '1px solid #ddd' }}>
-                      <strong style={{ fontSize: '0.85rem' }}>⚒️ 선택한 부위에 사용할 도구:</strong>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginTop: '0.5rem' }}>
+                    <section className="treatment-selection" aria-labelledby="treatment-tool-title">
+                      <header>
+                        <strong id="treatment-tool-title">⚒️ 준비 도구</strong>
+                        <span>선택한 부위에 필요한 도구만 강조됩니다.</span>
+                      </header>
+                      <div className="treatment-tool-list">
                         {availableTreatmentTools.length === 0 && (
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-dim)', fontStyle: 'italic' }}>가방에 도구가 없습니다. 도구가 필요 없는 부위는 그대로 사용할 수 있습니다.</span>
+                          <p className="treatment-selection__empty">가방에 도구가 없습니다. 도구가 필요 없는 부위는 그대로 사용할 수 있습니다.</p>
                         )}
                         {availableTreatmentTools.map(item => {
+                          const automatic = item.canonicalToolId === 'fairwind-spices';
                           const isRequired = treatmentPreview?.missingToolIds.includes(item.canonicalToolId || item.id)
                             || selectedBagItems.some(itemId => {
                               const ingredient = state.bag.find(row => row.id === itemId);
@@ -15865,19 +15951,27 @@ function PlayView({
                                 : null;
                               return preparation?.requiredTools.some(toolId => toolId === (item.canonicalToolId || item.id));
                             });
-                          return <label key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '7px', minHeight: '44px', padding: '0.25rem 0.35rem', borderRadius: '5px', background: isRequired ? '#fff8e8' : 'transparent', fontSize: '0.85rem', cursor: 'pointer' }}>
-                            <input
-                              type="checkbox"
-                              checked={selectedTools.includes(item.id)}
-                              onChange={e => {
-                                if (e.target.checked) persistTreatmentDraft(selectedBagItems, [...selectedTools, item.id], usePurify);
-                                else persistTreatmentDraft(selectedBagItems, selectedTools.filter(id => id !== item.id), usePurify);
-                              }}
-                            />
-                            <span>{localizeInventoryItemName(item.name)}{isRequired ? <small style={{ display: 'block', color: '#8b5e1a' }}>선택한 부위에 필요</small> : null}</span>
-                          </label>;
+                          const selected = automatic || selectedTools.includes(item.id);
+                          return <div key={item.id} className={`treatment-option treatment-option--tool${selected ? ' is-selected' : ''}${isRequired ? ' is-required' : ''}`}>
+                            <label>
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                disabled={automatic}
+                                onChange={e => {
+                                  if (e.target.checked) persistTreatmentDraft(selectedBagItems, [...selectedTools, item.id], usePurify);
+                                  else persistTreatmentDraft(selectedBagItems, selectedTools.filter(id => id !== item.id), usePurify);
+                                }}
+                              />
+                              <span>
+                                <strong>{localizeInventoryItemName(item.name)}</strong>
+                                <small className="treatment-option__state">{automatic ? '치료제마다 자동 적용' : isRequired ? '선택한 부위에 필요' : '필요할 때 선택'}</small>
+                              </span>
+                            </label>
+                            {item.canonicalToolId && <button type="button" className="treatment-reference-link" onClick={() => onOpenReference({ entryId: `tool:${item.canonicalToolId}`, title: `${localizeInventoryItemName(item.name)} 효과` })}>효과</button>}
+                          </div>;
                         })}
-                        {purifyLearned && <label style={{ display: 'flex', alignItems: 'flex-start', gap: '7px', minHeight: '44px', fontSize: '0.85rem', cursor: purifyEligible ? 'pointer' : 'not-allowed', marginTop: '0.4rem', paddingTop: '0.55rem', borderTop: '1px dashed #ddd' }}>
+                        {purifyLearned && <label className="treatment-purify-option" style={{ cursor: purifyEligible ? 'pointer' : 'not-allowed' }}>
                           <input
                             type="checkbox"
                             checked={usePurify}
@@ -15894,21 +15988,25 @@ function PlayView({
                           </span>
                         </label>}
                       </div>
-                    </div>
+                    </section>
                   </div>
 
-                  <button
-                    onClick={handleConcoctRemedy}
-                    disabled={!treatmentPreview?.ready || isTreatmentSubmitting}
-                    aria-describedby="treatment-submit-help"
-                    style={{ width: '100%', minHeight: '48px', padding: '0.8rem', background: treatmentPreview?.ready && !isTreatmentSubmitting ? 'var(--primary)' : '#a8a29e', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '1rem', marginTop: '1rem', cursor: treatmentPreview?.ready && !isTreatmentSubmitting ? 'pointer' : 'not-allowed' }}
-                  >
-                    {isTreatmentSubmitting ? '치료 결과를 기록하는 중…' : treatmentPreview?.ready
-                      ? treatmentPreview.requiresCatalyse ? '🧪 CATALYSE로 치료제 완성하기' : '🧪 치료제 완성하기'
-                      : '요구조건을 충족하면 완성할 수 있습니다'}
-                  </button>
-                  <div id="treatment-submit-help" style={{ textAlign: 'center', marginTop: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    완성 전에는 재료가 소비되지 않습니다. 기록·보상 선택을 취소해도 현재 처방 초안이 유지됩니다.
+                  <div className={`treatment-submit-bar${treatmentPreview?.ready ? ' is-ready' : ''}`}>
+                    <div id="treatment-submit-help">
+                      <strong>{treatmentPreview?.ready ? '판정 준비 완료' : '아직 완성할 수 없습니다'}</strong>
+                      <span>{treatmentBlockingMessage}</span>
+                      <small>기록·보상 선택을 취소해도 처방 초안과 가방은 그대로 유지됩니다.</small>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleConcoctRemedy}
+                      disabled={!treatmentPreview?.ready || isTreatmentSubmitting}
+                      aria-describedby="treatment-submit-help"
+                    >
+                      {isTreatmentSubmitting ? '치료 결과를 기록하는 중…' : treatmentPreview?.ready
+                        ? treatmentPreview.requiresCatalyse ? 'CATALYSE로 완성' : '치료제 완성'
+                        : '준비 조건 확인'}
+                    </button>
                   </div>
                 </div>
               </div>

@@ -1,3 +1,5 @@
+import { localizeCanonicalToolName } from './gameplayKo';
+
 const exactEngineMessages: Record<string, string> = {
   "A Knitted Blanket is required to prevent the premature Journey ending.": "여정이 조기에 끝나는 것을 막으려면 Knitted Blanket이 필요합니다.",
   "A Passenger is unavailable or already aboard.": "태울 수 있는 Passenger가 없거나 이미 탑승 중입니다.",
@@ -395,6 +397,11 @@ const localizeDowntimeActivity = (activity: string) => ({
   'upgrade-wagon': '마차 개조'
 } as Record<string, string>)[activity] || activity;
 
+const localizeToolList = (tools: string): string => tools
+  .split(/,\s*/)
+  .map(tool => localizeCanonicalToolName(tool.trim()))
+  .join(', ');
+
 const dynamicEngineMessages: Array<[RegExp, (...matches: string[]) => string]> = [
   [/^Unknown Season: (.+)$/, season => `알 수 없는 계절입니다: ${season}`],
   [/^Unknown season: (.+)$/, season => `알 수 없는 계절입니다: ${season}`],
@@ -403,14 +410,14 @@ const dynamicEngineMessages: Array<[RegExp, (...matches: string[]) => string]> =
   [/^Move must use Speed (.+); route costs (.+)\.$/, (speed, cost) => `이 이동은 속도 ${speed}을 사용해야 하며 경로 비용은 ${cost}입니다.`],
   [/^Route exceeds Speed (.+)\.$/, speed => `경로가 속도 ${speed}을 초과합니다.`],
   [/^Payment must exactly cover the (.+)-point gap\.$/, gap => `지불액은 부족한 ${gap}점을 정확히 채워야 합니다.`],
-  [/^Missing Tool for (.+): (.+)$/, (part, tools) => `${part}에 필요한 도구가 없습니다: ${tools}`],
+  [/^Missing Tool for (.+): (.+)$/, (part, tools) => `${part}에 필요한 도구가 없습니다: ${localizeToolList(tools)}`],
   [/^Card (.+) is below Rarity (.+)\. Foraging failed and gained 1 Foraging Point\.$/, (card, rarity) => `카드 ${card}가 희귀도 ${rarity}보다 낮습니다. 채집에 실패하고 채집 포인트 1을 얻었습니다.`],
   [/^(.+) costs (.+) Trinkets\.$/, (service, cost) => `${service} 비용은 장신구 ${cost}개입니다.`],
   [/^Every active Timer must have at least (.+) remaining\.$/, cost => `진행 중인 모든 타이머가 최소 ${cost} 이상 남아 있어야 합니다.`],
   [/^This acquisition is waiting for a successful (.+) transaction\.$/, source => `이 획득은 ${source} 성공 트랜잭션을 기다리고 있습니다.`],
   [/^Commissioning or expanding a Wagon requires a City and (.+) Trinkets\.$/, cost => `마차 제작 또는 확장에는 City와 장신구 ${cost}개가 필요합니다.`],
   [/^CATALYSE (.+) requires two different selected Reagents with that Tag\.$/, tag => `CATALYSE ${tag}에는 해당 태그를 지닌 서로 다른 영약재 두 개가 필요합니다.`],
-  [/^Required Tool is not selected: (.+)$/, tools => `필요한 도구가 선택되지 않았습니다: ${tools}`],
+  [/^Required Tool is not selected: (.+)$/, tools => `필요한 도구가 선택되지 않았습니다: ${localizeToolList(tools)}`],
   [/^Selected Reagent has no remaining Uses: (.+)$/, reagent => `선택한 영약재에 남은 사용 횟수가 없습니다: ${reagent}`],
   [/^One of: (.+)$/, options => `다음 중 하나 필요: ${options.split(/\s+OR\s+/).map(option => {
     const match = option.match(/^([A-Z]+) (.+) \(provided (.+)\)$/);

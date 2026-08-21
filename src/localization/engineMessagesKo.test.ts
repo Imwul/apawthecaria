@@ -59,6 +59,10 @@ describe('gameplay message Korean presentation layer', () => {
     expect(localizeGameplayMessage('Not enough Trinkets.\nTreatment requires a transaction ID.')).toBe('장신구가 부족합니다.\n치료에는 트랜잭션 ID가 필요합니다.');
     expect(localizeGameplayMessage('One of: FUR 2 (provided 0) OR FEATHER 2 (provided 1)'))
       .toBe('다음 중 하나 필요: FUR 2 필요 · 현재 0 또는 FEATHER 2 필요 · 현재 1');
+    expect(localizeGameplayMessage('Required Tool is not selected: paws'))
+      .toBe('필요한 도구가 선택되지 않았습니다: 앞발/발톱');
+    expect(localizeGameplayMessage('Missing Tool for Leaves: camp-kettle, glass-alembic'))
+      .toBe('Leaves에 필요한 도구가 없습니다: 낡은 캠프 주전자, 유리 증류기');
   });
 
   it('translates generated journal events without changing proper names', () => {
