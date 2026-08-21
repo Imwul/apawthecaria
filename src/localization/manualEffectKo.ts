@@ -51,6 +51,14 @@ const exactTranslations: Record<string, string> = {
   'New Path': '새 길',
   'Deep Water': '깊은 물',
   Listen: '듣기',
+  'Listen & Learn': '듣고 배우기',
+  Interrupt: '말 끊기',
+  'Count down the Items in your Bags equal to the card’s value; discard the Item you land on.': '카드 값만큼 가방의 물품 목록을 세어, 마지막으로 센 물품 하나를 버리세요.',
+  'It looks like it was built quickly and abandoned just as fast. Why would someone build a tower out here? Does it bear any markings? Get A Better View - You may be able to scout the land better from up there. Draw a Card: ♥ or ♦ - It holds remarkably well, and you get a good view. Gain 3 Foraging Points ♣ or ♠ - It shifts unexpectedly and sinks further in the bog. Something falls out of your satchel and vanishes into the mud below! Count down the Items in your Bags equal to the card’s value; discard the Item you land on.': '급히 세웠다가 그만큼 급히 버려진 탑처럼 보입니다. 누가 이런 곳에 탑을 세웠을까요? 어떤 표식이 남아 있나요? 더 나은 시야 확보 - 위에서 주변을 더 잘 살필 수 있을지도 모릅니다. 카드 한 장을 뽑습니다. ♥ 또는 ♦ - 탑은 놀라울 만큼 튼튼합니다. 좋은 시야를 확보하고 채집 포인트 3을 얻습니다. ♣ 또는 ♠ - 탑이 갑자기 기울며 늪 속으로 더 가라앉습니다. 가방에서 물품 하나가 떨어져 아래 진흙 속으로 사라집니다. 카드 값만큼 가방의 물품 목록을 세어, 마지막으로 센 물품 하나를 버리세요.',
+  'Get A Better View — You may be able to scout the land better from up there. Draw a Card: ♥ or ♦ - It holds remarkably well, and you get a good view. Gain 3 Foraging Points ♣ or ♠ - It shifts unexpectedly and sinks further in the bog. Something falls out of your satchel and vanishes into the mud below! Count down the Items in your Bags equal to the card’s value; discard the Item you land on.': '더 나은 시야 확보 — 위에서 주변을 더 잘 살필 수 있을지도 모릅니다. 카드 한 장을 뽑습니다.\n♥ 또는 ♦ — 탑은 놀라울 만큼 튼튼합니다. 좋은 시야를 확보하고 채집 포인트 3을 얻습니다.\n♣ 또는 ♠ — 탑이 갑자기 기울며 늪 속으로 더 가라앉습니다. 가방에서 물품 하나가 떨어져 아래 진흙 속으로 사라집니다. 카드 값만큼 가방의 물품 목록을 세어, 마지막으로 센 물품 하나를 버리세요.',
+  'Lost Item — Use the value of your card to count down the list of items in your Bags; discard the item you land on.': '분실물 — 카드 값만큼 가방의 물품 목록을 세어, 마지막으로 센 물품 하나를 버리세요.',
+  'Gain 3 채집 포인트 ♣ or ♠ - It shifts unexpectedly and sinks further in the bog.': '채집 포인트 3 획득 — ♥ 또는 ♦ 결과에서만 적용합니다. ♣ 또는 ♠이면 탑이 늪 속으로 더 가라앉습니다.',
+  '카드를 뽑습니다: ♥ or ♦ - It holds remarkably well, and you get a good view.': '카드를 뽑습니다. ♥ 또는 ♦이면 탑이 잘 버티며 좋은 시야를 확보합니다.',
   'Read It': '읽어 보기',
   Graffiti: '낙서',
   'Heed The Warning': '경고를 따르기',
@@ -123,6 +131,8 @@ const exactTranslations: Record<string, string> = {
 
 const optionTranslations: Record<string, string> = {
   Duty: '의무',
+  'Listen & Learn': '듣고 배우기',
+  Interrupt: '말 끊기',
   Junior: '풋내기 (젊은 채집꾼)',
   Repellent: '퇴치',
   Senior: '숙련자 (숙련된 채집꾼)',
@@ -319,6 +329,10 @@ const cleanPrintedDisplayText = (text: string, sourcePage?: number): string => {
   return cleaned.replace(/\s*[—-]\s*$/, '').trim();
 };
 
+const cleanEncounterOptionText = (text: string): string => cleanPrintedDisplayText(text)
+  .replace(/\s+([♥♦♣♠]\s+(?:또는|or)\s+[♥♦♣♠]\s+[—-])/g, '\n$1')
+  .replace(/(?<!또는)(?<!or)\s+([♥♦♣♠]\s+[—-])/g, '\n$1');
+
 let generatedEncounterOptionMap: Map<string, string> | null = null;
 
 const getGeneratedEncounterOptionMap = (): Map<string, string> => {
@@ -364,7 +378,8 @@ const getGeneratedEncounterOptionMap = (): Map<string, string> => {
 
 export const localizeManualEffectValue = (text: string): string => {
   const compact = text.trim();
-  const translated = exactTranslations[compact] || generatedTranslationMap[hashTranslationKey(compact)];
+  const normalized = normalizeTranslationKey(compact);
+  const translated = exactTranslations[compact] || exactTranslations[normalized] || generatedTranslationMap[hashTranslationKey(compact)];
   return translated ? polishGenericRuleTerms(translated) : text;
 };
 
@@ -376,7 +391,26 @@ export const localizeEncounterTitle = (text: string): string => {
 export const localizeManualEffectText = (summary: string, text: string): string => {
   if (summary === 'Mushroom Pickers') return MUSHROOM_PICKERS_TEXT;
   const compact = text.trim();
-  const directTranslation = exactTranslations[compact] || generatedTranslationMap[hashTranslationKey(compact)];
+  const cleanSummary = cleanPrintedDisplayText(summary);
+  const canonicalEncounter = ENCOUNTERS.find(encounter => {
+    const cleanTitle = cleanPrintedDisplayText(encounter.title);
+    // Some source-table titles also contain their opening narrative line. A
+    // persisted manual draft keeps only the encounter's short title, so match
+    // that stable prefix as well as the exact normalized title.
+    return cleanTitle === cleanSummary
+      || cleanTitle.startsWith(`${cleanSummary} `)
+      || cleanSummary.startsWith(`${cleanTitle} `);
+  });
+  if (canonicalEncounter) {
+    const canonicalPrompt = normalizeTranslationKey(canonicalEncounter.prompt);
+    const canonicalOpening = canonicalPrompt.slice(0, Math.min(72, canonicalPrompt.length));
+    const compactNormalized = normalizeTranslationKey(compact);
+    if (canonicalOpening.length > 40 && compactNormalized.includes(canonicalOpening)) {
+      const canonicalTranslation = exactTranslations[canonicalPrompt] || generatedTranslationMap[hashTranslationKey(canonicalPrompt)];
+      if (canonicalTranslation) return polishGenericRuleTerms(canonicalTranslation, summary ? [summary] : []);
+    }
+  }
+  const directTranslation = exactTranslations[compact] || exactTranslations[normalizeTranslationKey(compact)] || generatedTranslationMap[hashTranslationKey(compact)];
   if (directTranslation) return polishGenericRuleTerms(directTranslation, summary ? [summary] : []);
   const blocks = text.split(/(\n\s*\n)/);
   const localized = blocks.map(block => {
@@ -425,7 +459,7 @@ export const localizeManualJournalTitle = (text: string): string => {
   const match = text.match(/^((?:판정 대기|여정 조우|채집 조우):\s*)(.+)$/);
   if (!match) return text;
   const effect = PRINTED_EFFECT_REGISTRY.find(row => match[2] === row.ownerName || match[2].startsWith(`${row.ownerName} `));
-  return effect ? `${match[1]}${effect.ownerName}` : text;
+  return `${match[1]}${localizeEncounterTitle(effect?.ownerName || match[2])}`;
 };
 
 export const localizeManualJournalText = (text: string): string => text
@@ -434,27 +468,34 @@ export const localizeManualJournalText = (text: string): string => text
     if (/^\n\s*\n$/.test(block)) return block;
     const pagePrefix = block.match(/^(\[p\.\d+\]\s*)([\s\S]+)$/);
     if (pagePrefix) return `${pagePrefix[1]}${localizeManualEffectValue(pagePrefix[2])}`;
-    return localizeManualEffectValue(block);
+    const direct = localizeManualEffectValue(block);
+    if (direct !== block) return direct;
+    const embeddedEncounter = ENCOUNTERS.find(encounter => encounter.prompt.length > 40 && block.includes(encounter.prompt));
+    if (!embeddedEncounter) return block;
+    return block.replace(
+      embeddedEncounter.prompt,
+      localizeManualEffectText(embeddedEncounter.title, embeddedEncounter.prompt)
+    );
   })
   .join('');
 
 export const localizeManualEffectOption = (option: string): string => {
   const compact = option.trim();
   if (optionTranslations[compact]) return optionTranslations[compact];
-  if (exactTranslations[compact]) return cleanPrintedDisplayText(exactTranslations[compact]);
+  if (exactTranslations[compact]) return cleanEncounterOptionText(exactTranslations[compact]);
   const branch = compact.match(/^(.+?)\s+[—-]\s+([\s\S]+)$/);
   if (branch) {
     const heading = optionTranslations[branch[1]] || localizeManualEffectValue(branch[1]);
     const detail = localizeManualEffectValue(branch[2]);
-    if (detail !== branch[2]) return `${heading} — ${cleanPrintedDisplayText(detail)}`;
+    if (detail !== branch[2]) return cleanEncounterOptionText(`${heading} — ${detail}`);
   }
   const generatedOption = getGeneratedEncounterOptionMap().get(compact);
-  if (generatedOption) return cleanPrintedDisplayText(generatedOption);
+  if (generatedOption) return cleanEncounterOptionText(generatedOption);
   if (branch) {
     const heading = optionTranslations[branch[1]] || localizeManualEffectValue(branch[1]);
-    if (heading !== branch[1]) return `${heading} — ${cleanPrintedDisplayText(branch[2])}`;
+    if (heading !== branch[1]) return cleanEncounterOptionText(`${heading} — ${branch[2]}`);
   }
-  return localizeManualEffectValue(compact).replace(/\s+or\s+/gi, ' 또는 ');
+  return cleanEncounterOptionText(localizeManualEffectValue(compact).replace(/\s+or\s+/gi, ' 또는 '));
 };
 
 export const localizeManualEffectTrigger = (trigger: string): string => ({

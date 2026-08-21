@@ -12,6 +12,7 @@ const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').
 
 const CONDITIONAL_TIMING = /\b(?:if|unless|when|whenever|after|before|once|until|next|future|following)\b|every ?time|from now on/i;
 const MECHANICAL_CHANGE = /\b(?:gain|lose|mark|add|discard|remove|decrease|reduce|increase|pay|trade|spend)\b/i;
+const SUIT_BRANCH = /[♥♦♣♠](?:\s*(?:(?:or)|[,/&])\s*[♥♦♣♠])*\s*[-–—]/i;
 const sourceClauses = (value: string): string[] => value
   .split(/(?<=[.!?])\s+/)
   .map(row => row.trim())
@@ -41,7 +42,12 @@ export const parseMechanicalEffects = (body: string): StructuredRuleEffect[] => 
   // Conditional and delayed rewards remain manual unless a dedicated condition
   // executor below can represent them. Applying them immediately changes the
   // printed outcome (for example, a parcel reward due only on later delivery).
-  const immediateBody = sourceClauses(body)
+  // Printed suit branches are also conditional. Only the text before the first
+  // branch may be applied automatically; otherwise a reward in one branch can be
+  // granted before the player has even entered the follow-up card result.
+  const firstSuitBranch = body.search(SUIT_BRANCH);
+  const unconditionalBody = firstSuitBranch >= 0 ? body.slice(0, firstSuitBranch) : body;
+  const immediateBody = sourceClauses(unconditionalBody)
     .filter(clause => !CONDITIONAL_TIMING.test(clause))
     .join(' ');
   const gainRep = [...immediateBody.matchAll(/gain (\d+) reputation/gi)];

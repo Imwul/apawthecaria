@@ -838,6 +838,13 @@ button:active {
   color: var(--editorial-ink, #25211c);
 }
 
+.controlled-prompt.app-dialog .app-dialog__field select {
+  height: 48px;
+  min-height: 48px;
+  padding-block: 0;
+  line-height: normal;
+}
+
 .controlled-prompt.app-dialog .app-dialog__field textarea {
   min-height: 96px;
 }
@@ -2189,6 +2196,34 @@ body {
   background: rgba(247, 243, 232, 0.58);
 }
 
+.forage-location-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(15rem, 24rem));
+  gap: 0.65rem;
+  justify-content: start;
+  max-width: 50rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px dashed rgba(52, 47, 39, 0.24);
+}
+
+.forage-location-controls label {
+  display: grid;
+  min-width: 0;
+  gap: 0.3rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.forage-location-controls select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.55rem 2rem 0.55rem 0.7rem;
+  color: var(--text-bright);
+  font: inherit;
+}
+
 .forage-context__summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2205,8 +2240,8 @@ body {
 .forage-match-row small,
 .inventory-ledger__detail {
   color: var(--text-muted);
-  font-size: 0.73rem;
-  line-height: 1.45;
+  font-size: 0.8rem;
+  line-height: 1.55;
 }
 
 .forage-context__summary strong {
@@ -2229,7 +2264,7 @@ body {
   border-radius: 999px;
   background: #f2faf3;
   color: #2f6640;
-  font-size: 0.69rem;
+  font-size: 0.76rem;
   font-weight: 700;
   line-height: 1.35;
 }
@@ -2274,8 +2309,8 @@ body {
   border-left: 2px solid #7da685;
   background: rgba(255, 255, 255, 0.66);
   color: #35583d;
-  font-size: 0.72rem;
-  line-height: 1.4;
+  font-size: 0.79rem;
+  line-height: 1.5;
 }
 
 .forage-match-row__parts span.is-unavailable {
@@ -2288,7 +2323,7 @@ body {
 .forage-primary-action > span {
   margin: 0;
   color: var(--text-muted);
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   line-height: 1.5;
 }
 
@@ -2324,7 +2359,7 @@ body {
 .forage-candidate__rarity {
   margin-top: 0.18rem;
   color: #66806d;
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   font-weight: 500;
   line-height: 1.45;
 }
@@ -2349,6 +2384,32 @@ body {
 
 .inventory-ledger-scroll {
   scrollbar-gutter: stable;
+}
+
+.inventory-ledger__toolbar {
+  display: flex;
+  min-width: 0;
+  align-items: end;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin-bottom: 0.45rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.inventory-ledger__toolbar label {
+  display: grid;
+  min-width: min(15rem, 100%);
+  gap: 0.22rem;
+  font-weight: 700;
+}
+
+.inventory-ledger__toolbar input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0.45rem 0.6rem;
+  font: inherit;
 }
 
 .inventory-ledger__detail {
@@ -3980,6 +4041,9 @@ button,
 .ailment-card__outcomes > div {
   border: 1px solid rgba(37, 33, 28, 0.28) !important;
   background: color-mix(in srgb, var(--page-tint) 32%, var(--editorial-paper)) !important;
+  padding: 0.8rem 0.9rem !important;
+  font-size: 0.84rem;
+  line-height: 1.58;
 }
 
 .action-hub {
@@ -5811,6 +5875,19 @@ button,
   border-radius: 7px;
   background: #fff;
   color: var(--text-muted);
+}
+
+.encounter-choice-button {
+  width: 100%;
+  min-width: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  line-height: 1.58;
+}
+
+.encounter-choice-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary) 42%, transparent);
+  outline-offset: 2px;
 }
 
 .journey-choice-toggle button[aria-pressed="true"] {
@@ -7742,12 +7819,16 @@ details.rulebook-source-text > summary {
   }
 
   .forage-location-controls {
-    align-items: stretch !important;
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .forage-location-controls > select {
+  .forage-location-controls select {
     width: 100%;
+  }
+
+  .inventory-ledger__toolbar {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .inventory-ledger-scroll {

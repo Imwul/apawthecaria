@@ -321,8 +321,8 @@ export function TodayOverview({
 
         <article className="today-journal">
           <span className="journal-note-label">가장 최근의 문장</span>
-          <h3>{recentJournal?.title ? <Suspense fallback={localizeGameplayMessage(recentJournal.title)}><LocalizedManualEffectText kind="journal-title" text={localizeGameplayMessage(recentJournal.title)} /></Suspense> : '아직 적힌 이야기가 없습니다'}</h3>
-          <p>{recentJournal?.text ? <Suspense fallback={localizeGameplayMessage(localizeSavedJourneyText(recentJournal.text)).slice(0, 180)}><LocalizedManualEffectText kind="journal-text" text={localizeGameplayMessage(localizeSavedJourneyText(recentJournal.text))} maxLength={180} /></Suspense> : '첫 여행을 떠나면 이곳에 작은 기억이 남습니다.'}</p>
+          <h3>{recentJournal?.title ? <Suspense fallback={localizeGameplayMessage(recentJournal.title)}><LocalizedManualEffectText kind="journal-title" text={recentJournal.title} /></Suspense> : '아직 적힌 이야기가 없습니다'}</h3>
+          <p>{recentJournal?.text ? <Suspense fallback={localizeGameplayMessage(localizeSavedJourneyText(recentJournal.text)).slice(0, 180)}><LocalizedManualEffectText kind="journal-text" text={localizeSavedJourneyText(recentJournal.text)} maxLength={180} /></Suspense> : '첫 여행을 떠나면 이곳에 작은 기억이 남습니다.'}</p>
           <button type="button" className="journal-text-action" onClick={() => onNavigate('journals')}>
             <span className="emoji-icon" aria-hidden="true">✒️</span> 지난 기록 읽기
           </button>

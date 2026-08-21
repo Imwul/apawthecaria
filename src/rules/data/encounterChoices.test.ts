@@ -58,6 +58,25 @@ describe('printed encounter choice execution', () => {
     expect(result.value?.nextState.trinkets).toBe(0);
   });
 
+  it('does not apply the mechanical result of an unresolved card-suit branch', () => {
+    const legacyInMud = parseMechanicalEffects(
+      'You may scout. Draw a Card: ♥ or ♦ - It holds. Gain 3 Foraging Points ♣ or ♠ - Discard an Item.'
+    );
+    expect(legacyInMud).not.toContainEqual({
+      support: 'implemented',
+      effect: { type: 'modifyForagingPoints', amount: 3 }
+    });
+
+    const napBeforeDraw = parseMechanicalEffects(
+      'Decrease Timers by 1 and Draw a Card: ♥ or ♦ - Gain 5 Foraging Points. ♣ or ♠ - Lose 1 Foraging Point.'
+    );
+    expect(napBeforeDraw).toContainEqual({
+      support: 'implemented',
+      effect: { type: 'modifyTimer', amount: -1, target: 'all' }
+    });
+    expect(napBeforeDraw.some(({ effect }) => effect.type === 'modifyForagingPoints')).toBe(false);
+  });
+
   it('lets the bog Ace interrupt complete without a leftover printed dump', () => {
     const encounter = findEncounter({
       encounterType: 'foraging',
