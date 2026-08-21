@@ -84,6 +84,8 @@ describe('mobile layout regression guards', () => {
     expect(cssSource).toMatch(/\.route-composer \.route-card__remove-btn\s*\{[\s\S]*?min-width:\s*44px;[\s\S]*?flex-shrink:\s*0/);
     expect(cssSource).toMatch(/\.route-composer \.route-connector__btn\s*\{[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px/);
     expect(cssSource).toMatch(/\.route-composer__picker-controls input,[\s\S]*?min-height:\s*2\.75rem/);
+    expect(cssSource).toMatch(/\.route-composer__card--compact \.route-card__header\s*\{[\s\S]*?grid-template-columns:\s*auto minmax\(0,\s*1fr\)/);
+    expect(cssSource).toMatch(/\.route-card__target-name\s*\{[\s\S]*?overflow-wrap:\s*anywhere;[\s\S]*?white-space:\s*normal/);
   });
 
   it('keeps forage context, result feedback, and inventory actions usable on mobile', () => {

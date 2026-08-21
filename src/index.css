@@ -4938,10 +4938,19 @@ button,
 }
 
 .route-composer__card--compact .route-card__header {
-  gap: 0.3rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.25rem 0.35rem;
+}
+
+.route-composer__card--compact .route-card__header .route-card__index {
+  grid-column: 1 / -1;
+  justify-self: start;
 }
 
 .route-composer__card--compact .route-card__name-input {
+  width: 100%;
   height: 2.25rem;
   min-height: 2.25rem;
   padding-inline: 0.3rem;
@@ -4986,13 +4995,16 @@ button,
 }
 
 .route-card__target-name {
+  display: block;
+  flex: 1;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   color: #35422f;
   font-size: 0.88rem;
-  line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .route-card__actions {
