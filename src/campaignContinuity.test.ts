@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyManualCalendarAdjustment, getCampaignContinuity, inferCompletedSeasons } from './campaignContinuity';
+import { applyManualCalendarAdjustment, getCampaignContinuity, getCampaignResumeActionIds, inferCompletedSeasons } from './campaignContinuity';
 
 describe('campaign continuity', () => {
   it('prioritizes the required downtime and season boundary stages', () => {
@@ -26,6 +26,26 @@ describe('campaign continuity', () => {
       .toBe('남은 치료 시간으로 여분 채집을 하거나 마감하세요.');
     expect(getCampaignContinuity({ ...journey, needsLocalHelpBeforeMove: true }).nextAction)
       .toBe('현지 야수의 질환을 해결해야 다시 이동할 수 있습니다.');
+    expect(getCampaignContinuity({ ...journey, activeAilment: { id: 'patient' } }).continueLabel)
+      .toBe('환자 치료 이어가기');
+    expect(getCampaignContinuity({ ...journey, pendingForaging: { id: 'forage' } }).continueLabel)
+      .toBe('채집 조우 이어가기');
+    expect(getCampaignContinuity({ ...journey, pursuedByBehemoth: { id: 'chase' } }).continueLabel)
+      .toBe('거수 추격 이어가기');
+    expect(getCampaignContinuity({ ...journey, activeDelve: { id: 'barrow' } }).continueLabel)
+      .toBe('고분 탐사 이어가기');
+  });
+
+  it('routes Home resume to the blocking work before offering another Move', () => {
+    const journey = { journeyActive: true, journeyDestination: 'Widrow', calendarDays: 3, calendarMaxDays: 12 };
+    expect(getCampaignResumeActionIds({ ...journey, activeAilment: { id: 'patient' } }).slice(0, 2))
+      .toEqual(['active-patient', 'barter-reagent']);
+    expect(getCampaignResumeActionIds({ ...journey, activeAilment: { id: 'patient' } }).indexOf('active-patient'))
+      .toBeLessThan(getCampaignResumeActionIds({ ...journey, activeAilment: { id: 'patient' } }).indexOf('travel-next'));
+    expect(getCampaignResumeActionIds({ ...journey, pendingEncounter: { id: 'travel' } }).at(0))
+      .toBe('pending-encounter');
+    expect(getCampaignResumeActionIds({ journeyActive: false, downtimeRequired: true, downtimeCompleted: false }).at(0))
+      .toBe('downtime-activities');
   });
 
   it('keeps the journey and cumulative clocks aligned during a manual correction', () => {

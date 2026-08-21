@@ -14,6 +14,8 @@ export interface CampaignContinuityState {
   journeyDestination?: string;
   calendarDays?: number;
   calendarMaxDays?: number;
+  pursuedByBehemoth?: unknown;
+  activeDelve?: unknown;
 }
 
 export interface CampaignContinuity {
@@ -35,18 +37,39 @@ export const getCampaignContinuity = (state: CampaignContinuityState): CampaignC
         ? '열어 둔 채집 조우를 먼저 해결하세요.'
         : state.pendingPatientArchive
           ? '끝난 진료를 환자 기록장에 마무리하세요.'
-          : state.activeAilment
-            ? '현재 환자의 치료를 이어가세요.'
-            : state.scroungingMode
-              ? '남은 치료 시간으로 여분 채집을 하거나 마감하세요.'
-              : state.needsLocalHelpBeforeMove
-                ? '현지 야수의 질환을 해결해야 다시 이동할 수 있습니다.'
-                : '현재 위치에서 다음 Move를 해결하세요.';
+          : state.pursuedByBehemoth
+            ? '진행 중인 거수의 추격을 이어가세요.'
+            : state.activeDelve
+              ? '진행 중인 거수 고분 탐사를 이어가세요.'
+              : state.activeAilment
+                ? '현재 환자의 치료를 이어가세요.'
+                : state.scroungingMode
+                  ? '남은 치료 시간으로 여분 채집을 하거나 마감하세요.'
+                  : state.needsLocalHelpBeforeMove
+                    ? '현지 야수의 질환을 해결해야 다시 이동할 수 있습니다.'
+                    : '현재 위치에서 다음 Move를 해결하세요.';
+    const continueLabel = state.pendingEncounter
+      ? '이동 조우 이어가기'
+      : state.pendingForaging
+        ? '채집 조우 이어가기'
+        : state.pendingPatientArchive
+          ? '진료 기록 마무리'
+          : state.pursuedByBehemoth
+            ? '거수 추격 이어가기'
+            : state.activeDelve
+              ? '고분 탐사 이어가기'
+              : state.activeAilment
+                ? '환자 치료 이어가기'
+                : state.scroungingMode
+                  ? '여분 채집 이어가기'
+                  : state.needsLocalHelpBeforeMove
+                    ? '현지 진료 이어가기'
+                    : '다음 Move 이어가기';
     return {
       stage: 'journey',
       label: '여정 진행 중',
       nextAction,
-      continueLabel: '여정 이어가기',
+      continueLabel,
       guidance: `${state.journeyDestination || '목적지'}까지 이동 중 · ${elapsed}/${limit}일 경과 · ${remaining}일 남음`
     };
   }
@@ -78,6 +101,28 @@ export const getCampaignContinuity = (state: CampaignContinuityState): CampaignC
     continueLabel: '새 여정 준비하기',
     guidance: `${state.currentLocationName || '현재 위치'}에서 목적지·이유·목표·기한을 정합니다.`
   };
+};
+
+export const getCampaignResumeActionIds = (state: CampaignContinuityState, hasCurrentBarrow = false): string[] => {
+  if (!state.journeyActive) {
+    if (state.downtimeRequired && !state.downtimeCompleted) return ['downtime-activities', 'downtime-shop'];
+    if (state.downtimeCompleted) return ['season-advance', 'downtime-shop'];
+    return ['start-journey', 'downtime-shop'];
+  }
+
+  const ids: string[] = [];
+  if (state.pendingEncounter) ids.push('pending-encounter');
+  if (state.pendingForaging) ids.push('pending-foraging');
+  if (state.pendingPatientArchive) ids.push('archive-patient');
+  if (state.pursuedByBehemoth) ids.push('behemoth-chase');
+  else if (state.activeDelve) ids.push('active-delve');
+  else if (hasCurrentBarrow) ids.push('barrow-here');
+  if (state.scroungingMode) ids.push('scrounging');
+  if (state.needsLocalHelpBeforeMove && !state.activeAilment && !state.scroungingMode) ids.push('local-help');
+  if (state.activeAilment) ids.push('active-patient', 'barter-reagent', 'clinic-open');
+  if (!state.needsLocalHelpBeforeMove && !state.pursuedByBehemoth) ids.push('travel-next');
+  if (!state.activeAilment) ids.push('clinic-open');
+  return ids;
 };
 
 interface CalendarState {

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef } from 'react';
-import { localizeLocationName, localizeLocationTypeLabel, localizeRegionLabel, localizeSavedJourneyText, localizeSeasonLabel } from '../localization/gameplayKo';
+import { localizeLocationName, localizeRegionLabel, localizeSavedJourneyText, localizeSeasonLabel } from '../localization/gameplayKo';
 import { localizeGameplayMessage } from '../localization/engineMessagesKo';
 import { referenceForJournalTab } from '../rulebook/context';
 import type { RulebookReferenceRequest } from '../rulebook/types';
@@ -209,10 +209,22 @@ export function TodayOverview({
     : null;
   const continuity = getCampaignContinuity(state);
   const recentTimeChanges = (state.calendarHistory || []).slice(-2).reverse();
-  const dayPlace = state.journeyActive
-    ? localizeLocationName(state.journeyDestination || '다음 마을')
-    : localizeLocationName(state.currentLocationName);
-  const dayPhrase = state.journeyActive ? '목적지를 향해 걷는 날' : '이곳에 머무는 날';
+  const dayPlace = localizeLocationName(state.currentLocationName) || '현재 위치 미기록';
+  const dayPhrase = state.journeyActive ? '여정을 이어가는 날' : '이곳에 머무는 날';
+  const continuityFacts = state.journeyActive
+    ? [
+        { label: '여정 목적지', value: localizeLocationName(state.journeyDestination) || '미정' },
+        { label: '여정 경과', value: `${Math.max(0, state.calendarDays || 0)} / ${Math.max(0, state.calendarMaxDays || 0)}일` },
+        { label: '누적 경과', value: `${Math.max(0, state.cumulativeDays || 0)}일` },
+        { label: '길드 평판', value: `${Math.max(0, state.reputation || 0)}` }
+      ]
+    : [
+        { label: '누적 경과', value: `${Math.max(0, state.cumulativeDays || 0)}일` },
+        { label: '마친 계절', value: `${Math.max(0, state.completedSeasons || 0)}회` },
+        { label: '길드 평판', value: `${Math.max(0, state.reputation || 0)}` }
+      ];
+  const isOverCapacity = currentWeight > maxCarry;
+  const hasResumeContext = Boolean(patient || legacyAilment || requirements.length || isOverCapacity || recentJournal);
 
   return (
     <section className="today-overview" aria-labelledby="today-title">
@@ -254,10 +266,9 @@ export function TodayOverview({
           <span className="campaign-continuity__season">{localizeSeasonLabel(state.currentSeason)}</span>
         </div>
         <dl className="campaign-continuity__facts">
-          <div><dt>현재 위치</dt><dd>{localizeLocationName(state.currentLocationName)}</dd></div>
-          <div><dt>누적 경과</dt><dd>{Math.max(0, state.cumulativeDays || 0)}일</dd></div>
-          <div><dt>마친 계절</dt><dd>{Math.max(0, state.completedSeasons || 0)}회</dd></div>
-          <div><dt>길드 평판</dt><dd>{Math.max(0, state.reputation || 0)}</dd></div>
+          {continuityFacts.map(fact => (
+            <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>
+          ))}
         </dl>
         <div className="campaign-continuity__next">
           <span>다음 단계</span>
@@ -269,73 +280,64 @@ export function TodayOverview({
             <summary>최근 시간 변화 {recentTimeChanges.length}건</summary>
             <ol>{recentTimeChanges.map((line: string, index: number) => <li key={`${line}:${index}`}>{line}</li>)}</ol>
           </details>
-        ) : (
-          <p className="campaign-continuity__empty">아직 기록된 시간 변화가 없습니다. Move나 수동 달력 보정이 생기면 여기에 남습니다.</p>
-        )}
+        ) : null}
       </section>
       </div>
 
-      <div className="today-story">
+      {hasResumeContext ? <div className="today-story today-story--resume" aria-label="다시 시작할 때 필요한 맥락">
+        {patient || legacyAilment ? (
         <article className="today-patient">
           <span className="journal-note-label">오늘 돌볼 이</span>
-          <h3>{patient?.name || legacyAilment?.patientName || '아직 찾아온 환자가 없습니다'}</h3>
-          <p>{patient?.species || legacyAilment?.species || '새 여정에서 누군가를 만나게 될 거예요.'}</p>
-          {patient || legacyAilment ? (
-            <dl>
-              <div><dt>병증</dt><dd>{ailmentName}</dd></div>
-              <div><dt>남은 시간</dt><dd>{patient ? displayTimer(patient) : `${legacyAilment.timer}시간`}</dd></div>
-            </dl>
-          ) : null}
+          <h3>{patient?.name || legacyAilment?.patientName || '이름 없는 환자'}</h3>
+          <p>{patient?.species || legacyAilment?.species || '종 미기록'}</p>
+          <dl>
+            <div><dt>병증</dt><dd>{ailmentName}</dd></div>
+            <div><dt>남은 시간</dt><dd>{patient ? displayTimer(patient) : `${legacyAilment.timer}시간`}</dd></div>
+          </dl>
           <button type="button" className="journal-text-action" onClick={() => onNavigate('ailments')}>
             <span className="emoji-icon" aria-hidden="true">🩺</span> 진료 수첩 펼치기
           </button>
         </article>
+        ) : null}
 
+        {requirements.length ? (
         <article className="today-herbs">
           <span className="journal-note-label">찾아야 할 약초</span>
-          <h3>{requirements.length ? '처방에 필요한 기운' : '오늘의 채집 목록'}</h3>
-          {requirements.length ? (
-            <ul>{requirements.map(word => <li key={word}>{word}</li>)}</ul>
-          ) : (
-            <p>환자를 만나면 필요한 효능이 이곳에 적힙니다.</p>
-          )}
+          <h3>처방에 필요한 기운</h3>
+          <ul>{requirements.map(word => <li key={word}>{word}</li>)}</ul>
           <button type="button" className="journal-text-action" onClick={() => onNavigate('reagents')}>
             <span className="emoji-icon" aria-hidden="true">🌿</span> 약초 도감 살피기
           </button>
         </article>
+        ) : null}
 
-        <article className="today-place">
-          <span className="journal-note-label">지금 머무는 곳</span>
-          <h3>{localizeLocationName(state.currentLocationName)}</h3>
-          <p>{localizeRegionLabel(state.currentRegion)} · {localizeLocationTypeLabel(state.currentLocationType)} · {localizeSeasonLabel(state.currentSeason)}</p>
-          <button type="button" className="journal-text-action" onClick={() => onNavigate('map')}>
-            <span className="emoji-icon" aria-hidden="true">🗺️</span> 지도에 짚어보기
-          </button>
-        </article>
-
+        {isOverCapacity ? (
         <article className="today-bag">
-          <span className="journal-note-label">펼쳐둔 배낭</span>
-          <h3>{currentWeight.toFixed(1)} / {maxCarry}</h3>
+          <span className="journal-note-label">이동 전 확인</span>
+          <h3>가방 한도 초과 · {currentWeight.toFixed(1)} / {maxCarry}</h3>
           <p>영약재 {state.bag?.filter((item: any) => item.type === 'reagent').length || 0} · 도구 {state.bag?.filter((item: any) => item.type === 'tool').length || 0}</p>
           <div className="today-bag__line"><span style={{ width: `${Math.min(100, (currentWeight / Math.max(1, maxCarry)) * 100)}%` }} /></div>
           <button type="button" className="journal-text-action" onClick={() => onNavigate('bio')}>
             <span className="emoji-icon" aria-hidden="true">🎒</span> 배낭 정리하기
           </button>
         </article>
+        ) : null}
 
+        {recentJournal ? (
         <article className="today-journal">
-          <span className="journal-note-label">가장 최근의 문장</span>
-          <h3>{recentJournal?.title ? <Suspense fallback={localizeGameplayMessage(recentJournal.title)}><LocalizedManualEffectText kind="journal-title" text={recentJournal.title} /></Suspense> : '아직 적힌 이야기가 없습니다'}</h3>
-          <p>{recentJournal?.text ? (
+          <span className="journal-note-label">최근에 남긴 기록</span>
+          <h3><Suspense fallback={localizeGameplayMessage(recentJournal.title)}><LocalizedManualEffectText kind="journal-title" text={recentJournal.title} /></Suspense></h3>
+          <p>{recentJournal.text ? (
             recentJournalPresentation?.isEncounter
               ? recentJournalPresentation.memory
               : <Suspense fallback={localizeGameplayMessage(localizeSavedJourneyText(recentJournal.text)).slice(0, 180)}><LocalizedManualEffectText kind="journal-text" text={localizeSavedJourneyText(recentJournal.text)} maxLength={180} /></Suspense>
-          ) : '첫 여행을 떠나면 이곳에 작은 기억이 남습니다.'}</p>
+          ) : '남긴 내용이 없습니다.'}</p>
           <button type="button" className="journal-text-action" onClick={() => onNavigate('journals')}>
             <span className="emoji-icon" aria-hidden="true">✒️</span> 지난 기록 읽기
           </button>
         </article>
-      </div>
+        ) : null}
+      </div> : null}
     </section>
   );
 }

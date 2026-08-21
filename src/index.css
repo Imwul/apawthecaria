@@ -9328,6 +9328,35 @@ details.rulebook-source-text > summary {
   line-height: 1.5;
 }
 
+/* Home resume precision: keep only state that changes the next decision.
+   Static location and bag summaries already live in the scene and chapter tabs. */
+.today-story--resume {
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+}
+
+.today-story--resume > article {
+  min-height: 150px;
+  grid-column: auto !important;
+  border-bottom: 0 !important;
+}
+
+.today-story--resume > article:last-child {
+  border-right: 0 !important;
+}
+
+.today-story--resume > article::before {
+  margin-bottom: 0.65rem;
+}
+
+.today-story--resume .today-bag {
+  background: #ead7b5 !important;
+}
+
+.action-hub__header {
+  justify-content: flex-start;
+  padding-bottom: 0.55rem;
+}
+
 @media (max-width: 1080px) {
   .today-focus {
     grid-template-columns: minmax(0, 1fr);

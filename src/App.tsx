@@ -291,7 +291,7 @@ import { referenceForJournalTab } from './rulebook/context';
 import { fuzzyReferenceTextMatch } from './rulebook/referenceRegistry';
 import { PaperMap, type MapClinicOverlay, type MapPickLocation, type MapSavedConnection, type MapSelectionIntent } from './map/PaperMap';
 import { type MapPlace, type MapPlaceType } from './map/mapLayers';
-import { applyManualCalendarAdjustment, getCampaignContinuity, inferCompletedSeasons } from './campaignContinuity';
+import { applyManualCalendarAdjustment, getCampaignContinuity, getCampaignResumeActionIds, inferCompletedSeasons } from './campaignContinuity';
 import { buildEncounterJournalText, isActivityJournalEntry, presentEncounterJournal } from './encounterJournal';
 import {
   isRulebookHistoryState,
@@ -6988,28 +6988,7 @@ export default function App() {
 
                     const currentBarrow = (state.barrows || []).find(b => !b.removed && b.locationName === state.currentLocationName);
 
-                    const preferredActionIds: string[] = [];
-                    if (!state.journeyActive) {
-                      if (state.downtimeRequired && !state.downtimeCompleted) preferredActionIds.push('downtime-activities');
-                      else if (state.downtimeCompleted) preferredActionIds.push('season-advance');
-                      else preferredActionIds.push('start-journey');
-                      preferredActionIds.push('downtime-shop');
-                    } else {
-                      if (state.pendingEncounter) preferredActionIds.push('pending-encounter');
-                      if (state.pendingForaging) preferredActionIds.push('pending-foraging');
-                      if (state.pendingPatientArchive) preferredActionIds.push('archive-patient');
-                      if (state.pursuedByBehemoth) preferredActionIds.push('behemoth-chase');
-                      else if (state.activeDelve) preferredActionIds.push('active-delve');
-                      else if (currentBarrow) preferredActionIds.push('barrow-here');
-                      if (state.scroungingMode) preferredActionIds.push('scrounging');
-                      if (state.needsLocalHelpBeforeMove && !state.activeAilment && !state.scroungingMode) preferredActionIds.push('local-help');
-                      if (!state.needsLocalHelpBeforeMove && !state.pursuedByBehemoth) preferredActionIds.push('travel-next');
-                      if (state.activeAilment) {
-                        preferredActionIds.push('active-patient', 'barter-reagent', 'clinic-open');
-                      } else {
-                        preferredActionIds.push('clinic-open');
-                      }
-                    }
+                    const preferredActionIds = getCampaignResumeActionIds(state, Boolean(currentBarrow));
 
                     if (!clickActionById(preferredActionIds)) {
                       const fallbackAction = document.querySelector<HTMLButtonElement>('#action-hub .action-step:not(:disabled)');
@@ -12433,7 +12412,6 @@ function PlayView({
   ), 0);
   const journeyGoalDone = state.journeyActive ? checkJourneyGoalSatisfaction(state) : false;
   const campaignContinuity = getCampaignContinuity(state);
-  const hubLocation = `${localizeRegionLabel(state.currentRegion)} · ${locationTypeLabel(state.currentLocationType)} · ${state.currentLocationName}`;
   const playMapMode: 'destination' | 'travel' | 'inspect' = !state.journeyActive && downtimeTab === 'start'
     ? 'destination'
     : state.journeyActive
@@ -12880,20 +12858,6 @@ function PlayView({
     });
   }
 
-  const actionHubStatus = [
-    { label: '상태', value: campaignContinuity.label },
-    { label: '위치', value: hubLocation },
-    { label: '가방', value: `${formatWeight(currentWeight)} / ${maxCarry}` },
-    state.journeyActive
-      ? { label: '목표', value: journeyGoalDone ? '충족' : '진행 중' }
-      : { label: '평판', value: `${state.reputation}점` },
-    state.scroungingMode
-      ? { label: '여분 시간', value: `${state.scroungingTimer || 0}시간` }
-      : state.activePatientId
-        ? { label: '환자', value: `${state.patients.find(patient => patient.id === state.activePatientId)?.ailments.filter(ailment => ailment.status === 'active').length || 0}개 질환 · ${Math.min(...(state.patients.find(patient => patient.id === state.activePatientId)?.timers.filter(timer => timer.status === 'active').map(timer => timer.current) || [0]))}시간` }
-        : null
-  ].filter(Boolean) as Array<{ label: string; value: string }>;
-
   const handleActionHubItem = (item: ActionHubItem) => {
     if (item.disabled) return;
     item.activate?.();
@@ -13015,14 +12979,6 @@ function PlayView({
           <div>
             <div className="document-kicker">진행판</div>
             <h2>지금 이어갈 일</h2>
-          </div>
-          <div className="action-hub__status" aria-label="현재 상태">
-            {actionHubStatus.map(item => (
-              <span key={item.label} className="action-hub__chip">
-                <strong>{item.label}</strong>
-                <span>{item.value}</span>
-              </span>
-            ))}
           </div>
         </div>
         <div className="action-hub__grid">
