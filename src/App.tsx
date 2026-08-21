@@ -845,6 +845,7 @@ interface GameState {
   bio: ApothecaryBio;
   reputation: number; // starts at 5
   currentLocationName: string;
+  currentMapLocationId?: string;
   currentLocationType: string; // Wilds, Settlement, City, Ruin, Barrow
   currentRegion: string; // Bog, Forest, Loch, Meadow, Mountain, Titan, Barrow
   currentSeason: 'Spring' | 'Summer' | 'Autumn' | 'Winter';
@@ -1025,6 +1026,7 @@ const INITIAL_STATE: GameState = {
   bio: INITIAL_BIO,
   reputation: 5,
   currentLocationName: "Odoak",
+  currentMapLocationId: 'odoak',
   currentLocationType: "City",
   currentRegion: "Forest",
   currentSeason: "Spring",
@@ -1769,22 +1771,39 @@ const commitPendingAlternativeAcquisition = (
 
 const findMapLocationKey = (name: string, customLocations: CustomMapLocation[] = []) => {
   const normalized = normalizeMapLocationName(name);
-  const custom = customLocations.find(location =>
+  const visibleCustomLocations = customLocations.filter(location =>
     !location.hidden
     && !REVIEWED_MAP_LOCATION_BY_ID.get(location.id)?.hidden
-    && (location.id === normalized
-      || normalizeMapLocationName(location.label) === normalized
-      || (location.aliases || []).some(alias => normalizeMapLocationName(alias) === normalized))
   );
-  if (custom) return custom.id;
+  const exactCustom = visibleCustomLocations.find(location => location.id === normalized);
+  if (exactCustom) return exactCustom.id;
 
   // Wild route nodes are first-class map locations too. Looking only through
   // the named-location table made the current-position button and selection
   // highlight disappear as soon as a Journey stopped in the wilds.
+  const hiddenIds = new Set(customLocations.filter(location => location.hidden).map(location => location.id));
   const direct = Object.entries(MAP_GRAPH_NODES).find(([key, node]) =>
-    key === normalized || normalizeMapLocationName(node.label) === normalized || (node.aliases || []).some(alias => normalizeMapLocationName(alias) === normalized)
+    !hiddenIds.has(key)
+    && (key === normalized || normalizeMapLocationName(node.label) === normalized || (node.aliases || []).some(alias => normalizeMapLocationName(alias) === normalized))
   );
-  return direct?.[0] || '';
+  if (direct) return direct[0];
+
+  const custom = visibleCustomLocations.find(location =>
+    normalizeMapLocationName(location.label) === normalized
+    || (location.aliases || []).some(alias => normalizeMapLocationName(alias) === normalized)
+  );
+  return custom?.id || '';
+};
+
+const resolveCurrentMapLocationKey = (s: Pick<GameState, 'currentLocationName' | 'currentMapLocationId' | 'customMapLocations' | 'customMapEdges'>) => {
+  const nodes = buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || []);
+  const anchored = s.currentMapLocationId ? nodes[s.currentMapLocationId] : null;
+  const normalizedName = normalizeMapLocationName(s.currentLocationName);
+  if (s.currentMapLocationId && anchored && (
+    normalizeMapLocationName(anchored.label) === normalizedName
+    || (anchored.aliases || []).some(alias => normalizeMapLocationName(alias) === normalizedName)
+  )) return s.currentMapLocationId;
+  return findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName);
 };
 
 const getMapServiceEntriesWithinHops = (startName: string, maxHops: number = MAP_SERVICE_HOPS, customLocations: CustomMapLocation[] = [], customEdges: CustomMapEdge[] = []) => {
@@ -1833,7 +1852,7 @@ const getAvailableBarterLocations = (s: GameState): BarterLocationOption[] => {
 
   if (s.currentLocationType === 'Settlement' || s.currentLocationType === 'City') {
     addOption({
-      key: findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName),
+      key: resolveCurrentMapLocationKey(s),
       name: s.currentLocationName,
       type: s.currentLocationType,
       region: s.currentRegion,
@@ -1842,7 +1861,7 @@ const getAvailableBarterLocations = (s: GameState): BarterLocationOption[] => {
   }
 
   const graphNodes = buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || []);
-  const currentKey = findMapLocationKey(s.currentLocationName, s.customMapLocations || []);
+  const currentKey = resolveCurrentMapLocationKey(s);
   if (!currentKey || !graphNodes[currentKey]) return options;
 
   (graphNodes[currentKey].neighbors || []).forEach(neighborKey => {
@@ -1941,7 +1960,7 @@ const toMapPlaceType = (kind?: string): MapPlaceType => {
 
 const adjacentRuleRegions = (s: GameState): Region[] => {
   const graph = toRuleMapGraph(s);
-  const currentId = findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName);
+  const currentId = resolveCurrentMapLocationKey(s);
   const maxPaths = (s.currentSeason === 'Autumn' || s.currentSeason === 'Winter')
     && s.bag.some(item => item.craftedItemId === 'knitted-coat') ? 2 : 1;
   const distances = new Map<string, number>([[currentId, 0]]);
@@ -1986,7 +2005,7 @@ const toServiceMapGraph = (s: GameState): ServiceRuntimeState['graph'] => Object
 );
 
 const toServiceRuntime = (s: GameState): ServiceRuntimeState => ({
-  currentLocationId: findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName),
+  currentLocationId: resolveCurrentMapLocationKey(s),
   currentLocationName: s.currentLocationName,
   currentLocationType: canonicalLocationType(s.currentLocationType),
   currentRegion: toRuleRegion(s.currentRegion),
@@ -2009,6 +2028,7 @@ const toServiceRuntime = (s: GameState): ServiceRuntimeState => ({
 
 const applyServiceRuntime = (s: GameState, runtime: ServiceRuntimeState): GameState => ({
   ...s,
+  currentMapLocationId: runtime.currentLocationId,
   currentLocationName: runtime.currentLocationName,
   currentLocationType: runtime.currentLocationType,
   currentRegion: runtime.currentRegion,
@@ -2298,7 +2318,7 @@ const applyBarterRuntime = (s: GameState, runtime: BarterRuntimeState): GameStat
 });
 
 const toJourneyRuntime = (s: GameState): JourneyRuntimeState => ({
-  currentLocationId: findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName),
+  currentLocationId: resolveCurrentMapLocationKey(s),
   reputation: s.reputation,
   inventory: toEngineInventory(s.bag),
   patients: s.patients,
@@ -2327,7 +2347,7 @@ const applyJourneyRuntime = (s: GameState, runtime: JourneyRuntimeState): GameSt
 
 const toLeaveRuntime = (s: GameState, patient: PatientState): LeaveRuntimeState => {
   const graph = toRuleMapGraph(s);
-  const currentId = findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName);
+  const currentId = resolveCurrentMapLocationKey(s);
   return {
     inventory: toEngineInventory(s.bag),
     patient,
@@ -2377,7 +2397,7 @@ const toCanonicalDowntimeRuntime = (s: GameState): CanonicalDowntimeState => ({
   speed: s.bio.speed,
   carry: s.bio.carry,
   travelStyle: s.bio.travelStyle,
-  currentLocationId: findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName),
+  currentLocationId: resolveCurrentMapLocationKey(s),
   currentSeason: s.currentSeason,
   inventory: toEngineInventory(s.bag),
   graph: toServiceMapGraph(s),
@@ -2405,6 +2425,7 @@ const applyCanonicalDowntimeRuntime = (s: GameState, runtime: CanonicalDowntimeS
     trinkets: resizeTrinkets(s.trinkets, runtime.trinkets, '휴식기 장신구'),
     bio: { ...s.bio, speed: runtime.speed, carry: runtime.carry, travelStyle: runtime.travelStyle },
     bag: fromEngineInventory(runtime.inventory, s.bag),
+    currentMapLocationId: runtime.currentLocationId,
     currentLocationName: location?.name || s.currentLocationName,
     currentLocationType: location?.locationType || s.currentLocationType,
     currentRegion: location?.region === 'Soar' ? s.currentRegion : location?.region || s.currentRegion,
@@ -2601,7 +2622,7 @@ const findReagentMemoryDefinition = (name: string) => {
 };
 
 const remapEncounterConditions = (conditions: string[], s: GameState): string[] => {
-  const locationId = findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName);
+  const locationId = resolveCurrentMapLocationKey(s);
   return Array.from(new Set((conditions || []).map(condition => {
     if (condition === 'free-path:current' && locationId) return `free-path:${locationId}`;
     if (condition === 'ignore-negative-here-until-move' && locationId) return `ignore-negative:${locationId}`;
@@ -3703,6 +3724,9 @@ const migrateState = (s: any): GameState => {
     scroungingMode: s.scroungingMode || false,
     scroungingTimer: s.scroungingTimer || 0,
     independentUsedThisAilment: s.independentUsedThisAilment || false,
+    currentMapLocationId: typeof s.currentMapLocationId === 'string' && s.currentMapLocationId.trim()
+      ? s.currentMapLocationId.trim()
+      : undefined,
     currentLocationName: dedupedCurrentLocation,
     visitedLocations: mergedVisitedLocations,
     curedAilmentInThisWilds: s.curedAilmentInThisWilds || false,
@@ -4016,8 +4040,7 @@ const getTravelSpeed = (s: GameState, weight: number): number => {
 
 const hasNearbyBearBarrow = (s: GameState): boolean => {
   const graph = toRuleMapGraph(s);
-  const currentId = findMapLocationKey(s.currentLocationName, s.customMapLocations || [])
-    || normalizeMapLocationName(s.currentLocationName);
+  const currentId = resolveCurrentMapLocationKey(s);
   const nearbyIds = new Set([currentId, ...(graph[currentId]?.neighbors || [])]);
   return (s.barrows || []).some(barrow =>
     !barrow.removed
@@ -4100,8 +4123,7 @@ const applyMobilityRuntime = (s: GameState, runtime: MobilityRuntimeState): Game
 
 const toBarrowRuntime = (s: GameState): BarrowRuntimeState => {
   const graph = toServiceMapGraph(s);
-  const currentLocationId = findGraphLocationKey(s.currentLocationName, buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || []))
-    || normalizeMapLocationName(s.currentLocationName);
+  const currentLocationId = resolveCurrentMapLocationKey(s);
   return {
     currentLocationId,
     calendarDays: s.calendarDays,
@@ -4175,6 +4197,7 @@ const applyBarrowRuntime = (s: GameState, runtime: BarrowRuntimeState): GameStat
     },
     bag: fromEngineInventory(runtime.inventory, s.bag),
     companionStates: runtime.companions,
+    currentMapLocationId: runtime.currentLocationId,
     currentLocationName: destination?.label || runtimeLocation?.name || s.currentLocationName,
     currentLocationType: runtimeLocation?.locationType === 'Settlement' ? 'Settlement' : s.currentLocationType,
     currentRegion: runtimeLocation?.region || s.currentRegion,
@@ -5534,7 +5557,7 @@ export default function App() {
           encounterTransactionId: `${failureTransactionId}:${instanceId}`,
           patientId: nextPatient.id,
           ailmentInstanceId: instanceId,
-          locationId: findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName),
+          locationId: resolveCurrentMapLocationKey(state),
           continuation: 'ailment-close'
         })
         : null;
@@ -5899,7 +5922,7 @@ export default function App() {
         journey: outcome.gatheredItems.length > 0
           ? recordCanonicalJourneyEvent(nextBase, {
             id: `${pending.transactionId}:journey-forage`, type: 'forage', reagentId: reagent.id,
-            region: pending.region, locationId: findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName)
+            region: pending.region, locationId: resolveCurrentMapLocationKey(s)
           })
           : nextBase.journey
       };
@@ -6232,7 +6255,7 @@ export default function App() {
     let manualDraft = outcome.unresolvedEffects.length > 0
       ? createPrintedManualDraft(pending.encounter.id, 'encounter', {
         encounterTransactionId: pending.transactionId,
-        locationId: findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName),
+        locationId: resolveCurrentMapLocationKey(state),
         patientId: activePatient?.id,
         continuation: 'travel'
       })
@@ -6384,7 +6407,7 @@ export default function App() {
       },
       protection: pending.ignoreNegativeEncounterEffects
         || ((state.manualConditions || []).includes('ignore-midges-until-move') && /midge/i.test(`${encounter.title || ''} ${encounter.prompt || ''}`))
-        || (state.manualConditions || []).includes(`ignore-negative:${findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName)}`)
+        || (state.manualConditions || []).includes(`ignore-negative:${resolveCurrentMapLocationKey(state)}`)
         ? 'negative'
         : undefined
     });
@@ -6409,7 +6432,7 @@ export default function App() {
     let manualDraft = encounterResult.value.unresolvedEffects.length > 0
       ? createPrintedManualDraft(encounter.id || pending.encounterId || '', 'encounter', {
         encounterTransactionId: `${pending.transactionId}:encounter`,
-        locationId: findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName),
+        locationId: resolveCurrentMapLocationKey(state),
         patientId: activePatient?.id,
         continuation: 'foraging'
       })
@@ -6463,8 +6486,7 @@ export default function App() {
         }, ...s.journals]
       };
       if (bearName !== null) {
-        const locationId = findMapLocationKey(s.currentLocationName, s.customMapLocations || [])
-          || normalizeMapLocationName(s.currentLocationName);
+        const locationId = resolveCurrentMapLocationKey(s);
         const barrow: Barrow = {
           id: `bear-barrow:${locationId}`,
           name: bearName.trim() || '굶주린 숲곰',
@@ -8144,8 +8166,8 @@ function PlayView({
     [state]
   );
   const journeyOriginId = useMemo(
-    () => findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName),
-    [state.currentLocationName, state.customMapLocations]
+    () => resolveCurrentMapLocationKey(state),
+    [state]
   );
   const journeyDestinationCandidates = useMemo(
     () => journeyDestinationCard
@@ -8363,8 +8385,7 @@ function PlayView({
   const hasPendingTaxiMove = ((state.pendingServices || []) as ServiceRuntimeState['pendingServices'])
     .some(service => service.serviceId === 'taxi-service' && service.status === 'pending-move');
   const currentRouteOrigin = useMemo<RouteStop | null>(() => {
-    const currentId = findMapLocationKey(state.currentLocationName, state.customMapLocations || [])
-      || normalizeMapLocationName(state.currentLocationName);
+    const currentId = resolveCurrentMapLocationKey(state);
     const node = currentId ? routeGraphNodes[currentId] : null;
     const clinicHere = (state.clinics || []).some(clinic =>
       findMapLocationKey(clinic.locationName, state.customMapLocations || []) === currentId
@@ -8389,7 +8410,7 @@ function PlayView({
       };
     }
     return stopFromGraphNode(currentId, node, { hasClinic: clinicHere, name: node.label || state.currentLocationName });
-  }, [routeGraphNodes, state.currentLocationName, state.currentLocationType, state.currentRegion, state.clinics, state.customMapLocations]);
+  }, [routeGraphNodes, state]);
   const routeEndId = routeDraft.stops.at(-1)?.id || currentRouteOrigin?.id || '';
   const routeStopChoices = useMemo<RouteStop[]>(() => {
     return Object.entries(routeGraphNodes)
@@ -8533,7 +8554,7 @@ function PlayView({
     });
     if (!name) return;
     const graph = toServiceMapGraph(state);
-    const originId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
+    const originId = resolveCurrentMapLocationKey(state);
     const destinationOptions = getPassengerDestinationOptions(graph, originId);
     if (destinationOptions.length === 0) {
       showAlert('현재 지도에서 승객 규칙을 만족하는 목적지를 찾을 수 없습니다.');
@@ -8652,7 +8673,7 @@ function PlayView({
   const [selectedUpgradeOption, setSelectedUpgradeOption] = useState('');
   const [travelChoiceSource, setTravelChoiceSource] = useState<'seasoned' | 'news' | 'pondSkimmer' | 'logistical-map' | null>(null);
 
-  const currentClinicLocationId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
+  const currentClinicLocationId = resolveCurrentMapLocationKey(state);
   const clinicRuntimeForArea: ClinicRuntimeState = {
     currentSeason: state.currentSeason,
     completedSeasons: state.completedSeasons,
@@ -8718,7 +8739,7 @@ function PlayView({
     // Downtime Actions handlers
   const getRumourMapCandidates = () => {
     const graph = buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || []);
-    const currentId = findGraphLocationKey(state.currentLocationName, graph);
+    const currentId = resolveCurrentMapLocationKey(state);
     const current = graph[currentId];
     if (!current) return [];
     const distances = new Map<string, number>([[currentId, 0]]);
@@ -9058,7 +9079,7 @@ function PlayView({
     }
     const transaction = createClientTransaction(`service:${serviceId}`);
     const graph = toServiceMapGraph(state);
-    const currentLocationId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
+    const currentLocationId = resolveCurrentMapLocationKey(state);
     const chooseOne = async (label: string, rows: Array<{ id: string; label: string }>) => {
       if (rows.length === 0) return null;
       return await requestControlledPrompt({
@@ -9211,6 +9232,7 @@ function PlayView({
       }, transaction.at) : null;
       const next: GameState = {
         ...s,
+        currentMapLocationId: outcome.nextState.currentLocationId,
         currentLocationName: outcome.nextState.currentLocationName,
         currentLocationType: outcome.nextState.currentLocationType,
         currentRegion: outcome.nextState.currentRegion,
@@ -9574,7 +9596,7 @@ function PlayView({
   const executeCanonicalTravelMove = async (drawnSuit: string, cardVal: number) => {
     const mapNodes = buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || []);
     const composedDraft = routeDraftRef.current;
-    const currentLocationId = findGraphLocationKey(state.currentLocationName, mapNodes)
+    const currentLocationId = resolveCurrentMapLocationKey(state)
       || composedDraft.stops[0]?.id
       || '';
     const destinationId = findGraphLocationKey(nextLocName, mapNodes)
@@ -9893,6 +9915,7 @@ function PlayView({
       if (printedIgnoreHere) nextConditions = nextConditions.filter(condition => condition !== `ignore-negative:${destinationId}`);
       next = {
       ...next,
+      currentMapLocationId: destinationId,
       currentLocationName: outcome.nextState.currentLocationName,
       currentRegion: destinationRegion,
       currentLocationType: destinationType === 'Titan Ruin' ? 'Ruin' : destinationType === 'Behemoth Barrow' ? 'Barrow' : destinationType,
@@ -10069,7 +10092,7 @@ function PlayView({
         ailmentCard = choice === '2' ? secondAilmentCard : firstAilmentCard;
       }
       const lowerCards = Array.from({ length: 24 }, () => drawPlayingCard());
-      const currentSettlementId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
+      const currentSettlementId = resolveCurrentMapLocationKey(state);
       const canChooseMissiveAilment = state.currentLocationType === 'Settlement' && (state.missiveSettlements || []).includes(currentSettlementId);
       let chosenAilmentId: string | undefined;
       if (canChooseMissiveAilment) {
@@ -10212,7 +10235,7 @@ function PlayView({
         encounterTransactionId: `${transactionId}:diagnosis:${ailmentState.id}`,
         patientId: patient.id,
         ailmentInstanceId: ailmentState.id,
-        locationId: findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName),
+        locationId: resolveCurrentMapLocationKey(state),
         continuation: 'none'
       });
       if (!draft) return null;
@@ -10669,7 +10692,7 @@ function PlayView({
     const preview = calculatePawnReward(inventory, pawnItemIds);
     if (!askWindowConfirm(`선택한 물건의 전체 무게 ${formatWeight(preview.totalWeight)}를 버리고 장신구 ${preview.trinketReward}개를 받을까요?`)) return;
     const graph = toRuleMapGraph(state);
-    const currentId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
+    const currentId = resolveCurrentMapLocationKey(state);
     const result = resolvePawn({
       transactionId: `pawn:${Date.now()}`,
       state: {
@@ -10760,7 +10783,7 @@ function PlayView({
 
   const handleExploreNewPath = () => {
     const graph = toServiceMapGraph(state);
-    const currentId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
+    const currentId = resolveCurrentMapLocationKey(state);
     const nearby = Object.values(graph).filter(node => (shortestPathDistance(graph, currentId, node.id) ?? Infinity) <= 2);
     const candidates = nearby.flatMap((from, index) => nearby.slice(index + 1).flatMap(to =>
       from.edges.some(edge => edge.to === to.id) ? [] : [{ from, to }]
@@ -10883,7 +10906,7 @@ function PlayView({
     const name = prompt('완공될 약제소 이름을 기록하세요:', `${state.currentLocationName} 약제소`)?.trim();
     if (!name) return;
     const transaction = createClientTransaction('clinic-commission');
-    const locationId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
+    const locationId = resolveCurrentMapLocationKey(state);
     const runtime: ClinicRuntimeState = {
       currentSeason: state.currentSeason,
       completedSeasons: state.completedSeasons,
@@ -11238,7 +11261,7 @@ function PlayView({
     if (!preparationChoice) return;
     const preparation = reagent.preparations[Math.max(0, (parseInt(preparationChoice) || 1) - 1)] || reagent.preparations[0];
     const graph = toBarterMapGraph(state);
-    const currentLocationId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
+    const currentLocationId = resolveCurrentMapLocationKey(state);
     const transactionId = createClientTransaction(`barter:${patient.id}`).id;
     const started = resolveBarterStart({
       transactionId,
@@ -11619,7 +11642,7 @@ function PlayView({
         encounterTransactionId: transactionId,
         patientId: nextPatient.id,
         ailmentInstanceId: ailment.id,
-        locationId: findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName),
+        locationId: resolveCurrentMapLocationKey(state),
         continuation: 'ailment-close'
       })
       : null;
@@ -11682,7 +11705,7 @@ function PlayView({
         journey: recordCanonicalJourneyEvent(nextBase, {
           id: `${transactionId}:journey-treatment`, type: 'treatment',
           ailmentId: ailment.ailmentId || undefined,
-          locationId: findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName),
+          locationId: resolveCurrentMapLocationKey(s),
           region: toRuleRegion(s.currentRegion)
         })
       }, [treatmentManualDraft]);
@@ -12151,7 +12174,7 @@ function PlayView({
     updateState((s: GameState) => {
       const nodes = buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || []);
       const nextLocations = upsertPlayerMapStop(s.customMapLocations || [], stop, nodes[stop.id]);
-      const currentId = findMapLocationKey(s.currentLocationName, nextLocations) || normalizeMapLocationName(s.currentLocationName);
+      const currentId = resolveCurrentMapLocationKey({ ...s, customMapLocations: nextLocations });
       const touchesCurrent = currentId === stop.id;
       return {
         ...s,
@@ -12233,6 +12256,7 @@ function PlayView({
     persistRouteStop(stop);
     updateState((s: GameState) => ({
       ...s,
+      currentMapLocationId: stop.id,
       currentLocationName: stop.name,
       currentLocationType: locationTypeFromGlyph(stop.kind),
       currentRegion: stop.terrain || s.currentRegion,
@@ -13550,7 +13574,7 @@ function PlayView({
                       const noteType = (document.getElementById('reconnect_note_select') as HTMLSelectElement)?.value;
                       const selectedRegion = (document.getElementById('reconnect_region_select') as HTMLSelectElement)?.value;
                       const graph = toServiceMapGraph(state);
-                      const currentId = findMapLocationKey(state.currentLocationName, state.customMapLocations || []) || normalizeMapLocationName(state.currentLocationName);
+                      const currentId = resolveCurrentMapLocationKey(state);
                       const cities = Object.values(graph).filter(node => node.locationType === 'City')
                         .map(node => ({ node, distance: shortestPathDistance(graph, currentId, node.id) }))
                         .filter((row): row is { node: ServiceRuntimeState['graph'][string]; distance: number } => row.distance !== null);
@@ -17512,9 +17536,21 @@ function AtlasMapPanel({
     window.addEventListener('keydown', handleConnectionShortcut);
     return () => window.removeEventListener('keydown', handleConnectionShortcut);
   }, [pendingLink, persistLink]);
+  const hasPrintedOverride = (id: string) => {
+    if (isPlayerCreatedMapPlace(id)) return false;
+    const printed = MAP_GRAPH_NODES[id];
+    const effective = nodes[id];
+    if (!printed || !effective) return false;
+    if (customLocations.some(row => row.id === id && !row.hidden)) return true;
+    return effective.label !== printed.label
+      || Math.abs(effective.x - printed.x) > 0.001
+      || Math.abs(effective.y - printed.y) > 0.001
+      || effective.kind !== printed.kind
+      || effective.region !== printed.region;
+  };
   const deletePlace = (id: string) => {
-    if (findMapLocationKey(state.currentLocationName, customLocations) === id) {
-      showAlert('지금 있는 자리의 표시는 지울 수 없습니다.');
+    if (resolveCurrentMapLocationKey(state) === id) {
+      showAlert('지금 있는 자리의 표시는 숨길 수 없습니다. 실제 현재 위치 노드를 먼저 선택하고 “여기를 지금 있는 곳으로”를 누른 뒤 다시 시도하세요. 인쇄 표시의 잘못된 보정만 없애려는 경우에는 “인쇄 표시 원래대로”를 사용하세요.');
       return;
     }
     removePlayerMarkerRecords([id]);
@@ -17551,12 +17587,22 @@ function AtlasMapPanel({
     });
   };
   const restorePrintedPlace = (id: string) => {
+    const wasCurrent = resolveCurrentMapLocationKey(state) === id;
     removePlayerMarkerRecords([id]);
     clearPlaceSelection(id);
-    updateState(s => ({
-      ...s,
-      customMapLocations: (s.customMapLocations || []).filter(row => row.id !== id)
-    }));
+    updateState(s => {
+      const printed = MAP_GRAPH_NODES[id];
+      return {
+        ...s,
+        customMapLocations: (s.customMapLocations || []).filter(row => row.id !== id),
+        ...(wasCurrent && printed ? {
+          currentMapLocationId: id,
+          currentLocationName: printed.label,
+          currentLocationType: locationTypeFromGlyph(stopFromGraphNode(id, printed).kind),
+          currentRegion: printed.region || s.currentRegion
+        } : {})
+      };
+    });
   };
   const stopFromRequest = (location: MapPickLocation): RouteStop => {
     const node = nodes[location.id];
@@ -17623,6 +17669,7 @@ function AtlasMapPanel({
         persistStop(stop);
         updateState((s: GameState) => ({
           ...s,
+          currentMapLocationId: stop.id,
           currentLocationName: stop.name,
           currentLocationType: locationTypeFromGlyph(stop.kind),
           currentRegion: stop.terrain || s.currentRegion,
@@ -17630,7 +17677,7 @@ function AtlasMapPanel({
         }));
       }}
       onEditPlace={location => persistStop(stopFromRequest(location))}
-      onDeletePlace={location => deletePlace(location.id)}
+      onDeletePlace={location => hasPrintedOverride(location.id) ? restorePrintedPlace(location.id) : deletePlace(location.id)}
         onSavePlaces={() => {
           const custom = state.customMapLocations || [];
           upsertPlayerMarkerRecords(custom.filter(row => !row.hidden).map(row => ({
@@ -17745,7 +17792,13 @@ function AtlasMapPanel({
             </div>
             <div className="map-atelier__actions">
               {!connectionEditMode && <button type="button" onClick={() => { setLinkFromId(selectedId); setPendingLink(null); }}>이 표시에서 연결 시작</button>}
-              <button type="button" className="map-atelier__delete" onClick={() => deletePlace(selectedId)}>이 표시 지우기</button>
+              {isPlayerCreatedMapPlace(selectedId) ? (
+                <button type="button" className="map-atelier__delete" onClick={() => deletePlace(selectedId)}>이 표시 지우기</button>
+              ) : hasPrintedOverride(selectedId) ? (
+                <button type="button" onClick={() => restorePrintedPlace(selectedId)}>인쇄 표시 원래대로</button>
+              ) : (
+                <button type="button" className="map-atelier__delete" onClick={() => deletePlace(selectedId)}>인쇄 표시 숨기기</button>
+              )}
             </div>
             {selectedEdges.length > 0 && (
               <ul className="map-atelier__edges">
@@ -17811,7 +17864,7 @@ function AtlasMapPanel({
                   <button type="button" className={selectedId === row.id ? 'is-on' : ''} onClick={() => handleAtlasSelection(row.id)}>
                     {kindLabel(row.kind)}{row.label ? ` · ${row.label}` : ''} · {row.region || '색 미정'}
                   </button>
-                  <button type="button" className="map-atelier__delete" onClick={() => deletePlace(row.id)}>지우기</button>
+                  <button type="button" onClick={() => restorePrintedPlace(row.id)}>원래대로</button>
                 </li>
               ))}
             </ul>
@@ -17911,7 +17964,7 @@ const MapView = memo(function MapView({
       }];
     })
     : [];
-  const currentId = findMapLocationKey(state.currentLocationName, customMapLocations);
+  const currentId = resolveCurrentMapLocationKey(state);
   const extraIds = new Set<string>([...highlightLocationIds, selectedLocationId, currentId, ...routePlaceIds].filter((id): id is string => Boolean(id)));
   (state.visitedLocations || []).forEach(name => {
     const id = findMapLocationKey(name, customMapLocations);
@@ -18754,7 +18807,7 @@ function JournalsView({
         journey: recordCanonicalJourneyEvent(nextBase, {
           id: `${journalId}:journey`, type: 'journal', category,
           region: toRuleRegion(s.currentRegion),
-          locationId: findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName),
+          locationId: resolveCurrentMapLocationKey(s),
           text: newText.trim()
         })
       };

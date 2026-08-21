@@ -176,6 +176,10 @@ describe('map interaction contracts', () => {
     expect(appSource).toContain('showTravelRoutes={false}');
     expect(appSource).toContain('showSavedConnections');
     expect(appSource).toContain('hideSelectedPlaceSheet={connectionEditMode}');
+    expect(appSource).toContain('currentMapLocationId: stop.id');
+    expect(appSource).toContain('resolveCurrentMapLocationKey(state) === id');
+    expect(appSource).toContain('인쇄 표시 원래대로');
+    expect(appSource).toContain('onDeletePlace={location => hasPrintedOverride(location.id) ? restorePrintedPlace(location.id) : deletePlace(location.id)}');
     expect(mapSource).toContain('paper-map__saved-connection--${connection.kind}');
     expect(mapSource).toContain('connectionHatches(connection)');
     expect(mapSource).toContain('return [-1, 1].map(offset =>');
