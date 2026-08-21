@@ -12052,12 +12052,36 @@ function PlayView({
   }, []);
 
   const handlePlayMapPick = useCallback((location: MapPickLocation) => {
-    const legalChoice = journeyDestinationMode === 'choose'
-      ? location.id !== journeyOriginId && Boolean(journeyGraph[location.id])
-      : journeyDestinationCandidates.some(row => row.id === location.id);
-    if (playMapMode === 'destination' && legalChoice) {
-      setDestName(location.id);
+    if (playMapMode !== 'destination') return;
+    if (location.id === journeyOriginId) {
+      showAlert('현재 위치가 아닌 곳을 여정 목적지로 고르세요.');
+      return;
     }
+    if (journeyDestinationMode === 'choose') {
+      if (!journeyGraph[location.id]) {
+        showAlert('저장된 지도에서 이 위치를 찾을 수 없습니다. 지도를 다시 열어 위치를 확인해주세요.');
+        return;
+      }
+      setDestName(location.id);
+      return;
+    }
+    if (!journeyDestinationCard) {
+      showAlert('목적지 카드를 먼저 뽑으세요.');
+      return;
+    }
+    if (!journeyDestinationCandidates.some(row => row.id === location.id)) {
+      showAlert('이 위치는 현재 카드의 방향·거리·장소 유형 조건에 맞지 않습니다. 지도에 강조된 후보를 고르세요.');
+      return;
+    }
+    setDestName(location.id);
+  }, [playMapMode, journeyDestinationCandidates, journeyDestinationCard, journeyDestinationMode, journeyGraph, journeyOriginId]);
+
+  const handlePlayMapSelection = useCallback((locationId: string | null) => {
+    if (playMapMode !== 'destination' || !locationId || locationId === journeyOriginId) return;
+    const legalChoice = journeyDestinationMode === 'choose'
+      ? Boolean(journeyGraph[locationId])
+      : journeyDestinationCandidates.some(row => row.id === locationId);
+    if (legalChoice) setDestName(locationId);
   }, [playMapMode, journeyDestinationCandidates, journeyDestinationMode, journeyGraph, journeyOriginId]);
 
   const handlePlayMapTravel = useCallback((location: MapPickLocation) => {
@@ -12590,7 +12614,8 @@ function PlayView({
             routePlaceIds={routeDraft.stops.map(stop => stop.id)}
             onConfirmDestination={playMapMode === 'destination' ? handlePlayMapPick : undefined}
             onTravelRequest={playMapMode === 'travel' ? handlePlayMapTravel : undefined}
-            onAddWaypoint={handleAddRouteWaypoint}
+            onAddWaypoint={playMapMode === 'destination' ? undefined : handleAddRouteWaypoint}
+            onSelectedPlaceChange={playMapMode === 'destination' ? handlePlayMapSelection : undefined}
             onSetCurrentLocation={handleSetMappedCurrentLocation}
             onCreatePlace={undefined}
             onMovePlace={undefined}
@@ -12609,12 +12634,12 @@ function PlayView({
                 ? (journeyDestinationMode === 'choose'
                   ? (selectedJourneyDestination
                     ? `직접 선택: ${selectedJourneyDestination.name}${selectedJourneyDestination.paths === null ? ' · 연결 경로 없음' : ` · ${selectedJourneyDestination.paths}경로`}`
-                    : '룰북 p.19의 직접 선택입니다. 지도에서 위치를 누른 뒤 ‘이곳을 여정 목적지로’를 선택하세요.')
+                    : '룰북 p.19의 직접 선택입니다. 지도에서 출발지가 아닌 위치를 한 번 누르면 목적지로 선택됩니다.')
                   : journeyDestinationCard
                   ? (selectedJourneyDestination
                     ? `선택된 후보: ${selectedJourneyDestination.name} · 총거리 ${selectedJourneyDestination.paths}경로`
                     : journeyDestinationCandidates.length > 0
-                      ? '강조된 후보를 누른 뒤 ‘이곳을 여정 목적지로’를 선택하세요. Route Editor에서 경유지도 이어서 고를 수 있습니다.'
+                      ? '강조된 후보를 한 번 누르면 목적지로 선택됩니다. 목적지를 정한 뒤 Route Editor에서 이동 경로를 구성하세요.'
                       : '현재는 이동 가능한 후보가 없습니다. 목적지 카드를 다시 뽑으세요.')
                   : '목적지 카드를 뽑으면 방향·거리·장소 유형에 맞는 목적지가 지도에 표시됩니다.')
                 : `룰북 지도를 보고 다음 위치를 누르세요. Route Editor에서 연결 타입과 순서를 고를 수 있습니다.${currentWeight > maxCarry ? ' 현재 과적 상태라 속도는 1입니다.' : ''}`
@@ -12644,7 +12669,7 @@ function PlayView({
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                 {journeyDestinationMode === 'draw'
                   ? '지도 후보는 카드의 거리·방향·정착지/도시 유형을 모두 충족합니다.'
-                  : '지도에서 위치를 누른 뒤 목적지로 확정하거나, 아래 여정 양식에서 이름으로 고르세요.'}
+                  : '지도에서 출발지가 아닌 도시·정착지·야생 위치를 한 번 누르거나, 아래 여정 양식에서 이름으로 고르세요.'}
               </div>
               {journeyDestinationMode === 'choose' && selectedJourneyDestination && (
                 <div style={{ fontSize: '0.82rem', color: 'var(--primary)', fontWeight: 700 }}>
@@ -14176,7 +14201,7 @@ function PlayView({
                     {journeyDestinationMode === 'draw' ? (
                       <CardDrawSlot
                         label="목적지와 방향 카드"
-                        helper="A–6은 12경로 이하 정착지, 7–9는 13–24경로 정착지, 10/J/M은 24경로 이상 도시입니다. 문양은 방향입니다."
+                        helper="A–6은 12경로 이하 정착지, 7–9는 13–24경로 정착지, 10/J/M은 24경로 이상 도시입니다. 문양 방향: ♥ 북쪽/위 · ♦ 남쪽/아래 · ♣ 동쪽/오른쪽 · ♠ 서쪽/왼쪽."
                         card={journeyDestinationCard}
                         onCard={(card: PlayingCard) => { setJourneyDestinationCard(card); setDestName(''); }}
                       />

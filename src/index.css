@@ -4312,8 +4312,12 @@ button,
 
   .play-with-map__map {
     position: sticky;
-    top: 0.75rem;
+    top: calc(4rem + 0.75rem);
     align-self: start;
+    max-height: calc(100dvh - 5.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
     z-index: 2;
   }
 }

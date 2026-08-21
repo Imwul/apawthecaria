@@ -49,6 +49,8 @@ describe('mobile layout regression guards', () => {
     expect(appSource).toContain('약제사 시작 기록');
     expect(cssSource).toMatch(/\.play-with-map\s*\{/);
     expect(cssSource).toMatch(/\.route-composer\s*\{/);
+    expect(cssSource).toMatch(/@media \(min-width: 1100px\)[\s\S]*?\.play-with-map__map\s*\{[\s\S]*?position:\s*sticky;[\s\S]*?top:\s*calc\(4rem \+ 0\.75rem\);[\s\S]*?max-height:\s*calc\(100dvh - 5\.5rem\);[\s\S]*?overflow-y:\s*auto;/);
+    expect(appSource).toContain('문양 방향: ♥ 북쪽/위 · ♦ 남쪽/아래 · ♣ 동쪽/오른쪽 · ♠ 서쪽/왼쪽.');
   });
 
   it('keeps the route strip controls tappable and horizontally usable on narrow screens', () => {

@@ -100,7 +100,7 @@ describe('map interaction contracts', () => {
     expect(appSource).not.toMatch(/onPickLocation=\{playMapMode === 'inspect' \? undefined : handlePlayMapPick\}/);
   });
 
-  it('keeps named destinations above overlapping wild markers and asks for an explicit destination confirmation', () => {
+  it('keeps named destinations above overlapping wild markers and provides a destination confirmation action', () => {
     expect(mapSource).toContain("place.locationType === 'Wilds' ? 3 : 4");
     expect(mapSource).toContain('이곳을 여정 목적지로');
     expect(mapSource).toContain('onConfirmDestination(placeToPick(selectedPlace))');
@@ -130,6 +130,13 @@ describe('map interaction contracts', () => {
     expect(appSource).toContain('id="play-journey-map"');
     expect(appSource).toContain('<RouteComposer');
     expect(appSource).toContain("source: previous?.hidden ? 'player-correction' : (previous?.source || 'player-correction')");
+  });
+
+  it('does not add a route stop while the map is being used to choose a journey destination', () => {
+    expect(appSource).toContain("onAddWaypoint={playMapMode === 'destination' ? undefined : handleAddRouteWaypoint}");
+    expect(appSource).toContain("onSelectedPlaceChange={playMapMode === 'destination' ? handlePlayMapSelection : undefined}");
+    expect(appSource).toContain("journeyDestinationMode === 'choose'\n      ? Boolean(journeyGraph[locationId])");
+    expect(appSource).toContain('도시·정착지·야생 위치를 한 번 누르거나');
   });
 
   it('locks map panning before a marker can be dragged to a new place', () => {

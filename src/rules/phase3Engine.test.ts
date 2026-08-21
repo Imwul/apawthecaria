@@ -320,6 +320,16 @@ describe('Phase 3 Journey, Goal, and Ending engines', () => {
     expect(evaluateJourneyGoal(journey, { inventory: [], reputation: 5, patients: [] }).complete).toBe(true);
   });
 
+  it('[JOURNEY-003] allows a City as a printed choose-destination selection', () => {
+    const result = resolveJourneyStart({
+      transactionId: 'journey-chosen-city', state: journeyRuntime(), graph: journeyGraph(), originId: 'origin', season: 'Spring',
+      destinationSelection: 'choose', destinationId: 'east-24', destinationCard: null,
+      goalCard: 1, reason: 'Travel to the city', startDate: 1, rulesetId: 'original-1e-3p'
+    });
+    expect(result.status).toBe('resolved');
+    expect(result.value?.journey?.destinationId).toBe('east-24');
+  });
+
   it('[JOURNEY-004] defines all 12 printed Goals and evaluates state evidence instead of a free counter', () => {
     expect(JOURNEY_GOALS).toHaveLength(12);
     const tagged = (tag: string, threshold: number) => {
