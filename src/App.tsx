@@ -7102,7 +7102,19 @@ export default function App() {
                   journals: '들녘의 일지'
                 } as Record<string, string>)[activeTab] || '현재 기록'} 장`}
               >
-                {activeTab === 'bio' && <BioView state={state} updateState={updateState} currentWeight={currentWeight} handleRetireClick={handleRetireClick} onOpenReference={openRulebookReference} />}
+                {activeTab === 'bio' && (
+                  <BioView
+                    state={state}
+                    updateState={updateState}
+                    currentWeight={currentWeight}
+                    handleRetireClick={handleRetireClick}
+                    onOpenReference={openRulebookReference}
+                    onGoToDowntime={() => {
+                      changeActiveTab('play');
+                      window.setTimeout(() => document.getElementById('downtime-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+                    }}
+                  />
+                )}
                 {activeTab === 'reagents' && (
                   <ReagentsView
                     state={state}
@@ -8854,6 +8866,9 @@ function PlayView({
 
   // Downtime state
   const [downtimeTab, setDowntimeTab] = useState<'activities' | 'shop' | 'companions' | 'start'>('activities');
+  const [selectedDowntimeActivity, setSelectedDowntimeActivity] = useState<
+    'rumour' | 'general-practice' | 'replenish' | 'self-improvement' | 'explore' | 'reconnect' | 'relax' | 'lend-a-paw' | null
+  >(null);
   const [bypassShopRules, setBypassShopRules] = useState(false);
   const [rumourCards, setRumourCards] = useState<Array<{ text: string; suit: string; val: string }>>([]);
   const [rumourBarrowName, setRumourBarrowName] = useState('');
@@ -11555,7 +11570,10 @@ function PlayView({
         { value: 'stay', label: `${localizeSeasonLabel(state.currentSeason)}에 머무르기` }
       ]
     });
-    if (confirmation === 'advance') handleSettleSeasonTipsAndDonations();
+    if (confirmation === 'advance') {
+      handleSettleSeasonTipsAndDonations();
+      setDowntimeTab('start');
+    }
   };
 
   // Bartering Resolution
@@ -12886,6 +12904,51 @@ function PlayView({
     }
   };
 
+  const rumourActivityAvailable = bypassShopRules || (state.currentLocationType === 'City' && state.reputation >= 15);
+  const downtimeActivityCardProps = (
+    activity: Exclude<typeof selectedDowntimeActivity, null>,
+    available = true
+  ) => {
+    const selected = selectedDowntimeActivity === activity;
+    return {
+      className: `cute-card downtime-activity-card${selected ? ' is-selected' : ' is-collapsed'}${available ? '' : ' is-unavailable'}`,
+      role: selected ? 'region' as const : available ? 'button' as const : 'group' as const,
+      tabIndex: available && !selected ? 0 : undefined,
+      'aria-expanded': available && !selected ? false : undefined,
+      'aria-disabled': available ? undefined : true,
+      onClick: () => {
+        if (available && !selected) setSelectedDowntimeActivity(activity);
+      },
+      onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (!available || selected || (event.key !== 'Enter' && event.key !== ' ')) return;
+        event.preventDefault();
+        setSelectedDowntimeActivity(activity);
+      }
+    };
+  };
+  const latestDowntimeJournal = state.journals.find(entry => /^Downtime:/.test(entry.title));
+  const latestDowntimeActivity = latestDowntimeJournal?.title.match(/^Downtime:\s*(.+)$/)?.[1] || '';
+  const downtimeReceiptText = latestDowntimeJournal
+    ? localizeGameplayMessage(localizeManualJournalText(latestDowntimeJournal.text)).replace(/\s+/g, ' ').trim()
+    : '';
+  const downtimeChangeSummary = (() => {
+    if (!latestDowntimeActivity) return '';
+    if (latestDowntimeActivity === 'general-practice') return `장신구 ${Math.max(0, state.trinkets.length - 5)} → ${state.trinkets.length} · 질환 태그 변경 저장`;
+    if (latestDowntimeActivity === 'lend-a-paw') return `길드 평판 ${Math.max(0, state.reputation - 5)} → ${state.reputation}`;
+    if (latestDowntimeActivity === 'replenish') return `가방 ${formatWeight(currentWeight)} / ${maxCarry} · 선택한 제철 영약재 저장`;
+    if (latestDowntimeActivity === 'explore') return '새 경로가 접어둔 지도에 저장됨';
+    if (latestDowntimeActivity === 'reconnect') return `현재 위치 → ${state.currentLocationName} · 길드 노트가 가방에 저장됨`;
+    if (latestDowntimeActivity === 'relax-tool') return '선택한 도구 선물이 가방에 저장됨';
+    if (latestDowntimeActivity === 'relax-familiar') return `현재 길동무 도움 → ${state.bio.familiarBenefit}`;
+    if (latestDowntimeActivity === 'rumour') return '거수 고분 위치가 지도에 저장됨';
+    if (latestDowntimeActivity === 'self-improvement') {
+      if (latestDowntimeJournal?.text.includes('이동 속도')) return `이동 속도 ${Math.max(0, state.bio.speed - 1)} → ${state.bio.speed}`;
+      if (latestDowntimeJournal?.text.includes('소지 한도')) return `소지 한도 ${Math.max(0, state.bio.carry - 1)} → ${state.bio.carry}`;
+      return `이동 방식 → ${localizeTravelStyle(state.bio.travelStyle)} · 속도 ${state.bio.speed} · 소지 ${state.bio.carry}`;
+    }
+    return '';
+  })();
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
@@ -13167,14 +13230,24 @@ function PlayView({
               <p>{campaignContinuity.guidance}</p>
             </div>
             {state.downtimeCompleted && (
-              <div className="downtime-season-action">
-                <div>
-                  <strong>{localizeSeasonLabel(state.currentSeason)}의 휴식기 정산이 끝났습니다.</strong>
-                  <span>약제소 수입과 기부, 동반자 변화를 반영하고 다음 계절로 넘어갑니다.</span>
+              <div className="downtime-completion">
+                {latestDowntimeJournal && (
+                  <div className="downtime-result-receipt" role="status">
+                    <span className="document-kicker">이번 휴식기 변화</span>
+                    <strong>{localizeGameplayMessage(latestDowntimeJournal.title)}</strong>
+                    {downtimeReceiptText && <p>{downtimeReceiptText}</p>}
+                    {downtimeChangeSummary && <small>{downtimeChangeSummary}</small>}
+                  </div>
+                )}
+                <div className="downtime-season-action">
+                  <div>
+                    <strong>{localizeSeasonLabel(state.currentSeason)}의 활동을 마쳤습니다.</strong>
+                    <span>변화는 저장되었습니다. 계절 효과를 정산하면 다음 여정 준비가 열립니다.</span>
+                  </div>
+                  <button type="button" className="btn-cozy-secondary" onClick={handleAdvanceSeason}>
+                    계절 정산 및 전환
+                  </button>
                 </div>
-                <button type="button" className="btn-cozy-secondary" onClick={handleAdvanceSeason}>
-                  계절 정산 및 전환
-                </button>
               </div>
             )}
           </div>
@@ -13518,39 +13591,39 @@ function PlayView({
                 );
               })()}
 
+              {state.downtimeRequired && !state.downtimeCompleted && (
               <fieldset
                 id="downtime-activity-choice"
                 className="downtime-activity-stack"
-                disabled={!state.downtimeRequired || state.downtimeCompleted}
               >
-                <legend>이번 휴식기 활동 · 아래에서 정확히 하나 선택</legend>
-                {!state.downtimeRequired || state.downtimeCompleted ? (
-                  <div className="downtime-activity-lock" role="status">
-                    {state.downtimeCompleted
-                      ? '이번 휴식기 활동은 이미 완료되었습니다. 계절을 정산하면 다음 여정 뒤 다시 선택할 수 있습니다.'
-                      : '휴식기 활동은 여정을 마친 직후에 한 번 선택합니다. 지금은 새 여정을 시작할 차례입니다.'}
-                  </div>
-                ) : null}
+                <legend>이번 휴식기 활동 · 하나를 선택하면 세부 판정이 열립니다</legend>
+                <div className="downtime-context-ledger" aria-label="휴식기 판단에 필요한 현재 상태">
+                  <div><span>마지막 여정 위치</span><strong>{state.currentLocationName} · {state.currentLocationType === 'City' ? '도시' : state.currentLocationType === 'Settlement' ? '정착지' : '야생'}</strong></div>
+                  <div><span>계절</span><strong>{localizeSeasonLabel(state.currentSeason)}</strong></div>
+                  <div><span>길드 평판</span><strong>{state.reputation}점</strong></div>
+                  <div><span>장신구</span><strong>{state.trinkets.length}개</strong></div>
+                  <div><span>가방</span><strong>{formatWeight(currentWeight)} / {maxCarry}</strong></div>
+                </div>
 
               {/* Listening to Rumours (City Only) */}
-              <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🗺️ 소문 듣기 (거수 고분 탐색)</h3>
+              <div {...downtimeActivityCardProps('rumour', rumourActivityAvailable)} style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🗺️{' '}소문 듣기 (거수 고분 탐색)</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   길드 명성이 <strong>15점 이상</strong>이고 <strong>도시</strong>에 머물 때만 가능합니다. 소문을 들어 지도상의 야생 구역에 거수 고분을 생성합니다. (현재 평판: {state.reputation}점)
                 </p>
 
                 {state.currentLocationType !== 'City' && !bypassShopRules ? (
-                  <div style={{ fontStyle: 'italic', color: 'var(--accent-red)', fontSize: '0.85rem' }}>
-                    ⚠️ 현재 위치가 도시가 아니어서 소문을 들을 수 없습니다. (상점 규칙 우회를 켜서 활성화할 수 있습니다.)
+                  <div className="downtime-action-availability" style={{ fontStyle: 'italic', color: 'var(--accent-red)', fontSize: '0.85rem' }}>
+                    현재 위치는 도시가 아닙니다. 도시에서 여정을 마친 뒤 선택할 수 있습니다.
                   </div>
                 ) : state.reputation < 15 && !bypassShopRules ? (
-                  <div style={{ fontStyle: 'italic', color: 'var(--accent-red)', fontSize: '0.85rem' }}>
-                    ⚠️ 길드 평판이 부족합니다. (최소 15점 필요, 현재 {state.reputation}점)
+                  <div className="downtime-action-availability" style={{ fontStyle: 'italic', color: 'var(--accent-red)', fontSize: '0.85rem' }}>
+                    길드 평판이 부족합니다. 최소 15점 · 현재 {state.reputation}점
                   </div>
                 ) : (
                   <div>
                     <button onClick={handleDrawRumours} className="btn-cozy-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
-                      🎲 소문 카드 4장 드로우하기
+                      🎲{' '}소문 카드 4장 드로우하기
                     </button>
 
                     {rumourCards.length > 0 && (
@@ -13568,7 +13641,7 @@ function PlayView({
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.85rem' }}>
                           <div>
-                            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.2rem' }}>🏷️ 거수 고분 이름:</label>
+                            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.2rem' }}>🏷️{' '}거수 고분 이름:</label>
                             <input
                               type="text"
                               value={rumourBarrowName}
@@ -13596,7 +13669,7 @@ function PlayView({
                             </select>
                           </div>
                           <button onClick={handleEstablishBarrow} className="btn-cozy-secondary" style={{ alignSelf: 'flex-start', padding: '0.5rem 1rem' }}>
-                            💾 고분 위치 지도에 등록
+                            💾{' '}고분 위치 지도에 등록
                           </button>
                         </div>
                       </div>
@@ -13606,8 +13679,8 @@ function PlayView({
               </div>
 
               {/* General Practice */}
-              <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🩺 일반 진료</h3>
+              <div {...downtimeActivityCardProps('general-practice')} style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🩺{' '}일반 진료</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   동네 주민들을 진료하며 <strong>5 장신구</strong>를 벌고 질병의 태그를 영구 변경합니다.
                 </p>
@@ -13656,14 +13729,14 @@ function PlayView({
                     />
                   </div>
                   <button type="submit" className="btn-cozy-secondary" style={{ alignSelf: 'flex-start', padding: '0.5rem 1rem' }}>
-                    🩺 일반 진료 완료 및 5장신구 획득
+                    🩺{' '}일반 진료 완료 및 5장신구 획득
                   </button>
                 </form>
               </div>
 
               {/* Replenishing Stocks */}
-              <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🧺 재고 보충</h3>
+              <div {...downtimeActivityCardProps('replenish')} style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🧺{' '}재고 보충</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   현재 구역(<strong style={{ color: 'var(--primary)' }}>{localizeRegionLabel(state.currentRegion)}</strong>)과 계절(<strong>{localizeSeasonLabel(state.currentSeason)}</strong>)에 맞는 제철 약재를 가방이 허용하는 만큼 여러 종류 고릅니다.
                 </p>
@@ -13702,7 +13775,7 @@ function PlayView({
                         />
                       </div>
                       <button type="submit" className="btn-cozy-secondary" style={{ alignSelf: 'flex-start', padding: '0.5rem 1rem' }} disabled={replenishReagentIndexes.length === 0}>
-                        🧺 선택한 약초 보충하기
+                        🧺{' '}선택한 약초 보충하기
                       </button>
                     </form>
                   );
@@ -13710,23 +13783,23 @@ function PlayView({
               </div>
 
               {/* Working on Yourself */}
-              <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🌱 자기 계발</h3>
+              <div {...downtimeActivityCardProps('self-improvement')} style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🌱{' '}자기 계발</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   바쁜 일상에서 벗어나 자신을 갈고닦습니다. 영구 능력치 버프 또는 새로운 여행 방식을 정립합니다.
                 </p>
 
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <button onClick={() => handleWorkingOnYourself('speed')} className="btn-cozy-primary" style={{ padding: '0.5rem 0.8rem', fontSize: '0.8rem' }}>
-                    🏃‍♂️ 속도 영구 향상 (+1 속도)
+                    🏃‍♂️{' '}속도 영구 향상 (+1 속도)
                   </button>
                   <button onClick={() => handleWorkingOnYourself('carry')} className="btn-cozy-primary" style={{ padding: '0.5rem 0.8rem', fontSize: '0.8rem' }}>
-                    🎒 짐 소지 영구 향상 (+1 소지 한도)
+                    🎒{' '}짐 소지 영구 향상 (+1 소지 한도)
                   </button>
                 </div>
 
                 <div style={{ marginTop: '1rem', borderTop: '1px dashed #eee', paddingTop: '1rem' }}>
-                  <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.4rem' }}>🧭 이동 스타일 변경:</label>
+                  <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.4rem' }}>🧭{' '}이동 스타일 변경:</label>
                   <div style={{ display: 'flex', gap: '0.4rem' }}>
                     <select id="style_select" style={{ padding: '0.4rem', fontSize: '0.85rem', flex: 1 }}>
                       {GAME_DATA.bioChoices.travelStyles.map((style, idx) => (
@@ -13750,7 +13823,7 @@ function PlayView({
               {/* 🐾 길동무와 교감 (Familiar Intimacy & milestones) */}
               {state.rulesetId === 'legacy-campaign' && <div className="cute-card" style={{ background: '#f8fafc', border: '1.5px solid var(--border-cozy)' }}>
                 <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>🐾 길동무 교감</span>
+                  <span>🐾{' '}길동무 교감</span>
                   <span style={{ fontSize: '0.8rem', background: 'var(--primary)', color: '#fff', padding: '0.1rem 0.4rem', borderRadius: '12px' }}>
                     친밀도: {state.familiarTrust || 0}%
                   </span>
@@ -13781,7 +13854,7 @@ function PlayView({
                     className="btn-cozy-primary"
                     style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', alignSelf: 'flex-start' }}
                   >
-                    🚶‍♂️ 길동무와 하루 동안 시간 보내기 (친밀도 +5%, 일정 +1일 소모)
+                    🚶‍♂️{' '}길동무와 하루 동안 시간 보내기 (친밀도 +5%, 일정 +1일 소모)
                   </button>
 
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.5rem' }}>
@@ -13811,8 +13884,8 @@ function PlayView({
               </div>}
 
               {/* Exploring The Woods */}
-              <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🧭 숲 탐험하기</h3>
+              <div {...downtimeActivityCardProps('explore')} style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🧭{' '}숲 탐험하기</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   현재 머무는 위치 주변의 지도에 두 장소 간 새로운 경로나 물길을 하나 개척합니다.
                 </p>
@@ -13821,13 +13894,13 @@ function PlayView({
                   className="btn-cozy-secondary"
                   style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
                 >
-                  🗺️ 새로운 경로 개척
+                  🗺️{' '}새로운 경로 개척
                 </button>
               </div>
 
               {/* Reconnecting With Guildmates */}
-              <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🤝 동료들과 재회하기</h3>
+              <div {...downtimeActivityCardProps('reconnect')} style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🤝{' '}동료들과 재회하기</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   가장 가까운 도시로 이동해 다른 동료 약제사들과 정보와 노트를 공유합니다.
                 </p>
@@ -13836,7 +13909,7 @@ function PlayView({
                     <label style={{ fontWeight: 'bold' }}>가져갈 길드 정보 노트 선택:</label>
                     <select id="reconnect_note_select" style={{ width: '100%', padding: '0.4rem', marginTop: '0.2rem' }}>
                       <option value="ledger">🌿 식물학자의 장부 (Botanist's Ledger - 무게 1/3, 해당 지역 채집 시작 시 채집 포인트 +2)</option>
-                      <option value="map">🗺️ 물류 지도 (Logistical Map - 무게 2/3, 해당 지역 이동 조우 시 2장 드로우 선택)</option>
+                      <option value="map">🗺️{' '}물류 지도 (Logistical Map - 무게 2/3, 해당 지역 이동 조우 시 2장 드로우 선택)</option>
                       <option value="gossip">💬 흥미로운 소문 (Juicy Gossip - 무게 0, 흥정 거래 시 소모해 자동 성공)</option>
                     </select>
                   </div>
@@ -13919,14 +13992,14 @@ function PlayView({
                     className="btn-cozy-secondary"
                     style={{ padding: '0.5rem 1rem', alignSelf: 'flex-start' }}
                   >
-                    🤝 동료들과 재회 완료
+                    🤝{' '}동료들과 재회 완료
                   </button>
                 </div>
               </div>
 
               {/* Relaxing with Friends */}
-              <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>💖 친구들과 휴식하기</h3>
+              <div {...downtimeActivityCardProps('relax')} style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>💖{' '}친구들과 휴식하기</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   길동무를 교체하거나, 가방에 들어갈 새로운 기본 도구를 이별 선물로 받습니다.
                 </p>
@@ -14023,14 +14096,14 @@ function PlayView({
                     className="btn-cozy-secondary"
                     style={{ padding: '0.5rem 1rem', alignSelf: 'flex-start' }}
                   >
-                    💖 휴식 및 재충전 완료
+                    💖{' '}휴식 및 재충전 완료
                   </button>
                 </div>
               </div>
 
               {/* Lending A Paw */}
-              <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🐾 도움의 손길</h3>
+              <div {...downtimeActivityCardProps('lend-a-paw')} style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🐾{' '}도움의 손길</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   다른 길드나 이웃 동물들의 공공 프로젝트에 자원봉사하여 <strong>길드 명성 +5점</strong>을 획득합니다.
                 </p>
@@ -14066,12 +14139,13 @@ function PlayView({
                     className="btn-cozy-secondary"
                     style={{ padding: '0.5rem 1rem', alignSelf: 'flex-start' }}
                   >
-                    🐾 자원봉사 기록 및 평판 +5 획득
+                    🐾{' '}자원봉사 기록 및 평판 +5 획득
                   </button>
                 </div>
               </div>
 
               </fieldset>
+              )}
 
               {/* Clinic Construction Panel */}
               {state.currentLocationType === 'Wilds' && state.curedAilmentInThisWilds && (
@@ -16627,7 +16701,7 @@ function CharacterCreationWizard({
   );
 }
 
-function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenReference }: { state: GameState; updateState: any; currentWeight: number; handleRetireClick: () => void; onOpenReference: (request: RulebookReferenceRequest) => void }) {
+function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenReference, onGoToDowntime }: { state: GameState; updateState: any; currentWeight: number; handleRetireClick: () => void; onOpenReference: (request: RulebookReferenceRequest) => void; onGoToDowntime: () => void }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(state.bio.name);
   const [familiarName, setFamiliarName] = useState(state.bio.familiarName);
@@ -16763,11 +16837,20 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
   };
 
   const reputationLevel = state.reputation >= 35 ? '신뢰받음' : state.reputation >= 25 ? '명망 높음' : state.reputation >= 15 ? '인지도 있음' : '미등록';
-  const recentProgress = state.journals.find(entry => /Downtime|휴식|계절|여정|속도|소지|평판|은퇴|자원봉사|자기 계발/.test(entry.title));
-  const recentProgressTitle = recentProgress ? localizeManualJournalTitle(recentProgress.title) : '';
+  const recentProgress = state.journals.find(entry => /^(Downtime:|Journey (success|partial|failure|abandoned)|휴식|계절|여정 (성공|부분 성공|실패|포기)|속도|소지|평판|은퇴|친구들과 보낸 휴식|🐾 자원봉사|자기 계발)/i.test(entry.title));
+  const recentProgressTitle = recentProgress ? localizeGameplayMessage(localizeManualJournalTitle(recentProgress.title)) : '';
   const recentProgressText = recentProgress
-    ? localizeManualJournalText(recentProgress.text).replace(/^\[p\.\d+\]\s*/, '').trim()
+    ? localizeGameplayMessage(localizeManualJournalText(recentProgress.text)).replace(/^\[p\.\d+\]\s*/, '').replace(/\s+/g, ' ').trim()
     : '';
+  const bagToolCount = state.bag.filter(item => item.id.startsWith('tool_') || item.type === 'tool').length;
+  const bagReagentCount = state.bag.filter(item => !item.id.startsWith('tool_') && item.type !== 'tool').length;
+  const characterNextStep = state.journeyActive
+    ? '진행 중인 여정으로 돌아가기'
+    : state.downtimeRequired && !state.downtimeCompleted
+      ? '여정 뒤 휴식기 활동 하나 선택'
+      : state.downtimeCompleted
+        ? '계절 정산 후 다음 여정 준비'
+        : '다음 여정을 시작할 수 있음';
 
   return (
     <div className="parchment-panel cute-border" style={{ padding: '1.8rem', background: '#fffdf9' }}>
@@ -16791,7 +16874,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
         </div>
       </div>
 
-      <CharacterCreationWizard state={state} updateState={updateState} />
+      {!state.bio.name.trim() && <CharacterCreationWizard state={state} updateState={updateState} />}
 
       <section className="character-continuity" aria-labelledby="character-continuity-title">
         <div className="character-continuity__heading">
@@ -16804,13 +16887,24 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
         <dl>
           <div><dt>이동 속도</dt><dd>{getTravelSpeed(state, currentWeight)} <small>기본 {state.bio.speed}</small></dd></div>
           <div><dt>소지 한도</dt><dd>{getMaxCarry(state)} <small>기본 {state.bio.carry}</small></dd></div>
+          <div><dt>현재 가방</dt><dd>{formatWeight(currentWeight)} / {getMaxCarry(state)} <small>도구 {bagToolCount} · 영약재/수집물 {bagReagentCount}</small></dd></div>
+          <div><dt>장신구</dt><dd>{state.trinkets.length}개 <small>휴식기·거래에 사용</small></dd></div>
           <div><dt>길드 평판</dt><dd>{state.reputation} <small>{reputationLevel}</small></dd></div>
           <div><dt>캠페인 시간</dt><dd>{state.cumulativeDays || 0}일 <small>계절 {state.completedSeasons || 0}회 완료</small></dd></div>
         </dl>
-        <p>
-          <strong>최근 장기 변화</strong>{' '}
-          {recentProgress ? `${recentProgressTitle} — ${recentProgressText.slice(0, 150)}` : '아직 기록된 휴식기·계절·여정 변화가 없습니다.'}
-        </p>
+        <div className="character-continuity__footer">
+          <p>
+            <strong>최근 장기 변화</strong>{' '}
+            {recentProgress ? `${recentProgressTitle}${recentProgressText ? ` — ${recentProgressText.slice(0, 160)}` : ''}` : '아직 기록된 휴식기·계절 변화가 없습니다.'}
+          </p>
+          <div>
+            <span>다음 단계</span>
+            <strong>{characterNextStep}</strong>
+            {!state.journeyActive && (state.downtimeRequired || state.downtimeCompleted) && (
+              <button type="button" onClick={onGoToDowntime}>휴식기 기록으로 이동</button>
+            )}
+          </div>
+        </div>
       </section>
 
       {!editing ? (

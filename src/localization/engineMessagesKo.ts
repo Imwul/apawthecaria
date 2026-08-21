@@ -389,11 +389,15 @@ const localizeSeasonDestination = (season: string) => ({
 } as Record<string, string>)[season] || `${season}(으)로`;
 
 const localizeDowntimeActivity = (activity: string) => ({
+  rumour: '소문 듣기',
   'general-practice': '일반 진료',
   replenish: '재고 보충',
-  explore: '주변 탐색',
-  'self-improvement': '자기 수련',
-  reconnect: '길드와 재연결',
+  explore: '숲 탐험하기',
+  'self-improvement': '자기 계발',
+  reconnect: '동료들과 재회하기',
+  'relax-tool': '친구들과 휴식하기 · 도구 선물',
+  'relax-familiar': '친구들과 휴식하기 · 길동무 교체',
+  'lend-a-paw': '도움의 손길',
   'commission-clinic': '약제소 건설',
   'commission-wagon': '마차 제작',
   'upgrade-wagon': '마차 개조'

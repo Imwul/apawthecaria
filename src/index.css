@@ -8084,9 +8084,9 @@ details.rulebook-source-text > summary {
 }
 
 .downtime-activity-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 1.2rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -8094,6 +8094,7 @@ details.rulebook-source-text > summary {
 }
 
 .downtime-activity-stack > legend {
+  grid-column: 1 / -1;
   width: 100%;
   margin: 0;
   padding: 0.7rem 0.85rem;
@@ -8102,6 +8103,164 @@ details.rulebook-source-text > summary {
   background: #faf6ee;
   font-size: 0.86rem;
   font-weight: 800;
+}
+
+.downtime-context-ledger {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-column: 1 / -1;
+  border-block: 1px dashed rgba(77, 70, 56, 0.22);
+  background: rgba(255, 253, 246, 0.5);
+}
+
+.downtime-context-ledger > div {
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border-right: 1px dashed rgba(77, 70, 56, 0.18);
+}
+
+.downtime-context-ledger > div:last-child {
+  border-right: 0;
+}
+
+.downtime-context-ledger span,
+.downtime-context-ledger strong {
+  display: block;
+}
+
+.downtime-context-ledger span {
+  color: var(--text-dim);
+  font-size: 0.7rem;
+}
+
+.downtime-context-ledger strong {
+  margin-top: 0.12rem;
+  overflow-wrap: anywhere;
+  color: var(--text-bright);
+  font-size: 0.86rem;
+}
+
+.downtime-activity-card {
+  min-width: 0;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.downtime-activity-card.is-collapsed {
+  position: relative;
+  min-height: 150px;
+  padding: 0.9rem 1rem 2.25rem !important;
+  cursor: pointer;
+}
+
+.downtime-activity-card.is-collapsed > :not(h3):not(p):not(.downtime-action-availability) {
+  display: none !important;
+}
+
+.downtime-activity-card.is-collapsed > p {
+  margin-bottom: 0 !important;
+  line-height: 1.5;
+}
+
+.downtime-activity-card.is-collapsed::after {
+  position: absolute;
+  right: 1rem;
+  bottom: 0.8rem;
+  content: '선택하여 조건과 판정 열기 →';
+  color: var(--secondary);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.downtime-activity-card.is-collapsed:hover,
+.downtime-activity-card.is-collapsed:focus-visible {
+  border-color: var(--secondary) !important;
+  background: #fffdf8 !important;
+  outline: none;
+}
+
+.downtime-activity-card.is-selected {
+  grid-column: 1 / -1;
+  border-color: var(--secondary) !important;
+  background: #fffdf8 !important;
+}
+
+.downtime-activity-card.is-unavailable {
+  cursor: default;
+  background: #f7f4ed !important;
+}
+
+.downtime-activity-card.is-unavailable::after {
+  content: '현재 선택 불가';
+  color: var(--text-dim);
+}
+
+.downtime-action-availability {
+  margin-top: 0.55rem;
+  line-height: 1.45;
+}
+
+.downtime-completion {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.9rem;
+}
+
+.downtime-result-receipt {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem 0.85rem;
+  border-left: 3px solid var(--primary);
+  background: rgba(238, 245, 232, 0.72);
+}
+
+.downtime-result-receipt > strong {
+  color: var(--primary);
+  font-size: 0.96rem;
+}
+
+.downtime-result-receipt p,
+.downtime-result-receipt small {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.downtime-result-receipt small {
+  color: var(--text-bright);
+  font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+  .character-continuity dl {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .character-continuity__footer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .character-continuity__footer > div {
+    justify-content: flex-start;
+  }
+
+  .downtime-activity-stack {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .downtime-context-ledger,
+  .downtime-activity-stack > legend,
+  .downtime-activity-card.is-selected {
+    grid-column: 1;
+  }
+
+  .downtime-context-ledger {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .downtime-context-ledger > div:nth-child(even) {
+    border-right: 0;
+  }
 }
 
 .downtime-activity-lock {
@@ -8184,7 +8343,7 @@ details.rulebook-source-text > summary {
 
 .character-continuity dl {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.55rem;
   margin: 0;
 }
@@ -8216,11 +8375,52 @@ details.rulebook-source-text > summary {
   font-weight: 500;
 }
 
-.character-continuity > p {
+.character-continuity__footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(240px, 0.8fr);
+  gap: 0.85rem;
+  align-items: center;
+  padding-top: 0.65rem;
+  border-top: 1px dashed rgba(77, 70, 56, 0.22);
+}
+
+.character-continuity__footer p {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.78rem;
   line-height: 1.5;
+}
+
+.character-continuity__footer > div {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.character-continuity__footer > div > span {
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.character-continuity__footer > div > strong {
+  min-width: 0;
+  color: var(--primary);
+  font-size: 0.82rem;
+}
+
+.character-continuity__footer button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0.38rem 0.65rem;
+  border: 1px solid var(--secondary);
+  background: transparent;
+  color: var(--secondary);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
 }
 
 .calendar-ledger-heading {
@@ -8647,11 +8847,11 @@ details.rulebook-source-text > summary {
 }
 
 .bio-workbench {
-  order: 1;
+  order: 2;
 }
 
 .bio-profile-summary {
-  order: 2;
+  order: 1;
 }
 
 .bio-extended-records {

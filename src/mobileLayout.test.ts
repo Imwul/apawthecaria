@@ -72,6 +72,18 @@ describe('mobile layout regression guards', () => {
     expect(cssSource).toMatch(/\.downtime-season-action\s*\{[\s\S]*?justify-content:\s*space-between/);
   });
 
+  it('keeps Character context, Downtime choice, and its saved result in one progression flow', () => {
+    expect(appSource).toContain('className="character-continuity__footer"');
+    expect(appSource).toContain('도구 {bagToolCount} · 영약재/수집물 {bagReagentCount}');
+    expect(appSource).toContain('onGoToDowntime={');
+    expect(appSource).toContain("!state.bio.name.trim() && <CharacterCreationWizard");
+    expect(appSource).toContain('className="downtime-context-ledger"');
+    expect(appSource).toContain('className="downtime-result-receipt"');
+    expect(appSource).toMatch(/\{state\.downtimeRequired && !state\.downtimeCompleted && \([\s\S]*?id="downtime-activity-choice"/);
+    expect(cssSource).toMatch(/\.downtime-activity-card\.is-collapsed\s*\{[\s\S]*?min-height:\s*150px/);
+    expect(cssSource).toMatch(/\.downtime-activity-card\.is-selected\s*\{[\s\S]*?grid-column:\s*1 \/ -1/);
+  });
+
   it('keeps a play-tab map beside journey setup without covering the paper map', () => {
     expect(appSource).toContain('id="play-journey-map"');
     expect(appSource).toContain('variant="companion"');

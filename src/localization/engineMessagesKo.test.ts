@@ -72,6 +72,9 @@ describe('gameplay message Korean presentation layer', () => {
     expect(localizeGameplayMessage('여정 started')).toBe('여정 시작');
     expect(localizeGameplayMessage('Barter: Nettles')).toBe('물물교환: Nettles');
     expect(localizeGameplayMessage('Spring to Summer')).toBe('봄에서 여름으로');
+    expect(localizeGameplayMessage('Downtime: self-improvement')).toBe('휴식기 활동: 자기 계발');
+    expect(localizeGameplayMessage('Downtime: relax-tool')).toBe('휴식기 활동: 친구들과 휴식하기 · 도구 선물');
+    expect(localizeGameplayMessage('Downtime: lend-a-paw')).toBe('휴식기 활동: 도움의 손길');
   });
 
   it('covers rare engine failures and persisted journal formats', () => {
