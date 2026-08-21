@@ -12,6 +12,7 @@ import {
   createMakeDoAcquisition,
   createPatientArchiveRecord,
   createReplacementAcquisition,
+  evaluateJourneyDestination,
   evaluateJourneyGoal,
   executeEncounter,
   findJourneyDestinationCandidates,
@@ -269,6 +270,54 @@ describe('Phase 3 Journey, Goal, and Ending engines', () => {
     expect(findJourneyDestinationCandidates({ graph, originId: 'origin', card: { value: 8, suit: '♦' } }).map(row => row.id)).toContain('south-15');
     expect(findJourneyDestinationCandidates({ graph, originId: 'origin', card: { value: 13, suit: '♣' } }).map(row => row.id)).toContain('east-24');
     expect(findJourneyDestinationCandidates({ graph, originId: 'origin', card: { value: 13, suit: '♣' } }).map(row => row.id)).not.toContain('east-15');
+  });
+
+  it('[JOURNEY-003] explains direction, distance, and place-type mismatches separately', () => {
+    const graph = journeyGraph();
+    expect(evaluateJourneyDestination({ graph, originId: 'origin', destinationId: 'west-15', card: { value: 8, suit: '♠' } })).toMatchObject({
+      paths: 15,
+      relativeDirections: ['west'],
+      locationTypeMatches: true,
+      directionMatches: true,
+      distanceMatches: true,
+      eligible: true
+    });
+    expect(evaluateJourneyDestination({ graph, originId: 'origin', destinationId: 'west-5', card: { value: 8, suit: '♠' } })).toMatchObject({
+      locationTypeMatches: true,
+      directionMatches: true,
+      distanceMatches: false,
+      eligible: false
+    });
+    expect(evaluateJourneyDestination({ graph, originId: 'origin', destinationId: 'north-15', card: { value: 8, suit: '♠' } })).toMatchObject({
+      directionMatches: false,
+      distanceMatches: true,
+      eligible: false
+    });
+  });
+
+  it('[JOURNEY-003] keeps direction and place type deterministic while allowing an explicit printed-map distance confirmation', () => {
+    const graph = journeyGraph();
+    const unconfirmed = resolveJourneyStart({
+      transactionId: 'journey-distance-unconfirmed', state: journeyRuntime(), graph, originId: 'origin', season: 'Spring',
+      destinationCard: { value: 8, suit: '♠' }, destinationId: 'west-5', goalCard: 1,
+      reason: 'Follow the printed map', startDate: 1, rulesetId: 'original-1e-3p'
+    });
+    expect(unconfirmed.status).toBe('invalid');
+
+    const confirmed = resolveJourneyStart({
+      transactionId: 'journey-distance-confirmed', state: journeyRuntime(), graph, originId: 'origin', season: 'Spring',
+      destinationCard: { value: 8, suit: '♠' }, destinationDistanceConfirmed: true,
+      destinationId: 'west-5', goalCard: 1, reason: 'Follow the printed map', startDate: 1, rulesetId: 'original-1e-3p'
+    });
+    expect(confirmed.status).toBe('resolved');
+    expect(confirmed.value?.journey?.deviations).toContain('Destination path band confirmed manually against the printed map.');
+
+    const wrongDirection = resolveJourneyStart({
+      transactionId: 'journey-wrong-direction-confirmed', state: journeyRuntime(), graph, originId: 'origin', season: 'Spring',
+      destinationCard: { value: 8, suit: '♠' }, destinationDistanceConfirmed: true,
+      destinationId: 'north-15', goalCard: 1, reason: 'Ignore direction', startDate: 1, rulesetId: 'original-1e-3p'
+    });
+    expect(wrongDirection.status).toBe('invalid');
   });
 
   it('[JOURNEY-001/JOURNEY-003/JOURNEY-004] requires Reason and starts Justice with Weight 1 Evidence', () => {

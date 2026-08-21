@@ -130,6 +130,8 @@ const exactEngineMessages: Record<string, string> = {
   "The missed Reagent is unavailable in this Region or Season.": "놓친 영약재는 이 지역 또는 계절에 구할 수 없습니다.",
   "This Reagent can already be gathered without spending Foraging Points.": "이 영약재는 채집 포인트를 쓰지 않고도 이미 채집할 수 있습니다.",
   "Choose another mapped Location as the Journey Destination.": "지도에 있는 다른 장소를 여정 목적지로 선택하세요.",
+  "Choose a destination matching the drawn card direction and Location type.": "뽑은 카드의 방향과 장소 유형에 맞는 목적지를 선택하세요.",
+  "Confirm the printed-map path band when saved connections cannot verify it.": "저장된 연결로 확인할 수 없는 거리 구간은 인쇄 지도에서 직접 확인하세요.",
   "Draw or enter a Destination card.": "목적지 카드를 뽑거나 입력하세요.",
   "An invented Goal needs both a purpose/title and a clear completion condition.": "직접 만든 목표에는 목적 또는 제목과 명확한 완료 조건이 모두 필요합니다.",
   "Draw, choose, or invent a Journey Goal.": "여정 목표를 뽑거나, 고르거나, 직접 만드세요.",

@@ -22,6 +22,13 @@ export type MapClinicOverlay = {
   points: Array<{ id: string; x: number; y: number; hops: number }>;
 };
 
+export type MapSavedConnection = {
+  id: string;
+  kind: 'path' | 'river' | 'waterway';
+  from: { id: string; x: number; y: number };
+  to: { id: string; x: number; y: number };
+};
+
 export type MapPickLocation = {
   id: string;
   name: string;
@@ -43,7 +50,9 @@ export type MapCreatePlaceRequest = {
 type PaperMapProps = {
   places: MapPlace[];
   clinicOverlays?: MapClinicOverlay[];
+  savedConnections?: MapSavedConnection[];
   selectedPlaceId?: string | null;
+  hideSelectedPlaceSheet?: boolean;
   historyAnchors?: Array<{ id: string; x: number; y: number }>;
   variant?: 'full' | 'companion';
   companionCaption?: string;
@@ -121,10 +130,41 @@ const placeGlyph = (place: MapPlace): { kind: MapGlyphKind; terrain: MapTerrain 
   terrain: terrainFromRegion(place.region)
 });
 
+const connectionHatches = (connection: MapSavedConnection): Array<{ points: string }> => {
+  if (connection.kind !== 'waterway') return [];
+  const dx = connection.to.x - connection.from.x;
+  const dy = connection.to.y - connection.from.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 1) return [];
+  const alongX = dx / length;
+  const alongY = dy / length;
+  const perpendicularX = -alongY;
+  const perpendicularY = alongX;
+  const wave = [
+    { across: -0.76, nudge: 0 },
+    { across: -0.34, nudge: 0.16 },
+    { across: 0, nudge: -0.16 },
+    { across: 0.34, nudge: 0.16 },
+    { across: 0.76, nudge: 0 }
+  ];
+  return [-1, 1].map(offset => {
+    const centerX = connection.from.x + dx * 0.5 + alongX * 0.34 * offset;
+    const centerY = connection.from.y + dy * 0.5 + alongY * 0.34 * offset;
+    const points = wave.map(point => {
+      const x = centerX + perpendicularX * point.across + alongX * point.nudge;
+      const y = centerY + perpendicularY * point.across + alongY * point.nudge;
+      return `${x},${y}`;
+    }).join(' ');
+    return { points };
+  });
+};
+
 export function PaperMap({
   places,
   clinicOverlays = [],
+  savedConnections = [],
   selectedPlaceId = null,
+  hideSelectedPlaceSheet = false,
   historyAnchors = [],
   variant = 'full',
   companionCaption,
@@ -542,6 +582,24 @@ export function PaperMap({
           />
           {veilVisible && <div className="paper-map__veil" aria-hidden="true" />}
           <svg className="paper-map__overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            {savedConnections.map(connection => (
+              <g key={connection.id}>
+                <line
+                  className={`paper-map__saved-connection paper-map__saved-connection--${connection.kind}`}
+                  x1={connection.from.x}
+                  y1={connection.from.y}
+                  x2={connection.to.x}
+                  y2={connection.to.y}
+                />
+                {connectionHatches(connection).map((hatch, index) => (
+                  <polyline
+                    key={`${connection.id}:hatch:${index}`}
+                    className="paper-map__saved-connection-hatch"
+                    points={hatch.points}
+                  />
+                ))}
+              </g>
+            ))}
             {historyGeometry.segments.map((segment, index) => (
               <polyline
                 key={`history:${segment.id}:${index}`}
@@ -850,7 +908,7 @@ export function PaperMap({
         </aside>
       )}
 
-      {selectedPlace && !createDraft && !layersOpen && !searchOpen && (
+      {selectedPlace && !hideSelectedPlaceSheet && !createDraft && !layersOpen && !searchOpen && (
         <aside className="paper-map__sheet" aria-label="선택한 표시">
           <div>
             <strong>{selectedPlace.isCurrent ? '지금 있는 자리' : selectedPlace.locationTypeLabel || '표시'}</strong>
@@ -858,9 +916,6 @@ export function PaperMap({
               {selectedPlace.isCurrent ? '현재 위치' : selectedPlace.visited ? '방문함' : '미방문'}
               {selectedPlace.locationTypeLabel ? ` · ${selectedPlace.locationTypeLabel}` : ''}
             </span>
-            {showTravelRoutes && !selectedPlace.isCurrent && selectedPlace.hopsFromCurrent !== null && (
-              <span>현재 위치에서 {selectedPlace.hopsFromCurrent}경로</span>
-            )}
             {showTravelRoutes && moveReasonText && <span>{moveReasonText}</span>}
             {showTravelRoutes && selectedPlace.willSoak && (
               <span className="paper-map__waterway-note">물길을 헤엄치면 방수되지 않은 약재와 물품이 젖어 버려집니다.</span>

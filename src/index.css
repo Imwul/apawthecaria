@@ -5262,6 +5262,69 @@ button,
   font-weight: 700;
 }
 
+.journey-card-result {
+  display: grid;
+  gap: 0.18rem;
+  width: min(100%, 34rem);
+  padding: 0.65rem 0.75rem;
+  border-left: 3px solid var(--secondary);
+  background: #f7f2e7;
+  color: var(--text);
+}
+
+.journey-card-result span {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.journey-card-result strong {
+  color: var(--primary);
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.journey-card-result small {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.journey-distance-confirm {
+  display: grid;
+  grid-template-columns: 1.15rem minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+  min-height: 2.75rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid #cbbda6;
+  background: #f8f3e8;
+  cursor: pointer;
+}
+
+.journey-choice-fieldset .journey-distance-confirm input {
+  width: 1.15rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  min-height: 1.15rem;
+  margin: 0.12rem 0 0;
+  accent-color: var(--primary);
+}
+
+.journey-distance-confirm span {
+  display: grid;
+  gap: 0.18rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.journey-distance-confirm strong {
+  color: var(--primary);
+  font-size: 0.84rem;
+}
+
 .journey-choice-toggle {
   display: flex;
   flex-wrap: wrap;
@@ -5498,6 +5561,33 @@ button,
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: 0.35 0.28 0.7 0.28;
+}
+
+.paper-map__saved-connection {
+  fill: none;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.paper-map__saved-connection--path {
+  stroke: rgba(104, 67, 39, 0.5);
+  stroke-width: 1.35px;
+}
+
+.paper-map__saved-connection--river,
+.paper-map__saved-connection--waterway,
+.paper-map__saved-connection-hatch {
+  stroke: rgba(28, 109, 168, 0.55);
+  stroke-width: 1.35px;
+}
+
+.paper-map__saved-connection-hatch {
+  fill: none;
+  stroke-width: 1px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .paper-map__clinic {
@@ -5824,6 +5914,64 @@ button,
   font-size: 0.84rem;
   line-height: 1.5;
   color: #6b5343;
+}
+
+.map-atelier__connection-mode {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.8rem;
+  padding: 0.7rem;
+  border: 1px solid rgba(74, 54, 40, 0.28);
+  background: #f7f0e4;
+}
+
+.map-atelier__connection-mode.is-on {
+  border-color: #6a5344;
+  background: #eef2e8;
+}
+
+.map-atelier__connection-mode strong,
+.map-atelier__connection-mode span {
+  display: block;
+}
+
+.map-atelier__connection-mode span {
+  margin-top: 0.15rem;
+  color: #6b5343;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.map-atelier__connection-mode button {
+  min-width: 7.5rem;
+  min-height: 44px;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #6a5344;
+  background: #fffdf6;
+  color: #4a3628;
+  font-family: inherit;
+}
+
+.map-atelier__connection-mode button[aria-pressed="true"] {
+  background: #64705a;
+  color: #fff;
+}
+
+.map-atelier__connection-mode p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+@media (max-width: 520px) {
+  .map-atelier__connection-mode {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .map-atelier__connection-mode button {
+    width: 100%;
+  }
 }
 
 .map-atelier__note {

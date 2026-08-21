@@ -42,6 +42,17 @@ export interface JourneyDestinationRequirements {
   direction: JourneyDirection;
 }
 
+export interface JourneyDestinationEvaluation {
+  destination: JourneyMapNode;
+  requirements: JourneyDestinationRequirements;
+  paths: number | null;
+  relativeDirections: JourneyDirection[];
+  locationTypeMatches: boolean;
+  directionMatches: boolean;
+  distanceMatches: boolean;
+  eligible: boolean;
+}
+
 export interface JourneyProgressEvent {
   id: string;
   type: 'journal' | 'encounter' | 'forage' | 'treatment' | 'visit' | 'inventory' | 'manual-declaration';
@@ -195,6 +206,44 @@ const liesInDirection = (origin: JourneyMapNode, candidate: JourneyMapNode, dire
   return candidate.x < origin.x;
 };
 
+const relativeDirectionsFrom = (origin: JourneyMapNode, candidate: JourneyMapNode): JourneyDirection[] => {
+  const directions: JourneyDirection[] = [];
+  if (candidate.y < origin.y) directions.push('north');
+  if (candidate.y > origin.y) directions.push('south');
+  if (candidate.x > origin.x) directions.push('east');
+  if (candidate.x < origin.x) directions.push('west');
+  return directions;
+};
+
+export const evaluateJourneyDestination = (input: {
+  graph: Record<string, JourneyMapNode>;
+  originId: string;
+  destinationId: string;
+  card: RuleCard & { suit?: CardSuit };
+}): JourneyDestinationEvaluation | null => {
+  const origin = input.graph[input.originId];
+  const destination = input.graph[input.destinationId];
+  if (!origin || !destination || origin.id === destination.id) return null;
+  const requirements = getDestinationRequirements(input.card);
+  const paths = pathDistances(input.graph, input.originId).get(destination.id) ?? null;
+  const relativeDirections = relativeDirectionsFrom(origin, destination);
+  const locationTypeMatches = destination.locationType === requirements.locationType;
+  const directionMatches = relativeDirections.includes(requirements.direction);
+  const distanceMatches = paths !== null
+    && paths >= requirements.minimumPaths
+    && (requirements.maximumPaths === null || paths <= requirements.maximumPaths);
+  return {
+    destination,
+    requirements,
+    paths,
+    relativeDirections,
+    locationTypeMatches,
+    directionMatches,
+    distanceMatches,
+    eligible: locationTypeMatches && directionMatches && distanceMatches
+  };
+};
+
 export const findJourneyDestinationCandidates = (input: {
   graph: Record<string, JourneyMapNode>;
   originId: string;
@@ -213,6 +262,29 @@ export const findJourneyDestinationCandidates = (input: {
     .filter(row => row.paths >= requirements.minimumPaths && (requirements.maximumPaths === null || row.paths <= requirements.maximumPaths))
     .sort((a, b) => a.paths - b.paths || a.node.name.localeCompare(b.node.name))
     .map(({ node, paths }) => ({ id: node.id, name: node.name, paths, region: node.region, locationType: node.locationType }));
+};
+
+export const findJourneyDestinationMapCandidates = (input: {
+  graph: Record<string, JourneyMapNode>;
+  originId: string;
+  card: RuleCard & { suit?: CardSuit };
+}): Array<{ id: string; name: string; paths: number | null; region: Region; locationType: JourneyMapNode['locationType'] }> => {
+  const origin = input.graph[input.originId];
+  if (!origin) return [];
+  const requirements = getDestinationRequirements(input.card);
+  const distances = pathDistances(input.graph, input.originId);
+  return Object.values(input.graph)
+    .filter(node => node.id !== input.originId)
+    .filter(node => node.locationType === requirements.locationType)
+    .filter(node => liesInDirection(origin, node, requirements.direction))
+    .map(node => ({
+      id: node.id,
+      name: node.name,
+      paths: distances.get(node.id) ?? null,
+      region: node.region,
+      locationType: node.locationType
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 };
 
 export const listJourneyDestinationChoices = (input: {
@@ -323,6 +395,7 @@ export const resolveJourneyStart = (input: {
   season: Season;
   destinationCard?: { value: number; suit: CardSuit } | null;
   destinationSelection?: 'draw' | 'choose';
+  destinationDistanceConfirmed?: boolean;
   destinationId: string;
   goalCard?: RuleCard | null;
   customGoal?: { title: string; requiredState: string } | null;
@@ -342,8 +415,18 @@ export const resolveJourneyStart = (input: {
     }
   } else {
     if (!input.destinationCard) return { status: 'invalid', value: null, messages: ['Draw or enter a Destination card.'] };
-    const candidates = findJourneyDestinationCandidates({ graph: input.graph, originId: input.originId, card: input.destinationCard });
-    if (!candidates.some(row => row.id === input.destinationId)) return { status: 'invalid', value: null, messages: ['Choose a legal destination candidate for the drawn card. Redraw when no candidate exists.'] };
+    const evaluation = evaluateJourneyDestination({
+      graph: input.graph,
+      originId: input.originId,
+      destinationId: input.destinationId,
+      card: input.destinationCard
+    });
+    if (!evaluation || !evaluation.locationTypeMatches || !evaluation.directionMatches) {
+      return { status: 'invalid', value: null, messages: ['Choose a destination matching the drawn card direction and Location type.'] };
+    }
+    if (!evaluation.distanceMatches && !input.destinationDistanceConfirmed) {
+      return { status: 'invalid', value: null, messages: ['Confirm the printed-map path band when saved connections cannot verify it.'] };
+    }
   }
   const customGoal = input.customGoal && input.customGoal.title.trim() && input.customGoal.requiredState.trim()
     ? { title: input.customGoal.title.trim(), requiredState: input.customGoal.requiredState.trim() }
@@ -374,7 +457,9 @@ export const resolveJourneyStart = (input: {
     startDate: input.startDate,
     status: 'active',
     journalPrompts: ['What does your Origin mean to you?', 'How does this Season make you feel?', 'Why are you travelling?', 'How does the Urgency relate to your Goal?'],
-    deviations: [],
+    deviations: input.destinationDistanceConfirmed && !choosesDestination
+      ? ['Destination path band confirmed manually against the printed map.']
+      : [],
     rulesetId: input.rulesetId,
     startReputation: input.state.reputation
   };

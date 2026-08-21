@@ -104,12 +104,22 @@ describe('map interaction contracts', () => {
     expect(mapSource).toContain("place.locationType === 'Wilds' ? 3 : 4");
     expect(mapSource).toContain('이곳을 여정 목적지로');
     expect(mapSource).toContain('onConfirmDestination(placeToPick(selectedPlace))');
+    expect(mapSource).not.toContain('현재 위치에서 {selectedPlace.hopsFromCurrent}경로');
   });
 
   it('keeps journey-reason typing from re-rendering the play map', () => {
     expect(appSource).toContain('function IsolatedTextarea');
     expect(appSource).toContain('valueRef={journeyReasonRef}');
     expect(appSource).not.toMatch(/setJourneyReason\(e\.target\.value\)/);
+  });
+
+  it('interprets a drawn destination card beside the card and asks for printed-map distance confirmation', () => {
+    expect(appSource).toContain('journey-card-result');
+    expect(appSource).toContain('이 카드의 목적지');
+    expect(appSource).toContain('journeyDestinationRequirement.direction.short');
+    expect(appSource).toContain('인쇄 지도 거리 확인');
+    expect(appSource).toContain('destinationDistanceConfirmed');
+    expect(appSource).not.toContain('지도에서 선택한 총 거리:');
   });
 
   it('only asks gameplay to travel from the Travel action', () => {
@@ -152,12 +162,21 @@ describe('map interaction contracts', () => {
   it('gives the folded-map tab a workshop for creating, linking, and deleting marks', () => {
     expect(appSource).toContain('function AtlasMapPanel');
     expect(appSource).toContain('지도 고치기');
-    expect(appSource).toContain('다음 표시와 잇기');
+    expect(appSource).toContain('지도 연결 편집 모드');
+    expect(appSource).toContain('연결 편집 시작');
     expect(appSource).toContain('내가 남긴 표시');
     expect(appSource).toContain('육로로 잇기');
-    expect(appSource).toContain('강으로 잇기');
-    expect(appSource).toContain('수로로 잇기');
+    expect(appSource).toContain('물길 · 실선');
+    expect(appSource).toContain('물길 · 빗금');
     expect(appSource).toContain('showTravelRoutes={false}');
+    expect(appSource).toContain('showSavedConnections');
+    expect(appSource).toContain('hideSelectedPlaceSheet={connectionEditMode}');
+    expect(mapSource).toContain('paper-map__saved-connection--${connection.kind}');
+    expect(mapSource).toContain('connectionHatches(connection)');
+    expect(mapSource).toContain('return [-1, 1].map(offset =>');
+    expect(cssSource).toContain('.paper-map__saved-connection--path');
+    expect(cssSource).toContain('.paper-map__saved-connection--river');
+    expect(cssSource).toContain('.paper-map__saved-connection-hatch');
     expect(appSource).toContain('className="map-atelier__delete"');
     expect(appSource).toContain('hidden: true');
     expect(appSource).toContain('지운 인쇄 표시');
@@ -174,6 +193,8 @@ describe('map interaction contracts', () => {
     expect(appearanceSource).toContain('glyphUsesTerrain');
     expect(appearanceSource).not.toContain('도시 이름');
     expect(appSource).toContain('label: stop.name.trim()');
+    expect(appSource).toContain('!REVIEWED_MAP_LOCATION_BY_ID.get(location.id)?.hidden');
+    expect(appSource).toContain('neighbors: MAP_GRAPH_NODES[location.id]');
   });
 
   it('hides history and preview routes when those layers are off', () => {

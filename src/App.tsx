@@ -1,4 +1,4 @@
-import { useState, useEffect, useEffectEvent, useRef, useCallback, useMemo, memo, Fragment, lazy, Suspense } from "react";
+import { useState, useEffect, useEffectEvent, useRef, useCallback, useMemo, memo, Fragment, lazy, Suspense, type ReactNode } from "react";
 import { db, isFirebaseConfigured, auth, googleProvider, storage, googleSignInErrorMessage, shouldUseRedirectSignIn, firebaseProjectId } from "./firebase";
 import { doc, getDoc, runTransaction } from "firebase/firestore";
 import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, type User } from "firebase/auth";
@@ -44,7 +44,6 @@ import { loadPlayerMarkers, removePlayerMarkerRecords, upsertPlayerMarkerRecords
 import {
   appendRouteStop,
   canChooseRouteEdgeKind,
-  cycleRouteEdgeKind,
   draftFromOrigin,
   glyphKindFromLocation,
   locationTypeFromGlyph,
@@ -52,7 +51,6 @@ import {
   moveRouteStop,
   normalizeRouteDraft,
   removeRouteStopAt,
-  routeEdgeLabel,
   setRouteEdgeKind,
   stopFromPlace,
   terrainFromRegion,
@@ -105,7 +103,8 @@ import {
   drawCollapsedEntranceCard,
   drawPilferCard,
   diagnoseBuildingTrust,
-  findJourneyDestinationCandidates,
+  evaluateJourneyDestination,
+  findJourneyDestinationMapCandidates,
   listJourneyDestinationChoices,
   getBarterAttemptLimit,
   getBarterAttemptsRemaining,
@@ -272,7 +271,7 @@ import { enqueueOfflineSave, flushOfflineSaves, normalizeOfflineSaveEntries, rec
 import type { RulebookReferenceRequest } from './rulebook/types';
 import { referenceForJournalTab } from './rulebook/context';
 import { fuzzyReferenceTextMatch } from './rulebook/referenceRegistry';
-import { PaperMap, type MapClinicOverlay, type MapPickLocation } from './map/PaperMap';
+import { PaperMap, type MapClinicOverlay, type MapPickLocation, type MapSavedConnection } from './map/PaperMap';
 import { type MapPlace, type MapPlaceType } from './map/mapLayers';
 import { applyManualCalendarAdjustment, getCampaignContinuity, inferCompletedSeasons } from './campaignContinuity';
 import {
@@ -1567,6 +1566,10 @@ const buildMapGraphNodes = (customLocations: CustomMapLocation[] = [], customEdg
   });
 
   customLocations.forEach(location => {
+    if (REVIEWED_MAP_LOCATION_BY_ID.get(location.id)?.hidden) {
+      delete nodes[location.id];
+      return;
+    }
     if (location.hidden) {
       delete nodes[location.id];
       return;
@@ -1582,7 +1585,12 @@ const buildMapGraphNodes = (customLocations: CustomMapLocation[] = [], customEdg
         region: location.region || existing.region,
         kind: location.kind || existing.kind,
         aliases: Array.from(new Set([...(existing.aliases || []), ...(location.aliases || [])])),
-        neighbors: Array.from(new Set([...(existing.neighbors || []), ...(location.neighbors || [])]))
+        // A corrected printed node may carry an obsolete neighbor list from an
+        // older save. Position/appearance overrides must not create road
+        // shortcuts; explicit customMapEdges are merged below instead.
+        neighbors: MAP_GRAPH_NODES[location.id]
+          ? [...(existing.neighbors || [])]
+          : Array.from(new Set([...(existing.neighbors || []), ...(location.neighbors || [])]))
       };
       return;
     }
@@ -1762,9 +1770,11 @@ const commitPendingAlternativeAcquisition = (
 const findMapLocationKey = (name: string, customLocations: CustomMapLocation[] = []) => {
   const normalized = normalizeMapLocationName(name);
   const custom = customLocations.find(location =>
-    location.id === normalized ||
-    normalizeMapLocationName(location.label) === normalized ||
-    (location.aliases || []).some(alias => normalizeMapLocationName(alias) === normalized)
+    !location.hidden
+    && !REVIEWED_MAP_LOCATION_BY_ID.get(location.id)?.hidden
+    && (location.id === normalized
+      || normalizeMapLocationName(location.label) === normalized
+      || (location.aliases || []).some(alias => normalizeMapLocationName(alias) === normalized))
   );
   if (custom) return custom.id;
 
@@ -2471,7 +2481,9 @@ const upsertPlayerMapStop = (
     region: (stop.terrain || previous?.region || existingNode?.region || 'Wilds') as MapRegion,
     kind: mapKindFromGlyph(stop.kind),
     aliases: Array.from(new Set([...(previous?.aliases || []), ...(existingNode?.aliases || []), previous?.label || '', existingNode?.label || '', stop.name].filter(Boolean))),
-    neighbors: Array.from(new Set([...(previous?.neighbors || []), ...(existingNode?.neighbors || [])])),
+    neighbors: MAP_GRAPH_NODES[stop.id]
+      ? []
+      : Array.from(new Set([...(previous?.neighbors || []), ...(existingNode?.neighbors || [])])),
     source: previous?.hidden ? 'player-correction' : (previous?.source || 'player-correction'),
     createdAt: previous?.createdAt || Date.now(),
     hidden: false
@@ -2504,7 +2516,7 @@ const upsertPlayerMapEdge = (
     from,
     to,
     kind,
-    label: kind === 'waterway' ? '수로' : kind === 'river' ? '강' : '육로',
+    label: kind === 'waterway' ? '물길 · 빗금' : kind === 'river' ? '물길 · 실선' : '육로',
     createdAt: customEdges.find(edge => edge.id === id)?.createdAt || Date.now()
   };
   return [...customEdges.filter(edge => edge.id !== id && !sameMapPair(from, to, edge)), next];
@@ -3159,6 +3171,7 @@ const CardDrawSlot = ({
   card,
   onCard,
   helper,
+  result,
   disabled = false,
   variant = 'compact'
 }: {
@@ -3166,6 +3179,7 @@ const CardDrawSlot = ({
   card: PlayingCard | null;
   onCard: (card: PlayingCard) => void;
   helper?: string;
+  result?: ReactNode;
   disabled?: boolean;
   variant?: 'hero' | 'compact';
 }) => {
@@ -3203,6 +3217,7 @@ const CardDrawSlot = ({
     return (
       <div className="card-draw-hero">
         <div style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '0.92rem', textAlign: 'center' }}>{label}</div>
+        {result}
         {helper && <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', lineHeight: 1.4, textAlign: 'center', maxWidth: '380px' }}>{helper}</div>}
 
         {/* Card visual */}
@@ -3342,15 +3357,16 @@ const CardDrawSlot = ({
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
         <div style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '0.9rem' }}>{label}</div>
+        {result}
         {helper && <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', lineHeight: 1.35 }}>{helper}</div>}
         {isChoosing && (
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', padding: '0.5rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px' }}>
             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', width: '100%' }}>오프라인에서 뽑은 카드 입력</span>
             <select value={manualSuit} onChange={e => setManualSuit(e.target.value)} disabled={disabled} style={{ height: '32px', fontSize: '0.8rem' }}>
-              <option value="♥">1. 문양: ♥</option>
-              <option value="♦">1. 문양: ♦</option>
-              <option value="♣">1. 문양: ♣</option>
-              <option value="♠">1. 문양: ♠</option>
+              <option value="♥">1. 문양: ♥ · 북쪽/위</option>
+              <option value="♦">1. 문양: ♦ · 남쪽/아래</option>
+              <option value="♣">1. 문양: ♣ · 동쪽/오른쪽</option>
+              <option value="♠">1. 문양: ♠ · 서쪽/왼쪽</option>
             </select>
             <select value={manualValue} onChange={e => setManualValue(Number(e.target.value))} disabled={disabled} style={{ height: '32px', fontSize: '0.8rem' }}>
               <option value={1}>2. 숫자: A</option>
@@ -6667,7 +6683,7 @@ export default function App() {
               <div style={{ marginTop: '0.5rem' }}>
                 <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary)' }}>{state.journeyDestination}</div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  방향: {state.journeyDirection} | 거리 형태: {state.journeyDistance} · 총거리: {state.journeyTotalDistance || 0}경로
+                  방향: {state.journeyDirection} | 거리 형태: {state.journeyDistance}
                 </div>
 
                 <div className="calendar-counter" style={{ marginTop: '0.8rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem' }}>
@@ -8114,6 +8130,7 @@ function PlayView({
   const [customGoalRequirement, setCustomGoalRequirement] = useState('');
   const [journeyStartReflection, setJourneyStartReflection] = useState('');
   const [journeyDestinationCard, setJourneyDestinationCard] = useState<PlayingCard | null>(null);
+  const [journeyDistanceConfirmationToken, setJourneyDistanceConfirmationToken] = useState<string | null>(null);
   const [journeyGoalCard, setJourneyGoalCard] = useState<PlayingCard | null>(null);
   const urgencyPreview = useMemo(() => urgencyFor(state.reputation), [state.reputation]);
   const journeyGoalPreview = useMemo(() => {
@@ -8132,7 +8149,7 @@ function PlayView({
   );
   const journeyDestinationCandidates = useMemo(
     () => journeyDestinationCard
-      ? findJourneyDestinationCandidates({ graph: journeyGraph, originId: journeyOriginId, card: journeyDestinationCard as PlayingCard & { suit: CardSuit } })
+      ? findJourneyDestinationMapCandidates({ graph: journeyGraph, originId: journeyOriginId, card: journeyDestinationCard as PlayingCard & { suit: CardSuit } })
       : [],
     [journeyDestinationCard, journeyGraph, journeyOriginId]
   );
@@ -8145,17 +8162,6 @@ function PlayView({
       .find(row => row.id === destName) || null,
     [journeyDestinationCandidates, journeyDestinationChoices, journeyDestinationMode, destName]
   );
-  const journeyCandidateGroups = useMemo(() => {
-    if (journeyDestinationCandidates.length === 0) return [];
-    const near = journeyDestinationCandidates.filter(row => row.locationType === 'Settlement' && row.paths <= 12);
-    const far = journeyDestinationCandidates.filter(row => row.locationType === 'Settlement' && row.paths >= 13 && row.paths <= 24);
-    const overHorizon = journeyDestinationCandidates.filter(row => row.locationType === 'City' && row.paths >= 24);
-    return [
-      { key: 'near', label: '가까운 거리', range: '12경로 이하', candidates: near },
-      { key: 'far', label: '먼 거리', range: '13~24경로', candidates: far },
-      { key: 'overHorizon', label: '지평선 너머', range: '24경로 이상', candidates: overHorizon }
-    ].filter(entry => entry.candidates.length > 0);
-  }, [journeyDestinationCandidates]);
   const journeyDistanceBandText = useMemo(() => {
     if (!journeyDestinationCard) return '';
     const value = getRuleCardValue(journeyDestinationCard, 'table');
@@ -8163,6 +8169,29 @@ function PlayView({
     if (value <= 9) return '먼 거리(정착지 · 13~24경로, 카드 값 7~9)';
     return '지평선 너머(도시 · 24경로 이상, 카드 값 10~J/M)';
   }, [journeyDestinationCard]);
+  const journeyDestinationRequirement = useMemo(() => {
+    if (!journeyDestinationCard) return null;
+    const value = getRuleCardValue(journeyDestinationCard, 'table');
+    const directionBySuit: Record<string, { short: string; map: string }> = {
+      '♥': { short: '북쪽', map: '지도 위' },
+      '♦': { short: '남쪽', map: '지도 아래' },
+      '♣': { short: '동쪽', map: '지도 오른쪽' },
+      '♠': { short: '서쪽', map: '지도 왼쪽' }
+    };
+    const direction = directionBySuit[journeyDestinationCard.suit] || { short: journeyDestinationCard.suit, map: '' };
+    return {
+      direction,
+      place: value <= 9 ? '정착지' : '도시',
+      distance: value <= 6 ? '12경로 이하' : value <= 9 ? '13–24경로' : '24경로 이상'
+    };
+  }, [journeyDestinationCard]);
+  const activeJourneyDistanceConfirmationToken = journeyDestinationCard && destName
+    ? `${journeyDestinationCard.suit}:${getRuleCardValue(journeyDestinationCard, 'table')}:${destName}`
+    : null;
+  const journeyDistanceConfirmed = Boolean(
+    activeJourneyDistanceConfirmationToken
+    && journeyDistanceConfirmationToken === activeJourneyDistanceConfirmationToken
+  );
   const scroungeAdjacentRegions = useMemo(
     () => adjacentRuleRegions(state),
     [state]
@@ -9383,7 +9412,11 @@ function PlayView({
     if (!destName || !destinationOptions.some(row => row.id === destName)) {
       showAlert(journeyDestinationMode === 'choose'
         ? '지도에서 출발지가 아닌 목적지를 선택하세요.'
-        : '카드의 거리·방향·장소 유형을 충족하는 목적지를 선택하세요. 후보가 없으면 카드를 다시 뽑으세요.');
+        : '카드의 방향·장소 유형에 맞는 목적지를 선택하세요. 거리 구간은 인쇄 지도에서 직접 확인합니다.');
+      return;
+    }
+    if (journeyDestinationMode === 'draw' && !journeyDistanceConfirmed) {
+      showAlert(`인쇄 지도에서 ${state.currentLocationName}부터 선택한 목적지까지 ${journeyDistanceBandText} 조건을 직접 확인해주세요.`);
       return;
     }
     const journeyReason = journeyReasonRef.current;
@@ -9417,6 +9450,7 @@ function PlayView({
         ? destinationCard as PlayingCard & { suit: CardSuit }
         : null,
       destinationSelection: journeyDestinationMode,
+      destinationDistanceConfirmed: journeyDestinationMode === 'draw' ? journeyDistanceConfirmed : undefined,
       destinationId: destName,
       goalCard: journeyGoalMode === 'table' ? goalCard : null,
       customGoal: journeyGoalMode === 'invent'
@@ -9502,7 +9536,7 @@ function PlayView({
         journeyOrigin: s.currentLocationName,
         journeyDestination: destination.name,
         journeyDistance: journeyDestinationMode === 'choose' ? '직접 선택' : journeyDistanceBandText,
-        journeyTotalDistance: destination.paths ?? 0,
+        journeyTotalDistance: 0,
         journeyDirection: journeyDestinationMode === 'choose' ? '직접 선택' : suitNames[randomSuit] || randomSuit,
         journeyGoalTitle: goalTitle,
         journeyGoalDesc: goalRequirement,
@@ -9530,6 +9564,7 @@ function PlayView({
     journeyReasonRef.current = "";
     setJourneyReason('');
     setJourneyDestinationCard(null);
+    setJourneyDistanceConfirmationToken(null);
     setJourneyGoalCard(null);
     setCustomGoalTitle('');
     setCustomGoalRequirement('');
@@ -12070,7 +12105,30 @@ function PlayView({
       return;
     }
     if (!journeyDestinationCandidates.some(row => row.id === location.id)) {
-      showAlert('이 위치는 현재 카드의 방향·거리·장소 유형 조건에 맞지 않습니다. 지도에 강조된 후보를 고르세요.');
+      const evaluation = evaluateJourneyDestination({
+        graph: journeyGraph,
+        originId: journeyOriginId,
+        destinationId: location.id,
+        card: journeyDestinationCard as PlayingCard & { suit: CardSuit }
+      });
+      if (!evaluation) {
+        showAlert('출발지 또는 선택한 위치를 현재 지도 데이터에서 찾지 못했습니다. 05 접어둔 지도에서 표시를 확인해주세요.');
+        return;
+      }
+      const directionLabels = { north: '북쪽/위', south: '남쪽/아래', east: '동쪽/오른쪽', west: '서쪽/왼쪽' } as const;
+      const placeLabels = { Settlement: '정착지', City: '도시' } as const;
+      const actualDirection = evaluation.relativeDirections.length > 0
+        ? evaluation.relativeDirections.map(direction => directionLabels[direction]).join(' · ')
+        : '출발지와 같은 좌표';
+      const problems = [
+        !evaluation.locationTypeMatches
+          ? `장소 유형: ${placeLabels[evaluation.requirements.locationType]} 필요 · 실제 ${localizeLocationTypeLabel(evaluation.destination.locationType)}`
+          : null,
+        !evaluation.directionMatches
+          ? `방향: ${directionLabels[evaluation.requirements.direction]} 필요 · 실제 ${actualDirection}`
+          : null
+      ].filter((problem): problem is string => Boolean(problem));
+      showAlert(`${location.name}을(를) 고를 수 없는 이유\n\n${problems.join('\n')}\n\n거리 구간은 인쇄 지도에서 직접 확인하고, 방향·장소 유형에 맞는 강조 후보를 고르세요.`);
       return;
     }
     setDestName(location.id);
@@ -12633,15 +12691,15 @@ function PlayView({
               playMapMode === 'destination'
                 ? (journeyDestinationMode === 'choose'
                   ? (selectedJourneyDestination
-                    ? `직접 선택: ${selectedJourneyDestination.name}${selectedJourneyDestination.paths === null ? ' · 연결 경로 없음' : ` · ${selectedJourneyDestination.paths}경로`}`
+                    ? `직접 선택: ${selectedJourneyDestination.name}`
                     : '룰북 p.19의 직접 선택입니다. 지도에서 출발지가 아닌 위치를 한 번 누르면 목적지로 선택됩니다.')
                   : journeyDestinationCard
                   ? (selectedJourneyDestination
-                    ? `선택된 후보: ${selectedJourneyDestination.name} · 총거리 ${selectedJourneyDestination.paths}경로`
+                    ? `선택된 후보: ${selectedJourneyDestination.name} · ${journeyDistanceBandText}는 인쇄 지도에서 직접 확인하세요.`
                     : journeyDestinationCandidates.length > 0
-                      ? '강조된 후보를 한 번 누르면 목적지로 선택됩니다. 목적지를 정한 뒤 Route Editor에서 이동 경로를 구성하세요.'
-                      : '현재는 이동 가능한 후보가 없습니다. 목적지 카드를 다시 뽑으세요.')
-                  : '목적지 카드를 뽑으면 방향·거리·장소 유형에 맞는 목적지가 지도에 표시됩니다.')
+                      ? '강조된 방향·장소 유형 후보를 한 번 누르세요. 거리 구간은 인쇄 지도에서 확인합니다.'
+                      : '현재 카드의 방향·장소 유형에 맞는 후보가 없습니다. 목적지 카드를 다시 뽑으세요.')
+                  : '목적지 카드를 뽑으면 방향과 장소 유형에 맞는 후보가 지도에 표시됩니다. 거리 구간은 인쇄 지도에서 확인합니다.')
                 : `룰북 지도를 보고 다음 위치를 누르세요. Route Editor에서 연결 타입과 순서를 고를 수 있습니다.${currentWeight > maxCarry ? ' 현재 과적 상태라 속도는 1입니다.' : ''}`
             }
           />
@@ -12663,17 +12721,17 @@ function PlayView({
             >
               <div style={{ fontSize: '0.84rem', fontWeight: 'bold', color: 'var(--primary)' }}>
                 {journeyDestinationMode === 'draw'
-                  ? '도달 후보(이름/거리: A~6=12이하, 7~9=13~24, 10/J/M=24+)'
+                  ? '방향·장소 유형 후보'
                   : '직접 고른 목적지'}
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                 {journeyDestinationMode === 'draw'
-                  ? '지도 후보는 카드의 거리·방향·정착지/도시 유형을 모두 충족합니다.'
+                  ? `앱은 방향과 정착지/도시 유형만 확인합니다.${journeyDestinationCard ? ` ${journeyDistanceBandText}는 인쇄 지도에서 직접 확인하세요.` : ''}`
                   : '지도에서 출발지가 아닌 도시·정착지·야생 위치를 한 번 누르거나, 아래 여정 양식에서 이름으로 고르세요.'}
               </div>
               {journeyDestinationMode === 'choose' && selectedJourneyDestination && (
                 <div style={{ fontSize: '0.82rem', color: 'var(--primary)', fontWeight: 700 }}>
-                  {selectedJourneyDestination.name} · {selectedJourneyDestination.paths === null ? '연결 경로 없음' : `${selectedJourneyDestination.paths}경로`}
+                  {selectedJourneyDestination.name} · {selectedJourneyDestination.region} · {localizeLocationTypeLabel(selectedJourneyDestination.locationType)}
                 </div>
               )}
               {journeyDestinationMode === 'draw' && !journeyDestinationCard && (
@@ -12683,40 +12741,34 @@ function PlayView({
               )}
               {journeyDestinationMode === 'draw' && journeyDestinationCard && journeyDestinationCandidates.length === 0 && (
                 <div style={{ fontSize: '0.8rem', color: 'var(--accent-red)' }}>
-                  현재는 이동 가능한 후보가 없습니다. 지도 카드 규칙을 다시 뽑아 주세요.
+                  현재 카드의 방향·장소 유형에 맞는 후보가 없습니다. 목적지 카드를 다시 뽑아 주세요.
                 </div>
               )}
-              {journeyDestinationMode === 'draw' && journeyDestinationCard && journeyCandidateGroups.length > 0 && (
+              {journeyDestinationMode === 'draw' && journeyDestinationCard && journeyDestinationCandidates.length > 0 && (
                 <div style={{ display: 'grid', gap: '0.45rem' }}>
-                  {journeyCandidateGroups.map(group => (
-                    <div key={group.key} style={{ display: 'grid', gap: '0.32rem' }}>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>
-                        {`${group.label} (${group.range}, ${group.candidates.length}개)`}
-                      </div>
-                      {group.candidates.map(candidate => (
-                        <button
-                          type="button"
-                          key={candidate.id}
-                          onClick={() => setDestName(candidate.id)}
-                          style={{
-                            borderRadius: '8px',
-                            border: `1.5px solid ${candidate.id === destName ? 'var(--primary)' : '#e9e0cf'}`,
-                            background: candidate.id === destName ? 'var(--paper)' : '#fff',
-                            padding: '0.45rem 0.55rem',
-                            textAlign: 'left',
-                            fontSize: '0.82rem',
-                            color: 'var(--text)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            gap: '0.5rem'
-                          }}
-                        >
-                          <span>{candidate.name}</span>
-                          <span style={{ color: 'var(--text-muted)' }}>{candidate.paths}경로</span>
-                        </button>
-                      ))}
-                    </div>
+                  {journeyDestinationCandidates.map(candidate => (
+                    <button
+                      type="button"
+                      key={candidate.id}
+                      onClick={() => setDestName(candidate.id)}
+                      style={{
+                        borderRadius: '8px',
+                        border: `1.5px solid ${candidate.id === destName ? 'var(--primary)' : '#e9e0cf'}`,
+                        background: candidate.id === destName ? 'var(--paper)' : '#fff',
+                        padding: '0.45rem 0.55rem',
+                        textAlign: 'left',
+                        fontSize: '0.82rem',
+                        color: 'var(--text)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      <span>{candidate.name}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>거리 직접 확인</span>
+                    </button>
                   ))}
                 </div>
               )}
@@ -14122,7 +14174,7 @@ function PlayView({
             <div id="journey-start-panel" className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem' }}>
               <h2 style={{ color: 'var(--secondary)', margin: '0 0 0.4rem 0', fontFamily: 'var(--font-fancy)' }}>새로운 여정 떠나기</h2>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 1.2rem 0' }}>
-                룰북처럼 목적지는 뽑거나 고르고, 목표는 뽑거나 고르거나 직접 만들 수 있습니다. 선택 전 조건과 실제 지도 거리를 함께 확인하세요.
+                룰북처럼 목적지는 뽑거나 고르고, 목표는 뽑거나 고르거나 직접 만들 수 있습니다. 카드로 뽑았다면 인쇄 지도에서 거리 구간을 직접 확인하세요.
               </p>
 
               {/* First session tip */}
@@ -14134,7 +14186,7 @@ function PlayView({
 
               <div style={{ padding: '0.8rem', borderRadius: '8px', border: '1px dashed var(--glass-border)', background: '#fffcf2', fontSize: '0.84rem', color: 'var(--text)', display: 'grid', gap: '0.35rem' }}>
                 <div><strong>목적지 방식:</strong> {journeyDestinationMode === 'choose' ? '직접 선택' : journeyDestinationCard ? journeyDistanceBandText : '목적지 카드를 먼저 뽑으세요.'}</div>
-                <div><strong>지도에서 선택한 총 거리:</strong> {selectedJourneyDestination ? selectedJourneyDestination.paths === null ? '연결된 경로 없음 (Soar 또는 지도 연결 필요)' : `${selectedJourneyDestination.paths}경로` : '선택된 목적지가 없습니다'}</div>
+                <div><strong>선택한 목적지:</strong> {selectedJourneyDestination ? selectedJourneyDestination.name : '선택된 목적지가 없습니다'}</div>
                 {selectedJourneyDestination && (
                   <div style={{ padding: '0.3rem 0.5rem', background: 'var(--secondary-light, #fffae0)', borderRadius: '5px', color: 'var(--secondary)' }}>
                     📍 <strong>{selectedJourneyDestination.name}</strong> · {selectedJourneyDestination.region ? selectedJourneyDestination.region : ''}{selectedJourneyDestination.locationType ? ` (${selectedJourneyDestination.locationType})` : ''}
@@ -14202,6 +14254,13 @@ function PlayView({
                       <CardDrawSlot
                         label="목적지와 방향 카드"
                         helper="A–6은 12경로 이하 정착지, 7–9는 13–24경로 정착지, 10/J/M은 24경로 이상 도시입니다. 문양 방향: ♥ 북쪽/위 · ♦ 남쪽/아래 · ♣ 동쪽/오른쪽 · ♠ 서쪽/왼쪽."
+                        result={journeyDestinationCard && journeyDestinationRequirement ? (
+                          <div className="journey-card-result" aria-live="polite">
+                            <span>이 카드의 목적지</span>
+                            <strong>{journeyDestinationRequirement.direction.short} · {journeyDestinationRequirement.place} · {journeyDestinationRequirement.distance}</strong>
+                            <small>{journeyDestinationRequirement.direction.map}에서 조건에 맞는 장소를 고르세요.</small>
+                          </div>
+                        ) : undefined}
                         card={journeyDestinationCard}
                         onCard={(card: PlayingCard) => { setJourneyDestinationCard(card); setDestName(''); }}
                       />
@@ -14212,7 +14271,7 @@ function PlayView({
                           <option value="">— 출발지가 아닌 목적지를 고르세요 —</option>
                           {journeyDestinationChoices.map(choice => (
                             <option key={choice.id} value={choice.id}>
-                              {choice.name} · {choice.region} · {choice.locationType} · {choice.paths === null ? '연결 없음' : `${choice.paths}경로`}
+                              {choice.name} · {choice.region} · {localizeLocationTypeLabel(choice.locationType)}
                             </option>
                           ))}
                         </select>
@@ -14220,6 +14279,21 @@ function PlayView({
                           Past the Edge는 전체 지도에서 가장자리 표식과 연결을 만든 뒤 그 표식을 고르세요. 지도 밖 서사는 플레이어가 저널로 판정합니다.
                         </small>
                       </div>
+                    )}
+                    {journeyDestinationMode === 'draw' && journeyDestinationCard && selectedJourneyDestination && (
+                      <label className="journey-distance-confirm">
+                        <input
+                          type="checkbox"
+                          checked={journeyDistanceConfirmed}
+                          onChange={event => setJourneyDistanceConfirmationToken(
+                            event.target.checked ? activeJourneyDistanceConfirmationToken : null
+                          )}
+                        />
+                        <span>
+                          <strong>인쇄 지도 거리 확인</strong>
+                          {state.currentLocationName} → {selectedJourneyDestination.name}이(가) {journeyDistanceBandText} 조건에 맞는지 직접 세어 확인했습니다.
+                        </span>
+                      </label>
                     )}
                   </fieldset>
 
@@ -14288,7 +14362,7 @@ function PlayView({
           <div id="active-journey-panel" className="cute-card journey-record" style={{ background: '#fffefa', borderColor: 'var(--primary)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem' }}>
               <div className="prose-summary" style={{ fontSize: '0.95rem' }}>
-                여정 목적지 <strong>{state.journeyDestination}</strong> · {state.journeyDirection} 방향 · {state.journeyDistance} · 지도 거리 <span style={{ fontWeight: 700 }}>{state.journeyTotalDistance || 0}경로</span>
+                여정 목적지 <strong>{state.journeyDestination}</strong> · {state.journeyDirection} 방향 · {state.journeyDistance}
                 <br />
                 출발한 지 <strong>{state.calendarDays}일째</strong>, 남은 시간은 <strong>{Math.max(0, state.calendarMaxDays - state.calendarDays)}일</strong>.
               </div>
@@ -16664,7 +16738,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
                       {localizeJourneyGoalText(state.journeyGoalDesc)}
                     </div>
                     <div><strong>방향/방위:</strong> {state.journeyDirection}</div>
-                    <div><strong>거리 형태:</strong> {state.journeyDistance} · 총거리 <span style={{ fontWeight: 700 }}>{state.journeyTotalDistance || 0}경로</span> · 일일 이동력 <strong>{state.journeyActive ? getTravelSpeed(state, currentWeight) : state.bio.speed}</strong>경로</div>
+                    <div><strong>거리 형태:</strong> {state.journeyDistance} · 일일 이동력 <strong>{state.journeyActive ? getTravelSpeed(state, currentWeight) : state.bio.speed}</strong>경로</div>
                   </div>
                 ) : (
                   <div style={{ fontStyle: 'italic', color: 'var(--text-dim)', fontSize: '0.85rem', textAlign: 'center', padding: '1rem 0' }}>
@@ -17335,6 +17409,7 @@ function AtlasMapPanel({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [linkFromId, setLinkFromId] = useState<string | null>(null);
   const [pendingLink, setPendingLink] = useState<{ from: string; to: string } | null>(null);
+  const [connectionEditMode, setConnectionEditMode] = useState(false);
   const customLocations = state.customMapLocations || [];
   const nodes = buildMapGraphNodes(customLocations, state.customMapEdges || []);
   const selected = selectedId ? nodes[selectedId] : null;
@@ -17344,6 +17419,8 @@ function AtlasMapPanel({
   const selectedEdges = selectedId
     ? (state.customMapEdges || []).filter(edge => edge.from === selectedId || edge.to === selectedId)
     : [];
+  const connectionKindLabel = (kind?: string) =>
+    kind === 'river' ? '물길 · 실선' : kind === 'waterway' ? '물길 · 빗금' : '육로';
   const persistStop = (stop: RouteStop) => {
     upsertPlayerMarkerRecords([playerRecordFromStop(stop)]);
     updateState(s => ({
@@ -17362,6 +17439,33 @@ function AtlasMapPanel({
     setSelectedId(current => current === id ? null : current);
     setLinkFromId(current => current === id ? null : current);
     setPendingLink(current => current && (current.from === id || current.to === id) ? null : current);
+  };
+  const handleAtlasSelection = (id: string | null) => {
+    if (!id) {
+      setSelectedId(null);
+      return;
+    }
+    if (connectionEditMode) {
+      if (!linkFromId) {
+        setSelectedId(id);
+        setLinkFromId(id);
+        setPendingLink(null);
+        return;
+      }
+      if (id === linkFromId) {
+        setSelectedId(id);
+        return;
+      }
+      setPendingLink({ from: linkFromId, to: id });
+      setLinkFromId(null);
+      setSelectedId(id);
+      return;
+    }
+    if (linkFromId && id !== linkFromId) {
+      setPendingLink({ from: linkFromId, to: id });
+      setLinkFromId(null);
+    }
+    setSelectedId(id);
   };
   const deletePlace = (id: string) => {
     if (findMapLocationKey(state.currentLocationName, customLocations) === id) {
@@ -17439,15 +17543,7 @@ function AtlasMapPanel({
         includeWilds
         selectedLocationId={selectedId}
         highlightLocationIds={[linkFromId, pendingLink?.from, pendingLink?.to].filter((id): id is string => Boolean(id))}
-        onSelectedPlaceChange={id => {
-          if (linkFromId && id && id !== linkFromId) {
-            setPendingLink({ from: linkFromId, to: id });
-            setLinkFromId(null);
-            setSelectedId(id);
-            return;
-          }
-          setSelectedId(id);
-        }}
+        onSelectedPlaceChange={handleAtlasSelection}
         onCreatePlace={request => {
           const id = `mark_${Date.now()}`;
           persistStop({
@@ -17504,27 +17600,52 @@ function AtlasMapPanel({
           showAlert('접어둔 지도의 표시를 이 기록에 남겼습니다.');
         }}
         showTravelRoutes={false}
+        showSavedConnections
+        hideSelectedPlaceSheet={connectionEditMode}
         veiled
-        companionCaption="이 탭은 지도를 고치는 자리입니다. ⌘+클릭으로 표시를 남기고, 이동 잠금 뒤에 끌어 자리를 고칩니다."
+        companionCaption={connectionEditMode
+          ? '연결 편집 중입니다. 시작 표시와 끝 표시를 차례로 누른 뒤 육로 또는 두 물길 형태를 고르세요.'
+          : '이 탭은 지도를 고치는 자리입니다. ⌘+클릭으로 표시를 남기고, 이동 잠금 뒤에 끌어 자리를 고칩니다.'}
       />
       <aside className="map-atelier__desk" aria-label="표시 자세히 고치기">
         <h3>지도 고치기</h3>
-        <p>오늘의 여행은 경로를 잇고, 여기서는 표시 자체(형태, 색, 자리, 연결)를 고칩니다.</p>
+        <p>오늘의 여행은 이동 순서를 짜고, 여기서는 표시와 직접 확인한 연결 데이터를 기록합니다.</p>
+
+        <section className={`map-atelier__connection-mode${connectionEditMode ? ' is-on' : ''}`} aria-label="지도 연결 편집 모드">
+          <div>
+            <strong>연결 편집</strong>
+            <span>저장된 연결 {(state.customMapEdges || []).length}개 · 지도 위 갈색/파란 선으로 표시</span>
+          </div>
+          <button
+            type="button"
+            aria-pressed={connectionEditMode}
+            onClick={() => {
+              setConnectionEditMode(current => !current);
+              setLinkFromId(null);
+              setPendingLink(null);
+            }}
+          >
+            {connectionEditMode ? '연결 편집 끝내기' : '연결 편집 시작'}
+          </button>
+          {connectionEditMode && !linkFromId && !pendingLink && <p>① 지도에서 시작 노드를 누르세요.</p>}
+          {connectionEditMode && linkFromId && (
+            <p>② <strong>{nodes[linkFromId]?.label || linkFromId}</strong>에서 이을 끝 노드를 누르세요.</p>
+          )}
+        </section>
 
         {linkFromId && <p className="map-atelier__note">이을 다음 표시를 지도에서 누르세요.</p>}
         {pendingLink && (
           <div className="map-atelier__block">
-            <strong>두 표시를 어떻게 이을까요?</strong>
+            <strong>③ {nodes[pendingLink.from]?.label || pendingLink.from} → {nodes[pendingLink.to]?.label || pendingLink.to}</strong>
+            <span>두 표시 사이에 저장할 연결 형태를 고르세요.</span>
             <div className="map-atelier__actions">
               <button type="button" onClick={() => persistLink(pendingLink.from, pendingLink.to, 'path')}>육로로 잇기</button>
-              <button type="button" onClick={() => persistLink(pendingLink.from, pendingLink.to, 'river')}>강으로 잇기</button>
+              <button type="button" onClick={() => persistLink(pendingLink.from, pendingLink.to, 'river')}>물길 · 실선</button>
               <button
                 type="button"
-                disabled={!canChooseRouteEdgeKind('waterway', { terrain: terrainFromRegion(nodes[pendingLink.from]?.region) }, { terrain: terrainFromRegion(nodes[pendingLink.to]?.region) })}
-                title="수로는 적어도 한쪽이 호수여야 합니다."
                 onClick={() => persistLink(pendingLink.from, pendingLink.to, 'waterway')}
               >
-                수로로 잇기
+                물길 · 빗금
               </button>
               <button type="button" onClick={() => setPendingLink(null)}>취소</button>
             </div>
@@ -17558,7 +17679,7 @@ function AtlasMapPanel({
               <button type="button" onClick={() => persistStop({ ...stopFromGraphNode(selectedId, selected), x: Math.min(99, selected.x + 0.4) })}>→</button>
             </div>
             <div className="map-atelier__actions">
-              <button type="button" onClick={() => { setLinkFromId(selectedId); setPendingLink(null); }}>다음 표시와 잇기</button>
+              {!connectionEditMode && <button type="button" onClick={() => { setLinkFromId(selectedId); setPendingLink(null); }}>이 표시에서 연결 시작</button>}
               <button type="button" className="map-atelier__delete" onClick={() => deletePlace(selectedId)}>이 표시 지우기</button>
             </div>
             {selectedEdges.length > 0 && (
@@ -17568,14 +17689,14 @@ function AtlasMapPanel({
                   const other = nodes[otherId];
                   return (
                     <li key={edge.id}>
-                      <span>{kindLabel(other?.kind)} · {routeEdgeLabel(edge.kind === 'river' || edge.kind === 'waterway' ? edge.kind : 'path')}</span>
+                      <span>{other?.label || otherId} · {connectionKindLabel(edge.kind)}</span>
                       <button
                         type="button"
-                        onClick={() => persistLink(edge.from, edge.to, cycleRouteEdgeKind(
-                          edge.kind === 'river' || edge.kind === 'waterway' ? edge.kind : 'path',
-                          { terrain: terrainFromRegion(selected.region) },
-                          { terrain: terrainFromRegion(other?.region) }
-                        ))}
+                        onClick={() => persistLink(
+                          edge.from,
+                          edge.to,
+                          edge.kind === 'path' ? 'river' : edge.kind === 'river' ? 'waterway' : 'path'
+                        )}
                       >
                         바꾸기
                       </button>
@@ -17606,7 +17727,7 @@ function AtlasMapPanel({
             <ul className="map-atelier__list">
               {playerMarks.map(row => (
                 <li key={row.id}>
-                  <button type="button" className={selectedId === row.id ? 'is-on' : ''} onClick={() => setSelectedId(row.id)}>
+                  <button type="button" className={selectedId === row.id ? 'is-on' : ''} onClick={() => handleAtlasSelection(row.id)}>
                     {kindLabel(row.kind)}{row.label ? ` · ${row.label}` : ''} · {row.region || '색 미정'}
                   </button>
                   <button type="button" className="map-atelier__delete" onClick={() => deletePlace(row.id)}>지우기</button>
@@ -17622,7 +17743,7 @@ function AtlasMapPanel({
             <ul className="map-atelier__list">
               {correctedPrints.map(row => (
                 <li key={row.id}>
-                  <button type="button" className={selectedId === row.id ? 'is-on' : ''} onClick={() => setSelectedId(row.id)}>
+                  <button type="button" className={selectedId === row.id ? 'is-on' : ''} onClick={() => handleAtlasSelection(row.id)}>
                     {kindLabel(row.kind)}{row.label ? ` · ${row.label}` : ''} · {row.region || '색 미정'}
                   </button>
                   <button type="button" className="map-atelier__delete" onClick={() => deletePlace(row.id)}>지우기</button>
@@ -17670,6 +17791,8 @@ const MapView = memo(function MapView({
   canDeletePlace,
   showWaypointAction = true,
   showTravelRoutes = true,
+  showSavedConnections = false,
+  hideSelectedPlaceSheet = false,
   veiled = false,
   showRoutePreview = true,
   onSelectedPlaceChange,
@@ -17697,6 +17820,8 @@ const MapView = memo(function MapView({
   canDeletePlace?: (placeId: string) => boolean;
   showWaypointAction?: boolean;
   showTravelRoutes?: boolean;
+  showSavedConnections?: boolean;
+  hideSelectedPlaceSheet?: boolean;
   veiled?: boolean;
   showRoutePreview?: boolean;
   onSelectedPlaceChange?: (placeId: string | null) => void;
@@ -17708,6 +17833,19 @@ const MapView = memo(function MapView({
   const customMapLocations = state.customMapLocations || [];
   const customMapEdges = state.customMapEdges || [];
   const nodes = buildMapGraphNodes(customMapLocations, customMapEdges);
+  const savedConnections: MapSavedConnection[] = showSavedConnections
+    ? customMapEdges.flatMap(edge => {
+      const from = nodes[edge.from];
+      const to = nodes[edge.to];
+      if (!from || !to) return [];
+      return [{
+        id: edge.id,
+        kind: edge.kind === 'river' || edge.kind === 'waterway' ? edge.kind : 'path',
+        from: { id: edge.from, x: from.x, y: from.y },
+        to: { id: edge.to, x: to.x, y: to.y }
+      }];
+    })
+    : [];
   const currentId = findMapLocationKey(state.currentLocationName, customMapLocations);
   const extraIds = new Set<string>([...highlightLocationIds, selectedLocationId, currentId, ...routePlaceIds].filter((id): id is string => Boolean(id)));
   (state.visitedLocations || []).forEach(name => {
@@ -17790,7 +17928,9 @@ const MapView = memo(function MapView({
     <PaperMap
       places={places}
       clinicOverlays={clinicOverlays}
+      savedConnections={savedConnections}
       selectedPlaceId={selectedLocationId}
+      hideSelectedPlaceSheet={hideSelectedPlaceSheet}
       historyAnchors={historyAnchors}
       variant={variant}
       companionCaption={companionCaption}
