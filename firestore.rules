@@ -1,0 +1,52 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isMapAdmin() {
+      return signedIn() && request.auth.uid == 'Tw41SDcFcOhTivPRLf1XnD8Ztjp1';
+    }
+
+    function isOfficialMapDocument(documentId) {
+      return documentId == 'map_official_current'
+        || documentId.matches('map_official_snapshot_.*');
+    }
+
+    function isOwnSaveDocument(documentId) {
+      return signedIn() && (
+        documentId == 'uid_' + request.auth.uid
+        || documentId.matches('uid_' + request.auth.uid + '_.*')
+      );
+    }
+
+    match /saves/{documentId} {
+      // The published map is shared read-only reference data for every player.
+      allow read: if isOfficialMapDocument(documentId) || isOwnSaveDocument(documentId);
+
+      // Only the designated cartographer can move the official pointer or add
+      // immutable official-map payloads. Account saves remain UID-scoped.
+      allow create: if (
+        isOfficialMapDocument(documentId)
+          && isMapAdmin()
+          && request.resource.data.ownerUid == request.auth.uid
+      ) || (
+        isOwnSaveDocument(documentId)
+          && request.resource.data.ownerUid == request.auth.uid
+      );
+
+      allow update: if (
+        isOfficialMapDocument(documentId)
+          && isMapAdmin()
+          && request.resource.data.ownerUid == request.auth.uid
+      ) || (
+        isOwnSaveDocument(documentId)
+          && request.resource.data.ownerUid == request.auth.uid
+      );
+
+      allow delete: if isOwnSaveDocument(documentId);
+    }
+  }
+}

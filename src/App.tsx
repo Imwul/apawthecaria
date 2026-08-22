@@ -44,6 +44,28 @@ import {
   writeActiveCloudSlot
 } from "./persistence/cloudSlots";
 import { MARKER_BY_ID, MARKER_EDGES, markerEdgeKind } from "./map/markerGraph";
+import {
+  findMapConnectionSnapshot,
+  importMapConnectionSnapshot,
+  mapConnectionFingerprint,
+  mapConnectionSnapshotMeta,
+  normalizeMapConnectionSnapshot,
+  publishMapConnectionSnapshot,
+  readMapConnectionArchive,
+  recordMapConnectionSnapshot,
+  writeMapConnectionArchive,
+  type MapConnectionArchive,
+  type MapConnectionSnapshot,
+  type MapConnectionSnapshotMeta
+} from "./map/mapConnectionArchive";
+import {
+  createOfficialMapSnapshot,
+  normalizeOfficialMapSnapshot,
+  officialMapFingerprint,
+  readOfficialMapCache,
+  writeOfficialMapCache,
+  type OfficialMapSnapshot
+} from "./map/officialMap";
 import manualMapReview from "./map/detection/manualMapReview.json";
 import { loadPlayerMarkers, removePlayerMarkerRecords, upsertPlayerMarkerRecords } from "./map/playerMarkerStore";
 import {
@@ -576,6 +598,7 @@ const writeCloudSlotRecord = async (
         throw cloudSlotError('cloud-document-too-large');
       }
       transaction.set(docRef, {
+        ownerUid: uid,
         ...compactDocument,
         [CAMPAIGN_SAVE_KEY]: deleteField()
       }, { merge: true });
@@ -603,6 +626,231 @@ const writeCloudSlotRecord = async (
     }
     throw error;
   }
+};
+
+type CloudMapConnectionIndex = {
+  activeSnapshotId: string | null;
+  publishedSnapshotId: string | null;
+  revision: number;
+  snapshots: MapConnectionSnapshotMeta[];
+};
+
+const emptyCloudMapConnectionIndex = (): CloudMapConnectionIndex => ({
+  activeSnapshotId: null,
+  publishedSnapshotId: null,
+  revision: 0,
+  snapshots: []
+});
+
+const mapConnectionArchiveDocumentId = (uid: string) => `${cloudSaveDocumentId(uid)}_map_connections`;
+const mapConnectionSnapshotDocumentId = (uid: string, snapshotId: string) =>
+  `${cloudSaveDocumentId(uid)}_map_connection_${snapshotId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+
+const mapConnectionMetaFromUnknown = (value: unknown): MapConnectionSnapshotMeta | null => {
+  if (!value || typeof value !== 'object') return null;
+  const row = value as Record<string, unknown>;
+  if (typeof row.id !== 'string' || !row.id.trim()) return null;
+  const createdAt = typeof row.createdAt === 'number' && Number.isFinite(row.createdAt) ? row.createdAt : 0;
+  const edgeCount = typeof row.edgeCount === 'number' && Number.isFinite(row.edgeCount)
+    ? Math.max(0, Math.floor(row.edgeCount))
+    : 0;
+  const source = row.source === 'manual' || row.source === 'restore' || row.source === 'import' ? row.source : 'auto';
+  return {
+    id: row.id,
+    createdAt,
+    fingerprint: typeof row.fingerprint === 'string' ? row.fingerprint : '',
+    edgeCount,
+    source
+  };
+};
+
+const cloudMapConnectionIndexFromUnknown = (value: unknown, uid: string): CloudMapConnectionIndex => {
+  if (!value || typeof value !== 'object') return emptyCloudMapConnectionIndex();
+  const row = value as Record<string, unknown>;
+  if (row.ownerUid !== uid) throw cloudSlotError('cloud-payload-corrupt');
+  const snapshots = Array.isArray(row.snapshots)
+    ? row.snapshots.flatMap(value => {
+      const meta = mapConnectionMetaFromUnknown(value);
+      return meta ? [meta] : [];
+    }).sort((a, b) => b.createdAt - a.createdAt)
+    : [];
+  const ids = new Set(snapshots.map(snapshot => snapshot.id));
+  return {
+    activeSnapshotId: typeof row.activeSnapshotId === 'string' && ids.has(row.activeSnapshotId) ? row.activeSnapshotId : null,
+    publishedSnapshotId: typeof row.publishedSnapshotId === 'string' && ids.has(row.publishedSnapshotId) ? row.publishedSnapshotId : null,
+    revision: typeof row.revision === 'number' && Number.isFinite(row.revision) ? Math.max(0, Math.floor(row.revision)) : 0,
+    snapshots
+  };
+};
+
+const readCloudMapConnectionIndex = async (uid: string): Promise<CloudMapConnectionIndex> => {
+  if (!db || auth?.currentUser?.uid !== uid) throw cloudSlotError('not-signed-in');
+  const snapshot = await withTimeout(getDoc(doc(db, 'saves', mapConnectionArchiveDocumentId(uid))), 30000);
+  return snapshot.exists()
+    ? cloudMapConnectionIndexFromUnknown(snapshot.data(), uid)
+    : emptyCloudMapConnectionIndex();
+};
+
+const readCloudMapConnectionSnapshot = async (uid: string, snapshotId: string): Promise<MapConnectionSnapshot> => {
+  if (!db || auth?.currentUser?.uid !== uid) throw cloudSlotError('not-signed-in');
+  const snapshot = await withTimeout(
+    getDoc(doc(db, 'saves', mapConnectionSnapshotDocumentId(uid, snapshotId))),
+    30000
+  );
+  if (!snapshot.exists()) throw cloudSlotError('cloud-payload-corrupt');
+  const data = snapshot.data() as Record<string, unknown>;
+  if (data.ownerUid !== uid || typeof data.payload !== 'string') throw cloudSlotError('cloud-payload-corrupt');
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(data.payload);
+  } catch {
+    throw cloudSlotError('cloud-payload-corrupt');
+  }
+  const normalized = normalizeMapConnectionSnapshot(parsed);
+  if (!normalized || normalized.id !== snapshotId) throw cloudSlotError('cloud-payload-corrupt');
+  return normalized;
+};
+
+const writeCloudMapConnectionSnapshot = async (
+  uid: string,
+  snapshotValue: MapConnectionSnapshot,
+  publish = false
+): Promise<CloudMapConnectionIndex> => {
+  if (!db || auth?.currentUser?.uid !== uid) throw cloudSlotError('not-signed-in');
+  const snapshot = normalizeMapConnectionSnapshot(snapshotValue);
+  if (!snapshot) throw cloudSlotError('cloud-payload-corrupt');
+  const payload = JSON.stringify(snapshot);
+  if (cloudPayloadByteLength(payload) >= CLOUD_PAYLOAD_SAFE_BYTES) throw cloudSlotError('cloud-payload-too-large');
+  const archiveRef = doc(db, 'saves', mapConnectionArchiveDocumentId(uid));
+  const payloadRef = doc(db, 'saves', mapConnectionSnapshotDocumentId(uid, snapshot.id));
+  return withTimeout(runTransaction(db, async transaction => {
+    if (auth?.currentUser?.uid !== uid) throw cloudSlotError('not-signed-in');
+    const currentSnapshot = await transaction.get(archiveRef);
+    const current = currentSnapshot.exists()
+      ? cloudMapConnectionIndexFromUnknown(currentSnapshot.data(), uid)
+      : emptyCloudMapConnectionIndex();
+    const meta = mapConnectionSnapshotMeta(snapshot);
+    let snapshots = [meta, ...current.snapshots.filter(row => row.id !== snapshot.id)]
+      .sort((a, b) => b.createdAt - a.createdAt);
+    const protectedIds = new Set([
+      snapshot.id,
+      publish ? snapshot.id : current.publishedSnapshotId
+    ].filter((id): id is string => Boolean(id)));
+    const limited = snapshots.slice(0, 250);
+    snapshots.forEach(row => {
+      if (protectedIds.has(row.id) && !limited.some(kept => kept.id === row.id)) limited.push(row);
+    });
+    snapshots = limited;
+    const currentActive = current.snapshots.find(row => row.id === current.activeSnapshotId);
+    const activeSnapshotId = currentActive && currentActive.createdAt > snapshot.createdAt
+      ? currentActive.id
+      : snapshot.id;
+    const next: CloudMapConnectionIndex = {
+      activeSnapshotId,
+      publishedSnapshotId: publish ? snapshot.id : current.publishedSnapshotId,
+      revision: current.revision + 1,
+      snapshots
+    };
+    transaction.set(payloadRef, {
+      ownerUid: uid,
+      snapshotId: snapshot.id,
+      createdAt: snapshot.createdAt,
+      fingerprint: snapshot.fingerprint,
+      edgeCount: snapshot.edgeCount,
+      payload
+    });
+    transaction.set(archiveRef, {
+      ownerUid: uid,
+      ...next,
+      updatedAt: new Date().toISOString()
+    });
+    return next;
+  }), 30000);
+};
+
+const MAP_ADMIN_UIDS = new Set(
+  String(import.meta.env.VITE_MAP_ADMIN_UIDS || 'Tw41SDcFcOhTivPRLf1XnD8Ztjp1')
+    .split(',')
+    .map((value: string) => value.trim())
+    .filter(Boolean)
+);
+const OFFICIAL_MAP_POINTER_DOCUMENT_ID = 'map_official_current';
+const officialMapSnapshotDocumentId = (snapshotId: string) =>
+  `map_official_snapshot_${snapshotId.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+const isMapAdministrator = (uid: string | null | undefined) => Boolean(uid && MAP_ADMIN_UIDS.has(uid));
+
+const readCloudOfficialMapSnapshot = async (): Promise<OfficialMapSnapshot | null> => {
+  if (!db) return null;
+  const pointer = await withTimeout(getDoc(doc(db, 'saves', OFFICIAL_MAP_POINTER_DOCUMENT_ID)), 30000);
+  if (!pointer.exists()) return null;
+  const pointerData = pointer.data() as Record<string, unknown>;
+  if (typeof pointerData.snapshotId !== 'string') throw cloudSlotError('cloud-payload-corrupt');
+  const payloadSnapshot = await withTimeout(
+    getDoc(doc(db, 'saves', officialMapSnapshotDocumentId(pointerData.snapshotId))),
+    30000
+  );
+  if (!payloadSnapshot.exists()) throw cloudSlotError('cloud-payload-corrupt');
+  const payloadData = payloadSnapshot.data() as Record<string, unknown>;
+  if (typeof payloadData.payload !== 'string') throw cloudSlotError('cloud-payload-corrupt');
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(payloadData.payload);
+  } catch {
+    throw cloudSlotError('cloud-payload-corrupt');
+  }
+  const normalized = normalizeOfficialMapSnapshot(parsed);
+  if (!normalized
+    || normalized.id !== pointerData.snapshotId
+    || (typeof pointerData.fingerprint === 'string' && normalized.fingerprint !== pointerData.fingerprint)) {
+    throw cloudSlotError('cloud-payload-corrupt');
+  }
+  return normalized;
+};
+
+const publishCloudOfficialMapSnapshot = async (
+  uid: string,
+  locations: CustomMapLocation[],
+  edges: CustomMapEdge[]
+): Promise<OfficialMapSnapshot> => {
+  if (!db || auth?.currentUser?.uid !== uid) throw cloudSlotError('not-signed-in');
+  if (!isMapAdministrator(uid)) throw cloudSlotError('permission-denied');
+  const pointerRef = doc(db, 'saves', OFFICIAL_MAP_POINTER_DOCUMENT_ID);
+  return withTimeout(runTransaction(db, async transaction => {
+    if (auth?.currentUser?.uid !== uid || !isMapAdministrator(uid)) throw cloudSlotError('permission-denied');
+    const current = await transaction.get(pointerRef);
+    const currentData = current.exists() ? current.data() as Record<string, unknown> : {};
+    const currentRevision = typeof currentData.revision === 'number' && Number.isFinite(currentData.revision)
+      ? Math.max(0, Math.floor(currentData.revision))
+      : 0;
+    const snapshot = createOfficialMapSnapshot({
+      revision: currentRevision + 1,
+      publishedBy: uid,
+      locations,
+      edges
+    });
+    const payload = JSON.stringify(snapshot);
+    if (cloudPayloadByteLength(payload) >= CLOUD_PAYLOAD_SAFE_BYTES) throw cloudSlotError('cloud-payload-too-large');
+    transaction.set(doc(db, 'saves', officialMapSnapshotDocumentId(snapshot.id)), {
+      ownerUid: uid,
+      snapshotId: snapshot.id,
+      revision: snapshot.revision,
+      createdAt: snapshot.createdAt,
+      fingerprint: snapshot.fingerprint,
+      locationCount: snapshot.locationCount,
+      edgeCount: snapshot.edgeCount,
+      payload
+    });
+    transaction.set(pointerRef, {
+      ownerUid: uid,
+      snapshotId: snapshot.id,
+      revision: snapshot.revision,
+      createdAt: snapshot.createdAt,
+      fingerprint: snapshot.fingerprint,
+      locationCount: snapshot.locationCount,
+      edgeCount: snapshot.edgeCount
+    });
+    return snapshot;
+  }), 30000);
 };
 
 const pendingCloudSaveCountForUser = (uid: string | null | undefined, entries = readSaveOutbox()) =>
@@ -4513,6 +4761,7 @@ type CloudSlotOperation =
 export default function App() {
   const [storedState, setState] = useState<GameState | null>(null);
   const state = storedState ? withCanonicalPatientView(storedState) : null;
+  const campaignReadyForOfficialMap = Boolean(state);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<JournalTab>(() => journalTabFromHash(window.location.hash));
   const activeTabRef = useRef<JournalTab>(activeTab);
@@ -4539,6 +4788,7 @@ export default function App() {
   const [saveLoadError, setSaveLoadError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'ready' | 'saving' | 'saved' | 'error'>('ready');
   const initialSetupRouted = useRef(false);
+  const officialMapDefaultsLoaded = useRef(false);
 
   const requestControlledPrompt = useCallback((request: ControlledPromptRequest) => new Promise<string | null>(resolve => {
     setControlledPromptResolver(() => resolve);
@@ -4999,6 +5249,29 @@ export default function App() {
       return next;
     });
   };
+
+  useEffect(() => {
+    if (!campaignReadyForOfficialMap || officialMapDefaultsLoaded.current) return;
+    officialMapDefaultsLoaded.current = true;
+    let cancelled = false;
+    void readCloudOfficialMapSnapshot().catch(error => {
+      console.warn('공식 지도 클라우드 버전을 읽지 못해 기기 캐시를 확인합니다:', error);
+      return readOfficialMapCache();
+    }).then(snapshot => {
+      if (cancelled || !snapshot) return;
+      try { writeOfficialMapCache(snapshot); } catch (error) { console.warn('공식 지도 기기 캐시 저장 실패:', error); }
+      const locations = snapshot.locations.map(location => ({
+        ...location,
+        region: location.region as MapRegion | undefined,
+        kind: location.kind as MapLocationKind | undefined
+      })) satisfies CustomMapLocation[];
+      updateState(current => {
+        if ((current.customMapLocations || []).length > 0 || (current.customMapEdges || []).length > 0) return current;
+        return { ...current, customMapLocations: locations, customMapEdges: snapshot.edges };
+      });
+    });
+    return () => { cancelled = true; };
+  }, [campaignReadyForOfficialMap]);
 
   const openPendingWaspForage = useEffectEvent(() => {
     updateState(s => {
@@ -17866,7 +18139,40 @@ function AtlasMapPanel({
   const [pendingLink, setPendingLink] = useState<{ from: string; to: string } | null>(null);
   const [connectionEditMode, setConnectionEditMode] = useState(false);
   const [connectionQuickKind, setConnectionQuickKind] = useState<'path' | 'river' | 'waterway'>('path');
-  const customLocations = state.customMapLocations || [];
+  const [connectionArchive, setConnectionArchive] = useState<MapConnectionArchive>(() => readMapConnectionArchive());
+  const [cloudConnectionIndex, setCloudConnectionIndex] = useState<CloudMapConnectionIndex>(() => emptyCloudMapConnectionIndex());
+  const [connectionArchiveStatus, setConnectionArchiveStatus] = useState('연결이 바뀌면 캠페인과 별도로 이 기기에 보관합니다.');
+  const [adminMode, setAdminMode] = useState(false);
+  const [officialMapSnapshot, setOfficialMapSnapshot] = useState<OfficialMapSnapshot | null>(() => readOfficialMapCache());
+  const [officialMapStatus, setOfficialMapStatus] = useState('공식 지도 버전을 확인하는 중입니다.');
+  const currentMapEdges = useMemo(() => state.customMapEdges || [], [state.customMapEdges]);
+  const currentMapFingerprint = useMemo(() => mapConnectionFingerprint(currentMapEdges), [currentMapEdges]);
+  const latestMapFingerprintRef = useRef(currentMapFingerprint);
+  const customLocations = useMemo(() => state.customMapLocations || [], [state.customMapLocations]);
+  const officialPublishLocations = useMemo(() => {
+    const byId = new Map(customLocations.map(location => [location.id, location]));
+    loadPlayerMarkers().forEach(record => {
+      if (byId.has(record.id)) return;
+      const printed = MAP_GRAPH_NODES[record.id];
+      byId.set(record.id, {
+        id: record.id,
+        label: record.label || printed?.label || record.id,
+        x: record.x,
+        y: record.y,
+        region: (record.region as MapRegion | undefined) || printed?.region,
+        kind: (record.kind as MapLocationKind | undefined) || printed?.kind,
+        aliases: printed?.aliases ? [...printed.aliases] : undefined,
+        neighbors: printed?.neighbors ? [...printed.neighbors] : [],
+        source: 'player-correction',
+        createdAt: record.updatedAt
+      });
+    });
+    return [...byId.values()];
+  }, [customLocations]);
+  const currentOfficialMapFingerprint = useMemo(
+    () => officialMapFingerprint(officialPublishLocations, currentMapEdges),
+    [officialPublishLocations, currentMapEdges]
+  );
   const nodes = buildMapGraphNodes(customLocations, state.customMapEdges || []);
   const selected = selectedId ? nodes[selectedId] : null;
   const playerMarks = customLocations.filter(row => isPlayerCreatedMapPlace(row.id) && !row.hidden);
@@ -17967,6 +18273,262 @@ function AtlasMapPanel({
     window.addEventListener('keydown', handleConnectionShortcut);
     return () => window.removeEventListener('keydown', handleConnectionShortcut);
   }, [pendingLink, persistLink]);
+  const rememberConnectionsOnThisDevice = useCallback((
+    edges: CustomMapEdge[],
+    source: MapConnectionSnapshot['source'],
+    publish = false
+  ) => {
+    const recorded = recordMapConnectionSnapshot(readMapConnectionArchive(), edges, source);
+    const archive = publish
+      ? publishMapConnectionSnapshot(recorded.archive, recorded.snapshot.id)
+      : recorded.archive;
+    writeMapConnectionArchive(archive);
+    setConnectionArchive(archive);
+    return { ...recorded, archive };
+  }, []);
+  const applyConnectionSnapshot = useCallback((snapshot: MapConnectionSnapshot, description: string) => {
+    if (snapshot.fingerprint === currentMapFingerprint) {
+      showAlert(`${description} 연결이 이미 지도에 열려 있습니다.`);
+      return false;
+    }
+    if (currentMapEdges.length > 0 && !window.confirm(
+      `현재 지도 연결 ${currentMapEdges.length}개를 ${description} ${snapshot.edgeCount}개로 바꿀까요? 현재 상태도 이전 버전에 남아 있어 다시 복원할 수 있습니다.`
+    )) return false;
+    updateState(s => ({ ...s, customMapEdges: snapshot.edges }));
+    setConnectionArchiveStatus(`${description} ${snapshot.edgeCount}개를 불러왔습니다.`);
+    return true;
+  }, [currentMapEdges.length, currentMapFingerprint, updateState]);
+  useEffect(() => {
+    latestMapFingerprintRef.current = currentMapFingerprint;
+    const timer = window.setTimeout(() => {
+      let recorded: ReturnType<typeof rememberConnectionsOnThisDevice>;
+      try {
+        recorded = rememberConnectionsOnThisDevice(currentMapEdges, 'auto');
+        setConnectionArchiveStatus(`이 기기에 연결 ${recorded.snapshot.edgeCount}개 보관됨`);
+      } catch (error) {
+        console.error('지도 연결 로컬 스냅샷 저장 실패:', error);
+        setConnectionArchiveStatus('이 기기에 연결 데이터를 보관하지 못했습니다. 연결 JSON을 내려받아 주세요.');
+        return;
+      }
+      const uid = auth?.currentUser?.uid;
+      if (!uid) {
+        setConnectionArchiveStatus(`이 기기에 연결 ${recorded.snapshot.edgeCount}개 보관됨 · 로그인하면 계정에도 보관됩니다.`);
+        return;
+      }
+      void writeCloudMapConnectionSnapshot(uid, recorded.snapshot).then(index => {
+        setCloudConnectionIndex(index);
+        if (latestMapFingerprintRef.current === recorded.snapshot.fingerprint) {
+          setConnectionArchiveStatus(`이 기기와 내 계정에 연결 ${recorded.snapshot.edgeCount}개 보관됨`);
+        }
+      }).catch(error => {
+        console.error('지도 연결 클라우드 스냅샷 저장 실패:', error);
+        if (latestMapFingerprintRef.current === recorded.snapshot.fingerprint) {
+          setConnectionArchiveStatus(`이 기기에는 보관됨 · ${cloudWriteErrorMessage(error as { code?: string; message?: string })}`);
+        }
+      });
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [currentMapEdges, currentMapFingerprint, rememberConnectionsOnThisDevice]);
+  useEffect(() => {
+    const localArchive = readMapConnectionArchive();
+    const localPublished = findMapConnectionSnapshot(localArchive, localArchive.publishedSnapshotId);
+    if (localPublished) {
+      updateState(s => (s.customMapEdges || []).length > 0
+        ? s
+        : { ...s, customMapEdges: localPublished.edges });
+    }
+    if (!auth) return;
+    let cancelled = false;
+    const unsubscribe = onAuthStateChanged(auth, user => {
+      if (!user) {
+        if (!cancelled) setCloudConnectionIndex(emptyCloudMapConnectionIndex());
+        return;
+      }
+      void readCloudMapConnectionIndex(user.uid).then(async index => {
+        if (cancelled) return;
+        setCloudConnectionIndex(index);
+        if (!index.publishedSnapshotId) return;
+        const published = await readCloudMapConnectionSnapshot(user.uid, index.publishedSnapshotId);
+        if (cancelled) return;
+        const imported = importMapConnectionSnapshot(readMapConnectionArchive(), published, true);
+        writeMapConnectionArchive(imported);
+        setConnectionArchive(imported);
+        updateState(s => (s.customMapEdges || []).length > 0
+          ? s
+          : { ...s, customMapEdges: published.edges });
+      }).catch(error => {
+        console.error('지도 연결 클라우드 보관함 읽기 실패:', error);
+        if (!cancelled) setConnectionArchiveStatus(`기기 보관함은 정상 · ${cloudWriteErrorMessage(error as { code?: string; message?: string })}`);
+      });
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [updateState]);
+  useEffect(() => {
+    let cancelled = false;
+    void readCloudOfficialMapSnapshot().then(snapshot => {
+      if (cancelled) return;
+      if (!snapshot) {
+        setOfficialMapStatus('아직 게시된 공식 지도 버전이 없습니다.');
+        return;
+      }
+      setOfficialMapSnapshot(snapshot);
+      setOfficialMapStatus(`공식 지도 v${snapshot.revision} · 표시 보정 ${snapshot.locationCount}개 · 연결 ${snapshot.edgeCount}개`);
+      try { writeOfficialMapCache(snapshot); } catch (error) { console.warn('공식 지도 기기 캐시 저장 실패:', error); }
+    }).catch(error => {
+      console.error('공식 지도 버전 확인 실패:', error);
+      const cached = readOfficialMapCache();
+      if (cancelled) return;
+      if (cached) {
+        setOfficialMapSnapshot(cached);
+        setOfficialMapStatus(`기기에 보관된 공식 지도 v${cached.revision} · 클라우드 확인 실패`);
+      } else {
+        setOfficialMapStatus('공식 지도 버전을 확인하지 못했습니다.');
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
+  const publishCurrentConnections = async () => {
+    let recorded: ReturnType<typeof rememberConnectionsOnThisDevice>;
+    try {
+      recorded = rememberConnectionsOnThisDevice(currentMapEdges, 'manual', true);
+    } catch (error) {
+      console.error('지도 기본 연결 로컬 저장 실패:', error);
+      showAlert('이 기기에 기본 연결을 보관하지 못했습니다. 먼저 연결 JSON을 내려받아 주세요.');
+      return;
+    }
+    const uid = auth?.currentUser?.uid;
+    if (!uid) {
+      setConnectionArchiveStatus(`연결 ${recorded.snapshot.edgeCount}개를 이 기기의 기본 데이터로 지정했습니다.`);
+      showAlert('이 기기의 기본 연결로 지정했습니다. 다른 기기에서도 쓰려면 구글 계정에 로그인해 주세요.');
+      return;
+    }
+    try {
+      const index = await writeCloudMapConnectionSnapshot(uid, recorded.snapshot, true);
+      setCloudConnectionIndex(index);
+      setConnectionArchiveStatus(`연결 ${recorded.snapshot.edgeCount}개를 이 기기와 내 계정의 기본 데이터로 지정했습니다.`);
+      showAlert('현재 연결을 내 계정의 기본 지도 데이터로 지정했습니다. 다른 캠페인과 기기에서 불러올 수 있습니다.');
+    } catch (error) {
+      console.error('지도 기본 연결 클라우드 저장 실패:', error);
+      showAlert(`이 기기에는 기본 연결로 남겼지만 계정에는 올리지 못했습니다. ${cloudWriteErrorMessage(error as { code?: string; message?: string })}`);
+    }
+  };
+  const loadPublishedConnections = async () => {
+    const uid = auth?.currentUser?.uid;
+    try {
+      if (uid && cloudConnectionIndex.publishedSnapshotId) {
+        const snapshot = await readCloudMapConnectionSnapshot(uid, cloudConnectionIndex.publishedSnapshotId);
+        const archive = importMapConnectionSnapshot(readMapConnectionArchive(), snapshot, true);
+        writeMapConnectionArchive(archive);
+        setConnectionArchive(archive);
+        applyConnectionSnapshot(snapshot, '내 계정의 기본 연결');
+        return;
+      }
+      const snapshot = findMapConnectionSnapshot(connectionArchive, connectionArchive.publishedSnapshotId);
+      if (!snapshot) {
+        showAlert('아직 기본 연결로 지정한 버전이 없습니다. 연결을 확인한 뒤 “현재 연결을 기본 데이터로 지정”을 눌러 주세요.');
+        return;
+      }
+      applyConnectionSnapshot(snapshot, '이 기기의 기본 연결');
+    } catch (error) {
+      console.error('지도 기본 연결 불러오기 실패:', error);
+      showAlert(cloudWriteErrorMessage(error as { code?: string; message?: string }));
+    }
+  };
+  const restoreCloudConnectionSnapshot = async (meta: MapConnectionSnapshotMeta) => {
+    const uid = auth?.currentUser?.uid;
+    if (!uid) {
+      showAlert('이 계정의 이전 연결을 받으려면 다시 로그인해 주세요.');
+      return;
+    }
+    try {
+      const snapshot = await readCloudMapConnectionSnapshot(uid, meta.id);
+      const publish = meta.id === cloudConnectionIndex.publishedSnapshotId;
+      const archive = importMapConnectionSnapshot(readMapConnectionArchive(), snapshot, publish);
+      writeMapConnectionArchive(archive);
+      setConnectionArchive(archive);
+      applyConnectionSnapshot(snapshot, '계정의 이전 버전');
+    } catch (error) {
+      console.error('지도 연결 이전 버전 복원 실패:', error);
+      showAlert(cloudWriteErrorMessage(error as { code?: string; message?: string }));
+    }
+  };
+  const exportCurrentConnections = () => {
+    const payload = {
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      fingerprint: currentMapFingerprint,
+      edgeCount: currentMapEdges.length,
+      edges: currentMapEdges
+    };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `apawthecaria-map-connections-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const publishCurrentMapAsOfficial = async () => {
+    const uid = auth?.currentUser?.uid;
+    if (!isMapAdministrator(uid)) {
+      showAlert('공식 지도 게시 권한이 있는 관리자 계정으로 로그인해 주세요.');
+      return;
+    }
+    const customLocationCount = officialPublishLocations.length;
+    if (!window.confirm(
+      `현재 표시 보정 ${customLocationCount}개와 연결 ${currentMapEdges.length}개를 모든 새 캠페인의 공식 지도로 게시할까요? 기존 캠페인의 개인 수정은 덮어쓰지 않습니다.`
+    )) return;
+    setOfficialMapStatus('새 공식 지도 버전을 게시하는 중입니다.');
+    try {
+      const snapshot = await publishCloudOfficialMapSnapshot(uid!, officialPublishLocations, currentMapEdges);
+      writeOfficialMapCache(snapshot);
+      setOfficialMapSnapshot(snapshot);
+      setOfficialMapStatus(`공식 지도 v${snapshot.revision} 게시 완료 · 표시 보정 ${snapshot.locationCount}개 · 연결 ${snapshot.edgeCount}개`);
+      const recorded = rememberConnectionsOnThisDevice(currentMapEdges, 'manual', true);
+      try {
+        const index = await writeCloudMapConnectionSnapshot(uid!, recorded.snapshot, true);
+        setCloudConnectionIndex(index);
+      } catch (error) {
+        console.warn('공식 지도 연결을 개인 기본 연결로 함께 지정하지 못했습니다:', error);
+      }
+      showAlert(`공식 지도 v${snapshot.revision}로 게시했습니다. 이후 생성하는 캠페인은 이 표시와 연결을 기본값으로 사용합니다.`);
+    } catch (error) {
+      console.error('공식 지도 게시 실패:', error);
+      setOfficialMapStatus(`게시 실패 · ${cloudWriteErrorMessage(error as { code?: string; message?: string })}`);
+      showAlert(cloudWriteErrorMessage(error as { code?: string; message?: string }));
+    }
+  };
+  const loadOfficialMapIntoCampaign = () => {
+    if (!officialMapSnapshot) {
+      showAlert('불러올 공식 지도 버전이 없습니다.');
+      return;
+    }
+    if (currentOfficialMapFingerprint === officialMapSnapshot.fingerprint) {
+      showAlert('현재 캠페인이 이미 최신 공식 지도와 같습니다.');
+      return;
+    }
+    if (!window.confirm(
+      `현재 캠페인의 표시 보정과 연결을 공식 지도 v${officialMapSnapshot.revision}로 바꿀까요? 현재 연결은 이전 버전 보관함에서 다시 복원할 수 있습니다.`
+    )) return;
+    const locations = officialMapSnapshot.locations.map(location => ({
+      ...location,
+      region: location.region as MapRegion | undefined,
+      kind: location.kind as MapLocationKind | undefined
+    })) satisfies CustomMapLocation[];
+    updateState(s => ({ ...s, customMapLocations: locations, customMapEdges: officialMapSnapshot.edges }));
+    setOfficialMapStatus(`공식 지도 v${officialMapSnapshot.revision}을 현재 캠페인에 불러왔습니다.`);
+  };
+  const localConnectionHistory = connectionArchive.snapshots.slice(0, 8);
+  const localConnectionIds = new Set(connectionArchive.snapshots.map(snapshot => snapshot.id));
+  const cloudOnlyConnectionHistory = cloudConnectionIndex.snapshots
+    .filter(snapshot => !localConnectionIds.has(snapshot.id))
+    .slice(0, 8);
+  const formatConnectionSnapshotTime = (createdAt: number) => createdAt > 0
+    ? new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(createdAt))
+    : '시간 정보 없음';
+  const canAdministerMap = isMapAdministrator(auth?.currentUser?.uid);
   const hasPrintedOverride = (id: string) => {
     if (isPlayerCreatedMapPlace(id)) return false;
     const printed = MAP_GRAPH_NODES[id];
@@ -18175,6 +18737,87 @@ function AtlasMapPanel({
             <p>② <strong>{nodes[linkFromId]?.label || linkFromId}</strong>에서 이을 끝 노드를 누르세요. <kbd>Shift</kbd>+클릭하면 선택한 종류로 즉시 저장됩니다.</p>
           )}
         </section>
+
+        <div className="map-atelier__block map-atelier__archive">
+          <strong>연결 데이터 보관</strong>
+          <span>캠페인 슬롯과 분리된 버전입니다. 연결이 바뀔 때만 새로 남기며, 이전 버전을 지우지 않습니다.</span>
+          <p className="map-atelier__archive-status" role="status">{connectionArchiveStatus}</p>
+          <div className="map-atelier__actions">
+            <button type="button" disabled={currentMapEdges.length === 0} onClick={() => void publishCurrentConnections()}>
+              현재 연결을 내 기본 데이터로 지정
+            </button>
+            <button
+              type="button"
+              disabled={!connectionArchive.publishedSnapshotId && !cloudConnectionIndex.publishedSnapshotId}
+              onClick={() => void loadPublishedConnections()}
+            >
+              내 기본 연결 불러오기
+            </button>
+            <button type="button" onClick={exportCurrentConnections}>연결 JSON 내려받기</button>
+          </div>
+          {(localConnectionHistory.length > 0 || cloudOnlyConnectionHistory.length > 0) && (
+            <details className="map-atelier__archive-history">
+              <summary>이전 연결 버전 {localConnectionHistory.length + cloudOnlyConnectionHistory.length}개 보기</summary>
+              <ul>
+                {localConnectionHistory.map(snapshot => (
+                  <li key={`local-${snapshot.id}`}>
+                    <span>
+                      {formatConnectionSnapshotTime(snapshot.createdAt)} · 연결 {snapshot.edgeCount}개
+                      {connectionArchive.publishedSnapshotId === snapshot.id ? ' · 내 기본' : ''}
+                    </span>
+                    <button type="button" onClick={() => applyConnectionSnapshot(snapshot, '이 기기의 이전 버전')}>복원</button>
+                  </li>
+                ))}
+                {cloudOnlyConnectionHistory.map(snapshot => (
+                  <li key={`cloud-${snapshot.id}`}>
+                    <span>
+                      {formatConnectionSnapshotTime(snapshot.createdAt)} · 연결 {snapshot.edgeCount}개 · 계정
+                      {cloudConnectionIndex.publishedSnapshotId === snapshot.id ? ' · 내 기본' : ''}
+                    </span>
+                    <button type="button" onClick={() => void restoreCloudConnectionSnapshot(snapshot)}>받아 복원</button>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+
+        <div className={`map-atelier__block map-atelier__official${adminMode ? ' is-admin' : ''}`}>
+          <div className="map-atelier__official-heading">
+            <div>
+              <strong>공식 지도 데이터</strong>
+              <span>{officialMapStatus}</span>
+            </div>
+            {canAdministerMap && (
+              <button type="button" aria-pressed={adminMode} onClick={() => setAdminMode(current => !current)}>
+                {adminMode ? '관리자 모드 끝내기' : '관리자 모드'}
+              </button>
+            )}
+          </div>
+          {officialMapSnapshot && currentOfficialMapFingerprint !== officialMapSnapshot.fingerprint && (
+            <div className="map-atelier__actions">
+              <button type="button" onClick={loadOfficialMapIntoCampaign}>최신 공식 지도를 이 캠페인에 불러오기</button>
+            </div>
+          )}
+          {adminMode && canAdministerMap && (
+            <div className="map-atelier__admin-controls">
+              <p>현재 캠페인에서 고친 노드 위치·표시·숨김 상태와 모든 연결을 하나의 불변 공식 버전으로 게시합니다.</p>
+              <dl>
+                <div><dt>표시 보정</dt><dd>{officialPublishLocations.length}개</dd></div>
+                <div><dt>연결</dt><dd>{currentMapEdges.length}개</dd></div>
+                <div><dt>현재 상태</dt><dd>{currentOfficialMapFingerprint === officialMapSnapshot?.fingerprint ? '게시본과 같음' : '게시되지 않은 수정 있음'}</dd></div>
+              </dl>
+              <button
+                type="button"
+                className="map-atelier__publish"
+                disabled={currentOfficialMapFingerprint === officialMapSnapshot?.fingerprint}
+                onClick={() => void publishCurrentMapAsOfficial()}
+              >
+                현재 지도 값을 공식 버전으로 게시
+              </button>
+            </div>
+          )}
+        </div>
 
         {linkFromId && <p className="map-atelier__note">이을 다음 표시를 지도에서 누르세요.</p>}
         {pendingLink && (

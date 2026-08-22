@@ -6629,6 +6629,144 @@ button,
   color: #6b5343;
 }
 
+.map-atelier__archive-status {
+  margin: 0 !important;
+  padding: 0.45rem 0.55rem;
+  border-left: 3px solid #78866b;
+  background: #f5f2e8;
+  color: #4f5d48 !important;
+  font-size: 0.8rem !important;
+}
+
+.map-atelier__archive-history summary {
+  min-height: 2rem;
+  padding: 0.35rem 0;
+  cursor: pointer;
+  color: #5d493b;
+  font-size: 0.8rem;
+}
+
+.map-atelier__archive-history ul {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.map-atelier__archive-history li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-top: 1px solid rgba(74, 54, 40, 0.12);
+}
+
+.map-atelier__archive-history button,
+.map-atelier__official-heading > button,
+.map-atelier__admin-controls button {
+  min-width: 4.5rem;
+  min-height: 2.25rem;
+  flex: 0 0 auto;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid rgba(74, 54, 40, 0.34);
+  background: #f4ead8;
+  color: #4a3628;
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.map-atelier__official {
+  padding: 0.75rem;
+  border: 1px solid rgba(74, 54, 40, 0.24);
+  background: #f8f5ec;
+}
+
+.map-atelier__official.is-admin {
+  border-color: #6c775d;
+  background: #f1f4eb;
+}
+
+.map-atelier__official-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.map-atelier__official-heading > div {
+  min-width: 0;
+}
+
+.map-atelier__official-heading > button[aria-pressed="true"] {
+  background: #64705a;
+  color: #fff;
+}
+
+.map-atelier__admin-controls {
+  display: grid;
+  gap: 0.55rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed rgba(74, 54, 40, 0.28);
+}
+
+.map-atelier__admin-controls p {
+  margin: 0;
+}
+
+.map-atelier__admin-controls dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.map-atelier__admin-controls dl > div {
+  padding: 0.4rem;
+  border: 1px solid rgba(74, 54, 40, 0.15);
+  background: #fffdf6;
+}
+
+.map-atelier__admin-controls dt {
+  color: #6b5343;
+  font-size: 0.72rem;
+}
+
+.map-atelier__admin-controls dd {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.map-atelier__admin-controls .map-atelier__publish {
+  min-height: 2.75rem;
+  background: #64705a;
+  color: #fff;
+  font-weight: 700;
+}
+
+.map-atelier__admin-controls .map-atelier__publish:disabled {
+  opacity: 0.55;
+}
+
+@media (max-width: 520px) {
+  .map-atelier__official-heading,
+  .map-atelier__archive-history li {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .map-atelier__official-heading > button,
+  .map-atelier__archive-history button {
+    width: 100%;
+  }
+
+  .map-atelier__admin-controls dl {
+    grid-template-columns: 1fr;
+  }
+}
+
 .map-atelier__actions,
 .map-atelier__nudge {
   display: flex;
