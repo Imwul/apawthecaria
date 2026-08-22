@@ -636,6 +636,9 @@ const normalizePendingForaging = (value: unknown): SaveRecord | null => {
   return {
     ...value,
     card,
+    targetReagentId: typeof value.targetReagentId === 'string' && value.targetReagentId.trim()
+      ? value.targetReagentId.trim()
+      : undefined,
     locationRelation: value.locationRelation === 'adjacent' ? 'adjacent' : 'current',
     timerCostAfterEncounter: Number.isFinite(Number(value.timerCostAfterEncounter))
       ? Math.max(0, Number(value.timerCostAfterEncounter))

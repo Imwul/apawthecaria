@@ -227,6 +227,7 @@ import {
   findEncounter,
   getRuleCardLabel,
   getRuleCardValue,
+  getPatientDescriptor,
   getPatientPersonalityChoices,
   isHouseRuleEnabled,
   migrateSavedRulesState,
@@ -3630,7 +3631,8 @@ const CardDrawSlot = ({
   helper,
   result,
   disabled = false,
-  variant = 'compact'
+  variant = 'compact',
+  showSuitDirections = false
 }: {
   label: string;
   card: PlayingCard | null;
@@ -3639,6 +3641,7 @@ const CardDrawSlot = ({
   result?: ReactNode;
   disabled?: boolean;
   variant?: 'hero' | 'compact';
+  showSuitDirections?: boolean;
 }) => {
   const [manualSuit, setManualSuit] = useState(card?.suit || '♥');
   const [manualValue, setManualValue] = useState(card?.value || 1);
@@ -3820,10 +3823,10 @@ const CardDrawSlot = ({
           <div className="card-draw-compact__manual">
             <span>오프라인에서 뽑은 카드 입력</span>
             <select aria-label="카드 문양" value={manualSuit} onChange={e => setManualSuit(e.target.value)} disabled={disabled}>
-              <option value="♥">1. 문양: ♥ · 북쪽/위</option>
-              <option value="♦">1. 문양: ♦ · 남쪽/아래</option>
-              <option value="♣">1. 문양: ♣ · 동쪽/오른쪽</option>
-              <option value="♠">1. 문양: ♠ · 서쪽/왼쪽</option>
+              <option value="♥">1. 문양: ♥{showSuitDirections ? ' · 북쪽/위' : ''}</option>
+              <option value="♦">1. 문양: ♦{showSuitDirections ? ' · 남쪽/아래' : ''}</option>
+              <option value="♣">1. 문양: ♣{showSuitDirections ? ' · 동쪽/오른쪽' : ''}</option>
+              <option value="♠">1. 문양: ♠{showSuitDirections ? ' · 서쪽/왼쪽' : ''}</option>
             </select>
             <select aria-label="카드 숫자" value={manualValue} onChange={e => setManualValue(Number(e.target.value))} disabled={disabled}>
               <option value={1}>2. 숫자: A</option>
@@ -5242,6 +5245,7 @@ export default function App() {
         ignoredNegativeEncounterEffects: result.value!.ignoredNegativeEncounterEffects,
         page: encounter?.sourcePage || 152,
         cardValue: cardDisplayValue(pending.card.value), suitLabel: suitLabels[pending.card.suit || '♥'], suit: pending.card.suit || '♥',
+        targetReagentId: pending.targetReagentId,
         foundReagents: result.value!.candidates.map(candidate => ({
           name: REAGENT_BY_ID.has(candidate.reagentId)
             ? formatReagentName(REAGENT_BY_ID.get(candidate.reagentId)!)
@@ -7982,8 +7986,11 @@ export default function App() {
             || a.rarity - b.rarity
             || a.name.localeCompare(b.name));
         const treatmentForageFinds = sortedForageFinds.filter((find: ForageFind) => matchingForageParts(find).length > 0);
+        const plannedForageReagentId = activeForageEncounter.targetReagentId || state.pendingForaging?.targetReagentId;
         const displayedForageFinds = activeForageEncounter.selectedReagentId
           ? sortedForageFinds.filter((find: ForageFind) => find.reagentId === activeForageEncounter.selectedReagentId)
+          : plannedForageReagentId
+            ? sortedForageFinds.filter((find: ForageFind) => find.reagentId === plannedForageReagentId)
           : !activeForageEncounter.showAllFinds && treatmentForageFinds.length > 0
             ? treatmentForageFinds
             : sortedForageFinds;
@@ -8092,8 +8099,13 @@ export default function App() {
               )}
 
               <div style={{ marginTop: '1rem', background: '#f0f9f4', padding: '1rem', borderRadius: '10px', borderLeft: '4.5px solid var(--secondary)' }}>
-                <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--secondary)', fontSize: '0.95rem' }}>🌿 채집 발견 처리</h4>
-                {!activeForageEncounter.selectedReagentId && treatmentForageFinds.length > 0 && sortedForageFinds.length > treatmentForageFinds.length && (
+                <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--secondary)', fontSize: '0.95rem' }}>🌿 {plannedForageReagentId ? '목표 영약재 판정' : '채집 발견 처리'}</h4>
+                {plannedForageReagentId && !activeForageEncounter.selectedReagentId && (
+                  <p style={{ margin: '0 0 0.7rem', color: '#4f6d58', fontSize: '0.84rem', lineHeight: 1.55 }}>
+                    카드 뽑기 전에 조사해 둔 영약재만 판정합니다. 카드 값과 희귀도를 비교한 뒤 부위를 고르세요.
+                  </p>
+                )}
+                {!plannedForageReagentId && !activeForageEncounter.selectedReagentId && treatmentForageFinds.length > 0 && sortedForageFinds.length > treatmentForageFinds.length && (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.65rem', flexWrap: 'wrap', marginBottom: '0.7rem', fontSize: '0.78rem', color: '#4f6d58' }}>
                     <span>현재 질환에 맞는 후보 {treatmentForageFinds.length}개를 먼저 표시합니다.</span>
                     <button
@@ -8496,7 +8508,7 @@ const locationTypeLabel = (type: string) => {
 const patientPersonalityLabel = (personality: string) => ({
   Witty: '재치 있는', Passionate: '열정적인', Snide: '빈정대는',
   Soft: '부드러운', Stoic: '묵묵한', Cruel: '잔인한',
-  Furious: '격노한', Oblivious: '둔감한', Scared: '겁먹은',
+  Furious: '격노한', Oblivious: '둔감한', Scared: '겁이 많은',
   Joyous: '기쁨에 찬', Depressed: '침울한', Evasive: '회피적인',
   Immaterial: '초연한', Dreamy: '몽상적인', Distracted: '산만한',
   Suspicious: '의심 많은', Curious: '호기심 많은', Secretive: '비밀스러운',
@@ -8507,6 +8519,34 @@ const patientPersonalityLabel = (personality: string) => ({
   Anxious: '불안한', Skittish: '겁 많은', Jubilant: '환희에 찬',
   Distant: '거리감 있는', Righteous: '정의로운', Rebellious: '반항적인'
 } as Record<string, string>)[personality] || personality;
+
+const patientDisplayName = (name?: string): string => {
+  const normalized = String(name || '').trim();
+  return !normalized || normalized === '이름 없는 환자' ? '이름을 정하지 않은 야수' : normalized;
+};
+
+const patientSpeciesLabel = (species?: string, descriptor?: string): string => {
+  const normalized = String(species || '').trim();
+  if (normalized && normalized !== '알 수 없는 동물' && normalized !== '종 미기록') return normalized;
+  return descriptor ? localizeCharacterDescriptor(descriptor) : '동물 종류 미정';
+};
+
+const patientDescriptorEntry = (descriptor?: string) => {
+  if (!descriptor) return null;
+  return GAME_DATA.bioChoices.descriptors.find((_, index) =>
+    getPatientDescriptor({ suit: '♥', value: index + 1 }) === descriptor
+  ) || null;
+};
+
+const patientSpeciesCandidates = (descriptor?: string): string[] => {
+  const entry = patientDescriptorEntry(descriptor);
+  return entry ? examplesToOptions(entry.examples) : [];
+};
+
+const patientImpressionLabel = (personality?: string, descriptor?: string): string =>
+  [personality ? patientPersonalityLabel(personality) : '', descriptor ? localizeCharacterDescriptor(descriptor) : '']
+    .filter(Boolean)
+    .join(' ');
 
 interface ControlledPromptOption {
   value: string;
@@ -8935,7 +8975,6 @@ function PlayView({
   );
 
   const [patientNameDraft, setPatientNameDraft] = useState("");
-  const [patientSpeciesDraft, setPatientSpeciesDraft] = useState("");
   const [patientInitialNoteDraft, setPatientInitialNoteDraft] = useState("");
   const patientCreationPending = useRef(false);
   const [finalArchiveNoteDraft, setFinalArchiveNoteDraft] = useState("");
@@ -9222,6 +9261,14 @@ function PlayView({
     ),
     [currentRouteOrigin?.id, routeJourneyTarget?.id, state.customMapEdges]
   );
+  const localCarePhase = Boolean(state.journeyActive && (
+    state.needsLocalHelpBeforeMove
+    || state.activePatientId
+    || state.activeAilment
+    || state.pendingForaging
+    || state.scroungingMode
+  ));
+  const journeyDaysRemaining = Math.max(0, state.calendarMaxDays - state.calendarDays);
   const routeJourneyTargetId = routeJourneyTarget?.id || null;
   useEffect(() => {
     if (!currentRouteOrigin) return;
@@ -9239,6 +9286,7 @@ function PlayView({
   const [travelDrawCard, setTravelDrawCard] = useState<PlayingCard | null>(null);
 
   const [forageDrawCard, setForageDrawCard] = useState<PlayingCard | null>(null);
+  const [forageTargetReagentId, setForageTargetReagentId] = useState('');
   const [forageLocationType, setForageLocationType] = useState<'current' | 'adjacent'>('current');
   const [forageAdjacentRegion, setForageAdjacentRegion] = useState<string>('Forest');
   const effectiveForageAdjacentRegion = scroungeAdjacentRegions.includes(toRuleRegion(forageAdjacentRegion))
@@ -9300,6 +9348,10 @@ function PlayView({
     ].filter(Boolean);
     return { region, previewRows, modifierLabels, actionAllowed };
   }, [effectiveForageAdjacentRegion, forageLocationType, state]);
+  const effectiveForageTargetReagentId = forageContext.previewRows.some(row => row.reagent.id === forageTargetReagentId)
+    ? forageTargetReagentId
+    : '';
+  const selectedForagePlan = forageContext.previewRows.find(row => row.reagent.id === effectiveForageTargetReagentId) || null;
 
   const [barrowJournalNote, setBarrowJournalNote] = useState('');
   const [barrowSelectedItemIds, setBarrowSelectedItemIds] = useState<string[]>([]);
@@ -10869,6 +10921,32 @@ function PlayView({
       if (choiceInput === null) return;
       const personalityChoice = Math.min(2, Math.max(0, (parseInt(choiceInput, 10) || 1) - 1)) as 0 | 1 | 2;
       const descriptorCard = drawPlayingCard();
+      const descriptor = getPatientDescriptor(descriptorCard);
+      const descriptorLabel = descriptor ? localizeCharacterDescriptor(descriptor) : '동물 범주 미정';
+      const speciesCandidates = patientSpeciesCandidates(descriptor || undefined);
+      const speciesChoice = await requestControlledPrompt({
+        title: '환자의 동물 종을 정하세요',
+        message: `두 번째 카드가 정한 범주는 '${descriptorLabel}'입니다. 룰북 p.10의 예시에서 고르거나 직접 정할 수 있습니다.`,
+        kicker: '환자 만들기 · 2/2',
+        defaultValue: speciesCandidates[0] || '__custom__',
+        options: [
+          ...speciesCandidates.map(species => ({ value: species, label: species })),
+          { value: '__custom__', label: '다른 동물 직접 적기…' }
+        ]
+      });
+      if (speciesChoice === null) return;
+      let selectedPatientSpecies = speciesChoice;
+      if (speciesChoice === '__custom__') {
+        const customSpecies = await requestControlledPrompt({
+          title: '환자의 동물 종 직접 정하기',
+          message: `'${descriptorLabel}' 범주에 어울리는 동물이나 구체적인 모습을 적으세요.`,
+          kicker: '환자 만들기 · 2/2',
+          label: '동물 종·모습',
+          defaultValue: ''
+        });
+        if (customSpecies === null) return;
+        selectedPatientSpecies = customSpecies.trim() || descriptorLabel;
+      }
       const severityCard = drawPlayingCard();
       const firstAilmentCard = drawPlayingCard();
       let ailmentCard = firstAilmentCard;
@@ -10907,8 +10985,8 @@ function PlayView({
       const transactionId = `patient:${Date.now()}`;
       const result = resolvePatient({
       transactionId,
-      patientName: patientNameDraft.trim() || '이름 없는 환자',
-      species: patientSpeciesDraft.trim() || '알 수 없는 동물',
+      patientName: patientNameDraft.trim() || '이름을 정하지 않은 야수',
+      species: selectedPatientSpecies,
       personalityCard,
       personalityChoice,
       descriptorCard,
@@ -11081,24 +11159,95 @@ function PlayView({
         journals: [{
           id: `${transactionId}:journal`,
           title: `새 환자: ${patient.name}`,
-          text: `${patient.personality} · ${patient.descriptor}\n${activeRows.map(row => `${row.name} (${localizeSeverityLabel(row.severity)}, ${row.timer}시간)`).join('\n')}${diagnosisNotes.length > 0 ? `\n\n${diagnosisNotes.join('\n')}` : ''}`,
+          text: `${patientImpressionLabel(patient.personality, patient.descriptor)}\n${activeRows.map(row => `${row.name} (${localizeSeverityLabel(row.severity)}, ${row.timer}시간)`).join('\n')}${diagnosisNotes.length > 0 ? `\n\n${diagnosisNotes.join('\n')}` : ''}`,
           timestamp: Date.now()
         }, ...base.journals]
       }, diagnosisDrafts);
     });
     setPatientNameDraft('');
-    setPatientSpeciesDraft('');
       setPatientInitialNoteDraft('');
     } finally {
       patientCreationPending.current = false;
     }
   };
 
+  const handleEditActivePatientIdentity = async () => {
+    const patient = state.patients.find(row => row.id === state.activePatientId);
+    if (!patient) return;
+    const currentName = patientDisplayName(patient.name);
+    const nameInput = await requestControlledPrompt({
+      title: '환자 이름 정하기',
+      message: '플레이 중 떠오른 이름을 적으세요. 이름을 정하지 않으려면 빈칸으로 확정해도 됩니다.',
+      kicker: '환자 기록',
+      label: '이름',
+      defaultValue: currentName === '이름을 정하지 않은 야수' ? '' : currentName
+    });
+    if (nameInput === null) return;
+    const nextName = nameInput.trim() || '이름을 정하지 않은 야수';
+    const patientImpression = patientImpressionLabel(patient.personality, patient.descriptor);
+    updateState(s => {
+      const patientJournalIds = new Set(s.patientArchive
+        .filter(record => record.patientId === patient.id)
+        .flatMap(record => record.journalEntryIds));
+      return {
+        ...s,
+        patients: s.patients.map(row => row.id === patient.id ? { ...row, name: nextName } : row),
+        activeAilment: s.activePatientId === patient.id && s.activeAilment
+          ? { ...s.activeAilment, patientName: nextName }
+          : s.activeAilment,
+        patientArchive: s.patientArchive.map(record => record.patientId === patient.id
+          ? { ...record, patientName: nextName }
+          : record),
+        journals: s.journals.map(journal => patientJournalIds.has(journal.id) && journal.title.startsWith('새 환자:')
+          ? {
+              ...journal,
+              title: `새 환자: ${nextName}`,
+              text: [patientImpression, ...journal.text.split('\n').slice(1)].join('\n')
+            }
+          : journal)
+      };
+    });
+    const descriptor = patient.descriptor || '';
+    const currentSpecies = patientSpeciesLabel(patient.species, descriptor);
+    const speciesCandidates = patientSpeciesCandidates(descriptor);
+    const speciesChoice = await requestControlledPrompt({
+      title: '환자의 동물 종 수정',
+      message: `카드가 정한 범주는 '${descriptor ? localizeCharacterDescriptor(descriptor) : '미정'}'입니다. 룰북의 예시 후보나 직접 입력을 선택하세요.`,
+      kicker: '환자 기록',
+      defaultValue: speciesCandidates.includes(currentSpecies) ? currentSpecies : '__custom__',
+      options: [
+        ...speciesCandidates.map(species => ({ value: species, label: species })),
+        { value: '__custom__', label: '다른 동물 직접 적기…' }
+      ]
+    });
+    if (speciesChoice === null) return;
+    let nextSpecies = speciesChoice;
+    if (speciesChoice === '__custom__') {
+      const speciesInput = await requestControlledPrompt({
+        title: '환자의 동물 종 직접 정하기',
+        message: `카드가 정한 '${descriptor ? localizeCharacterDescriptor(descriptor) : '미정'}' 범주에 어울리는 동물이나 모습을 적으세요.`,
+        kicker: '환자 기록',
+        label: '동물 종·모습',
+        defaultValue: speciesCandidates.includes(currentSpecies) || currentSpecies === '동물 종류 미정' ? '' : currentSpecies
+      });
+      if (speciesInput === null) return;
+      nextSpecies = speciesInput.trim() || (descriptor ? localizeCharacterDescriptor(descriptor) : '동물 종류 미정');
+    }
+    updateState(s => ({
+      ...s,
+      patients: s.patients.map(row => row.id === patient.id ? { ...row, species: nextSpecies } : row),
+      activeAilment: s.activePatientId === patient.id && s.activeAilment
+        ? { ...s.activeAilment, species: nextSpecies }
+        : s.activeAilment
+    }));
+  };
+
   const executeForageDraw = (
     drawnSuit: string,
     cardVal: number,
     overrideRegion?: string,
-    source: PendingForagingState['source'] = 'standard'
+    source: PendingForagingState['source'] = 'standard',
+    targetReagentId?: string
   ) => {
     const region = (overrideRegion || state.currentRegion) as Exclude<TravelRegion, 'Soar'>;
     const transactionId = `forage:${Date.now()}`;
@@ -11127,6 +11276,10 @@ function PlayView({
       showAlert(result.messages.join('\n'));
       return;
     }
+    if (targetReagentId && !result.value.candidates.some(candidate => candidate.reagentId === targetReagentId)) {
+      showAlert('선택한 목표 영약재는 이 지역·계절에서 채집할 수 없습니다. 목표를 다시 조사해 주세요.');
+      return;
+    }
     if (result.value.ailmentInterruption === 'hunted-behemoth') {
       const huntedTimerIds = getActivePatient(state)?.ailments.find(row => row.status === 'active' && row.ailmentId === 'ailment-hunted')?.timerIds;
       handlePassHour(1, huntedTimerIds);
@@ -11148,6 +11301,7 @@ function PlayView({
       region,
       locationRelation,
       card: { value: cardVal, suit: drawnSuit },
+      targetReagentId,
       timerCostAfterEncounter: result.value.timerCostAfterEncounter,
       encounterId: encounter?.id || null,
       phase: 'choose-reagent',
@@ -11163,6 +11317,7 @@ function PlayView({
       cardValue: cardDisplayValue(cardVal),
       suitLabel: suitLabels[drawnSuit],
       suit: drawnSuit,
+      targetReagentId,
       foundReagents: result.value.candidates.map(candidate => ({
         name: REAGENT_BY_ID.has(candidate.reagentId)
           ? formatReagentName(REAGENT_BY_ID.get(candidate.reagentId)!)
@@ -11211,7 +11366,13 @@ function PlayView({
   });
 
   const selectTitanwiseCard = useEffectEvent((suit: string, val: number) => {
-    executeForageDraw(suit, val);
+    executeForageDraw(
+      suit,
+      val,
+      forageLocationType === 'adjacent' ? effectiveForageAdjacentRegion : undefined,
+      'standard',
+      effectiveForageTargetReagentId
+    );
   });
 
   useEffect(() => {
@@ -11226,6 +11387,10 @@ function PlayView({
   const handleForageDraw = (e?: React.MouseEvent) => {
     if (e) e.preventDefault();
     if (!state.activeAilment) return;
+    if (!effectiveForageTargetReagentId) {
+      showAlert('먼저 이 지역에서 현재 질환에 맞는 목표 영약재를 하나 고르세요. 그다음 카드를 뽑아 희귀도와 비교합니다.');
+      return;
+    }
 
     const familiarMechanic = getActiveFamiliarMechanic(state);
 
@@ -11260,7 +11425,7 @@ function PlayView({
     const drawnSuit = card.suit;
     const cardVal = card.value;
 
-    executeForageDraw(drawnSuit, cardVal, isAdjacent ? effectiveForageAdjacentRegion : undefined);
+    executeForageDraw(drawnSuit, cardVal, isAdjacent ? effectiveForageAdjacentRegion : undefined, 'standard', effectiveForageTargetReagentId);
     setForageDrawCard(null);
   };
 
@@ -13309,7 +13474,8 @@ function PlayView({
       });
     }
 
-    if (!state.needsLocalHelpBeforeMove && !state.pursuedByBehemoth) {
+    if (!state.needsLocalHelpBeforeMove && !state.pursuedByBehemoth
+      && !state.activePatientId && !state.activeAilment && !state.scroungingMode) {
       addActionHubItem({
         id: 'travel-next',
         label: '다음 위치로 이동',
@@ -13522,7 +13688,27 @@ function PlayView({
         </div>
       )}
 
-      <div className="play-with-map">
+      <div className={`play-with-map${localCarePhase ? ' play-with-map--care' : ''}`}>
+        {localCarePhase ? (
+          <section className="journey-care-context" aria-label="현지 진료 중 여정 요약">
+            <div>
+              <span>현재 위치</span>
+              <strong>{state.currentLocationName}</strong>
+              <small>{locationTypeLabel(state.currentLocationType)} · {localizeRegionLabel(state.currentRegion)}</small>
+            </div>
+            <div>
+              <span>기한까지</span>
+              <strong>{journeyDaysRemaining}일</strong>
+              <small>{state.calendarDays}/{state.calendarMaxDays}일 진행</small>
+            </div>
+            <div>
+              <span>최종 목적지</span>
+              <strong>{state.journeyDestination || '미정'}</strong>
+              <small>{journeyMinimumDistance === null ? '저장된 연결로 거리 미확정' : `저장된 최소 ${journeyMinimumDistance}경로`}</small>
+            </div>
+            <p>지금은 현지 야수를 도울 차례입니다. 진료를 마치면 지도와 다음 Move 경로 편집기가 다시 열립니다.</p>
+          </section>
+        ) : (
         <aside id="play-journey-map" className="play-with-map__map" aria-label="여정 지도">
           <MapView
             state={state}
@@ -13567,7 +13753,9 @@ function PlayView({
             }
           />
         </aside>
+        )}
         <div className="play-with-map__panels">
+          {!localCarePhase && (
           <section id="route-planning-panel" className="route-planning-workspace" aria-label="이번 이동 경로 짜기">
           {state.journeyActive && (
             <section className="travel-mode-switch" aria-label="이번 이동 방식">
@@ -13628,6 +13816,7 @@ function PlayView({
             />
           )}
           </section>
+          )}
 
       {/* 1. If journey is NOT active */}
       {!state.journeyActive && (
@@ -15065,6 +15254,7 @@ function PlayView({
                     {journeyDestinationMode === 'draw' ? (
                       <CardDrawSlot
                         label="목적지와 방향 카드"
+                        showSuitDirections
                         helper="A–6은 12경로 이하 정착지, 7–9는 13–24경로 정착지, 10/J/M은 24경로 이상 도시입니다. 문양 방향: ♥ 북쪽/위 · ♦ 남쪽/아래 · ♣ 동쪽/오른쪽 · ♠ 서쪽/왼쪽."
                         result={journeyDestinationCard && journeyDestinationRequirement ? (
                           <div className="journey-card-result" aria-live="polite">
@@ -15194,7 +15384,8 @@ function PlayView({
       {state.journeyActive && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-          {/* Active stats panel */}
+          {/* Local care has its own compact journey context above the patient workspace. */}
+          {!localCarePhase && (
           <div id="active-journey-panel" className="cute-card journey-record" style={{ background: '#fffefa', borderColor: 'var(--primary)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem' }}>
               <div className="prose-summary" style={{ fontSize: '0.95rem' }}>
@@ -15382,29 +15573,34 @@ function PlayView({
               </div>
             </details>
           </div>
+          )}
 
           {/* Current location and movement form */}
           <div id="travel-panel" className="cute-card">
-            <div className="prose-summary" style={{ marginBottom: '0.8rem' }}>
-              📍 <strong>{localizeRegionLabel(state.currentRegion)}</strong> 지역 {state.currentLocationType === 'City' ? '도시' : state.currentLocationType === 'Settlement' ? '정착지' : state.currentLocationType === 'Wilds' ? '야생' : state.currentLocationType === 'Ruin' ? '유적지' : state.currentLocationType === 'Barrow' ? '야수 고분' : state.currentLocationType} <strong>{state.currentLocationName}</strong>에 머무는 중.
-            </div>
-            <div className="travel-season-status">
-              <span className="travel-season-status__value">현재 계절 <strong>{localizeSeasonLabel(state.currentSeason)}</strong></span>
-              <span className="travel-season-status__reason">
-                {state.journeyActive
-                  ? '이 여정을 마친 뒤 휴식기 활동 하나를 완료하면 계절을 전환할 수 있습니다.'
-                  : state.downtimeRequired
-                    ? '지난 여정의 휴식기 활동 하나를 먼저 선택하세요.'
-                    : state.downtimeCompleted
-                      ? '휴식기 혜택이 저장되었습니다. 계절 정산을 진행할 수 있습니다.'
-                      : '새 여정을 시작할 준비가 되었습니다.'}
-              </span>
-              {state.downtimeCompleted && !state.journeyActive ? (
-                <button type="button" onClick={handleAdvanceSeason} className="btn-cozy-secondary">
-                  계절 정산 및 전환
-                </button>
-              ) : null}
-            </div>
+            {!localCarePhase && (
+              <>
+                <div className="prose-summary" style={{ marginBottom: '0.8rem' }}>
+                  📍 <strong>{localizeRegionLabel(state.currentRegion)}</strong> 지역 {state.currentLocationType === 'City' ? '도시' : state.currentLocationType === 'Settlement' ? '정착지' : state.currentLocationType === 'Wilds' ? '야생' : state.currentLocationType === 'Ruin' ? '유적지' : state.currentLocationType === 'Barrow' ? '야수 고분' : state.currentLocationType} <strong>{state.currentLocationName}</strong>에 머무는 중.
+                </div>
+                <div className="travel-season-status">
+                  <span className="travel-season-status__value">현재 계절 <strong>{localizeSeasonLabel(state.currentSeason)}</strong></span>
+                  <span className="travel-season-status__reason">
+                    {state.journeyActive
+                      ? '이 여정을 마친 뒤 휴식기 활동 하나를 완료하면 계절을 전환할 수 있습니다.'
+                      : state.downtimeRequired
+                        ? '지난 여정의 휴식기 활동 하나를 먼저 선택하세요.'
+                        : state.downtimeCompleted
+                          ? '휴식기 혜택이 저장되었습니다. 계절 정산을 진행할 수 있습니다.'
+                          : '새 여정을 시작할 준비가 되었습니다.'}
+                  </span>
+                  {state.downtimeCompleted && !state.journeyActive ? (
+                    <button type="button" onClick={handleAdvanceSeason} className="btn-cozy-secondary">
+                      계절 정산 및 전환
+                    </button>
+                  ) : null}
+                </div>
+              </>
+            )}
 
             {/* Travel Form */}
             {state.needsLocalHelpBeforeMove && (
@@ -15451,18 +15647,20 @@ function PlayView({
                 </button>
               </div>
             )}
-            <form id="travel-move-form" ref={travelFormRef} onSubmit={handleTravelMove} className="grid-travel-form" style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '1rem' }}>
-              <div className="travel-encounter-prep">
-                <strong>도착지 조우</strong>
-                <span>카드를 미리 고를 수 있습니다. 비워두고 Route Editor에서 이동하면 자동으로 한 장 뽑습니다.</span>
-                <CardDrawSlot
-                  label="이동 조우 카드 (p.25)"
-                  helper="빈 칸을 문양/숫자로 채우거나 랜덤으로 뽑습니다. 이동 버튼을 누를 때 비어 있으면 자동 랜덤 드로우됩니다."
-                  card={travelDrawCard}
-                  onCard={setTravelDrawCard}
-                />
-              </div>
-            </form>
+            {!localCarePhase && (
+              <form id="travel-move-form" ref={travelFormRef} onSubmit={handleTravelMove} className="grid-travel-form">
+                <details className="travel-encounter-prep">
+                  <summary>실물 덱의 조우 카드 사용 <span>선택</span></summary>
+                  <p>기본값은 Move를 확정할 때 앱이 p.25 조우 카드를 자동으로 한 장 뽑는 것입니다. 실물 덱에서 이미 뽑았을 때만 아래에 입력하세요.</p>
+                  <CardDrawSlot
+                    label="이번 Move 조우 카드 (p.25)"
+                    helper="실물 덱 결과를 문양과 숫자로 입력합니다. 비워두면 앱이 자동으로 뽑습니다."
+                    card={travelDrawCard}
+                    onCard={setTravelDrawCard}
+                  />
+                </details>
+              </form>
+            )}
           </div>
 
           {/* ================================================================
@@ -15947,23 +16145,18 @@ function PlayView({
                   현재 돌보는 환자가 없습니다. 카드 절차로 환자의 성격, 묘사, 중증도와 질환을 생성합니다.
                 </p>
                 <form onSubmit={handleDiagnoseAilment} style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem', marginTop: '0.8rem' }}>
-                  <div className="patient-intake-fields" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '0.5rem' }}>
+                  <div className="patient-intake-fields" style={{ display: 'grid', gap: '0.5rem' }}>
                     <input
                       type="text"
-                      placeholder="환자 이름 (선택)"
+                      placeholder="환자 이름 (선택 · 지금 정하거나 진료 중에 수정)"
                       value={patientNameDraft}
                       onChange={e => setPatientNameDraft(e.target.value)}
                     />
-                    <input
-                      type="text"
-                      placeholder="종 / 생김새 (선택)"
-                      value={patientSpeciesDraft}
-                      onChange={e => setPatientSpeciesDraft(e.target.value)}
-                    />
+                    <small style={{ color: 'var(--text-muted)', lineHeight: 1.5 }}>동물 종은 두 번째 카드가 범주를 정한 뒤, 룰북 p.10의 후보 중에서 고르거나 직접 적습니다.</small>
                   </div>
                   <textarea
                     rows={2}
-                    placeholder="첫 인상 메모 (선택): 예를 들어 처음 만났을 때의 모습, 걱정하던 동반자, 기억하고 싶은 작은 단서"
+                    placeholder="처음 만난 장면 메모 (선택): 환대, 함께 있던 동물, 기억하고 싶은 작은 단서"
                     value={patientInitialNoteDraft}
                     onChange={e => setPatientInitialNoteDraft(e.target.value)}
                     style={{ resize: 'vertical' }}
@@ -15997,9 +16190,15 @@ function PlayView({
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginTop: '2px' }}>병색의 깊이: {getNaturalSeverityDescription(state.activeAilment.severity)}</div>
                     {(state.activeAilment.patientName || state.activeAilment.species || state.activeAilment.initialRememberedNote) && (
                       <div style={{ marginTop: '0.5rem', padding: '0.65rem', border: '1px dashed var(--glass-border)', background: '#fffefa', borderRadius: '4px', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
-                        <div><strong>환자:</strong> {state.activeAilment.patientName || '이름 모를 야수'} {state.activeAilment.species ? ` / ${state.activeAilment.species}` : ''}</div>
+                        <div className="patient-identity-row">
+                          <div><strong>환자:</strong> {patientDisplayName(state.activeAilment.patientName)} · {patientSpeciesLabel(state.activeAilment.species, treatmentPatient?.descriptor)}</div>
+                          <button type="button" className="btn-cozy-secondary" onClick={handleEditActivePatientIdentity}>이름·종 수정</button>
+                        </div>
                         {(treatmentPatient?.personality || treatmentPatient?.descriptor) && (
-                          <div style={{ marginTop: '0.25rem' }}><strong>첫인상:</strong> {[treatmentPatient.personality ? patientPersonalityLabel(treatmentPatient.personality) : '', treatmentPatient.descriptor ? localizeCharacterDescriptor(treatmentPatient.descriptor) : ''].filter(Boolean).join(' · ')}</div>
+                          <div style={{ marginTop: '0.25rem' }}>
+                            <strong>첫인상:</strong>{' '}
+                            {patientImpressionLabel(treatmentPatient.personality, treatmentPatient.descriptor)}
+                          </div>
                         )}
                         {state.activeAilment.initialRememberedNote && (
                           <div style={{ marginTop: '0.35rem', whiteSpace: 'pre-wrap' }}>{state.activeAilment.initialRememberedNote}</div>
@@ -16061,50 +16260,71 @@ function PlayView({
                       {forageContext.modifierLabels.map(label => <span key={label}>{label}</span>)}
                     </div>
                   )}
-                  {forageContext.actionAllowed ? <details className="forage-context__matches">
-                    <summary>현재 치료에 맞는 채집 후보 {forageContext.previewRows.length}개 보기</summary>
-                    {forageContext.previewRows.length > 0 ? (
-                      <div className="forage-match-list">
-                        {forageContext.previewRows.map(row => (
-                          <div key={row.reagent.id} className="forage-match-row">
-                            <div>
-                              <strong>{formatReagentName(row.reagent)}</strong>
-                              <small>
-                                기본 {row.breakdown.baseRarity}
-                                {row.breakdown.regionModifier ? ` · 지역 +${row.breakdown.regionModifier}` : ''}
-                                {row.breakdown.seasonModifier ? ` · 계절 +${row.breakdown.seasonModifier}` : ''}
-                                {row.breakdown.toolModifiers.map(modifier => ` · 도구 ${modifier.amount}`).join('')}
-                                {row.breakdown.additionalModifier ? ` · 길동무·동료 ${row.breakdown.additionalModifier}` : ''}
-                                {row.alwaysAvailable ? ' · 지역 제한 무시' : ''}
-                                {' → '}희귀도 {row.breakdown.finalRarity} · 보유 {row.owned}
-                              </small>
-                              <button type="button" className="forage-reference-link" aria-label={`${formatReagentName(row.reagent)} 도감과 원문 보기`} onClick={() => onOpenReference({ entryId: `ingredient:${row.reagent.id}`, title: `${formatReagentName(row.reagent)} 채집 기록` })}>도감·원문 보기</button>
-                            </div>
-                            <div className="forage-match-row__parts">
-                              {row.parts.map(({ part, relevantTags, missingTools }) => (
-                                <span key={part.id} className={missingTools.length > 0 ? 'is-unavailable' : ''}>
-                                  {localizePreparationName(part.name)} · {relevantTags.map(tag => `${tag.tag} ${tag.value}`).join(' · ')}
-                                  {missingTools.length > 0 ? ` · 도구 필요: ${missingTools.map(tool => localizeInventoryItemName(TOOL_BY_ID.get(tool)?.canonicalName || tool)).join(', ')}` : ''}
-                                </span>
+                  {forageContext.actionAllowed ? (
+                    <fieldset className="forage-plan">
+                      <legend>1. 목표 영약재 조사</legend>
+                      {forageContext.previewRows.length > 0 ? (
+                        <>
+                          <label htmlFor="forage-target-reagent">
+                            <span>이 채집에서 찾을 재료</span>
+                            <select
+                              id="forage-target-reagent"
+                              value={effectiveForageTargetReagentId}
+                              onChange={event => {
+                                setForageTargetReagentId(event.target.value);
+                                setForageDrawCard(null);
+                              }}
+                            >
+                              <option value="">— 카드 뽑기 전에 하나를 고르세요 —</option>
+                              {forageContext.previewRows.map(row => (
+                                <option key={row.reagent.id} value={row.reagent.id}>
+                                  {formatReagentName(row.reagent)} · 희귀도 {row.breakdown.finalRarity} · 보유 {row.owned}
+                                </option>
                               ))}
+                            </select>
+                          </label>
+                          {selectedForagePlan ? (
+                            <div className="forage-plan__selection" aria-live="polite">
+                              <div>
+                                <strong>{formatReagentName(selectedForagePlan.reagent)}</strong>
+                                <small>
+                                  기본 {selectedForagePlan.breakdown.baseRarity}
+                                  {selectedForagePlan.breakdown.regionModifier ? ` · 지역 +${selectedForagePlan.breakdown.regionModifier}` : ''}
+                                  {selectedForagePlan.breakdown.seasonModifier ? ` · 계절 +${selectedForagePlan.breakdown.seasonModifier}` : ''}
+                                  {selectedForagePlan.breakdown.toolModifiers.map(modifier => ` · 도구 ${modifier.amount}`).join('')}
+                                  {selectedForagePlan.breakdown.additionalModifier ? ` · 길동무·동료 ${selectedForagePlan.breakdown.additionalModifier}` : ''}
+                                  {selectedForagePlan.alwaysAvailable ? ' · 지역 제한 무시' : ''}
+                                  {' → '}희귀도 {selectedForagePlan.breakdown.finalRarity}
+                                </small>
+                                <button type="button" className="forage-reference-link" onClick={() => onOpenReference({ entryId: `ingredient:${selectedForagePlan.reagent.id}`, title: `${formatReagentName(selectedForagePlan.reagent)} 채집 기록` })}>도감·원문 보기</button>
+                              </div>
+                              <div className="forage-match-row__parts">
+                                {selectedForagePlan.parts.map(({ part, relevantTags, missingTools }) => (
+                                  <span key={part.id} className={missingTools.length > 0 ? 'is-unavailable' : ''}>
+                                    {localizePreparationName(part.name)} · {relevantTags.map(tag => `${tag.tag} ${tag.value}`).join(' · ')}
+                                    {missingTools.length > 0 ? ` · 도구 필요: ${missingTools.map(tool => localizeInventoryItemName(TOOL_BY_ID.get(tool)?.canonicalName || tool)).join(', ')}` : ''}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p>이 지역·계절에서 현재 질환의 약효와 맞는 채집 후보가 없습니다. 인접 지역을 바꾸거나 도감을 확인하세요.</p>
-                    )}
-                  </details> : <p className="forage-context__note">현재 위치에서는 후보를 뽑지 않습니다. ‘인접 지역’을 선택하면 연결된 지역의 치료 후보와 정확한 희귀도를 미리 볼 수 있습니다.</p>}
+                          ) : <p>룰북 p.30에 따라 현재 질환에 맞는 영약재를 먼저 조사해 목록에서 고르세요.</p>}
+                        </>
+                      ) : (
+                        <p>이 지역·계절에서 현재 질환의 약효와 맞는 채집 후보가 없습니다. 인접 지역을 바꾸거나 도감을 확인하세요.</p>
+                      )}
+                    </fieldset>
+                  ) : <p className="forage-context__note">현재 위치에서는 후보를 뽑지 않습니다. ‘인접 지역’을 선택하면 연결된 지역의 치료 후보와 정확한 희귀도를 미리 볼 수 있습니다.</p>}
                   {currentWeight > maxCarry && <p className="forage-context__note">소지 한도를 넘겨도 채집 자체는 할 수 있습니다. 조우 뒤 가방을 정리하세요.</p>}
                 </section>
 
                 {/* Foraging Drawing selector */}
                 <div style={{ margin: '0.8rem 0', display: 'grid', gap: '0.75rem', fontSize: '0.85rem', background: '#faf8f5', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)', width: '100%' }}>
                   <CardDrawSlot
-                    label="채집 카드"
-                    helper="카드 값이 영약재 희귀도 이상이면 발견합니다. 빈 칸이면 채집 버튼을 누를 때 자동 랜덤 드로우됩니다."
+                    label="2. 채집 카드"
+                    helper={effectiveForageTargetReagentId ? '카드 값이 선택한 영약재의 희귀도 이상이면 발견합니다. 비워 두면 채집 버튼을 누를 때 자동으로 한 장 뽑습니다.' : '위에서 목표 영약재를 먼저 고르면 카드를 뽑을 수 있습니다.'}
                     card={forageDrawCard}
                     onCard={setForageDrawCard}
+                    disabled={!effectiveForageTargetReagentId}
                   />
                 </div>
 
@@ -16112,14 +16332,20 @@ function PlayView({
                 <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', width: '100%' }}>
                   {(() => {
                     const currentForageAllowed = ['Wilds', 'Ruin', 'Barrow'].includes(state.currentLocationType);
-                    const forageDisabled = (forageLocationType === 'current' && !currentForageAllowed)
+                    const locationUnavailable = (forageLocationType === 'current' && !currentForageAllowed)
                       || (forageLocationType === 'adjacent' && !scroungeAdjacentRegions.includes(toRuleRegion(effectiveForageAdjacentRegion)));
+                    const forageDisabled = locationUnavailable || !effectiveForageTargetReagentId;
+                    const forageDisabledReason = locationUnavailable
+                      ? '현재 위치 채집은 야생 구역, Titan 유적, 거수 고분에서만 가능합니다.'
+                      : !effectiveForageTargetReagentId
+                        ? '카드를 뽑기 전에 목표 영약재를 먼저 고르세요.'
+                        : '';
                     return (
                       <div className="forage-primary-action">
                       <button
                         onClick={(e) => handleForageDraw(e)}
                         disabled={forageDisabled}
-                        title={forageDisabled ? '현재 위치 채집은 야생 구역, Titan 유적, 거수 고분에서만 가능합니다.' : ''}
+                        title={forageDisabledReason}
                         style={{
                           flex: 1,
                           padding: '0.7rem',
@@ -16134,7 +16360,7 @@ function PlayView({
                         🌿 {forageLocationType === 'adjacent' ? `${localizeRegionLabel(effectiveForageAdjacentRegion)} 인접 채집 및 조우` : '이 위치 채집 및 조우'}
                       </button>
                       {forageDisabled && (
-                        <span role="note">현재 위치에서는 직접 채집할 수 없습니다. 위에서 ‘인접 지역’을 선택해 연결된 지역을 살펴보세요.</span>
+                        <span role="note">{forageDisabledReason}</span>
                       )}
                       </div>
                     );
@@ -19776,7 +20002,7 @@ function PatientArchiveView({
                     <strong>{patient?.name || record.patientName || record.descriptor || record.patientId}</strong>
                     <span style={{ fontSize: '0.72rem', fontWeight: 700, color: record.failure ? '#b91c1c' : record.success ? '#166534' : '#57534e' }}>{statusLabel[record.status]}</span>
                   </div>
-                  {(record.personality || record.descriptor) && <div style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{[record.personality ? patientPersonalityLabel(record.personality) : '', record.descriptor ? localizeCharacterDescriptor(record.descriptor) : ''].filter(Boolean).join(' · ')}</div>}
+                  {(record.personality || record.descriptor) && <div style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{patientImpressionLabel(record.personality, record.descriptor)}</div>}
                   <div style={{ marginTop: '0.45rem', fontSize: '0.76rem', color: 'var(--text-muted)', overflowWrap: 'anywhere' }}>{record.location || '위치 미기록'}{activeTimer !== null ? ` · 남은 타이머 ${activeTimer}시간` : ''}</div>
                   {ailmentDetails.length > 0 && <div style={{ marginTop: '0.4rem', fontSize: '0.78rem' }}><strong>질환</strong><br />{ailmentDetails.join(' / ')}</div>}
                   {remedyParts.length > 0 && <div style={{ marginTop: '0.4rem', fontSize: '0.78rem', overflowWrap: 'anywhere' }}><strong>처방</strong><br />{remedyParts.join(' + ')}</div>}

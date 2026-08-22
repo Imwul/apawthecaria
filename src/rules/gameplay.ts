@@ -65,6 +65,8 @@ export interface PendingForagingState {
   locationRelation: 'current' | 'adjacent';
   card: { value: number; suit?: string };
   secondaryCard?: { value: number; suit: string };
+  /** Reagent researched and listed before the Foraging card was drawn (pp.30–32). */
+  targetReagentId?: string;
   selectedReagentId?: string;
   timerCostAfterEncounter: number;
   encounterId: string | null;

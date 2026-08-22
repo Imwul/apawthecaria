@@ -42,6 +42,7 @@ const richSaveAt = (schemaVersion: number | string) => ({
   pendingForaging: {
     transactionId: 'forage-pending', region: 'Forest', locationRelation: 'current',
     card: { value: 7, suit: '♥' }, timerCostAfterEncounter: 1, encounterId: null, phase: 'choose-reagent',
+    targetReagentId: 'reagent-dandelion',
     journalNote: '말린 풀 냄새와 젖은 흙을 기억했다.', journalAcknowledged: true
   },
   pendingEncounter: {
@@ -88,6 +89,7 @@ describe('save migration torture matrix', () => {
       expect(migrated.journey).toMatchObject({ journeyId: 'journey-1', destinationId: 'destination' });
       expect(migrated.pendingForaging).toMatchObject({
         transactionId: 'forage-pending', region: 'Forest', phase: 'choose-reagent',
+        targetReagentId: 'reagent-dandelion',
         journalNote: '말린 풀 냄새와 젖은 흙을 기억했다.', journalAcknowledged: true
       });
       expect(migrated.pendingEncounter).toMatchObject({

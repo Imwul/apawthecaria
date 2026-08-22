@@ -154,7 +154,7 @@ const characterDescriptors: Record<string, string> = {
   Burrowing: '땅을 파는 포유류',
   Playful: '장난기 많은 동물',
   Befurred: '풍성한 털을 지닌 포유류',
-  Bescaled: '비늘을 지닌 파충류',
+  Bescaled: '비늘이 있는 파충류',
   Clawed: '날카로운 발톱을 지닌 동물',
   'Sun-loving': '햇볕을 즐기는 동물',
   'Star-dancing': '별빛 아래 활동하는 동물',
@@ -166,7 +166,7 @@ const characterDescriptors: Record<string, string> = {
 const patientPersonalities: Record<string, string> = {
   Witty: '재치 있는', Passionate: '열정적인', Snide: '빈정대는',
   Soft: '부드러운', Stoic: '묵묵한', Cruel: '잔인한',
-  Furious: '격노한', Oblivious: '둔감한', Scared: '겁먹은',
+  Furious: '격노한', Oblivious: '둔감한', Scared: '겁이 많은',
   Joyous: '기쁨에 찬', Depressed: '침울한', Evasive: '회피적인',
   Immaterial: '초연한', Dreamy: '몽상적인', Distracted: '산만한',
   Suspicious: '의심 많은', Curious: '호기심 많은', Secretive: '비밀스러운',

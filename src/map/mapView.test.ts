@@ -252,6 +252,8 @@ describe('map interaction contracts', () => {
     expect(mapSource).toContain('map-location-destination');
     expect(mapSource).toContain('<span>여정 목적지</span>');
     expect(cssSource).toContain('.map-location-ring--destination');
+    expect(cssSource).toMatch(/\.map-location-destination\.is-left-edge\s*\{\s*left:\s*50%/);
+    expect(cssSource).toMatch(/\.map-location-destination\.is-right-edge\s*\{\s*right:\s*50%/);
   });
 
   it('keeps offline detection overlays out of the production map', () => {

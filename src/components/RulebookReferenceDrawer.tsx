@@ -56,7 +56,8 @@ export default function RulebookReferenceDrawer({ request, onClose }: { request:
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const locksPageScroll = window.matchMedia('(max-width: 820px)').matches;
+    if (locksPageScroll) document.body.style.overflow = 'hidden';
     closeRef.current?.focus();
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -70,7 +71,11 @@ export default function RulebookReferenceDrawer({ request, onClose }: { request:
       if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
     document.addEventListener('keydown', handleKey);
-    return () => { document.removeEventListener('keydown', handleKey); document.body.style.overflow = previousOverflow; previous?.focus(); };
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      if (locksPageScroll) document.body.style.overflow = previousOverflow;
+      previous?.focus();
+    };
   }, [onClose]);
 
   useEffect(() => {

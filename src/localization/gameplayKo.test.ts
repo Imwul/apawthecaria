@@ -8,6 +8,7 @@ import {
   localizeInventoryItemName,
   localizeJourneyGoalText,
   localizeLocationName,
+  localizePatientPersonality,
   localizeDirectionLabel,
   localizePreparationMethod,
   localizePreparationName,
@@ -26,6 +27,8 @@ describe('gameplay presentation localization', () => {
     expect(localizeRegionList('Bog, Forest')).toBe('늪지, 숲');
     expect(localizeDirectionLabel('North')).toBe('북쪽');
     expect(localizeCharacterDescriptor('Burrowing')).toBe('땅을 파는 포유류');
+    expect(localizeCharacterDescriptor('Bescaled')).toBe('비늘이 있는 파충류');
+    expect(localizePatientPersonality('Scared')).toBe('겁이 많은');
     expect(localizeTravelStyle('Rambling and Ready')).toBe('방랑하며 든든하게');
     expect(localizeReagentType('PLANT')).toBe('식물');
     expect(localizeSeverityLabel('DIRE')).toBe('위급');
