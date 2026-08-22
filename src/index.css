@@ -877,6 +877,11 @@ button:active {
   color: #fff;
 }
 
+.controlled-prompt.app-dialog.app-dialog--destructive .app-dialog__actions .app-dialog__primary {
+  border-color: var(--accent-red);
+  background: var(--accent-red);
+}
+
 .phase4-modal.controlled-prompt.app-dialog.app-dialog--slots {
   width: min(560px, 100%);
 }
@@ -9652,6 +9657,7 @@ details.rulebook-source-text > summary {
 
 .encounter-dialog__reference,
 .encounter-dialog__defer,
+.encounter-dialog__cancel,
 .encounter-dialog__primary {
   min-height: 44px;
   padding: 0.65rem 0.9rem;
@@ -9666,6 +9672,12 @@ details.rulebook-source-text > summary {
   color: var(--primary);
 }
 
+.encounter-dialog__cancel {
+  border: 1px solid var(--accent-red);
+  background: #f2e8e5;
+  color: var(--accent-red);
+}
+
 .encounter-dialog__primary {
   flex: 1 1 15rem;
   border: 1px solid var(--primary);
@@ -9674,6 +9686,7 @@ details.rulebook-source-text > summary {
 }
 
 .encounter-dialog__primary:disabled,
+.encounter-dialog__cancel:disabled,
 .encounter-dialog__defer:disabled {
   cursor: not-allowed;
   opacity: 0.62;

@@ -33,6 +33,24 @@ describe('encounter player-experience guards', () => {
     expect(appSource).toContain("{resolvingForageEncounter ? '조우 해결 중…' : '조우 해결하고 기록하기'}");
   });
 
+  it('can cancel a forage after gathering and restore its pre-draw state', () => {
+    const cancelStart = appSource.indexOf('const cancelCurrentForagingAttempt');
+    const cancelEnd = appSource.indexOf('\n  useEffect(() =>', cancelStart);
+    const cancelSource = appSource.slice(cancelStart, cancelEnd);
+    expect(appSource).toContain('foragingUndoCheckpointRef');
+    expect(appSource).toContain('onStartForaging(transactionId, state)');
+    expect(appSource).toContain('이번 채집 취소');
+    expect(cancelSource).toContain('await requestControlledPrompt');
+    expect(cancelSource).toContain("hideField: true");
+    expect(cancelSource).toContain("tone: 'destructive'");
+    expect(cancelSource).not.toContain('askWindowConfirm');
+    expect(appSource).toContain('updateState(() => checkpoint.state)');
+    expect(appSource).toContain('item.provenance?.sourceTransactionId !== pending.transactionId');
+    expect(appSource).toContain('(patient.foragingPoints || 0) + spent - gained');
+    expect(appSource).toContain('pendingForaging: null');
+    expect(appSource).toContain('events.filter(event => event.id !== `${pending.transactionId}:journey-forage`)');
+  });
+
   it('does not make the player enter the same manual result twice', () => {
     expect(manualSource).toContain('draft.resultSummary.trim().length > 0;');
     expect(manualSource).toContain('비우면 판정 결과 요약을 그대로 기록합니다');

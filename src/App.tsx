@@ -4850,6 +4850,7 @@ export default function App() {
   const [deferredForageEncounterId, setDeferredForageEncounterId] = useState<string | null>(null);
   const [resolvingForageEncounter, setResolvingForageEncounter] = useState(false);
   const resolvingForageEncounterRef = useRef(false);
+  const foragingUndoCheckpointRef = useRef<{ transactionId: string; state: GameState } | null>(null);
   const [controlledPrompt, setControlledPrompt] = useState<ControlledPromptRequest | null>(null);
   const [controlledPromptValue, setControlledPromptValue] = useState('');
   const [controlledPromptResolver, setControlledPromptResolver] = useState<((value: string | null) => void) | null>(null);
@@ -5351,6 +5352,78 @@ export default function App() {
       });
       return next;
     });
+  };
+
+  const beginForagingUndoCheckpoint = (transactionId: string, snapshot: GameState) => {
+    foragingUndoCheckpointRef.current = {
+      transactionId,
+      state: structuredClone(snapshot)
+    };
+  };
+
+  const cancelCurrentForagingAttempt = async () => {
+    if (!state?.pendingForaging || resolvingForageEncounterRef.current) return;
+    const pending = state.pendingForaging;
+    const confirmation = await requestControlledPrompt({
+      title: '이번 채집을 취소할까요?',
+      message: '가방에 넣은 부위와 이 판정에서 변한 채집 포인트까지 시작 전 상태로 되돌립니다.',
+      kicker: '채집 기록',
+      defaultValue: 'restore-foraging',
+      hideField: true,
+      cancelLabel: '채집 계속하기',
+      confirmLabel: '시작 전으로 되돌리기',
+      tone: 'destructive'
+    });
+    if (confirmation !== 'restore-foraging') return;
+
+    const checkpoint = foragingUndoCheckpointRef.current?.transactionId === pending.transactionId
+      ? foragingUndoCheckpointRef.current
+      : null;
+    if (checkpoint) {
+      updateState(() => checkpoint.state);
+    } else {
+      const spent = Math.max(0, Number(activeForageEncounter?.foragingPointsSpent || 0));
+      const gained = Math.max(0, Number(activeForageEncounter?.foragingPointsGained || 0));
+      const selectedReagentId = pending.selectedReagentId || activeForageEncounter?.selectedReagentId || '';
+      updateState(current => {
+        const removeLastGatheredReagent = (reagents: string[] = []) => {
+          const index = reagents.lastIndexOf(selectedReagentId);
+          return index < 0 ? reagents : reagents.filter((_, reagentIndex) => reagentIndex !== index);
+        };
+        const restorePatient = (patient: PatientState): PatientState => patient.id !== current.activePatientId
+          ? patient
+          : {
+              ...patient,
+              foragingPoints: Math.max(0, (patient.foragingPoints || 0) + spent - gained),
+              reagentsGathered: selectedReagentId
+                ? removeLastGatheredReagent(patient.reagentsGathered)
+                : patient.reagentsGathered
+            };
+        return {
+          ...current,
+          bag: current.bag.filter(item => item.provenance?.sourceTransactionId !== pending.transactionId),
+          patients: current.patients.map(restorePatient),
+          activeAilment: current.activeAilment
+            ? { ...current.activeAilment, foragingPoints: Math.max(0, current.activeAilment.foragingPoints + spent - gained) }
+            : null,
+          journey: current.journey ? {
+            ...current.journey,
+            goalState: {
+              ...current.journey.goalState,
+              events: current.journey.goalState.events.filter(event => event.id !== `${pending.transactionId}:journey-forage`)
+            }
+          } : null,
+          pendingForaging: null,
+          independentUsedThisAilment: pending.source === 'familiar-independent' ? false : current.independentUsedThisAilment,
+          appliedTransactionIds: current.appliedTransactionIds.filter(id => id !== pending.transactionId && !id.startsWith(`${pending.transactionId}:`)),
+          journals: current.journals.filter(journal => journal.id !== pending.transactionId && !journal.id.startsWith(`${pending.transactionId}:`))
+        };
+      });
+    }
+    foragingUndoCheckpointRef.current = null;
+    setDeferredForageEncounterId(null);
+    setActiveForageEncounter(null);
+    showAlert('이번 채집을 취소하고 시작 전 상태로 돌아왔습니다. 목표와 카드를 다시 확인한 뒤 채집하세요.');
   };
 
   useEffect(() => {
@@ -7484,6 +7557,7 @@ export default function App() {
                 activeForageEncounter={activeForageEncounter}
                 setActiveForageEncounter={setActiveForageEncounter}
                 onResumeForageEncounter={() => setDeferredForageEncounterId(null)}
+                onStartForaging={beginForagingUndoCheckpoint}
                 setSeasonedDraws={setSeasonedDraws}
                 setShowSeasonedModal={setShowSeasonedModal}
                 setTitanwiseDraws={setTitanwiseDraws}
@@ -8068,6 +8142,7 @@ export default function App() {
                 pendingLeaveObligation: s.pendingLeaveObligation ? { ...s.pendingLeaveObligation, resolved: true } : null
               }));
             }
+            foragingUndoCheckpointRef.current = null;
             setActiveForageEncounter(null);
           }
         };
@@ -8303,6 +8378,12 @@ export default function App() {
               </label>
 
               <div className="encounter-dialog-actions">
+                <button
+                  type="button"
+                  onClick={cancelCurrentForagingAttempt}
+                  disabled={resolvingForageEncounter}
+                  className="encounter-dialog__cancel"
+                >이번 채집 취소</button>
                 <button
                   type="button"
                   disabled={resolvingForageEncounter || !forageJournalReady}
@@ -8616,6 +8697,10 @@ interface ControlledPromptRequest {
   label?: string;
   inputMode?: 'text' | 'number' | 'multiline';
   kicker?: string;
+  hideField?: boolean;
+  cancelLabel?: string;
+  confirmLabel?: string;
+  tone?: 'default' | 'destructive';
 }
 
 function CloudSlotsDialog({
@@ -8788,7 +8873,7 @@ function ControlledPromptDialog({
       }}
     >
       <form
-        className="phase4-modal controlled-prompt app-dialog app-dialog--prompt"
+        className={`phase4-modal controlled-prompt app-dialog app-dialog--prompt${request.tone === 'destructive' ? ' app-dialog--destructive' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="controlled-prompt-title"
@@ -8805,7 +8890,7 @@ function ControlledPromptDialog({
           </div>
         </header>
         <p id="controlled-prompt-message" className="app-dialog__message">{request.message}</p>
-        <div className="app-dialog__field">
+        {!request.hideField && <div className="app-dialog__field">
         <label htmlFor="controlled-prompt-input">{request.label || '선택'}</label>
         {request.options ? (
           <select
@@ -8835,10 +8920,10 @@ function ControlledPromptDialog({
             autoFocus
           />
         )}
-        </div>
+        </div>}
         <footer className="controlled-prompt__actions app-dialog__actions">
-          <button type="button" onClick={onCancel}>취소</button>
-          <button className="app-dialog__primary" type="submit">선택 확정</button>
+          <button type="button" autoFocus={request.hideField} onClick={onCancel}>{request.cancelLabel || '취소'}</button>
+          <button className="app-dialog__primary" type="submit">{request.confirmLabel || '선택 확정'}</button>
         </footer>
       </form>
     </div>
@@ -8891,6 +8976,7 @@ function PlayView({
   activeForageEncounter,
   setActiveForageEncounter,
   onResumeForageEncounter,
+  onStartForaging,
   setSeasonedDraws,
   setShowSeasonedModal,
   setTitanwiseDraws,
@@ -8915,6 +9001,7 @@ function PlayView({
   activeForageEncounter: any;
   setActiveForageEncounter: any;
   onResumeForageEncounter: () => void;
+  onStartForaging: (transactionId: string, snapshot: GameState) => void;
   setSeasonedDraws: any;
   setShowSeasonedModal: any;
   setTitanwiseDraws: any;
@@ -11403,6 +11490,7 @@ function PlayView({
       source,
       ignoreNegativeEncounterEffects: result.value.ignoredNegativeEncounterEffects
     };
+    onStartForaging(transactionId, state);
     setActiveForageEncounter({
       ...(encounter || {}),
       title: encounter?.title || '채집',
@@ -11594,6 +11682,8 @@ function PlayView({
       gapCost: candidate.gapCost,
       cardSuccess: candidate.cardSuccess
     }));
+
+    onStartForaging(transactionId, state);
 
     setActiveForageEncounter({
       ...(selectedFEnc || {}),
