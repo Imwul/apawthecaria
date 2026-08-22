@@ -4804,6 +4804,26 @@ type CloudSlotOperation =
   | { kind: 'uploading' | 'downloading'; slot: CloudSlotId }
   | null;
 
+const CLOUD_BOOTSTRAP_TIMEOUT_MS = 3000;
+const CLOUD_BOOTSTRAP_TIMEOUT_MESSAGE = 'cloud-bootstrap-timeout';
+
+const withCloudBootstrapTimeout = <T,>(operation: Promise<T>): Promise<T> => new Promise((resolve, reject) => {
+  const timeoutId = window.setTimeout(
+    () => reject(new Error(CLOUD_BOOTSTRAP_TIMEOUT_MESSAGE)),
+    CLOUD_BOOTSTRAP_TIMEOUT_MS
+  );
+  operation.then(
+    value => {
+      window.clearTimeout(timeoutId);
+      resolve(value);
+    },
+    error => {
+      window.clearTimeout(timeoutId);
+      reject(error);
+    }
+  );
+});
+
 export default function App() {
   const [storedState, setState] = useState<GameState | null>(null);
   const state = storedState ? withCanonicalPatientView(storedState) : null;
@@ -4839,6 +4859,7 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState<'ready' | 'saving' | 'saved' | 'error'>('ready');
   const initialSetupRouted = useRef(false);
   const officialMapDefaultsLoaded = useRef(false);
+  const cloudBootstrapSkipped = useRef(false);
 
   const requestControlledPrompt = useCallback((request: ControlledPromptRequest) => new Promise<string | null>(resolve => {
     setControlledPromptResolver(() => resolve);
@@ -4969,7 +4990,12 @@ export default function App() {
   useEffect(() => {
     if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      setCloudBootstrapComplete(false);
+      if (cloudBootstrapSkipped.current) {
+        setUser(u);
+        setCloudSyncStatus('local-only');
+        setCloudBootstrapComplete(true);
+        return;
+      }
       setUser(u);
       if (!u) {
         setPendingCloudSaveCount(0);
@@ -4978,25 +5004,29 @@ export default function App() {
         return;
       }
       try {
-        const remaining = await flushQueuedCloudSavesForCurrentUser();
+        const remaining = await withCloudBootstrapTimeout(flushQueuedCloudSavesForCurrentUser());
+        if (cloudBootstrapSkipped.current) return;
         const pendingCount = pendingCloudSaveCountForUser(u.uid, remaining);
         setPendingCloudSaveCount(pendingCount);
         setCloudSyncStatus(pendingCount > 0 ? 'pending' : readCloudAccountBinding() === u.uid ? 'synced' : 'local-only');
         const userDocRef = userSaveDocRef(u.uid);
         if (!userDocRef) return;
-        const snap = await getDoc(userDocRef);
+        const snap = await withCloudBootstrapTimeout(getDoc(userDocRef));
+        if (cloudBootstrapSkipped.current) return;
         const cloudData = snap.exists() ? snap.data() as Record<string, unknown> : null;
         const documentUpdatedAt = snap.exists()
-          ? snapshotUpdatedAt(snap) || await fetchCloudDocumentUpdatedAt(u.uid)
+          ? snapshotUpdatedAt(snap) || await withCloudBootstrapTimeout(fetchCloudDocumentUpdatedAt(u.uid))
           : null;
+        if (cloudBootstrapSkipped.current) return;
         const slots = readCloudSlotsFromDocument(cloudData, documentUpdatedAt);
         setCloudSlotViews(slots.views);
 
         const preferredSlot = readActiveCloudSlot();
         const cloudRecordMetadata = slots.records[preferredSlot - 1] || slots.records.find(Boolean) || null;
         const cloudRecord = cloudRecordMetadata
-          ? { ...cloudRecordMetadata, payload: await readCloudSlotPayload(cloudRecordMetadata, u.uid) }
+          ? { ...cloudRecordMetadata, payload: await withCloudBootstrapTimeout(readCloudSlotPayload(cloudRecordMetadata, u.uid)) }
           : null;
+        if (cloudBootstrapSkipped.current) return;
         const localRaw = localStorage.getItem(CAMPAIGN_SAVE_KEY);
         const localParsed = parseCampaignSaveRaw(localRaw);
         const localHasProgress = localParsed.ok && campaignSaveHasProgress(localParsed.value);
@@ -5069,7 +5099,9 @@ export default function App() {
             loadCloudRecord(cloudRecord);
           } else if (action === 'upload-local' && localRaw) {
             const uploaded = cloudSlotRecordFromPayload(cloudRecord.slot, localRaw, new Date().toISOString());
-            setCloudSlotViews(await writeCloudSlotRecord(uploaded, u.uid));
+            const views = await withCloudBootstrapTimeout(writeCloudSlotRecord(uploaded, u.uid));
+            if (cloudBootstrapSkipped.current) return;
+            setCloudSlotViews(views);
             setCloudSyncStatus('synced');
           }
           return;
@@ -5083,7 +5115,9 @@ export default function App() {
           }
           const slot = readActiveCloudSlot();
           const uploaded = cloudSlotRecordFromPayload(slot, localRaw, new Date().toISOString());
-          setCloudSlotViews(await writeCloudSlotRecord(uploaded, u.uid));
+          const views = await withCloudBootstrapTimeout(writeCloudSlotRecord(uploaded, u.uid));
+          if (cloudBootstrapSkipped.current) return;
+          setCloudSlotViews(views);
           setCloudSyncStatus('synced');
           return;
         }
@@ -5097,7 +5131,12 @@ export default function App() {
         }
       } catch (err) {
         console.error("Failed to check cloud save during login:", err);
-        showAlert(cloudWriteErrorMessage(err as { code?: string; message?: string }));
+        if ((err as Error)?.message === CLOUD_BOOTSTRAP_TIMEOUT_MESSAGE) {
+          setCloudSyncStatus('local-only');
+          showAlert('클라우드 확인이 지연되어 기기 기록으로 먼저 열었습니다. 기록은 그대로이며, 연결이 안정되면 상단의 ‘Google 기록 동기화’에서 다시 확인할 수 있습니다.');
+        } else {
+          showAlert(cloudWriteErrorMessage(err as { code?: string; message?: string }));
+        }
       } finally {
         setCloudBootstrapComplete(true);
       }
@@ -5142,6 +5181,7 @@ export default function App() {
         setState(migrated.state);
         setSaveLoadError(null);
         setSaveStatus('saved');
+        if (campaignSaveHasProgress(migrated.state)) setCloudBootstrapComplete(true);
         setLoading(false);
         return;
       }
@@ -5152,6 +5192,7 @@ export default function App() {
           setState(migrated.state);
           setSaveLoadError(null);
           setSaveStatus('saved');
+          if (campaignSaveHasProgress(migrated.state)) setCloudBootstrapComplete(true);
         } else {
           failLoad('저장 데이터를 올리지 못했습니다. 기존 기록은 디스크에서 지우지 않았습니다.');
         }
@@ -6013,6 +6054,20 @@ export default function App() {
         <p style={{ color: 'var(--text-muted)' }}>
           {loading ? '기기에 저장된 기록을 확인하는 중...' : '로그인한 계정의 클라우드 기록을 확인하는 중...'}
         </p>
+        {!loading && !cloudBootstrapComplete && state && (
+          <button
+            type="button"
+            className="btn-cozy-secondary"
+            onClick={() => {
+              cloudBootstrapSkipped.current = true;
+              setCloudSyncStatus('local-only');
+              setCloudBootstrapComplete(true);
+            }}
+            style={{ minHeight: '44px', padding: '0.65rem 1rem' }}
+          >
+            기기 기록으로 먼저 열기
+          </button>
+        )}
       </div>
     );
   }
