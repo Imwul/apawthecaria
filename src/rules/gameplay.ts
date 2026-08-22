@@ -79,6 +79,8 @@ export interface PendingForagingState {
   reagentTypeFilter?: 'PLANT' | 'ANIMAL' | 'INSECT' | 'EARTH' | 'TITAN';
   source?: 'standard' | 'companion-wasp' | 'familiar-independent' | 'barrow-delve';
   ignoreNegativeEncounterEffects?: boolean;
+  /** Minimal pre-draw state used to make an interrupted forage safely restartable after reload. */
+  undoSnapshot?: unknown;
 }
 
 export interface TravelGraphEdge {

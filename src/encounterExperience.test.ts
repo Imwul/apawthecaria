@@ -33,13 +33,13 @@ describe('encounter player-experience guards', () => {
     expect(appSource).toContain("{resolvingForageEncounter ? '조우 해결 중…' : '조우 해결하고 기록하기'}");
   });
 
-  it('can cancel a forage after gathering and restore its pre-draw state', () => {
+  it('can restart a forage after gathering and restore its pre-draw state', () => {
     const cancelStart = appSource.indexOf('const cancelCurrentForagingAttempt');
     const cancelEnd = appSource.indexOf('\n  useEffect(() =>', cancelStart);
     const cancelSource = appSource.slice(cancelStart, cancelEnd);
     expect(appSource).toContain('foragingUndoCheckpointRef');
-    expect(appSource).toContain('onStartForaging(transactionId, state)');
-    expect(appSource).toContain('이번 채집 취소');
+    expect(appSource).toContain('const undoSnapshot = onStartForaging(transactionId, state)');
+    expect(appSource).toContain('채집 처음부터 다시 하기');
     expect(cancelSource).toContain('await requestControlledPrompt');
     expect(cancelSource).toContain("hideField: true");
     expect(cancelSource).toContain("tone: 'destructive'");
@@ -47,8 +47,13 @@ describe('encounter player-experience guards', () => {
     expect(appSource).toContain('updateState(() => checkpoint.state)');
     expect(appSource).toContain('item.provenance?.sourceTransactionId !== pending.transactionId');
     expect(appSource).toContain('(patient.foragingPoints || 0) + spent - gained');
+    expect(appSource).toContain('toolStates: Array.isArray(undo?.toolStates)');
+    expect(appSource).toContain('!id.endsWith(`:${pending.transactionId}`)');
     expect(appSource).toContain('pendingForaging: null');
     expect(appSource).toContain('events.filter(event => event.id !== `${pending.transactionId}:journey-forage`)');
+    expect(appSource).toContain('setForagingRestartToken(token => token + 1)');
+    expect(appSource).toContain('setForageTargetReagentIds([])');
+    expect(appSource).toContain('setForageDrawCard(null)');
   });
 
   it('does not make the player enter the same manual result twice', () => {

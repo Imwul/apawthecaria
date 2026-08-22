@@ -1368,6 +1368,35 @@ interface GameState {
   saveRevision: number;
 }
 
+interface ForagingUndoSnapshot {
+  activePatientId: string | null;
+  patientForagingPoints: number | null;
+  patientReagentsGathered: string[] | null;
+  activeAilmentForagingPoints: number | null;
+  activeAilmentReagentsGathered: string[] | null;
+  independentUsedThisAilment: boolean;
+  lastForageCardValue: number | null;
+  toolStates: unknown[];
+  pendingAlternativeAcquisition: AlternativeAcquisition | null;
+}
+
+const createForagingUndoSnapshot = (state: GameState): ForagingUndoSnapshot => {
+  const patient = state.patients.find(row => row.id === state.activePatientId) || null;
+  return {
+    activePatientId: state.activePatientId,
+    patientForagingPoints: patient?.foragingPoints ?? null,
+    patientReagentsGathered: patient ? [...(patient.reagentsGathered || [])] : null,
+    activeAilmentForagingPoints: state.activeAilment?.foragingPoints ?? null,
+    activeAilmentReagentsGathered: state.activeAilment ? [...(state.activeAilment.reagentsGathered || [])] : null,
+    independentUsedThisAilment: Boolean(state.independentUsedThisAilment),
+    lastForageCardValue: state.lastForageCardValue ?? null,
+    toolStates: structuredClone(state.toolStates || []),
+    pendingAlternativeAcquisition: state.pendingAlternativeAcquisition
+      ? structuredClone(state.pendingAlternativeAcquisition)
+      : null
+  };
+};
+
 const INITIAL_BIO: ApothecaryBio = {
   name: "",
   animal: "",
@@ -4851,6 +4880,7 @@ export default function App() {
   const [resolvingForageEncounter, setResolvingForageEncounter] = useState(false);
   const resolvingForageEncounterRef = useRef(false);
   const foragingUndoCheckpointRef = useRef<{ transactionId: string; state: GameState } | null>(null);
+  const [foragingRestartToken, setForagingRestartToken] = useState(0);
   const [controlledPrompt, setControlledPrompt] = useState<ControlledPromptRequest | null>(null);
   const [controlledPromptValue, setControlledPromptValue] = useState('');
   const [controlledPromptResolver, setControlledPromptResolver] = useState<((value: string | null) => void) | null>(null);
@@ -5359,19 +5389,20 @@ export default function App() {
       transactionId,
       state: structuredClone(snapshot)
     };
+    return createForagingUndoSnapshot(snapshot);
   };
 
   const cancelCurrentForagingAttempt = async () => {
     if (!state?.pendingForaging || resolvingForageEncounterRef.current) return;
     const pending = state.pendingForaging;
     const confirmation = await requestControlledPrompt({
-      title: '이번 채집을 취소할까요?',
-      message: '가방에 넣은 부위와 이 판정에서 변한 채집 포인트까지 시작 전 상태로 되돌립니다.',
+      title: '채집을 처음부터 다시 할까요?',
+      message: '가방에 넣은 부위, 채집 포인트, 사용한 도구 상태를 시작 전으로 되돌리고 목표 재료 선택부터 다시 시작합니다.',
       kicker: '채집 기록',
       defaultValue: 'restore-foraging',
       hideField: true,
-      cancelLabel: '채집 계속하기',
-      confirmLabel: '시작 전으로 되돌리기',
+      cancelLabel: '현재 채집 계속하기',
+      confirmLabel: '처음부터 다시 하기',
       tone: 'destructive'
     });
     if (confirmation !== 'restore-foraging') return;
@@ -5385,26 +5416,42 @@ export default function App() {
       const spent = Math.max(0, Number(activeForageEncounter?.foragingPointsSpent || 0));
       const gained = Math.max(0, Number(activeForageEncounter?.foragingPointsGained || 0));
       const selectedReagentId = pending.selectedReagentId || activeForageEncounter?.selectedReagentId || '';
+      const undo = pending.undoSnapshot && typeof pending.undoSnapshot === 'object'
+        ? pending.undoSnapshot as Partial<ForagingUndoSnapshot>
+        : null;
       updateState(current => {
         const removeLastGatheredReagent = (reagents: string[] = []) => {
           const index = reagents.lastIndexOf(selectedReagentId);
           return index < 0 ? reagents : reagents.filter((_, reagentIndex) => reagentIndex !== index);
         };
-        const restorePatient = (patient: PatientState): PatientState => patient.id !== current.activePatientId
+        const affectedPatientId = undo?.activePatientId || current.activePatientId;
+        const restorePatient = (patient: PatientState): PatientState => patient.id !== affectedPatientId
           ? patient
           : {
               ...patient,
-              foragingPoints: Math.max(0, (patient.foragingPoints || 0) + spent - gained),
-              reagentsGathered: selectedReagentId
-                ? removeLastGatheredReagent(patient.reagentsGathered)
-                : patient.reagentsGathered
+              foragingPoints: typeof undo?.patientForagingPoints === 'number'
+                ? Math.max(0, undo.patientForagingPoints)
+                : Math.max(0, (patient.foragingPoints || 0) + spent - gained),
+              reagentsGathered: Array.isArray(undo?.patientReagentsGathered)
+                ? [...undo.patientReagentsGathered]
+                : selectedReagentId
+                  ? removeLastGatheredReagent(patient.reagentsGathered)
+                  : patient.reagentsGathered
             };
         return {
           ...current,
           bag: current.bag.filter(item => item.provenance?.sourceTransactionId !== pending.transactionId),
           patients: current.patients.map(restorePatient),
           activeAilment: current.activeAilment
-            ? { ...current.activeAilment, foragingPoints: Math.max(0, current.activeAilment.foragingPoints + spent - gained) }
+            ? {
+                ...current.activeAilment,
+                foragingPoints: typeof undo?.activeAilmentForagingPoints === 'number'
+                  ? Math.max(0, undo.activeAilmentForagingPoints)
+                  : Math.max(0, current.activeAilment.foragingPoints + spent - gained),
+                reagentsGathered: Array.isArray(undo?.activeAilmentReagentsGathered)
+                  ? [...undo.activeAilmentReagentsGathered]
+                  : current.activeAilment.reagentsGathered
+              }
             : null,
           journey: current.journey ? {
             ...current.journey,
@@ -5414,16 +5461,28 @@ export default function App() {
             }
           } : null,
           pendingForaging: null,
-          independentUsedThisAilment: pending.source === 'familiar-independent' ? false : current.independentUsedThisAilment,
-          appliedTransactionIds: current.appliedTransactionIds.filter(id => id !== pending.transactionId && !id.startsWith(`${pending.transactionId}:`)),
-          journals: current.journals.filter(journal => journal.id !== pending.transactionId && !journal.id.startsWith(`${pending.transactionId}:`))
+          independentUsedThisAilment: typeof undo?.independentUsedThisAilment === 'boolean'
+            ? undo.independentUsedThisAilment
+            : pending.source === 'familiar-independent' ? false : current.independentUsedThisAilment,
+          lastForageCardValue: undo ? undo.lastForageCardValue ?? undefined : current.lastForageCardValue,
+          toolStates: Array.isArray(undo?.toolStates) ? structuredClone(undo.toolStates) : current.toolStates,
+          pendingAlternativeAcquisition: undo && 'pendingAlternativeAcquisition' in undo
+            ? structuredClone(undo.pendingAlternativeAcquisition ?? null)
+            : current.pendingAlternativeAcquisition,
+          appliedTransactionIds: current.appliedTransactionIds.filter(id => id !== pending.transactionId
+            && !id.startsWith(`${pending.transactionId}:`)
+            && !id.endsWith(`:${pending.transactionId}`)),
+          journals: current.journals.filter(journal => journal.id !== pending.transactionId
+            && !journal.id.startsWith(`${pending.transactionId}:`)
+            && !journal.id.endsWith(`:${pending.transactionId}`))
         };
       });
     }
     foragingUndoCheckpointRef.current = null;
     setDeferredForageEncounterId(null);
     setActiveForageEncounter(null);
-    showAlert('이번 채집을 취소하고 시작 전 상태로 돌아왔습니다. 목표와 카드를 다시 확인한 뒤 채집하세요.');
+    setForagingRestartToken(token => token + 1);
+    showAlert('채집 시작 전 상태로 되돌렸습니다. 목표 재료를 고르고 채집을 다시 시작하세요.');
   };
 
   useEffect(() => {
@@ -7558,6 +7617,7 @@ export default function App() {
                 setActiveForageEncounter={setActiveForageEncounter}
                 onResumeForageEncounter={() => setDeferredForageEncounterId(null)}
                 onStartForaging={beginForagingUndoCheckpoint}
+                foragingRestartToken={foragingRestartToken}
                 setSeasonedDraws={setSeasonedDraws}
                 setShowSeasonedModal={setShowSeasonedModal}
                 setTitanwiseDraws={setTitanwiseDraws}
@@ -8383,7 +8443,7 @@ export default function App() {
                   onClick={cancelCurrentForagingAttempt}
                   disabled={resolvingForageEncounter}
                   className="encounter-dialog__cancel"
-                >이번 채집 취소</button>
+                >채집 처음부터 다시 하기</button>
                 <button
                   type="button"
                   disabled={resolvingForageEncounter || !forageJournalReady}
@@ -8977,6 +9037,7 @@ function PlayView({
   setActiveForageEncounter,
   onResumeForageEncounter,
   onStartForaging,
+  foragingRestartToken,
   setSeasonedDraws,
   setShowSeasonedModal,
   setTitanwiseDraws,
@@ -9001,7 +9062,8 @@ function PlayView({
   activeForageEncounter: any;
   setActiveForageEncounter: any;
   onResumeForageEncounter: () => void;
-  onStartForaging: (transactionId: string, snapshot: GameState) => void;
+  onStartForaging: (transactionId: string, snapshot: GameState) => ForagingUndoSnapshot;
+  foragingRestartToken: number;
   setSeasonedDraws: any;
   setShowSeasonedModal: any;
   setTitanwiseDraws: any;
@@ -9432,6 +9494,17 @@ function PlayView({
   const [forageTargetTag, setForageTargetTag] = useState<RuleTag | ''>('');
   const [forageLocationType, setForageLocationType] = useState<'current' | 'adjacent'>('current');
   const [forageAdjacentRegion, setForageAdjacentRegion] = useState<string>('Forest');
+  useEffect(() => {
+    if (foragingRestartToken === 0) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setForageDrawCard(null);
+      setForageTargetReagentIds([]);
+      setForageTargetTag('');
+    });
+    return () => { cancelled = true; };
+  }, [foragingRestartToken]);
   const effectiveForageAdjacentRegion = scroungeAdjacentRegions.includes(toRuleRegion(forageAdjacentRegion))
     ? forageAdjacentRegion
     : scroungeAdjacentRegions[0] || '';
@@ -11478,6 +11551,7 @@ function PlayView({
       return;
     }
     const encounter = result.value.encounter;
+    const undoSnapshot = onStartForaging(transactionId, state);
     const pending: PendingForagingState = {
       transactionId,
       region,
@@ -11488,9 +11562,9 @@ function PlayView({
       encounterId: encounter?.id || null,
       phase: 'choose-reagent',
       source,
-      ignoreNegativeEncounterEffects: result.value.ignoredNegativeEncounterEffects
+      ignoreNegativeEncounterEffects: result.value.ignoredNegativeEncounterEffects,
+      undoSnapshot
     };
-    onStartForaging(transactionId, state);
     setActiveForageEncounter({
       ...(encounter || {}),
       title: encounter?.title || '채집',
@@ -11683,7 +11757,7 @@ function PlayView({
       cardSuccess: candidate.cardSuccess
     }));
 
-    onStartForaging(transactionId, state);
+    const undoSnapshot = onStartForaging(transactionId, state);
 
     setActiveForageEncounter({
       ...(selectedFEnc || {}),
@@ -11711,7 +11785,8 @@ function PlayView({
         card: { suit: drawnSuit, value: cardVal },
         timerCostAfterEncounter: 0,
         encounterId: selectedFEnc?.id || null,
-        phase: 'choose-reagent'
+        phase: 'choose-reagent',
+        undoSnapshot
       }
     }));
   };

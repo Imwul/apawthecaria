@@ -43,7 +43,18 @@ const richSaveAt = (schemaVersion: number | string) => ({
     transactionId: 'forage-pending', region: 'Forest', locationRelation: 'current',
     card: { value: 7, suit: '♥' }, timerCostAfterEncounter: 1, encounterId: null, phase: 'choose-reagent',
     targetReagentId: 'reagent-dandelion',
-    journalNote: '말린 풀 냄새와 젖은 흙을 기억했다.', journalAcknowledged: true
+    journalNote: '말린 풀 냄새와 젖은 흙을 기억했다.', journalAcknowledged: true,
+    undoSnapshot: {
+      activePatientId: 'patient-1',
+      patientForagingPoints: 3,
+      patientReagentsGathered: ['reagent-dandelion'],
+      activeAilmentForagingPoints: 3,
+      activeAilmentReagentsGathered: ['reagent-dandelion'],
+      independentUsedThisAilment: false,
+      lastForageCardValue: 4,
+      toolStates: [{ instanceId: 'tool-mortar', toolId: 'mortar-and-pestle', broken: false, consumed: false }],
+      pendingAlternativeAcquisition: null
+    }
   },
   pendingEncounter: {
     transactionId: 'encounter-pending', encounterId: 'forest-memory',
@@ -90,7 +101,15 @@ describe('save migration torture matrix', () => {
       expect(migrated.pendingForaging).toMatchObject({
         transactionId: 'forage-pending', region: 'Forest', phase: 'choose-reagent',
         targetReagentId: 'reagent-dandelion',
-        journalNote: '말린 풀 냄새와 젖은 흙을 기억했다.', journalAcknowledged: true
+        journalNote: '말린 풀 냄새와 젖은 흙을 기억했다.', journalAcknowledged: true,
+        undoSnapshot: {
+          activePatientId: 'patient-1',
+          patientForagingPoints: 3,
+          patientReagentsGathered: ['reagent-dandelion'],
+          activeAilmentForagingPoints: 3,
+          activeAilmentReagentsGathered: ['reagent-dandelion'],
+          lastForageCardValue: 4
+        }
       });
       expect(migrated.pendingEncounter).toMatchObject({
         transactionId: 'encounter-pending', encounterId: 'forest-memory',
