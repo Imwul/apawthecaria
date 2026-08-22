@@ -16,8 +16,15 @@ const HIGHWAY_ROBBERY_CONTEXT = '장난감 검을 든 어린 들쥐가 길을 �
 const HIGHWAY_ROBBERY_POCKETS = '장신구로 내기 — 장신구 1개를 잃습니다. 갑자기 전리품을 얻은 들쥐 아이는 어떤 반응을 보이나요?';
 const HIGHWAY_ROBBERY_DUEL = '결투로 대신하기 — 달력에 1일을 표시합니다. 들쥐 아이와 모의 결투를 벌이고, 둘 중 누가 누구를 ‘쓰러뜨렸는지’ 일지에 기록하세요.';
 const HIGHWAY_ROBBERY_PASS = '그냥 지나치기 — 아이를 성급히 지나쳐 여정을 계속합니다. 길드 명성 1을 잃습니다.';
+const FRESH_CATCH_CONTEXT = '선착장을 지나던 중 갓 손질한 생선 냄새와 부지런히 일한 야수들의 땀 냄새가 풍깁니다. 오늘 잡은 물고기가 배에서 부두로 옮겨지고, 흔들리는 배가 부교를 규칙적으로 두드립니다. 오늘은 무엇을 잡았을까요? 아래의 Fishfinder 중 유심히 살펴볼 만한 것이 있나요?';
 
 const exactTranslations: Record<string, string> = {
+  'Go Fish': '낚시하기',
+  'Fish Some More': '조금 더 낚시하기',
+  "They wave you over and say you can use one of their empty stools that are perched around a fishing-hole. They don't say much, but the advice they give is invaluable. What special patches do they have on their fishing jacket? Go Fish - Decrease Timers by 1. Gain all the Parts of a Small Fish. Fish Some More - Decrease Timers by 1 and Draw a Card: ♥ or ♦ - Gain all parts from a Small Fish ♣ - Gain all parts from a Big Fish ♠ - You don't catch anything.": '낚시꾼이 얼음 구멍 둘레의 빈 의자를 써도 된다고 손짓합니다. 말수는 적지만 조언은 아주 유용합니다. 낚시 재킷에는 어떤 특별한 천 조각이 붙어 있나요?\n\n낚시하기 — 타이머를 1 줄이고 작은 물고기의 모든 부위를 얻습니다.\n\n조금 더 낚시하기 — 타이머를 1 줄이고 카드를 뽑습니다.\n♥ 또는 ♦ — 작은 물고기의 모든 부위를 얻습니다.\n♣ — 큰 물고기의 모든 부위를 얻습니다.\n♠ — 아무것도 잡지 못합니다.',
+  "They wave you over and say you can use one of their empty stools that are perched around a fishing-hole. They don't say much, but the advice they give is invaluable. What special patches do they have on their fishing jacket?": '낚시꾼이 얼음 구멍 둘레의 빈 의자를 써도 된다고 손짓합니다. 말수는 적지만 조언은 아주 유용합니다. 낚시 재킷에는 어떤 특별한 천 조각이 붙어 있나요?',
+  'Go Fish - Decrease Timers by 1.': '낚시하기 — 타이머를 1 줄입니다.',
+  'Fish Some More - Decrease Timers by 1 and Draw a Card: ♥ or ♦ - Gain all parts from a Small Fish ♣ - Gain all parts from a Big Fish ♠ - You don\'t catch anything.': '조금 더 낚시하기 — 타이머를 1 줄이고 카드를 뽑습니다.\n♥ 또는 ♦ — 작은 물고기의 모든 부위를 얻습니다.\n♣ — 큰 물고기의 모든 부위를 얻습니다.\n♠ — 아무것도 잡지 못합니다.',
   'Any Season': '모든 계절',
   'Dam Lotta Trouble': '댐 때문에 골치 아파',
   'Pay with your pockets — Lose 1 Trinket. How does the mouse pup react to their sudden bounty': HIGHWAY_ROBBERY_POCKETS,
@@ -145,6 +152,21 @@ const exactTranslations: Record<string, string> = {
 };
 
 const optionTranslations: Record<string, string> = {
+  'Go Fish': '낚시하기',
+  'Fish Some More': '조금 더 낚시하기',
+  'Cold Shoulder': '냉대하기',
+  'Ship-to-Ship Combat': '선박 간 전투',
+  'Long Walk': '먼 길로 걷기',
+  Shrug: '어깨를 으쓱하고 떠나기',
+  Help: '돕기',
+  'Intervene · Monarch': '중재 · Monarch',
+  'Intervene · Not A Monarch · 즉시 치료': '중재 · Monarch 아님 · 즉시 치료',
+  'Intervene · Not A Monarch · Stitcher 치료': '중재 · Monarch 아님 · Stitcher 치료',
+  'Just In Time': '때맞춰 치료하기',
+  Light: '조명 켜기',
+  'Wish Them Luck': '행운 빌기',
+  'Pitch In': '거들기',
+  'Wharf Rats': '부두의 쥐 아이들',
   Duty: '의무',
   'Pay with your pockets': '장신구로 내기',
   'Pay with your life': '결투로 대신하기',
@@ -452,6 +474,13 @@ export const localizeEncounterDisplayText = (summary: string, text: string): str
   if (cleanSummary === 'Highway Robbery' || cleanSummary.startsWith('Highway Robbery ') || raw.includes('Pay with your pockets')) {
     return HIGHWAY_ROBBERY_CONTEXT;
   }
+  // The p.198 source extraction puts this encounter's opening sentence in
+  // the title column and appends the Loch overview from the adjacent column
+  // to its body. Keep the complete encounter prompt while excluding that
+  // unrelated page-layout spill.
+  if (cleanSummary === 'Fresh Catch' || cleanSummary.startsWith('Fresh Catch ')) {
+    return FRESH_CATCH_CONTEXT;
+  }
   const encounter = ENCOUNTERS.find(row => normalizeTranslationKey(row.prompt) === raw);
   const localized = localizeManualEffectText(summary, raw);
   if (!encounter) return cleanPrintedDisplayText(localized);
@@ -524,6 +553,12 @@ export const localizeManualEffectOption = (option: string): string => {
     const heading = optionTranslations[branch[1]] || localizeManualEffectValue(branch[1]);
     const detail = localizeManualEffectValue(branch[2]);
     if (detail !== branch[2]) return cleanEncounterOptionText(`${heading} — ${detail}`);
+    // Hand-authored overrides already carry carefully reviewed Korean detail.
+    // Keep that text instead of replacing it with the older generated OCR
+    // translation merely because the printed English heading still matches.
+    if (optionTranslations[branch[1]] && /[가-힣]/.test(branch[2])) {
+      return cleanEncounterOptionText(`${heading} — ${branch[2]}`);
+    }
   }
   const generatedOption = getGeneratedEncounterOptionMap().get(compact);
   if (generatedOption) return cleanEncounterOptionText(generatedOption);

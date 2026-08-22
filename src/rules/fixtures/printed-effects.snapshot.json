@@ -865,8 +865,8 @@
     "id": "printed:foraging-bog-3",
     "ownerId": "foraging-bog-3",
     "sourcePage": 154,
-    "status": "manual",
-    "classification": "narrative",
+    "status": "implemented",
+    "classification": "structured-choice",
     "executor": "executeEncounter",
     "ruleIds": [
       "CORE-002",
@@ -1509,7 +1509,7 @@
   {
     "id": "printed:foraging-loch-10-autumn",
     "ownerId": "foraging-loch-10-autumn",
-    "sourcePage": 169,
+    "sourcePage": 170,
     "status": "manual",
     "classification": "narrative",
     "executor": "executeEncounter",
@@ -1554,7 +1554,7 @@
   {
     "id": "printed:foraging-loch-10-winter",
     "ownerId": "foraging-loch-10-winter",
-    "sourcePage": 170,
+    "sourcePage": 171,
     "status": "manual",
     "classification": "narrative",
     "executor": "executeEncounter",
@@ -1749,7 +1749,7 @@
   {
     "id": "printed:foraging-loch-j-autumn",
     "ownerId": "foraging-loch-j-autumn",
-    "sourcePage": 171,
+    "sourcePage": 170,
     "status": "manual",
     "classification": "narrative",
     "executor": "executeEncounter",
@@ -1779,7 +1779,7 @@
   {
     "id": "printed:foraging-loch-j-summer",
     "ownerId": "foraging-loch-j-summer",
-    "sourcePage": 170,
+    "sourcePage": 169,
     "status": "manual",
     "classification": "narrative",
     "executor": "executeEncounter",
@@ -3115,8 +3115,8 @@
     "id": "printed:social-bog-winter-♣",
     "ownerId": "social-bog-winter-♣",
     "sourcePage": 193,
-    "status": "manual",
-    "classification": "narrative",
+    "status": "implemented",
+    "classification": "structured-choice",
     "executor": "executeEncounter",
     "ruleIds": [
       "CORE-002",
@@ -4120,8 +4120,8 @@
     "id": "printed:travel-bog-m-autumn",
     "ownerId": "travel-bog-m-autumn",
     "sourcePage": 77,
-    "status": "manual",
-    "classification": "narrative",
+    "status": "implemented",
+    "classification": "structured-choice",
     "executor": "executeEncounter",
     "ruleIds": [
       "CORE-002",
@@ -5110,8 +5110,8 @@
     "id": "printed:travel-mountain-m-summer",
     "ownerId": "travel-mountain-m-summer",
     "sourcePage": 92,
-    "status": "manual",
-    "classification": "narrative",
+    "status": "implemented",
+    "classification": "structured-choice",
     "executor": "executeEncounter",
     "ruleIds": [
       "CORE-002",
@@ -5184,7 +5184,7 @@
   {
     "id": "printed:travel-soar-9-10-autumn",
     "ownerId": "travel-soar-9-10-autumn",
-    "sourcePage": 96,
+    "sourcePage": 95,
     "status": "manual",
     "classification": "narrative",
     "executor": "executeEncounter",
@@ -5214,7 +5214,7 @@
   {
     "id": "printed:travel-soar-9-10-summer",
     "ownerId": "travel-soar-9-10-summer",
-    "sourcePage": 96,
+    "sourcePage": 95,
     "status": "manual",
     "classification": "narrative",
     "executor": "executeEncounter",
@@ -5229,7 +5229,7 @@
   {
     "id": "printed:travel-soar-9-10-winter",
     "ownerId": "travel-soar-9-10-winter",
-    "sourcePage": 97,
+    "sourcePage": 95,
     "status": "manual",
     "classification": "narrative",
     "executor": "executeEncounter",
@@ -5349,7 +5349,7 @@
   {
     "id": "printed:travel-soar-m-summer",
     "ownerId": "travel-soar-m-summer",
-    "sourcePage": 97,
+    "sourcePage": 96,
     "status": "manual",
     "classification": "narrative",
     "executor": "executeEncounter",

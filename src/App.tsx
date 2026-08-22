@@ -154,6 +154,7 @@ import {
   resolveDowntime,
   resolveCanonicalDowntime,
   resolveEncounter,
+  encounterChoiceRequiresJournal,
   resolveForaging,
   calculateForageRarityBreakdown,
   isForagingPreparationAvailableInSeason,
@@ -3066,7 +3067,7 @@ const encounterChoiceRequiresSecondaryCard = (
 ): boolean => {
   const choice = encounter?.choices?.find(row => row.id === selectedChoiceId)
     || (encounter?.choices?.length === 1 ? encounter.choices[0] : undefined);
-  return /\bdraw\s+(?:a|an|another|one|two|three|\d+)?\s*cards?\b/i.test(choice?.label || '');
+  return /\bdraw(?:\s*:|\s+(?:a|an|another|one|two|three|\d+)?\s*cards?\b)/i.test(choice?.label || '');
 };
 
 const getLocalizedLocationName = (name: string): string => localizeLocationName(name);
@@ -5323,6 +5324,7 @@ export default function App() {
       const encounter = pending.socialEncounter;
       const socialChoices = encounter.choices || [];
       let selectedChoiceId = socialChoices.length === 1 ? socialChoices[0].id : undefined;
+      let socialJournalNote = '';
       if (socialChoices.length > 1) {
         const picked = await requestControlledPrompt({
           title: encounter.title,
@@ -5335,10 +5337,24 @@ export default function App() {
         selectedChoiceId = picked;
       }
       if (selectedChoiceId) {
+        if (encounterChoiceRequiresJournal(encounter, selectedChoiceId)) {
+          const note = await requestControlledPrompt({
+            title: `${encounter.title} · 일지 기록`,
+            message: '룰북의 일지 프롬프트입니다. 글로 남기거나, 말·그림 등 편한 방식으로 장면을 떠올린 뒤 계속하세요.',
+            defaultValue: '',
+            kicker: `사교 조우 · p.${encounter.sourcePage}`,
+            label: '필수 일지 기록',
+            inputMode: 'multiline'
+          });
+          if (note === null) return;
+          socialJournalNote = note.trim();
+        }
         const executed = resolveEncounter({
           transactionId: `${pending.barterId}:social-choice`,
           encounter,
           choiceId: selectedChoiceId,
+          journalNote: socialJournalNote,
+          journalAcknowledged: true,
           state: {
             reputation: state.reputation,
             trinkets: state.trinkets.length,
@@ -5372,6 +5388,15 @@ export default function App() {
             patients,
             appliedEncounterEffectIds: runtimeState.appliedEffectIds,
             manualConditions: remapEncounterConditions(runtimeState.conditions, s)
+          };
+          if (socialJournalNote) next = {
+            ...next,
+            journals: [{
+              id: `${pending.barterId}:social-journal`,
+              title: `사교 조우: ${encounter.title}`,
+              text: socialJournalNote,
+              timestamp: Date.now()
+            }, ...next.journals]
           };
           if (leftover) {
             const draft = createPrintedManualDraft(encounter.id, 'encounter', {
@@ -6655,6 +6680,8 @@ export default function App() {
       transactionId: pending.transactionId,
       encounter: pending.encounter,
       choiceId: defaultEncounterChoiceId(pending.encounter, activeTravelEncounter?.selectedChoiceId || pending.selectedChoiceId),
+      journalNote: resolvedJournalNote,
+      journalAcknowledged: true,
       state: {
         reputation: state.reputation,
         trinkets: state.trinkets.length,
@@ -6777,6 +6804,7 @@ export default function App() {
       return false;
     }
     const selectedChoiceId = activeForageEncounter?.selectedChoiceId || pending.selectedChoiceId;
+    const resolvedJournalNote = note.trim();
     if (pending.source !== 'familiar-independent'
       && encounterChoiceRequiresSecondaryCard(activeForageEncounter, selectedChoiceId)
       && !pending.secondaryCard) {
@@ -6858,6 +6886,8 @@ export default function App() {
       transactionId: `${pending.transactionId}:encounter`,
       encounter,
       choiceId: defaultEncounterChoiceId(encounter, activeForageEncounter?.selectedChoiceId || pending.selectedChoiceId),
+      journalNote: resolvedJournalNote,
+      journalAcknowledged: true,
       state: {
         reputation: state.reputation, trinkets: state.trinkets.length, calendarDays: state.calendarDays,
         foragingPoints: state.activeAilment?.foragingPoints || 0,
@@ -7588,6 +7618,11 @@ export default function App() {
         const canUseBeetleCompanion =
           (state.companionStates || []).some(comp => comp.companionId === 'beetle' && !comp.usedThisJourney) &&
           activeTravelEncounter.tags?.includes('Beast') && !activeTravelEncounter.tags?.includes('Behemoth');
+        const selectedTravelChoiceId = defaultEncounterChoiceId(
+          activeTravelEncounter,
+          activeTravelEncounter.selectedChoiceId || state.pendingEncounter?.selectedChoiceId
+        );
+        const journalRequired = encounterChoiceRequiresJournal(activeTravelEncounter, selectedTravelChoiceId);
 
         return (
           <div className="encounter-dialog-backdrop">
@@ -7658,7 +7693,7 @@ export default function App() {
               )}
 
               <label className="encounter-journal-note">
-                <span>이 장면에서 남길 기억 <small>선택 · 비워도 진행할 수 있습니다</small></span>
+                <span>이 장면에서 남길 기억 <small>{journalRequired ? '룰북 지시 · 말·그림·글 중 편한 방식으로 떠올린 뒤 판정' : '선택 · 비워도 진행할 수 있습니다'}</small></span>
                 <textarea
                   key={activeTravelEncounter.transactionId || activeTravelEncounter.id}
                   rows={3}
@@ -7837,8 +7872,29 @@ export default function App() {
           : !activeForageEncounter.showAllFinds && treatmentForageFinds.length > 0
             ? treatmentForageFinds
             : sortedForageFinds;
-        const closeForageEncounter = async () => {
-          if (await resolveCanonicalForageEncounter('')) {
+        const selectedForageChoiceId = defaultEncounterChoiceId(
+          activeForageEncounter,
+          activeForageEncounter.selectedChoiceId || state.pendingForaging?.selectedChoiceId
+        );
+        const forageJournalRequired = encounterChoiceRequiresJournal(activeForageEncounter, selectedForageChoiceId);
+        const finishForageEncounter = async (note: string, savePersonalJournal = false) => {
+          if (await resolveCanonicalForageEncounter(note)) {
+            if (savePersonalJournal) {
+              updateState(s => {
+                const listStr = activeForageEncounter.foundReagents.length > 0
+                  ? activeForageEncounter.foundReagents.map((find: ForageFind | string) => typeof find === 'string' ? find : `${find.name} (희귀도: ${find.rarity}${find.fpAvailable ? ', 채집 포인트 사용 가능' : ''})`).join(', ')
+                  : '없음 (+1 채집포인트)';
+                return {
+                  ...s,
+                  journals: [{
+                    id: 'forage_' + Date.now(),
+                    title: `🌿 채집 일지: ${encTitle}`,
+                    text: `[페이지 ${activeForageEncounter.page} - 드로우: ${activeForageEncounter.cardValue} ${activeForageEncounter.suitLabel}]\n위치: ${s.currentLocationName} (${localizeRegionLabel(activeForageEncounter.region)} / ${localizeSeasonLabel(s.currentSeason)})\n조우 결과: ${encText}\n발견한 영약재: ${listStr}\n\n기록: ${note.trim() || '조심스럽게 약초 채집을 마무리했다.'}`,
+                    timestamp: Date.now()
+                  }, ...s.journals]
+                };
+              });
+            }
             if (state.pendingLeaveObligation?.kind === 'foraging-encounter') {
               updateState((s: GameState) => ({
                 ...s,
@@ -7848,6 +7904,7 @@ export default function App() {
             setActiveForageEncounter(null);
           }
         };
+        const closeForageEncounter = async () => finishForageEncounter('', false);
 
         return (
           <div className="encounter-dialog-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
@@ -8039,38 +8096,26 @@ export default function App() {
                   onClick={async () => {
                     const note = await requestControlledPrompt({
                       title: '채집 일지',
-                      message: '채집 조우와 발견한 약초에 대한 소감을 남길 수 있습니다.',
+                      message: forageJournalRequired
+                        ? '룰북의 일지 프롬프트입니다. 글로 남기거나, 말·그림 등 편한 방식으로 장면을 떠올린 뒤 계속하세요.'
+                        : '채집 조우와 발견한 약초에 대한 소감을 남길 수 있습니다.',
                       defaultValue: '',
                       kicker: '채집 기록',
                       label: '선택 메모',
                       inputMode: 'multiline'
                     });
-                    if (note !== null) {
-                      updateState(s => {
-                        const listStr = activeForageEncounter.foundReagents.length > 0
-                          ? activeForageEncounter.foundReagents.map((find: ForageFind | string) => typeof find === 'string' ? find : `${find.name} (희귀도: ${find.rarity}${find.fpAvailable ? ', 채집 포인트 사용 가능' : ''})`).join(', ')
-                          : '없음 (+1 채집포인트)';
-                        return {
-                          ...s,
-                          journals: [
-                            {
-                              id: 'forage_' + Date.now(),
-                              title: `🌿 채집 일지: ${encTitle}`,
-                              text: `[페이지 ${activeForageEncounter.page} - 드로우: ${activeForageEncounter.cardValue} ${activeForageEncounter.suitLabel}]\n위치: ${s.currentLocationName} (${localizeRegionLabel(activeForageEncounter.region)} / ${localizeSeasonLabel(s.currentSeason)})\n조우 결과: ${encText}\n발견한 영약재: ${listStr}\n\n기록: ${note || '조심스럽게 약초 채집을 마무리했다.'}`,
-                              timestamp: Date.now()
-                            },
-                            ...s.journals
-                          ]
-                        };
-                      });
-                    }
-                    await closeForageEncounter();
+                    if (note !== null) await finishForageEncounter(note, true);
                   }}
                   style={{ flex: 1, padding: '0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold' }}
                 >
                   저널 기록 후 조우 해결
                 </button>
-                <button onClick={closeForageEncounter} style={{ padding: '0.8rem 1.2rem', background: '#eee', color: '#555', borderRadius: '8px' }}>닫기</button>
+                <button
+                  onClick={closeForageEncounter}
+                  disabled={forageJournalRequired}
+                  title={forageJournalRequired ? '선택한 결과는 일지 기록이 필요합니다.' : undefined}
+                  style={{ padding: '0.8rem 1.2rem', background: '#eee', color: '#555', borderRadius: '8px' }}
+                >{forageJournalRequired ? '프롬프트 확인 필요' : '닫기'}</button>
               </div>
             </div>
           </div>

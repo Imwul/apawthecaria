@@ -2,6 +2,9 @@
 // dedicated table prevents the rulebook's decorative English headings and OCR
 // line breaks from leaking into Korean play dialogs.
 export const ENCOUNTER_TITLE_KO: Record<string, string> = {
+  'Summer Loch 10 · Printed Duplicate': '여름 호수 10 · 중복 인쇄 행',
+  'Ice Fishing': '얼음낚시',
+  'Summer Loch J · No Printed Row': '여름 호수 J · 인쇄 행 없음',
   Wisps: '도깨비불',
   'From Rot Comes Art': '썩은 것에서 피어난 예술',
   'Branch-Beaten': '나뭇가지에 두들겨 맞다',

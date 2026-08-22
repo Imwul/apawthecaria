@@ -35,6 +35,7 @@ export * from './data/ailmentWording';
 export * from './data/barrows';
 export * from './data/clinics';
 export * from './data/encounters';
+export * from './data/encounterChoices';
 export * from './data/mobility';
 export * from './data/regions';
 export * from './data/reagents';

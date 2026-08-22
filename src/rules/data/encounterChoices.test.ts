@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { executeEncounter } from '../encounterEngine';
-import { BEAR_SCURRY_ENCOUNTER, FORAGING_ENCOUNTERS, SOCIAL_ENCOUNTERS, findEncounter } from './encounters';
-import { enrichEncounterChoices, leftoverNeeded, parseMechanicalEffects, splitEncounterChoices } from './encounterChoices';
+import { BEAR_SCURRY_ENCOUNTER, ENCOUNTERS, FORAGING_ENCOUNTERS, SOCIAL_ENCOUNTERS, TRAVEL_ENCOUNTERS, findEncounter } from './encounters';
+import { encounterChoiceRequiresJournal, enrichEncounterChoices, leftoverNeeded, parseMechanicalEffects, splitEncounterChoices } from './encounterChoices';
 import { resolvePatient } from '../engine';
+import { GAME_DATA } from '../../gameData';
 
 describe('printed encounter choice execution', () => {
   it('splits labeled forage choices and applies reputation and timer changes', () => {
@@ -75,6 +76,11 @@ describe('printed encounter choice execution', () => {
       effect: { type: 'modifyTimer', amount: -1, target: 'all' }
     });
     expect(napBeforeDraw.some(({ effect }) => effect.type === 'modifyForagingPoints')).toBe(false);
+
+    expect(parseMechanicalEffects('If you have a Tent, set camp. Decrease Timers by 1.'))
+      .not.toContainEqual({ support: 'implemented', effect: { type: 'modifyTimer', amount: -1, target: 'all' } });
+    expect(parseMechanicalEffects('Draw a card. Higher — Gain 3 Reputation.'))
+      .not.toContainEqual({ support: 'implemented', effect: { type: 'modifyReputation', amount: 3 } });
   });
 
   it('lets the bog Ace interrupt complete without a leftover printed dump', () => {
@@ -133,5 +139,145 @@ describe('printed encounter choice execution', () => {
       choices: [{ id: 'keep', label: 'Keep existing', effects: [] }]
     });
     expect(enriched.choices[0].id).toBe('keep');
+  });
+
+  it('keeps every canonical encounter ID unique', () => {
+    expect(new Set(ENCOUNTERS.map(row => row.id)).size).toBe(ENCOUNTERS.length);
+  });
+
+  it('keeps every transcribed event row represented in the canonical inventory', () => {
+    const sourceRows = [
+      ...Object.values(GAME_DATA.travelEncounters).flat(),
+      ...Object.values(GAME_DATA.foragingEncounters).flat(),
+      ...Object.values(GAME_DATA.socialEncounters).flat()
+    ].filter(row => (row.page >= 74 && row.page <= 99)
+      || (row.page >= 154 && row.page <= 187)
+      || (row.page >= 190 && row.page <= 213));
+    const compact = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const canonicalText = ENCOUNTERS.map(encounter => compact([
+      encounter.title,
+      encounter.prompt,
+      ...encounter.choices.map(choice => choice.label)
+    ].join(' ')));
+    const missing = sourceRows.filter(row => {
+      if (row.page === 169 && row.title.startsWith('Summertime Swim')) {
+        return !ENCOUNTERS.some(encounter => encounter.id === 'foraging-loch-10-summer'
+          && encounter.choices.some(choice => choice.id === 'summertime-swim'));
+      }
+      if (row.page === 169 && row.title.startsWith('The Boat That Rocks')) {
+        return !ENCOUNTERS.some(encounter => encounter.id === 'foraging-loch-10-summer'
+          && encounter.choices.some(choice => choice.id === 'the-boat-that-rocks'));
+      }
+      const signature = compact(row.title.split('\n')[0]).slice(0, 12);
+      return signature && !canonicalText.some(text => text.includes(signature));
+    });
+    expect(missing.map(row => `${row.page}:${row.title.split('\n')[0]}`)).toEqual([]);
+  });
+
+  it('maps printed seasonal icons instead of assuming source-row order', () => {
+    const expected: Record<string, string> = {
+      'travel-bog-j-autumn': 'Fungi Founder',
+      'travel-bog-j-winter': 'Chilled To The Core',
+      'travel-forest-j-spring': 'Danger Ahead',
+      'travel-forest-j-summer': 'Freshly Grilled',
+      'travel-loch-m-autumn': 'Two-Faced',
+      'travel-loch-m-winter': 'Hospitality',
+      'travel-mountain-j-autumn': 'Red Sky',
+      'travel-mountain-j-winter': 'Tobogganing',
+      'travel-mountain-m-autumn': 'Do You Nose',
+      'travel-mountain-m-winter': 'Treacherous Footing',
+      'travel-soar-9-10-winter': 'Talons',
+      'travel-soar-m-summer': 'High Above It All',
+      'travel-soar-m-autumn': 'Windwall',
+      'foraging-loch-10-autumn': 'Showboat',
+      'foraging-loch-10-winter': 'Ice Fishing',
+      'foraging-loch-j-autumn': 'Brisk Beach Party',
+      'social-forest-spring-♠': 'Deep Fried Delicacy',
+      'social-forest-summer-♠': 'To Glide',
+      'social-forest-autumn-♣': 'Spike Defence',
+      'social-forest-winter-♣': 'Sauna'
+    };
+    Object.entries(expected).forEach(([id, title]) => {
+      expect(ENCOUNTERS.find(row => row.id === id)?.title, id).toContain(title);
+    });
+    expect(TRAVEL_ENCOUNTERS.find(row => row.id === 'travel-soar-9-10-winter')?.sourcePage).toBe(95);
+  });
+
+  it('keeps choices separated when the printed transcription omitted terminal punctuation', () => {
+    const idsAndChoices: Array<[string, string[]]> = [
+      ['travel-forest-m-winter', ['roadside-tea', 'aid', 'cold-shoulder']],
+      ['travel-meadow-9-10-autumn', ['find-shelter', 'push-on']],
+      ['travel-mountain-j-winter', ['sled', 'long-walk']],
+      ['travel-mountain-m-summer', ['fetch-the-oil', 'shrug']],
+      ['foraging-loch-m-winter', ['trade', 'visit', 'help']],
+      ['foraging-mountain-m-winter', ['just-in-time', 'too-late']],
+      ['social-bog-winter-♣', ['wish-them-luck', 'pitch-in-briefly', 'pitch-in-for-the-day']]
+    ];
+    idsAndChoices.forEach(([id, choices]) => {
+      expect(ENCOUNTERS.find(row => row.id === id)?.choices.map(choice => choice.id), id).toEqual(choices);
+    });
+
+    const squeaky = ENCOUNTERS.find(row => row.id === 'travel-mountain-m-summer')!;
+    const fetch = executeEncounter({
+      transactionId: 'squeaky-fetch', encounter: squeaky, choiceId: 'fetch-the-oil',
+      state: { reputation: 5, trinkets: 0, calendarDays: 0, foragingPoints: 0, inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: [] }
+    });
+    expect(fetch.value?.nextState).toMatchObject({ reputation: 5, trinkets: 1, calendarDays: 1 });
+  });
+
+  it('keeps non-scalar printed procedures manual instead of silently resolving them', () => {
+    const manualChoices: Array<[string, string]> = [
+      ['travel-loch-m-autumn', 'vigiliante'],
+      ['travel-meadow-9-10-winter', 'challenge-accepted'],
+      ['travel-mountain-m-spring', 'drink-up'],
+      ['foraging-bog-9-autumn', 'pounder-s-take'],
+      ['foraging-bog-m-winter', 'bargain'],
+      ['foraging-forest-9-spring', 'compassion'],
+      ['foraging-loch-9-summer', 'tadpediatrician'],
+      ['foraging-loch-10-summer', 'summertime-swim'],
+      ['foraging-meadow-10-winter', 'chill'],
+      ['foraging-mountain-10-spring', 'secrets-of-the-craft'],
+      ['foraging-mountain-10-autumn', 'blood-to-blood'],
+      ['foraging-titan-2', 'look-around'],
+      ['foraging-titan-7', 'memento']
+    ];
+    manualChoices.forEach(([encounterId, choiceId]) => {
+      const choice = ENCOUNTERS.find(row => row.id === encounterId)?.choices.find(row => row.id === choiceId);
+      expect(choice?.effects.some(effect => effect.support === 'manual-only'), `${encounterId}/${choiceId}`).toBe(true);
+    });
+
+    const hailstorm = ENCOUNTERS.find(row => row.id === 'travel-soar-m-winter')!;
+    expect(hailstorm.mandatoryEffects.every(effect => effect.support === 'manual-only')).toBe(true);
+    expect(hailstorm.mandatoryEffects.some(effect => effect.effect.type === 'modifyTimer')).toBe(false);
+  });
+
+  it('does not allow a voluntary trinket payment when the balance is empty', () => {
+    const hunger = ENCOUNTERS.find(row => row.id === 'travel-forest-m-winter')!;
+    const result = executeEncounter({
+      transactionId: 'hunger-aid', encounter: hunger, choiceId: 'aid',
+      state: { reputation: 5, trinkets: 0, calendarDays: 0, foragingPoints: 0, inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: [] }
+    });
+    expect(result.status).toBe('invalid');
+    expect(result.value).toBeNull();
+  });
+
+  it('requires acknowledgement only for a current printed journaling prompt', () => {
+    const highway = ENCOUNTERS.find(row => row.id === 'travel-meadow-9-10-spring')!;
+    expect(encounterChoiceRequiresJournal(highway, 'pay-with-your-life')).toBe(true);
+    const blank = executeEncounter({
+      transactionId: 'highway-journal', encounter: highway, choiceId: 'pay-with-your-life',
+      state: { reputation: 5, trinkets: 0, calendarDays: 0, foragingPoints: 0, inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: [] }
+    });
+    expect(blank.status).toBe('invalid');
+    const acknowledged = executeEncounter({
+      transactionId: 'highway-journal', encounter: highway, choiceId: 'pay-with-your-life', journalAcknowledged: true,
+      state: { reputation: 5, trinkets: 0, calendarDays: 0, foragingPoints: 0, inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: [] }
+    });
+    expect(acknowledged.value?.nextState.calendarDays).toBe(1);
+
+    const paperPage = ENCOUNTERS.find(row => row.id === 'travel-loch-j-spring')!;
+    expect(encounterChoiceRequiresJournal(paperPage, 'refuse')).toBe(false);
+    const future = ENCOUNTERS.find(row => row.id === 'foraging-meadow-10-winter')!;
+    expect(encounterChoiceRequiresJournal(future, 'hot-toddy')).toBe(false);
   });
 });

@@ -18,6 +18,33 @@ const FORAGING_SEASONAL_KEYS = ['9', '10', 'J', 'M'];
 
 type LegacyEncounter = { page: number; card?: string; suit?: string; title: string; text: string };
 
+const compactTitle = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+const titleMatches = (row: Pick<LegacyEncounter, 'title'>, expected: string): boolean =>
+  compactTitle(row.title).startsWith(compactTitle(expected));
+
+// Printed seasonal icons are not consistently ordered in the source tables.
+// These are explicit transcriptions of the icons, not inferred rules.
+const TRAVEL_SEASONAL_TITLES: Partial<Record<TravelRegion, Partial<Record<string, Partial<Record<Season, string>>>>>> = {
+  Bog: { J: { Autumn: 'Fungi Founder', Winter: 'Chilled To The Core' } },
+  Forest: { J: { Spring: 'Danger Ahead', Summer: 'Freshly Grilled' } },
+  Loch: { M: { Autumn: 'Two-Faced', Winter: 'Hospitality, Eh?' } },
+  Mountain: {
+    J: { Autumn: 'Red Sky At Night', Winter: 'Tobogganing' },
+    M: { Spring: 'Springmelt', Summer: 'Squeaky Wheels', Autumn: 'Do You Nose Your Herbs?', Winter: 'Treacherous Footing' }
+  },
+  Soar: {
+    '9&10': { Spring: 'Talons', Summer: 'Talons', Autumn: 'Talons', Winter: 'Talons' },
+    M: { Spring: 'High Above It All', Summer: 'High Above It All', Autumn: 'Windwall', Winter: 'Hailstorm' }
+  }
+};
+
+const FORAGING_SEASONAL_TITLES: Partial<Record<Exclude<Region, 'Titan'>, Partial<Record<string, Partial<Record<Season, string | null>>>>>> = {
+  Loch: {
+    '10': { Spring: 'River Snatchers', Summer: 'Summertime Swim', Autumn: 'Showboat', Winter: 'Ice Fishing' },
+    J: { Spring: 'Flood', Summer: null, Autumn: 'Brisk Beach Party', Winter: 'A Gentle Moment' }
+  }
+};
+
 const inferEncounterTags = (title: string, prompt: string): EncounterDefinition['tags'] => {
   const text = `${title} ${prompt}`;
   const tags: NonNullable<EncounterDefinition['tags']> = [];
@@ -119,7 +146,10 @@ const buildTravelRegion = (region: TravelRegion, firstPage: number, lastPage: nu
   const seasonal = TRAVEL_SEASONAL_KEYS.flatMap(key => {
     const candidates = rows.filter(candidate => normalizeTravelKey(candidate.card) === key);
     return SEASONS.map((season, index) => {
-      const row = candidates[index];
+      const printedTitle = TRAVEL_SEASONAL_TITLES[region]?.[key]?.[season];
+      const row = printedTitle
+        ? candidates.find(candidate => titleMatches(candidate, printedTitle))
+        : candidates[index];
       const fallbackPage = Math.min(lastPage, firstPage + (index === 0 ? 1 : index < 3 ? 2 : 3));
       return row
         ? fromLegacy('travel', region, key, row, season)
@@ -177,7 +207,13 @@ const buildForagingRegion = (region: Exclude<Region, 'Titan'>, firstPage: number
   const seasonal = FORAGING_SEASONAL_KEYS.flatMap(key => {
     const exact = rows.filter(candidate => !used.has(candidate) && normalizeForagingKey(candidate.card) === key);
     return SEASONS.map((season, index) => {
-      const row = exact[index];
+      const hasPrintedOverride = Object.prototype.hasOwnProperty.call(FORAGING_SEASONAL_TITLES[region]?.[key] || {}, season);
+      const printedTitle = FORAGING_SEASONAL_TITLES[region]?.[key]?.[season];
+      const row = hasPrintedOverride
+        ? printedTitle
+          ? exact.find(candidate => titleMatches(candidate, printedTitle))
+          : undefined
+        : exact[index];
       if (row) {
         used.add(row);
         return fromLegacy('foraging', region, key, row, season);
@@ -285,11 +321,24 @@ export const FORAGING_ENCOUNTERS: EncounterDefinition[] = [
 const socialGroup = (region: Region, firstPage: number, lastPage: number, genericPage: number, cities: Record<number, string>): EncounterDefinition[] => {
   const rows = pageRows(socialLegacy, firstPage, lastPage);
   const seasonalCounter: Record<CardSuit, number> = { '♥': 0, '♦': 0, '♣': 0, '♠': 0 };
+  const forestSeasonByTitle: Record<string, Season> = {
+    deepfrieddelicacy: 'Spring',
+    toglideornottoglide: 'Summer',
+    duty: 'Autumn',
+    talltales: 'Winter',
+    cultivation: 'Spring',
+    bettingmatch: 'Summer',
+    spikedefence: 'Autumn',
+    sauna: 'Winter'
+  };
   return rows.map(row => {
     const suit = row.suit as CardSuit;
     const city = cities[row.page];
     const isSeasonal = suit === '♣' || suit === '♠';
-    const season = isSeasonal ? SEASONS[seasonalCounter[suit]++] : undefined;
+    const inferredSeason = isSeasonal ? SEASONS[seasonalCounter[suit]++] : undefined;
+    const season = region === 'Forest' && isSeasonal
+      ? Object.entries(forestSeasonByTitle).find(([key]) => compactTitle(row.title).startsWith(key))?.[1] || inferredSeason
+      : inferredSeason;
     const locationType: 'Settlement' | 'City' = city ? 'City' : 'Settlement';
     const idContext = city ? city.toLowerCase() : season ? season.toLowerCase() : 'settlement';
     return {
@@ -334,7 +383,7 @@ export const SOCIAL_ENCOUNTERS: EncounterDefinition[] = [
     ...canonicalMetadata(213),
     support: 'manual-only' as const
   }))
-].map(enrichEncounterChoices);
+].map(applyPrintedEncounterOverride).map(enrichEncounterChoices);
 
 /** p.162 persistent replacement for a future Monarch near Bear's Necessities. */
 export const BEAR_SCURRY_ENCOUNTER: EncounterDefinition = {

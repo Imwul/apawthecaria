@@ -1,11 +1,14 @@
 import type { EncounterRuntimeState } from './gameplay';
 import type { EncounterDefinition, RuleEffect, StructuredRuleEffect } from './types';
+import { encounterChoiceRequiresJournal } from './data/encounterChoices';
 
 export interface EncounterExecutionInput {
   transactionId: string;
   encounter: EncounterDefinition;
   state: EncounterRuntimeState;
   choiceId?: string;
+  journalNote?: string;
+  journalAcknowledged?: boolean;
   protection?: 'negative' | 'all';
 }
 
@@ -97,6 +100,23 @@ export const executeEncounter = (input: EncounterExecutionInput): EncounterExecu
   if (input.choiceId && !choice) return { status: 'invalid', value: null, messages: [`Unknown encounter choice: ${input.choiceId}`] };
   if (input.encounter.choices.length > 0 && !choice) {
     return { status: 'manual', value: null, messages: ['Select one printed encounter choice before resolving.'] };
+  }
+  if (choice && encounterChoiceRequiresJournal(input.encounter, choice.id)
+    && !input.journalNote?.trim() && !input.journalAcknowledged) {
+    return { status: 'invalid', value: null, messages: ['Acknowledge the printed journaling prompt before resolving.'] };
+  }
+
+  // A voluntary payment cannot silently succeed by clamping a negative
+  // balance to zero. Forced losses still discard as much as the player has.
+  const voluntaryTrinketCost = choice && /(?:\b(?:pay|trade|spend|give|buy|leave|swap)\b[^.]{0,80}\btrinkets?\b|장신구[^.]{0,50}(?:주고|남기고|바꾸고|지불|구매|거래)|(?:주고|남기고|바꾸고|지불|구매|거래)[^.]{0,50}장신구)/i.test(choice.label)
+    ? choice.effects.reduce((sum, structured) => structured.support === 'implemented'
+      && structured.effect.type === 'modifyTrinkets'
+      && structured.effect.amount < 0
+      ? sum + Math.abs(structured.effect.amount)
+      : sum, 0)
+    : 0;
+  if (voluntaryTrinketCost > input.state.trinkets) {
+    return { status: 'invalid', value: null, messages: [`This choice requires ${voluntaryTrinketCost} Trinket(s).`] };
   }
 
   const effects = [...input.encounter.mandatoryEffects, ...(choice?.effects || [])];

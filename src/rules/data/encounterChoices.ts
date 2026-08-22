@@ -13,7 +13,7 @@ const CHOICE_SPLIT = /(?:^|[.!?]\s+)([A-Z][A-Za-z0-9'&/! ]{0,43})\s+-\s+/g;
 
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'choice';
 
-const CONDITIONAL_TIMING = /\b(?:if|unless|when|whenever|after|before|once|until|next|future|following)\b|every ?time|from now on/i;
+const CONDITIONAL_TIMING = /\b(?:if|unless|when|whenever|after|before|once|until|next|future|following|otherwise)\b|for each|per potency|as many|every ?time|from now on/i;
 const MECHANICAL_CHANGE = /\b(?:gain|lose|mark|add|discard|remove|decrease|reduce|increase|pay|trade|spend)\b/i;
 const SUIT_BRANCH = /[♥♦♣♠](?:\s*(?:(?:or)|[,/&])\s*[♥♦♣♠])*\s*[-–—]/i;
 const sourceClauses = (value: string): string[] => value
@@ -37,7 +37,7 @@ const hasUnhandledConditionalMechanicalChange = (value: string): boolean => sour
 );
 
 const leftoverMechanical = (body: string): boolean =>
-  /draw a card|draw two cards|draw another card|draw 3 cards|abandon your journey|start a new ailment|gain a .{0,40}companion|add a titan|gain a tool|nearest settlement|wound|soaked|discard.{0,20}reagent|lose (?:a |1 |one )?reagent|follow-up|redraw|mark this location|behemoth barrow|path from this location|unconnected nearby|haggl|gain a .{0,40}reagent|add any part|add .{0,40}to your bags|lose either|titan thingamabob|titan rash|titan codex|establish a clinic|honey ?bee companion|increase the rarity|you do not gain foraging points|swap the encounter|create 3 trinkets|end your (?:soar|journey)|cannot forage|cannot gain foraging points/i.test(body)
+  /draw\s*:|draw(?:\s+(?:a|one|two|three|another|\d+))?\s+cards?|abandon your (?:things|journey)|start (?:a new .{0,30}|your next )ailment|create a remedy|set a .{0,30}timer|gain a .{0,40}companion|add a titan|gain a tool|nearest settlement|wound|soaked|discard.{0,20}reagent|drop a reagent or tool|lose (?:a |1 |one )?reagent|follow-up|redraw|mark this location|behemoth barrow|path from this location|unconnected nearby|additional \d+ paths?|extra waterways?|travel back \d+ paths?|re-?plan your move|off-limits|counts? as a (?:trinket|settlement)|start your next ailment with|haggl|\bbarter\b|offer .{0,30}trinket|gain a .{0,40}reagent|(?:iron ore|silver ore).{0,80}for free|add any part|add .{0,40}to your bags|lose either|titan thingamabob|titan rash|titan codex|establish a clinic|honey ?bee companion|increase the rarity|you do not gain foraging points|swap the encounter|swap a reagent|buy a .{0,30}reagent|create 3 trinkets|gifts? you a trinket|additional \d+ reputation|special purify|open the door|same function as a crossbow|end your (?:soar|journey)|cannot (?:be moved through|move through|forage)|cannot gain foraging points|ignore the (?:next|negative effects)|lower your next timer/i.test(body)
   || hasUnhandledConditionalMechanicalChange(body);
 
 export const parseMechanicalEffects = (body: string): StructuredRuleEffect[] => {
@@ -48,14 +48,24 @@ export const parseMechanicalEffects = (body: string): StructuredRuleEffect[] => 
   // Printed suit branches are also conditional. Only the text before the first
   // branch may be applied automatically; otherwise a reward in one branch can be
   // granted before the player has even entered the follow-up card result.
-  const firstSuitBranch = body.search(SUIT_BRANCH);
-  const unconditionalBody = firstSuitBranch >= 0 ? body.slice(0, firstSuitBranch) : body;
+  const gatedBody = /^\s*(?:if|unless|when)\b/i.test(body) ? '' : body;
+  const firstSuitBranch = gatedBody.search(SUIT_BRANCH);
+  const firstDraw = gatedBody.search(/\bdraw\b/i);
+  const firstUnresolvedBranch = [firstSuitBranch, firstDraw].filter(index => index >= 0);
+  const automaticEnd = firstUnresolvedBranch.length > 0 ? Math.min(...firstUnresolvedBranch) : gatedBody.length;
+  const unconditionalBody = gatedBody.slice(0, automaticEnd);
   const immediateBody = sourceClauses(unconditionalBody)
     .filter(clause => !CONDITIONAL_TIMING.test(clause))
     .join(' ');
-  const gainRep = [...immediateBody.matchAll(/gain (\d+) reputation/gi)];
-  const loseRep = [...immediateBody.matchAll(/lose (\d+) reputation/gi)];
-  const decreaseTimers = [...immediateBody.matchAll(/(?:decrease|reduce) timers? by (?:an additional )?(\d+)/gi)];
+  const gainRep = [
+    ...immediateBody.matchAll(/gain (\d+) reputation/gi),
+    ...immediateBody.matchAll(/increase (?:guild )?reputation by (\d+)/gi)
+  ];
+  const loseRep = [
+    ...immediateBody.matchAll(/lose (\d+) reputation/gi),
+    ...immediateBody.matchAll(/decrease (?:guild )?reputation by (\d+)/gi)
+  ];
+  const decreaseTimers = [...immediateBody.matchAll(/(?:decrease|reduce) (?:the |your )?timers? by (?:an additional )?(\d+)/gi)];
   const increaseTimers = [...immediateBody.matchAll(/(?:increase|add) (?:(\d+) to (?:your )?next timer|timers? by (\d+))/gi)];
   const days = [...immediateBody.matchAll(/(?:mark (\d+) days?(?: on your calendar)?|add (\d+) days? to your calendar)/gi)];
   const gainForaging = [...immediateBody.matchAll(/gain (\d+) foraging points?/gi)];
@@ -78,7 +88,9 @@ export const parseMechanicalEffects = (body: string): StructuredRuleEffect[] => 
   gainForaging.forEach(match => effects.push(implemented({ type: 'modifyForagingPoints', amount: Number(match[1]) })));
   loseForaging.forEach(match => effects.push(implemented({ type: 'modifyForagingPoints', amount: -Number(match[1]) })));
   if (/gain (?:a |1 |an )?(?:[\w'-]+ )?trinket(?!s)/i.test(immediateBody) && trinkets.length === 0) {
-    effects.push(implemented({ type: 'modifyTrinkets', amount: 1 }));
+    if (!/\b(?:for each|per |as many)\b/i.test(immediateBody)) {
+      effects.push(implemented({ type: 'modifyTrinkets', amount: 1 }));
+    }
   }
   trinkets.forEach(match => effects.push(implemented({ type: 'modifyTrinkets', amount: Number(match[1]) })));
   loseTrinkets.forEach(match => effects.push(implemented({ type: 'modifyTrinkets', amount: -Number(match[1]) })));
@@ -115,11 +127,31 @@ export const parseMechanicalEffects = (body: string): StructuredRuleEffect[] => 
 
 export const leftoverNeeded = leftoverMechanical;
 
+/**
+ * The printed instruction to journal is a required part of resolving the
+ * selected branch, not optional flavour text. Future replacement rules and
+ * instructions that physically alter a paper Journal page are deliberately
+ * excluded: neither asks for a journal entry during the current resolution.
+ */
+export const encounterChoiceRequiresJournal = (
+  encounter: Pick<EncounterDefinition, 'choices'> | null | undefined,
+  choiceId?: string
+): boolean => {
+  const label = encounter?.choices.find(choice => choice.id === choiceId)?.label || '';
+  return sourceClauses(label).some(clause => {
+    if (!/\bJournal (?:about|your)\b/i.test(clause)) return false;
+    if (/\b(?:in the future|if you draw this event again|replace negative outcomes)\b/i.test(clause)) return false;
+    return true;
+  });
+};
+
 export const splitEncounterChoices = (prompt: string): { description: string; choices: EncounterChoice[] } => {
   const matches = [...prompt.matchAll(CHOICE_SPLIT)];
   if (matches.length === 0) {
     const effects = parseMechanicalEffects(prompt);
-    if (leftoverMechanical(prompt)) effects.push(leftover('PRINTED_FOLLOW_UP', prompt.trim()));
+    if (leftoverMechanical(prompt) || (MECHANICAL_CHANGE.test(prompt) && effects.length === 0)) {
+      effects.push(leftover('PRINTED_FOLLOW_UP', prompt.trim()));
+    }
     return {
       description: prompt.trim(),
       choices: [{
@@ -134,8 +166,13 @@ export const splitEncounterChoices = (prompt: string): { description: string; ch
     const start = (match.index || 0) + match[0].length;
     const end = index + 1 < matches.length ? matches[index + 1].index || prompt.length : prompt.length;
     const body = prompt.slice(start, end).replace(/\s+/g, ' ').trim();
-    const effects = parseMechanicalEffects(body);
-    if (leftoverMechanical(body)) effects.push(leftover('PRINTED_FOLLOW_UP', body));
+    const effects = [
+      ...parseMechanicalEffects(match[1]),
+      ...parseMechanicalEffects(body)
+    ];
+    if (leftoverMechanical(`${match[1]} ${body}`) || (MECHANICAL_CHANGE.test(`${match[1]} ${body}`) && effects.length === 0)) {
+      effects.push(leftover('PRINTED_FOLLOW_UP', body));
+    }
     return {
       id: slug(match[1]),
       label: `${match[1].trim()} — ${body}`,

@@ -1,6 +1,7 @@
 import { localizeCanonicalToolName } from './gameplayKo';
 
 const exactEngineMessages: Record<string, string> = {
+  "Acknowledge the printed journaling prompt before resolving.": "룰북의 일지 질문을 확인한 뒤 판정하세요.",
   "A Knitted Blanket is required to prevent the premature Journey ending.": "여정이 조기에 끝나는 것을 막으려면 Knitted Blanket이 필요합니다.",
   "A Passenger is unavailable or already aboard.": "태울 수 있는 Passenger가 없거나 이미 탑승 중입니다.",
   "A normal Wagon cannot Soar.": "일반 Wagon은 Soar할 수 없습니다.",

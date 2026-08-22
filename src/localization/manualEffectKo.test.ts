@@ -161,6 +161,15 @@ describe('printed effect Korean reading layer', () => {
     expect(unresolved).toEqual([]);
   });
 
+  it('restores the complete Fresh Catch scene without the adjacent Loch overview', () => {
+    const freshCatch = ENCOUNTERS.find(encounter => encounter.title.startsWith('Fresh Catch'))!;
+    const translated = localizeEncounterDisplayText(freshCatch.title, freshCatch.prompt);
+
+    expect(translated).toContain('선착장을 지나던 중');
+    expect(translated).toContain('오늘은 무엇을 잡았을까요?');
+    expect(translated).not.toMatch(/반이동식|안전한 항구|Lochs|로크스|\b198\b/);
+  });
+
   it('describes card-value inventory counting without the landing mistranslation', () => {
     const legacyInMud = localizeManualEffectOption('Get A Better View — You may be able to scout the land better from up there. Draw a Card: ♥ or ♦ - It holds remarkably well, and you get a good view. Gain 3 Foraging Points ♣ or ♠ - It shifts unexpectedly and sinks further in the bog. Something falls out of your satchel and vanishes into the mud below! Count down the Items in your Bags equal to the card’s value; discard the Item you land on.');
     const lostItem = localizeManualEffectOption('Lost Item — Use the value of your card to count down the list of items in your Bags; discard the item you land on.');
