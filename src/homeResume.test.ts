@@ -25,4 +25,12 @@ describe('Home campaign resume regression guards', () => {
     expect(appSource).toContain('const preferredActionIds = getCampaignResumeActionIds(state, Boolean(currentBarrow));');
     expect(appSource).not.toContain('className="action-hub__status"');
   });
+
+  it('separates a newly met patient impression from the diagnosis in the recent journal', () => {
+    expect(homeSource).toContain("recentJournal?.title.startsWith('새 환자:')");
+    expect(homeSource).toContain("const cleanImpression = impression.replace(/^첫인상:\\s*/, '')");
+    expect(homeSource).toContain("const cleanDiagnosis = diagnosis.replace(/^병증:\\s*/, '')");
+    expect(homeSource).toContain(".join('\\n')");
+    expect(homeSource).toContain('className="today-journal__summary"');
+  });
 });

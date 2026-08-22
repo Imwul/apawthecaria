@@ -24,7 +24,7 @@ describe('patient identity experience', () => {
     expect(appSource).toContain('activeAilment: s.activePatientId === patient.id && s.activeAilment');
     expect(appSource).toContain('patientArchive: s.patientArchive.map(record => record.patientId === patient.id');
     expect(appSource).toContain("journal.title.startsWith('새 환자:')");
-    expect(appSource).toContain("text: [patientImpression, ...journal.text.split('\\n').slice(1)].join('\\n')");
+    expect(appSource).toContain("text: [`첫인상: ${patientImpression}`, ...journal.text.split('\\n').slice(1)].join('\\n')");
     expect(appSource).toContain('const patientImpressionLabel');
     expect(appSource).toContain('<strong>첫인상:</strong>');
     expect(appSource).toContain('patientImpressionLabel(treatmentPatient.personality, treatmentPatient.descriptor)');
@@ -51,5 +51,13 @@ describe('local-care journey composition', () => {
     expect(appSource).toContain('실물 덱의 조우 카드 사용');
     expect(appSource).toContain('Move를 확정할 때 앱이 p.25 조우 카드를 자동으로 한 장 뽑는 것');
     expect(appSource).not.toContain('<strong>도착지 조우</strong>');
+  });
+});
+
+describe('treatment tool layout', () => {
+  it('wraps long tool names inside responsive columns instead of crossing the workspace edge', () => {
+    expect(cssSource).toContain('grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));');
+    expect(cssSource).toContain('.treatment-option--tool strong');
+    expect(cssSource).toContain('word-break: break-word;');
   });
 });

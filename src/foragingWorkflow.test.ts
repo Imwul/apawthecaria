@@ -16,6 +16,24 @@ describe('foraging workflow order', () => {
     expect(appSource).toContain('plannedForageReagentId');
   });
 
+  it('lets the player choose a required tag before comparing ranked reagent candidates', () => {
+    expect(appSource).toContain('먼저 필요한 약효 태그를 고르세요');
+    expect(appSource).toContain('role="group" aria-label={`${effectiveForageTargetTag} 채집 후보`}');
+    expect(appSource).toContain('right.bestCoverageCount - left.bestCoverageCount');
+    expect(appSource).toContain('left.breakdown.finalRarity - right.breakdown.finalRarity');
+    expect(appSource).toContain('const plannedValue = selectedForagePlans.reduce');
+    expect(appSource).toContain('aria-pressed={selected}');
+    expect(appSource).toContain('previous.filter(reagentId => reagentId !== row.reagent.id)');
+    expect(appSource).toContain("[...previous, row.reagent.id]");
+    expect(appSource).toContain('맨 앞 재료부터 한 번에 하나씩 판정합니다.');
+    expect(appSource).not.toContain('id="forage-target-reagent"');
+  });
+
+  it('keeps the physical-card entry path while naming the random action clearly', () => {
+    expect(appSource).toContain("'랜덤 뽑기'");
+    expect(appSource).toContain('오프라인에서 뽑은 카드 입력');
+  });
+
   it('only describes suit directions in the journey destination card control', () => {
     expect(appSource).toContain('showSuitDirections = false');
     expect(appSource).toContain("{showSuitDirections ? ' · 북쪽/위' : ''}");

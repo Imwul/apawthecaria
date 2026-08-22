@@ -3773,7 +3773,7 @@ const CardDrawSlot = ({
 
   // ─── COMPACT variant: original functional layout ───
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '104px 1fr', gap: '0.75rem', alignItems: 'start', width: '100%' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '112px 1fr', gap: '0.75rem', alignItems: 'start', width: '100%' }}>
       <div style={{ display: 'grid', gap: '0.4rem', justifyItems: 'stretch' }}>
         <button
           type="button"
@@ -3781,7 +3781,7 @@ const CardDrawSlot = ({
           disabled={disabled || isDrawing}
           title={card ? `${card.suit} ${cardDisplayValue(card.value)}` : '오프라인에서 뽑은 카드를 직접 입력합니다.'}
           style={{
-            width: '104px',
+            width: '112px',
             minHeight: '144px',
             border: card ? '1px solid #d8d1bf' : '2px dashed var(--glass-border)',
             borderRadius: '8px',
@@ -3803,16 +3803,16 @@ const CardDrawSlot = ({
           {card ? (
             <img src={getCardSvgUrl(card.suit, card.value)} alt={`${card.suit} ${cardDisplayValue(card.value)}`} style={{ width: '100%', height: 'auto', display: 'block' }} />
           ) : (
-            <span>빈 카드 칸<br />직접 선택</span>
+            <span style={{ display: 'grid', justifyItems: 'center', gap: '0.3rem' }}><span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.4rem' }}>🃏</span><span>카드 선택</span></span>
           )}
         </button>
         <button
           type="button"
           onClick={applyRandom}
           disabled={disabled || isDrawing}
-          style={{ height: '32px', padding: '0 0.55rem', background: 'var(--secondary)', color: '#fff', border: 'none', borderRadius: '5px', fontSize: '0.78rem', fontWeight: 'bold' }}
+          style={{ height: '40px', padding: '0 0.35rem', background: 'var(--secondary)', color: '#fff', border: 'none', borderRadius: '5px', fontSize: '0.76rem', fontWeight: 'bold', whiteSpace: 'nowrap' }}
         >
-          {isDrawing ? '뽑는 중...' : '랜덤 선택'}
+          {isDrawing ? '뽑는 중…' : '랜덤 뽑기'}
         </button>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
@@ -9341,7 +9341,8 @@ function PlayView({
   const [travelDrawCard, setTravelDrawCard] = useState<PlayingCard | null>(null);
 
   const [forageDrawCard, setForageDrawCard] = useState<PlayingCard | null>(null);
-  const [forageTargetReagentId, setForageTargetReagentId] = useState('');
+  const [forageTargetReagentIds, setForageTargetReagentIds] = useState<string[]>([]);
+  const [forageTargetTag, setForageTargetTag] = useState<RuleTag | ''>('');
   const [forageLocationType, setForageLocationType] = useState<'current' | 'adjacent'>('current');
   const [forageAdjacentRegion, setForageAdjacentRegion] = useState<string>('Forest');
   const effectiveForageAdjacentRegion = scroungeAdjacentRegions.includes(toRuleRegion(forageAdjacentRegion))
@@ -9361,6 +9362,13 @@ function PlayView({
           ?.ailments.find(row => row.id === state.activeAilment?.id)?.ailmentId)
       : null;
     const neededRequirements = ailment ? requirementTagThresholds(ailment.requirements) : [];
+    const requirementChoices = Array.from(
+      neededRequirements.reduce((choices, requirement) => {
+        const previous = choices.get(requirement.tag);
+        if (!previous || previous.threshold < requirement.threshold) choices.set(requirement.tag, requirement);
+        return choices;
+      }, new Map<RuleTag, { tag: RuleTag; threshold: number }>()).values()
+    );
     const previewRows = validRegion && actionAllowed ? REAGENTS.flatMap(reagent => {
       const matchingParts = reagent.preparations.filter(part =>
         isForagingPreparationAvailableInSeason(part, state.currentSeason)
@@ -9401,12 +9409,44 @@ function PlayView({
       toolIds.includes('fine-spidersilk-net') ? '곤충·작은 물고기 희귀도 -3 (스파이더실크 그물)' : '',
       modifiers.alwaysAvailableReagentIds.length > 0 ? '지정 영약재는 지역 제한 무시 (Resourceful)' : ''
     ].filter(Boolean);
-    return { region, previewRows, modifierLabels, actionAllowed };
+    return { region, previewRows, modifierLabels, actionAllowed, requirementChoices };
   }, [effectiveForageAdjacentRegion, forageLocationType, state]);
-  const effectiveForageTargetReagentId = forageContext.previewRows.some(row => row.reagent.id === forageTargetReagentId)
-    ? forageTargetReagentId
-    : '';
-  const selectedForagePlan = forageContext.previewRows.find(row => row.reagent.id === effectiveForageTargetReagentId) || null;
+  const effectiveForageTargetTag = forageContext.requirementChoices.some(requirement => requirement.tag === forageTargetTag)
+    ? forageTargetTag
+    : forageContext.requirementChoices[0]?.tag || '';
+  const forageCandidateRows = forageContext.previewRows
+    .map(row => {
+      const matchingParts = row.parts.filter(({ relevantTags }) =>
+        relevantTags.some(tag => tag.tag === effectiveForageTargetTag)
+      );
+      const readyParts = matchingParts.filter(part => part.missingTools.length === 0);
+      const rankedParts = readyParts.length > 0 ? readyParts : matchingParts;
+      return {
+        ...row,
+        matchingParts,
+        allMatchingPartsNeedTools: matchingParts.length > 0 && readyParts.length === 0,
+        bestCoverageCount: Math.max(0, ...rankedParts.map(part => new Set(part.relevantTags.map(tag => tag.tag)).size)),
+        targetStrength: Math.max(0, ...rankedParts.flatMap(part => part.relevantTags
+          .filter(tag => tag.tag === effectiveForageTargetTag)
+          .map(tag => tag.value)))
+      };
+    })
+    .filter(row => row.matchingParts.length > 0)
+    .sort((left, right) =>
+      right.bestCoverageCount - left.bestCoverageCount
+      || Number(left.allMatchingPartsNeedTools) - Number(right.allMatchingPartsNeedTools)
+      || left.breakdown.finalRarity - right.breakdown.finalRarity
+      || right.targetStrength - left.targetStrength
+      || left.reagent.canonicalName.localeCompare(right.reagent.canonicalName, 'en')
+    );
+  const effectiveForageTargetReagentIds = forageTargetReagentIds.filter(reagentId =>
+    forageCandidateRows.some(row => row.reagent.id === reagentId)
+  );
+  const effectiveForageTargetReagentId = effectiveForageTargetReagentIds[0] || '';
+  const selectedForagePlans = effectiveForageTargetReagentIds.flatMap(reagentId => {
+    const row = forageCandidateRows.find(candidate => candidate.reagent.id === reagentId);
+    return row ? [row] : [];
+  });
 
   const [barrowJournalNote, setBarrowJournalNote] = useState('');
   const [barrowSelectedItemIds, setBarrowSelectedItemIds] = useState<string[]>([]);
@@ -11214,7 +11254,7 @@ function PlayView({
         journals: [{
           id: `${transactionId}:journal`,
           title: `새 환자: ${patient.name}`,
-          text: `${patientImpressionLabel(patient.personality, patient.descriptor)}\n${activeRows.map(row => `${row.name} (${localizeSeverityLabel(row.severity)}, ${row.timer}시간)`).join('\n')}${diagnosisNotes.length > 0 ? `\n\n${diagnosisNotes.join('\n')}` : ''}`,
+          text: `첫인상: ${patientImpressionLabel(patient.personality, patient.descriptor)}\n병증: ${activeRows.map(row => `${row.name} (${localizeSeverityLabel(row.severity)}, ${row.timer}시간)`).join('\n')}${diagnosisNotes.length > 0 ? `\n\n${diagnosisNotes.join('\n')}` : ''}`,
           timestamp: Date.now()
         }, ...base.journals]
       }, diagnosisDrafts);
@@ -11257,7 +11297,7 @@ function PlayView({
           ? {
               ...journal,
               title: `새 환자: ${nextName}`,
-              text: [patientImpression, ...journal.text.split('\n').slice(1)].join('\n')
+              text: [`첫인상: ${patientImpression}`, ...journal.text.split('\n').slice(1)].join('\n')
             }
           : journal)
       };
@@ -11305,7 +11345,7 @@ function PlayView({
     targetReagentId?: string
   ) => {
     const region = (overrideRegion || state.currentRegion) as Exclude<TravelRegion, 'Soar'>;
-    const transactionId = `forage:${Date.now()}`;
+    const transactionId = createClientTransaction('forage').id;
     const locationRelation = overrideRegion ? 'adjacent' as const : 'current' as const;
     const result = resolveForaging({
       transactionId,
@@ -16320,49 +16360,99 @@ function PlayView({
                       <legend>1. 목표 영약재 조사</legend>
                       {forageContext.previewRows.length > 0 ? (
                         <>
-                          <label htmlFor="forage-target-reagent">
-                            <span>이 채집에서 찾을 재료</span>
-                            <select
-                              id="forage-target-reagent"
-                              value={effectiveForageTargetReagentId}
-                              onChange={event => {
-                                setForageTargetReagentId(event.target.value);
-                                setForageDrawCard(null);
-                              }}
-                            >
-                              <option value="">— 카드 뽑기 전에 하나를 고르세요 —</option>
-                              {forageContext.previewRows.map(row => (
-                                <option key={row.reagent.id} value={row.reagent.id}>
-                                  {formatReagentName(row.reagent)} · 희귀도 {row.breakdown.finalRarity} · 보유 {row.owned}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          {selectedForagePlan ? (
-                            <div className="forage-plan__selection" aria-live="polite">
-                              <div>
-                                <strong>{formatReagentName(selectedForagePlan.reagent)}</strong>
-                                <small>
-                                  기본 {selectedForagePlan.breakdown.baseRarity}
-                                  {selectedForagePlan.breakdown.regionModifier ? ` · 지역 +${selectedForagePlan.breakdown.regionModifier}` : ''}
-                                  {selectedForagePlan.breakdown.seasonModifier ? ` · 계절 +${selectedForagePlan.breakdown.seasonModifier}` : ''}
-                                  {selectedForagePlan.breakdown.toolModifiers.map(modifier => ` · 도구 ${modifier.amount}`).join('')}
-                                  {selectedForagePlan.breakdown.additionalModifier ? ` · 길동무·동료 ${selectedForagePlan.breakdown.additionalModifier}` : ''}
-                                  {selectedForagePlan.alwaysAvailable ? ' · 지역 제한 무시' : ''}
-                                  {' → '}희귀도 {selectedForagePlan.breakdown.finalRarity}
-                                </small>
-                                <button type="button" className="forage-reference-link" onClick={() => onOpenReference({ entryId: `ingredient:${selectedForagePlan.reagent.id}`, title: `${formatReagentName(selectedForagePlan.reagent)} 채집 기록` })}>도감·원문 보기</button>
-                              </div>
-                              <div className="forage-match-row__parts">
-                                {selectedForagePlan.parts.map(({ part, relevantTags, missingTools }) => (
-                                  <span key={part.id} className={missingTools.length > 0 ? 'is-unavailable' : ''}>
-                                    {localizePreparationName(part.name)} · {relevantTags.map(tag => `${tag.tag} ${tag.value}`).join(' · ')}
-                                    {missingTools.length > 0 ? ` · 도구 필요: ${missingTools.map(tool => localizeInventoryItemName(TOOL_BY_ID.get(tool)?.canonicalName || tool)).join(', ')}` : ''}
+                          <div className="forage-requirement-picker">
+                            <div className="forage-requirement-picker__heading">
+                              <strong>먼저 필요한 약효 태그를 고르세요</strong>
+                              <span>색이 흐려진 태그는 가방에서 충족했거나, 선택한 목표가 채집 성공 시 충족합니다.</span>
+                            </div>
+                            <div className="forage-tag-choices" aria-label="조사할 약효 태그">
+                              {forageContext.requirementChoices.map(requirement => {
+                                const ownedValue = treatmentOwnedPreview?.providedTags[requirement.tag] || 0;
+                                const plannedValue = selectedForagePlans.reduce((total, plan) => total + Math.max(0,
+                                  ...plan.matchingParts.flatMap(part => part.relevantTags
+                                    .filter(tag => tag.tag === requirement.tag)
+                                    .map(tag => tag.value))
+                                ), 0);
+                                const covered = ownedValue + plannedValue >= requirement.threshold;
+                                return (
+                                  <button
+                                    key={requirement.tag}
+                                    type="button"
+                                    className={`${effectiveForageTargetTag === requirement.tag ? 'is-active' : ''}${covered ? ' is-covered' : ''}`}
+                                    aria-pressed={effectiveForageTargetTag === requirement.tag}
+                                    onClick={() => {
+                                      setForageTargetTag(requirement.tag);
+                                      setForageTargetReagentIds([]);
+                                      setForageDrawCard(null);
+                                    }}
+                                  >
+                                    <strong>{requirement.tag} {requirement.threshold}</strong>
+                                    <small>{covered ? `가방 ${ownedValue} + 계획 ${plannedValue} · 충족` : plannedValue > 0 ? `가방 ${ownedValue} + 계획 ${plannedValue}` : '후보 보기'}</small>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <div className="forage-target-table" role="group" aria-label={`${effectiveForageTargetTag} 채집 후보`}>
+                            <div className="forage-target-table__head" aria-hidden="true">
+                              <span>재료·채집 부위</span>
+                              <span>치료 기여</span>
+                              <span>희귀도</span>
+                              <span>선택</span>
+                            </div>
+                            {forageCandidateRows.map((row, index) => {
+                              const selectedIndex = effectiveForageTargetReagentIds.indexOf(row.reagent.id);
+                              const selected = selectedIndex >= 0;
+                              const contributionTags = Array.from(new Set(row.matchingParts.flatMap(part =>
+                                part.relevantTags.map(tag => `${tag.tag} ${tag.value}`)
+                              )));
+                              return (
+                                <button
+                                  key={row.reagent.id}
+                                  type="button"
+                                  aria-pressed={selected}
+                                  className={`forage-target-row${selected ? ' is-selected' : ''}${index === 0 ? ' is-recommended' : ''}`}
+                                  onClick={() => {
+                                    setForageTargetReagentIds(previous => selected
+                                      ? previous.filter(reagentId => reagentId !== row.reagent.id)
+                                      : [...previous, row.reagent.id]);
+                                    setForageDrawCard(null);
+                                  }}
+                                >
+                                  <span className="forage-target-row__reagent">
+                                    <strong>{formatReagentName(row.reagent)}</strong>
+                                    <small>{Array.from(new Set(row.matchingParts.map(part => localizePreparationName(part.part.name)))).join(' · ')}</small>
+                                  </span>
+                                  <span className="forage-target-row__tags">
+                                    {contributionTags.map(tag => <em key={tag}>{tag}</em>)}
+                                    {row.bestCoverageCount > 1 && <small>한 부위로 요구 태그 {row.bestCoverageCount}개 기여</small>}
+                                  </span>
+                                  <span className="forage-target-row__rarity">
+                                    <strong>{row.breakdown.finalRarity}</strong>
+                                    <small>{row.allMatchingPartsNeedTools ? '준비 도구 필요' : '바로 채집 가능'}</small>
+                                  </span>
+                                  <span className="forage-target-row__choice">
+                                    {index === 0 && <em>우선 추천</em>}
+                                    <strong>{selected ? (selectedIndex === 0 ? '다음 채집' : `대기 ${selectedIndex + 1}`) : '고르기'}</strong>
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <p className="forage-plan__ranking-note">추천 순서: 한 부위가 더 많은 요구 태그에 기여함 → 준비 도구 보유 → 낮은 희귀도. 최종 목표는 플레이어가 확정합니다.</p>
+                          {selectedForagePlans.length > 0 ? (
+                            <div className="forage-plan__selection-summary" aria-live="polite">
+                              <span><strong>채집 목록 {selectedForagePlans.length}</strong> · 맨 앞 재료부터 한 번에 하나씩 판정합니다.</span>
+                              <div className="forage-plan__selection-list">
+                                {selectedForagePlans.map((plan, index) => (
+                                  <span key={plan.reagent.id}>
+                                    <strong>{index === 0 ? '다음' : `${index + 1}`}</strong> {formatReagentName(plan.reagent)} · 희귀도 {plan.breakdown.finalRarity}
                                   </span>
                                 ))}
                               </div>
+                              <button type="button" className="forage-reference-link" onClick={() => onOpenReference({ entryId: `ingredient:${selectedForagePlans[0].reagent.id}`, title: `${formatReagentName(selectedForagePlans[0].reagent)} 채집 기록` })}>다음 재료 도감·원문</button>
                             </div>
-                          ) : <p>룰북 p.30에 따라 현재 질환에 맞는 영약재를 먼저 조사해 목록에서 고르세요.</p>}
+                          ) : <p>표에서 이번 채집의 목표 재료를 고르세요. 선택한 행을 다시 누르면 해제됩니다.</p>}
                         </>
                       ) : (
                         <p>이 지역·계절에서 현재 질환의 약효와 맞는 채집 후보가 없습니다. 인접 지역을 바꾸거나 도감을 확인하세요.</p>
@@ -16384,7 +16474,7 @@ function PlayView({
                 </div>
 
                 {/* Foraging and Bartering buttons */}
-                <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', width: '100%' }}>
+                <div className="forage-action-row" style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', width: '100%' }}>
                   {(() => {
                     const currentForageAllowed = ['Wilds', 'Ruin', 'Barrow'].includes(state.currentLocationType);
                     const locationUnavailable = (forageLocationType === 'current' && !currentForageAllowed)
