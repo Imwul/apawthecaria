@@ -27,6 +27,17 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     ],
     support: 'implemented'
   },
+  'foraging-forest-5': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'record-beaver-dam',
+        label: '비버 댐 기록 — 현재 위치를 비버 댐으로 표시하고 지역을 호수로 바꿉니다. 겨울이 끝나면 댐이 무너져 다시 숲으로 돌아옵니다.',
+        effects: [manual('BEAVER_DAM_CYCLE', '현재 위치를 비버 댐·호수 지역으로 기록하고, 겨울이 끝난 뒤 숲 지역으로 복원될 후속 변화를 함께 저장합니다.')]
+      }
+    ],
+    support: 'manual-only'
+  },
   'travel-bog-m-winter': {
     title: 'On The Path',
     prompt: 'Thickblood mercenaries track a fugitive. Mind your business, help them, or hinder them.',
@@ -281,6 +292,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     support: 'manual-only'
   },
   'social-bog-winter-♣': {
+    mandatoryEffects: [],
     choices: [
       { id: 'wish-them-luck', label: 'Wish Them Luck — 행운을 빌고 지나갑니다.', effects: [] },
       { id: 'pitch-in-briefly', label: 'Pitch In — 잠시 도와 타이머를 1 줄이고 길드 명성 1을 얻습니다.', effects: [
@@ -294,7 +306,94 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     ],
     support: 'implemented'
   },
+  'social-bog-settlement-♦': {
+    mandatoryEffects: [],
+    choices: [
+      { id: 'time-capsule', label: '타임캡슐 — 이탄을 자르다 발견한 오래된 물건과 그것을 묻은 야수를 떠올립니다.', effects: [] },
+      { id: 'guild-offering', label: '길드의 봉헌물 — 미래 세대를 위한 매장 풍습을 생각하고, 가방에서 함께 묻을 물건이 있는지 정합니다.', effects: [] }
+    ],
+    support: 'implemented'
+  },
+  'social-bog-noonhill-♥': {
+    mandatoryEffects: [],
+    choices: [
+      { id: 'hivewarden', label: '벌집지기 — 거미실로 잠자리 떼를 이끄는 길드 야수가 어디로, 왜 가는지 떠올립니다.', effects: [] },
+      { id: 'noonmessenger', label: '정오 전령 — 잠자리들이 끄는 작은 전령이 나르는 가장 중요한 소포를 떠올립니다.', effects: [] },
+      { id: 'fleeing-thickblood', label: '도망치는 Thickblood — 말벌에게 쫓긴 용병이 어디로 피하는지 떠올립니다.', effects: [] }
+    ],
+    support: 'implemented'
+  },
+  'social-bog-noonhill-♦': {
+    mandatoryEffects: [],
+    choices: [
+      { id: 'smell-the-flowers', label: '꽃향기 맡기 — 꽃집 오두막에 멈춰 살아 있는 듯한 정원의 향을 즐깁니다.', effects: [] },
+      { id: 'keen-eye', label: '예리한 눈 — 들키지 않고 희귀도 6 이상의 식물 영약재 부위 하나를 얻습니다.', effects: [manual('FLORIST_KEEN_EYE', '희귀도 6 이상의 식물 영약재 부위 하나를 골라 가방에 넣습니다.')] },
+      { id: 'connoisseur-of-scents', label: '향기 감정가 — Titan Musk Scrapings를 건네고, 가방 한도까지 원하는 희귀도의 식물 영약재 부위로 교환합니다.', effects: [manual('FLORIST_MUSK_TRADE', 'Titan Musk Scrapings를 제거하고 가방 한도 안에서 원하는 식물 영약재 부위를 고릅니다.')] }
+    ],
+    support: 'manual-only'
+  },
+  'social-forest-settlement-♦': {
+    mandatoryEffects: [],
+    choices: [
+      { id: 'swinging', label: '흔들리는 다리 — 다리를 흔드는 어린 야수와 주변의 반응을 떠올립니다.', effects: [] },
+      { id: 'new-paths', label: '새로운 길 — 폭풍에 끊어진 다리를 보며 이곳의 다리가 얼마나 자주 끊기고 주민들이 어떻게 받아들이는지 떠올립니다.', effects: [] }
+    ],
+    support: 'implemented'
+  },
+  'social-forest-odoak-♥': {
+    mandatoryEffects: [],
+    choices: [
+      { id: 'a-quick-cure', label: '빠른 처치 — INFECTION, BURN, PAIN 영약재를 제공하고 효능 1마다 장신구 1개를 받습니다.', effects: [manual('OREBEATER_QUICK_CURE', '제공할 INFECTION, BURN, PAIN 영약재를 제거하고 효능 합계만큼 장신구를 받습니다.')] },
+      { id: 'work-in-progress', label: '작업 중 — 복잡한 작업을 잠시 쉬는 광석장이와 어떤 소식을 나눌지 떠올립니다.', effects: [] }
+    ],
+    support: 'manual-only'
+  },
+  'social-loch-newdam-♦': {
+    mandatoryEffects: [],
+    choices: [
+      { id: 'regrowth', label: '다시 심기 — 묘목 하나를 개간지까지 옮기려면 비버가 몇 마리 필요한지 떠올립니다.', effects: [] },
+      { id: 'mother-o-fruits', label: '열매의 어머니 — 지금 열린 열매를 정하고, FAIR 2/3에 그대로 쓰거나 요리할 수 있는 Fruit 하나를 가방에 넣습니다.', effects: [manual('NEWDAM_FRUIT', 'Fruit 1개(무게 및 사용 정보는 인쇄 지시에 따름)를 가방에 기록합니다.')] }
+    ],
+    support: 'manual-only'
+  },
+  'social-meadow-settlement-♦': {
+    mandatoryEffects: [],
+    choices: [
+      { id: 'weave-a-trinket', label: '만드는 중 · 장신구 엮기 — 장신구 1개를 기념물에 엮고 길드 명성 1을 얻습니다.', effects: [
+        { support: 'implemented', effect: { type: 'modifyTrinkets', amount: -1 } },
+        { support: 'implemented', effect: { type: 'modifyReputation', amount: 1 } }
+      ] },
+      { id: 'leave-the-monument', label: '만드는 중 · 지켜보기 — 장신구를 엮지 않고 작업 중인 기념물을 바라봅니다.', effects: [] },
+      { id: 'a-curious-marking', label: '수상한 표식 — 오래된 표식의 재료와 원래 용도를 떠올립니다.', effects: [] }
+    ],
+    support: 'implemented'
+  },
+  'social-meadow-summit-♦': {
+    mandatoryEffects: [],
+    choices: [
+      { id: 'sorry', label: '미안해요! — 붐비는 길에서 발을 밟거나 밀친 뒤 서로 어떻게 반응하는지 떠올립니다.', effects: [] },
+      { id: 'pocketpaws', label: '소매치기 — 열린 가방에서 무언가 사라졌습니다. 장신구 1개를 잃고, 도난이라고 생각하는지 떠올립니다.', effects: [{ support: 'implemented', effect: { type: 'modifyTrinkets', amount: -1 } }] }
+    ],
+    support: 'implemented'
+  },
+  'social-mountain-settlement-♦': {
+    mandatoryEffects: [],
+    choices: [
+      { id: 'ease-of-access', label: '딱 맞는 통로 — 자신의 몸과 이동 방식에 꼭 맞게 지은 공간에서 어떤 기분이 드는지 떠올립니다.', effects: [] },
+      { id: 'unaccommodating-spaces', label: '지날 수 없는 공간 — 길을 막은 높이·너비·이동 방식의 문제와 그때의 감정을 떠올립니다.', effects: [] }
+    ],
+    support: 'implemented'
+  },
+  'social-mountain-spoolkeep-♦': {
+    mandatoryEffects: [],
+    choices: [
+      { id: 'bleated-wisdom', label: '염소의 지혜 — 갓 털을 깎고 안마받는 거대한 염소가 어떤 조언을 건네는지 떠올립니다.', effects: [] },
+      { id: 'woolworks', label: '양털 작업장 — 염소 털을 씻는 일을 돕고 Behemoth Bits 하나를 가방에 넣습니다.', effects: [manual('SPOOLKEEP_BEHEMOTH_BITS', 'Behemoth Bits 하나를 가방에 기록합니다.')] }
+    ],
+    support: 'manual-only'
+  },
   'social-loch-vessel-♦': {
+    mandatoryEffects: [],
     choices: [
       { id: 'lockdown', label: 'Lockdown — BREATH 영약재 부위 1개를 기부하고 길드 명성 1을 얻습니다.', effects: [manual('VESSEL_LOCKDOWN_DONATION', 'BREATH 영약재 부위 1개를 가방에서 제거하고 길드 명성 +1을 적용합니다.')] },
       { id: 'homecooked-meal', label: 'Homecooked Meal — 장신구 1개를 식사와 바꾸고 다음 Move의 속도를 두 배로 합니다.', effects: [

@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import type { ManualEffectDraft } from '../rules';
 import {
+  localizeEncounterTitle,
   localizeManualEffectLine,
   localizeManualEffectOption,
   localizeManualEffectText,
@@ -30,6 +31,11 @@ export default function ManualEffectPanel({
   const requiredComplete = draft.inputFields.every(field => !field.required || draft.inputValues[field.id] === true || String(draft.inputValues[field.id] ?? '').trim().length > 0);
   const selectedActions = draft.actionTemplates.filter(action => draft.selectedActionIds.includes(action.id));
   const localizedPrintedText = localizeManualEffectText(draft.summary, draft.printedText);
+  const localizedSummary = draft.ownerType === 'encounter'
+    ? localizeEncounterTitle(draft.summary)
+    : localizeManualEffectValue(draft.summary);
+  const localizedResolutionInstruction = localizeManualEffectValue(draft.resolutionInstruction)
+    .replaceAll(draft.summary, localizedSummary);
   const hasLocalizedPrintedText = localizedPrintedText !== draft.printedText;
   const actionTargetsComplete = selectedActions.every(action =>
     action.targetType !== 'inventory-item'
@@ -38,12 +44,12 @@ export default function ManualEffectPanel({
       ? true
       : Boolean(draft.actionTargets[action.id]?.trim())
   );
-  const canResolve = requiredComplete && actionTargetsComplete && draft.resultSummary.trim().length > 0 && draft.journalNote.trim().length > 0;
+  const canResolve = requiredComplete && actionTargetsComplete && draft.resultSummary.trim().length > 0;
 
   return <section className="manual-effect" aria-labelledby="manual-effect-title">
     <header>
       <span className="status-label status-label--manual">직접 처리 필요</span>
-      <h2 id="manual-effect-title">{draft.summary}</h2>
+      <h2 id="manual-effect-title">{localizedSummary}</h2>
       <p>{draft.ruleIds.join(' · ')} · 원문 p.{draft.sourcePage} · {localizeManualEffectTrigger(draft.trigger)}</p>
     </header>
 
@@ -55,7 +61,7 @@ export default function ManualEffectPanel({
     <Suspense fallback={<p className="manual-effect__context-loading">원문 맥락을 준비하는 중...</p>}>
       <RulebookSourceContext ownerId={draft.ownerId} page={draft.sourcePage} />
     </Suspense>
-    <div className="manual-effect__resolve"><h3>해야 할 일</h3><p>{localizeManualEffectValue(draft.resolutionInstruction)}</p></div>
+    <div className="manual-effect__resolve"><h3>해야 할 일</h3><p>{localizedResolutionInstruction}</p></div>
     {draft.mandatoryConditions.length > 0 && <div><h3>확인할 조건</h3><ul>{draft.mandatoryConditions.map((row, index) => <li key={`${index}:${row}`}>{localizeManualEffectLine(row)}</li>)}</ul></div>}
 
     <div className="manual-effect__fields">
@@ -83,7 +89,7 @@ export default function ManualEffectPanel({
 
     {draft.followUpRequirements.length > 0 && <div className="manual-effect__follow-up"><h3>후속 판정</h3><ul>{draft.followUpRequirements.map((row, index) => <li key={`${index}:${row}`}>{localizeManualEffectLine(row)}</li>)}</ul><p>지금 완료 내용을 입력하지 않으면 별도의 미해결 후속 판정으로 저장됩니다.</p></div>}
     <label><span>판정 결과 요약 *</span><textarea value={draft.resultSummary} onChange={event => update({ resultSummary: event.target.value })} rows={3} /></label>
-    <label><span>저널 기록 *</span><textarea value={draft.journalNote} onChange={event => update({ journalNote: event.target.value })} rows={4} /></label>
+    <label><span>저널 기록 <small>선택 · 비우면 판정 결과 요약을 그대로 기록합니다</small></span><textarea value={draft.journalNote} onChange={event => update({ journalNote: event.target.value })} rows={4} /></label>
     <label><span>예외 처리 사유</span><textarea value={draft.overrideReason} onChange={event => update({ overrideReason: event.target.value })} rows={2} placeholder="원문과 다른 처리를 선택할 때만 작성" /></label>
     <div className="manual-effect__actions"><button type="button" onClick={onDefer}>나중에 처리</button><button type="button" className="btn-cozy-primary" disabled={!canResolve} onClick={() => onResolve(false)}>미리보기대로 적용</button><button type="button" className="btn-cozy-danger" disabled={!canResolve || !draft.overrideReason.trim()} onClick={() => onResolve(true)}>예외로 기록</button></div>
   </section>;

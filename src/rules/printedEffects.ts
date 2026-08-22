@@ -137,6 +137,7 @@ const encounterOwnerName = (value: string): string => {
 };
 
 const extractPrintedChoices = (text: string, explicit: string[]): string[] => {
+  if (explicit.length > 0) return unique(explicit).slice(0, 12);
   const normalized = compactText(text);
   const headings = [...normalized.matchAll(/(?:^|[.!?]\s+)([A-Z][A-Za-z0-9 '&’]{1,48})\s+-\s+/g)]
     .map(match => match[1].trim())
@@ -304,7 +305,7 @@ const encounterDefaults: PrintedEffectDefinition[] = ENCOUNTERS.map(encounter =>
     triggerText: { encounter: compactText(encounter.prompt) },
     prerequisites,
     mandatoryEffects: [],
-    optionalChoices: encounter.support === 'implemented'
+    optionalChoices: (encounter.support === 'implemented' || encounter.choices.some(choice => /[가-힣]/.test(choice.label)))
       ? encounter.choices.filter(choice => choice.id !== 'continue').map(choice => ({ id: choice.id, label: choice.label, effects: [] }))
       : [],
     resourceChanges: [], timerChanges: [], inventoryChanges: [], movementChanges: [], mapChanges: [], reputationChanges: [],
@@ -315,7 +316,7 @@ const encounterDefaults: PrintedEffectDefinition[] = ENCOUNTERS.map(encounter =>
       ownerName,
       text: encounter.prompt,
       prerequisites,
-      explicitChoices: []
+      explicitChoices: encounter.choices.filter(choice => choice.id !== 'continue').map(choice => choice.label)
     }),
     manualResolutionByTrigger: {},
     ruleIds: [encounter.encounterType === 'travel' ? 'TRAVEL-009' : encounter.encounterType === 'foraging' ? 'FORAGE-006' : 'TABLE-004', 'CORE-002'],

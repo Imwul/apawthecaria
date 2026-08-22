@@ -59,6 +59,7 @@ describe('printed effect Korean reading layer', () => {
     expect(localizeManualEffectLine('Season: Spring')).toBe('계절: 봄');
     expect(localizeManualJournalTitle('판정 대기: Memories A pleasant wind blows through the trees')).toBe('판정 대기: 추억');
     expect(localizeManualJournalTitle('여정 조우: Cul tivation')).toBe('여정 조우: 가지 가꾸기');
+    expect(localizeManualJournalTitle('직접 판정: Dam Lotta Trouble')).toBe('직접 판정: 댐 때문에 골치 아파');
     expect(localizeManualJournalText('[p.79] . You feel your thoughts drift back, reflecting on your past. What moment do you recall?\n\n전용 직접 판정에서 선택과 상태 변화를 완료해야 합니다.')).toContain('어떤 순간이 생각나나요?');
     expect(localizeManualJournalText("[p.196] . Caretakers of any hometree know that now is the time to set plans for the coming year, binding branches into new roads, and pruning their trees to provide additional shelter from the elements. New Plans - Several important looking beasts are crowded around a set of sketched plans pinned to their hometree's bark. What are they building?"))
       .toContain('내년에 대한 계획을 세우고');
@@ -168,6 +169,19 @@ describe('printed effect Korean reading layer', () => {
     expect(translated).toContain('선착장을 지나던 중');
     expect(translated).toContain('오늘은 무엇을 잡았을까요?');
     expect(translated).not.toMatch(/반이동식|안전한 항구|Lochs|로크스|\b198\b/);
+  });
+
+  it('keeps every adjacent social overview out of the encounter popup', () => {
+    const contaminatedTitles = ['Preserved', 'Airborne', 'Florist', 'Bridges', 'Orebeater Forges', 'Fresh Catch', 'Nursery', 'Exterior', 'Monuments', 'Junction', 'Getting Around', 'Thinkers'];
+    const rendered = ENCOUNTERS
+      .filter(encounter => contaminatedTitles.some(title => encounter.title.startsWith(title)))
+      .flatMap(encounter => [
+        localizeEncounterDisplayText(encounter.title, encounter.prompt),
+        ...encounter.choices.map(choice => localizeManualEffectOption(choice.label))
+      ])
+      .join('\n');
+
+    expect(rendered).not.toMatch(/늪지 정착지를 찾을 수 있습니다|숲 정착지는 토착|고대 Titan 채석장에 건설된 이 도시|산간 정착지의 건축물|한마디로 Spoolkeep|Bogs|Forests|Lochs|Meadows|Mountains/);
   });
 
   it('describes card-value inventory counting without the landing mistranslation', () => {

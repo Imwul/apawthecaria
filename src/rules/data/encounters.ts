@@ -22,6 +22,36 @@ const compactTitle = (value: string): string => value.toLowerCase().replace(/[^a
 const titleMatches = (row: Pick<LegacyEncounter, 'title'>, expected: string): boolean =>
   compactTitle(row.title).startsWith(compactTitle(expected));
 
+// Several social-reference pages use two columns. The legacy PDF extraction
+// appended the adjacent Region/City overview to the final encounter branch.
+// Keep the original prompt for translation compatibility, but never let the
+// adjacent column become a selectable result.
+const SOCIAL_PROMPT_END_MARKERS: Record<string, string> = {
+  Preserved: 'Do you bury anything from your Bags?',
+  Airborne: 'Where do they run to for shelter?',
+  Florist: 'of any Rarity.',
+  Bridges: 'How do the locals feel about it?',
+  'Orebeater Forges': 'What news do you share?',
+  'Fresh Catch': 'Do any of the Fishfinders below merit a second glance?',
+  Nursery: 'It can be USED/COOKED for [FAIR 2/3].',
+  Exterior: 'Have the rules updated since last time?',
+  Monuments: 'Or something more mundane?',
+  Junction: 'If so, why?',
+  'Getting Around': 'How do you feel about this?',
+  Thinkers: 'you can add Behemoth Bits to your Bags.'
+};
+
+export const socialEncounterPlayerText = (encounter: EncounterDefinition): string => {
+  let source = encounter.prompt.trim();
+  const marker = Object.entries(SOCIAL_PROMPT_END_MARKERS)
+    .find(([title]) => compactTitle(encounter.title).startsWith(compactTitle(title)))?.[1];
+  if (marker) {
+    const end = source.indexOf(marker);
+    if (end >= 0) source = source.slice(0, end + marker.length);
+  }
+  return source.replace(/\s+\d{3}\s*$/, '').trim();
+};
+
 // Printed seasonal icons are not consistently ordered in the source tables.
 // These are explicit transcriptions of the icons, not inferred rules.
 const TRAVEL_SEASONAL_TITLES: Partial<Record<TravelRegion, Partial<Record<string, Partial<Record<Season, string>>>>>> = {
@@ -175,7 +205,7 @@ export const TRAVEL_ENCOUNTERS: EncounterDefinition[] = [
   ...buildTravelRegion('Mountain', 90, 93),
   ...buildTravelRegion('Soar', 94, 97),
   ...buildTitanTravel()
-].map(applyPrintedEncounterOverride).map(enrichEncounterChoices);
+].map(applyPrintedEncounterOverride).map(encounter => enrichEncounterChoices(encounter));
 
 const FORAGING_ACE_ROWS: Record<Exclude<Region, 'Titan'>, { page: number; title: string; prompt: string }> = {
   Bog: {
@@ -316,7 +346,7 @@ export const FORAGING_ENCOUNTERS: EncounterDefinition[] = [
   ...buildForagingRegion('Meadow', 172, 177),
   ...buildForagingRegion('Mountain', 178, 183),
   ...buildTitanForaging()
-].map(applyPrintedEncounterOverride).map(enrichEncounterChoices);
+].map(applyPrintedEncounterOverride).map(encounter => enrichEncounterChoices(encounter));
 
 const socialGroup = (region: Region, firstPage: number, lastPage: number, genericPage: number, cities: Record<number, string>): EncounterDefinition[] => {
   const rows = pageRows(socialLegacy, firstPage, lastPage);
@@ -383,7 +413,7 @@ export const SOCIAL_ENCOUNTERS: EncounterDefinition[] = [
     ...canonicalMetadata(213),
     support: 'manual-only' as const
   }))
-].map(applyPrintedEncounterOverride).map(enrichEncounterChoices);
+].map(applyPrintedEncounterOverride).map(encounter => enrichEncounterChoices(encounter, socialEncounterPlayerText(encounter)));
 
 /** p.162 persistent replacement for a future Monarch near Bear's Necessities. */
 export const BEAR_SCURRY_ENCOUNTER: EncounterDefinition = {

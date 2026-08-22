@@ -223,6 +223,7 @@ import {
   previewMoveStops,
   listLegalMoveStops,
   resolveTreatmentTransaction,
+  ENCOUNTERS,
   findEncounter,
   getRuleCardLabel,
   getRuleCardValue,
@@ -2538,6 +2539,47 @@ const createPrintedManualDraft = (
   return createManualEffectDraft(effect, trigger, context, createdAt);
 };
 
+const refreshManualDraftFromRegistry = (draft: ManualEffectDraft | null): ManualEffectDraft | null => {
+  if (!draft || draft.transactionId || draft.ownerType === 'legacy' || draft.ownerType === 'service') return draft;
+  const effect = PRINTED_EFFECT_BY_OWNER.get(draft.ownerId);
+  // A former manual row may become fully executable after a rule correction.
+  // Its saved draft is then only a duplicate blocker: the encounter transaction
+  // has already applied the deterministic branch before queuing the old residue.
+  if (effect?.status === 'implemented' && !effect.manualResolution) return null;
+  if (draft.trigger === 'service-follow-up' || !effect?.manualResolution || !effect.supportedTriggers.includes(draft.trigger)) return draft;
+  const trigger = draft.trigger as Parameters<typeof createManualEffectDraft>[1];
+  const canonical = createManualEffectDraft(effect, trigger, draft.context, draft.createdAt);
+  const validInputFields = new Map(canonical.inputFields.map(field => [field.id, field]));
+  const inputValues = Object.fromEntries(Object.entries(draft.inputValues).filter(([fieldId, value]) => {
+    const field = validInputFields.get(fieldId);
+    if (!field) return false;
+    return field.type !== 'choice' || !value || (field.options || []).includes(String(value));
+  }));
+  const actionIds = new Set(canonical.actionTemplates.map(action => action.id));
+  return {
+    ...draft,
+    ruleId: canonical.ruleId,
+    ruleIds: canonical.ruleIds,
+    sourcePage: canonical.sourcePage,
+    summary: canonical.summary,
+    registryEffectId: canonical.registryEffectId,
+    ownerId: canonical.ownerId,
+    ownerType: canonical.ownerType,
+    trigger: canonical.trigger,
+    printedText: canonical.printedText,
+    resolutionInstruction: canonical.resolutionInstruction,
+    mandatoryConditions: canonical.mandatoryConditions,
+    choices: canonical.choices,
+    canonicalActions: canonical.canonicalActions,
+    inputFields: canonical.inputFields,
+    inputValues,
+    actionTemplates: canonical.actionTemplates,
+    selectedActionIds: draft.selectedActionIds.filter(id => actionIds.has(id)),
+    actionTargets: Object.fromEntries(Object.entries(draft.actionTargets).filter(([id]) => actionIds.has(id))),
+    followUpRequirements: canonical.followUpRequirements
+  };
+};
+
 const encounterChoiceSlug = (value: string): string => value
   .toLowerCase()
   .replace(/[^a-z0-9]+/g, '-')
@@ -4181,10 +4223,10 @@ const migrateState = (s: any): GameState => {
     ailmentTagOverrides: s.ailmentTagOverrides || [],
     trinketRecords: s.trinketRecords || [],
     legacyTrinketCount: Number.isInteger(s.legacyTrinketCount) ? s.legacyTrinketCount : 0,
-    pendingManualEffect: normalizeLegacyManualEffectDraft(s.pendingManualEffect),
+    pendingManualEffect: refreshManualDraftFromRegistry(normalizeLegacyManualEffectDraft(s.pendingManualEffect)),
     treatmentDraft: s.treatmentDraft || null,
-    manualEffectDraft: normalizeLegacyManualEffectDraft(s.manualEffectDraft),
-    manualEffectQueue: Array.isArray(s.manualEffectQueue) ? s.manualEffectQueue.map((row: unknown) => normalizeLegacyManualEffectDraft(row)).filter((row: ManualEffectDraft | null): row is ManualEffectDraft => Boolean(row)) : [],
+    manualEffectDraft: refreshManualDraftFromRegistry(normalizeLegacyManualEffectDraft(s.manualEffectDraft)),
+    manualEffectQueue: Array.isArray(s.manualEffectQueue) ? s.manualEffectQueue.map((row: unknown) => refreshManualDraftFromRegistry(normalizeLegacyManualEffectDraft(row))).filter((row: ManualEffectDraft | null): row is ManualEffectDraft => Boolean(row)) : [],
     manualEffectRecords: Array.isArray(s.manualEffectRecords) ? s.manualEffectRecords : [],
     pendingManualFollowUps: Array.isArray(s.pendingManualFollowUps) ? s.pendingManualFollowUps : [],
     manualConditions: Array.isArray(s.manualConditions) ? s.manualConditions.map(String) : [],
@@ -4764,6 +4806,7 @@ export default function App() {
   const state = storedState ? withCanonicalPatientView(storedState) : null;
   const campaignReadyForOfficialMap = Boolean(state);
   const [loading, setLoading] = useState(true);
+  const [cloudBootstrapComplete, setCloudBootstrapComplete] = useState(() => !auth);
   const [activeTab, setActiveTab] = useState<JournalTab>(() => journalTabFromHash(window.location.hash));
   const activeTabRef = useRef<JournalTab>(activeTab);
   const tabScrollPositions = useRef<Partial<Record<JournalTab, number>>>({});
@@ -4781,6 +4824,9 @@ export default function App() {
   const resolvingTravelEncounterRef = useRef(false);
   const [deferredEncounterId, setDeferredEncounterId] = useState<string | null>(null);
   const [activeForageEncounter, setActiveForageEncounter] = useState<any | null>(null);
+  const [deferredForageEncounterId, setDeferredForageEncounterId] = useState<string | null>(null);
+  const [resolvingForageEncounter, setResolvingForageEncounter] = useState(false);
+  const resolvingForageEncounterRef = useRef(false);
   const [controlledPrompt, setControlledPrompt] = useState<ControlledPromptRequest | null>(null);
   const [controlledPromptValue, setControlledPromptValue] = useState('');
   const [controlledPromptResolver, setControlledPromptResolver] = useState<((value: string | null) => void) | null>(null);
@@ -4920,10 +4966,12 @@ export default function App() {
   useEffect(() => {
     if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      setCloudBootstrapComplete(false);
       setUser(u);
       if (!u) {
         setPendingCloudSaveCount(0);
         setCloudSyncStatus('local-only');
+        setCloudBootstrapComplete(true);
         return;
       }
       try {
@@ -5047,6 +5095,8 @@ export default function App() {
       } catch (err) {
         console.error("Failed to check cloud save during login:", err);
         showAlert(cloudWriteErrorMessage(err as { code?: string; message?: string }));
+      } finally {
+        setCloudBootstrapComplete(true);
       }
     });
     return unsubscribe;
@@ -5112,7 +5162,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (loading || !state || initialSetupRouted.current) return;
+    if (loading || !cloudBootstrapComplete || !state || initialSetupRouted.current) return;
     initialSetupRouted.current = true;
     if (state.bio.name.trim()) return;
     queueMicrotask(() => {
@@ -5121,26 +5171,31 @@ export default function App() {
       setActiveTab('bio');
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     });
-  }, [loading, state]);
+  }, [cloudBootstrapComplete, loading, state]);
 
   useEffect(() => {
     if (!state?.pendingEncounter || activeTravelEncounter || deferredEncounterId === state.pendingEncounter.transactionId) return;
     const pending = state.pendingEncounter;
+    // Pending saves embed the encounter definition for offline recovery. Prefer
+    // the current canonical row by ID so transcription fixes also repair an
+    // already-open encounter instead of leaving the player stranded on stale UI.
+    const encounter = ENCOUNTERS.find(row => row.id === pending.encounterId) || pending.encounter;
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
       setActiveTravelEncounter({
-        ...pending.encounter,
-        page: pending.encounter.sourcePage,
-        text: `${pending.ignoreNegativeEncounterEffects ? '[보호 적용] 이 조우의 모든 부정적 결과를 적용하지 않습니다.\n\n' : ''}${pending.encounter.prompt}`,
+        ...encounter,
+        page: encounter.sourcePage,
+        text: `${pending.ignoreNegativeEncounterEffects ? '[보호 적용] 이 조우의 모든 부정적 결과를 적용하지 않습니다.\n\n' : ''}${encounter.prompt}`,
         cardValue: cardDisplayValue(pending.card.value),
         suit: pending.card.suit || '♥',
         suitLabel: suitLabels[pending.card.suit || '♥'] || pending.card.suit || '',
-        region: pending.encounter.region,
+        region: encounter.region,
         locName: state.currentLocationName,
         transactionId: pending.transactionId,
         selectedChoiceId: pending.selectedChoiceId,
         journalNote: pending.journalNote || '',
+        journalAcknowledged: Boolean(pending.journalAcknowledged),
         secondaryCard: pending.secondaryCard || null
       });
     });
@@ -5148,7 +5203,7 @@ export default function App() {
   }, [state?.pendingEncounter, state?.currentLocationName, activeTravelEncounter, deferredEncounterId]);
 
   useEffect(() => {
-    if (!state?.pendingForaging || activeForageEncounter) return;
+    if (!state?.pendingForaging || activeForageEncounter || deferredForageEncounterId === state.pendingForaging.transactionId) return;
     const pending = state.pendingForaging;
     const restoredGatheredItems = state.bag.filter(item =>
       item.type === 'reagent' && item.provenance?.sourceTransactionId === pending.transactionId
@@ -5203,12 +5258,14 @@ export default function App() {
             ? `저장된 채집 결과를 복원했습니다. ${gatheredReagentSummary(restoredGatheredItems, state.bag)}`
             : `저장된 실패 판정을 복원했습니다. 현재 채집 포인트 ${state.activeAilment?.foragingPoints || 0}점입니다.`
           : '',
+        journalNote: pending.journalNote || '',
+        journalAcknowledged: Boolean(pending.journalAcknowledged),
         transactionId: pending.transactionId,
         secondaryCard: pending.secondaryCard || null
       });
     });
     return () => { cancelled = true; };
-  }, [state, activeForageEncounter]);
+  }, [state, activeForageEncounter, deferredForageEncounterId]);
 
   // Auto-save wrapper
   const updateState = (updater: (prev: GameState) => GameState) => {
@@ -5912,7 +5969,7 @@ export default function App() {
     }
   };
 
-  if (loading || !state) {
+  if (loading || !cloudBootstrapComplete || !state) {
     if (saveLoadError) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '1rem', background: 'var(--bg-gradient)', color: 'var(--text-bright)', padding: '1.5rem', textAlign: 'center' }}>
@@ -5949,7 +6006,9 @@ export default function App() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '1.2rem', background: 'var(--bg-gradient)', color: 'var(--text-bright)' }}>
         <h2 style={{ letterSpacing: 0, color: 'var(--text-bright)' }}>Apawthecaria 들녘 일지</h2>
-        <p style={{ color: 'var(--text-muted)' }}>여행 약제사의 기록장을 여는 중...</p>
+        <p style={{ color: 'var(--text-muted)' }}>
+          {loading ? '기기에 저장된 기록을 확인하는 중...' : '로그인한 계정의 클라우드 기록을 확인하는 중...'}
+        </p>
       </div>
     );
   }
@@ -6609,7 +6668,8 @@ export default function App() {
       setActiveTravelEncounter(null);
       return;
     }
-    if (encounterNeedsPlayerChoice(pending.encounter, activeTravelEncounter?.selectedChoiceId || pending.selectedChoiceId)) {
+    const encounter = ENCOUNTERS.find(row => row.id === pending.encounterId) || pending.encounter;
+    if (encounterNeedsPlayerChoice(encounter, activeTravelEncounter?.selectedChoiceId || pending.selectedChoiceId)) {
       showAlert('인쇄된 선택지 중 하나를 고른 뒤 판정을 계속하세요.');
       return;
     }
@@ -6617,15 +6677,21 @@ export default function App() {
     // The uncontrolled textarea is read at submit time, so typing does not
     // rewrite the entire campaign state and a saved note can still be cleared.
     const resolvedJournalNote = note.trim();
+    const journalRequired = encounterChoiceRequiresJournal(encounter, selectedChoiceId);
+    const journalAcknowledged = Boolean(resolvedJournalNote || activeTravelEncounter?.journalAcknowledged || pending.journalAcknowledged);
+    if (journalRequired && !journalAcknowledged) {
+      showAlert('이 결과는 일지 프롬프트가 있습니다. 메모를 남기거나, 말·그림으로 장면을 떠올렸다고 확인한 뒤 계속하세요.');
+      return;
+    }
     const secondaryCard = activeTravelEncounter?.secondaryCard || pending.secondaryCard || null;
-    if ((encounterChoiceRequiresSecondaryCard(pending.encounter, selectedChoiceId)
-      || pending.encounter.id === 'travel-forest-a-2') && !secondaryCard) {
+    if ((encounterChoiceRequiresSecondaryCard(encounter, selectedChoiceId)
+      || encounter.id === 'travel-forest-a-2') && !secondaryCard) {
       showAlert('선택한 조우 분기의 추가 카드를 먼저 뽑아 주세요. 뽑은 카드는 저장 후에도 유지됩니다.');
       return;
     }
     let inBloomReward: EngineInventoryItem | null = null;
     let inBloomNote = '';
-    if (pending.encounter.id === 'travel-forest-a-2' && secondaryCard) {
+    if (encounter.id === 'travel-forest-a-2' && secondaryCard) {
       const toolIds = canonicalToolsFromState(state)
         .filter(tool => !tool.broken && !tool.consumed)
         .map(tool => tool.toolId);
@@ -6678,10 +6744,10 @@ export default function App() {
     const activePatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
     const result = resolveEncounter({
       transactionId: pending.transactionId,
-      encounter: pending.encounter,
-      choiceId: defaultEncounterChoiceId(pending.encounter, activeTravelEncounter?.selectedChoiceId || pending.selectedChoiceId),
+      encounter,
+      choiceId: defaultEncounterChoiceId(encounter, activeTravelEncounter?.selectedChoiceId || pending.selectedChoiceId),
       journalNote: resolvedJournalNote,
-      journalAcknowledged: true,
+      journalAcknowledged,
       state: {
         reputation: state.reputation,
         trinkets: state.trinkets.length,
@@ -6704,7 +6770,7 @@ export default function App() {
       ? { ...outcome.nextState, inventory: [...outcome.nextState.inventory, inBloomReward] }
       : outcome.nextState;
     let manualDraft = outcome.unresolvedEffects.length > 0
-      ? createPrintedManualDraft(pending.encounter.id, 'encounter', {
+      ? createPrintedManualDraft(encounter.id, 'encounter', {
         encounterTransactionId: pending.transactionId,
         locationId: resolveCurrentMapLocationKey(state),
         patientId: activePatient?.id,
@@ -6713,11 +6779,11 @@ export default function App() {
       : null;
     if (manualDraft) manualDraft = prefillManualDraftFromEncounterChoice(
       manualDraft,
-      pending.encounter,
+      encounter,
       selectedChoiceId,
       pending.secondaryCard || activeTravelEncounter?.secondaryCard || null
     );
-    const printedEffect = PRINTED_EFFECT_BY_OWNER.get(pending.encounter.id);
+    const printedEffect = PRINTED_EFFECT_BY_OWNER.get(encounter.id);
     if (manualDraft && resolvedJournalNote) manualDraft = { ...manualDraft, resultSummary: resolvedJournalNote, journalNote: resolvedJournalNote };
     if ((pending.encounterProtection || pending.ignoreNegativeEncounterEffects) && manualDraft) manualDraft = {
       ...manualDraft,
@@ -6735,8 +6801,8 @@ export default function App() {
     const receiptSummary = resolutionSummary.length > 0
       ? resolutionSummary.join(' · ')
       : '추가로 바뀐 수치 없이 장면을 기록했습니다.';
-    const selectedOutcome = pending.encounter.choices
-      .find(choice => choice.id === defaultEncounterChoiceId(pending.encounter, selectedChoiceId))
+    const selectedOutcome = encounter.choices
+      .find(choice => choice.id === defaultEncounterChoiceId(encounter, selectedChoiceId))
       ?.label.split(/\s+[—-]\s+/)[0];
     updateState(s => {
       const patients = runtime.patient
@@ -6761,9 +6827,9 @@ export default function App() {
         manualConditions: remapEncounterConditions(runtime.conditions, s),
         journals: [{
           id: `${pending.transactionId}:${manualDraft ? 'pending-manual' : 'resolved'}`,
-          title: `${manualDraft ? '판정 대기' : '여정 조우'}: ${printedEffect?.ownerName || pending.encounter.title}`,
+          title: `${manualDraft ? '판정 대기' : '여정 조우'}: ${printedEffect?.ownerName || encounter.title}`,
           text: buildEncounterJournalText({
-            printedText: printedEffect?.printedText || pending.encounter.prompt,
+            printedText: printedEffect?.printedText || encounter.prompt,
             note: resolvedJournalNote,
             supportingNote: inBloomNote,
             location: state.currentLocationName,
@@ -6785,9 +6851,11 @@ export default function App() {
       manualFollowUp: Boolean(manualDraft),
       nextStep: manualDraft
         ? '직접 판정 기록에서 남은 인쇄 지시를 마무리하세요.'
-        : pending.encounter.encounterType === 'social'
+        : encounter.encounterType === 'social'
           ? '정착지 화면에서 현지 의무와 다음 행동을 확인하세요.'
-          : '여정 화면으로 돌아가 다음 Move를 준비하세요.'
+          : runtime.movementBlocked
+            ? '여정으로 돌아가 현지 환자의 질환을 해결하세요. 치료 전에는 다음 Move를 할 수 없습니다.'
+            : '여정 화면으로 돌아가 다음 Move를 준비하세요.'
     } : null);
     } finally {
       resolvingTravelEncounterRef.current = false;
@@ -6796,6 +6864,10 @@ export default function App() {
   };
 
   const resolveCanonicalForageEncounter = async (note: string): Promise<boolean> => {
+    if (resolvingForageEncounterRef.current) return false;
+    resolvingForageEncounterRef.current = true;
+    setResolvingForageEncounter(true);
+    try {
     const pending = state.pendingForaging;
     if (!pending) return true;
     if (pending.source !== 'familiar-independent'
@@ -6805,6 +6877,12 @@ export default function App() {
     }
     const selectedChoiceId = activeForageEncounter?.selectedChoiceId || pending.selectedChoiceId;
     const resolvedJournalNote = note.trim();
+    const journalRequired = encounterChoiceRequiresJournal(activeForageEncounter, selectedChoiceId);
+    const journalAcknowledged = Boolean(resolvedJournalNote || activeForageEncounter?.journalAcknowledged || pending.journalAcknowledged);
+    if (journalRequired && !journalAcknowledged) {
+      showAlert('이 결과는 일지 프롬프트가 있습니다. 메모를 남기거나, 말·그림으로 장면을 떠올렸다고 확인한 뒤 계속하세요.');
+      return false;
+    }
     if (pending.source !== 'familiar-independent'
       && encounterChoiceRequiresSecondaryCard(activeForageEncounter, selectedChoiceId)
       && !pending.secondaryCard) {
@@ -6887,7 +6965,7 @@ export default function App() {
       encounter,
       choiceId: defaultEncounterChoiceId(encounter, activeForageEncounter?.selectedChoiceId || pending.selectedChoiceId),
       journalNote: resolvedJournalNote,
-      journalAcknowledged: true,
+      journalAcknowledged,
       state: {
         reputation: state.reputation, trinkets: state.trinkets.length, calendarDays: state.calendarDays,
         foragingPoints: state.activeAilment?.foragingPoints || 0,
@@ -7007,6 +7085,10 @@ export default function App() {
       return enqueueManualDrafts(next, [manualDraft]);
     });
     return true;
+    } finally {
+      resolvingForageEncounterRef.current = false;
+      setResolvingForageEncounter(false);
+    }
   };
 
   const handleCompleteManualFollowUp = async (followUpId: string) => {
@@ -7255,7 +7337,7 @@ export default function App() {
               <div className="pending-follow-ups__list">
                 {state.pendingManualFollowUps.filter(row => row.status === 'pending').map(row => (
                   <article key={row.id}>
-                    <div><strong>{PRINTED_EFFECT_BY_OWNER.get(row.ownerId)?.ownerName || row.ownerId}</strong><p><Suspense fallback={row.description}><LocalizedManualEffectText text={row.description} /></Suspense></p></div>
+                    <div><strong>{localizeEncounterTitle(PRINTED_EFFECT_BY_OWNER.get(row.ownerId)?.ownerName || row.ownerId)}</strong><p><Suspense fallback={row.description}><LocalizedManualEffectText text={row.description} /></Suspense></p></div>
                     <button type="button" onClick={() => handleCompleteManualFollowUp(row.id)}>완료 기록</button>
                   </article>
                 ))}
@@ -7339,8 +7421,10 @@ export default function App() {
                 updateState={updateState}
                 currentWeight={currentWeight}
                 setActiveTravelEncounter={setActiveTravelEncounter}
+                onResumeTravelEncounter={() => setDeferredEncounterId(null)}
                 activeForageEncounter={activeForageEncounter}
                 setActiveForageEncounter={setActiveForageEncounter}
+                onResumeForageEncounter={() => setDeferredForageEncounterId(null)}
                 setSeasonedDraws={setSeasonedDraws}
                 setShowSeasonedModal={setShowSeasonedModal}
                 setTitanwiseDraws={setTitanwiseDraws}
@@ -7511,9 +7595,12 @@ export default function App() {
               onResolve={override => {
                 const transaction = createClientTransaction('manual-effect');
                 const draft = state.pendingManualEffect!;
+                const resolvedDraft = draft.journalNote.trim()
+                  ? draft
+                  : { ...draft, journalNote: draft.resultSummary.trim() };
                 const patient = state.patients.find(row => row.id === draft.context.patientId) || state.patients.find(row => row.id === state.activePatientId) || null;
                 const resolved = resolveManualEffectTransaction({
-                  draft,
+                  draft: resolvedDraft,
                   transactionId: transaction.id,
                   override,
                   resolvedAt: transaction.at,
@@ -7623,6 +7710,12 @@ export default function App() {
           activeTravelEncounter.selectedChoiceId || state.pendingEncounter?.selectedChoiceId
         );
         const journalRequired = encounterChoiceRequiresJournal(activeTravelEncounter, selectedTravelChoiceId);
+        const travelJournalReady = !journalRequired || Boolean(
+          activeTravelEncounter.journalAcknowledged
+          || activeTravelEncounter.hasJournalText
+          || state.pendingEncounter?.journalAcknowledged
+          || state.pendingEncounter?.journalNote?.trim()
+        );
 
         return (
           <div className="encounter-dialog-backdrop">
@@ -7699,6 +7792,10 @@ export default function App() {
                   rows={3}
                   defaultValue={activeTravelEncounter.journalNote || state.pendingEncounter?.journalNote || ''}
                   placeholder="떠오른 장면이나 선택의 이유를 적으면 들녘의 일지에 내 기록으로 남습니다."
+                  onInput={event => {
+                    const hasJournalText = Boolean(event.currentTarget.value.trim());
+                    setActiveTravelEncounter((current: any) => current ? { ...current, hasJournalText } : current);
+                  }}
                   onBlur={event => {
                     const journalNote = event.currentTarget.value;
                     updateState(s => ({
@@ -7707,6 +7804,23 @@ export default function App() {
                     }));
                   }}
                 />
+                {journalRequired && (
+                  <span className="encounter-journal-acknowledgement">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(activeTravelEncounter.journalAcknowledged || state.pendingEncounter?.journalAcknowledged)}
+                      onChange={event => {
+                        const journalAcknowledged = event.currentTarget.checked;
+                        setActiveTravelEncounter((current: any) => current ? { ...current, journalAcknowledged } : current);
+                        updateState(s => ({
+                          ...s,
+                          pendingEncounter: s.pendingEncounter ? { ...s.pendingEncounter, journalAcknowledged } : null
+                        }));
+                      }}
+                    />
+                    <span>말하거나 그림으로 장면을 떠올렸습니다</span>
+                  </span>
+                )}
               </label>
 
               {hasSecondaryDraw && (
@@ -7775,7 +7889,8 @@ export default function App() {
               <div className="encounter-dialog-actions">
                 <button
                   type="button"
-                  disabled={resolvingTravelEncounter}
+                  disabled={resolvingTravelEncounter || !travelJournalReady}
+                  title={!travelJournalReady ? '일지 프롬프트를 메모로 남기거나, 말·그림으로 떠올렸다고 확인하세요.' : undefined}
                   onClick={event => {
                     const note = event.currentTarget.closest('.encounter-dialog')
                       ?.querySelector<HTMLTextAreaElement>('.encounter-journal-note textarea')
@@ -7877,24 +7992,14 @@ export default function App() {
           activeForageEncounter.selectedChoiceId || state.pendingForaging?.selectedChoiceId
         );
         const forageJournalRequired = encounterChoiceRequiresJournal(activeForageEncounter, selectedForageChoiceId);
-        const finishForageEncounter = async (note: string, savePersonalJournal = false) => {
+        const forageJournalReady = !forageJournalRequired || Boolean(
+          activeForageEncounter.journalAcknowledged
+          || activeForageEncounter.hasJournalText
+          || state.pendingForaging?.journalAcknowledged
+          || state.pendingForaging?.journalNote?.trim()
+        );
+        const finishForageEncounter = async (note: string) => {
           if (await resolveCanonicalForageEncounter(note)) {
-            if (savePersonalJournal) {
-              updateState(s => {
-                const listStr = activeForageEncounter.foundReagents.length > 0
-                  ? activeForageEncounter.foundReagents.map((find: ForageFind | string) => typeof find === 'string' ? find : `${find.name} (희귀도: ${find.rarity}${find.fpAvailable ? ', 채집 포인트 사용 가능' : ''})`).join(', ')
-                  : '없음 (+1 채집포인트)';
-                return {
-                  ...s,
-                  journals: [{
-                    id: 'forage_' + Date.now(),
-                    title: `🌿 채집 일지: ${encTitle}`,
-                    text: `[페이지 ${activeForageEncounter.page} - 드로우: ${activeForageEncounter.cardValue} ${activeForageEncounter.suitLabel}]\n위치: ${s.currentLocationName} (${localizeRegionLabel(activeForageEncounter.region)} / ${localizeSeasonLabel(s.currentSeason)})\n조우 결과: ${encText}\n발견한 영약재: ${listStr}\n\n기록: ${note.trim() || '조심스럽게 약초 채집을 마무리했다.'}`,
-                    timestamp: Date.now()
-                  }, ...s.journals]
-                };
-              });
-            }
             if (state.pendingLeaveObligation?.kind === 'foraging-encounter') {
               updateState((s: GameState) => ({
                 ...s,
@@ -7904,29 +8009,30 @@ export default function App() {
             setActiveForageEncounter(null);
           }
         };
-        const closeForageEncounter = async () => finishForageEncounter('', false);
 
         return (
-          <div className="encounter-dialog-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '2rem' }}>
-            <div className="glass-panel encounter-dialog" role="dialog" aria-modal="true" aria-label="채집 조우" style={{ maxWidth: '600px', width: '100%', padding: '2rem', background: '#fff', position: 'relative', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', borderRadius: '20px', maxHeight: '92vh', overflowY: 'auto' }}>
-              <div style={{ textAlign: 'center', marginBottom: '1.2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div className="encounter-dialog-backdrop">
+            <div className="glass-panel encounter-dialog encounter-dialog--forage" role="dialog" aria-modal="true" aria-label="채집 조우">
+              <header className="encounter-dialog__masthead">
                 <img
                   src={getCardSvgUrl(activeForageEncounter.suit, activeForageEncounter.cardValue)}
                   alt={`${activeForageEncounter.suitLabel} ${activeForageEncounter.cardValue}`}
-                  style={{ width: '100px', height: '150px', objectFit: 'contain', borderRadius: '6px', boxShadow: '0 4px 10px rgba(0,0,0,0.12)', marginBottom: '0.8rem' }}
                 />
-                <h2 style={{ color: 'var(--primary)', margin: '0.5rem 0 0 0' }}>채집 및 조우 <span style={{ fontWeight: 'normal', fontSize: '0.82em', color: 'var(--text-muted)' }}>p.{activeForageEncounter.page}</span></h2>
-                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>뽑은 카드: {activeForageEncounter.cardValue} {activeForageEncounter.suitLabel}</div>
-              </div>
+                <div>
+                  <span className="encounter-dialog__eyebrow">채집 조우 · p.{activeForageEncounter.page}</span>
+                  <h2><Suspense fallback="조우 제목을 번역하는 중…"><LocalizedManualEffectText kind="encounter-title" text={encTitle} /></Suspense></h2>
+                  <p>{localizeRegionLabel(activeForageEncounter.region)} · {activeForageEncounter.cardValue} {activeForageEncounter.suitLabel}</p>
+                </div>
+                <button type="button" className="encounter-dialog__reference" onClick={handleOpenCurrentRulebookReference}>룰북 원문</button>
+              </header>
 
-              <h3 style={{ borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.8rem', color: 'var(--text-bright)' }}>
-                <Suspense fallback="조우 제목을 번역하는 중…"><LocalizedManualEffectText kind="encounter-title" text={encTitle} /></Suspense>
-              </h3>
-
-              <p style={{ fontSize: '1rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', maxHeight: '200px', overflowY: 'auto', background: '#faf8f4', padding: '1rem', borderRadius: '10px', color: 'var(--text-bright)', borderLeft: '4.5px solid var(--primary)' }}>
-                {protectionNotice && <>Forecast가 적용되어 Weather 태그 조우의 모든 부정적 결과를 무시합니다.{"\n\n"}</>}
-                <Suspense fallback="조우 내용을 정리하는 중…"><LocalizedManualEffectText kind="encounter" summary={encTitle} text={encText} /></Suspense>
-              </p>
+              <section className="encounter-dialog__stage" aria-labelledby="forage-encounter-scene-heading">
+                <h3 id="forage-encounter-scene-heading">무슨 일이 일어났나요</h3>
+                <p className="encounter-dialog__prompt">
+                  {protectionNotice && <>Forecast가 적용되어 Weather 태그 조우의 모든 부정적 결과를 무시합니다.{"\n\n"}</>}
+                  <Suspense fallback="조우 내용을 정리하는 중…"><LocalizedManualEffectText kind="encounter" summary={encTitle} text={encText} /></Suspense>
+                </p>
+              </section>
 
               {activeForageEncounter.choices?.length > 0 && (
                 <div style={{ display: 'grid', gap: '0.5rem', marginTop: '0.9rem' }}>
@@ -8091,31 +8197,68 @@ export default function App() {
                 </div>
               </div>}
 
-              <div className="encounter-dialog-actions" style={{ marginTop: '1.5rem', display: 'flex', gap: '0.5rem' }}>
-                <button
-                  onClick={async () => {
-                    const note = await requestControlledPrompt({
-                      title: '채집 일지',
-                      message: forageJournalRequired
-                        ? '룰북의 일지 프롬프트입니다. 글로 남기거나, 말·그림 등 편한 방식으로 장면을 떠올린 뒤 계속하세요.'
-                        : '채집 조우와 발견한 약초에 대한 소감을 남길 수 있습니다.',
-                      defaultValue: '',
-                      kicker: '채집 기록',
-                      label: '선택 메모',
-                      inputMode: 'multiline'
-                    });
-                    if (note !== null) await finishForageEncounter(note, true);
+              <label className="encounter-journal-note">
+                <span>이 장면에서 남길 기억 <small>{forageJournalRequired ? '룰북 지시 · 말·그림·글 중 편한 방식으로 떠올린 뒤 판정' : '선택 · 비워도 진행할 수 있습니다'}</small></span>
+                <textarea
+                  key={activeForageEncounter.transactionId || activeForageEncounter.id}
+                  rows={3}
+                  defaultValue={activeForageEncounter.journalNote || state.pendingForaging?.journalNote || ''}
+                  placeholder="떠오른 장면이나 선택의 이유를 적으면 들녘의 일지에 함께 남습니다."
+                  onInput={event => {
+                    const hasJournalText = Boolean(event.currentTarget.value.trim());
+                    setActiveForageEncounter((current: any) => current ? { ...current, hasJournalText } : current);
                   }}
-                  style={{ flex: 1, padding: '0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold' }}
+                  onBlur={event => {
+                    const journalNote = event.currentTarget.value;
+                    updateState(s => ({
+                      ...s,
+                      pendingForaging: s.pendingForaging ? { ...s.pendingForaging, journalNote } : null
+                    }));
+                  }}
+                />
+                {forageJournalRequired && (
+                  <span className="encounter-journal-acknowledgement">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(activeForageEncounter.journalAcknowledged || state.pendingForaging?.journalAcknowledged)}
+                      onChange={event => {
+                        const journalAcknowledged = event.currentTarget.checked;
+                        setActiveForageEncounter((current: any) => current ? { ...current, journalAcknowledged } : current);
+                        updateState(s => ({
+                          ...s,
+                          pendingForaging: s.pendingForaging ? { ...s.pendingForaging, journalAcknowledged } : null
+                        }));
+                      }}
+                    />
+                    <span>말하거나 그림으로 장면을 떠올렸습니다</span>
+                  </span>
+                )}
+              </label>
+
+              <div className="encounter-dialog-actions">
+                <button
+                  type="button"
+                  disabled={resolvingForageEncounter || !forageJournalReady}
+                  title={!forageJournalReady ? '일지 프롬프트를 메모로 남기거나, 말·그림으로 떠올렸다고 확인하세요.' : undefined}
+                  onClick={async event => {
+                    const note = event.currentTarget.closest('.encounter-dialog')
+                      ?.querySelector<HTMLTextAreaElement>('.encounter-journal-note textarea')
+                      ?.value || '';
+                    await finishForageEncounter(note);
+                  }}
+                  className="encounter-dialog__primary"
                 >
-                  저널 기록 후 조우 해결
+                  {resolvingForageEncounter ? '조우 해결 중…' : '조우 해결하고 기록하기'}
                 </button>
                 <button
-                  onClick={closeForageEncounter}
-                  disabled={forageJournalRequired}
-                  title={forageJournalRequired ? '선택한 결과는 일지 기록이 필요합니다.' : undefined}
-                  style={{ padding: '0.8rem 1.2rem', background: '#eee', color: '#555', borderRadius: '8px' }}
-                >{forageJournalRequired ? '프롬프트 확인 필요' : '닫기'}</button>
+                  type="button"
+                  onClick={() => {
+                    setDeferredForageEncounterId(state.pendingForaging?.transactionId || null);
+                    setActiveForageEncounter(null);
+                  }}
+                  disabled={resolvingForageEncounter}
+                  className="encounter-dialog__defer"
+                >나중에 계속</button>
               </div>
             </div>
           </div>
@@ -8649,8 +8792,10 @@ function PlayView({
   updateState,
   currentWeight,
   setActiveTravelEncounter,
+  onResumeTravelEncounter,
   activeForageEncounter,
   setActiveForageEncounter,
+  onResumeForageEncounter,
   setSeasonedDraws,
   setShowSeasonedModal,
   setTitanwiseDraws,
@@ -8671,8 +8816,10 @@ function PlayView({
   updateState: any;
   currentWeight: number;
   setActiveTravelEncounter: any;
+  onResumeTravelEncounter: () => void;
   activeForageEncounter: any;
   setActiveForageEncounter: any;
+  onResumeForageEncounter: () => void;
   setSeasonedDraws: any;
   setShowSeasonedModal: any;
   setTitanwiseDraws: any;
@@ -13014,17 +13161,23 @@ function PlayView({
       meta: `p.${state.pendingEncounter.encounter.sourcePage}`,
       targetId: 'travel-panel',
       tone: 'warning',
-      activate: () => setActiveTravelEncounter(null)
+      activate: () => {
+        onResumeTravelEncounter();
+        setActiveTravelEncounter(null);
+      }
     });
   } else if (state.pendingForaging) {
     addActionHubItem({
       id: 'pending-foraging',
       label: '미해결 채집 절차',
       detail: state.pendingForaging.phase === 'choose-reagent' ? '영약재 하나와 부위를 선택합니다.' : '채집 조우와 타이머를 해결합니다.',
-        meta: `${localizeRegionLabel(state.pendingForaging.region)} · ${state.pendingForaging.timerCostAfterEncounter}시간`,
+      meta: `${localizeRegionLabel(state.pendingForaging.region)} · ${state.pendingForaging.timerCostAfterEncounter}시간`,
       targetId: 'patient-clinic-panel',
       tone: 'warning',
-      activate: () => setActiveForageEncounter(null)
+      activate: () => {
+        onResumeForageEncounter();
+        setActiveForageEncounter(null);
+      }
     });
   }
 

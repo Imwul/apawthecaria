@@ -17,6 +17,21 @@ const HIGHWAY_ROBBERY_POCKETS = '장신구로 내기 — 장신구 1개를 잃�
 const HIGHWAY_ROBBERY_DUEL = '결투로 대신하기 — 달력에 1일을 표시합니다. 들쥐 아이와 모의 결투를 벌이고, 둘 중 누가 누구를 ‘쓰러뜨렸는지’ 일지에 기록하세요.';
 const HIGHWAY_ROBBERY_PASS = '그냥 지나치기 — 아이를 성급히 지나쳐 여정을 계속합니다. 길드 명성 1을 잃습니다.';
 const FRESH_CATCH_CONTEXT = '선착장을 지나던 중 갓 손질한 생선 냄새와 부지런히 일한 야수들의 땀 냄새가 풍깁니다. 오늘 잡은 물고기가 배에서 부두로 옮겨지고, 흔들리는 배가 부교를 규칙적으로 두드립니다. 오늘은 무엇을 잡았을까요? 아래의 Fishfinder 중 유심히 살펴볼 만한 것이 있나요?';
+const DAM_LOTTA_TROUBLE_CONTEXT = '그들은 자신의 일에 대해 어떻게 생각하나요? 건축업자들은 어떤 이야기를 들려주나요?';
+const DAM_LOTTA_TROUBLE_EFFECT = `${DAM_LOTTA_TROUBLE_CONTEXT} 현재 위치를 비버 댐으로 표시하고 지역을 호수로 바꾸세요. 겨울이 끝나면 댐이 무너져 이 위치는 다시 숲 지역이 됩니다.`;
+const SOCIAL_CONTEXT_KO: Record<string, string> = {
+  Preserved: '늪지 야수들은 “늪이 받은 것은 늪이 돌려준다”는 말을 자주 합니다. 오래전부터 갓 자른 이탄에 봉헌물을 묻었고, 제대로 보관된 물건은 좀처럼 낡지 않습니다.',
+  Airborne: '멀리서 커다란 윙윙거림이 빠르게 다가옵니다. 몸을 돌려 소리를 찾자, 무언가가 눈앞을 스치기 직전에야 정체가 보입니다.',
+  Florist: '탁한 회색 화분들이 진흙에 반쯤 잠긴 채 야생화로 뒤덮인 나무 오두막을 둘러싸고 있습니다. 이곳의 향기는 푸르고 생생합니다.',
+  Bridges: '서로 맞닿을 듯 자란 나뭇가지들을 숲의 야수들이 밧줄 다리로 잇습니다. 정착지가 커질수록 다리도 가지 사이로 계속 뻗어 나갑니다.',
+  'Orebeater Forges': 'Odoak의 굵은 뿌리 아래, 돌 아치로 보강한 대장간에서 오소리 광석장이들이 달아오른 금속을 두드립니다.',
+  Nursery: '부두에서 둑 위로 올라가면 지붕이 열린 커다란 점토 건물 ‘화분들’이 나옵니다. 농부들은 소나무·참나무·버드나무를 비롯한 여러 묘목을 돌봅니다.',
+  Exterior: '거대한 베슬 바깥에는 부교와 선상 가옥, 비좁은 모임터가 빽빽한 판자촌 ‘막대기들’이 펼쳐져 있습니다.',
+  Monuments: '초원 정착지는 자연 지형에 기대어 오래 자리를 지키기 때문에, 마을 곳곳의 높고 낮은 자리에는 작은 기념물과 표식이 남아 있습니다.',
+  Junction: '두 개 이상의 터널이 만나는 교차로마다 위·아래·앞으로 가려는 야수들이 한데 몰려 북적입니다.',
+  'Getting Around': '산악 정착지의 집들은 멀리 떨어져 고립되어 보이지만, 절벽의 새집과 천연 동굴의 모자이크 출입구가 저마다의 생활 공간으로 이어집니다.',
+  Thinkers: 'Spoolkeep 북쪽의 높은 산에는 거대한 염소 철학자들이 삽니다. 이들은 돌 원에 모여 세상의 법칙을 두고 우렁차게 논쟁합니다.'
+};
 
 const exactTranslations: Record<string, string> = {
   'Go Fish': '낚시하기',
@@ -52,6 +67,7 @@ const exactTranslations: Record<string, string> = {
   'You find yourself scampering for an available lift, and a local holds it until you leap aboard. Journal about your experience aboard the lift, out of breath and assailed with polite questions about your day.': '이용 가능한 승강기로 달려가자 현지 야수가 기다려 주어 간신히 올라탑니다. 숨을 고르는 동안 오늘 하루에 관한 공손한 질문을 받습니다. 승강기에서 나눈 어색한 대화를 일지에 기록하세요.',
   'This location has been flooded with river water from a local dam. Mark on your map that this is a Beaver Dam, and that its Region has changed Loch': '이 위치가 인근 비버 댐의 강물로 잠겼습니다. 지도에 이곳을 비버 댐으로 표시하고 지역을 호수로 바꾸세요.',
   'The dam bursts after Winter, causing this Location to return to being a Forest Region. 161': '겨울이 지난 뒤 댐이 무너집니다. 이 위치의 지역을 다시 숲으로 바꾸세요.',
+  'Dam Burst - The dam bursts after Winter, causing this Location to return to being a Forest Region. 161': '겨울이 끝나면 댐이 무너져 이 위치가 다시 숲 지역이 됩니다.',
   'How do they feel about their work? What gossip have the builders got to share? Beaver Flood - This location has been flooded with river water from a local dam. Mark on your map that this is a Beaver Dam, and that its Region has changed Loch. Dam Burst - The dam bursts after Winter, causing this Location to return to being a Forest Region. 161': '그들은 자신의 일에 대해 어떻게 생각하나요? 건축업자들은 어떤 이야기를 들려주나요? 비버 댐 범람 - 이 위치가 인근 비버 댐의 강물로 잠겼습니다. 지도에 이곳을 비버 댐으로 표시하고 지역을 호수로 바꾸세요. 댐 붕괴 - 겨울이 지난 뒤 댐이 무너집니다. 이 위치의 지역을 다시 숲으로 바꾸세요. 161',
   'Draw a card and gain a Forest Reagent with Rarity equal to the card’s value. Decrease your Ailment Timer by 1': '카드를 한 장 뽑고 카드 값과 희귀도가 같은 숲 영약재 하나를 얻습니다. 질병 타이머를 1만큼 줄이세요.',
   'Decrease Guild Reputation by 1. Journal about your fellow Poulticier’s patient.': '길드 명성 1을 잃습니다. 동료 약제사의 환자에 관해 일지에 기록하세요.',
@@ -367,7 +383,12 @@ const cleanPrintedDisplayText = (text: string, sourcePage?: number): string => {
   if (boilerplate > 0) cleaned = cleaned.slice(0, boilerplate).trim();
   const localizedBoilerplate = cleaned.search(/(?:늪지|숲|호수|초원|산맥|타이탄)\s*(?:여행|채집)(?:\s*조우|은|는)/);
   if (localizedBoilerplate > 0) cleaned = cleaned.slice(0, localizedBoilerplate).trim();
-  if (sourcePage) cleaned = cleaned.replace(new RegExp(`(?:[.!?]\\s*)?${sourcePage}\\s*$`), '').trim();
+  const adjacentSocialColumn = cleaned.search(/\b(?:Amongst thin streams|Of the Bristley Wood's different cities|Odoak Originally called|Far to the north of the Bristley Woods|In the centre of the Crossing Loch|Open rolling hills of wild grasses|Thousands of beasts can fit inside this city|The architecture of mountain settlements|In a word, Spoolkeep)\b|(?:얇은 시냇물,?\s*키가 큰 갈대|Bristley Wood의 여러 도시 중에서 Noonhill|Odoak\s*원래|Bristley Woods 북쪽|Crossing 호수 중앙|Bristley Woods에는 이끼 낀 돌|고대 Titan 채석장에 건설된 이 도시|산간 정착지의 건축물|한마디로 Spoolkeep)/i);
+  if (adjacentSocialColumn > 0) cleaned = cleaned.slice(0, adjacentSocialColumn).trim();
+  if (sourcePage) cleaned = cleaned
+    .replace(new RegExp(`(?:[.!?]\\s*)?${sourcePage}\\s*$`), '')
+    .replace(/\s+(?:Bogs|Forests|Lochs|Meadows|Mountains|Noonhill|Odoak|NewDam|Vessel|Summit|Spoolkeep)\s*$/i, '')
+    .trim();
   return cleaned.replace(/\s*[—-]\s*$/, '').trim();
 };
 
@@ -435,6 +456,9 @@ export const localizeManualEffectText = (summary: string, text: string): string 
   if (summary === 'Mushroom Pickers') return MUSHROOM_PICKERS_TEXT;
   const compact = text.trim();
   const cleanSummary = cleanPrintedDisplayText(summary);
+  if (cleanSummary === 'Dam Lotta Trouble' || cleanSummary.startsWith('Dam Lotta Trouble ')) {
+    return DAM_LOTTA_TROUBLE_EFFECT;
+  }
   const canonicalEncounter = ENCOUNTERS.find(encounter => {
     const cleanTitle = cleanPrintedDisplayText(encounter.title);
     // Some source-table titles also contain their opening narrative line. A
@@ -450,7 +474,10 @@ export const localizeManualEffectText = (summary: string, text: string): string 
     const compactNormalized = normalizeTranslationKey(compact);
     if (canonicalOpening.length > 40 && compactNormalized.includes(canonicalOpening)) {
       const canonicalTranslation = exactTranslations[canonicalPrompt] || generatedTranslationMap[hashTranslationKey(canonicalPrompt)];
-      if (canonicalTranslation) return polishGenericRuleTerms(canonicalTranslation, summary ? [summary] : []);
+      if (canonicalTranslation) return cleanPrintedDisplayText(
+        polishGenericRuleTerms(canonicalTranslation, summary ? [summary] : []),
+        canonicalEncounter.sourcePage
+      );
     }
   }
   const directTranslation = exactTranslations[compact] || exactTranslations[normalizeTranslationKey(compact)] || generatedTranslationMap[hashTranslationKey(compact)];
@@ -474,6 +501,12 @@ export const localizeEncounterDisplayText = (summary: string, text: string): str
   if (cleanSummary === 'Highway Robbery' || cleanSummary.startsWith('Highway Robbery ') || raw.includes('Pay with your pockets')) {
     return HIGHWAY_ROBBERY_CONTEXT;
   }
+  if (cleanSummary === 'Dam Lotta Trouble' || cleanSummary.startsWith('Dam Lotta Trouble ')) {
+    return DAM_LOTTA_TROUBLE_CONTEXT;
+  }
+  const socialContext = Object.entries(SOCIAL_CONTEXT_KO)
+    .find(([title]) => cleanSummary === title || cleanSummary.startsWith(`${title} `))?.[1];
+  if (socialContext) return socialContext;
   // The p.198 source extraction puts this encounter's opening sentence in
   // the title column and appends the Loch overview from the adjacent column
   // to its body. Keep the complete encounter prompt while excluding that
@@ -503,6 +536,10 @@ export const localizeEncounterDisplayText = (summary: string, text: string): str
 
 export const localizeManualEffectLine = (text: string): string => {
   const compact = text.trim();
+  if (/^Dam Burst\s*-/i.test(compact)) return '겨울이 끝나면 댐이 무너져 이 위치가 다시 숲 지역이 됩니다.';
+  if (/Beaver Dam/i.test(compact) && /Region.{0,20}(?:changed|Loch)/i.test(compact)) {
+    return '이 위치를 비버 댐으로 표시하고 지역을 호수로 바꾸세요.';
+  }
   const region = compact.match(/^Region:\s*(.+)$/i);
   if (region) return `지역: ${localizeRegionLabel(region[1])}`;
   const season = compact.match(/^Season:\s*(.+)$/i);
@@ -513,7 +550,7 @@ export const localizeManualEffectLine = (text: string): string => {
 };
 
 export const localizeManualJournalTitle = (text: string): string => {
-  const match = text.match(/^((?:판정 대기|여정 조우|채집 조우):\s*)(.+)$/);
+  const match = text.match(/^((?:판정 대기|여정 조우|채집 조우|직접 판정|예외 처리):\s*)(.+)$/);
   if (!match) return text;
   const effect = PRINTED_EFFECT_REGISTRY.find(row => match[2] === row.ownerName || match[2].startsWith(`${row.ownerName} `));
   return `${match[1]}${localizeEncounterTitle(effect?.ownerName || match[2])}`;

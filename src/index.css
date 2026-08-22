@@ -9087,6 +9087,25 @@ details.rulebook-source-text > summary {
   font-weight: 700;
 }
 
+.encounter-journal-acknowledgement {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px dashed var(--glass-border);
+  background: rgba(255, 253, 246, 0.7);
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.encounter-journal-acknowledgement input {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
 .encounter-dialog-backdrop {
   position: fixed;
   z-index: 1000;
@@ -9173,7 +9192,7 @@ details.rulebook-source-text > summary {
 
 .encounter-dialog__primary:disabled,
 .encounter-dialog__defer:disabled {
-  cursor: wait;
+  cursor: not-allowed;
   opacity: 0.62;
 }
 

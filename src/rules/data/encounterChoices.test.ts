@@ -4,6 +4,7 @@ import { BEAR_SCURRY_ENCOUNTER, ENCOUNTERS, FORAGING_ENCOUNTERS, SOCIAL_ENCOUNTE
 import { encounterChoiceRequiresJournal, enrichEncounterChoices, leftoverNeeded, parseMechanicalEffects, splitEncounterChoices } from './encounterChoices';
 import { resolvePatient } from '../engine';
 import { GAME_DATA } from '../../gameData';
+import { PRINTED_EFFECT_BY_OWNER } from '../printedEffects';
 
 describe('printed encounter choice execution', () => {
   it('splits labeled forage choices and applies reputation and timer changes', () => {
@@ -139,6 +140,52 @@ describe('printed encounter choice execution', () => {
       choices: [{ id: 'keep', label: 'Keep existing', effects: [] }]
     });
     expect(enriched.choices[0].id).toBe('keep');
+  });
+
+  it('keeps adjacent social-reference columns out of player choices', () => {
+    const expectedChoices: Record<string, string[]> = {
+      'social-bog-settlement-♦': ['time-capsule', 'guild-offering'],
+      'social-bog-noonhill-♥': ['hivewarden', 'noonmessenger', 'fleeing-thickblood'],
+      'social-bog-noonhill-♦': ['smell-the-flowers', 'keen-eye', 'connoisseur-of-scents'],
+      'social-forest-settlement-♦': ['swinging', 'new-paths'],
+      'social-forest-odoak-♥': ['a-quick-cure', 'work-in-progress'],
+      'social-loch-newdam-♦': ['regrowth', 'mother-o-fruits'],
+      'social-meadow-settlement-♦': ['weave-a-trinket', 'leave-the-monument', 'a-curious-marking'],
+      'social-meadow-summit-♦': ['sorry', 'pocketpaws'],
+      'social-mountain-settlement-♦': ['ease-of-access', 'unaccommodating-spaces'],
+      'social-mountain-spoolkeep-♦': ['bleated-wisdom', 'woolworks']
+    };
+    Object.entries(expectedChoices).forEach(([id, choices]) => {
+      expect(SOCIAL_ENCOUNTERS.find(row => row.id === id)?.choices.map(choice => choice.id), id).toEqual(choices);
+    });
+    const choiceText = SOCIAL_ENCOUNTERS.flatMap(row => row.choices.map(choice => choice.label)).join('\n');
+    expect(choiceText).not.toMatch(/Amongst thin streams|Forest Settlements are threaded|Open rolling hills of wild grasses|The architecture of mountain settlements|In a word, Spoolkeep/);
+  });
+
+  it('keeps the Beaver Dam and its post-Winter burst as one continuous result', () => {
+    const dam = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-forest-5')!;
+    expect(dam.choices.map(choice => choice.id)).toEqual(['record-beaver-dam']);
+    expect(dam.choices[0].label).toContain('겨울이 끝나면');
+    expect(dam.choices[0].effects).toEqual([
+      expect.objectContaining({ support: 'manual-only', effect: expect.objectContaining({ type: 'customEffect', code: 'BEAVER_DAM_CYCLE' }) })
+    ]);
+    expect(PRINTED_EFFECT_BY_OWNER.get(dam.id)?.manualResolution?.choices).toEqual([
+      dam.choices[0].label
+    ]);
+  });
+
+  it('resolves the optional Monuments trinket without a duplicate manual panel', () => {
+    const monuments = SOCIAL_ENCOUNTERS.find(row => row.id === 'social-meadow-settlement-♦')!;
+    const baseState = { reputation: 5, trinkets: 1, calendarDays: 0, foragingPoints: 0, inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: [] };
+    const woven = executeEncounter({ transactionId: 'monument-woven', encounter: monuments, choiceId: 'weave-a-trinket', state: baseState });
+    const observed = executeEncounter({ transactionId: 'monument-observed', encounter: monuments, choiceId: 'leave-the-monument', state: baseState });
+    const marking = executeEncounter({ transactionId: 'monument-marking', encounter: monuments, choiceId: 'a-curious-marking', state: baseState });
+
+    expect(woven.value?.nextState).toMatchObject({ reputation: 6, trinkets: 0 });
+    expect(woven.value?.unresolvedEffects).toEqual([]);
+    expect(observed.value?.nextState).toMatchObject({ reputation: 5, trinkets: 1 });
+    expect(marking.value?.unresolvedEffects).toEqual([]);
+    expect(executeEncounter({ transactionId: 'monument-empty', encounter: monuments, choiceId: 'weave-a-trinket', state: { ...baseState, trinkets: 0 } }).status).toBe('invalid');
   });
 
   it('keeps every canonical encounter ID unique', () => {

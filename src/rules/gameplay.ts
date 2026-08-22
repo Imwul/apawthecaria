@@ -50,6 +50,8 @@ export interface PendingEncounterState {
   selectedChoiceId?: string;
   /** Optional player-written memory kept with an interrupted encounter. */
   journalNote?: string;
+  /** The player completed a required prompt outside the text field (spoken/drawn). */
+  journalAcknowledged?: boolean;
   unresolvedEffectCodes: string[];
   card: { value: number; suit?: string };
   secondaryCard?: { value: number; suit: string };
@@ -67,6 +69,10 @@ export interface PendingForagingState {
   timerCostAfterEncounter: number;
   encounterId: string | null;
   selectedChoiceId?: string;
+  /** Optional player-written memory kept with an interrupted forage encounter. */
+  journalNote?: string;
+  /** The player completed a required prompt outside the text field (spoken/drawn). */
+  journalAcknowledged?: boolean;
   phase: 'choose-reagent' | 'encounter' | 'timer' | 'resolved';
   reagentTypeFilter?: 'PLANT' | 'ANIMAL' | 'INSECT' | 'EARTH' | 'TITAN';
   source?: 'standard' | 'companion-wasp' | 'familiar-independent' | 'barrow-delve';

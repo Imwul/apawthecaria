@@ -182,11 +182,12 @@ export const splitEncounterChoices = (prompt: string): { description: string; ch
   return { description: description || prompt.trim(), choices };
 };
 
-export const enrichEncounterChoices = (encounter: EncounterDefinition): EncounterDefinition => {
+export const enrichEncounterChoices = (encounter: EncounterDefinition, choiceSourcePrompt?: string): EncounterDefinition => {
   if (encounter.choices.length > 0) return encounter;
+  const sourcePrompt = typeof choiceSourcePrompt === 'string' ? choiceSourcePrompt : encounter.prompt;
   const stripped = encounter.cardKey && encounter.cardKey !== 'A'
-    ? encounter.prompt.replace(/\bACE\b[\s\S]*$/i, '').trim()
-    : encounter.prompt;
+    ? sourcePrompt.replace(/\bACE\b[\s\S]*$/i, '').trim()
+    : sourcePrompt;
   const { choices } = splitEncounterChoices(stripped);
   return {
     ...encounter,

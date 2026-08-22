@@ -108,7 +108,7 @@ export const executeEncounter = (input: EncounterExecutionInput): EncounterExecu
 
   // A voluntary payment cannot silently succeed by clamping a negative
   // balance to zero. Forced losses still discard as much as the player has.
-  const voluntaryTrinketCost = choice && /(?:\b(?:pay|trade|spend|give|buy|leave|swap)\b[^.]{0,80}\btrinkets?\b|장신구[^.]{0,50}(?:주고|남기고|바꾸고|지불|구매|거래)|(?:주고|남기고|바꾸고|지불|구매|거래)[^.]{0,50}장신구)/i.test(choice.label)
+  const voluntaryTrinketCost = choice && /(?:\b(?:pay|trade|spend|give|buy|leave|swap)\b[^.]{0,80}\btrinkets?\b|장신구[^.]{0,50}(?:주고|남기고|바꾸고|엮고|지불|구매|거래)|(?:주고|남기고|바꾸고|엮고|지불|구매|거래)[^.]{0,50}장신구)/i.test(choice.label)
     ? choice.effects.reduce((sum, structured) => structured.support === 'implemented'
       && structured.effect.type === 'modifyTrinkets'
       && structured.effect.amount < 0
