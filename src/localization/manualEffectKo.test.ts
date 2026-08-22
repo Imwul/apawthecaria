@@ -114,6 +114,22 @@ describe('printed effect Korean reading layer', () => {
     expect(choices.join(' ')).not.toMatch(/외국인 영약재|조제법 방법|유쾌한 방종/);
   });
 
+  it('renders the playful Highway Robbery scene without pup mistranslations', () => {
+    const highwayRobbery = ENCOUNTERS.find(encounter => encounter.title.startsWith('Highway Robbery'))!;
+    expect(localizeEncounterTitle(highwayRobbery.title)).toBe('꼬마 산적의 통행세');
+    expect(localizeEncounterDisplayText(highwayRobbery.title, highwayRobbery.prompt)).toBe(
+      '장난감 검을 든 어린 들쥐가 길을 막고 서서, 장난스럽게 통행세를 내라고 요구합니다.'
+    );
+    const choices = highwayRobbery.choices.map(choice => localizeManualEffectOption(choice.label));
+    expect(choices).toEqual([
+      '장신구로 내기 — 장신구 1개를 잃습니다. 갑자기 전리품을 얻은 들쥐 아이는 어떤 반응을 보이나요?',
+      '결투로 대신하기 — 달력에 1일을 표시합니다. 들쥐 아이와 모의 결투를 벌이고, 둘 중 누가 누구를 ‘쓰러뜨렸는지’ 일지에 기록하세요.',
+      '그냥 지나치기 — 아이를 성급히 지나쳐 여정을 계속합니다. 길드 명성 1을 잃습니다.'
+    ]);
+    expect(choices.join(' ')).not.toMatch(/쥐 새끼|강아지|목숨을 걸고|인내심을 잃고/);
+    expect(localizeManualEffectOption('Pay with your life')).toBe('결투로 대신하기');
+  });
+
   it('gives every encounter popup a compact Korean title', () => {
     const titles = [...new Set(PRINTED_EFFECT_REGISTRY
       .filter(effect => effect.trigger === 'encounter')

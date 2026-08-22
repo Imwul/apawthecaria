@@ -12,9 +12,15 @@ const MUSHROOM_PICKERS_TEXT = `약용 버섯이 아닌 것은 확실하지만, �
 
 숙련자 - 정중히 끼어들어 버섯이 다른 채집물에 닿지 않게 집으로 가져가 확인하자고 제안합니다. 숙련자 채집꾼은 현명하다는 듯 고개를 끄덕입니다. 길드 명성 1을 얻습니다.`;
 
+const HIGHWAY_ROBBERY_CONTEXT = '장난감 검을 든 어린 들쥐가 길을 막고 서서, 장난스럽게 통행세를 내라고 요구합니다.';
+
 const exactTranslations: Record<string, string> = {
   'Any Season': '모든 계절',
   'Dam Lotta Trouble': '댐 때문에 골치 아파',
+  'Pay with your pockets — Lose 1 Trinket. How does the mouse pup react to their sudden bounty': '장신구로 내기 — 장신구 1개를 잃습니다. 갑자기 전리품을 얻은 들쥐 아이는 어떤 반응을 보이나요?',
+  "Pay with your life — Mark 1 Day on your Calendar. Journal about a mock fight you have with the pup, and how one of you 'slays' the other": '결투로 대신하기 — 달력에 1일을 표시합니다. 들쥐 아이와 모의 결투를 벌이고, 둘 중 누가 누구를 ‘쓰러뜨렸는지’ 일지에 기록하세요.',
+  'Pay with your patience — Storming past the pup, you continue your journey. Lose 1 Reputation.': '그냥 지나치기 — 아이를 성급히 지나쳐 여정을 계속합니다. 길드 명성 1을 잃습니다.',
+  'Pay with your (short) patience — Storming past the pup, you continue your journey. Lose 1 Reputation.': '그냥 지나치기 — 아이를 성급히 지나쳐 여정을 계속합니다. 길드 명성 1을 잃습니다.',
   'Friend In Need': '도움이 필요한 동료',
   'Rest Stop': '길가의 쉼터',
   'To Glide, or not to Glide': '활공할까, 말까',
@@ -111,7 +117,6 @@ const exactTranslations: Record<string, string> = {
   ,'If you win — Start a new Goal with the nearest City as your Destination. Gain 10 Reputation for bringing them in. Journal about why you felt the need to enforce justice': '승리 — 가장 가까운 도시를 목적지로 삼는 새 목표를 시작합니다. 이들을 붙잡아 데려가면 길드 명성 10을 얻습니다. 왜 정의를 집행해야 한다고 느꼈는지 일지에 기록하세요.'
   ,'If you lose — They escape, never to be seen by you again. 85': '패배 — 그들은 달아나고, 다시는 마주치지 못합니다.'
   ,'마차를 타고 있음 — Mark 1 Day': '마차를 타고 있음 — 달력에 1일을 표시합니다.'
-  ,'Pay with your patience — Storming past the pup, you continue your journey. Lose 1 Reputation.': '인내심을 잃고 지나가기 — 새끼를 지나쳐 여정을 계속합니다. 길드 명성 1을 잃습니다.'
   ,'Not Highest — you had fun but got knocked off. You land with a thud in the slushy snow.': '가장 높지 않음 — 즐거웠지만 결국 떨어져 질척한 눈 위에 쿵 하고 내려앉습니다.'
   ,"Stay out of it — He got himself into this situation, and he only has himself to blame. As you ride the breeze, you look back and see a rug full of glittering specks topple off of the capercaille's back. End your Soar at your chosen destination. Griph's Services as a trader are unavailable for the remainder of your Journey.": '관여하지 않기 — 그리프가 자초한 일이니 그대로 지나갑니다. 바람을 타고 멀어지며 돌아보면 반짝이는 물건이 가득한 깔개가 큰들꿩의 등에서 쏟아집니다. 선택한 목적지에서 활공을 끝냅니다. 이번 여정이 끝날 때까지 그리프와 거래할 수 없습니다.'
   ,'Ignore the distraction — You shift your eyes back towards the horizon. End your Soar at your chosen destination.': '한눈팔지 않기 — 다시 지평선을 바라봅니다. 선택한 목적지에서 활공을 끝냅니다.'
@@ -138,6 +143,10 @@ const exactTranslations: Record<string, string> = {
 
 const optionTranslations: Record<string, string> = {
   Duty: '의무',
+  'Pay with your pockets': '장신구로 내기',
+  'Pay with your life': '결투로 대신하기',
+  'Pay with your patience': '그냥 지나치기',
+  'Pay with your (short) patience': '그냥 지나치기',
   'Listen & Learn': '듣고 배우기',
   Interrupt: '말 끊기',
   Junior: '풋내기 (젊은 채집꾼)',
@@ -168,6 +177,7 @@ const optionTranslations: Record<string, string> = {
 };
 
 const generatedTranslationMap = generatedTranslations as Record<string, string>;
+const encounterTitleKeys = Object.keys(ENCOUNTER_TITLE_KO).sort((left, right) => right.length - left.length);
 const protectedRuleNames = [...new Set(PRINTED_EFFECT_REGISTRY.map(effect => effect.ownerName))]
   .filter(Boolean)
   .sort((left, right) => right.length - left.length);
@@ -392,7 +402,8 @@ export const localizeManualEffectValue = (text: string): string => {
 
 export const localizeEncounterTitle = (text: string): string => {
   const compact = cleanPrintedDisplayText(text);
-  return ENCOUNTER_TITLE_KO[compact] || localizeManualEffectValue(compact);
+  const canonicalTitle = encounterTitleKeys.find(title => compact === title || compact.startsWith(`${title} `));
+  return (canonicalTitle ? ENCOUNTER_TITLE_KO[canonicalTitle] : undefined) || localizeManualEffectValue(compact);
 };
 
 export const localizeManualEffectText = (summary: string, text: string): string => {
@@ -431,6 +442,13 @@ export const localizeManualEffectText = (summary: string, text: string): string 
 
 export const localizeEncounterDisplayText = (summary: string, text: string): string => {
   const raw = normalizeTranslationKey(text);
+  const cleanSummary = cleanPrintedDisplayText(summary);
+  // Older saves retain the p.87 row with its opening scene inside the title
+  // and only the three result branches in `text`. Keep those saves readable
+  // without rewriting or invalidating their pending encounter transaction.
+  if (cleanSummary === 'Highway Robbery' || cleanSummary.startsWith('Highway Robbery ') || raw.includes('Pay with your pockets')) {
+    return HIGHWAY_ROBBERY_CONTEXT;
+  }
   const encounter = ENCOUNTERS.find(row => normalizeTranslationKey(row.prompt) === raw);
   const localized = localizeManualEffectText(summary, raw);
   if (!encounter) return cleanPrintedDisplayText(localized);

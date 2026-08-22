@@ -53,7 +53,7 @@ export const ENCOUNTER_TITLE_KO: Record<string, string> = {
   Roadtreat: '길 위의 간식',
   'Brick By Brick': '벽돌 한 장씩',
   "Sorry, We've Misplaced Your Order": '죄송합니다, 배달물이 바뀌었어요',
-  'Highway Robbery': '꼬마 노상강도',
+  'Highway Robbery': '꼬마 산적의 통행세',
   'Rooting Around': '들판을 헤집는 멧돼지',
   Deluge: '폭우',
   'Alls Fair In Snow And War': '눈싸움에는 반칙이 없다',
