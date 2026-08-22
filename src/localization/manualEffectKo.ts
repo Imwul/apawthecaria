@@ -13,14 +13,17 @@ const MUSHROOM_PICKERS_TEXT = `약용 버섯이 아닌 것은 확실하지만, �
 숙련자 - 정중히 끼어들어 버섯이 다른 채집물에 닿지 않게 집으로 가져가 확인하자고 제안합니다. 숙련자 채집꾼은 현명하다는 듯 고개를 끄덕입니다. 길드 명성 1을 얻습니다.`;
 
 const HIGHWAY_ROBBERY_CONTEXT = '장난감 검을 든 어린 들쥐가 길을 막고 서서, 장난스럽게 통행세를 내라고 요구합니다.';
+const HIGHWAY_ROBBERY_POCKETS = '장신구로 내기 — 장신구 1개를 잃습니다. 갑자기 전리품을 얻은 들쥐 아이는 어떤 반응을 보이나요?';
+const HIGHWAY_ROBBERY_DUEL = '결투로 대신하기 — 달력에 1일을 표시합니다. 들쥐 아이와 모의 결투를 벌이고, 둘 중 누가 누구를 ‘쓰러뜨렸는지’ 일지에 기록하세요.';
+const HIGHWAY_ROBBERY_PASS = '그냥 지나치기 — 아이를 성급히 지나쳐 여정을 계속합니다. 길드 명성 1을 잃습니다.';
 
 const exactTranslations: Record<string, string> = {
   'Any Season': '모든 계절',
   'Dam Lotta Trouble': '댐 때문에 골치 아파',
-  'Pay with your pockets — Lose 1 Trinket. How does the mouse pup react to their sudden bounty': '장신구로 내기 — 장신구 1개를 잃습니다. 갑자기 전리품을 얻은 들쥐 아이는 어떤 반응을 보이나요?',
-  "Pay with your life — Mark 1 Day on your Calendar. Journal about a mock fight you have with the pup, and how one of you 'slays' the other": '결투로 대신하기 — 달력에 1일을 표시합니다. 들쥐 아이와 모의 결투를 벌이고, 둘 중 누가 누구를 ‘쓰러뜨렸는지’ 일지에 기록하세요.',
-  'Pay with your patience — Storming past the pup, you continue your journey. Lose 1 Reputation.': '그냥 지나치기 — 아이를 성급히 지나쳐 여정을 계속합니다. 길드 명성 1을 잃습니다.',
-  'Pay with your (short) patience — Storming past the pup, you continue your journey. Lose 1 Reputation.': '그냥 지나치기 — 아이를 성급히 지나쳐 여정을 계속합니다. 길드 명성 1을 잃습니다.',
+  'Pay with your pockets — Lose 1 Trinket. How does the mouse pup react to their sudden bounty': HIGHWAY_ROBBERY_POCKETS,
+  "Pay with your life — Mark 1 Day on your Calendar. Journal about a mock fight you have with the pup, and how one of you 'slays' the other": HIGHWAY_ROBBERY_DUEL,
+  'Pay with your patience — Storming past the pup, you continue your journey. Lose 1 Reputation.': HIGHWAY_ROBBERY_PASS,
+  'Pay with your (short) patience — Storming past the pup, you continue your journey. Lose 1 Reputation.': HIGHWAY_ROBBERY_PASS,
   'Friend In Need': '도움이 필요한 동료',
   'Rest Stop': '길가의 쉼터',
   'To Glide, or not to Glide': '활공할까, 말까',
@@ -506,6 +509,14 @@ export const localizeManualJournalText = (text: string): string => text
 
 export const localizeManualEffectOption = (option: string): string => {
   const compact = option.trim();
+  // Some persisted encounter rows already have generic rule terms such as
+  // Trinket/Calendar/Reputation localized. That hybrid text no longer equals
+  // the canonical English choice, so identify this p.87 branch by its stable
+  // printed heading before applying the generic translation fallbacks.
+  const printedHeading = compact.match(/^(.+?)\s+[—-]\s+/)?.[1].trim();
+  if (printedHeading === 'Pay with your pockets') return HIGHWAY_ROBBERY_POCKETS;
+  if (printedHeading === 'Pay with your life') return HIGHWAY_ROBBERY_DUEL;
+  if (printedHeading === 'Pay with your patience' || printedHeading === 'Pay with your (short) patience') return HIGHWAY_ROBBERY_PASS;
   if (optionTranslations[compact]) return optionTranslations[compact];
   if (exactTranslations[compact]) return cleanEncounterOptionText(exactTranslations[compact]);
   const branch = compact.match(/^(.+?)\s+[—-]\s+([\s\S]+)$/);

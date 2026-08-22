@@ -128,6 +128,9 @@ describe('printed effect Korean reading layer', () => {
     ]);
     expect(choices.join(' ')).not.toMatch(/쥐 새끼|강아지|목숨을 걸고|인내심을 잃고/);
     expect(localizeManualEffectOption('Pay with your life')).toBe('결투로 대신하기');
+    expect(localizeManualEffectOption('Pay with your pockets — Lose 1 장신구. How does the mouse pup react to their sudden bounty')).toBe(choices[0]);
+    expect(localizeManualEffectOption("Pay with your life — Mark 1 Day on your 일정. Journal about a mock fight you have with the pup, and how one of you 'slays' the other")).toBe(choices[1]);
+    expect(localizeManualEffectOption('Pay with your patience — Storming past the pup, you continue your 여정. Lose 1 길드 명성.')).toBe(choices[2]);
   });
 
   it('gives every encounter popup a compact Korean title', () => {
