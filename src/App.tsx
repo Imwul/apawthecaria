@@ -19039,7 +19039,12 @@ const MapView = memo(function MapView({
     })
     : [];
   const currentId = resolveCurrentMapLocationKey(state);
-  const extraIds = new Set<string>([...highlightLocationIds, selectedLocationId, currentId, ...routePlaceIds].filter((id): id is string => Boolean(id)));
+  const destinationId = state.journeyActive
+    ? (state.journey?.destinationId && nodes[state.journey.destinationId]
+      ? state.journey.destinationId
+      : findMapLocationKey(state.journeyDestination, customMapLocations))
+    : null;
+  const extraIds = new Set<string>([...highlightLocationIds, selectedLocationId, currentId, destinationId, ...routePlaceIds].filter((id): id is string => Boolean(id)));
   (state.visitedLocations || []).forEach(name => {
     const id = findMapLocationKey(name, customMapLocations);
     if (id) extraIds.add(id);
@@ -19122,6 +19127,7 @@ const MapView = memo(function MapView({
       clinicOverlays={clinicOverlays}
       savedConnections={savedConnections}
       selectedPlaceId={selectedLocationId}
+      destinationPlaceId={destinationId}
       hideSelectedPlaceSheet={hideSelectedPlaceSheet}
       historyAnchors={historyAnchors}
       variant={variant}

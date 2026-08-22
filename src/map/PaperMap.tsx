@@ -56,6 +56,7 @@ type PaperMapProps = {
   clinicOverlays?: MapClinicOverlay[];
   savedConnections?: MapSavedConnection[];
   selectedPlaceId?: string | null;
+  destinationPlaceId?: string | null;
   hideSelectedPlaceSheet?: boolean;
   historyAnchors?: Array<{ id: string; x: number; y: number }>;
   variant?: 'full' | 'companion';
@@ -168,6 +169,7 @@ export function PaperMap({
   clinicOverlays = [],
   savedConnections = [],
   selectedPlaceId = null,
+  destinationPlaceId = null,
   hideSelectedPlaceSheet = false,
   historyAnchors = [],
   variant = 'full',
@@ -666,6 +668,7 @@ export function PaperMap({
             const visible = isPlaceMarkerVisible(place, layers, selectedId);
             if (!visible) return null;
             const selected = selectedId === place.id;
+            const destination = destinationPlaceId === place.id;
             const routeIndex = routeIndexById.get(place.id);
             const glyph = placeGlyph(place);
             const position = dragPreview[place.id] || place;
@@ -678,7 +681,7 @@ export function PaperMap({
                   top: `${position.y}%`,
                   // Named places must remain tappable when a dense Wilds marker
                   // shares almost the same map coordinate.
-                  zIndex: place.isCurrent ? 9 : selected ? 8 : routeIndex !== undefined ? 7 : place.locationType === 'Wilds' ? 3 : 4
+                  zIndex: destination ? 10 : place.isCurrent ? 9 : selected ? 8 : routeIndex !== undefined ? 7 : place.locationType === 'Wilds' ? 3 : 4
                 }}
               >
                 <button
@@ -686,12 +689,13 @@ export function PaperMap({
                   className={[
                     'map-location-hit',
                     place.isCurrent ? 'is-current' : '',
+                    destination ? 'is-destination' : '',
                     selected ? 'is-picked' : '',
                     routeIndex !== undefined ? 'is-route' : '',
                     panLocked ? 'is-movable' : '',
                     place.visited ? 'is-visited' : 'is-unvisited'
                   ].filter(Boolean).join(' ')}
-                  aria-label={place.name}
+                  aria-label={destination ? `${place.name}, 여정 목적지` : place.name}
                   aria-pressed={selected}
                   data-map-place-id={place.id}
                   onMouseDown={event => {
@@ -723,8 +727,23 @@ export function PaperMap({
                   </span>
                   {place.isCurrent && <span className="map-location-ring" aria-hidden="true" />}
                   {selected && !place.isCurrent && <span className="map-location-ring map-location-ring--selected" aria-hidden="true" />}
+                  {destination && <span className="map-location-ring map-location-ring--destination" aria-hidden="true" />}
                   {routeIndex !== undefined && (
                     <span className="map-location-order">{routeIndex + 1}</span>
+                  )}
+                  {destination && (
+                    <span
+                      className={[
+                        'map-location-destination',
+                        position.x < 18 ? 'is-left-edge' : '',
+                        position.x > 82 ? 'is-right-edge' : '',
+                        position.y < 10 ? 'is-below' : ''
+                      ].filter(Boolean).join(' ')}
+                      aria-hidden="true"
+                    >
+                      <span>여정 목적지</span>
+                      <strong>{place.name}</strong>
+                    </span>
                   )}
                 </button>
 

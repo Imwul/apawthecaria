@@ -246,6 +246,14 @@ describe('map interaction contracts', () => {
     expect(cssSource).toContain('.paper-map__overlay');
   });
 
+  it('marks the active Journey destination on the same zooming map surface', () => {
+    expect(appSource).toContain('destinationPlaceId={destinationId}');
+    expect(mapSource).toContain("destinationPlaceId === place.id");
+    expect(mapSource).toContain('map-location-destination');
+    expect(mapSource).toContain('<span>여정 목적지</span>');
+    expect(cssSource).toContain('.map-location-ring--destination');
+  });
+
   it('keeps offline detection overlays out of the production map', () => {
     expect(mapSource).not.toContain('mapDebug');
     expect(mapSource).not.toContain('Detected road mask');

@@ -6900,7 +6900,89 @@ button,
   border-color: rgba(140, 78, 28, 0.62);
 }
 
+.map-location-ring--destination {
+  width: 19px;
+  height: 19px;
+  border: 2px solid rgba(91, 116, 67, 0.9);
+  box-shadow: 0 0 0 2px rgba(248, 244, 232, 0.88);
+}
+
+.map-location-destination {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 5px);
+  min-width: max-content;
+  max-width: 10rem;
+  padding: 0.24rem 0.4rem 0.28rem;
+  transform: translateX(-50%);
+  border: 1px solid rgba(91, 116, 67, 0.72);
+  border-radius: 3px;
+  background: rgba(250, 247, 237, 0.95);
+  box-shadow: 0 2px 5px rgba(53, 43, 32, 0.2);
+  color: #334329;
+  font-family: "Noto Sans KR", sans-serif;
+  font-size: 0.64rem;
+  line-height: 1.25;
+  text-align: left;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.map-location-destination::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 0.42rem;
+  height: 0.42rem;
+  transform: translate(-50%, -55%) rotate(45deg);
+  border-right: 1px solid rgba(91, 116, 67, 0.72);
+  border-bottom: 1px solid rgba(91, 116, 67, 0.72);
+  background: rgba(250, 247, 237, 0.95);
+}
+
+.map-location-destination > span,
+.map-location-destination > strong {
+  display: block;
+}
+
+.map-location-destination > span {
+  color: #667457;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.map-location-destination > strong {
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-location-destination.is-left-edge {
+  left: -4px;
+  transform: none;
+}
+
+.map-location-destination.is-right-edge {
+  right: -4px;
+  left: auto;
+  transform: none;
+}
+
+.map-location-destination.is-below {
+  top: calc(100% + 5px);
+  bottom: auto;
+}
+
+.map-location-destination.is-below::after {
+  top: auto;
+  bottom: 100%;
+  transform: translate(-50%, 55%) rotate(225deg);
+}
+
 .map-location-hit.is-current .map-location-dot,
+.map-location-hit.is-destination .map-location-dot,
 .map-location-hit.is-picked .map-location-dot,
 .map-location-hit.is-route .map-location-dot {
   opacity: 1;
