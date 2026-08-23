@@ -1274,7 +1274,8 @@ button:active {
   margin: 0 1.2rem 1.15rem;
 }
 
-.controlled-prompt.app-dialog .app-dialog__field label {
+.controlled-prompt.app-dialog .app-dialog__field label,
+.controlled-prompt.app-dialog .app-dialog__field-label {
   color: var(--text-muted);
   font-size: 0.72rem;
   font-weight: 700;
@@ -1339,6 +1340,162 @@ button:active {
 
 .phase4-modal.controlled-prompt.app-dialog.app-dialog--slots {
   width: min(560px, 100%);
+}
+
+.phase4-modal.controlled-prompt.app-dialog.app-dialog--multi-select {
+  width: min(760px, 100%);
+  max-height: min(88dvh, 820px);
+  overflow: auto;
+}
+
+.app-dialog__field--multi-select { gap: 0.55rem; }
+
+.controlled-prompt__option-table {
+  display: grid;
+  border-top: 1px solid rgba(37, 33, 28, 0.32);
+  border-bottom: 1px solid rgba(37, 33, 28, 0.32);
+}
+
+.controlled-prompt__option-head,
+.controlled-prompt__option-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.25fr) minmax(190px, 1fr) 116px;
+  align-items: stretch;
+}
+
+.controlled-prompt__option-head {
+  min-height: 34px;
+  align-items: center;
+  background: rgba(101, 114, 85, 0.08);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.controlled-prompt__option-head span,
+.controlled-prompt__option-notes,
+.controlled-prompt__quantity { padding: 0.58rem 0.7rem; }
+
+.controlled-prompt__option-row {
+  min-height: 70px;
+  border-top: 1px solid rgba(37, 33, 28, 0.17);
+  background: rgba(255, 253, 246, 0.72);
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.controlled-prompt__option-row.is-relevant { background: rgba(101, 114, 85, 0.06); }
+
+.controlled-prompt__option-row.is-selected {
+  background: rgba(101, 114, 85, 0.15);
+  box-shadow: inset 4px 0 var(--herb, #657255);
+}
+
+.controlled-prompt__option-choice {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  min-height: 56px;
+  padding: 0.58rem 0.7rem;
+  border: 0;
+  background: transparent;
+  color: var(--editorial-ink, #25211c);
+  text-align: left;
+  cursor: pointer;
+}
+
+.controlled-prompt__option-choice:hover { background: rgba(101, 114, 85, 0.08); }
+
+.controlled-prompt__option-choice:focus-visible,
+.controlled-prompt__quantity button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.controlled-prompt__option-choice strong,
+.controlled-prompt__option-choice small,
+.controlled-prompt__option-notes span,
+.controlled-prompt__option-notes small,
+.controlled-prompt__option-notes em {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.controlled-prompt__option-choice strong { line-height: 1.35; }
+
+.controlled-prompt__option-choice small,
+.controlled-prompt__option-notes small {
+  margin-top: 0.16rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.controlled-prompt__option-mark {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid rgba(37, 33, 28, 0.55);
+  color: #fff;
+  font-weight: 800;
+}
+
+.is-selected .controlled-prompt__option-mark {
+  border-color: var(--herb, #657255);
+  background: var(--herb, #657255);
+}
+
+.controlled-prompt__option-notes {
+  align-self: center;
+  border-left: 1px solid rgba(37, 33, 28, 0.14);
+  line-height: 1.45;
+}
+
+.controlled-prompt__option-notes em {
+  margin-top: 0.28rem;
+  color: var(--herb-dark, #4f6043);
+  font-size: 0.76rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.controlled-prompt__quantity {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border-left: 1px solid rgba(37, 33, 28, 0.14);
+}
+
+.controlled-prompt__quantity button {
+  flex: 0 0 38px;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid rgba(37, 33, 28, 0.48);
+  background: rgba(255, 253, 246, 0.78);
+  color: var(--editorial-ink, #25211c);
+  cursor: pointer;
+}
+
+.controlled-prompt__quantity strong { min-width: 1.4rem; text-align: center; }
+
+.controlled-prompt__selection-summary {
+  margin: 0 !important;
+  padding: 0.7rem 0.8rem !important;
+  border-top: 1px solid rgba(37, 33, 28, 0.18);
+  background: rgba(226, 236, 230, 0.42);
+  color: var(--herb-dark, #4f6043) !important;
+  font-weight: 700;
+}
+
+.controlled-prompt.app-dialog .app-dialog__actions .app-dialog__primary:disabled {
+  border-color: rgba(37, 33, 28, 0.2);
+  background: rgba(101, 114, 85, 0.3);
+  cursor: not-allowed;
 }
 
 .cloud-account-context,
@@ -2014,6 +2171,30 @@ button:active {
     border-right: 0;
     border-bottom: 0;
     border-left: 0;
+  }
+
+  .phase4-modal.controlled-prompt.app-dialog.app-dialog--multi-select {
+    max-height: 90dvh !important;
+  }
+
+  .controlled-prompt__option-head { display: none; }
+
+  .controlled-prompt__option-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .controlled-prompt__option-choice { grid-column: 1; }
+
+  .controlled-prompt__option-notes {
+    grid-column: 1;
+    padding-top: 0;
+    border-left: 0;
+  }
+
+  .controlled-prompt__quantity {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    min-width: 108px;
   }
 
   .controlled-prompt.app-dialog .app-dialog__actions {
@@ -10897,7 +11078,8 @@ details.rulebook-source-text > summary {
 
 .journal-app:not(.journal-app--onboarding) :is(.journal-note-label, .document-kicker),
 .app-dialog__kicker,
-.controlled-prompt.app-dialog .app-dialog__field label {
+.controlled-prompt.app-dialog .app-dialog__field label,
+.controlled-prompt.app-dialog .app-dialog__field-label {
   font-size: 0.78rem;
   line-height: 1.4;
 }

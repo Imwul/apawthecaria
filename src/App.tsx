@@ -296,7 +296,7 @@ import {
   localizeLocationName,
   localizeLocationTypeLabel,
   localizePreparationMethod,
-  localizePreparationName,
+  formatPreparationName as localizePreparationName,
   localizeReagentType,
   localizeRegionLabel,
   localizeRegionList,
@@ -305,6 +305,13 @@ import {
   localizeSeverityLabel,
   localizeTravelStyle
 } from './localization/gameplayKo';
+import {
+  changeMultiSelectPromptQuantity,
+  decodeMultiSelectPromptValue,
+  encodeMultiSelectPromptValue,
+  toggleMultiSelectPromptOption,
+  totalMultiSelectPromptQuantity
+} from './multiSelectPrompt';
 import { localizeGameplayMessage } from './localization/engineMessagesKo';
 import { localizeEncounterTitle, localizeManualEffectValue, localizeManualJournalText, localizeManualJournalTitle } from './localization/manualEffectKo';
 import { formatManualEffectJournalEntry } from './manualEffectJournal';
@@ -6629,73 +6636,41 @@ export default function App() {
     const treatmentNeededRequirements = selectionAilmentDefinition && selectionAilment
       ? requirementTagThresholds(effectiveTreatmentRequirement(selectionAilmentDefinition, selectionAilment, state.ailmentTagOverrides))
       : [];
-    const preferredPartIndex = availableParts.findIndex(part =>
-      treatmentRelevantPreparationTags(part.tags, treatmentNeededRequirements).length > 0
-    );
     const onePartPerForage = reagent.specialAcquisition.some(rule =>
       rule.effect.type === 'customEffect' && rule.effect.code === 'ONE_BOTTLE_PER_FORAGE'
     );
     const ownedReagentParts = state.bag
       .filter(item => item.canonicalReagentId === reagent.id)
       .reduce((sum, item) => sum + Math.max(1, item.qty || 1), 0);
-    const partSelections: Array<{ preparationId: string; quantity: number }> = [];
-    const selectedPreparationDefs: typeof availableParts = [];
-    let addAnotherPart = true;
-    while (addAnotherPart) {
-      const chosen = await requestControlledPrompt({
-        title: partSelections.length > 0 ? '다른 부위도 채집하세요' : '채집할 부위를 선택하세요',
-        message: onePartPerForage
-          ? `${formatReagentName(reagent)} · 현재 가방 ${ownedReagentParts}개. 이 영약재는 특별 조건에 따라 한 번의 채집에서 1병만 모을 수 있습니다.`
-          : `${formatReagentName(reagent)} · 현재 가방 ${ownedReagentParts}개. 서로 다른 부위나 여러 개를 함께 가져올 수 있으며, 첫 부위 이후 각 추가 부위마다 타이머 비용이 1시간 늘어납니다.`,
-        defaultValue: String((preferredPartIndex >= 0 ? preferredPartIndex : 0) + 1),
-        kicker: '채집 기록',
-        options: availableParts.map((part, partIndex) => ({
-          value: String(partIndex + 1),
-          label: `${partIndex + 1}. ${localizePreparationName(part.name)} · ${localizePreparationMethod(part.method)} · ${part.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음'} · 무게 ${formatWeight(part.weight)} · ${part.uses}회분${treatmentRelevantPreparationTags(part.tags, treatmentNeededRequirements).length > 0 ? ' · 현재 치료에 기여' : ''}`
-        }))
-      });
-      if (chosen === null) {
-        if (partSelections.length === 0) return;
-        break;
-      }
-      const preparation = availableParts[Math.max(0, (parseInt(chosen, 10) || 1) - 1)] || availableParts[0];
-      const quantityInput = onePartPerForage ? '1' : await requestControlledPrompt({
-        title: '채집 수량',
-        message: `${localizePreparationName(preparation.name)} 부위의 채집 수량을 입력하세요.`,
-        defaultValue: '1',
-        kicker: '채집 기록',
-        label: '수량',
-        inputMode: 'number'
-      });
-      if (quantityInput === null) {
-        if (partSelections.length === 0) return;
-        break;
-      }
-      const quantity = onePartPerForage ? 1 : Math.max(1, parseInt(quantityInput, 10) || 1);
-      const existing = partSelections.find(row => row.preparationId === preparation.id);
-      if (existing) existing.quantity += quantity;
-      else {
-        partSelections.push({ preparationId: preparation.id, quantity });
-        selectedPreparationDefs.push(preparation);
-      }
-      if (onePartPerForage) {
-        addAnotherPart = false;
-        continue;
-      }
-      const continueChoice = await requestControlledPrompt({
-        title: '같은 영약재에서 더 채집할까요?',
-        message: `현재 ${partSelections.reduce((sum, row) => sum + row.quantity, 0)}개 부위를 선택했습니다. 첫 부위 이후 각 추가 부위마다 타이머 비용이 1시간 늘어납니다.`,
-        defaultValue: 'done',
-        kicker: formatReagentName(reagent),
-        label: '다음 선택',
-        options: [
-          { value: 'another', label: '다른 부위 또는 수량 추가' },
-          { value: 'done', label: '이대로 채집 확정' }
-        ]
-      });
-      if (continueChoice === null) return;
-      addAnotherPart = continueChoice === 'another';
-    }
+    const chosenParts = await requestControlledPrompt({
+      title: '채집할 부위를 고르세요',
+      message: onePartPerForage
+        ? `${formatReagentName(reagent)} · 현재 가방 ${ownedReagentParts}개. 특별 조건에 따라 이번 채집에서는 1병만 모을 수 있습니다.`
+        : `${formatReagentName(reagent)} · 현재 가방 ${ownedReagentParts}개. 행을 누르면 선택되고, 다시 누르면 해제됩니다. 서로 다른 부위나 같은 부위 여러 개를 함께 가져올 수 있습니다.`,
+      defaultValue: '{}',
+      kicker: '채집 기록',
+      confirmLabel: '선택한 부위 채집',
+      multiSelect: {
+        allowRepeat: !onePartPerForage,
+        maxTotal: onePartPerForage ? 1 : undefined
+      },
+      options: availableParts.map(part => ({
+        value: part.id,
+        label: localizePreparationName(part.name),
+        title: localizePreparationName(part.name),
+        detail: localizePreparationMethod(part.method),
+        tags: part.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음',
+        meta: `무게 ${formatWeight(part.weight)} · ${part.uses}회분`,
+        relevant: treatmentRelevantPreparationTags(part.tags, treatmentNeededRequirements).length > 0
+      }))
+    });
+    if (chosenParts === null) return;
+    const selectedQuantities = decodeMultiSelectPromptValue(chosenParts, availableParts.map(part => part.id));
+    const partSelections = availableParts.flatMap(part => selectedQuantities[part.id]
+      ? [{ preparationId: part.id, quantity: selectedQuantities[part.id] }]
+      : []);
+    if (partSelections.length === 0) return;
+    const selectedPreparationDefs = availableParts.filter(part => Boolean(selectedQuantities[part.id]));
     const graniteMortar = canonicalToolsFromState(state).find(tool => tool.upgradeId === 'granite-mortar' && !tool.broken && !tool.consumed);
     const poundWithGranite = Boolean(graniteMortar && reagent.type === 'PLANT'
       && selectedPreparationDefs.length > 0 && selectedPreparationDefs.every(part => /BREW/i.test(part.method))
@@ -9013,6 +8988,11 @@ const patientImpressionLabel = (personality?: string, descriptor?: string): stri
 interface ControlledPromptOption {
   value: string;
   label: string;
+  title?: string;
+  detail?: string;
+  tags?: string;
+  meta?: string;
+  relevant?: boolean;
 }
 
 interface ControlledPromptRequest {
@@ -9027,6 +9007,10 @@ interface ControlledPromptRequest {
   cancelLabel?: string;
   confirmLabel?: string;
   tone?: 'default' | 'destructive';
+  multiSelect?: {
+    allowRepeat?: boolean;
+    maxTotal?: number;
+  };
 }
 
 function CloudSlotsDialog({
@@ -9190,6 +9174,13 @@ function ControlledPromptDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const multiSelectOptions = request.multiSelect && request.options ? request.options : null;
+  const selectedQuantities = multiSelectOptions
+    ? decodeMultiSelectPromptValue(value, multiSelectOptions.map(option => option.value))
+    : {};
+  const selectedTotal = totalMultiSelectPromptQuantity(selectedQuantities);
+  const updateSelection = (next: Record<string, number>) => onChange(encodeMultiSelectPromptValue(next));
+
   return (
     <div
       className="phase4-modal-backdrop controlled-prompt-backdrop app-dialog-backdrop"
@@ -9199,7 +9190,7 @@ function ControlledPromptDialog({
       }}
     >
       <form
-        className={`phase4-modal controlled-prompt app-dialog app-dialog--prompt${request.tone === 'destructive' ? ' app-dialog--destructive' : ''}`}
+        className={`phase4-modal controlled-prompt app-dialog app-dialog--prompt${request.tone === 'destructive' ? ' app-dialog--destructive' : ''}${multiSelectOptions ? ' app-dialog--multi-select' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="controlled-prompt-title"
@@ -9216,9 +9207,59 @@ function ControlledPromptDialog({
           </div>
         </header>
         <p id="controlled-prompt-message" className="app-dialog__message">{request.message}</p>
-        {!request.hideField && <div className="app-dialog__field">
-        <label htmlFor="controlled-prompt-input">{request.label || '선택'}</label>
-        {request.options ? (
+        {!request.hideField && <div className={`app-dialog__field${multiSelectOptions ? ' app-dialog__field--multi-select' : ''}`}>
+        {multiSelectOptions
+          ? <span id="controlled-prompt-field-label" className="app-dialog__field-label">{request.label || '선택'}</span>
+          : <label htmlFor="controlled-prompt-input">{request.label || '선택'}</label>}
+        {multiSelectOptions ? (
+          <div className="controlled-prompt__option-table" role="group" aria-labelledby="controlled-prompt-field-label">
+            <div className="controlled-prompt__option-head" aria-hidden="true">
+              <span>부위와 조제법</span>
+              <span>약효와 무게</span>
+              <span>수량</span>
+            </div>
+            {multiSelectOptions.map((option, index) => {
+              const quantity = selectedQuantities[option.value] || 0;
+              const selected = quantity > 0;
+              return (
+                <div key={option.value} className={`controlled-prompt__option-row${selected ? ' is-selected' : ''}${option.relevant ? ' is-relevant' : ''}`}>
+                  <button
+                    type="button"
+                    className="controlled-prompt__option-choice"
+                    aria-pressed={selected}
+                    autoFocus={index === 0}
+                    onClick={() => updateSelection(toggleMultiSelectPromptOption(selectedQuantities, option.value, request.multiSelect?.maxTotal))}
+                  >
+                    <span className="controlled-prompt__option-mark" aria-hidden="true">{selected ? '✓' : ''}</span>
+                    <span>
+                      <strong>{option.title || option.label}</strong>
+                      {option.detail && <small>{option.detail}</small>}
+                    </span>
+                  </button>
+                  <div className="controlled-prompt__option-notes">
+                    {option.tags && <span>{option.tags}</span>}
+                    {option.meta && <small>{option.meta}</small>}
+                    {option.relevant && <em>현재 치료에 기여</em>}
+                  </div>
+                  <div className="controlled-prompt__quantity" aria-label={`${option.title || option.label} 수량`}>
+                    {selected && request.multiSelect?.allowRepeat ? (
+                      <>
+                        <button type="button" aria-label={`${option.title || option.label} 1개 줄이기`} onClick={() => updateSelection(changeMultiSelectPromptQuantity(selectedQuantities, option.value, -1, request.multiSelect?.maxTotal))}>−</button>
+                        <strong aria-live="polite">{quantity}</strong>
+                        <button type="button" aria-label={`${option.title || option.label} 1개 늘리기`} onClick={() => updateSelection(changeMultiSelectPromptQuantity(selectedQuantities, option.value, 1, request.multiSelect?.maxTotal))}>+</button>
+                      </>
+                    ) : <span>{selected ? '1' : '—'}</span>}
+                  </div>
+                </div>
+              );
+            })}
+            <p className="controlled-prompt__selection-summary" aria-live="polite">
+              {selectedTotal > 0
+                ? `총 ${selectedTotal}개 부위 선택 · 추가 타이머 +${Math.max(0, selectedTotal - 1)}시간`
+                : '채집할 부위를 하나 이상 고르세요.'}
+            </p>
+          </div>
+        ) : request.options ? (
           <select
             id="controlled-prompt-input"
             value={value}
@@ -9249,7 +9290,7 @@ function ControlledPromptDialog({
         </div>}
         <footer className="controlled-prompt__actions app-dialog__actions">
           <button type="button" autoFocus={request.hideField} onClick={onCancel}>{request.cancelLabel || '취소'}</button>
-          <button className="app-dialog__primary" type="submit">{request.confirmLabel || '선택 확정'}</button>
+          <button className="app-dialog__primary" type="submit" disabled={Boolean(multiSelectOptions) && selectedTotal === 0}>{request.confirmLabel || '선택 확정'}</button>
         </footer>
       </form>
     </div>

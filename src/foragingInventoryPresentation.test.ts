@@ -15,8 +15,8 @@ describe('foraging and inventory presentation', () => {
   });
 
   it('normalizes legacy Korean and English names to one prepared-item label', () => {
-    expect(formatReagentItemName('금잔화/메리골드 (꽃잎)', 'reagent-marigold')).toBe('Marigold (금잔화) — 꽃잎');
-    expect(formatReagentItemName('Marigold (Nectar, Added)', 'reagent-marigold')).toBe('Marigold (금잔화) — 꽃꿀 · 넣어 사용');
+    expect(formatReagentItemName('금잔화/메리골드 (꽃잎)', 'reagent-marigold')).toBe('Marigold (금잔화) — Petals (꽃잎)');
+    expect(formatReagentItemName('Marigold (Nectar, Added)', 'reagent-marigold')).toBe('Marigold (금잔화) — Nectar (꽃꿀) · 넣어 사용');
   });
 
   it('groups different parts of the same reagent without making them look duplicated', () => {
@@ -25,8 +25,8 @@ describe('foraging and inventory presentation', () => {
       '금잔화/메리골드 (꽃잎)',
       'Beehive (Honey)'
     ])).toEqual([
-      'Marigold (금잔화) — 꽃꿀 · 넣어 사용 / 꽃잎',
-      'Beehive (벌집) — 꿀'
+      'Marigold (금잔화) — Nectar (꽃꿀) · 넣어 사용 / Petals (꽃잎)',
+      'Beehive (벌집) — Honey (꿀)'
     ]);
   });
 
@@ -37,7 +37,7 @@ describe('foraging and inventory presentation', () => {
         { name: 'Marigold (Petals, Ground)', canonicalReagentId: 'reagent-marigold', quantity: 2 },
         { name: '금잔화/메리골드 (꽃꿀)', canonicalReagentId: 'reagent-marigold', quantity: 1 }
       ]
-    )).toBe('Marigold (금잔화) — 꽃잎 · 갈음 +2 · 현재 3개');
+    )).toBe('Marigold (금잔화) — Petals (꽃잎) · 갈음 +2 · 현재 3개');
   });
 
   it('keeps both English and exact Korean names searchable', () => {

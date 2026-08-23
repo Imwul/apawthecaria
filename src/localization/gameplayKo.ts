@@ -14,7 +14,7 @@ const preparationNames: Record<string, string> = {
   Chalk: '분필',
   Charcoal: '숯',
   Cherries: '체리',
-  Chestnuts: '밤',
+  Chestnuts: '마로니에 열매',
   Clay: '점토',
   'Egg Shell': '알 껍데기',
   FILTHY: '불결한 물질',
@@ -68,6 +68,7 @@ const preparationNames: Record<string, string> = {
   Slugs: '민달팡이',
   'Spike Head': '가시 머리',
   'Spiky Husks': '가시 껍질',
+  'Perfect Conker': '잘 여문 마로니에 열매',
   Spores: '포자',
   Spritzer: '분무액',
   Stems: '줄기',
@@ -219,6 +220,10 @@ const behemothClassLabels: Record<string, string> = {
 };
 
 export const localizePreparationName = (value: string): string => preparationNames[value] || value;
+export const formatPreparationName = (value: string): string => {
+  const korean = localizePreparationName(value);
+  return korean === value ? value : `${value} (${korean})`;
+};
 export const localizePreparationMethod = (value: string): string => preparationMethods[value] || value;
 export const localizeCharacterDescriptor = (value: string): string => characterDescriptors[value] || value;
 export const localizePatientPersonality = (value: string): string => patientPersonalities[value] || value;
@@ -319,10 +324,10 @@ export const localizeInventoryItemName = (value: string): string => {
   if (canonicalToolName !== value) return canonicalToolName;
   const preparedReagent = value.match(/^(.+?) \(([^,]+),\s*([^)]+)\)$/);
   if (preparedReagent) {
-    return `${preparedReagent[1]} (${localizePreparationName(preparedReagent[2].trim())}, ${localizePreparationMethod(preparedReagent[3].trim())})`;
+    return `${preparedReagent[1]} (${formatPreparationName(preparedReagent[2].trim())}, ${localizePreparationMethod(preparedReagent[3].trim())})`;
   }
   const singlePreparation = value.match(/^(.+?) \(([^)]+)\)$/);
-  if (singlePreparation) return `${singlePreparation[1]} (${localizePreparationName(singlePreparation[2].trim())})`;
+  if (singlePreparation) return `${singlePreparation[1]} (${formatPreparationName(singlePreparation[2].trim())})`;
   return value.replace(/\(Part:\s*/g, '(부위: ');
 };
 
