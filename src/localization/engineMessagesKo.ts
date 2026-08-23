@@ -315,6 +315,7 @@ const exactEngineMessages: Record<string, string> = {
   "Resolve the pending Barter.": "대기 중인 물물교환을 먼저 판정하세요.",
   "Resolve the pending Encounter.": "대기 중인 조우를 먼저 판정하세요.",
   "Resolve the pending Foraging action.": "대기 중인 채집 판정을 먼저 마치세요.",
+  "Resolve the pending manual effect.": "대기 중인 직접 판정을 먼저 마치세요.",
   "Rumour cards require canonical suits.": "소문 카드에는 정식 카드 무늬가 필요합니다.",
   "Rumour requires Reputation 15+, a City Journey ending, and an unused Downtime activity.": "소문을 들으려면 길드 명성 15 이상으로 City에서 여정을 마치고 아직 휴식기 활동을 사용하지 않아야 합니다.",
   "Rumour requires Reputation 15+, a City Journey ending, and active Downtime.": "소문을 들으려면 길드 명성 15 이상으로 도시에서 여정을 마치고 현재 휴식기여야 합니다.",

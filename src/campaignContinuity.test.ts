@@ -30,6 +30,8 @@ describe('campaign continuity', () => {
       .toBe('환자 치료 이어가기');
     expect(getCampaignContinuity({ ...journey, pendingForaging: { id: 'forage' } }).continueLabel)
       .toBe('채집 조우 이어가기');
+    expect(getCampaignContinuity({ ...journey, pendingForaging: { id: 'forage' }, manualEffectQueue: [{ id: 'manual' }] }).continueLabel)
+      .toBe('보류 판정 이어가기');
     expect(getCampaignContinuity({ ...journey, pursuedByBehemoth: { id: 'chase' } }).continueLabel)
       .toBe('거수 추격 이어가기');
     expect(getCampaignContinuity({ ...journey, activeDelve: { id: 'barrow' } }).continueLabel)
@@ -44,8 +46,26 @@ describe('campaign continuity', () => {
       .toBeLessThan(getCampaignResumeActionIds({ ...journey, activeAilment: { id: 'patient' } }).indexOf('travel-next'));
     expect(getCampaignResumeActionIds({ ...journey, pendingEncounter: { id: 'travel' } }).at(0))
       .toBe('pending-encounter');
+    expect(getCampaignResumeActionIds({ ...journey, pendingForaging: { id: 'forage' }, manualEffectQueue: [{ id: 'manual' }] }).slice(0, 2))
+      .toEqual(['manual-effect', 'pending-foraging']);
     expect(getCampaignResumeActionIds({ journeyActive: false, downtimeRequired: true, downtimeCompleted: false }).at(0))
       .toBe('downtime-activities');
+  });
+
+  it('resumes a queued manual ruling before downtime or a new journey outside an active journey', () => {
+    const state = {
+      journeyActive: false,
+      downtimeRequired: true,
+      downtimeCompleted: false,
+      manualEffectQueue: [{ effectId: 'manual:waiting' }]
+    };
+
+    expect(getCampaignContinuity(state)).toMatchObject({
+      stage: 'manual-effect',
+      nextAction: '보류한 직접 판정을 먼저 마무리하세요.',
+      continueLabel: '보류 판정 이어가기'
+    });
+    expect(getCampaignResumeActionIds(state)).toEqual(['manual-effect']);
   });
 
   it('keeps the journey and cumulative clocks aligned during a manual correction', () => {

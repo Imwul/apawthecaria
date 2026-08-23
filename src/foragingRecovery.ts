@@ -2,6 +2,7 @@ import {
   hasImmediatelyTreatableAilment,
   resolveTimer,
   type AilmentTagOverride,
+  type CanonicalToolState,
   type EngineInventoryItem,
   type PatientState
 } from './rules';
@@ -23,6 +24,7 @@ export const resolveForagingPostEncounterCheckpoint = ({
   inventory,
   ailmentTagOverrides = [],
   availableToolIds = [],
+  toolStates = [],
   timerCost,
   manualEffectPending
 }: {
@@ -30,6 +32,7 @@ export const resolveForagingPostEncounterCheckpoint = ({
   inventory: readonly EngineInventoryItem[];
   ailmentTagOverrides?: readonly AilmentTagOverride[];
   availableToolIds?: readonly string[];
+  toolStates?: readonly CanonicalToolState[];
   timerCost: number;
   manualEffectPending: boolean;
 }): ForagingPostEncounterResolution => {
@@ -45,7 +48,8 @@ export const resolveForagingPostEncounterCheckpoint = ({
     patient,
     inventory,
     ailmentTagOverrides,
-    availableToolIds
+    availableToolIds,
+    toolStates
   );
   if (immediatelyTreatable || timerCost <= 0) {
     return { patient, immediatelyTreatable, timerApplied: false, waitingForManualEffect: false };

@@ -23,7 +23,37 @@ describe('Home campaign resume regression guards', () => {
 
   it('shares one tested action priority list with the actual Home resume button', () => {
     expect(appSource).toContain('const preferredActionIds = getCampaignResumeActionIds(state, Boolean(currentBarrow));');
+    expect(appSource).toContain('if (encounterDialog) {');
+    expect(appSource).not.toContain('encounterDialog?.focus();\n                      return true;');
     expect(appSource).not.toContain('className="action-hub__status"');
+  });
+
+  it('returns to the saved position when Home opens a reference chapter', () => {
+    expect(appSource).toContain('onNavigate={(tab) => changeActiveTab(tab, { restoreScroll: true })}');
+  });
+
+  it('clears campaign-scoped reference, journal, filter, and forage drafts when replacing the campaign', () => {
+    expect(appSource).toContain('const resetCampaignScopedUi = useCallback(() => {');
+    expect(appSource).toContain('setHerbariumViewState(initialHerbariumViewState())');
+    expect(appSource).toContain('setForageTargetReagentIds([])');
+    expect(appSource).toContain('foragePlanningKeyRef.current =');
+    expect(appSource).toContain("setAilmentFilter('')");
+    expect(appSource).toContain('initialSetupRouted.current = false');
+    expect(appSource).toContain('officialMapDefaultsLoaded.current = false');
+    expect(appSource).toContain('}, [campaignReadyForOfficialMap, campaignUiEpoch]);');
+    expect(appSource).toContain('key={`journals-${campaignUiEpoch}`}');
+    expect(appSource).toContain('key={`atlas-${campaignUiEpoch}`}');
+    expect(appSource).toContain('settleControlledPromptResolver(controlledPromptResolverRef, null)');
+  });
+
+  it('keeps Character record folds open across same-campaign tab round-trips and resets them with a replaced campaign', () => {
+    expect(appSource).toContain('const [bioRecordFolds, setBioRecordFolds] = useState<BioRecordFoldState>(initialBioRecordFoldState);');
+    expect(appSource).toContain('recordFolds={bioRecordFolds}');
+    expect(appSource).toContain('setRecordFolds={setBioRecordFolds}');
+    expect(appSource).toContain('open={recordFolds.profile}');
+    expect(appSource).toContain('open={recordFolds.extended}');
+    expect(appSource).toContain('open={recordFolds.methods}');
+    expect(appSource).toContain('setBioRecordFolds(initialBioRecordFoldState())');
   });
 
   it('separates a newly met patient impression from the diagnosis in the recent journal', () => {

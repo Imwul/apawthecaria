@@ -9,6 +9,7 @@ import {
   migrateSavedRulesState,
   printedAutomationLabel,
   resolveToolEffects,
+  scopeAlternativeAcquisition,
   type CanonicalToolState,
   type LeaveRuntimeState,
   type PatientState
@@ -71,6 +72,21 @@ describe('Phase 6 resumable canonical state', () => {
 });
 
 describe('Phase 6 replacement acquisition closure', () => {
+  it('backfills an unambiguous legacy acquisition scope and rejects a different patient', () => {
+    const legacy = createReplacementAcquisition({ targetTag: 'PAIN', requiredPotency: 2, name: 'Moon Sap', preparation: 'Brewed' });
+    expect(scopeAlternativeAcquisition({
+      acquisition: legacy,
+      activePatientId: 'patient-1',
+      activeAilmentInstanceIds: ['ailment-instance-1']
+    })).toMatchObject({ patientId: 'patient-1', ailmentInstanceId: 'ailment-instance-1' });
+
+    expect(scopeAlternativeAcquisition({
+      acquisition: { ...legacy, patientId: 'patient-before' },
+      activePatientId: 'patient-1',
+      activeAilmentInstanceIds: ['ailment-instance-1']
+    })).toBeNull();
+  });
+
   it('[REMEDY-003/FORAGE-005/BARTER-005/SAVE-004] commits BR 12 and Weight 2/3 only after the selected acquisition succeeds', () => {
     const acquisition = { ...createReplacementAcquisition({ targetTag: 'PAIN', requiredPotency: 2, name: 'Moon Sap', preparation: 'Brewed' }), selectedSource: 'forage' as const };
     expect(commitAlternativeAcquisition({

@@ -37,6 +37,7 @@ import {
   upsertPatientArchive,
   type BarterMapNode,
   type BarterRuntimeState,
+  type CanonicalToolState,
   type EncounterDefinition,
   type EngineInventoryItem,
   type JourneyGoalId,
@@ -216,6 +217,75 @@ describe('Phase 3 canonical Barter transactions', () => {
     expect(paid.value?.pendingBarter?.status).toBe('completed');
     const duplicate = resolveBarterPayment({ transactionId: 'pay', state: paid.value!, payment: { trinkets, reputation: gap - trinkets } });
     expect(duplicate.value).toBe(paid.value);
+  });
+
+  it('[BARTER-007/REMEDY-008] decreases Timers after acquisition when a required Tool is broken or consumed', () => {
+    const ailment = AILMENTS.find(row => row.canonicalName === 'Waen Drops')!;
+    const activePatient = resolvePatient({ id: 'barter-broken-tool', name: 'Patient', species: 'Mouse', ailmentIds: [ailment.id] }).value!;
+    const rows = REAGENTS.flatMap(reagent => reagent.preparations.map(preparation => ({ reagent, preparation })));
+    const pain = rows.find(row => row.preparation.tags.some(tag => tag.tag === 'PAIN' && tag.value >= 2))!;
+    const fair = rows.find(row => row.preparation.tags.some(tag => tag.tag === 'FAIR' && tag.value >= 3))!;
+    const requiredToolId = pain.preparation.requiredTools.find(tool => tool !== 'none')!;
+    const inventory: EngineInventoryItem[] = [{
+      id: 'barter-broken:ingredient',
+      name: pain.preparation.name,
+      type: 'reagent',
+      weight: pain.preparation.weight,
+      canonicalReagentId: pain.reagent.id,
+      preparationId: pain.preparation.id,
+      usesRemaining: pain.preparation.uses
+    }, {
+      id: 'barter-broken:tool',
+      name: requiredToolId,
+      type: 'tool',
+      weight: 0,
+      canonicalToolId: requiredToolId
+    }];
+    const before = activePatient.timers.map(timer => timer.current);
+    for (const [index, unavailable] of [{ broken: true, consumed: false }, { broken: false, consumed: true }].entries()) {
+      const toolStates: CanonicalToolState[] = [{
+        instanceId: 'barter-broken:tool',
+        toolId: requiredToolId,
+        upgradeId: null,
+        charges: null,
+        ...unavailable,
+        acquiredBy: 'test',
+        appliedEffectIds: []
+      }];
+      const state = {
+        ...barterState(activePatient),
+        inventory,
+        toolStates,
+        pendingBarter: {
+          barterId: `barter-unavailable-${index}`,
+          patientId: activePatient.id,
+          targetReagentId: fair.reagent.id,
+          preparationId: fair.preparation.id,
+          locationId: 'settlement',
+          locationType: 'Settlement' as const,
+          attemptIndex: 1,
+          attemptsRemaining: 0,
+          socialEncounter: null,
+          firstCard: { value: 1, suit: '♥' },
+          secondCard: { value: 1, suit: '♦' },
+          calculatedBR: 1,
+          modifiers: [],
+          availability: { region: 'Common' as const, season: 'Common' as const },
+          paymentRequired: 0,
+          paymentSelection: { trinkets: 0, reputation: 0 },
+          status: 'awaiting-payment' as const,
+          appliedEffectIds: []
+        }
+      };
+
+      const result = resolveBarterPayment({
+        transactionId: `barter-unavailable-${index}:payment`,
+        state,
+        payment: { trinkets: 0, reputation: 0 }
+      });
+
+      expect(result.value?.patient.timers.map(timer => timer.current)).toEqual(before.map(value => value - 1));
+    }
   });
 
   it('[BARTER-008/REMEDY-008/SAVE-004] backing out decreases every active Timer once after reload-safe state', () => {
@@ -535,6 +605,31 @@ describe('Phase 3 Journey, Goal, and Ending engines', () => {
     });
     expect(untreatedArrival.status).toBe('invalid');
     expect(untreatedArrival.messages.join(' ')).toMatch(/local beast.*Ailment/i);
+  });
+
+  it('[ENDING-001/CORE-002] blocks Journey ending until pending and queued manual rulings are resolved', () => {
+    const journey = journeyFor('responsibility');
+    const arrived = { ...journeyRuntime(), currentLocationId: journey.destinationId, journey };
+
+    const pending = resolveJourneyEnding({
+      transactionId: 'end-before-pending-manual',
+      state: { ...arrived, pendingManualEffect: { effectId: 'manual:pending' } },
+      endedAt: 2,
+      outcome: 'partial',
+      journalText: 'I arrived, but a ruling remains.'
+    });
+    const queued = resolveJourneyEnding({
+      transactionId: 'end-before-queued-manual',
+      state: { ...arrived, manualEffectQueue: [{ effectId: 'manual:queued' }] },
+      endedAt: 2,
+      outcome: 'partial',
+      journalText: 'I arrived, but a queued ruling remains.'
+    });
+
+    expect(pending.status).toBe('invalid');
+    expect(pending.messages).toContain('Resolve the pending manual effect.');
+    expect(queued.status).toBe('invalid');
+    expect(queued.messages).toContain('Resolve the pending manual effect.');
   });
 });
 

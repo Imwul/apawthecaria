@@ -467,6 +467,13 @@ describe('foraging and treatment transactions', () => {
     const tools: EngineInventoryItem[] = ['belt-knife', 'mortar-and-pestle', 'camp-kettle', 'teeth', 'paws', 'copper-frying-pan', 'big-iron-cauldron']
       .map(id => ({ id, name: id, type: 'tool' as const, weight: 0, canonicalToolId: id }));
     expect(canTreatAilmentWithInventory(patient, patient.ailments[0].id, [...reagents, ...tools])).toBe(true);
+    const dynamicallyBlocked: PatientState = {
+      ...patient,
+      ailments: patient.ailments.map((row, index) => index === 0
+        ? { ...row, specialState: { ...row.specialState, additionalRequirements: [{ tag: 'WOUND', threshold: 99 }] } }
+        : row)
+    };
+    expect(canTreatAilmentWithInventory(dynamicallyBlocked, dynamicallyBlocked.ailments[0].id, [...reagents, ...tools])).toBe(false);
     const result = resolveTreatment({
       mode: 'treat', transactionId: 'treatment-1',
       state: { inventory: [...reagents, ...tools], patient, reputation: 0, trinkets: 0, journalEvents: [], appliedTransactionIds: [] },
@@ -490,26 +497,56 @@ describe('foraging and treatment transactions', () => {
     const covering = rows.find(row => !/BOIL|BREW/i.test(row.part.method)
       && row.part.tags.some(tag => ['FUR', 'FEATHER', 'SCALE'].includes(tag.tag) && tag.value >= 1)
       && !row.part.tags.some(tag => tag.tag === 'FOUL'))!;
+    const unrelatedBoiled = rows.find(row => row.part.id !== boiledMood.part.id
+      && /BOIL|BREW/i.test(row.part.method)
+      && !row.part.tags.some(tag => tag.tag === 'MOOD' || tag.tag === 'FOUL'))!;
     expect(boiledMood).toBeTruthy();
     expect(covering).toBeTruthy();
+    expect(unrelatedBoiled).toBeTruthy();
     const ingredients: EngineInventoryItem[] = [boiledMood, covering].map(({ reagent, part }, index) => ({
       id: `double:ingredient:${index}`, name: part.name, type: 'reagent', weight: part.weight,
       canonicalReagentId: reagent.id, preparationId: part.id, usesRemaining: part.uses
     }));
-    const required = [...new Set([boiledMood, covering].flatMap(row => row.part.requiredTools).filter(id => id !== 'none' && id !== 'camp-kettle'))];
+    const unrelatedIngredient: EngineInventoryItem = {
+      id: 'double:ingredient:unrelated', name: unrelatedBoiled.part.name, type: 'reagent', weight: unrelatedBoiled.part.weight,
+      canonicalReagentId: unrelatedBoiled.reagent.id, preparationId: unrelatedBoiled.part.id, usesRemaining: unrelatedBoiled.part.uses
+    };
+    const required = [...new Set([boiledMood, covering, unrelatedBoiled].flatMap(row => row.part.requiredTools).filter(id => id !== 'none' && id !== 'camp-kettle'))];
     const toolItems: EngineInventoryItem[] = [
       { id: 'double:tool', name: 'Double Boiler', type: 'tool', weight: 1, canonicalToolId: 'camp-kettle' },
       { id: 'double:tool:second', name: 'Second Double Boiler', type: 'tool', weight: 1, canonicalToolId: 'camp-kettle' },
       ...required.map(id => ({ id: `double:${id}`, name: id, type: 'tool' as const, weight: 0, canonicalToolId: id }))
     ];
+    const doubleBoilerStates = [
+      { instanceId: 'double:tool', toolId: 'camp-kettle', upgradeId: 'double-boiler', charges: null, broken: false, consumed: false, acquiredBy: 'test', appliedEffectIds: [] },
+      { instanceId: 'double:tool:second', toolId: 'camp-kettle', upgradeId: 'double-boiler', charges: null, broken: false, consumed: false, acquiredBy: 'test', appliedEffectIds: [] }
+    ];
+    expect(canTreatAilmentWithInventory(
+      patient,
+      patient.ailments[0].id,
+      [...ingredients, ...toolItems]
+    )).toBe(false);
+    expect(canTreatAilmentWithInventory(
+      patient,
+      patient.ailments[0].id,
+      [...ingredients, unrelatedIngredient, ...toolItems],
+      [],
+      [],
+      doubleBoilerStates
+    )).toBe(true);
+    expect(canTreatAilmentWithInventory(
+      patient,
+      patient.ailments[0].id,
+      [...ingredients, ...toolItems.filter(item => item.id !== 'double:tool' && item.id !== 'double:tool:second')],
+      [],
+      [],
+      doubleBoilerStates
+    )).toBe(false);
     const result = resolveTreatment({
       mode: 'treat', transactionId: 'double:treatment',
       state: {
         inventory: [...ingredients, ...toolItems], patient, reputation: 0, trinkets: 0, journalEvents: [], appliedTransactionIds: [],
-        tools: [
-          { instanceId: 'double:tool', toolId: 'camp-kettle', upgradeId: 'double-boiler', charges: null, broken: false, consumed: false, acquiredBy: 'test', appliedEffectIds: [] },
-          { instanceId: 'double:tool:second', toolId: 'camp-kettle', upgradeId: 'double-boiler', charges: null, broken: false, consumed: false, acquiredBy: 'test', appliedEffectIds: [] }
-        ]
+        tools: doubleBoilerStates
       },
       ailmentInstanceId: patient.ailments[0].id,
       selectedItemIds: ingredients.map(item => item.id), selectedToolIds: toolItems.map(item => item.id), journalText: 'Double boiled.'
@@ -611,6 +648,25 @@ describe('foraging and treatment transactions', () => {
     const preparationTools: EngineInventoryItem[] = requiredToolIds.map(id => ({
       id: `bad-idea-tool:${id}`, name: id, type: 'tool', weight: 0, canonicalToolId: id
     }));
+    const unrelatedFoulRow = REAGENTS.flatMap(reagent => reagent.preparations.map(part => ({ reagent, part })))
+      .find(row => row.part.tags.some(tag => tag.tag === 'FOUL'))!;
+    const unrelatedFoul: EngineInventoryItem = {
+      id: `bad-idea-unrelated:${unrelatedFoulRow.part.id}`,
+      name: unrelatedFoulRow.part.name,
+      type: 'reagent',
+      weight: unrelatedFoulRow.part.weight,
+      canonicalReagentId: unrelatedFoulRow.reagent.id,
+      preparationId: unrelatedFoulRow.part.id,
+      usesRemaining: unrelatedFoulRow.part.uses
+    };
+    const unrelatedFoulTools: EngineInventoryItem[] = unrelatedFoulRow.part.requiredTools
+      .filter(id => id !== 'none' && !requiredToolIds.includes(id))
+      .map(id => ({ id: `bad-idea-unrelated-tool:${id}`, name: id, type: 'tool', weight: 0, canonicalToolId: id }));
+    expect(canTreatAilmentWithInventory(
+      patient,
+      patient.ailments[0].id,
+      [...ingredients, unrelatedFoul, ...preparationTools, ...unrelatedFoulTools]
+    )).toBe(true);
     const knife: EngineInventoryItem = { id: 'bad-idea-knife', name: 'Belt Knife', type: 'tool', weight: 1 / 3, canonicalToolId: 'belt-knife' };
     const state = {
       inventory: [...ingredients, ...preparationTools, knife],

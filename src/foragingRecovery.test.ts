@@ -3,6 +3,7 @@ import {
   AILMENTS,
   REAGENTS,
   resolvePatient,
+  type CanonicalToolState,
   type EngineInventoryItem
 } from './rules';
 import {
@@ -61,6 +62,54 @@ describe('foraging recovery and p.33 checkpoint', () => {
     expect(result.immediatelyTreatable).toBe(true);
     expect(result.timerApplied).toBe(false);
     expect(result.patient?.timers.map(timer => timer.current)).toEqual(before);
+  });
+
+  it('does not skip the post-foraging Timer when the required preparation Tool is broken or consumed', () => {
+    const ailment = AILMENTS.find(row => row.canonicalName === 'Waen Drops')!;
+    const patient = resolvePatient({ id: 'broken-forage-tool', name: 'Patient', species: 'Mouse', ailmentIds: [ailment.id] }).value!;
+    const rows = REAGENTS.flatMap(reagent => reagent.preparations.map(part => ({ reagent, part })));
+    const pain = rows.find(row => row.part.tags.some(tag => tag.tag === 'PAIN' && tag.value >= 2))!;
+    const fair = rows.find(row => row.part.tags.some(tag => tag.tag === 'FAIR' && tag.value >= 3))!;
+    const inventory: EngineInventoryItem[] = [pain, fair].map(({ reagent, part }, index) => ({
+      id: `broken-forage:ingredient:${index}`,
+      name: part.name,
+      type: 'reagent',
+      weight: part.weight,
+      canonicalReagentId: reagent.id,
+      preparationId: part.id,
+      usesRemaining: part.uses
+    }));
+    const requiredToolId = pain.part.requiredTools.find(tool => tool !== 'none')!;
+    inventory.push({
+      id: 'broken-forage:tool',
+      name: requiredToolId,
+      type: 'tool',
+      weight: 0,
+      canonicalToolId: requiredToolId
+    });
+    const before = patient.timers.map(timer => timer.current);
+    for (const unavailable of [{ broken: true, consumed: false }, { broken: false, consumed: true }]) {
+      const toolStates: CanonicalToolState[] = [{
+        instanceId: 'broken-forage:tool',
+        toolId: requiredToolId,
+        upgradeId: null,
+        charges: null,
+        ...unavailable,
+        acquiredBy: 'test',
+        appliedEffectIds: []
+      }];
+      const result = resolveForagingPostEncounterCheckpoint({
+        patient,
+        inventory,
+        toolStates,
+        timerCost: 1,
+        manualEffectPending: false
+      });
+
+      expect(result.immediatelyTreatable).toBe(false);
+      expect(result.timerApplied).toBe(true);
+      expect(result.patient?.timers.map(timer => timer.current)).toEqual(before.map(value => value - 1));
+    }
   });
 
   it('round-trips an interrupted rollback checkpoint without retaining later optional state', () => {

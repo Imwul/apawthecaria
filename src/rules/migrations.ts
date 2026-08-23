@@ -655,14 +655,17 @@ const normalizeCurrentSave = (saved: SaveRecord): SaveRecord => {
     ? withMetadata.activePatientId
     : null;
   const appliedTransactionIds = [...new Set(stringArray(withMetadata.appliedTransactionIds))];
-  const pendingManualEffect = normalizeLegacyManualEffectDraft(withMetadata.pendingManualEffect);
+  const normalizedPendingManualEffect = normalizeLegacyManualEffectDraft(withMetadata.pendingManualEffect);
+  const pendingManualEffect = normalizedPendingManualEffect?.transactionId ? null : normalizedPendingManualEffect;
   const manualEffectDraft = normalizeLegacyManualEffectDraft(withMetadata.manualEffectDraft);
   const manualEffectQueue = Array.isArray(withMetadata.manualEffectQueue)
     ? withMetadata.manualEffectQueue
       .map(row => normalizeLegacyManualEffectDraft(row))
       .filter((row): row is NonNullable<typeof row> => Boolean(row))
     : [];
-  const uniqueManualQueue = [...new Map(manualEffectQueue.map(row => [row.effectId, row])).values()];
+  const uniqueManualQueue = [...new Map(manualEffectQueue
+    .filter(row => !row.transactionId)
+    .map(row => [row.effectId, row])).values()];
   const companionHiveStates = Array.isArray(withMetadata.companionHiveStates)
     ? withMetadata.companionHiveStates
     : recordArray(withMetadata.companionHive).map((row, index) => ({

@@ -122,6 +122,7 @@ import {
   applyAilmentTagOverrides,
   aggregateRemedyTagPotency,
   previewTreatmentSelection,
+  canTreatAilmentWithInventory,
   calculatePawnReward,
   beginBarrowChallenge,
   bidFarewellCollapsedEntrance,
@@ -132,6 +133,7 @@ import {
   createManualEffectDraft,
   createReplacementAcquisition,
   commitAlternativeAcquisition,
+  scopeAlternativeAcquisition,
   evaluateJourneyGoal,
   drawCollapsedEntranceCard,
   drawPilferCard,
@@ -305,6 +307,7 @@ import {
 } from './localization/gameplayKo';
 import { localizeGameplayMessage } from './localization/engineMessagesKo';
 import { localizeEncounterTitle, localizeManualEffectValue, localizeManualJournalText, localizeManualJournalTitle } from './localization/manualEffectKo';
+import { formatManualEffectJournalEntry } from './manualEffectJournal';
 import {
   formatReagentItemName,
   formatReagentName,
@@ -334,6 +337,7 @@ import {
   journalHistoryState,
   journalTabFromHash
 } from './sessionNavigation';
+import { settleControlledPromptResolver, type ControlledPromptResolver } from './controlledPromptLifecycle';
 
 const AlmanackPanel = lazy(() => import('./components/AlmanackPanel'));
 const LocalizedManualEffectText = lazy(() => import('./components/LocalizedManualEffectText'));
@@ -369,6 +373,29 @@ const requirementTagThresholds = (requirement: RequirementExpression): Array<{ t
   if (requirement.kind === 'special') return [];
   if (requirement.kind === 'alternatives') return requirement.alternatives.flatMap(requirementTagThresholds);
   return requirement.requirements.flatMap(requirementTagThresholds);
+};
+
+const effectiveTreatmentRequirement = (
+  definition: (typeof AILMENTS)[number],
+  ailment: PatientState['ailments'][number],
+  overrides: readonly AilmentTagOverride[]
+): RequirementExpression => {
+  const base = applyAilmentTagOverrides(definition.requirements, definition.id, overrides);
+  const specialState = ailment.specialState as {
+    additionalRequirements?: Array<{ tag: RuleTag; threshold: number }>;
+    poisonRequirement?: number;
+  } | undefined;
+  const dynamicRequirements: RequirementExpression[] = [
+    ...(Array.isArray(specialState?.additionalRequirements)
+      ? specialState.additionalRequirements.map(row => ({ kind: 'tag' as const, tag: row.tag, threshold: row.threshold }))
+      : []),
+    ...(typeof specialState?.poisonRequirement === 'number'
+      ? [{ kind: 'tag' as const, tag: 'POISON' as const, threshold: specialState.poisonRequirement }]
+      : [])
+  ];
+  return dynamicRequirements.length > 0
+    ? { kind: 'allOf', requirements: [base, ...dynamicRequirements] }
+    : base;
 };
 
 const treatmentRelevantPreparationTags = (
@@ -1011,6 +1038,34 @@ interface PlayingCard {
   suit: string;
   value: number;
 }
+
+type HerbariumViewState = {
+  regionFilter: string;
+  seasonFilter: string;
+  patientOnly: boolean;
+  expandedId: string | null;
+  visiblePage: { key: string; count: number };
+};
+
+type BioRecordFoldState = {
+  profile: boolean;
+  extended: boolean;
+  methods: boolean;
+};
+
+const initialBioRecordFoldState = (): BioRecordFoldState => ({
+  profile: false,
+  extended: false,
+  methods: false
+});
+
+const initialHerbariumViewState = (): HerbariumViewState => ({
+  regionFilter: '',
+  seasonFilter: '',
+  patientOnly: false,
+  expandedId: null,
+  visiblePage: { key: '', count: 16 }
+});
 
 interface ApothecaryBio {
   name: string;
@@ -2139,9 +2194,12 @@ const canonicalToolsFromState = (state: GameState): CanonicalToolState[] => {
     : null;
   const ingenuitiveSourceId = state.activePassenger?.id || state.journey?.journeyId || 'current-journey';
   const ingenuitiveInstanceId = `familiar:ingenuitive:${ingenuitiveSourceId}:${ingenuitiveToolId || 'none'}`;
+  const bagToolInstanceIds = new Set(state.bag
+    .filter(item => Boolean(item.canonicalToolId))
+    .map(item => item.id));
   const storedById = new Map(
     (state.toolStates as CanonicalToolState[])
-      .filter(tool => tool && typeof tool.instanceId === 'string')
+      .filter(tool => tool && typeof tool.instanceId === 'string' && bagToolInstanceIds.has(tool.instanceId))
       .map(tool => [tool.instanceId, tool])
   );
   const tools = [...storedById.values()];
@@ -2174,6 +2232,10 @@ const commitPendingAlternativeAcquisition = (
   if (!acquisition || acquisition.kind !== 'replacement' || (acquisition.selectedSource && acquisition.selectedSource !== source)) return state;
   const patient = state.patients.find(row => row.id === state.activePatientId);
   if (!patient) return state;
+  if (acquisition.patientId !== patient.id
+    || acquisition.ailmentInstanceId !== state.activeAilment?.id) {
+    return { ...state, pendingAlternativeAcquisition: null };
+  }
   const transactionId = `alternative:${acquisition.id}:${sourceTransactionId}`;
   const result = commitAlternativeAcquisition({
     transactionId,
@@ -2780,7 +2842,8 @@ const toBarterRuntime = (s: GameState, patient: PatientState): BarterRuntimeStat
   pendingBarter: s.pendingBarter,
   journalEvents: [],
   appliedTransactionIds: s.appliedTransactionIds,
-  ailmentTagOverrides: s.ailmentTagOverrides
+  ailmentTagOverrides: s.ailmentTagOverrides,
+  toolStates: canonicalToolsFromState(s)
 });
 
 const applyBarterRuntime = (s: GameState, runtime: BarterRuntimeState): GameState => ({
@@ -2806,6 +2869,8 @@ const toJourneyRuntime = (s: GameState): JourneyRuntimeState => ({
   pendingEncounter: s.pendingEncounter,
   pendingBarter: s.pendingBarter && !['completed', 'abandoned'].includes(s.pendingBarter.status) ? s.pendingBarter : null,
   pendingForaging: s.pendingForaging,
+  pendingManualEffect: s.pendingManualEffect,
+  manualEffectQueue: s.manualEffectQueue,
   needsLocalHelp: Boolean(s.needsLocalHelpBeforeMove),
   journey: s.journey,
   pendingEnding: s.pendingEnding,
@@ -4171,6 +4236,21 @@ const migrateState = (s: any): GameState => {
   const fallbackCurrentLocation = migratedCurrentLocationName || visitedLocations[0] || INITIAL_STATE.currentLocationName;
   const dedupedCurrentLocation = normalizeLocationEntries([migratedCurrentLocationName])[0] || fallbackCurrentLocation;
   const mergedVisitedLocations = visitedLocations.length > 0 ? visitedLocations : [fallbackCurrentLocation];
+  const activePatient = Array.isArray(s.patients)
+    ? s.patients.find((patient: PatientState) => patient.id === s.activePatientId)
+    : null;
+  const activeAilmentInstanceIds = activePatient?.ailments
+    ?.filter((ailment: PatientState['ailments'][number]) => ailment.status === 'active')
+    .map((ailment: PatientState['ailments'][number]) => ailment.id) || [];
+  const pendingAlternativeAcquisition = scopeAlternativeAcquisition({
+    acquisition: s.pendingAlternativeAcquisition || null,
+    activePatientId: activePatient?.id || null,
+    activeAilmentInstanceIds,
+    preferredAilmentInstanceId: s.pendingAlternativeAcquisition?.ailmentInstanceId
+      || s.treatmentDraft?.ailmentInstanceId
+      || s.activeAilment?.id
+      || null
+  });
   return syncWorldMemory({
     ...INITIAL_STATE,
     ...s,
@@ -4241,7 +4321,7 @@ const migrateState = (s: any): GameState => {
     activeBarter: s.activeBarter || null,
     pendingBarter: s.pendingBarter || null,
     pendingLeaveObligation: s.pendingLeaveObligation || null,
-    pendingAlternativeAcquisition: s.pendingAlternativeAcquisition || null,
+    pendingAlternativeAcquisition,
     barterAttemptHistory: s.barterAttemptHistory || {},
     legacyClinics: s.legacyClinics || [],
     legacyApothecaries: s.legacyApothecaries || [],
@@ -4904,10 +4984,16 @@ export default function App() {
   const [resolvingForageEncounter, setResolvingForageEncounter] = useState(false);
   const resolvingForageEncounterRef = useRef(false);
   const foragingUndoCheckpointRef = useRef<{ transactionId: string; state: GameState } | null>(null);
-  const [foragingRestartToken, setForagingRestartToken] = useState(0);
+  const [campaignUiEpoch, setCampaignUiEpoch] = useState(0);
+  const [forageDrawCard, setForageDrawCard] = useState<PlayingCard | null>(null);
+  const [forageTargetReagentIds, setForageTargetReagentIds] = useState<string[]>([]);
+  const [forageTargetTag, setForageTargetTag] = useState<RuleTag | ''>('');
+  const [forageLocationType, setForageLocationType] = useState<'current' | 'adjacent'>('current');
+  const [forageAdjacentRegion, setForageAdjacentRegion] = useState<string>('Forest');
+  const foragePlanningKeyRef = useRef('');
   const [controlledPrompt, setControlledPrompt] = useState<ControlledPromptRequest | null>(null);
   const [controlledPromptValue, setControlledPromptValue] = useState('');
-  const [controlledPromptResolver, setControlledPromptResolver] = useState<((value: string | null) => void) | null>(null);
+  const controlledPromptResolverRef = useRef<ControlledPromptResolver | null>(null);
   const [noticeQueue, setNoticeQueue] = useState<string[]>([]);
   const [rulebookRequest, setRulebookRequest] = useState<RulebookReferenceRequest | null>(null);
   const [saveLoadError, setSaveLoadError] = useState<string | null>(null);
@@ -4917,17 +5003,16 @@ export default function App() {
   const cloudBootstrapSkipped = useRef(false);
 
   const requestControlledPrompt = useCallback((request: ControlledPromptRequest) => new Promise<string | null>(resolve => {
-    setControlledPromptResolver(() => resolve);
+    settleControlledPromptResolver(controlledPromptResolverRef, null);
+    controlledPromptResolverRef.current = resolve;
     setControlledPromptValue(request.defaultValue);
     setControlledPrompt(request);
   }), []);
 
   const closeControlledPrompt = useCallback((value: string | null) => {
-    const resolve = controlledPromptResolver;
-    setControlledPromptResolver(null);
+    settleControlledPromptResolver(controlledPromptResolverRef, value);
     setControlledPrompt(null);
-    resolve?.(value);
-  }, [controlledPromptResolver]);
+  }, []);
 
   useEffect(() => {
     const handleNotice = (event: Event) => {
@@ -5024,14 +5109,59 @@ export default function App() {
   const [searchAilment, setSearchAilment] = useState("");
   const [reagentFilter, setReagentFilter] = useState("");
   const [reagentTypeFilter, setReagentTypeFilter] = useState("");
-  const [herbariumViewState, setHerbariumViewState] = useState<HerbariumViewState>({
-    regionFilter: '',
-    seasonFilter: '',
-    patientOnly: false,
-    expandedId: null,
-    visiblePage: { key: '', count: 16 }
-  });
+  const [herbariumViewState, setHerbariumViewState] = useState<HerbariumViewState>(initialHerbariumViewState);
+  const [bioRecordFolds, setBioRecordFolds] = useState<BioRecordFoldState>(initialBioRecordFoldState);
   const [ailmentFilter, setAilmentFilter] = useState("");
+
+  const resetCampaignScopedUi = useCallback(() => {
+    tabScrollPositions.current = {};
+    initialSetupRouted.current = false;
+    officialMapDefaultsLoaded.current = false;
+    setHighlightedPatientId(null);
+    setActiveTravelEncounter(null);
+    setResolvingTravelEncounter(false);
+    resolvingTravelEncounterRef.current = false;
+    setDeferredEncounterId(null);
+    setActiveForageEncounter(null);
+    setDeferredForageEncounterId(null);
+    setResolvingForageEncounter(false);
+    resolvingForageEncounterRef.current = false;
+    foragingUndoCheckpointRef.current = null;
+    setCampaignUiEpoch(epoch => epoch + 1);
+    setRulebookRequest(null);
+    settleControlledPromptResolver(controlledPromptResolverRef, null);
+    setControlledPrompt(null);
+    setControlledPromptValue('');
+    setNoticeQueue([]);
+    setShowSeasonedModal(false);
+    setShowTitanwiseModal(false);
+    setShowSuccessionModal(false);
+    setBarterJournalNote('');
+    setSearchReagent('');
+    setSearchAilment('');
+    setReagentFilter('');
+    setReagentTypeFilter('');
+    setAilmentFilter('');
+    setHerbariumViewState(initialHerbariumViewState());
+    setBioRecordFolds(initialBioRecordFoldState());
+    setForageDrawCard(null);
+    setForageTargetReagentIds([]);
+    setForageTargetTag('');
+    setForageLocationType('current');
+    setForageAdjacentRegion('Forest');
+    foragePlanningKeyRef.current = '';
+  }, []);
+
+  useEffect(() => {
+    const planningKey = `${state?.activePatientId || ''}:${state?.activeAilment?.id || ''}`;
+    if (foragePlanningKeyRef.current === planningKey) return;
+    foragePlanningKeyRef.current = planningKey;
+    setForageDrawCard(null);
+    setForageTargetReagentIds([]);
+    setForageTargetTag('');
+    setForageLocationType('current');
+    setForageAdjacentRegion('Forest');
+  }, [state?.activePatientId, state?.activeAilment?.id]);
 
   // Preload card & map images for zero-latency display
   useEffect(() => {
@@ -5102,6 +5232,7 @@ export default function App() {
             showAlert('클라우드 기록을 읽지 못했습니다. 이 기기의 기록은 그대로 둡니다.');
             return false;
           }
+          resetCampaignScopedUi();
           setState(migrated.state);
           localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(migrated.state));
           writeActiveCloudSlot(record.slot);
@@ -5204,7 +5335,7 @@ export default function App() {
       }
     });
     return unsubscribe;
-  }, []);
+  }, [resetCampaignScopedUi]);
 
   useEffect(() => {
     if (!user) return;
@@ -5529,7 +5660,11 @@ export default function App() {
     foragingUndoCheckpointRef.current = null;
     setDeferredForageEncounterId(null);
     setActiveForageEncounter(null);
-    setForagingRestartToken(token => token + 1);
+    setForageDrawCard(null);
+    setForageTargetReagentIds([]);
+    setForageTargetTag('');
+    setForageLocationType('current');
+    setForageAdjacentRegion('Forest');
     showAlert('채집 시작 전 상태로 되돌렸습니다. 목표 재료를 고르고 채집을 다시 시작하세요.');
   };
 
@@ -5554,7 +5689,7 @@ export default function App() {
       });
     });
     return () => { cancelled = true; };
-  }, [campaignReadyForOfficialMap]);
+  }, [campaignReadyForOfficialMap, campaignUiEpoch]);
 
   const openPendingWaspForage = useEffectEvent(() => {
     updateState(s => {
@@ -6028,9 +6163,13 @@ export default function App() {
         const loaded = await store.load(CAMPAIGN_SAVE_KEY, null);
         if (loaded) {
           const migrated = migrateCampaignSave(loaded);
-          if (migrated.ok) setState(migrated.state);
+          if (migrated.ok) {
+            resetCampaignScopedUi();
+            setState(migrated.state);
+          }
           else showAlert('저장 데이터를 올리지 못했습니다. 기존 기록은 지우지 않았습니다.');
         } else {
+          resetCampaignScopedUi();
           setState(syncWorldMemory(INITIAL_STATE));
         }
       } catch (e: any) {
@@ -6095,6 +6234,7 @@ export default function App() {
         showAlert('클라우드 기록을 읽지 못했습니다. 로컬 기록은 그대로 둡니다.');
         return;
       }
+      resetCampaignScopedUi();
       setState(migrated.state);
       localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(migrated.state));
       writeActiveCloudSlot(slot);
@@ -6189,6 +6329,7 @@ export default function App() {
 
   const handleReset = () => {
     if (askWindowConfirm("⚠️ 경고: 정말 모든 진행상황과 연대기를 초기화하고 새로운 약제사로 시작하시겠습니까? (저널 일지 기록도 함께 삭제됩니다.)")) {
+      resetCampaignScopedUi();
       updateState(() => syncWorldMemory(INITIAL_STATE));
       changeActiveTab('bio');
     }
@@ -6216,6 +6357,7 @@ export default function App() {
               onClick={() => {
                 if (!askWindowConfirm('기존 기록을 지우고 새 약제사로 시작할까요? 먼저 원본을 내보내세요.')) return;
                 const fresh = syncWorldMemory(INITIAL_STATE);
+                resetCampaignScopedUi();
                 setState(fresh);
                 localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(fresh));
                 setSaveLoadError(null);
@@ -6484,8 +6626,8 @@ export default function App() {
     const selectionPatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
     const selectionAilment = selectionPatient?.ailments.find(ailment => ailment.status === 'active');
     const selectionAilmentDefinition = AILMENTS.find(ailment => ailment.id === selectionAilment?.ailmentId);
-    const treatmentNeededRequirements = selectionAilmentDefinition
-      ? requirementTagThresholds(selectionAilmentDefinition.requirements)
+    const treatmentNeededRequirements = selectionAilmentDefinition && selectionAilment
+      ? requirementTagThresholds(effectiveTreatmentRequirement(selectionAilmentDefinition, selectionAilment, state.ailmentTagOverrides))
       : [];
     const preferredPartIndex = availableParts.findIndex(part =>
       treatmentRelevantPreparationTags(part.tags, treatmentNeededRequirements).length > 0
@@ -7266,6 +7408,7 @@ export default function App() {
       availableToolIds: canonicalToolsFromState(state)
         .filter(tool => !tool.broken && !tool.consumed)
         .map(tool => tool.toolId),
+      toolStates: canonicalToolsFromState(state),
       timerCost: pending.timerCostAfterEncounter,
       manualEffectPending: Boolean(manualDraft)
     }).patient;
@@ -7321,6 +7464,7 @@ export default function App() {
       }
       return enqueueManualDrafts(next, [manualDraft]);
     });
+    foragingUndoCheckpointRef.current = null;
     return true;
     } finally {
       resolvingForageEncounterRef.current = false;
@@ -7358,6 +7502,18 @@ export default function App() {
     });
   };
 
+  const finishForageEncounter = async (note: string) => {
+    if (await resolveCanonicalForageEncounter(note)) {
+      if (state.pendingLeaveObligation?.kind === 'foraging-encounter') {
+        updateState((s: GameState) => ({
+          ...s,
+          pendingLeaveObligation: s.pendingLeaveObligation ? { ...s.pendingLeaveObligation, resolved: true } : null
+        }));
+      }
+      setActiveForageEncounter(null);
+    }
+  };
+
   const currentRulebookRequest = activeTravelEncounter
     ? { entryId: activeTravelEncounter.id ? `encounter:${activeTravelEncounter.id}` : undefined, page: activeTravelEncounter.sourcePage, query: activeTravelEncounter.title, title: '현재 Travel Encounter' }
     : activeForageEncounter
@@ -7373,7 +7529,9 @@ export default function App() {
     || ailment.canonicalName === state.activeAilment?.name
     || ailment.displayName === state.activeAilment?.name
   );
-  const referenceRequirements = referenceAilmentDefinition ? requirementTagThresholds(referenceAilmentDefinition.requirements) : [];
+  const referenceRequirements = referenceAilmentDefinition && referencePatientAilment
+    ? requirementTagThresholds(effectiveTreatmentRequirement(referenceAilmentDefinition, referencePatientAilment, state.ailmentTagOverrides))
+    : [];
   const isOnboarding = !state.bio.name.trim();
   const cloudAccountLinked = Boolean(user && readCloudAccountBinding() === user.uid);
   const cloudUploadSource = summarizeCloudUploadSource(
@@ -7587,14 +7745,16 @@ export default function App() {
                 state={state}
                 currentWeight={currentWeight}
                 maxCarry={maxCarry}
-                onNavigate={changeActiveTab}
+                onNavigate={(tab) => changeActiveTab(tab, { restoreScroll: true })}
                 onContinue={() => {
                   const focusContinueTarget = () => {
                     const encounterDialog = document.querySelector<HTMLElement>('.encounter-dialog-backdrop .encounter-dialog');
                     if (state.pendingEncounter || activeTravelEncounter || state.pendingForaging || activeForageEncounter) {
-                      encounterDialog?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                      encounterDialog?.focus();
-                      return true;
+                      if (encounterDialog) {
+                        encounterDialog.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        encounterDialog.focus();
+                        return true;
+                      }
                     }
 
                     const clickActionById = (ids: string[]) => {
@@ -7654,6 +7814,7 @@ export default function App() {
               />
               <BarrowPanel delve={state.activeDelve} />
               <PlayView
+                key={campaignUiEpoch}
                 state={state}
                 updateState={updateState}
                 currentWeight={currentWeight}
@@ -7664,7 +7825,16 @@ export default function App() {
                 onResumeForageEncounter={() => setDeferredForageEncounterId(null)}
                 onRestartForaging={cancelCurrentForagingAttempt}
                 onStartForaging={beginForagingUndoCheckpoint}
-                foragingRestartToken={foragingRestartToken}
+                forageDrawCard={forageDrawCard}
+                setForageDrawCard={setForageDrawCard}
+                forageTargetReagentIds={forageTargetReagentIds}
+                setForageTargetReagentIds={setForageTargetReagentIds}
+                forageTargetTag={forageTargetTag}
+                setForageTargetTag={setForageTargetTag}
+                forageLocationType={forageLocationType}
+                setForageLocationType={setForageLocationType}
+                forageAdjacentRegion={forageAdjacentRegion}
+                setForageAdjacentRegion={setForageAdjacentRegion}
                 setSeasonedDraws={setSeasonedDraws}
                 setShowSeasonedModal={setShowSeasonedModal}
                 setTitanwiseDraws={setTitanwiseDraws}
@@ -7712,6 +7882,8 @@ export default function App() {
                   <BioView
                     state={state}
                     updateState={updateState}
+                    recordFolds={bioRecordFolds}
+                    setRecordFolds={setBioRecordFolds}
                     currentWeight={currentWeight}
                     handleRetireClick={handleRetireClick}
                     onOpenReference={openRulebookReference}
@@ -7784,6 +7956,7 @@ export default function App() {
                 )}
                 {activeTab === 'map' && (
                   <AtlasMapPanel
+                    key={`atlas-${campaignUiEpoch}`}
                     state={state}
                     updateState={updateState}
                     onOpenReference={openRulebookReference}
@@ -7791,8 +7964,14 @@ export default function App() {
                 )}
                 {activeTab === 'journals' && (
                   <JournalsView
+                    key={`journals-${campaignUiEpoch}`}
                     state={state}
                     updateState={updateState}
+                    onCampaignImported={(nextState: GameState) => {
+                      resetCampaignScopedUi();
+                      updateState(() => nextState);
+                      showAlert('세이브 파일을 성공적으로 가져왔습니다.');
+                    }}
                     highlightedPatientId={highlightedPatientId}
                     setHighlightedPatientId={setHighlightedPatientId}
                   />
@@ -7891,7 +8070,13 @@ export default function App() {
                     journals: [{
                       id: `${transaction.id}:journal`,
                       title: `${override ? '예외 처리' : '직접 판정'}: ${draft.summary}`,
-                      text: `[${draft.ruleIds.join(', ')} · p.${draft.sourcePage}]\n${outcome.record.resultSummary}\n\n${outcome.record.journalNote}${override ? `\n\n예외 처리 사유: ${outcome.record.overrideReason}` : ''}`,
+                      text: formatManualEffectJournalEntry({
+                        ruleIds: draft.ruleIds,
+                        sourcePage: draft.sourcePage,
+                        resultSummary: outcome.record.resultSummary,
+                        journalNote: outcome.record.journalNote,
+                        overrideReason: override ? outcome.record.overrideReason : ''
+                      }),
                       timestamp: transaction.at
                     }, ...s.journals]
                   };
@@ -7933,6 +8118,7 @@ export default function App() {
                       availableToolIds: canonicalToolsFromState(next)
                         .filter(tool => !tool.broken && !tool.consumed)
                         .map(tool => tool.toolId),
+                      toolStates: canonicalToolsFromState(next),
                       timerCost: foragePending.timerCostAfterEncounter,
                       manualEffectPending: false
                     }).patient;
@@ -8173,6 +8359,7 @@ export default function App() {
       })()}
 
       {/* Foraging Encounter Dialog Modal */}
+      {/* eslint-disable-next-line react-hooks/refs -- The ref is touched only after an encounter action, never while producing JSX. */}
       {activeForageEncounter && (() => {
         const printedEffect = PRINTED_EFFECT_BY_OWNER.get(activeForageEncounter.id || state.pendingForaging?.encounterId || '');
         const encTitle: string = localizeGameplayMessage(printedEffect?.ownerName || activeForageEncounter.title || '');
@@ -8182,7 +8369,9 @@ export default function App() {
         const foragePatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
         const forageAilment = foragePatient?.ailments.find(ailment => ailment.status === 'active');
         const forageAilmentDefinition = AILMENTS.find(ailment => ailment.id === forageAilment?.ailmentId);
-        const neededForageRequirements = forageAilmentDefinition ? requirementTagThresholds(forageAilmentDefinition.requirements) : [];
+        const neededForageRequirements = forageAilmentDefinition && forageAilment
+          ? requirementTagThresholds(effectiveTreatmentRequirement(forageAilmentDefinition, forageAilment, state.ailmentTagOverrides))
+          : [];
         const currentForagingPoints = foragePatient?.foragingPoints || 0;
         const forageToolIdList = canonicalToolsFromState(state)
           .filter(tool => !tool.broken && !tool.consumed)
@@ -8247,18 +8436,6 @@ export default function App() {
           || state.pendingForaging?.journalAcknowledged
           || state.pendingForaging?.journalNote?.trim()
         );
-        const finishForageEncounter = async (note: string) => {
-          if (await resolveCanonicalForageEncounter(note)) {
-            if (state.pendingLeaveObligation?.kind === 'foraging-encounter') {
-              updateState((s: GameState) => ({
-                ...s,
-                pendingLeaveObligation: s.pendingLeaveObligation ? { ...s.pendingLeaveObligation, resolved: true } : null
-              }));
-            }
-            foragingUndoCheckpointRef.current = null;
-            setActiveForageEncounter(null);
-          }
-        };
         const canGatherForageFind = (find: ForageFind): boolean => Boolean(
           find.cardSuccess
           || find.fpAvailable
@@ -8443,7 +8620,13 @@ export default function App() {
                   <span>{activeForageEncounter.resultNotice || (activeForageEncounter.forageFailed ? '채집에 실패했습니다.' : '선택한 영약재 부위를 획득했습니다.')}</span>
                   <span>현재 가방 {formatWeight(currentWeight)} / {maxCarry}{currentWeight > maxCarry ? ' · 소지 한도 초과(채집은 허용됨)' : ''}</span>
                   <span>
-                    다음: {foragePatient && hasImmediatelyTreatableAilment(foragePatient, toEngineInventory(state.bag))
+                    다음: {foragePatient && hasImmediatelyTreatableAilment(
+                      foragePatient,
+                      toEngineInventory(state.bag),
+                      state.ailmentTagOverrides,
+                      canonicalToolsFromState(state).filter(tool => !tool.broken && !tool.consumed).map(tool => tool.toolId),
+                      canonicalToolsFromState(state)
+                    )
                       ? '조우를 해결한 뒤 바로 치료제를 만드세요. 필요한 재료가 갖춰졌습니다.'
                       : `조우를 해결한 뒤 타이머 ${state.pendingForaging?.timerCostAfterEncounter || activeForageEncounter.timerBaseCost || 0}시간을 적용하고 다음 재료를 찾으세요.`}
                   </span>
@@ -9121,7 +9304,16 @@ function PlayView({
   onResumeForageEncounter,
   onRestartForaging,
   onStartForaging,
-  foragingRestartToken,
+  forageDrawCard,
+  setForageDrawCard,
+  forageTargetReagentIds,
+  setForageTargetReagentIds,
+  forageTargetTag,
+  setForageTargetTag,
+  forageLocationType,
+  setForageLocationType,
+  forageAdjacentRegion,
+  setForageAdjacentRegion,
   setSeasonedDraws,
   setShowSeasonedModal,
   setTitanwiseDraws,
@@ -9148,7 +9340,16 @@ function PlayView({
   onResumeForageEncounter: () => void;
   onRestartForaging: () => Promise<void>;
   onStartForaging: (transactionId: string, snapshot: GameState) => ForagingUndoSnapshot;
-  foragingRestartToken: number;
+  forageDrawCard: PlayingCard | null;
+  setForageDrawCard: Dispatch<SetStateAction<PlayingCard | null>>;
+  forageTargetReagentIds: string[];
+  setForageTargetReagentIds: Dispatch<SetStateAction<string[]>>;
+  forageTargetTag: RuleTag | '';
+  setForageTargetTag: Dispatch<SetStateAction<RuleTag | ''>>;
+  forageLocationType: 'current' | 'adjacent';
+  setForageLocationType: Dispatch<SetStateAction<'current' | 'adjacent'>>;
+  forageAdjacentRegion: string;
+  setForageAdjacentRegion: Dispatch<SetStateAction<string>>;
   setSeasonedDraws: any;
   setShowSeasonedModal: any;
   setTitanwiseDraws: any;
@@ -9318,53 +9519,60 @@ function PlayView({
   const treatmentAilmentDefinition = treatmentAilment?.ailmentId
     ? AILMENTS.find(row => row.id === treatmentAilment.ailmentId) || null
     : null;
-  const treatmentWorkspaceRequirement: RequirementExpression | null = (() => {
-    if (!treatmentAilmentDefinition) return null;
-    const specialState = treatmentAilment?.specialState as {
-      additionalRequirements?: Array<{ tag: RuleTag; threshold: number }>;
-      poisonRequirement?: number;
-    } | undefined;
-    const dynamicRequirements: RequirementExpression[] = [
-      ...(Array.isArray(specialState?.additionalRequirements)
-        ? specialState.additionalRequirements.map(row => ({ kind: 'tag' as const, tag: row.tag, threshold: row.threshold }))
-        : []),
-      ...(typeof specialState?.poisonRequirement === 'number'
-        ? [{ kind: 'tag' as const, tag: 'POISON' as const, threshold: specialState.poisonRequirement }]
-        : [])
-    ];
-    return dynamicRequirements.length > 0
-      ? { kind: 'allOf', requirements: [treatmentAilmentDefinition.requirements, ...dynamicRequirements] }
-      : treatmentAilmentDefinition.requirements;
-  })();
-  const appliedTreatmentRequirement = treatmentWorkspaceRequirement && treatmentAilmentDefinition
-    ? applyAilmentTagOverrides(treatmentWorkspaceRequirement, treatmentAilmentDefinition.id, state.ailmentTagOverrides)
+  const treatmentWorkspaceRequirement = treatmentAilmentDefinition && treatmentAilment
+    ? effectiveTreatmentRequirement(treatmentAilmentDefinition, treatmentAilment, state.ailmentTagOverrides)
     : null;
+  const appliedTreatmentRequirement = treatmentWorkspaceRequirement;
   const treatmentRequirementTags = new Set(appliedTreatmentRequirement ? requirementRuleTags(appliedTreatmentRequirement) : []);
   const treatmentOwnedPreview = treatmentPatient && treatmentAilment
-    ? previewTreatmentSelection({
-      patient: treatmentPatient,
-      ailmentInstanceId: treatmentAilment.id,
-      inventory: toEngineInventory(state.bag),
-      selectedItemIds: availableTreatmentReagents.map(row => row.item.id),
-      selectedToolIds: availableTreatmentTools.map(item => item.id),
-      toolStates: treatmentCanonicalTools,
-      overrides: state.ailmentTagOverrides,
-      purify: false,
-      purifyEligible: false
-    })
+    ? (() => {
+      const allIds = availableTreatmentReagents.map(row => row.item.id);
+      const candidateIds = [
+        allIds,
+        availableTreatmentReagents.filter(row => !row.preparation.tags.some(tag => tag.tag === 'FOUL')).map(row => row.item.id),
+        availableTreatmentReagents.filter(row => !row.preparation.tags.some(tag => tag.tag === 'FAIR')).map(row => row.item.id),
+        ...availableTreatmentReagents.map(row => [row.item.id]),
+        ...availableTreatmentReagents.flatMap((row, index) => availableTreatmentReagents
+          .slice(index + 1)
+          .map(other => [row.item.id, other.item.id]))
+      ].filter((ids, index, rows) => ids.length > 0
+        && rows.findIndex(other => other.join('\u0000') === ids.join('\u0000')) === index);
+      const previews = candidateIds.map(selectedItemIds => previewTreatmentSelection({
+        patient: treatmentPatient,
+        ailmentInstanceId: treatmentAilment.id,
+        inventory: toEngineInventory(state.bag),
+        selectedItemIds,
+        selectedToolIds: availableTreatmentTools.map(item => item.id),
+        toolStates: treatmentCanonicalTools,
+        overrides: state.ailmentTagOverrides,
+        purify: false,
+        purifyEligible: false
+      }));
+      return previews.find(preview => preview.ready) || previews[0] || null;
+    })()
     : null;
+  const treatmentCanTreatFromOwned = treatmentPatient && treatmentAilment
+    ? canTreatAilmentWithInventory(
+      treatmentPatient,
+      treatmentAilment.id,
+      toEngineInventory(state.bag),
+      state.ailmentTagOverrides,
+      treatmentCanonicalTools.filter(tool => !tool.broken && !tool.consumed).map(tool => tool.toolId),
+      treatmentCanonicalTools
+    )
+    : false;
   const treatmentRequirementRows = treatmentWorkspaceRequirement && treatmentAilmentDefinition
     ? buildTreatmentRequirementRows({
       requirement: treatmentWorkspaceRequirement,
       ailmentId: treatmentAilmentDefinition.id,
-      overrides: state.ailmentTagOverrides,
+      overrides: [],
       selectedTags: treatmentPreview?.providedTags || {},
       ownedTags: treatmentOwnedPreview?.providedTags || {},
       catalyseTags: treatmentOwnedPreview?.catalyseTags || []
     })
     : [];
   const treatmentAcquisitionNeedsAttention = Boolean(
-    (treatmentOwnedPreview && !treatmentOwnedPreview.ready)
+    (treatmentPatient && treatmentAilment && !treatmentCanTreatFromOwned)
     || state.pendingForaging
     || activeForageEncounter
     || (state.pendingBarter && !['completed', 'abandoned'].includes(state.pendingBarter.status))
@@ -9415,7 +9623,9 @@ function PlayView({
           fair,
           foul,
           purify: nextPurify,
-          replacementContext: current.pendingAlternativeAcquisition ? {
+          replacementContext: current.pendingAlternativeAcquisition
+            && current.pendingAlternativeAcquisition.patientId === patient.id
+            && current.pendingAlternativeAcquisition.ailmentInstanceId === ailment.id ? {
             kind: current.pendingAlternativeAcquisition.kind,
             targetTag: current.pendingAlternativeAcquisition.targetTag,
             requiredPotency: current.pendingAlternativeAcquisition.requiredPotency
@@ -9655,22 +9865,6 @@ function PlayView({
   }, [currentRouteOrigin, setRouteDraft]);
   const [travelDrawCard, setTravelDrawCard] = useState<PlayingCard | null>(null);
 
-  const [forageDrawCard, setForageDrawCard] = useState<PlayingCard | null>(null);
-  const [forageTargetReagentIds, setForageTargetReagentIds] = useState<string[]>([]);
-  const [forageTargetTag, setForageTargetTag] = useState<RuleTag | ''>('');
-  const [forageLocationType, setForageLocationType] = useState<'current' | 'adjacent'>('current');
-  const [forageAdjacentRegion, setForageAdjacentRegion] = useState<string>('Forest');
-  useEffect(() => {
-    if (foragingRestartToken === 0) return;
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (cancelled) return;
-      setForageDrawCard(null);
-      setForageTargetReagentIds([]);
-      setForageTargetTag('');
-    });
-    return () => { cancelled = true; };
-  }, [foragingRestartToken]);
   const effectiveForageAdjacentRegion = scroungeAdjacentRegions.includes(toRuleRegion(forageAdjacentRegion))
     ? forageAdjacentRegion
     : scroungeAdjacentRegions[0] || '';
@@ -9682,12 +9876,9 @@ function PlayView({
     const tools = canonicalToolsFromState(state).filter(tool => !tool.broken && !tool.consumed);
     const toolIds = tools.map(tool => tool.toolId);
     const modifiers = canonicalForagingModifiers(state);
-    const ailment = state.activeAilment
-      ? AILMENTS.find(definition => definition.displayName === state.activeAilment?.name
-        || definition.id === state.patients.find(patient => patient.id === state.activePatientId)
-          ?.ailments.find(row => row.id === state.activeAilment?.id)?.ailmentId)
-      : null;
-    const neededRequirements = ailment ? requirementTagThresholds(ailment.requirements) : [];
+    const neededRequirements = appliedTreatmentRequirement
+      ? requirementTagThresholds(appliedTreatmentRequirement)
+      : [];
     const requirementChoices = Array.from(
       neededRequirements.reduce((choices, requirement) => {
         const previous = choices.get(requirement.tag);
@@ -9732,7 +9923,9 @@ function PlayView({
       modifiers.alwaysAvailableReagentIds.length > 0 ? '지정 영약재는 지역 제한 무시 (Resourceful)' : ''
     ].filter(Boolean);
     return { region, previewRows, modifierLabels, actionAllowed, requirementChoices };
-  }, [effectiveForageAdjacentRegion, forageLocationType, state]);
+    // Canonical requirement objects are immutable; campaign state replacement is the update boundary.
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  }, [appliedTreatmentRequirement, effectiveForageAdjacentRegion, forageLocationType, state]);
   const effectiveForageTargetTag = forageContext.requirementChoices.some(requirement => requirement.tag === forageTargetTag)
     ? forageTargetTag
     : forageContext.requirementChoices[0]?.tag || '';
@@ -12074,7 +12267,8 @@ function PlayView({
     }
     updateState(s => ({
       ...applyLeaveRuntime(s, result.value!),
-      needsLocalHelpBeforeMove: false
+      needsLocalHelpBeforeMove: false,
+      pendingAlternativeAcquisition: null
     }));
   };
 
@@ -12790,7 +12984,12 @@ function PlayView({
         });
       const sourceInput = prompt('어떤 방식으로 획득할까요?\n1. 채집\n2. 흥정', '1');
       if (!sourceInput) return;
-      const acquisition = { ...acquisitionBase, selectedSource: sourceInput === '2' ? 'barter' as const : 'forage' as const };
+      const acquisition = {
+        ...acquisitionBase,
+        selectedSource: sourceInput === '2' ? 'barter' as const : 'forage' as const,
+        patientId: state.activePatientId,
+        ailmentInstanceId: state.activeAilment.id
+      };
       updateState((s: GameState) => ({
         ...s,
         pendingAlternativeAcquisition: acquisition,
@@ -12838,6 +13037,12 @@ function PlayView({
 
   const handleConfirmMakeDoAcquisition = (itemId: string) => {
     const acquisition = state.pendingAlternativeAcquisition;
+    if (acquisition && (acquisition.patientId !== state.activePatientId
+      || acquisition.ailmentInstanceId !== state.activeAilment?.id)) {
+      updateState((s: GameState) => ({ ...s, pendingAlternativeAcquisition: null }));
+      showAlert('이 대체 약재 기록은 이전 환자의 처방에 속해 있어 정리했습니다.');
+      return;
+    }
     const item = state.bag.find(row => row.id === itemId);
     const preparation = item?.canonicalReagentId && item.preparationId
       ? REAGENT_BY_ID.get(item.canonicalReagentId)?.preparations.find(row => row.id === item.preparationId)
@@ -13074,6 +13279,7 @@ function PlayView({
         trinkets: Array.from({ length: outcome.nextState.trinkets }, (_, index) => s.trinkets[index] || '치료 보상 장신구'),
         appliedTransactionIds: outcome.nextState.appliedTransactionIds,
         treatmentDraft: null,
+        pendingAlternativeAcquisition: null,
         needsLocalHelpBeforeMove: !outcome.allAilmentsResolved,
         curedAilmentInThisWilds: outcome.allAilmentsResolved && s.currentLocationType === 'Wilds',
         scroungingMode: outcome.allAilmentsResolved && remainingTime > 0,
@@ -13758,6 +13964,22 @@ function PlayView({
       actionHubItems.push(item);
     }
   };
+
+  if (state.pendingManualEffect || state.manualEffectQueue.length > 0) {
+    addActionHubItem({
+      id: 'manual-effect',
+      label: '보류한 직접 판정',
+      detail: '조우에서 남겨 둔 원문 판정과 기록을 마무리합니다.',
+      meta: `${state.manualEffectQueue.length || 1}건 대기`,
+      targetId: 'patient-clinic-panel',
+      tone: 'warning',
+      activate: () => updateState((current: GameState) => {
+        if (current.pendingManualEffect) return current;
+        const draft = current.manualEffectQueue.find(row => !row.transactionId) || current.manualEffectQueue[0] || null;
+        return draft ? { ...current, pendingManualEffect: draft, manualEffectDraft: draft } : current;
+      })
+    });
+  }
 
   if (state.pendingEncounter) {
     const pendingEffect = PRINTED_EFFECT_BY_OWNER.get(state.pendingEncounter.encounterId);
@@ -16071,11 +16293,6 @@ function PlayView({
                           ? '휴식기 혜택이 저장되었습니다. 계절 정산을 진행할 수 있습니다.'
                           : '새 여정을 시작할 준비가 되었습니다.'}
                   </span>
-                  {state.downtimeCompleted && !state.journeyActive ? (
-                    <button type="button" onClick={handleAdvanceSeason} className="btn-cozy-secondary">
-                      계절 정산 및 전환
-                    </button>
-                  ) : null}
                 </div>
               </>
             )}
@@ -17149,7 +17366,10 @@ function PlayView({
                   </header>
 
                   {(() => {
-                    const alternative = state.pendingAlternativeAcquisition;
+                    const alternative = state.pendingAlternativeAcquisition?.patientId === treatmentPatient?.id
+                      && state.pendingAlternativeAcquisition.ailmentInstanceId === treatmentAilment?.id
+                      ? state.pendingAlternativeAcquisition
+                      : null;
                     const makeDoMatches = alternative?.kind === 'make-do'
                       ? availableTreatmentReagents.map(row => row.item).filter(item => {
                         const preparation = item.canonicalReagentId && item.preparationId
@@ -17161,9 +17381,17 @@ function PlayView({
                     return (
                       <>
                         <div className={`treatment-field-note${treatmentPreview?.ready ? ' is-ready' : ''}`} aria-live="polite">
-                          <strong>{treatmentPreview?.ready ? '처방에 필요한 약효가 모두 모였습니다.' : '아직 처방에 빈자리가 있습니다.'}</strong>
+                          <strong>{treatmentPreview?.ready
+                            ? '처방에 필요한 약효가 모두 모였습니다.'
+                            : treatmentCanTreatFromOwned
+                              ? '가방 안에 이 처방을 완성할 재료가 있습니다.'
+                              : '아직 처방에 빈자리가 있습니다.'}</strong>
                           <p>
-                            {treatmentRequirementRows.filter(row => row.state === 'missing').length > 0
+                            {treatmentPreview?.ready
+                              ? '고른 재료를 한 번 더 살피고 처방을 완성하세요.'
+                              : treatmentCanTreatFromOwned
+                                ? '아래 가방에서 필요한 부위를 골라 조제대에 올리세요. 여러 처방안 중 하나만 충족해도 됩니다.'
+                                : treatmentRequirementRows.filter(row => row.state === 'missing').length > 0
                               ? `들녘이나 거래에서 더 찾아야 할 힘: ${treatmentRequirementRows.filter(row => row.state === 'missing').map(row => row.label).join(', ')}.`
                               : treatmentRequirementRows.filter(row => row.state === 'available').length > 0
                                 ? `가방 안에서 조제대에 올릴 수 있는 재료가 있습니다: ${treatmentRequirementRows.filter(row => row.state === 'available').map(row => row.label).join(', ')}.`
@@ -17945,7 +18173,7 @@ function CharacterCreationWizard({
   );
 }
 
-function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenReference, requestControlledPrompt, onGoToDowntime }: { state: GameState; updateState: any; currentWeight: number; handleRetireClick: () => void; onOpenReference: (request: RulebookReferenceRequest) => void; requestControlledPrompt: (request: ControlledPromptRequest) => Promise<string | null>; onGoToDowntime: () => void }) {
+function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeight, handleRetireClick, onOpenReference, requestControlledPrompt, onGoToDowntime }: { state: GameState; updateState: any; recordFolds: BioRecordFoldState; setRecordFolds: Dispatch<SetStateAction<BioRecordFoldState>>; currentWeight: number; handleRetireClick: () => void; onOpenReference: (request: RulebookReferenceRequest) => void; requestControlledPrompt: (request: ControlledPromptRequest) => Promise<string | null>; onGoToDowntime: () => void }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(state.bio.name);
   const [familiarName, setFamiliarName] = useState(state.bio.familiarName);
@@ -18210,7 +18438,14 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
         <div className="bio-sheet-sections" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
           {/* The settled profile remains available without competing with today's bag. */}
-          <details className="bio-profile-summary bio-record-fold">
+          <details
+            className="bio-profile-summary bio-record-fold"
+            open={recordFolds.profile}
+            onToggle={event => {
+              const open = event.currentTarget.open;
+              setRecordFolds(current => current.profile === open ? current : { ...current, profile: open });
+            }}
+          >
             <summary>
               <span>약제사와 길동무 기록</span>
               <small>{state.bio.name || '이름 미정'} · {state.bio.familiarName || '길동무 이름 미정'}</small>
@@ -18299,13 +18534,15 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
                 const toolItems = state.bag.filter(item => item.id.startsWith("tool_") || item.type === 'tool');
                 const reagentItems = state.bag.filter(item => !item.id.startsWith("tool_") && item.type !== 'tool');
                 const activePatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
-                const activeAilmentDefinitions = activePatient?.ailments
+                const activeAilmentsWithDefinitions = activePatient?.ailments
                   .filter(ailment => ailment.status === 'active')
                   .flatMap(ailment => {
                     const definition = AILMENTS.find(candidate => candidate.id === ailment.ailmentId);
-                    return definition ? [definition] : [];
+                    return definition ? [{ ailment, definition }] : [];
                   }) || [];
-                const activeNeededRequirements = activeAilmentDefinitions.flatMap(ailment => requirementTagThresholds(ailment.requirements));
+                const activeNeededRequirements = activeAilmentsWithDefinitions.flatMap(({ ailment, definition }) =>
+                  requirementTagThresholds(effectiveTreatmentRequirement(definition, ailment, state.ailmentTagOverrides))
+                );
                 const activeCanonicalTools = canonicalToolsFromState(state).filter(tool => !tool.broken && !tool.consumed);
                 const activeToolIds = activeCanonicalTools.map(tool => tool.toolId);
                 const inventoryRegion = (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as Exclude<TravelRegion, 'Soar'>;
@@ -18686,7 +18923,14 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
           </div>
 
           {/* Long-running records are reference material, not today's primary task. */}
-          <details className="bio-extended-records bio-record-fold">
+          <details
+            className="bio-extended-records bio-record-fold"
+            open={recordFolds.extended}
+            onToggle={event => {
+              const open = event.currentTarget.open;
+              setRecordFolds(current => current.extended === open ? current : { ...current, extended: open });
+            }}
+          >
             <summary>
               <span>동반자·장신구·길드 기록</span>
               <small>동반자 {state.companionStates?.length || 0} · 장신구 {state.trinkets.length} · 평판 {state.reputation}</small>
@@ -18798,7 +19042,14 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
           </details>
 
           {/* Stamped Icons: Preparation Methods */}
-          <details className="bio-method-stamps bio-record-fold">
+          <details
+            className="bio-method-stamps bio-record-fold"
+            open={recordFolds.methods}
+            onToggle={event => {
+              const open = event.currentTarget.open;
+              setRecordFolds(current => current.methods === open ? current : { ...current, methods: open });
+            }}
+          >
             <summary>
               <span>약제 조제 기법 도장</span>
               <small>기본·확장 기법 11가지</small>
@@ -18953,14 +19204,6 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
 // =================================================================
 const HERBARIUM_PAGE_SIZE = 16;
 
-type HerbariumViewState = {
-  regionFilter: string;
-  seasonFilter: string;
-  patientOnly: boolean;
-  expandedId: string | null;
-  visiblePage: { key: string; count: number };
-};
-
 function ReagentsView({ state, updateState, search, setSearch, filter, setFilter, typeFilter, setTypeFilter, viewState, setViewState, onOpenReference }: {
   state: GameState;
   updateState: any;
@@ -18977,11 +19220,13 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
   const currentRegion = state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion;
   const { regionFilter, seasonFilter, patientOnly, expandedId, visiblePage } = viewState;
   const patient = getActivePatient(state);
-  const activeAilmentDefinitions = (patient?.ailments || [])
-    .filter(ailment => ailment.status === 'active')
-    .map(ailment => AILMENTS.find(definition => definition.id === ailment.ailmentId))
-    .filter((definition): definition is (typeof AILMENTS)[number] => Boolean(definition));
-  const activeRequirements = activeAilmentDefinitions.flatMap(definition => requirementTagThresholds(definition.requirements));
+  const activeRequirements = (patient?.ailments || []).flatMap(ailment => {
+    if (ailment.status !== 'active') return [];
+    const definition = AILMENTS.find(row => row.id === ailment.ailmentId);
+    return definition
+      ? requirementTagThresholds(effectiveTreatmentRequirement(definition, ailment, state.ailmentTagOverrides))
+      : [];
+  });
 
   const rows = REAGENTS.map(reagent => {
     const display = reagentDisplayRecord(reagent);
@@ -20829,11 +21074,13 @@ function PatientArchiveView({
 function JournalsView({
   state,
   updateState,
+  onCampaignImported,
   highlightedPatientId,
   setHighlightedPatientId
 }: {
   state: GameState;
   updateState: any;
+  onCampaignImported: (state: GameState) => void;
   highlightedPatientId?: string | null;
   setHighlightedPatientId?: any;
 }) {
@@ -20842,7 +21089,7 @@ function JournalsView({
   const [newPhotos, setNewPhotos] = useState<JournalPhoto[]>([]);
   const [viewingPhoto, setViewingPhoto] = useState<{ photo: JournalPhoto; title: string } | null>(null);
   const [subTab, setSubTab] = useState<'casebook' | 'almanac' | 'scrapbook' | 'journals' | 'chronicles' | 'legacy'>('journals');
-  const [importNotice, setImportNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [importNotice, setImportNotice] = useState<{ text: string } | null>(null);
 
   useEffect(() => {
     if (highlightedPatientId && subTab === 'casebook') {
@@ -21052,16 +21299,15 @@ function JournalsView({
         if (isRecognizableCampaignSave(parsed)) {
           const migrated = migrateCampaignSave(parsed);
           if (!migrated.ok) {
-            setImportNotice({ kind: 'error', text: '세이브 파일을 올리지 못했습니다. 현재 기록은 그대로 둡니다.' });
+            setImportNotice({ text: '세이브 파일을 올리지 못했습니다. 현재 기록은 그대로 둡니다.' });
             return;
           }
-          updateState(() => migrated.state);
-          setImportNotice({ kind: 'success', text: '세이브 파일을 성공적으로 가져왔습니다.' });
+          onCampaignImported(migrated.state);
         } else {
-          setImportNotice({ kind: 'error', text: '유효하지 않은 아포테카리아 세이브 파일입니다.' });
+          setImportNotice({ text: '유효하지 않은 아포테카리아 세이브 파일입니다.' });
         }
       } catch (err) {
-        setImportNotice({ kind: 'error', text: '세이브 파일 파싱 중 오류가 발생했습니다.' });
+        setImportNotice({ text: '세이브 파일 파싱 중 오류가 발생했습니다.' });
       }
     };
     reader.readAsText(file);
@@ -21080,7 +21326,7 @@ function JournalsView({
         </div>
       </h2>
       {importNotice && (
-        <div role="status" style={{ margin: '0.75rem 0', padding: '0.65rem 0.8rem', border: `1px solid ${importNotice.kind === 'success' ? '#86a77a' : '#c77972'}`, borderRadius: '6px', background: importNotice.kind === 'success' ? '#f3f8ef' : '#fff2f0', color: importNotice.kind === 'success' ? '#355b2f' : '#8f2f28', fontSize: '0.85rem' }}>
+        <div role="status" style={{ margin: '0.75rem 0', padding: '0.65rem 0.8rem', border: '1px solid #c77972', borderRadius: '6px', background: '#fff2f0', color: '#8f2f28', fontSize: '0.85rem' }}>
           {importNotice.text}
         </div>
       )}

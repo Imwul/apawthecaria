@@ -108,6 +108,30 @@ describe('sequential save migration', () => {
     expect(migrateSavedRulesState(JSON.parse(JSON.stringify(migrated)))).toEqual(migrated);
   });
 
+  it('[SAVE-005/CORE-002] drops completed manual-effect rows from current-schema blocking state', () => {
+    const completedPending = {
+      effectId: 'manual:completed-pending',
+      status: 'resolved',
+      transactionId: 'manual-transaction:pending'
+    };
+    const completedQueued = {
+      effectId: 'manual:completed-queued',
+      status: 'overridden',
+      transactionId: 'manual-transaction:queued'
+    };
+
+    const migrated = migrateSavedRulesState({
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      rulesetId: 'original-1e-3p',
+      pendingManualEffect: completedPending,
+      manualEffectQueue: [completedQueued]
+    });
+
+    expect(migrated.pendingManualEffect).toBeNull();
+    expect(migrated.manualEffectQueue).toEqual([]);
+    expect(migrateSavedRulesState(JSON.parse(JSON.stringify(migrated)))).toEqual(migrated);
+  });
+
   it('[SAVE-004/SAVE-005] migrates and safely restores an in-progress route draft', () => {
     const migrated = migrateSavedRulesState({
       schemaVersion: 8,

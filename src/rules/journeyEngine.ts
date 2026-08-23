@@ -137,6 +137,8 @@ export interface JourneyRuntimeState {
   pendingEncounter: unknown | null;
   pendingBarter: unknown | null;
   pendingForaging: unknown | null;
+  pendingManualEffect?: unknown | null;
+  manualEffectQueue?: unknown[];
   needsLocalHelp?: boolean;
   journey: JourneyState | null;
   pendingEnding: { journeyId: string; blockers: string[]; evaluation: GoalEvaluation } | null;
@@ -642,6 +644,7 @@ export const resolveJourneyEnding = (input: {
   if (input.state.pendingEncounter) blockers.push('Resolve the pending Encounter.');
   if (input.state.pendingBarter) blockers.push('Resolve the pending Barter.');
   if (input.state.pendingForaging) blockers.push('Resolve the pending Foraging action.');
+  if (input.state.pendingManualEffect || (input.state.manualEffectQueue?.length || 0) > 0) blockers.push('Resolve the pending manual effect.');
   if (input.state.needsLocalHelp) blockers.push('Resolve a local beast’s Ailment before ending the Move at this Location.');
   if (input.state.patients.some(patient => patient.status === 'active' && (patient.ailments.some(row => row.status === 'active') || patient.timers.some(row => row.status === 'active')))) blockers.push('Resolve or leave every active Patient and Timer.');
   if (blockers.length > 0) return { status: 'invalid', value: null, messages: blockers };

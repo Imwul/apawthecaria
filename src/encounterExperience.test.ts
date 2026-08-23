@@ -53,9 +53,10 @@ describe('encounter player-experience guards', () => {
     expect(appSource).toContain('!id.endsWith(`:${pending.transactionId}`)');
     expect(appSource).toContain('pendingForaging: null');
     expect(appSource).toContain('events.filter(event => event.id !== `${pending.transactionId}:journey-forage`)');
-    expect(appSource).toContain('setForagingRestartToken(token => token + 1)');
     expect(appSource).toContain('setForageTargetReagentIds([])');
     expect(appSource).toContain('setForageDrawCard(null)');
+    expect(appSource).toContain("setForageLocationType('current')");
+    expect(appSource).toContain("setForageAdjacentRegion('Forest')");
     expect(appSource).toContain('onRestartForaging={cancelCurrentForagingAttempt}');
     expect(appSource).toContain('이번 채집 처음부터');
     expect(appSource).toContain('채집 조우 이어가기');
@@ -88,6 +89,15 @@ describe('encounter player-experience guards', () => {
     expect(appSource).toContain('>재료 빼기</button>');
     expect(appSource).not.toContain('아래의 ‘이번 채집 처음부터’');
     expect(appSource).not.toContain("? treatmentPreview.requiresCatalyse ? 'CATALYSE로 완성' : '치료제 완성'\n                        : '준비 조건 확인'");
+  });
+
+  it('keeps an uncommitted forage plan mounted above the Play chapter boundary', () => {
+    const playViewSource = appSource.slice(appSource.indexOf('function PlayView('));
+    expect(appSource).toContain('forageDrawCard={forageDrawCard}');
+    expect(appSource).toContain('forageTargetReagentIds={forageTargetReagentIds}');
+    expect(appSource).toContain('forageLocationType={forageLocationType}');
+    expect(playViewSource).not.toContain('const [forageDrawCard, setForageDrawCard] = useState');
+    expect(playViewSource).not.toContain('const [forageLocationType, setForageLocationType] = useState');
   });
 
   it('lets the player clear a mistaken concoction without discarding inventory', () => {

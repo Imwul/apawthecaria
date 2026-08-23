@@ -1,6 +1,7 @@
 import { getRuleCardValue, type RuleCard } from './cards';
 import { REAGENT_BY_ID } from './data/reagents';
 import { canTreatAilmentWithInventory, type TreatmentAilmentTagOverride } from './treatmentEngine';
+import type { CanonicalToolState } from './toolEngine';
 import type { EngineInventoryItem, EngineJournalEvent } from './gameplay';
 import type { PatientState } from './state';
 import type { Availability, EncounterDefinition, Region, Season } from './types';
@@ -72,6 +73,7 @@ export interface BarterRuntimeState {
   journalEvents: EngineJournalEvent[];
   appliedTransactionIds: string[];
   ailmentTagOverrides?: TreatmentAilmentTagOverride[];
+  toolStates?: CanonicalToolState[];
 }
 
 export interface BarterResolution {
@@ -334,9 +336,14 @@ const decrementAllActiveTimers = (patient: PatientState): PatientState => {
   return { ...patient, timers, ailments };
 };
 
-const readyForRemedy = (patient: PatientState, inventory: EngineInventoryItem[], overrides: readonly TreatmentAilmentTagOverride[] = []) => patient.ailments
+const readyForRemedy = (
+  patient: PatientState,
+  inventory: EngineInventoryItem[],
+  overrides: readonly TreatmentAilmentTagOverride[] = [],
+  toolStates: readonly CanonicalToolState[] = []
+) => patient.ailments
   .filter(ailment => ailment.status === 'active')
-  .some(ailment => canTreatAilmentWithInventory(patient, ailment.id, inventory, overrides));
+  .some(ailment => canTreatAilmentWithInventory(patient, ailment.id, inventory, overrides, [], toolStates));
 
 const finalizeSuccessfulBarter = (
   state: BarterRuntimeState,
@@ -357,7 +364,7 @@ const finalizeSuccessfulBarter = (
     quantity: 1
   };
   const inventory = [...state.inventory, acquired];
-  const patient = readyForRemedy(state.patient, inventory, state.ailmentTagOverrides) ? state.patient : decrementAllActiveTimers(state.patient);
+  const patient = readyForRemedy(state.patient, inventory, state.ailmentTagOverrides, state.toolStates) ? state.patient : decrementAllActiveTimers(state.patient);
   return {
     ...state,
     inventory,

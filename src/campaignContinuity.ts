@@ -1,4 +1,4 @@
-export type CampaignStage = 'journey' | 'downtime-required' | 'season-ready' | 'journey-ready';
+export type CampaignStage = 'journey' | 'manual-effect' | 'downtime-required' | 'season-ready' | 'journey-ready';
 
 export interface CampaignContinuityState {
   journeyActive?: boolean;
@@ -6,6 +6,8 @@ export interface CampaignContinuityState {
   downtimeCompleted?: boolean;
   pendingEncounter?: unknown;
   pendingForaging?: unknown;
+  pendingManualEffect?: unknown;
+  manualEffectQueue?: unknown[];
   pendingPatientArchive?: unknown;
   activeAilment?: unknown;
   scroungingMode?: boolean;
@@ -27,11 +29,24 @@ export interface CampaignContinuity {
 }
 
 export const getCampaignContinuity = (state: CampaignContinuityState): CampaignContinuity => {
+  const hasManualEffect = Boolean(state.pendingManualEffect || (state.manualEffectQueue?.length || 0) > 0);
+  if (hasManualEffect && !state.journeyActive) {
+    return {
+      stage: 'manual-effect',
+      label: '보류 판정 대기',
+      nextAction: '보류한 직접 판정을 먼저 마무리하세요.',
+      continueLabel: '보류 판정 이어가기',
+      guidance: '판정 결과를 기록한 뒤 휴식기나 다음 여정을 이어갈 수 있습니다.'
+    };
+  }
+
   if (state.journeyActive) {
     const elapsed = Math.max(0, state.calendarDays || 0);
     const limit = Math.max(0, state.calendarMaxDays || 0);
     const remaining = Math.max(0, limit - elapsed);
-    const nextAction = state.pendingEncounter
+    const nextAction = hasManualEffect
+      ? '보류한 직접 판정을 먼저 마무리하세요.'
+      : state.pendingEncounter
       ? '열어 둔 이동 조우를 먼저 해결하세요.'
       : state.pendingForaging
         ? '열어 둔 채집 조우를 먼저 해결하세요.'
@@ -48,7 +63,9 @@ export const getCampaignContinuity = (state: CampaignContinuityState): CampaignC
                   : state.needsLocalHelpBeforeMove
                     ? '현지 야수의 질환을 해결해야 다시 이동할 수 있습니다.'
                     : '현재 위치에서 다음 Move를 해결하세요.';
-    const continueLabel = state.pendingEncounter
+    const continueLabel = hasManualEffect
+      ? '보류 판정 이어가기'
+      : state.pendingEncounter
       ? '이동 조우 이어가기'
       : state.pendingForaging
         ? '채집 조우 이어가기'
@@ -105,12 +122,14 @@ export const getCampaignContinuity = (state: CampaignContinuityState): CampaignC
 
 export const getCampaignResumeActionIds = (state: CampaignContinuityState, hasCurrentBarrow = false): string[] => {
   if (!state.journeyActive) {
+    if (state.pendingManualEffect || (state.manualEffectQueue?.length || 0) > 0) return ['manual-effect'];
     if (state.downtimeRequired && !state.downtimeCompleted) return ['downtime-activities', 'downtime-shop'];
     if (state.downtimeCompleted) return ['season-advance', 'downtime-shop'];
     return ['start-journey', 'downtime-shop'];
   }
 
   const ids: string[] = [];
+  if (state.pendingManualEffect || (state.manualEffectQueue?.length || 0) > 0) ids.push('manual-effect');
   if (state.pendingEncounter) ids.push('pending-encounter');
   if (state.pendingForaging) ids.push('pending-foraging');
   if (state.pendingPatientArchive) ids.push('archive-patient');

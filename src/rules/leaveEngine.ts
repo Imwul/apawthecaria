@@ -134,6 +134,8 @@ export interface AlternativeAcquisition {
   kind: 'make-do' | 'replacement';
   acquisition: 'forage-or-barter';
   selectedSource: 'forage' | 'barter' | null;
+  patientId?: string | null;
+  ailmentInstanceId?: string | null;
   targetTag: RuleTag;
   requiredPotency: number;
   baseRarity?: number;
@@ -142,6 +144,27 @@ export interface AlternativeAcquisition {
   preparation?: string;
   journalPrompt: string;
 }
+
+export const scopeAlternativeAcquisition = ({
+  acquisition,
+  activePatientId,
+  activeAilmentInstanceIds,
+  preferredAilmentInstanceId
+}: {
+  acquisition: AlternativeAcquisition | null | undefined;
+  activePatientId: string | null | undefined;
+  activeAilmentInstanceIds: readonly string[];
+  preferredAilmentInstanceId?: string | null;
+}): AlternativeAcquisition | null => {
+  if (!acquisition || !activePatientId) return null;
+  if (acquisition.patientId && acquisition.patientId !== activePatientId) return null;
+  const activeIds = new Set(activeAilmentInstanceIds);
+  const ailmentInstanceId = acquisition.ailmentInstanceId
+    || (preferredAilmentInstanceId && activeIds.has(preferredAilmentInstanceId) ? preferredAilmentInstanceId : null)
+    || (activeIds.size === 1 ? activeAilmentInstanceIds[0] : null);
+  if (!ailmentInstanceId || !activeIds.has(ailmentInstanceId)) return null;
+  return { ...acquisition, patientId: activePatientId, ailmentInstanceId };
+};
 
 export const createMakeDoAcquisition = (targetTag: RuleTag, requiredPotency: number): AlternativeAcquisition => ({
   id: `make-do:${targetTag}:${requiredPotency + 1}`,

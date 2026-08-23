@@ -14,6 +14,11 @@ describe('application notice dialog', () => {
     expect(appSource).toContain('role="alertdialog"');
   });
 
+  it('reports a successful campaign import from the app shell that survives the campaign remount', () => {
+    expect(appSource).toContain("showAlert('세이브 파일을 성공적으로 가져왔습니다.');");
+    expect(appSource).not.toContain("onCampaignImported(migrated.state);\n          setImportNotice({ kind: 'success'");
+  });
+
   it('localizes season names in visible transition records and notices', () => {
     expect(appSource).toContain('localizeSeasonLabel(outcome.previousSeason)');
     expect(appSource).toContain('localizeSeasonLabel(outcome.nextSeason)');

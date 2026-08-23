@@ -50,8 +50,16 @@ describe('foraging workflow order', () => {
   it('uses the selected encounter branch for follow-up cards and the whole prescription for acquisition state', () => {
     expect(appSource).toContain('const hasSecondaryDraw = encounterChoiceRequiresSecondaryCard(activeForageEncounter, selectedForageChoiceId)');
     expect(appSource).not.toContain('const secondaryDrawPhrases');
-    expect(appSource).toContain('(treatmentOwnedPreview && !treatmentOwnedPreview.ready)');
+    expect(appSource).toContain('canTreatAilmentWithInventory(');
+    expect(appSource).toContain('(treatmentPatient && treatmentAilment && !treatmentCanTreatFromOwned)');
     expect(appSource).not.toContain("treatmentRequirementRows.some(row => row.state === 'missing')");
+  });
+
+  it('scopes replacement acquisition to the patient and clears it at terminal patient actions', () => {
+    expect(appSource).toContain('patientId: state.activePatientId');
+    expect(appSource).toContain('ailmentInstanceId: state.activeAilment.id');
+    expect(appSource).toContain('pendingAlternativeAcquisition: null');
+    expect(appSource).toContain('이 대체 약재 기록은 이전 환자의 처방에 속해 있어 정리했습니다.');
   });
 
   it('only describes suit directions in the journey destination card control', () => {

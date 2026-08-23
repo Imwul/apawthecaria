@@ -348,19 +348,31 @@ export const canTreatAilmentWithInventory = (
   ailmentInstanceId: string,
   inventory: readonly EngineInventoryItem[],
   overrides: readonly TreatmentAilmentTagOverride[] = [],
-  availableToolIds: readonly string[] = []
+  availableToolIds: readonly string[] = [],
+  toolStates: readonly CanonicalToolState[] = []
 ): boolean => {
   const ailment = patient.ailments.find(row => row.id === ailmentInstanceId && row.status === 'active');
   if (!ailment?.ailmentId) return false;
   const definition = AILMENT_BY_ID.get(ailment.ailmentId);
   if (!definition) return false;
 
-  const tools = new Set([
-    ...availableToolIds,
-    ...inventory
+  const inventoryToolInstanceIds = new Set(inventory
     .filter(item => item.type === 'tool')
-    .flatMap(item => [item.canonicalToolId, item.id].filter((id): id is string => Boolean(id)))
-  ]);
+    .map(item => item.id));
+  const usableToolStates = toolStates.filter(tool =>
+    inventoryToolInstanceIds.has(tool.instanceId) && !tool.broken && !tool.consumed
+  );
+  const toolStateByInstanceId = new Map(toolStates.map(tool => [tool.instanceId, tool]));
+  const tools = new Set(availableToolIds);
+  inventory
+    .filter(item => item.type === 'tool')
+    .forEach(item => {
+      const toolState = toolStateByInstanceId.get(item.id);
+      if (toolState?.broken || toolState?.consumed) return;
+      [item.canonicalToolId, item.id].forEach(id => { if (id) tools.add(id); });
+    });
+  usableToolStates
+    .forEach(tool => tools.add(tool.toolId));
   const prepared = inventory.flatMap(item => {
     if (item.type !== 'reagent' || !item.preparationId) return [];
     const preparation = PREPARATION_BY_ID.get(item.preparationId)?.preparation;
@@ -370,21 +382,58 @@ export const canTreatAilmentWithInventory = (
   });
   if (prepared.length === 0) return false;
 
-  const tags = collectTags(prepared, tools, []).tags;
-  if (tools.has('glass-alembic')) {
-    const contributions = new Map<RuleTag, Array<{ itemId: string; value: number }>>();
-    prepared.forEach(({ item, preparation }) => preparation.tags.forEach(tag => {
-      if (tag.tag === 'FAIR' || tag.tag === 'FOUL') return;
-      const rows = contributions.get(tag.tag) || [];
-      rows.push({ itemId: item.id, value: tag.value });
-      contributions.set(tag.tag, rows);
-    }));
-    contributions.forEach((rows, tag) => {
-      const strongest = [...rows].sort((a, b) => b.value - a.value).slice(0, 2);
-      if (strongest.length === 2) tags[tag] = Math.max(tags[tag] || 0, strongest[0].value + strongest[1].value);
-    });
-  }
-  return evaluateRequirement(applyAilmentTagOverrides(definition.requirements, definition.id, overrides), tags).satisfied;
+  const ingredientPolaritySelections = [
+    prepared,
+    prepared.filter(row => !row.preparation.tags.some(tag => tag.tag === 'FOUL')),
+    prepared.filter(row => !row.preparation.tags.some(tag => tag.tag === 'FAIR'))
+  ].filter((rows, index, all) => rows.length > 0
+    && all.findIndex(other => other.map(row => row.item.id).join('\u0000') === rows.map(row => row.item.id).join('\u0000')) === index);
+  const hasDoubleBoiler = usableToolStates.some(tool => tool.upgradeId === 'double-boiler');
+  const candidateSelections = ingredientPolaritySelections.flatMap(selection => {
+    if (!hasDoubleBoiler) return [selection];
+    const nonBoilOrBrew = selection.filter(row => !/BOIL|BREW/i.test(row.preparation.method));
+    const boilOrBrew = selection.filter(row => /BOIL|BREW/i.test(row.preparation.method));
+    return [selection, ...boilOrBrew.map(row => [...nonBoilOrBrew, row])];
+  }).filter((rows, index, all) => rows.length > 0
+    && all.findIndex(other => other.map(row => row.item.id).join('\u0000') === rows.map(row => row.item.id).join('\u0000')) === index);
+  const specialState = ailment.specialState || {};
+  const specialRequirements = [
+    ...(Array.isArray(specialState.additionalRequirements)
+      ? specialState.additionalRequirements as Array<{ tag: RuleTag; threshold: number }>
+      : []),
+    ...(typeof specialState.poisonRequirement === 'number'
+      ? [{ tag: 'POISON' as RuleTag, threshold: specialState.poisonRequirement }]
+      : [])
+  ];
+
+  return candidateSelections.some(selection => {
+    const boilOrBrew = selection.filter(row => /BOIL|BREW/i.test(row.preparation.method));
+    const potencyBoost = hasDoubleBoiler && boilOrBrew.length === 1
+      ? { itemId: boilOrBrew[0].item.id, amount: 1 }
+      : undefined;
+    const collected = collectTags(selection, tools, [], potencyBoost);
+    const tags = collected.tags;
+    if (tools.has('glass-alembic')) {
+      const contributions = new Map<RuleTag, Array<{ itemId: string; value: number }>>();
+      selection.forEach(({ item, preparation }) => preparation.tags.forEach(tag => {
+        if (tag.tag === 'FAIR' || tag.tag === 'FOUL') return;
+        const rows = contributions.get(tag.tag) || [];
+        rows.push({ itemId: item.id, value: tag.value });
+        contributions.set(tag.tag, rows);
+      }));
+      contributions.forEach((rows, tag) => {
+        const strongest = [...rows].sort((a, b) => b.value - a.value).slice(0, 2);
+        if (strongest.length === 2) tags[tag] = Math.max(tags[tag] || 0, strongest[0].value + strongest[1].value);
+      });
+    }
+    const canonicalSatisfied = evaluateRequirement(
+      applyAilmentTagOverrides(definition.requirements, definition.id, overrides),
+      tags
+    ).satisfied;
+    const dynamicSatisfied = specialRequirements.every(row => (tags[row.tag] || 0) >= row.threshold);
+    const forbiddenFoul = definition.canonicalName === 'Bad Idea' && (tags.FOUL || 0) > 0;
+    return collected.messages.length === 0 && canonicalSatisfied && dynamicSatisfied && !forbiddenFoul;
+  });
 };
 
 /** p.33: if any active Ailment can now be treated, create that Remedy before decreasing any Timers. */
@@ -392,9 +441,10 @@ export const hasImmediatelyTreatableAilment = (
   patient: PatientState,
   inventory: readonly EngineInventoryItem[],
   overrides: readonly TreatmentAilmentTagOverride[] = [],
-  availableToolIds: readonly string[] = []
+  availableToolIds: readonly string[] = [],
+  toolStates: readonly CanonicalToolState[] = []
 ): boolean => patient.ailments.some(ailment => ailment.status === 'active'
-  && canTreatAilmentWithInventory(patient, ailment.id, inventory, overrides, availableToolIds));
+  && canTreatAilmentWithInventory(patient, ailment.id, inventory, overrides, availableToolIds, toolStates));
 
 const updateAilment = (
   patient: PatientState,

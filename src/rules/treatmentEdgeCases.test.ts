@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AILMENTS,
   REAGENTS,
+  canTreatAilmentWithInventory,
   createPatientArchiveRecord,
   previewTreatmentSelection,
   resolvePatient,
@@ -119,6 +120,24 @@ describe('Treatment and Patient edge-case transactions', () => {
     });
     expect(preview.ready).toBe(false);
     expect(preview.missingToolIds).toContain(required.canonicalToolId);
+    expect(canTreatAilmentWithInventory(
+      fixture.patient,
+      fixture.patient.ailments[0].id,
+      [...fixture.ingredients, ...fixture.tools],
+      [],
+      [],
+      [broken]
+    )).toBe(false);
+
+    const consumed = { ...broken, broken: false, consumed: true };
+    expect(canTreatAilmentWithInventory(
+      fixture.patient,
+      fixture.patient.ailments[0].id,
+      [...fixture.ingredients, ...fixture.tools],
+      [],
+      [],
+      [consumed]
+    )).toBe(false);
 
     const result = resolveTreatment({
       mode: 'treat', transactionId: 'broken-tool',
