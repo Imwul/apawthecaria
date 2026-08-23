@@ -471,6 +471,413 @@ button:active {
   }
 }
 
+/* Journey setup reads as one decision spread rather than a stack of unrelated cards. */
+.journey-start-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0.9rem 0 0;
+  border-block: 1px solid rgba(77, 70, 56, 0.34);
+  background: rgba(244, 238, 224, 0.42);
+}
+
+.journey-start-summary > div {
+  min-width: 0;
+  padding: 0.72rem 0.85rem;
+  border-right: 1px solid rgba(77, 70, 56, 0.18);
+}
+
+.journey-start-summary > div:last-child {
+  border-right: 0;
+}
+
+.journey-start-summary dt {
+  margin-bottom: 0.18rem;
+  color: var(--text-dim);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.journey-start-summary dd {
+  margin: 0;
+  color: var(--text-bright);
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.journey-candidate-list > header {
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.journey-candidate-list > header > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.16rem;
+}
+
+.journey-candidate-list__toggle {
+  min-height: 44px;
+  padding: 0.45rem 0.7rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.journey-distance-confirmation {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border-left: 3px solid var(--secondary);
+  background: rgba(244, 238, 224, 0.62);
+  cursor: pointer;
+}
+
+.journey-distance-confirmation input {
+  width: 1.2rem;
+  height: 1.2rem;
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.journey-distance-confirmation span {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.journey-distance-confirmation small {
+  color: var(--text-muted);
+}
+
+/* Character is a readiness workspace. Keep today's bag and journey near the
+   top; settled biography and long-term records remain one deliberate reveal
+   away instead of lengthening every visit. */
+.bio-sheet,
+.patient-workflow {
+  width: 100%;
+  max-width: 1900px;
+  margin-inline: auto;
+}
+
+.bio-method-stamps {
+  order: 4;
+}
+
+.bio-record-fold {
+  min-width: 0;
+  border-top: 1px solid rgba(70, 62, 52, 0.38);
+}
+
+.bio-record-fold > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  min-height: 52px;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.7rem 0.25rem;
+  color: var(--primary);
+  cursor: pointer;
+  font-family: var(--font-fancy);
+  font-size: 1.05rem;
+  font-weight: 700;
+  list-style: none;
+}
+
+.bio-record-fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.bio-record-fold > summary::after {
+  content: '펼치기';
+  grid-column: 3;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.bio-record-fold[open] > summary::after {
+  content: '접기';
+}
+
+.bio-record-fold > summary small {
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.875rem !important;
+  font-weight: 500;
+  text-align: right;
+}
+
+.bio-record-fold__content,
+.bio-method-stamps__content {
+  margin-top: 0.45rem;
+  padding-bottom: 1rem;
+}
+
+.bio-method-stamps__content {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.8rem;
+}
+
+@media (max-width: 760px) {
+  .bio-record-fold > summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.25rem 0.75rem;
+  }
+
+  .bio-record-fold > summary small {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+
+  .bio-record-fold > summary::after {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+/* A forage draw should read like a small field discovery, not a database dump.
+   Successful finds stay in view; missed entries remain available for the
+   canonical failure/FP choice without dominating the encounter. */
+.forage-discovery-workspace {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.forage-discovery-workspace__found > header,
+.forage-discovery-workspace__missed > summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.forage-discovery-workspace__found > header {
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid rgba(79, 137, 95, 0.35);
+}
+
+.forage-discovery-workspace__found > header span,
+.forage-discovery-workspace__missed > summary small {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: 0.875rem !important;
+}
+
+.forage-discovery-workspace__empty {
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  border-left: 3px solid #b4875c;
+  background: rgba(244, 235, 220, 0.72);
+  line-height: 1.55;
+}
+
+.forage-discovery-workspace__missed {
+  padding-top: 0.2rem;
+  border-top: 1px dotted rgba(76, 66, 55, 0.34);
+}
+
+.forage-discovery-workspace__missed > summary {
+  min-height: 44px;
+  padding: 0.55rem 0.25rem;
+  color: #62584c;
+  cursor: pointer;
+}
+
+.forage-discovery-workspace__missed > summary:hover,
+.forage-discovery-workspace__missed > summary:focus-visible {
+  color: var(--primary);
+}
+
+.forage-discovery-workspace__missed > p {
+  margin: 0.15rem 0 0.35rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.forage-candidate-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.forage-candidate__copy {
+  min-width: 0;
+  line-height: 1.5;
+}
+
+.forage-candidate__copy > span {
+  display: block;
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+
+.forage-candidate__relevance {
+  display: block;
+  margin-top: 0.3rem;
+  padding-left: 0.55rem;
+  border-left: 3px solid rgba(79, 137, 95, 0.55);
+  color: #3f6749;
+  font-size: 0.875rem !important;
+  line-height: 1.5;
+}
+
+.forage-candidate__action {
+  min-width: 8.75rem;
+  min-height: 44px;
+  flex-shrink: 0;
+  white-space: normal;
+}
+
+.forage-candidate__action--miss {
+  border-color: rgba(126, 92, 62, 0.48) !important;
+  background: rgba(248, 241, 231, 0.8) !important;
+  color: #6c4f38 !important;
+}
+
+@media (max-width: 720px) {
+  .forage-discovery-workspace__found > header,
+  .forage-discovery-workspace__missed > summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .forage-candidate__action {
+    width: 100%;
+  }
+}
+
+.patient-workflow__acquisition-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.25rem 1rem;
+  min-height: 48px;
+  align-items: center;
+  padding: 0.65rem 0.75rem;
+  border-block: 1px solid rgba(77, 70, 56, 0.28);
+  background: rgba(244, 238, 224, 0.46);
+  color: var(--primary);
+  cursor: pointer;
+  list-style: none;
+}
+
+.patient-workflow__acquisition-summary::-webkit-details-marker {
+  display: none;
+}
+
+.patient-workflow__acquisition-summary::after {
+  content: '펼치기';
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  color: var(--secondary);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.patient-workflow__acquisition[open] > .patient-workflow__acquisition-summary::after {
+  content: '접기';
+}
+
+.patient-workflow__acquisition-summary > span {
+  font-family: var(--font-fancy);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.patient-workflow__acquisition-summary > small {
+  color: var(--text-muted);
+}
+
+.patient-workflow__acquisition[open] > .patient-workflow__acquisition-summary {
+  margin-bottom: 0.85rem;
+}
+
+@media (min-width: 1241px) {
+  .journey-start-decisions {
+    grid-template-columns: minmax(0, 1.08fr) minmax(24rem, 0.92fr);
+    align-items: start;
+    column-gap: 1.1rem !important;
+  }
+
+  .journey-start-decisions > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  .journey-start-decisions > .journey-choice-fieldset:first-of-type {
+    grid-column: 1;
+    grid-row: 2 / span 4;
+  }
+
+  .journey-start-reason,
+  .journey-start-decisions > .journey-choice-fieldset:nth-of-type(2),
+  .journey-goal-result {
+    grid-column: 2;
+  }
+
+  .journey-start-urgency {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(15rem, 0.45fr) minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .journey-start-urgency textarea {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}
+
+@media (max-width: 1240px) {
+  .journey-start-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .journey-start-summary > div {
+    border-bottom: 1px dashed rgba(77, 70, 56, 0.18);
+  }
+
+  .journey-start-summary > div:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .journey-start-summary > div:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    border-right: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .journey-start-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .journey-start-summary > div {
+    border-right: 0;
+  }
+
+  .journey-candidate-list > header,
+  .patient-workflow__acquisition-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .journey-candidate-list__toggle {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .patient-workflow__acquisition-summary::after {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+  }
+}
+
 .btn-cozy-primary,
 .btn-cozy-secondary,
 .btn-cozy-danger {
@@ -8650,6 +9057,39 @@ details.rulebook-source-text > summary {
   gap: 0.5rem;
 }
 
+.herbarium-more {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.65rem;
+  align-items: center;
+  padding: 0.9rem 0.7rem;
+  border-bottom: 1px solid rgba(37, 33, 28, 0.36);
+  background: color-mix(in srgb, var(--page-tint) 22%, transparent);
+}
+
+.herbarium-more p {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.herbarium-more button {
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-bottom: 1px solid rgba(37, 33, 28, 0.48);
+  border-radius: 0;
+  background: transparent;
+  color: var(--editorial-ink);
+  font-weight: 700;
+}
+
+.herbarium-more button:hover,
+.herbarium-more button:focus-visible {
+  background: rgba(255, 253, 246, 0.62);
+}
+
 .herbarium-empty,
 .rulebook-empty {
   display: grid;
@@ -8775,6 +9215,18 @@ details.rulebook-source-text > summary {
     gap: 1rem;
   }
 
+  .herbarium-more {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .herbarium-more p {
+    grid-column: 1 / -1;
+  }
+
+  .herbarium-more button {
+    width: 100%;
+  }
+
   .herbarium-controls {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -8869,6 +9321,14 @@ details.rulebook-source-text > summary {
   }
 
   .herbarium-controls label:first-child {
+    grid-column: auto;
+  }
+
+  .herbarium-more {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .herbarium-more p {
     grid-column: auto;
   }
 
@@ -9041,46 +9501,38 @@ details.rulebook-source-text > summary {
   font-weight: 700;
 }
 
-.campaign-continuity__next {
-  grid-column: 2;
-  grid-row: 1;
-  display: grid;
-  align-content: center;
-  gap: 0.18rem;
-  padding-left: 1rem;
-  border-left: 3px solid var(--secondary);
-}
-
-.campaign-continuity__next span {
-  color: var(--text-dim);
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-}
-
-.campaign-continuity__next strong {
-  color: var(--text-bright);
-  font-size: 0.9rem;
-}
-
-.campaign-continuity__next p,
-.campaign-continuity__empty {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 0.78rem;
-  line-height: 1.45;
-}
-
-.campaign-continuity__history,
-.campaign-continuity__empty {
+.campaign-continuity__guidance,
+.campaign-continuity__history {
   grid-column: 1 / -1;
 }
 
+.campaign-continuity__guidance {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.65rem;
+  margin: 0;
+  padding-top: 0.65rem;
+  border-top: 1px dashed rgba(77, 70, 56, 0.26);
+  line-height: 1.5;
+}
+
+.campaign-continuity__guidance strong {
+  color: var(--primary);
+}
+
+.campaign-continuity__guidance span {
+  color: var(--text-muted);
+}
+
 .campaign-continuity__history summary {
+  display: inline-flex;
   width: fit-content;
+  min-height: 44px;
+  align-items: center;
   cursor: pointer;
   color: var(--text-muted);
-  font-size: 0.76rem;
+  font-size: 0.875rem;
   font-weight: 700;
 }
 
@@ -9512,14 +9964,6 @@ details.rulebook-source-text > summary {
     padding-inline: 0.85rem;
   }
 
-  .campaign-continuity__next {
-    grid-column: 1;
-    grid-row: auto;
-    padding: 0.65rem 0 0;
-    border-left: 0;
-    border-top: 2px solid var(--secondary);
-  }
-
   .campaign-continuity__facts,
   .character-continuity dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -9791,14 +10235,6 @@ details.rulebook-source-text > summary {
   background: color-mix(in srgb, var(--paper) 78%, var(--primary-light));
 }
 
-.today-focus .campaign-continuity__next {
-  grid-column: 1;
-  grid-row: auto;
-  padding: 0.7rem 0 0;
-  border-top: 2px solid var(--secondary);
-  border-left: 0;
-}
-
 .today-focus .campaign-continuity__facts {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -9855,6 +10291,58 @@ details.rulebook-source-text > summary {
   opacity: 0.6;
 }
 
+@media (min-width: 1081px) {
+  .journal-app:not(.journal-app--onboarding) .journal-header {
+    min-height: 124px;
+    padding: 1.25rem 2.5rem 0.75rem;
+  }
+
+  .journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title {
+    font-size: clamp(3rem, 4vw, 3.6rem) !important;
+  }
+
+  .journal-app:not(.journal-app--onboarding) .journal-brand__eyebrow {
+    margin-top: 0.3rem;
+  }
+
+  .chapter-opening {
+    min-height: 205px;
+    margin-bottom: 1.35rem;
+  }
+
+  .chapter-opening::after {
+    padding: 1.15rem;
+    font-size: 1.5rem;
+  }
+
+  .chapter-opening__copy {
+    min-height: 205px;
+    padding: 1.25rem 2rem;
+  }
+
+  .chapter-opening__copy h2 {
+    font-size: clamp(2rem, 2.6vw, 2.55rem);
+  }
+
+  .chapter-opening__body {
+    margin-top: 0.45rem;
+    line-height: 1.6;
+  }
+
+  .chapter-opening__notes {
+    margin-top: 0.65rem;
+  }
+
+  .chapter-opening__copy button {
+    margin-top: 0.65rem;
+  }
+
+  .chapter-opening__mark {
+    bottom: 1.4rem;
+    font-size: 4.2rem;
+  }
+}
+
 .route-planning-workspace,
 #patient-clinic-panel,
 #patient-acquisition-panel,
@@ -9893,16 +10381,6 @@ details.rulebook-source-text > summary {
   margin-top: 1.4rem;
   padding-top: 1.1rem;
   border-top: 1px dashed var(--glass-border);
-}
-
-.patient-workflow__acquisition::before {
-  content: '재료가 부족하다면 · 채집과 거래';
-  display: block;
-  margin-bottom: 0.75rem;
-  color: var(--primary);
-  font-family: var(--font-fancy);
-  font-size: 1.12rem;
-  font-weight: 700;
 }
 
 .forage-recovery-panel {
@@ -9967,11 +10445,11 @@ details.rulebook-source-text > summary {
 }
 
 .bio-workbench {
-  order: 2;
+  order: 1;
 }
 
 .bio-profile-summary {
-  order: 1;
+  order: 2;
 }
 
 .bio-extended-records {
@@ -10458,8 +10936,7 @@ details.rulebook-source-text > summary {
   .document-kicker,
   .action-hub__chip,
   .action-step span,
-  .action-step em,
-  .campaign-continuity__next > span
+  .action-step em
 ) {
   font-size: 0.875rem !important;
   line-height: 1.45;
@@ -10547,6 +11024,20 @@ details.rulebook-source-text > summary {
 }
 
 @media (max-width: 800px) {
+  .journal-header__action span,
+  .journal-header__icon-button span,
+  .save-state {
+    display: none;
+  }
+
+  .journal-header__action,
+  .journal-header__icon-button {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+  }
+
   .journal-app:not(.journal-app--onboarding) .journal-header {
     min-height: 150px;
     padding: 3.2rem 1rem 1rem !important;
@@ -10567,6 +11058,11 @@ details.rulebook-source-text > summary {
 
   .today-story article {
     min-height: 165px;
+  }
+
+  .journal-tab > span:last-child,
+  .journal-tab__index {
+    font-size: 0.75rem;
   }
 
   .chapter-opening {

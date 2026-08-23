@@ -272,13 +272,35 @@ describe('printed encounter choice execution', () => {
     expect(fetch.value?.nextState).toMatchObject({ reputation: 5, trinkets: 1, calendarDays: 1 });
   });
 
+  it('preserves the printed card branches for Duchy of Deer and Winter Feast', () => {
+    const duchy = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-bog-m-winter')!;
+    expect(duchy.choices.map(choice => choice.id)).toEqual(['instant-trial']);
+    expect(duchy.choices[0].label).toMatch(/카드.*뽑/);
+    expect(duchy.choices[0].effects).toContainEqual(expect.objectContaining({ support: 'manual-only' }));
+
+    const feast = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-forest-j-winter')!;
+    expect(feast.choices.map(choice => choice.id)).toEqual(['pass-by', 'charity', 'sing']);
+    expect(feast.choices.find(choice => choice.id === 'charity')?.label).toMatch(/카드.*뽑/);
+    expect(feast.choices.find(choice => choice.id === 'charity')?.effects).toEqual(expect.arrayContaining([
+      { support: 'implemented', effect: { type: 'modifyTimer', amount: -1, target: 'all' } },
+      expect.objectContaining({ support: 'manual-only' })
+    ]));
+
+    const sing = executeEncounter({
+      transactionId: 'winter-feast-sing', encounter: feast, choiceId: 'sing',
+      state: { reputation: 0, trinkets: 0, calendarDays: 0, foragingPoints: 0, inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: [] }
+    });
+    expect(sing.status).toBe('resolved');
+    expect(sing.value?.nextState.trinkets).toBe(1);
+  });
+
   it('keeps non-scalar printed procedures manual instead of silently resolving them', () => {
     const manualChoices: Array<[string, string]> = [
       ['travel-loch-m-autumn', 'vigiliante'],
       ['travel-meadow-9-10-winter', 'challenge-accepted'],
       ['travel-mountain-m-spring', 'drink-up'],
       ['foraging-bog-9-autumn', 'pounder-s-take'],
-      ['foraging-bog-m-winter', 'bargain'],
+      ['foraging-bog-m-winter', 'instant-trial'],
       ['foraging-forest-9-spring', 'compassion'],
       ['foraging-loch-9-summer', 'tadpediatrician'],
       ['foraging-loch-10-summer', 'summertime-swim'],

@@ -1,4 +1,4 @@
-import { useState, useEffect, useEffectEvent, useRef, useCallback, useMemo, memo, Fragment, lazy, Suspense, type ReactNode } from "react";
+import { useState, useEffect, useEffectEvent, useRef, useCallback, useMemo, memo, Fragment, lazy, Suspense, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { db, isFirebaseConfigured, auth, googleProvider, storage, googleSignInErrorMessage, shouldUseRedirectSignIn, firebaseProjectId } from "./firebase";
 import { deleteDoc, deleteField, doc, getDoc, runTransaction, setDoc } from "firebase/firestore";
 import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, type User } from "firebase/auth";
@@ -3149,12 +3149,21 @@ const encounterNeedsPlayerChoice = (encounter: { choices?: Array<{ id: string }>
 };
 
 const encounterChoiceRequiresSecondaryCard = (
-  encounter: { choices?: Array<{ id: string; label?: string }> } | null | undefined,
+  encounter: {
+    choices?: Array<{ id: string; label?: string }>;
+    prompt?: string;
+    text?: string;
+    title?: string;
+  } | null | undefined,
   selectedChoiceId?: string
 ): boolean => {
-  const choice = encounter?.choices?.find(row => row.id === selectedChoiceId)
-    || (encounter?.choices?.length === 1 ? encounter.choices[0] : undefined);
-  return /\bdraw(?:\s*:|\s+(?:a|an|another|one|two|three|\d+)?\s*cards?\b)/i.test(choice?.label || '');
+  const choices = encounter?.choices || [];
+  const choice = choices.find(row => row.id === selectedChoiceId)
+    || (choices.length === 1 ? choices[0] : undefined);
+  const asksForCard = (value?: string): boolean => /(?:\bdraw\b[^.!?\n]{0,48}\bcards?\b|\bdraw\s+from\s+(?:the\s+)?deck\b|\bpull\b[^.!?\n]{0,32}\bcards?\b|카드[^.!?\n]{0,24}뽑)/i.test(value || '');
+  if (choice) return asksForCard(choice.label);
+  if (choices.length > 1) return false;
+  return asksForCard(`${encounter?.title || ''} ${encounter?.prompt || ''} ${encounter?.text || ''}`);
 };
 
 const getLocalizedLocationName = (name: string): string => localizeLocationName(name);
@@ -5015,6 +5024,13 @@ export default function App() {
   const [searchAilment, setSearchAilment] = useState("");
   const [reagentFilter, setReagentFilter] = useState("");
   const [reagentTypeFilter, setReagentTypeFilter] = useState("");
+  const [herbariumViewState, setHerbariumViewState] = useState<HerbariumViewState>({
+    regionFilter: '',
+    seasonFilter: '',
+    patientOnly: false,
+    expandedId: null,
+    visiblePage: { key: '', count: 16 }
+  });
   const [ailmentFilter, setAilmentFilter] = useState("");
 
   // Preload card & map images for zero-latency display
@@ -7433,7 +7449,7 @@ export default function App() {
         </div>
       </header>
 
-      {!isOnboarding && <JournalNavigation activeTab={activeTab} onChange={changeActiveTab} />}
+      {!isOnboarding && <JournalNavigation activeTab={activeTab} onChange={tab => changeActiveTab(tab, { restoreScroll: true })} />}
 
       <div className={`grid-dashboard ${isOnboarding ? 'grid-dashboard--onboarding' : ''}`}>
         {/* =================================================================
@@ -7716,6 +7732,8 @@ export default function App() {
                     setFilter={setReagentFilter}
                     typeFilter={reagentTypeFilter}
                     setTypeFilter={setReagentTypeFilter}
+                    viewState={herbariumViewState}
+                    setViewState={setHerbariumViewState}
                     onOpenReference={openRulebookReference}
                   />
                 )}
@@ -7743,7 +7761,7 @@ export default function App() {
                         activeAilmentId: referenceAilmentDefinition?.id,
                         requirements: referenceRequirements
                       }}
-                      onReturnToGameplay={() => changeActiveTab('play')}
+                      onReturnToGameplay={() => changeActiveTab('play', { restoreScroll: true })}
                       pendingManualEffects={state.manualEffectQueue}
                       manualEffectRecords={state.manualEffectRecords}
                     />
@@ -7943,14 +7961,6 @@ export default function App() {
         const rawEncounterText: string = activeTravelEncounter.text || '';
         const protectionNotice = rawEncounterText.startsWith('[보호 적용]');
         const encText: string = localizeGameplayMessage(printedEffect?.printedText || rawEncounterText);
-        const secondaryDrawPhrases = [
-          'draw a card', 'draw another card', 'pull another card', 'draw from the deck',
-          '추가 카드', '다시 카드', '카드를 뽑', 'draw two cards', 'draw one card'
-        ];
-        const hasSecondaryDraw = secondaryDrawPhrases.some(phrase =>
-          encText.toLowerCase().includes(phrase.toLowerCase()) ||
-          encTitle.toLowerCase().includes(phrase.toLowerCase())
-        );
         const canUseBeetleCompanion =
           (state.companionStates || []).some(comp => comp.companionId === 'beetle' && !comp.usedThisJourney) &&
           activeTravelEncounter.tags?.includes('Beast') && !activeTravelEncounter.tags?.includes('Behemoth');
@@ -7958,6 +7968,7 @@ export default function App() {
           activeTravelEncounter,
           activeTravelEncounter.selectedChoiceId || state.pendingEncounter?.selectedChoiceId
         );
+        const hasSecondaryDraw = encounterChoiceRequiresSecondaryCard(activeTravelEncounter, selectedTravelChoiceId);
         const journalRequired = encounterChoiceRequiresJournal(activeTravelEncounter, selectedTravelChoiceId);
         const travelJournalReady = !journalRequired || Boolean(
           activeTravelEncounter.journalAcknowledged
@@ -8074,8 +8085,8 @@ export default function App() {
 
               {hasSecondaryDraw && (
                 <div className="encounter-dialog__secondary-draw">
-                  <strong>🃏 추가 카드가 필요합니다</strong>
-                  <p>실제 덱이나 아래 카드 도구로 한 장을 뽑은 뒤, 표시된 지시를 해결하세요.</p>
+                  <strong>🃏 카드 판정이 필요합니다</strong>
+                  <p>인쇄된 지시에 적힌 장수만큼 실제 덱이나 아래 도구를 사용하세요. 여러 장이면 다시 뽑기로 차례대로 확인할 수 있습니다.</p>
                   <TravelSecondaryDrawSlot
                     card={activeTravelEncounter.secondaryCard || state.pendingEncounter?.secondaryCard || null}
                     onDraw={card => {
@@ -8168,14 +8179,6 @@ export default function App() {
         const rawEncounterText: string = activeForageEncounter.text || '';
         const protectionNotice = rawEncounterText.startsWith('[Forecast]');
         const encText: string = localizeGameplayMessage(printedEffect?.printedText || rawEncounterText);
-        const secondaryDrawPhrases = [
-          'draw a card', 'draw another card', 'pull another card', 'draw from the deck',
-          '추가 카드', '다시 카드', '카드를 뽑', 'draw two cards', 'draw one card'
-        ];
-        const hasSecondaryDraw = secondaryDrawPhrases.some(phrase =>
-          encText.toLowerCase().includes(phrase.toLowerCase()) ||
-          encTitle.toLowerCase().includes(phrase.toLowerCase())
-        );
         const foragePatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
         const forageAilment = foragePatient?.ailments.find(ailment => ailment.status === 'active');
         const forageAilmentDefinition = AILMENTS.find(ailment => ailment.id === forageAilment?.ailmentId);
@@ -8225,24 +8228,18 @@ export default function App() {
               : [];
             });
         };
-        const sortedForageFinds = (activeForageEncounter.foundReagents || [])
-          .map(normalizeForageFind)
-          .sort((a: ForageFind, b: ForageFind) => Number(matchingForageParts(b).length > 0) - Number(matchingForageParts(a).length > 0)
-            || a.rarity - b.rarity
-            || a.name.localeCompare(b.name));
-        const treatmentForageFinds = sortedForageFinds.filter((find: ForageFind) => matchingForageParts(find).length > 0);
+        const forageFinds = (activeForageEncounter.foundReagents || []).map(normalizeForageFind);
         const plannedForageReagentId = activeForageEncounter.targetReagentId || state.pendingForaging?.targetReagentId;
         const displayedForageFinds = activeForageEncounter.selectedReagentId
-          ? sortedForageFinds.filter((find: ForageFind) => find.reagentId === activeForageEncounter.selectedReagentId)
+          ? forageFinds.filter((find: ForageFind) => find.reagentId === activeForageEncounter.selectedReagentId)
           : plannedForageReagentId
-            ? sortedForageFinds.filter((find: ForageFind) => find.reagentId === plannedForageReagentId)
-          : !activeForageEncounter.showAllFinds && treatmentForageFinds.length > 0
-            ? treatmentForageFinds
-            : sortedForageFinds;
+            ? forageFinds.filter((find: ForageFind) => find.reagentId === plannedForageReagentId)
+            : forageFinds;
         const selectedForageChoiceId = defaultEncounterChoiceId(
           activeForageEncounter,
           activeForageEncounter.selectedChoiceId || state.pendingForaging?.selectedChoiceId
         );
+        const hasSecondaryDraw = encounterChoiceRequiresSecondaryCard(activeForageEncounter, selectedForageChoiceId);
         const forageJournalRequired = encounterChoiceRequiresJournal(activeForageEncounter, selectedForageChoiceId);
         const forageJournalReady = !forageJournalRequired || Boolean(
           activeForageEncounter.journalAcknowledged
@@ -8262,6 +8259,57 @@ export default function App() {
             setActiveForageEncounter(null);
           }
         };
+        const canGatherForageFind = (find: ForageFind): boolean => Boolean(
+          find.cardSuccess
+          || find.fpAvailable
+          || (
+            (find.gapCost || 0) > 0
+            && currentForagingPoints >= (find.gapCost || 0)
+          )
+        );
+        const reachableForageFinds = displayedForageFinds.filter(canGatherForageFind);
+        const missedForageFinds = displayedForageFinds.filter(find => !canGatherForageFind(find));
+        const renderForageCandidateList = (finds: ForageFind[]) => (
+          <ul className="forage-candidate-list">
+            {finds.map((normalizedFind: ForageFind, idx: number) => {
+              const matchingParts = matchingForageParts(normalizedFind);
+              const canSpendGap = !normalizedFind.cardSuccess
+                && !normalizedFind.fpAvailable
+                && (normalizedFind.gapCost || 0) > 0
+                && currentForagingPoints >= (normalizedFind.gapCost || 0);
+              const canGather = Boolean(normalizedFind.cardSuccess || normalizedFind.fpAvailable || canSpendGap);
+              const status = normalizedFind.cardSuccess
+                ? '카드 성공'
+                : normalizedFind.fpAvailable
+                  ? `누적 FP ${currentForagingPoints}로 자동 성공`
+                  : canSpendGap
+                    ? `FP ${normalizedFind.gapCost} 사용 가능`
+                    : '이번 카드로는 찾지 못함';
+              const ownedQuantity = state.bag
+                .filter(item => item.canonicalReagentId === normalizedFind.reagentId)
+                .reduce((sum, item) => sum + Math.max(1, item.qty || 1), 0);
+              return (
+                <li key={`${normalizedFind.name}_${idx}`} className="forage-candidate">
+                  <div className="forage-candidate__copy">
+                    <span>{normalizedFind.name} · 보유 {ownedQuantity}{normalizedFind.rarity ? ` · ${status}` : ''}</span>
+                    {normalizedFind.rarity > 0 && <small className="forage-candidate__rarity">{rarityExplanation(normalizedFind)}</small>}
+                    {matchingParts.length > 0 && <small className="forage-candidate__relevance">현재 처방에 기여 · {matchingParts.join(' / ')}</small>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => canGather
+                      ? handleAddForageFindToBag(normalizedFind, idx)
+                      : handleRecordForageMiss(normalizedFind)}
+                    disabled={Boolean(activeForageEncounter.selectedReagentId)}
+                    className={canGather ? 'forage-candidate__action' : 'forage-candidate__action forage-candidate__action--miss'}
+                  >
+                    {activeForageEncounter.selectedReagentId ? '선택 완료' : canGather ? '부위 골라 담기' : '실패로 기록 · FP +1'}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        );
 
         return (
           <div className="encounter-dialog-backdrop">
@@ -8329,10 +8377,10 @@ export default function App() {
               {/* Secondary draw guidance */}
               {hasSecondaryDraw && (
                 <div style={{ marginTop: '0.9rem', padding: '0.8rem 1rem', background: '#f0f4ff', border: '1.5px dashed #7a8ec9', borderRadius: '10px', fontSize: '0.88rem', lineHeight: 1.65 }}>
-                  <div style={{ fontWeight: 'bold', color: '#3a4c8a', marginBottom: '0.35rem' }}>🃏 추가 카드 뽑기 필요</div>
+                  <div style={{ fontWeight: 'bold', color: '#3a4c8a', marginBottom: '0.35rem' }}>🃏 카드 판정이 필요합니다</div>
                   <div style={{ color: '#3a4c8a', marginBottom: '0.6rem' }}>
-                    이 조우는 추가 카드 뽑기를 요구합니다.<br />
-                    실제 덱이나 앱의 카드 뽑기 도구를 사용해 다음 지시를 처리하십시오.
+                    인쇄된 지시에 적힌 장수만큼 실제 덱이나 아래 도구를 사용하세요.<br />
+                    여러 장이면 다시 뽑기로 차례대로 확인한 뒤 결과를 판정합니다.
                   </div>
                   <TravelSecondaryDrawSlot
                     card={activeForageEncounter.secondaryCard || state.pendingForaging?.secondaryCard || null}
@@ -8351,58 +8399,37 @@ export default function App() {
                     카드 뽑기 전에 조사해 둔 영약재만 판정합니다. 카드 값과 희귀도를 비교한 뒤 부위를 고르세요.
                   </p>
                 )}
-                {!plannedForageReagentId && !activeForageEncounter.selectedReagentId && treatmentForageFinds.length > 0 && sortedForageFinds.length > treatmentForageFinds.length && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.65rem', flexWrap: 'wrap', marginBottom: '0.7rem', fontSize: '0.78rem', color: '#4f6d58' }}>
-                    <span>현재 질환에 맞는 후보 {treatmentForageFinds.length}개를 먼저 표시합니다.</span>
-                    <button
-                      type="button"
-                      onClick={() => setActiveForageEncounter((current: any) => current ? { ...current, showAllFinds: !current.showAllFinds } : current)}
-                      style={{ minHeight: '40px', padding: '0.4rem 0.7rem', border: '1px solid #86a892', borderRadius: '6px', background: '#fff', color: '#2b5e3d', fontWeight: 700, flexShrink: 0 }}
-                    >
-                      {activeForageEncounter.showAllFinds ? `치료 후보만 보기 (${treatmentForageFinds.length})` : `전체 후보 보기 (${sortedForageFinds.length})`}
-                    </button>
-                  </div>
+                {!plannedForageReagentId && !activeForageEncounter.selectedReagentId && forageFinds.length > 0 && (
+                  <p style={{ margin: '0 0 0.7rem', color: '#4f6d58', fontSize: '0.84rem', lineHeight: 1.55 }}>
+                    이번 채집에서 손이 닿는 재료를 들녘의 인쇄 순서대로 펼쳤습니다. 환자에게 보탤 수 있는 부위만 곁에 표시했습니다.
+                  </p>
                 )}
                 {displayedForageFinds.length > 0 ? (
-                  <ul className="forage-candidate-list" style={{ margin: 0, padding: 0, fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', listStyle: 'none' }}>
-                    {displayedForageFinds.map((normalizedFind: ForageFind, idx: number) => {
-                      const matchingParts = matchingForageParts(normalizedFind);
-                      const canSpendGap = !normalizedFind.cardSuccess
-                        && !normalizedFind.fpAvailable
-                        && (normalizedFind.gapCost || 0) > 0
-                        && currentForagingPoints >= (normalizedFind.gapCost || 0);
-                      const canGather = Boolean(normalizedFind.cardSuccess || normalizedFind.fpAvailable || canSpendGap);
-                      const status = normalizedFind.cardSuccess
-                        ? '카드 성공'
-                        : normalizedFind.fpAvailable
-                          ? `누적 FP ${currentForagingPoints}로 자동 성공`
-                          : canSpendGap
-                            ? `FP ${normalizedFind.gapCost} 사용 가능`
-                            : `현재 실패 · FP +1`;
-                      const ownedQuantity = state.bag
-                        .filter(item => item.canonicalReagentId === normalizedFind.reagentId)
-                        .reduce((sum, item) => sum + Math.max(1, item.qty || 1), 0);
-                      return (
-                        <li key={`${normalizedFind.name}_${idx}`} className="forage-candidate" style={{ color: '#2b5e3d', fontWeight: 'bold' }}>
-                          <div className="forage-candidate__copy">
-                            <span>{normalizedFind.name} · 보유 {ownedQuantity}{normalizedFind.rarity ? ` · ${status}` : ''}</span>
-                            {normalizedFind.rarity > 0 && <small className="forage-candidate__rarity">{rarityExplanation(normalizedFind)}</small>}
-                          {matchingParts.length > 0 && <small style={{ display: 'block', marginTop: '0.15rem', color: '#4f6d58', fontWeight: 500 }}>치료 후보 · {matchingParts.join(' / ')}</small>}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => canGather
-                              ? handleAddForageFindToBag(normalizedFind, idx)
-                              : handleRecordForageMiss(normalizedFind)}
-                            disabled={Boolean(activeForageEncounter.selectedReagentId)}
-                            style={{ minHeight: '44px', padding: '0.45rem 0.7rem', fontSize: '0.75rem', background: canGather ? 'var(--secondary)' : '#6b7280', color: '#fff', borderRadius: '6px', border: 'none', flexShrink: 0 }}
-                          >
-                            {activeForageEncounter.selectedReagentId ? '선택 완료' : canGather ? '부위 선택 후 가방에 추가' : '채집 실패 처리 · FP +1'}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  activeForageEncounter.selectedReagentId ? renderForageCandidateList(displayedForageFinds) : (
+                    <div className="forage-discovery-workspace">
+                      {reachableForageFinds.length > 0 ? (
+                        <section className="forage-discovery-workspace__found" aria-labelledby="forage-found-heading">
+                          <header>
+                            <strong id="forage-found-heading">이번에 채집할 수 있는 재료</strong>
+                            <span>{reachableForageFinds.length}가지</span>
+                          </header>
+                          {renderForageCandidateList(reachableForageFinds)}
+                        </section>
+                      ) : (
+                        <p className="forage-discovery-workspace__empty">이번 카드로 바로 발견한 재료가 없습니다. 아래 목록에서 한 재료의 실패를 기록해 채집 포인트를 얻을 수 있습니다.</p>
+                      )}
+                      {missedForageFinds.length > 0 && (
+                        <details className="forage-discovery-workspace__missed" open={reachableForageFinds.length === 0}>
+                          <summary>
+                            <span>아직 닿지 않은 재료</span>
+                            <small>{missedForageFinds.length}가지 · 펼쳐서 실패 기록</small>
+                          </summary>
+                          <p>원한다면 이 가운데 한 재료를 이번 채집의 실패로 기록하고 채집 포인트 1을 얻습니다.</p>
+                          {renderForageCandidateList(missedForageFinds)}
+                        </details>
+                      )}
+                    </div>
+                  )
                 ) : (
                   <div style={{ fontSize: '0.85rem', color: '#666', fontStyle: 'italic' }}>
                     영약재의 희귀도가 뽑은 카드 값보다 높아 발견하지 못했습니다. (+1 채집 포인트 획득)
@@ -9144,6 +9171,8 @@ function PlayView({
   const [destRegion, setDestRegion] = useState("Forest");
   const [travelMode, setTravelMode] = useState<'move' | 'soar'>('move');
   const [journeyDestinationMode, setJourneyDestinationMode] = useState<'draw' | 'choose'>('draw');
+  const [journeyDistanceConfirmedManually, setJourneyDistanceConfirmedManually] = useState(false);
+  const [showJourneyDestinationCandidates, setShowJourneyDestinationCandidates] = useState(false);
   const [journeyGoalMode, setJourneyGoalMode] = useState<'table' | 'invent'>('table');
   const [customGoalTitle, setCustomGoalTitle] = useState('');
   const [customGoalRequirement, setCustomGoalRequirement] = useState('');
@@ -9182,11 +9211,10 @@ function PlayView({
         card: journeyDestinationCard as PlayingCard & { suit: CardSuit }
       }).flatMap(candidate => {
         const routeSummary = confirmedJourneyRoutes.get(candidate.id);
-        if (!routeSummary
-          || routeSummary.distance < minimumPaths
-          || (maximumPaths !== null && routeSummary.distance > maximumPaths)) return [];
-        return [{ ...candidate, paths: routeSummary.distance, routeSummary }];
-      }).sort((left, right) => left.paths - right.paths || left.name.localeCompare(right.name, 'ko'));
+        if (routeSummary && (routeSummary.distance < minimumPaths
+          || (maximumPaths !== null && routeSummary.distance > maximumPaths))) return [];
+        return [{ ...candidate, paths: routeSummary?.distance ?? null, routeSummary: routeSummary || null }];
+      }).sort((left, right) => left.name.localeCompare(right.name, 'ko'));
     },
     [confirmedJourneyRoutes, journeyDestinationCard, journeyGraph, journeyOriginId]
   );
@@ -9230,7 +9258,8 @@ function PlayView({
   }, [journeyDestinationCard]);
   const journeyDistanceConfirmed = Boolean(
     journeyDestinationMode === 'draw'
-    && selectedJourneyDestination?.routeSummary
+    && selectedJourneyDestination
+    && (selectedJourneyDestination.routeSummary || journeyDistanceConfirmedManually)
   );
   const scroungeAdjacentRegions = useMemo(
     () => adjacentRuleRegions(state),
@@ -9248,6 +9277,7 @@ function PlayView({
   const [selectedBagItems, setSelectedBagItems] = useState<string[]>([]);
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [usePurify, setUsePurify] = useState(false);
+  const [showAcquisitionOptions, setShowAcquisitionOptions] = useState(false);
   const [isTreatmentSubmitting, setIsTreatmentSubmitting] = useState(false);
   const treatmentSubmitPending = useRef(false);
   const treatmentPatient = state.patients.find(row => row.id === state.activePatientId);
@@ -9333,6 +9363,12 @@ function PlayView({
       catalyseTags: treatmentOwnedPreview?.catalyseTags || []
     })
     : [];
+  const treatmentAcquisitionNeedsAttention = Boolean(
+    (treatmentOwnedPreview && !treatmentOwnedPreview.ready)
+    || state.pendingForaging
+    || activeForageEncounter
+    || (state.pendingBarter && !['completed', 'abandoned'].includes(state.pendingBarter.status))
+  );
   const sortedTreatmentReagents = availableTreatmentReagents
     .map((row, index) => ({
       ...row,
@@ -9681,11 +9717,7 @@ function PlayView({
           missingTools: part.requiredTools.filter(tool => tool !== 'none' && !toolIds.includes(tool))
         }))
       }];
-    }).sort((left, right) =>
-      Number(left.parts.every(part => part.missingTools.length > 0)) - Number(right.parts.every(part => part.missingTools.length > 0))
-      || left.breakdown.finalRarity - right.breakdown.finalRarity
-      || left.reagent.canonicalName.localeCompare(right.reagent.canonicalName, 'en')
-    ) : [];
+    }) : [];
     const modifierLabels = [
       modifiers.typeRarityModifiers.PLANT ? `식물 희귀도 ${modifiers.typeRarityModifiers.PLANT} (길동무·동료)` : '',
       modifiers.typeRarityModifiers.INSECT ? `곤충 희귀도 ${modifiers.typeRarityModifiers.INSECT} (동료)` : '',
@@ -9716,14 +9748,7 @@ function PlayView({
           .map(tag => tag.value)))
       };
     })
-    .filter(row => row.matchingParts.length > 0)
-    .sort((left, right) =>
-      right.bestCoverageCount - left.bestCoverageCount
-      || Number(left.allMatchingPartsNeedTools) - Number(right.allMatchingPartsNeedTools)
-      || left.breakdown.finalRarity - right.breakdown.finalRarity
-      || right.targetStrength - left.targetStrength
-      || left.reagent.canonicalName.localeCompare(right.reagent.canonicalName, 'en')
-    );
+    .filter(row => row.matchingParts.length > 0);
   const effectiveForageTargetReagentIds = forageTargetReagentIds.filter(reagentId =>
     forageCandidateRows.some(row => row.reagent.id === reagentId)
   );
@@ -10638,6 +10663,8 @@ function PlayView({
 	    setCustomGoalTitle('');
 	    setCustomGoalRequirement('');
 	    setJourneyStartReflection('');
+	    setJourneyDistanceConfirmedManually(false);
+	    setShowJourneyDestinationCandidates(false);
 	    setJourneyStartDraftRevision(revision => revision + 1);
 	  };
 
@@ -10680,11 +10707,11 @@ function PlayView({
     if (!destName || !destinationOptions.some(row => row.id === destName)) {
       showAlert(journeyDestinationMode === 'choose'
         ? '지도에서 출발지가 아닌 목적지를 선택하세요.'
-        : '저장된 연결 거리와 카드의 방향·장소 유형을 모두 만족하는 목적지를 선택하세요.');
+        : '카드의 방향과 장소 유형을 만족하는 목적지를 선택하세요.');
       return;
     }
     if (journeyDestinationMode === 'draw' && !journeyDistanceConfirmed) {
-      showAlert(`05 접어둔 지도에서 ${state.currentLocationName}부터 목적지까지 이어지는 연결을 먼저 저장해주세요.`);
+      showAlert('저장된 연결로 거리를 계산할 수 없습니다. 인쇄 지도에서 카드의 거리 조건을 확인한 뒤 확인란을 선택하세요.');
       return;
     }
     const journeyReason = journeyReasonRef.current;
@@ -15583,7 +15610,7 @@ function PlayView({
 
           {/* 4. Start journey form */}
           {downtimeTab === 'start' && (
-            <div id="journey-start-panel" className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem' }}>
+            <div id="journey-start-panel" className="cute-card journey-start-workspace" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem' }}>
               <h2 style={{ color: 'var(--secondary)', margin: '0 0 0.4rem 0', fontFamily: 'var(--font-fancy)' }}>새로운 여정 떠나기</h2>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 1.2rem 0' }}>
                 룰북처럼 목적지는 뽑거나 고르고, 목표는 뽑거나 고르거나 직접 만들 수 있습니다. 카드로 뽑으면 저장한 지도 연결에서 거리 조건까지 자동으로 확인합니다.
@@ -15596,37 +15623,24 @@ function PlayView({
                 </div>
               )}
 
-              <div style={{ padding: '0.8rem', borderRadius: '8px', border: '1px dashed var(--glass-border)', background: '#fffcf2', fontSize: '0.84rem', color: 'var(--text)', display: 'grid', gap: '0.35rem' }}>
-                <div><strong>목적지 방식:</strong> {journeyDestinationMode === 'choose' ? '직접 선택' : journeyDestinationCard ? journeyDistanceBandText : '목적지 카드를 먼저 뽑으세요.'}</div>
-                <div><strong>선택한 목적지:</strong> {selectedJourneyDestination ? selectedJourneyDestination.name : '선택된 목적지가 없습니다'}</div>
-                {selectedJourneyDestination && (
-                  <div style={{ padding: '0.3rem 0.5rem', background: 'var(--secondary-light, #fffae0)', borderRadius: '5px', color: 'var(--secondary)' }}>
-                    📍 <strong>{selectedJourneyDestination.name}</strong> · {selectedJourneyDestination.region ? selectedJourneyDestination.region : ''}{selectedJourneyDestination.locationType ? ` (${selectedJourneyDestination.locationType})` : ''}
-                    {selectedJourneyDestination.routeSummary ? ` · ${confirmedRouteSummaryText(selectedJourneyDestination.routeSummary)}` : ''}
-                  </div>
-                )}
-                <div><strong>현재 일일 이동력:</strong> {getTravelSpeed(state, currentWeight)}경로</div>
-                <div><strong>여정 기한 (Urgency):</strong> <span style={{ fontWeight: 700, color: urgencyPreview.days <= 6 ? '#dc2626' : urgencyPreview.days <= 9 ? '#d97706' : '#16a34a' }}>
-                  {urgencyPreview.days}일 ({urgencyPreview.label} · 현재 길드 평판 {state.reputation} 기준)
-                </span></div>
-              </div>
+              <dl className="journey-start-summary">
+                <div><dt>출발</dt><dd>{state.currentLocationName} · {localizeSeasonLabel(state.currentSeason)}</dd></div>
+                <div><dt>목적지 방식</dt><dd>{journeyDestinationMode === 'choose' ? '지도에서 직접 선택' : journeyDestinationCard ? journeyDistanceBandText : '카드를 뽑아 정하기'}</dd></div>
+                <div><dt>목적지</dt><dd>{selectedJourneyDestination ? selectedJourneyDestination.name : '아직 정하지 않음'}</dd></div>
+                <div><dt>하루 이동</dt><dd>{getTravelSpeed(state, currentWeight)}경로</dd></div>
+                <div><dt>기한</dt><dd>{urgencyPreview.days}일 · {urgencyPreview.label}</dd></div>
+              </dl>
 
-              <form onSubmit={handleStartJourney} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-                <div style={{ display: 'grid', gap: '0.4rem', padding: '0.75rem', background: '#f8faf4', border: '1px solid #d7e3cf', borderRadius: '8px' }}>
-                  <strong style={{ fontSize: '0.86rem', color: 'var(--primary)' }}>출발지와 계절 (p.18)</strong>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                    출발지는 <strong>{state.currentLocationName}</strong>, 계절은 <strong>{localizeSeasonLabel(state.currentSeason)}</strong>입니다. 이 장소의 의미와 지금 계절이 주는 기분을 떠올려 보세요.
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gap: '0.75rem', padding: '0.85rem', background: '#fffdf8', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
+              <form className="journey-start-form" onSubmit={handleStartJourney} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+                <div className="journey-start-decisions" style={{ display: 'grid', gap: '0.75rem', padding: '0.85rem', background: '#fffdf8', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
                   <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
                     룰북 p.19–21: 목적지는 뽑기 또는 직접 선택, 목표는 표에서 뽑기/선택 또는 직접 만들기 중 하나를 고릅니다.
                   </div>
                   <fieldset className="journey-choice-fieldset">
                     <legend>목적지 정하기 (p.19)</legend>
                     <div className="journey-choice-toggle" role="group" aria-label="목적지 결정 방식">
-                      <button type="button" aria-pressed={journeyDestinationMode === 'draw'} onClick={() => { setJourneyDestinationMode('draw'); setDestName(''); }}>카드로 뽑기</button>
-                      <button type="button" aria-pressed={journeyDestinationMode === 'choose'} onClick={() => { setJourneyDestinationMode('choose'); setDestName(''); }}>지도에서 직접 선택</button>
+                      <button type="button" aria-pressed={journeyDestinationMode === 'draw'} onClick={() => { setJourneyDestinationMode('draw'); setDestName(''); setJourneyDistanceConfirmedManually(false); setShowJourneyDestinationCandidates(false); }}>카드로 뽑기</button>
+                      <button type="button" aria-pressed={journeyDestinationMode === 'choose'} onClick={() => { setJourneyDestinationMode('choose'); setDestName(''); setJourneyDistanceConfirmedManually(false); setShowJourneyDestinationCandidates(false); }}>지도에서 직접 선택</button>
                     </div>
                     {journeyDestinationMode === 'draw' ? (
                       <CardDrawSlot
@@ -15641,7 +15655,7 @@ function PlayView({
                           </div>
                         ) : undefined}
                         card={journeyDestinationCard}
-                        onCard={(card: PlayingCard) => { setJourneyDestinationCard(card); setDestName(''); }}
+                        onCard={(card: PlayingCard) => { setJourneyDestinationCard(card); setDestName(''); setJourneyDistanceConfirmedManually(false); setShowJourneyDestinationCandidates(false); }}
                       />
                     ) : (
                       <div style={{ display: 'grid', gap: '0.4rem' }}>
@@ -15668,39 +15682,70 @@ function PlayView({
                       </div>
                     )}
                     {journeyDestinationMode === 'draw' && journeyDestinationCard && (
-                      <section className="journey-candidate-list" aria-label="거리 조건까지 계산한 목적지 후보">
+                      <section className={`journey-candidate-list${selectedJourneyDestination ? ' has-selection' : ''}`} aria-label="카드 조건에 맞는 목적지 후보">
                         <header>
-                          <strong>거리·방향·장소 유형 후보</strong>
-                          <span>{state.currentLocationName}에서 05 지도에 저장한 연결만 사용합니다.</span>
+                          <div>
+                            <strong>방향·장소 유형 후보</strong>
+                            <span>저장된 연결은 거리를 자동 계산하고, 없는 연결은 인쇄 지도에서 직접 확인할 수 있습니다.</span>
+                          </div>
+                          {selectedJourneyDestination && journeyDestinationCandidates.length > 1 && (
+                            <button type="button" className="journey-candidate-list__toggle" onClick={() => setShowJourneyDestinationCandidates(value => !value)}>
+                              {showJourneyDestinationCandidates ? '선택한 곳만 보기' : `다른 후보 ${journeyDestinationCandidates.length - 1}곳 보기`}
+                            </button>
+                          )}
                         </header>
                         {journeyDestinationCandidates.length === 0 ? (
                           <p className="journey-candidate-list__empty">
-                            이 카드 조건을 만족하는 확정 경로가 없습니다. 05 접어둔 지도에서 연결을 더 저장하거나 목적지 카드를 다시 뽑으세요.
+                            이 카드의 방향과 장소 유형에 맞는 표식이 없습니다. 지도 표식의 위치·유형을 확인하거나 목적지 카드를 다시 뽑으세요.
                           </p>
                         ) : (
                           <div className="journey-candidate-list__options">
-                            {journeyDestinationCandidates.map(candidate => (
+                            {(selectedJourneyDestination && !showJourneyDestinationCandidates
+                              ? [selectedJourneyDestination]
+                              : journeyDestinationCandidates).map(candidate => (
                               <button
                                 type="button"
                                 key={candidate.id}
                                 className={candidate.id === destName ? 'is-selected' : ''}
                                 aria-pressed={candidate.id === destName}
-                                onClick={() => setDestName(candidate.id)}
+                                onClick={() => { setDestName(candidate.id); setJourneyDistanceConfirmedManually(false); setShowJourneyDestinationCandidates(false); }}
                               >
                                 <span className="journey-candidate-list__name">{candidate.name}</span>
                                 <span className="journey-candidate-list__route">
-                                  <strong>최단 {candidate.routeSummary.distance}경로</strong>
-                                  <small>육로 {candidate.routeSummary.landCount} · 강 {candidate.routeSummary.riverCount} · 수로 {candidate.routeSummary.waterwayCount}</small>
+                                  {candidate.routeSummary ? (
+                                    <>
+                                      <strong>{candidate.routeSummary.distance}경로 확인됨</strong>
+                                      <small>육로 {candidate.routeSummary.landCount} · 강 {candidate.routeSummary.riverCount} · 수로 {candidate.routeSummary.waterwayCount}</small>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <strong>인쇄 지도에서 거리 확인</strong>
+                                      <small>{journeyDestinationRequirement?.distance}인지 직접 세어 보세요.</small>
+                                    </>
+                                  )}
                                 </span>
                               </button>
                             ))}
                           </div>
                         )}
+                        {selectedJourneyDestination && !selectedJourneyDestination.routeSummary && (
+                          <label className="journey-distance-confirmation">
+                            <input
+                              type="checkbox"
+                              checked={journeyDistanceConfirmedManually}
+                              onChange={event => setJourneyDistanceConfirmedManually(event.target.checked)}
+                            />
+                            <span>
+                              <strong>인쇄 지도에서 {journeyDestinationRequirement?.distance}임을 확인했습니다.</strong>
+                              <small>앱에 저장된 연결이 불완전할 때만 사용하는 룰북식 수동 확인입니다.</small>
+                            </span>
+                          </label>
+                        )}
                       </section>
                     )}
                   </fieldset>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div className="journey-start-reason" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                     <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>여정을 떠나는 이유</label>
                     <IsolatedTextarea
                       key={journeyStartDraftRevision}
@@ -15752,7 +15797,7 @@ function PlayView({
                     )}
                   </fieldset>
                   {journeyGoalMode === 'table' && journeyGoalCard && (
-                    <div style={{ padding: '0.75rem', borderRadius: '7px', border: '1px dashed var(--glass-border)', background: '#fffdfa', color: 'var(--text)' }}>
+                    <div className="journey-goal-result" style={{ padding: '0.75rem', borderRadius: '7px', border: '1px dashed var(--glass-border)', background: '#fffdfa', color: 'var(--text)' }}>
                       <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
                         현재 카드: {journeyGoalCard.suit} {cardDisplayValue(journeyGoalCard.value)} · 규칙 표기: {cardRuleValue(journeyGoalCard)}
                       </div>
@@ -15772,7 +15817,7 @@ function PlayView({
                       )}
                     </div>
                   )}
-                  <div style={{ display: 'grid', gap: '0.4rem', padding: '0.75rem', background: '#f8faf4', border: '1px solid #d7e3cf', borderRadius: '8px' }}>
+                  <div className="journey-start-urgency" style={{ display: 'grid', gap: '0.4rem', padding: '0.75rem', background: '#f8faf4', border: '1px solid #d7e3cf', borderRadius: '8px' }}>
                     <strong style={{ fontSize: '0.86rem', color: 'var(--primary)' }}>여정 기한 (p.21)</strong>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
                       현재 길드 평판에 따른 기한은 <strong>{urgencyPreview.days}일 ({urgencyPreview.label})</strong>입니다. 정한 목표와 이 기한이 어떻게 이어지는지 떠올려 보세요.
@@ -15786,7 +15831,7 @@ function PlayView({
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: '0.6rem' }}>
+                <div className="journey-start-actions" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: '0.6rem' }}>
                   <button
                     type="button"
                     onClick={handleResetJourneyStartDraft}
@@ -16650,7 +16695,19 @@ function PlayView({
                   </div>
                 </div>
 
-                <section id="patient-acquisition-panel" className="patient-workflow__acquisition" aria-label="치료 재료 마련">
+                <details
+                  id="patient-acquisition-panel"
+                  className="patient-workflow__acquisition"
+                  aria-label="치료 재료 마련"
+                  open={treatmentAcquisitionNeedsAttention || showAcquisitionOptions}
+                  onToggle={event => {
+                    if (!treatmentAcquisitionNeedsAttention) setShowAcquisitionOptions(event.currentTarget.open);
+                  }}
+                >
+                <summary className="patient-workflow__acquisition-summary">
+                  <span>{treatmentAcquisitionNeedsAttention ? '부족한 재료를 들녘과 거래에서 마련하기' : '재료를 바꾸거나 더 모으기'}</span>
+                  <small>{treatmentAcquisitionNeedsAttention ? '현재 처방에 빈 약효가 있어 이 단계를 펼쳐 두었습니다.' : '현재 가방으로 조제를 이어갈 수 있어 보조 절차를 접었습니다.'}</small>
+                </summary>
                 {state.pendingForaging && (
                   <aside className="forage-recovery-panel" aria-label="진행 중인 채집 관리">
                     <div className="forage-recovery-panel__summary">
@@ -16708,18 +16765,9 @@ function PlayView({
                       {forageContext.modifierLabels.map(label => <span key={label}>{label}</span>)}
                     </div>
                   )}
-                  <div className="forage-draw-step">
-                    <CardDrawSlot
-                      label="채집 카드"
-                      helper="장소를 정했다면 카드를 뽑으세요. 카드 값과 이곳의 조사 목록을 비교한 뒤, 실제로 채집할 영약재를 고릅니다. 비워 두면 시작할 때 한 장을 자동으로 뽑습니다."
-                      card={forageDrawCard}
-                      onCard={setForageDrawCard}
-                      disabled={!forageContext.actionAllowed}
-                    />
-                  </div>
                   {forageContext.actionAllowed ? (
                     <fieldset className="forage-plan">
-                      <legend>채집 전 조사 노트 · 선택</legend>
+                      <legend>1. 들녘 조사 노트</legend>
                       {forageContext.previewRows.length > 0 ? (
                         <>
                           <div className="forage-requirement-picker">
@@ -16766,7 +16814,7 @@ function PlayView({
                               <span>찾기 난이도</span>
                               <span>관심 재료</span>
                             </div>
-                            {forageCandidateRows.map((row, index) => {
+                            {forageCandidateRows.map(row => {
                               const selectedIndex = effectiveForageTargetReagentIds.indexOf(row.reagent.id);
                               const selected = selectedIndex >= 0;
                               const contributionTags = Array.from(new Set(row.matchingParts.flatMap(part =>
@@ -16777,7 +16825,7 @@ function PlayView({
                                   key={row.reagent.id}
                                   type="button"
                                   aria-pressed={selected}
-                                  className={`forage-target-row${selected ? ' is-selected' : ''}${index === 0 ? ' is-recommended' : ''}`}
+                                  className={`forage-target-row${selected ? ' is-selected' : ''}`}
                                   onClick={() => {
                                     setForageTargetReagentIds(previous => selected
                                       ? previous.filter(reagentId => reagentId !== row.reagent.id)
@@ -16790,7 +16838,7 @@ function PlayView({
                                       {localizeSeasonLabel(state.currentSeason)}의 {localizeRegionLabel(forageContext.region)}에서 찾을 수 있는 {localizeReagentType(row.reagent.type)}입니다.
                                     </small>
                                     <small className="forage-target-row__preparations">
-                                      {Array.from(new Set(row.matchingParts.map(part => `${localizePreparationName(part.part.name)}은(는) ${localizePreparationMethod(part.part.method)}하여 씁니다`))).join(' · ')}
+                                      {Array.from(new Set(row.matchingParts.map(part => `${localizePreparationName(part.part.name)} · ${localizePreparationMethod(part.part.method)} 조제`))).join(' / ')}
                                     </small>
                                   </span>
                                   <span className="forage-target-row__tags">
@@ -16802,17 +16850,16 @@ function PlayView({
                                     <small>{row.allMatchingPartsNeedTools ? '준비 도구 필요' : '바로 채집 가능'}</small>
                                   </span>
                                   <span className="forage-target-row__choice">
-                                    {index === 0 && <em>먼저 살펴보기</em>}
                                     <strong>{selected ? '메모에서 빼기' : '기억해 두기'}</strong>
                                   </span>
                                 </button>
                               );
                             })}
                           </div>
-                          <p className="forage-plan__ranking-note">한 부위로 여러 약효를 보탤 수 있고, 가진 도구로 다룰 수 있으며, 찾기 쉬운 재료부터 놓았습니다. 카드 뒤의 최종 선택은 언제나 플레이어의 몫입니다.</p>
+                          <p className="forage-plan__ranking-note">룰북의 조사 목록 순서입니다. 현재 지역·계절·도구를 반영한 희귀도와 처방 기여를 나란히 적었으며, 실제 획득 재료는 카드 판정 뒤 플레이어가 정합니다.</p>
                           {selectedForagePlans.length > 0 ? (
                             <div className="forage-plan__selection-summary" aria-live="polite">
-                              <span><strong>눈여겨본 재료 {selectedForagePlans.length}</strong> · 카드 결과에서 발견되면 우선 살펴보세요.</span>
+                              <span><strong>눈여겨본 재료 {selectedForagePlans.length}</strong> · 카드 결과와 대조할 개인 메모입니다.</span>
                               <div className="forage-plan__selection-list">
                                 {selectedForagePlans.map((plan, index) => (
                                   <span key={plan.reagent.id}>
@@ -16828,7 +16875,16 @@ function PlayView({
                         <p>이 지역·계절에서 현재 질환의 약효와 맞는 채집 후보가 없습니다. 인접 지역을 바꾸거나 도감을 확인하세요.</p>
                       )}
                     </fieldset>
-                  ) : <p className="forage-context__note">현재 위치에서는 후보를 뽑지 않습니다. ‘인접 지역’을 선택하면 연결된 지역의 치료 후보와 정확한 희귀도를 미리 볼 수 있습니다.</p>}
+                  ) : <p className="forage-context__note">현재 위치에서는 조사 목록을 만들 수 없습니다. ‘인접 지역’을 선택하면 연결된 지역의 재료와 정확한 희귀도를 미리 볼 수 있습니다.</p>}
+                  <div className="forage-draw-step">
+                    <CardDrawSlot
+                      label="2. 채집 카드"
+                      helper="장소와 조사 목록을 확인했다면 카드를 뽑으세요. 카드 값과 기록한 희귀도를 비교한 뒤, 발견한 재료 중 실제로 가져갈 부위를 정합니다. 비워 두면 시작할 때 한 장을 자동으로 뽑습니다."
+                      card={forageDrawCard}
+                      onCard={setForageDrawCard}
+                      disabled={!forageContext.actionAllowed}
+                    />
+                  </div>
                   {currentWeight > maxCarry && <p className="forage-context__note">소지 한도를 넘겨도 채집 자체는 할 수 있습니다. 조우 뒤 가방을 정리하세요.</p>}
                 </section>
 
@@ -17065,7 +17121,7 @@ function PlayView({
                   })()}
                 </div>
 
-                </section>
+                </details>
 
                 {/* Concocting Remedy Panel */}
                 <div id="treatment-workspace" className="patient-workflow__treatment" style={{ borderTop: '1px dashed var(--glass-border)', marginTop: '1.5rem', paddingTop: '1rem' }}>
@@ -18090,7 +18146,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
         : '다음 여정을 시작할 수 있음';
 
   return (
-    <div className="parchment-panel cute-border" style={{ padding: '1.8rem', background: '#fffdf9' }}>
+    <div className="parchment-panel cute-border bio-sheet" style={{ padding: '1.8rem', background: '#fffdf9' }}>
 
       {/* 1. Header with custom fonts */}
       <div className="bio-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2.5px solid var(--border-cozy)', paddingBottom: '0.8rem', marginBottom: '1.5rem' }}>
@@ -18147,8 +18203,13 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
       {!editing ? (
         <div className="bio-sheet-sections" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-          {/* Top Row: PoulticePounder Profile & Familiar Box */}
-          <div className="grid-2col bio-profile-summary">
+          {/* The settled profile remains available without competing with today's bag. */}
+          <details className="bio-profile-summary bio-record-fold">
+            <summary>
+              <span>약제사와 길동무 기록</span>
+              <small>{state.bio.name || '이름 미정'} · {state.bio.familiarName || '길동무 이름 미정'}</small>
+            </summary>
+            <div className="grid-2col bio-record-fold__content">
 
             {/* PoulticePounder (약제사) */}
             <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff', position: 'relative' }}>
@@ -18211,7 +18272,8 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          </details>
 
           {/* Middle Row: Bags Table & Journey Calendar */}
           <div className="grid-bio-middle bio-workbench">
@@ -18617,8 +18679,13 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
             </div>
           </div>
 
-          {/* Bottom Row: Companions, Guild, Trinkets */}
-          <div className="grid-2col bio-extended-records">
+          {/* Long-running records are reference material, not today's primary task. */}
+          <details className="bio-extended-records bio-record-fold">
+            <summary>
+              <span>동반자·장신구·길드 기록</span>
+              <small>동반자 {state.companionStates?.length || 0} · 장신구 {state.trinkets.length} · 평판 {state.reputation}</small>
+            </summary>
+            <div className="grid-2col bio-record-fold__content">
 
             {/* Companions & Trinkets */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -18721,12 +18788,16 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
                 성공적으로 약제 처방을 마칠 때마다 명성이 올라갑니다. 높은 길드 단계에서는 새로운 마차 확장 칸과 업그레이드가 개방됩니다.
               </p>
             </div>
-          </div>
+            </div>
+          </details>
 
           {/* Stamped Icons: Preparation Methods */}
-          <div style={{ borderTop: '2.5px solid var(--border-cozy)', paddingTop: '1.2rem', marginTop: '0.5rem' }}>
-            <h3 style={{ fontSize: '1.3rem', color: 'var(--primary)', textAlign: 'center', marginBottom: '1rem', fontFamily: 'var(--font-fancy)' }}>🔬 약제 조제 기법 도장</h3>
-            <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
+          <details className="bio-method-stamps bio-record-fold">
+            <summary>
+              <span>약제 조제 기법 도장</span>
+              <small>기본·확장 기법 11가지</small>
+            </summary>
+            <div className="bio-method-stamps__content">
               {[
                 { label: '빻기/갈기', sub: '빻기, p.12' },
                 { label: '끓이기', sub: '끓이기, p.12' },
@@ -18760,7 +18831,7 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
                 </div>
               ))}
             </div>
-          </div>
+          </details>
 
         </div>
       ) : (
@@ -18874,12 +18945,31 @@ function BioView({ state, updateState, currentWeight, handleRetireClick, onOpenR
 // =================================================================
 // 7. REAGENTS VIEW COMPONENT
 // =================================================================
-function ReagentsView({ state, updateState, search, setSearch, filter, setFilter, typeFilter, setTypeFilter, onOpenReference }: { state: GameState; updateState: any; search: string; setSearch: any; filter: string; setFilter: any; typeFilter: string; setTypeFilter: any; onOpenReference: (request: RulebookReferenceRequest) => void }) {
+const HERBARIUM_PAGE_SIZE = 16;
+
+type HerbariumViewState = {
+  regionFilter: string;
+  seasonFilter: string;
+  patientOnly: boolean;
+  expandedId: string | null;
+  visiblePage: { key: string; count: number };
+};
+
+function ReagentsView({ state, updateState, search, setSearch, filter, setFilter, typeFilter, setTypeFilter, viewState, setViewState, onOpenReference }: {
+  state: GameState;
+  updateState: any;
+  search: string;
+  setSearch: any;
+  filter: string;
+  setFilter: any;
+  typeFilter: string;
+  setTypeFilter: any;
+  viewState: HerbariumViewState;
+  setViewState: Dispatch<SetStateAction<HerbariumViewState>>;
+  onOpenReference: (request: RulebookReferenceRequest) => void;
+}) {
   const currentRegion = state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion;
-  const [regionFilter, setRegionFilter] = useState('');
-  const [seasonFilter, setSeasonFilter] = useState('');
-  const [patientOnly, setPatientOnly] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { regionFilter, seasonFilter, patientOnly, expandedId, visiblePage } = viewState;
   const patient = getActivePatient(state);
   const activeAilmentDefinitions = (patient?.ailments || [])
     .filter(ailment => ailment.status === 'active')
@@ -18906,18 +18996,26 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
     if (seasonFilter && row.reagent.seasonAvailability[seasonFilter as keyof typeof row.reagent.seasonAvailability] === 'Unavailable') return false;
     if (patientOnly && row.matchingParts.length === 0) return false;
     return true;
-  }).sort((left, right) => {
-    const score = (row: typeof left) => Number(row.matchingParts.length > 0) * 4 + Number(row.owned > 0) * 2 + Number(row.inCurrentRegion && row.inCurrentSeason);
-    return score(right) - score(left) || left.reagent.sourcePage - right.reagent.sourcePage || left.reagent.canonicalName.localeCompare(right.reagent.canonicalName);
-  });
+  }).sort((left, right) => left.reagent.sourcePage - right.reagent.sourcePage || left.reagent.canonicalName.localeCompare(right.reagent.canonicalName));
+
+  const patientContextKey = patientOnly
+    ? `${patient?.id || 'none'}:${activeRequirements.map(row => `${row.tag}:${row.threshold}`).join(',')}`
+    : 'all';
+  const pageKey = [search, filter, typeFilter, regionFilter, seasonFilter, patientContextKey].join('\u0000');
+  const visibleCount = visiblePage.key === pageKey ? visiblePage.count : HERBARIUM_PAGE_SIZE;
+  const visibleRows = rows.slice(0, visibleCount);
 
   const clearFilters = () => {
     setSearch('');
     setFilter('');
     setTypeFilter('');
-    setRegionFilter('');
-    setSeasonFilter('');
-    setPatientOnly(false);
+    setViewState(current => ({
+      ...current,
+      regionFilter: '',
+      seasonFilter: '',
+      patientOnly: false,
+      expandedId: null
+    }));
   };
 
   return (
@@ -18928,42 +19026,51 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
       </header>
 
       <section className="herbarium-context" aria-label="현재 채집 참고">
-        <button type="button" aria-pressed={regionFilter === currentRegion && seasonFilter === state.currentSeason} onClick={() => { setRegionFilter(currentRegion); setSeasonFilter(state.currentSeason); setPatientOnly(false); }}>
+        <button type="button" aria-pressed={regionFilter === currentRegion && seasonFilter === state.currentSeason} onClick={() => setViewState(current => ({ ...current, regionFilter: currentRegion, seasonFilter: state.currentSeason, patientOnly: false, expandedId: null }))}>
           <span>지금 이곳</span><strong>{state.currentLocationName} · {localizeRegionLabel(currentRegion)} · {localizeSeasonLabel(state.currentSeason)}</strong><small>현재 지역·계절에서 찾기</small>
         </button>
-        <button type="button" disabled={!activeRequirements.length} aria-pressed={patientOnly} onClick={() => { setPatientOnly(value => !value); setRegionFilter(''); setSeasonFilter(''); }}>
+        <button type="button" disabled={!activeRequirements.length} aria-pressed={patientOnly} onClick={() => setViewState(current => ({ ...current, patientOnly: !current.patientOnly, regionFilter: '', seasonFilter: '', expandedId: null }))}>
           <span>현재 환자</span><strong>{patient?.name || '진료 중인 환자 없음'}</strong><small>{activeRequirements.length ? activeRequirements.map(row => `${row.tag} ${row.threshold}`).join(' · ') : '필요 약효가 생기면 연결됩니다'}</small>
         </button>
-        <div><span>펼쳐둔 배낭</span><strong>{state.bag.filter(item => item.type === 'reagent').length}개 영약재</strong><small>보유 항목은 목록에서 먼저 표시됩니다</small></div>
+        <div><span>펼쳐둔 배낭</span><strong>{state.bag.filter(item => item.type === 'reagent').length}개 영약재</strong><small>각 관찰 기록에 현재 보유량을 함께 적습니다</small></div>
       </section>
 
       <div className="herbarium-controls">
         <label><span>이름·부위·약효 검색</span><input type="search" placeholder="예: Marigold, 꽃잎, PAIN 2" value={search} onChange={event => setSearch(event.target.value)} /></label>
         <label><span>분류</span><select value={typeFilter} onChange={event => setTypeFilter(event.target.value)}><option value="">모든 분류</option><option value="PLANT">풀과 나무</option><option value="ANIMAL">야수의 흔적</option><option value="INSECT">곤충과 벌레</option><option value="EARTH">흙과 돌</option><option value="TITAN">거수의 조각</option></select></label>
-        <label><span>지역</span><select value={regionFilter} onChange={event => setRegionFilter(event.target.value)}><option value="">모든 지역</option>{['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain', 'Titan'].map(region => <option key={region} value={region}>{localizeRegionLabel(region)}</option>)}</select></label>
-        <label><span>계절</span><select value={seasonFilter} onChange={event => setSeasonFilter(event.target.value)}><option value="">모든 계절</option>{['Spring', 'Summer', 'Autumn', 'Winter'].map(season => <option key={season} value={season}>{localizeSeasonLabel(season)}</option>)}</select></label>
+        <label><span>지역</span><select value={regionFilter} onChange={event => setViewState(current => ({ ...current, regionFilter: event.target.value, expandedId: null }))}><option value="">모든 지역</option>{['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain', 'Titan'].map(region => <option key={region} value={region}>{localizeRegionLabel(region)}</option>)}</select></label>
+        <label><span>계절</span><select value={seasonFilter} onChange={event => setViewState(current => ({ ...current, seasonFilter: event.target.value, expandedId: null }))}><option value="">모든 계절</option>{['Spring', 'Summer', 'Autumn', 'Winter'].map(season => <option key={season} value={season}>{localizeSeasonLabel(season)}</option>)}</select></label>
         <label><span>약효</span><select value={filter} onChange={event => setFilter(event.target.value)}><option value="">모든 약효</option>{RULE_TAGS.map(tag => <option key={tag} value={tag}>{tag}</option>)}</select></label>
       </div>
 
-      <div className="herbarium-result-summary"><span aria-live="polite">관찰 기록 {rows.length}개</span>{(search || filter || typeFilter || regionFilter || seasonFilter || patientOnly) && <button type="button" onClick={clearFilters}>전체 도감 보기</button>}</div>
+      <div className="herbarium-result-summary"><span aria-live="polite">관찰 기록 {rows.length}개 · 지금 {visibleRows.length}개 펼침</span>{(search || filter || typeFilter || regionFilter || seasonFilter || patientOnly) && <button type="button" onClick={clearFilters}>전체 도감 보기</button>}</div>
 
       <div className="herbarium-index" role="list">
-        {rows.map(({ reagent, display, matchingParts, owned, inCurrentRegion, inCurrentSeason }) => {
+        {visibleRows.map(({ reagent, display, matchingParts, owned, inCurrentRegion, inCurrentSeason }) => {
           const expanded = expandedId === reagent.id;
           return <article key={reagent.id} className={`herbarium-entry ${expanded ? 'is-expanded' : ''}`} role="listitem">
-            <button type="button" className="herbarium-entry__summary" aria-expanded={expanded} onClick={() => setExpandedId(current => current === reagent.id ? null : reagent.id)}>
+            <button type="button" className="herbarium-entry__summary" aria-expanded={expanded} onClick={() => setViewState(current => ({ ...current, expandedId: current.expandedId === reagent.id ? null : reagent.id }))}>
               <span className="herbarium-entry__folio">p.{reagent.sourcePage}</span>
               <div><span className="document-kicker">{localizeReagentType(reagent.type)} · 기본 희귀도 {reagent.baseRarity}</span><h3>{formatReagentName(reagent)}</h3><p>{reagent.description}</p><div className="herbarium-entry__marks">{owned > 0 && <span>보유 {owned}</span>}{matchingParts.length > 0 && <span>현재 환자에 기여</span>}{inCurrentRegion && <span>{localizeRegionLabel(currentRegion)}에서 발견</span>}{inCurrentSeason && <span>{localizeSeasonLabel(state.currentSeason)}에 발견</span>}</div></div>
               <span className="herbarium-entry__toggle">{expanded ? '접기' : '펼치기'}</span>
             </button>
             {expanded && <div className="herbarium-entry__detail">
-              <div className="herbarium-entry__relations"><strong>어디서·언제</strong><div>{Object.entries(reagent.regionAvailability).filter(([, availability]) => availability !== 'Unavailable').map(([region, availability]) => <button type="button" key={region} onClick={() => setRegionFilter(region)}>{localizeRegionLabel(region)} · {localizeAvailabilityLabel(availability)}</button>)}{Object.entries(reagent.seasonAvailability).filter(([, availability]) => availability !== 'Unavailable').map(([season, availability]) => <button type="button" key={season} onClick={() => setSeasonFilter(season)}>{localizeSeasonLabel(season)} · {localizeAvailabilityLabel(availability)}</button>)}</div></div>
+              <div className="herbarium-entry__relations"><strong>어디서·언제</strong><div>{Object.entries(reagent.regionAvailability).filter(([, availability]) => availability !== 'Unavailable').map(([region, availability]) => <button type="button" key={region} onClick={() => setViewState(current => ({ ...current, regionFilter: region, expandedId: null }))}>{localizeRegionLabel(region)} · {localizeAvailabilityLabel(availability)}</button>)}{Object.entries(reagent.seasonAvailability).filter(([, availability]) => availability !== 'Unavailable').map(([season, availability]) => <button type="button" key={season} onClick={() => setViewState(current => ({ ...current, seasonFilter: season, expandedId: null }))}>{localizeSeasonLabel(season)} · {localizeAvailabilityLabel(availability)}</button>)}</div></div>
               <div className="herbarium-parts"><strong>부위와 조제</strong>{reagent.preparations.map(part => { const relevant = treatmentRelevantPreparationTags(part.tags, activeRequirements); return <div key={part.id} className={relevant.length ? 'is-patient-relevant' : ''}><div><strong>{localizePreparationName(part.name)}</strong><span>{localizePreparationMethod(part.method)}</span></div><p>{part.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음'} · 무게 {formatWeight(part.weight)} · {part.uses}회분</p>{part.requiredTools.filter(tool => tool !== 'none').length > 0 && <small>필요 도구: {part.requiredTools.filter(tool => tool !== 'none').map(tool => localizeInventoryItemName(TOOL_BY_ID.get(tool)?.canonicalName || tool)).join(', ')}</small>}{relevant.length > 0 && <em>현재 환자에게 {relevant.map(tag => `${tag.tag} ${tag.value}`).join(' · ')} 기여</em>}</div>; })}</div>
               <div className="herbarium-entry__actions"><button type="button" onClick={() => onOpenReference({ entryId: `ingredient:${reagent.id}`, title: `${formatReagentName(reagent)} 관련 기록` })}>원문·관련 기록 보기</button>{state.journeyActive && state.rulesetId === 'sandbox' && <button type="button" onClick={() => { const parts = splitReagentPreparations(display.preps); const chosenPart = window.prompt(`가방에 넣을 ${formatReagentName(reagent)} 부위를 선택하세요:\n${parts.map((part, index) => `${index + 1}. ${part.trim()}`).join('\n')}`); if (!chosenPart) return; const partText = parts[Math.max(0, (parseInt(chosenPart) || 1) - 1)] || parts[0]; updateState((current: GameState) => ({ ...current, bag: [...current.bag, createPreparedReagentItem(display, partText, 'user_reag')] })); showAlert(`${formatReagentName(reagent)}을 수동으로 배낭에 추가했습니다.`); }}>배낭에 수동 획득 추가</button>}</div>
             </div>}
           </article>;
         })}
       </div>
+      {visibleRows.length < rows.length && (
+        <div className="herbarium-more">
+          <p>나머지 {rows.length - visibleRows.length}개 관찰 기록은 필요할 때 이어서 펼칠 수 있습니다.</p>
+          <button type="button" onClick={() => setViewState(current => ({ ...current, visiblePage: { key: pageKey, count: Math.min(rows.length, visibleCount + HERBARIUM_PAGE_SIZE) } }))}>
+            다음 {Math.min(HERBARIUM_PAGE_SIZE, rows.length - visibleRows.length)}개 펼치기
+          </button>
+          <button type="button" onClick={() => setViewState(current => ({ ...current, visiblePage: { key: pageKey, count: rows.length } }))}>모두 펼치기</button>
+        </div>
+      )}
       {rows.length === 0 && <div className="herbarium-empty"><strong>조건에 맞는 영약재가 없습니다.</strong><p>지역·계절·약효 필터를 하나씩 풀거나 원문 이름 일부로 다시 찾아보세요.</p><button type="button" onClick={clearFilters}>전체 도감 보기</button></div>}
     </div>
   );

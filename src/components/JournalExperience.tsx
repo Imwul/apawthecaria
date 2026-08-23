@@ -224,6 +224,7 @@ export function TodayOverview({
     ? [
         { label: '여정 목적지', value: localizeLocationName(state.journeyDestination) || '미정' },
         { label: '여정 경과', value: `${Math.max(0, state.calendarDays || 0)} / ${Math.max(0, state.calendarMaxDays || 0)}일` },
+        { label: '남은 기한', value: `${Math.max(0, (state.calendarMaxDays || 0) - (state.calendarDays || 0))}일` },
         { label: '누적 경과', value: `${Math.max(0, state.cumulativeDays || 0)}일` },
         { label: '길드 평판', value: `${Math.max(0, state.reputation || 0)}` }
       ]
@@ -249,7 +250,12 @@ export function TodayOverview({
             <span className="today-title__phrase">{dayPhrase}</span>
           </h2>
           <div className="today-scene__actions">
-            <button type="button" onClick={onContinue}>
+            <button
+              type="button"
+              onClick={onContinue}
+              aria-label={`${continuity.continueLabel}. ${continuity.nextAction}`}
+              title={continuity.guidance}
+            >
               <span className="emoji-icon" aria-hidden="true">🧭</span> {continuity.continueLabel}
             </button>
             <button
@@ -279,11 +285,10 @@ export function TodayOverview({
             <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>
           ))}
         </dl>
-        <div className="campaign-continuity__next">
-          <span>다음 단계</span>
+        <p className="campaign-continuity__guidance">
           <strong>{continuity.nextAction}</strong>
-          <p>{continuity.guidance}</p>
-        </div>
+          <span>{continuity.guidance}</span>
+        </p>
         {recentTimeChanges.length > 0 ? (
           <details className="campaign-continuity__history">
             <summary>최근 시간 변화 {recentTimeChanges.length}건</summary>

@@ -5,12 +5,12 @@ import { describe, expect, it } from 'vitest';
 const appSource = readFileSync('src/App.tsx', 'utf8');
 
 describe('foraging workflow order', () => {
-  it('draws before the player chooses from the discovered ingredients', () => {
-    const drawStep = appSource.indexOf('label="채집 카드"');
-    const planningStep = appSource.indexOf('채집 전 조사 노트 · 선택');
-    expect(drawStep).toBeGreaterThan(-1);
-    expect(planningStep).toBeGreaterThan(drawStep);
-    expect(appSource).toContain('카드 값과 이곳의 조사 목록을 비교한 뒤, 실제로 채집할 영약재를 고릅니다.');
+  it('records the reagent research list before drawing, then leaves the gathered part choice until after the card', () => {
+    const planningStep = appSource.indexOf('<legend>1. 들녘 조사 노트</legend>');
+    const drawStep = appSource.indexOf('label="2. 채집 카드"');
+    expect(planningStep).toBeGreaterThan(-1);
+    expect(drawStep).toBeGreaterThan(planningStep);
+    expect(appSource).toContain('카드 값과 기록한 희귀도를 비교한 뒤, 발견한 재료 중 실제로 가져갈 부위를 정합니다.');
     expect(appSource).toContain("forageContext.actionAllowed ? (");
     expect(appSource).toContain('const forageActionLabel = forageDrawCard');
     expect(appSource).toContain('`이 카드로 ${foragePlaceLabel} 채집하기`');
@@ -18,24 +18,40 @@ describe('foraging workflow order', () => {
     expect(appSource).not.toContain('disabled={!effectiveForageTargetReagentId}');
   });
 
-  it('offers an optional, pastoral research note without making it a rules gate', () => {
+  it('keeps the pastoral research note player-controlled without optimizer steering', () => {
     expect(appSource).toContain('환자의 처방에 보탤 힘을 미리 살펴보세요');
     expect(appSource).toContain('이 메모는 선택을 돕는 조사 기록입니다. 실제 채집은 카드를 뽑은 뒤 발견 목록에서 정합니다.');
     expect(appSource).toContain('role="group" aria-label={`${effectiveForageTargetTag} 채집 후보`}');
-    expect(appSource).toContain('right.bestCoverageCount - left.bestCoverageCount');
-    expect(appSource).toContain('left.breakdown.finalRarity - right.breakdown.finalRarity');
     expect(appSource).toContain('const plannedValue = aggregateRemedyTagPotency');
     expect(appSource).toContain('aria-pressed={selected}');
     expect(appSource).toContain('previous.filter(reagentId => reagentId !== row.reagent.id)');
     expect(appSource).toContain("[...previous, row.reagent.id]");
-    expect(appSource).toContain('카드 뒤의 최종 선택은 언제나 플레이어의 몫입니다.');
+    expect(appSource).toContain('실제 획득 재료는 카드 판정 뒤 플레이어가 정합니다.');
     expect(appSource).toContain('기억해 두기');
+    expect(appSource).not.toContain('right.bestCoverageCount - left.bestCoverageCount');
+    expect(appSource).not.toContain('left.breakdown.finalRarity - right.breakdown.finalRarity');
+    expect(appSource).not.toContain('is-recommended');
+    expect(appSource).not.toContain('먼저 살펴보기');
     expect(appSource).not.toContain('id="forage-target-reagent"');
   });
 
   it('keeps the physical-card entry path while naming the random action clearly', () => {
     expect(appSource).toContain("'랜덤 뽑기'");
     expect(appSource).toContain('오프라인에서 뽑은 카드 입력');
+  });
+
+  it('distinguishes immediate and point-assisted gather options from completed acquisition', () => {
+    expect(appSource).toContain('이번에 채집할 수 있는 재료');
+    expect(appSource).toContain("? `FP ${normalizedFind.gapCost} 사용 가능`");
+    expect(appSource).toContain("handleRecordForageMiss(normalizedFind)");
+    expect(appSource).not.toContain('이번 카드로 발견한 재료');
+  });
+
+  it('uses the selected encounter branch for follow-up cards and the whole prescription for acquisition state', () => {
+    expect(appSource).toContain('const hasSecondaryDraw = encounterChoiceRequiresSecondaryCard(activeForageEncounter, selectedForageChoiceId)');
+    expect(appSource).not.toContain('const secondaryDrawPhrases');
+    expect(appSource).toContain('(treatmentOwnedPreview && !treatmentOwnedPreview.ready)');
+    expect(appSource).not.toContain("treatmentRequirementRows.some(row => row.state === 'missing')");
   });
 
   it('only describes suit directions in the journey destination card control', () => {

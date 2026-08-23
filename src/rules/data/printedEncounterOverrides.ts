@@ -38,6 +38,40 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     ],
     support: 'manual-only'
   },
+  'foraging-bog-m-winter': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'instant-trial',
+        label: '즉석 재판 — 자신과 사슴을 위해 카드를 한 장씩 뽑습니다. 석궁이나 무기마다 사슴 카드를 한 장 더 뽑아 가장 높은 카드를 비교합니다.',
+        effects: [manual('DUCHY_OF_DEER_TRIAL', '자신과 사슴의 카드를 비교합니다. 자신이 더 높으면 이곳에서 채집하고, 사슴이 더 높으면 이번 채집을 포기한 뒤 이 지역에서 다시 이동하거나 채집할 수 없음을 기록합니다.')]
+      }
+    ],
+    support: 'manual-only'
+  },
+  'foraging-forest-j-winter': {
+    mandatoryEffects: [],
+    choices: [
+      { id: 'pass-by', label: '그냥 지나가기 — 문을 두드리지 않고 채집을 계속합니다.', effects: [] },
+      {
+        id: 'charity',
+        label: '자선을 부탁하기 — 타이머를 1 줄이고 카드를 한 장 뽑습니다. ♥이면 원하는 숲 영약재 부위 하나를 얻습니다.',
+        effects: [
+          { support: 'implemented', effect: { type: 'modifyTimer', amount: -1, target: 'all' } },
+          manual('WINTER_FEAST_CHARITY_DRAW', '뽑은 카드가 ♥이면 원하는 숲 영약재 부위 하나를 가방에 기록합니다.')
+        ]
+      },
+      {
+        id: 'sing',
+        label: '노래 부르기 — 타이머를 1 줄이고 장신구 1개를 얻습니다.',
+        effects: [
+          { support: 'implemented', effect: { type: 'modifyTimer', amount: -1, target: 'all' } },
+          { support: 'implemented', effect: { type: 'modifyTrinkets', amount: 1 } }
+        ]
+      }
+    ],
+    support: 'manual-only'
+  },
   'travel-bog-m-winter': {
     title: 'On The Path',
     prompt: 'Thickblood mercenaries track a fugitive. Mind your business, help them, or hinder them.',

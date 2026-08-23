@@ -114,7 +114,7 @@ describe('map interaction contracts', () => {
   });
 
   it('orders the reversible journey draft like the printed setup sequence', () => {
-    const originAndSeason = appSource.indexOf('출발지와 계절 (p.18)');
+    const originAndSeason = appSource.indexOf('<dt>출발</dt>');
     const destination = appSource.indexOf('<legend>목적지 정하기 (p.19)</legend>');
     const reason = appSource.indexOf('>여정을 떠나는 이유</label>');
     const goal = appSource.indexOf('<legend>목표 정하기 (p.20–21)</legend>');
@@ -130,16 +130,17 @@ describe('map interaction contracts', () => {
     expect(appSource).toContain('key={journeyStartDraftRevision}');
   });
 
-  it('interprets a drawn destination card and lists measured confirmed-route candidates', () => {
+  it('interprets a drawn destination card and supports measured or printed-map-confirmed candidates', () => {
     expect(appSource).toContain('journey-card-result');
     expect(appSource).toContain('이 카드의 목적지');
     expect(appSource).toContain('journeyDestinationRequirement.direction.short');
     expect(appSource).toContain('confirmedRouteSummariesFrom');
-    expect(appSource).toContain('최단 {candidate.routeSummary.distance}경로');
+    expect(appSource).toContain('{candidate.routeSummary.distance}경로 확인됨');
     expect(appSource).toContain('강 {candidate.routeSummary.riverCount}');
     expect(appSource).toContain('수로 {candidate.routeSummary.waterwayCount}');
     expect(appSource).toContain('destinationDistanceConfirmed');
-    expect(appSource).not.toContain('거리 직접 확인');
+    expect(appSource).toContain('journeyDistanceConfirmedManually');
+    expect(appSource).toContain('인쇄 지도에서 {journeyDestinationRequirement?.distance}임을 확인했습니다.');
   });
 
   it('only asks gameplay to travel from the Travel action', () => {

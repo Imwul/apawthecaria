@@ -132,4 +132,12 @@ describe('mobile layout regression guards', () => {
     expect(cssSource).toMatch(/@media \(max-width: 480px\)[\s\S]*?\.herbarium-controls\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/);
     expect(cssSource).toMatch(/\.rulebook-reference-detail__actions button,[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px/);
   });
+
+  it('preserves the herbarium browse context when the player checks another journal tab', () => {
+    expect(appSource).toContain('const [herbariumViewState, setHerbariumViewState]');
+    expect(appSource).toContain('viewState={herbariumViewState}');
+    expect(appSource).toContain("visiblePage: { key: '', count: 16 }");
+    expect(appSource).toContain("const patientContextKey = patientOnly");
+    expect(appSource).toContain("patient?.id || 'none'");
+  });
 });
