@@ -13,7 +13,7 @@ const preparationNames: Record<string, string> = {
   Catkins: '꽃차례',
   Chalk: '분필',
   Charcoal: '숯',
-  Cherries: '체리',
+  Cherries: '버찌',
   Chestnuts: '마로니에 열매',
   Clay: '점토',
   'Egg Shell': '알 껍데기',
@@ -33,7 +33,7 @@ const preparationNames: Record<string, string> = {
   Honey: '꿀',
   'Iron Pebbles': '철 자갈',
   Larvae: '유충',
-  'Leafy Whorls': '잎 돌려나기',
+  'Leafy Whorls': '돌려난 잎',
   Leaves: '잎',
   Leech: '거머리',
   'Living Butterfly': '살아 있는 나비',
@@ -45,7 +45,7 @@ const preparationNames: Record<string, string> = {
   Nectar: '꽃꿀',
   Nuts: '견과',
   Pearl: '진주',
-  Pellets: '환약',
+  Pellets: '알갱이',
   Petals: '꽃잎',
   Poison: '독',
   Pollen: '꽃가루',
@@ -66,7 +66,7 @@ const preparationNames: Record<string, string> = {
   Slivers: '조각',
   Sloes: '슬로 열매',
   Slugs: '민달팡이',
-  'Spike Head': '가시 머리',
+  'Spike Head': '가시 돋친 꽃머리',
   'Spiky Husks': '가시 껍질',
   'Perfect Conker': '잘 여문 마로니에 열매',
   Spores: '포자',
@@ -97,16 +97,16 @@ const preparationMethods: Record<string, string> = {
   COOKED: '요리',
   'COOKED AND APPLIED': '요리한 뒤 발라 사용',
   'COOKED IN CONSUMED REMEDIES': '먹는 처방에 요리',
-  CRUSHED: '부순',
+  CRUSHED: '부수기',
   'CRUSHED AND APPLIED': '부순 뒤 발라 사용',
   DIGESTED: '소화',
   DISTILLED: '증류',
-  GROUND: '갈음',
-  'GROUND AND APPLIED': '갈은 뒤 발라 사용',
-  'GROUND AND BOILED': '갈은 뒤 끓임',
-  'GROUND AND BREWED': '갈은 뒤 우려냄',
-  'GROUND AND COOKED': '갈은 뒤 요리',
-  'GROUND THEN COOKED': '갈은 뒤 요리',
+  GROUND: '갈기',
+  'GROUND AND APPLIED': '간 뒤 발라 사용',
+  'GROUND AND BOILED': '간 뒤 끓임',
+  'GROUND AND BREWED': '간 뒤 우려냄',
+  'GROUND AND COOKED': '간 뒤 요리',
+  'GROUND THEN COOKED': '간 뒤 요리',
   USED: '그대로 사용',
   'USED IN CONSUMED REMEDIES': '먹는 처방에 사용'
 };
@@ -192,7 +192,7 @@ const reagentTypes: Record<string, string> = {
   INSECT: '곤충',
   EARTH: '흙과 광물',
   MINERAL: '광물',
-  TITAN: 'Titan'
+  TITAN: '티탄'
 };
 
 const treatmentResults: Record<string, string> = {
@@ -278,14 +278,14 @@ const canonicalToolNamesKo: Record<string, string> = {
   Jaws: '이빨',
   paws: '앞발/발톱',
   'Paws/Claws': '앞발/발톱',
-  'canvas-tent': '가죽 텐트',
-  'Canvas Tent': '가죽 텐트',
+  'canvas-tent': '캔버스 천막',
+  'Canvas Tent': '캔버스 천막',
   'copper-frying-pan': '구리 프라이팬',
   'Copper Frying Pan': '구리 프라이팬',
   'big-iron-cauldron': '철제 가마솥',
   'Big Iron Cauldron': '철제 가마솥',
-  'bark-coracle': '자작나무 보트',
-  'Bark Coracle': '자작나무 보트',
+  'bark-coracle': '나무껍질 배',
+  'Bark Coracle': '나무껍질 배',
   'basic-tools-replacement': '기본 도구 교체품',
   'Basic Tools': '기본 도구 교체품',
   crossbow: '석궁',
@@ -356,7 +356,7 @@ const ENGLISH_LOCATION_NAMES: Record<string, string> = {
 
 export const localizeLocationName = (value: string | undefined): string => {
   const clean = value?.trim();
-  if (!clean) return 'Unknown Location';
+  if (!clean) return '위치 미기록';
   return ENGLISH_LOCATION_NAMES[clean.toLowerCase()] || clean;
 };
 
@@ -367,7 +367,7 @@ export const localizeRegionLabel = (value: string | undefined): string => ({
   Meadow: '초원',
   Mountain: '산맥',
   Soar: '활공',
-  Titan: 'Titan 유적'
+  Titan: '티탄 유적'
 } as Record<string, string>)[value || ''] || value || '지역 미기록';
 
 export const localizeRegionList = (value: string | undefined): string =>

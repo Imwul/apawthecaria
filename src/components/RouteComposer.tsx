@@ -41,11 +41,11 @@ type RouteComposerProps = {
 };
 
 const reasonText = (reason: ReturnType<typeof evaluateRouteDraft>['reason'], speed: number, cost: number): string => {
-  if (reason === 'incomplete') return `지도나 위치 검색에서 이번 Move가 지날 ${speed}개의 경로를 순서대로 고르세요.`;
-  if (reason === 'legal') return `이동력 ${speed}을 모두 사용했습니다. 이 경로로 Move할 수 있습니다.`;
+  if (reason === 'incomplete') return `지도나 위치 검색에서 이번 이동이 지날 ${speed}개의 경로를 순서대로 고르세요.`;
+  if (reason === 'legal') return `이동력 ${speed}을 모두 사용했습니다. 이 경로로 이동할 수 있습니다.`;
   if (reason === 'too-close') return `이동력 ${speed}을 모두 사용하려면 경로를 ${speed - cost}개 더 이으세요.`;
   if (reason === 'too-far') return `이동력보다 경로가 ${cost - speed}개 많습니다. 도착점을 앞당기거나 위치를 빼세요.`;
-  return '호수·강 야생에서 멈추려면 자작나무 보트(Bark Coracle)나 밀폐식 마차(Sealed Carriage)가 필요합니다. 방수 가방(Waxed Satchel)은 젖음만 막습니다.';
+  return '호수·강 야생에서 멈추려면 나무껍질 배나 밀폐식 마차와 돛이 필요합니다. 방수 가방은 소지품이 젖는 것만 막습니다.';
 };
 
 const blockedActionText = (reason: ReturnType<typeof evaluateRouteDraft>['reason']): string => {
@@ -161,7 +161,7 @@ export function RouteComposer({
   const addStop = (stop: RouteStop) => {
     onAddStop?.(stop);
     setPlaceQuery('');
-    setRouteFeedback(`${stop.name || '위치'}을(를) 이번 Move 경로에 추가했습니다.`);
+    setRouteFeedback(`${stop.name || '위치'}을(를) 이번 이동 경로에 추가했습니다.`);
   };
 
   const removeStop = (index: number, stop: RouteStop) => {
@@ -191,7 +191,7 @@ export function RouteComposer({
     <section className="route-composer" aria-label="경로 짜기">
       <div className="route-composer__title-row">
         <div>
-          <span className="route-composer__eyebrow">이번 MOVE</span>
+          <span className="route-composer__eyebrow">이번 이동</span>
           <h2>경로 짜기</h2>
         </div>
         <div className="route-composer__conditions" aria-label="이번 이동 조건">
@@ -219,7 +219,7 @@ export function RouteComposer({
           )}
         </div>
         <div className="route-composer__endpoint">
-          <span>이번 Move 도착</span>
+          <span>이번 이동 도착</span>
           {destination ? (
             <div className="route-composer__endpoint-info">
               <MapGlyph kind={destination.kind} terrain={destination.terrain} size={22} />
@@ -236,7 +236,7 @@ export function RouteComposer({
             <div className="route-composer__endpoint-info">
               <MapGlyph kind={journeyTarget.kind} terrain={journeyTarget.terrain} size={22} />
               <strong>{journeyTarget.name.trim() || '이름 없음'}</strong>
-              <em>{targetIsMoveEnd ? '이번 Move에서 도착' : `${stopMeta(journeyTarget)} · 끝에 고정`}</em>
+              <em>{targetIsMoveEnd ? '이번 이동에서 도착' : `${stopMeta(journeyTarget)} · 끝에 고정`}</em>
             </div>
           ) : (
             <strong>여정 설정에서 정하세요</strong>
@@ -260,7 +260,7 @@ export function RouteComposer({
               list="route-stop-options"
               value={placeQuery}
               onChange={event => setPlaceQuery(event.target.value)}
-              placeholder="경유지 또는 Move 도착 검색"
+              placeholder="경유지 또는 오늘 도착지 검색"
               aria-label="경로에 추가할 위치 검색"
               autoComplete="off"
             />
@@ -306,7 +306,7 @@ export function RouteComposer({
       <div className="route-composer__track-clip">
         <div className="route-composer__track-container" ref={trackContainerRef} tabIndex={0} aria-label="선택 순서대로 이어진 경로. 좌우로 스크롤할 수 있습니다.">
         {count === 0 ? (
-          <p className="route-composer__empty">현재 위치를 확인한 뒤 지도나 위치 검색에서 첫 node를 고르세요.</p>
+          <p className="route-composer__empty">현재 위치를 확인한 뒤 지도나 위치 검색에서 첫 위치를 고르세요.</p>
         ) : (
           <div className={`route-composer__track${compactView ? ' route-composer__track--compact' : ''}`} role="region" aria-label="가로 경로 목록">
             {draft.stops.map((row, index) => {
@@ -324,7 +324,7 @@ export function RouteComposer({
                       <input
                         type="text"
                         className="route-card__name-input"
-                        aria-label={`${index + 1}번 노드 이름`}
+                        aria-label={`${index + 1}번 위치 이름`}
                         value={row.name}
                         title={row.name}
                         placeholder="이름 없음"
@@ -339,7 +339,7 @@ export function RouteComposer({
                       <div className="route-card__controls">
                         <select
                           className="route-card__select"
-                          aria-label={`${row.name || '노드'} 형태`}
+                          aria-label={`${row.name || '위치'} 형태`}
                           value={row.kind}
                           onChange={event => {
                             const kind = event.target.value as MapGlyphKind;
@@ -359,7 +359,7 @@ export function RouteComposer({
                         {glyphUsesTerrain(row.kind) && (
                           <select
                             className="route-card__select"
-                            aria-label={`${row.name || '노드'} 지형색`}
+                            aria-label={`${row.name || '위치'} 지형색`}
                             value={row.terrain || ''}
                             onChange={event => onChangeStop(index, { terrain: (event.target.value || null) as MapTerrain | null })}
                           >
@@ -382,7 +382,7 @@ export function RouteComposer({
                           type="button"
                           className="route-card__remove-btn"
                           onClick={() => removeStop(index, row)}
-                          aria-label={`${row.name || '여정 목적지'}를 이번 Move 도착에서 제외`}
+                          aria-label={`${row.name || '여정 목적지'}를 이번 이동 도착에서 제외`}
                         >
                           오늘 경로에서 빼기
                         </button>
@@ -413,7 +413,7 @@ export function RouteComposer({
                           type="button"
                           className="route-card__remove-btn"
                           onClick={() => removeStop(index, row)}
-                          aria-label={`${row.name || '노드'} 삭제`}
+                          aria-label={`${row.name || '위치'} 삭제`}
                         >
                           빼기
                         </button>
@@ -456,7 +456,7 @@ export function RouteComposer({
                     <strong className="route-card__target-name" title={pinnedTarget.name}>{pinnedTarget.name || '이름 없음'}</strong>
                   </div>
                   <span className="route-card__meta" title={stopMeta(pinnedTarget)}>{stopMeta(pinnedTarget)}</span>
-                  <span className="route-card__fixed">목적지 고정 · 이번 Move 거리에는 미포함</span>
+                  <span className="route-card__fixed">목적지 고정 · 이번 이동 거리에는 미포함</span>
                 </div>
               </div>
             )}
@@ -476,7 +476,7 @@ export function RouteComposer({
       <footer className={`route-composer__departure${travelReady ? ' route-composer__departure--ready' : ''}`} aria-label="이동 전 확인과 출발">
         <div className="route-composer__summary">
           {movementMode === 'soar' ? (
-            <p>활공에서는 출발지와 마지막 노드만 사용합니다. 중간 노드와 연결 유형은 Move로 되돌릴 때 그대로 남습니다.</p>
+            <p>활공에서는 출발지와 마지막 위치만 사용합니다. 중간 위치와 연결 유형은 경로 이동으로 되돌릴 때 그대로 남습니다.</p>
           ) : (
             <>
               <p className="route-composer__distance-line">
@@ -499,12 +499,12 @@ export function RouteComposer({
           )}
           {evaluation.overEncumbered && (
             <div className="route-composer__rule-alert route-composer__rule-alert--danger">
-              과적 상태(무게 {weight}/{carry})라 이번 Move의 속도는 1경로입니다. (룰북 p.24)
+              과적 상태(무게 {weight}/{carry})라 이번 이동의 속도는 1경로입니다. (룰북 p.24)
             </div>
           )}
           {evaluation.reason === 'loch-locked' && (
             <div className="route-composer__rule-alert">
-              호수·강 야생에 멈추려면 Bark Coracle 또는 Sealed Carriage가 필요합니다. (룰북 p.24)
+              호수·강 야생에 멈추려면 나무껍질 배 또는 밀폐식 마차와 돛이 필요합니다. (룰북 p.24)
             </div>
           )}
           {evaluation.usesWaterTravel && (

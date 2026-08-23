@@ -717,14 +717,32 @@ button:active {
   font-weight: 650;
 }
 
-.forage-candidate__relevance {
-  display: block;
-  margin-top: 0.3rem;
-  padding-left: 0.55rem;
-  border-left: 3px solid rgba(79, 137, 95, 0.55);
-  color: #3f6749;
-  font-size: 0.875rem !important;
-  line-height: 1.5;
+.forage-candidate__tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.55rem;
+  margin-top: 0.32rem;
+  color: #4f6d58;
+  font-size: 0.9rem !important;
+  line-height: 1.45;
+}
+
+.forage-candidate__tags > span {
+  color: #756d61;
+  font-weight: 500;
+}
+
+.forage-candidate__tags > b {
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.forage-candidate__tags > b.is-relevant {
+  color: #315d3d;
+  text-decoration: underline;
+  text-decoration-color: rgba(79, 137, 95, 0.42);
+  text-underline-offset: 0.18em;
 }
 
 .forage-candidate__action {

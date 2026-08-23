@@ -38,13 +38,31 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     ],
     support: 'manual-only'
   },
-  'foraging-bog-m-winter': {
+  'foraging-bog-m-autumn': {
     mandatoryEffects: [],
     choices: [
       {
         id: 'instant-trial',
         label: '즉석 재판 — 자신과 사슴을 위해 카드를 한 장씩 뽑습니다. 석궁이나 무기마다 사슴 카드를 한 장 더 뽑아 가장 높은 카드를 비교합니다.',
         effects: [manual('DUCHY_OF_DEER_TRIAL', '자신과 사슴의 카드를 비교합니다. 자신이 더 높으면 이곳에서 채집하고, 사슴이 더 높으면 이번 채집을 포기한 뒤 이 지역에서 다시 이동하거나 채집할 수 없음을 기록합니다.')]
+      }
+    ],
+    support: 'manual-only'
+  },
+  'foraging-bog-m-winter': {
+    title: 'Winged Menace',
+    prompt: 'A massive heron swoops down at you, giving you just enough time to take cover. It laughs and taunts as it raises its wings to put you in shade. It seems like it might be a clawlicker or a bandit. What do they want?',
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'bold',
+        label: '용감하게 맞서기 — 자신은 카드 1장, 왜가리는 카드 2장을 뽑습니다. 자신이 고슴도치보다 크다면 카드 1장을 더 뽑습니다. 합계가 더 높으면 왜가리를 쫓아내고 길드 명성 1을 얻습니다. 합계가 더 낮으면 도망치기 전에 심하게 쪼입니다. 이 만남으로 어떤 흉터가 남았나요?',
+        effects: [manual('WINGED_MENACE_BOLD', '카드 합계를 비교합니다. 자신이 더 높으면 길드 명성 1을 얻고, 왜가리가 더 높으면 도망치기 전에 쪼여 생긴 흉터를 기록합니다.')]
+      },
+      {
+        id: 'bargain',
+        label: '흥정하기 — 장신구 1개를 주고 왜가리를 돌려보냅니다. 어떤 눈에 띄는 표식이 있었나요? 신고할 건가요?',
+        effects: [{ support: 'implemented', effect: { type: 'modifyTrinkets', amount: -1 } }]
       }
     ],
     support: 'manual-only'

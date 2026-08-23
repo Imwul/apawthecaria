@@ -47,6 +47,22 @@ describe('foraging workflow order', () => {
     expect(appSource).not.toContain('이번 카드로 발견한 재료');
   });
 
+  it('summarizes only currently obtainable preparation tags without exposing part details', () => {
+    expect(appSource).toContain('const availableForagePreparations = (find: ForageFind) =>');
+    expect(appSource).toContain("part.requiredTools.every(tool => tool === 'none' || forageToolIds.has(tool))");
+    expect(appSource).toContain('isForagingPreparationAvailableInSeason(part, state.currentSeason)');
+    expect(appSource).toContain('highestValueByTag.set(tag, Math.max(highestValueByTag.get(tag) || 0, value))');
+    expect(appSource).toContain('className="forage-candidate__tags"');
+    expect(appSource).toContain('이 재료에서 얻을 수 있는 약효');
+    expect(appSource).toContain('{tag} {value}');
+    expect(appSource).not.toContain('matchingForageParts');
+  });
+
+  it('uses the canonical Korean region name in every player-facing foraging hint', () => {
+    expect(appSource).toContain('야생 구역, 티탄 유적, 거수 고분');
+    expect(appSource).not.toContain('Titan 유적');
+  });
+
   it('uses the selected encounter branch for follow-up cards and the whole prescription for acquisition state', () => {
     expect(appSource).toContain('const hasSecondaryDraw = encounterChoiceRequiresSecondaryCard(activeForageEncounter, selectedForageChoiceId)');
     expect(appSource).not.toContain('const secondaryDrawPhrases');

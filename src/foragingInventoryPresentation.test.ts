@@ -37,7 +37,7 @@ describe('foraging and inventory presentation', () => {
         { name: 'Marigold (Petals, Ground)', canonicalReagentId: 'reagent-marigold', quantity: 2 },
         { name: '금잔화/메리골드 (꽃꿀)', canonicalReagentId: 'reagent-marigold', quantity: 1 }
       ]
-    )).toBe('Marigold (금잔화) — Petals (꽃잎) · 갈음 +2 · 현재 3개');
+    )).toBe('Marigold (금잔화) — Petals (꽃잎) · 갈기 +2 · 현재 3개');
   });
 
   it('keeps both English and exact Korean names searchable', () => {

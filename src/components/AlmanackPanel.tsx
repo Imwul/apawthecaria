@@ -15,6 +15,13 @@ import type {
   RulebookReferenceKind,
   RulebookSourcePage
 } from '../rulebook/types';
+import {
+  CONSULTATION_CATEGORY_LABELS,
+  formatRulebookDetailValue,
+  RULEBOOK_DETAIL_LABELS,
+  RULEBOOK_KIND_LABELS,
+  RULEBOOK_STATUS_LABELS
+} from './rulebookPresentation';
 
 type ResolutionFilter = 'all' | 'canonical' | 'automatic' | 'manual' | 'ambiguous' | 'reference-only' | 'pending' | 'resolved' | 'override';
 
@@ -29,39 +36,26 @@ interface AlmanackGameplayContext {
 }
 
 const KIND_LABELS: Record<RulebookReferenceKind | 'all', string> = {
-  all: '전체', rule: '챕터', procedure: '절차', encounter: '조우', ailment: '질환', 'printed-effect': '원문 효과', remedy: '처방 재료', ingredient: '영약재', tag: '태그', tool: '도구', service: '서비스', clinic: '약제소', wagon: '마차', companion: '동료', barrow: '고분', downtime: '다운타임', region: '지역', season: '계절', table: '표', example: '예시', guidance: '플레이 지침', source: '원문 페이지'
+  all: '전체',
+  ...RULEBOOK_KIND_LABELS
 };
 
 const STATUS_LABELS: Record<Exclude<ResolutionFilter, 'all'>, string> = {
-  canonical: 'Canonical', automatic: '자동 처리', manual: '직접 판정', ambiguous: '원문 모호함', 'reference-only': '원문 참고', pending: '판정 대기', resolved: '해결 완료', override: '예외 기록'
+  canonical: RULEBOOK_STATUS_LABELS.canonical,
+  automatic: RULEBOOK_STATUS_LABELS.automatic,
+  manual: RULEBOOK_STATUS_LABELS.manual,
+  ambiguous: RULEBOOK_STATUS_LABELS.ambiguous,
+  'reference-only': RULEBOOK_STATUS_LABELS['reference-only'],
+  pending: RULEBOOK_STATUS_LABELS.pending,
+  resolved: RULEBOOK_STATUS_LABELS.resolved,
+  override: RULEBOOK_STATUS_LABELS.override
 };
 
 const consultationCategories: PersonalRulebookState['consultations'][number]['category'][] = ['rule wording', 'encounter', 'ailment', 'remedy', 'table', 'map', 'season', 'example', 'guidance', 'terminology'];
 
-const DETAIL_LABELS: Record<string, string> = {
-  'Canonical name': '원문 이름', Type: '분류', Category: '범주', 'Base Rarity': '기본 희귀도', Preparation: '조제법', Region: '지역', Season: '계절', Ingredient: '영약재', Potency: '약효', Weight: '무게', Uses: '사용 횟수', 'Required Tool': '필요 도구', Restrictions: '특수 조건', Location: '구입 위치', Cost: '가격', Effect: '효과', Trigger: '발동 조건', Severity: '중증도', Timer: '남은 시간', Requirement: '필요 약효', Stacks: '중첩 여부', Replacement: '대체 도구', 'Canonical consumer': '앱 적용 경로', 'Related remedies': '관련 처방 재료', 'Related ailments': '관련 질환', 'Canonical handling': '앱 처리 방식', 'Source section': '원문 구간'
-};
-
-const displayDetailValue = (label: string, value: string) => {
-  if (label === 'Cost' && value === 'Not sold') return '판매하지 않음';
-  if (label === 'Location' && value === 'Starting / special') return '시작 장비 또는 특수 획득';
-  if (label === 'Region' || label === 'Season') return value.split(' / ').map(pair => {
-    const [id, availability] = pair.split(':').map(part => part.trim());
-    const localizedId = label === 'Region' ? localizeRegionLabel(id) : localizeSeasonLabel(id);
-    const localizedAvailability = ({ Common: '흔함', Rare: '드묾', Unavailable: '없음' } as Record<string, string>)[availability] || availability;
-    return `${localizedId}: ${localizedAvailability}`;
-  }).join(' · ');
-  if (label !== 'Weight') return value;
-  const weight = Number(value);
-  if (!Number.isFinite(weight)) return value;
-  if (Math.abs(weight - 1 / 3) < 0.001) return '1/3';
-  if (Math.abs(weight - 2 / 3) < 0.001) return '2/3';
-  return Number.isInteger(weight) ? String(weight) : weight.toFixed(1);
-};
-
 const sourceEntry = (page: RulebookSourcePage): RulebookReferenceEntry => {
   const chapter = CHAPTER_FOR_PAGE(page.page);
-  const firstLine = page.text.split('\n').map(line => line.trim()).find(Boolean) || `Rulebook p.${page.page}`;
+  const firstLine = page.text.split('\n').map(line => line.trim()).find(Boolean) || `룰북 p.${page.page}`;
   return {
     id: `source:p${page.page}`,
     kind: 'source',
@@ -70,7 +64,7 @@ const sourceEntry = (page: RulebookSourcePage): RulebookReferenceEntry => {
     sourcePage: page.page,
     ruleIds: chapter?.ruleIds || [],
     runtimeStatus: 'reference-only',
-    details: [{ label: 'Source section', value: chapter?.title || '원본 Rulebook' }],
+    details: [{ label: 'Source section', value: chapter?.title || '원본 룰북' }],
     relatedIds: chapter ? [chapter.id] : [],
     searchText: page.text.toLowerCase()
   };
@@ -223,8 +217,8 @@ export default function AlmanackPanel({
     const labels: string[] = [];
     const ingredient = entryIngredient(entry);
     if (isOwnedEntry(entry) || (ingredient?.ownerId && ownedIdSet.has(ingredient.ownerId))) labels.push('보유 중');
-    if (ingredient?.relatedIds.includes(`region:${currentRegionId}`)) labels.push(`현재 ${gameplayContext.currentRegion} 지역`);
-    if (ingredient?.relatedIds.includes(`season:${gameplayContext.currentSeason}`)) labels.push(`현재 ${gameplayContext.currentSeason}`);
+    if (ingredient?.relatedIds.includes(`region:${currentRegionId}`)) labels.push(`현재 ${localizeRegionLabel(currentRegionId)} 지역`);
+    if (ingredient?.relatedIds.includes(`season:${gameplayContext.currentSeason}`)) labels.push(`현재 ${localizeSeasonLabel(gameplayContext.currentSeason)}`);
     if (patientMatches(entry)) labels.push('현재 환자에 기여');
     if (entry.ownerId === gameplayContext.activeAilmentId) labels.push('현재 질환');
     return labels;
@@ -245,7 +239,7 @@ export default function AlmanackPanel({
     <section className="almanack rulebook-hub" aria-labelledby="almanack-title">
       <header className="almanack__header rulebook-hub__header">
         <div>
-          <span className="document-kicker">여행 약제사의 들녘 색인 · First Edition, Third Printing</span>
+          <span className="document-kicker">여행 약제사의 들녘 색인 · 제1판 제3쇄</span>
           <h2 id="almanack-title">자연사 색인과 룰북</h2>
           <p>이름을 몰라도 지역, 계절, 환자의 증상에서 시작해 관련 기록을 따라갈 수 있습니다. 필요한 경우에만 원문 페이지를 펼치세요.</p>
         </div>
@@ -301,7 +295,7 @@ export default function AlmanackPanel({
               <button className="almanack-entry__favorite" aria-label={`${entry.title} 책갈피 ${isBookmarked ? '해제' : '추가'}`} aria-pressed={isBookmarked} onClick={() => persistPersonal({ ...personal, bookmarks: isBookmarked ? personal.bookmarks.filter(id => id !== entry.id) : [...personal.bookmarks, entry.id] })}>{isBookmarked ? '★' : '☆'}</button>
               <button type="button" className="almanack-entry__open" onClick={() => openEntry(entry.id)}>
                 <div className="almanack-entry__body"><span className="almanack-entry__kind">{KIND_LABELS[entry.kind]}</span><h3>{entry.title}</h3><p>{entry.summary}</p>{contextLabelsFor(entry).length > 0 && <div className="rulebook-context-marks">{contextLabelsFor(entry).map(label => <span key={label}>{label}</span>)}</div>}{query.trim() && <small className="rulebook-match-reason">{referenceSearchReason(entry, query)}에서 찾음</small>}</div>
-                <div className="almanack-entry__meta"><span>{entry.ownerId || 'source index'}</span><span className={`automation-mark automation-mark--${resolutionStatus}`}>{STATUS_LABELS[resolutionStatus as Exclude<ResolutionFilter, 'all'>]}</span><span>p.{entry.sourcePage}</span></div>
+                <div className="almanack-entry__meta"><span>{entry.ownerId ? '앱 규칙과 연결' : '원문 색인'}</span><span className={`automation-mark automation-mark--${resolutionStatus}`}>{STATUS_LABELS[resolutionStatus as Exclude<ResolutionFilter, 'all'>]}</span><span>p.{entry.sourcePage}</span></div>
               </button>
             </article>
           );
@@ -321,22 +315,22 @@ export default function AlmanackPanel({
             </div>
           </header>
           <div className="rulebook-reference-detail__layers">
-            <section><span>실전 요약</span><h4>현재 판정 기준</h4><p>{STATUS_LABELS[statusFor(selected) as Exclude<ResolutionFilter, 'all'>]} · {selected.ownerId || '원문 참고'}</p>{contextLabelsFor(selected).length > 0 && <div className="rulebook-context-marks">{contextLabelsFor(selected).map(label => <span key={label}>{label}</span>)}</div>}</section>
-            <section><span>현장 정보</span><h4>항목 정보</h4><dl>{selected.details.map(row => <div key={`${row.label}:${row.value}`}><dt>{DETAIL_LABELS[row.label] || row.label}</dt><dd>{displayDetailValue(row.label, row.value)}</dd></div>)}</dl></section>
-            <section><span>출처</span><h4>원문 위치</h4><p>{selected.ruleIds.length ? selected.ruleIds.join(' · ') : '별도 Rule ID 없음'} · p.{selected.sourcePage}</p></section>
+            <section><span>실전 요약</span><h4>현재 판정 기준</h4><p>{STATUS_LABELS[statusFor(selected) as Exclude<ResolutionFilter, 'all'>]} · {selected.ownerId ? '앱 규칙과 연결' : '원문 참고'}</p>{contextLabelsFor(selected).length > 0 && <div className="rulebook-context-marks">{contextLabelsFor(selected).map(label => <span key={label}>{label}</span>)}</div>}</section>
+            <section><span>현장 정보</span><h4>항목 정보</h4><dl>{selected.details.map(row => <div key={`${row.label}:${row.value}`}><dt>{RULEBOOK_DETAIL_LABELS[row.label] || row.label}</dt><dd>{formatRulebookDetailValue(row.label, row.value)}</dd></div>)}</dl></section>
+            <section><span>출처</span><h4>원문 위치</h4><p>{selected.ruleIds.length ? `연결된 규칙 ${selected.ruleIds.length}개` : '별도 규칙 연결 없음'} · p.{selected.sourcePage}</p></section>
           </div>
 
           {selected.relatedIds.length > 0 && <nav className="rulebook-crosslinks" aria-label="관련 룰북 항목"><strong>함께 읽기</strong><span>책의 ‘함께 보기’처럼 관련 지역·계절·약효·도구를 따라갑니다.</span>{selected.relatedIds.slice(0, 28).map(id => { const related = RULEBOOK_REFERENCE_BY_ID.get(id); return related ? <button type="button" key={id} onClick={() => openEntry(id)}><small>{KIND_LABELS[related.kind]}</small>{related.title}<span>p.{related.sourcePage}</span></button> : null; })}</nav>}
 
           <details className="rulebook-source-text" aria-busy={sourceLoading}>
-            <summary>원본 Rulebook p.{selected.sourcePage} 펼치기</summary>
+            <summary>원본 룰북 p.{selected.sourcePage} 펼치기</summary>
             {sourceLoading ? <p>원문 페이지를 여는 중...</p> : <pre>{sourcePage?.text || '페이지 텍스트를 불러오지 못했습니다.'}</pre>}
           </details>
 
           <div className="rulebook-personal-layer">
-            <div><h4>개인 메모</h4><p>이 메모는 canonical engine과 campaign save를 바꾸지 않습니다.</p><textarea aria-label={`${selected.title} 개인 메모`} rows={4} value={note} onChange={event => updatePersonalText('notes', selected.id, event.target.value)} /></div>
-            <div className="rulebook-personal-layer__house-rule"><h4>House Rule 메모</h4><p>개인 해석을 기록할 뿐 canonical engine을 덮어쓰거나 campaign save를 바꾸지 않습니다.</p><textarea aria-label={`${selected.title} House Rule 메모`} rows={4} value={houseRule} onChange={event => updatePersonalText('houseRules', selected.id, event.target.value)} /></div>
-            <div><h4>PDF 확인 기록</h4><select aria-label="PDF 확인 분류" value={consultationCategory} onChange={event => setConsultationCategory(event.target.value as typeof consultationCategory)}>{consultationCategories.map(value => <option key={value} value={value}>{value}</option>)}</select><input aria-label="PDF를 다시 연 이유" value={consultationReason} onChange={event => setConsultationReason(event.target.value)} placeholder="PDF를 따로 확인한 이유" /><button type="button" disabled={!consultationReason.trim()} onClick={() => { persistPersonal({ ...personal, consultations: [{ id: `consultation:${Date.now()}`, page: selected.sourcePage, category: consultationCategory, reason: consultationReason.trim(), referenceId: selected.id, createdAt: Date.now() }, ...personal.consultations] }); setConsultationReason(''); }}>PDF 확인 기록 추가</button></div>
+            <div><h4>개인 메모</h4><p>이 메모는 정식 규칙 데이터나 캠페인 저장 기록을 바꾸지 않습니다.</p><textarea aria-label={`${selected.title} 개인 메모`} rows={4} value={note} onChange={event => updatePersonalText('notes', selected.id, event.target.value)} /></div>
+            <div className="rulebook-personal-layer__house-rule"><h4>하우스 룰 메모</h4><p>개인 해석을 기록할 뿐 정식 규칙 데이터나 캠페인 저장 기록을 덮어쓰지 않습니다.</p><textarea aria-label={`${selected.title} 하우스 룰 메모`} rows={4} value={houseRule} onChange={event => updatePersonalText('houseRules', selected.id, event.target.value)} /></div>
+            <div><h4>PDF 확인 기록</h4><select aria-label="PDF 확인 분류" value={consultationCategory} onChange={event => setConsultationCategory(event.target.value as typeof consultationCategory)}>{consultationCategories.map(value => <option key={value} value={value}>{CONSULTATION_CATEGORY_LABELS[value]}</option>)}</select><input aria-label="PDF를 다시 연 이유" value={consultationReason} onChange={event => setConsultationReason(event.target.value)} placeholder="PDF를 따로 확인한 이유" /><button type="button" disabled={!consultationReason.trim()} onClick={() => { persistPersonal({ ...personal, consultations: [{ id: `consultation:${Date.now()}`, page: selected.sourcePage, category: consultationCategory, reason: consultationReason.trim(), referenceId: selected.id, createdAt: Date.now() }, ...personal.consultations] }); setConsultationReason(''); }}>PDF 확인 기록 추가</button></div>
           </div>
         </article>
       )}

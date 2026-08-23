@@ -272,12 +272,75 @@ describe('printed encounter choice execution', () => {
     expect(fetch.value?.nextState).toMatchObject({ reputation: 5, trinkets: 1, calendarDays: 1 });
   });
 
-  it('preserves the printed card branches for Duchy of Deer and Winter Feast', () => {
-    const duchy = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-bog-m-winter')!;
+  it('keeps the p.158 Duchy of Deer separate from the p.159 Winged Menace', () => {
+    const duchy = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-bog-m-autumn')!;
+    expect(duchy.sourcePage).toBe(158);
+    expect(duchy.title).toContain('Duchy of Deer');
     expect(duchy.choices.map(choice => choice.id)).toEqual(['instant-trial']);
     expect(duchy.choices[0].label).toMatch(/카드.*뽑/);
     expect(duchy.choices[0].effects).toContainEqual(expect.objectContaining({ support: 'manual-only' }));
 
+    const winged = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-bog-m-winter')!;
+    expect({
+      sourcePage: winged.sourcePage,
+      title: winged.title,
+      prompt: winged.prompt,
+      choices: winged.choices.map(choice => ({ id: choice.id, label: choice.label }))
+    }).toEqual({
+      sourcePage: 159,
+      title: 'Winged Menace',
+      prompt: 'A massive heron swoops down at you, giving you just enough time to take cover. It laughs and taunts as it raises its wings to put you in shade. It seems like it might be a clawlicker or a bandit. What do they want?',
+      choices: [
+        {
+          id: 'bold',
+          label: '용감하게 맞서기 — 자신은 카드 1장, 왜가리는 카드 2장을 뽑습니다. 자신이 고슴도치보다 크다면 카드 1장을 더 뽑습니다. 합계가 더 높으면 왜가리를 쫓아내고 길드 명성 1을 얻습니다. 합계가 더 낮으면 도망치기 전에 심하게 쪼입니다. 이 만남으로 어떤 흉터가 남았나요?'
+        },
+        {
+          id: 'bargain',
+          label: '흥정하기 — 장신구 1개를 주고 왜가리를 돌려보냅니다. 어떤 눈에 띄는 표식이 있었나요? 신고할 건가요?'
+        }
+      ]
+    });
+    expect(winged.choices[0].effects).toEqual([
+      expect.objectContaining({
+        support: 'manual-only',
+        effect: expect.objectContaining({ type: 'customEffect', code: 'WINGED_MENACE_BOLD' })
+      })
+    ]);
+    expect(winged.choices[1].effects).toEqual([
+      { support: 'implemented', effect: { type: 'modifyTrinkets', amount: -1 } }
+    ]);
+    expect(`${winged.title}\n${winged.prompt}\n${winged.choices.map(choice => choice.label).join('\n')}`)
+      .not.toMatch(/Duchy of Deer|instant trial|사슴|공작령/i);
+
+    const baseState = {
+      reputation: 0,
+      trinkets: 1,
+      calendarDays: 0,
+      foragingPoints: 0,
+      inventory: [],
+      patient: null,
+      movementBlocked: false,
+      conditions: [],
+      appliedEffectIds: []
+    };
+    const bargain = executeEncounter({
+      transactionId: 'winged-menace-bargain',
+      encounter: winged,
+      choiceId: 'bargain',
+      state: baseState
+    });
+    expect(bargain.status).toBe('resolved');
+    expect(bargain.value?.nextState.trinkets).toBe(0);
+    expect(executeEncounter({
+      transactionId: 'winged-menace-bargain-empty',
+      encounter: winged,
+      choiceId: 'bargain',
+      state: { ...baseState, trinkets: 0 }
+    }).status).toBe('invalid');
+  });
+
+  it('preserves the printed card branches for Winter Feast', () => {
     const feast = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-forest-j-winter')!;
     expect(feast.choices.map(choice => choice.id)).toEqual(['pass-by', 'charity', 'sing']);
     expect(feast.choices.find(choice => choice.id === 'charity')?.label).toMatch(/카드.*뽑/);
@@ -300,7 +363,8 @@ describe('printed encounter choice execution', () => {
       ['travel-meadow-9-10-winter', 'challenge-accepted'],
       ['travel-mountain-m-spring', 'drink-up'],
       ['foraging-bog-9-autumn', 'pounder-s-take'],
-      ['foraging-bog-m-winter', 'instant-trial'],
+      ['foraging-bog-m-autumn', 'instant-trial'],
+      ['foraging-bog-m-winter', 'bold'],
       ['foraging-forest-9-spring', 'compassion'],
       ['foraging-loch-9-summer', 'tadpediatrician'],
       ['foraging-loch-10-summer', 'summertime-swim'],

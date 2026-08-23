@@ -28,6 +28,6 @@ describe('route composer readiness copy', () => {
   it('keeps external blockers and completed routes distinct', () => {
     expect(readiness({ reason: 'legal', cost: 4, canTravel: false, travelBlockedReason: '조우 해결 필요' }))
       .toBe('이동 전 확인 필요');
-    expect(readiness({ reason: 'legal', cost: 4, travelReady: true })).toBe('Move 준비 완료');
+    expect(readiness({ reason: 'legal', cost: 4, travelReady: true })).toBe('이동 준비 완료');
   });
 });

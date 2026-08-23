@@ -1,5 +1,9 @@
-import { BARROW_DELVE_BY_ID, type BarrowDelveId } from '../rules';
-import { localizeBehemothClass } from '../localization/gameplayKo';
+import { BARROW_DELVE_BY_ID, REAGENT_BY_ID, TOOL_BY_ID, type BarrowDelveId } from '../rules';
+import {
+  localizeBehemothClass,
+  localizeCanonicalToolName,
+  localizeInventoryItemName
+} from '../localization/gameplayKo';
 import { localizeGameplayMessage } from '../localization/engineMessagesKo';
 
 const delveStepLabels: Record<string, string> = {
@@ -7,6 +11,49 @@ const delveStepLabels: Record<string, string> = {
   challenge: '도전',
   'awaiting-choice': '선택 대기',
   resolved: '귀환'
+};
+
+const delveNameLabels: Record<string, string> = {
+  'Uneasy Sleep': '불안한 잠',
+  'Collapsed Entrance': '무너진 입구',
+  'The Bellies of Many': '수많은 허기',
+  'Inside Job': '내부 소행',
+  'Potent Poison': '맹독',
+  'Pilfer Unnoticed': '들키지 않고 훔치기',
+  'Building Trust': '신뢰 쌓기',
+  'Suitable Furnishings': '알맞은 가구'
+};
+
+const challengeLabels: Record<string, string> = {
+  'Soporific Incense': '수면 향',
+  'Invigorating Tea': '활력 차',
+  'Silent Service': '조용한 시중',
+  'Nefarious Concoction': '사악한 조제물',
+  'Potent Poison': '맹독',
+  'Steal Everything': '모조리 훔치기',
+  'The Strength of a Union': '연대의 힘',
+  'Making a House into a Home': '집을 보금자리로'
+};
+
+const selectedItemLabel = (item: any): string => {
+  if (typeof item === 'string') {
+    const reagent = REAGENT_BY_ID.get(item);
+    const tool = TOOL_BY_ID.get(item);
+    if (reagent) return reagent.canonicalName;
+    if (tool) return localizeCanonicalToolName(tool.canonicalName);
+    return localizeInventoryItemName(item);
+  }
+  const reagent = REAGENT_BY_ID.get(item?.reagentId);
+  const preparation = reagent?.preparations.find(row => row.id === item?.preparationId);
+  if (reagent && preparation) {
+    return localizeInventoryItemName(`${reagent.canonicalName} (${preparation.name}, ${preparation.method})`);
+  }
+  return localizeInventoryItemName(item?.itemId || '이름 없는 영약재');
+};
+
+const rewardToolLabel = (toolId: string): string => {
+  const tool = TOOL_BY_ID.get(toolId);
+  return localizeCanonicalToolName(tool?.canonicalName || toolId);
 };
 
 export function BarrowPanel({ delve }: { delve: any }) {
@@ -30,8 +77,8 @@ export function BarrowPanel({ delve }: { delve: any }) {
     <header className="barrow-field-note__header">
       <div>
         <span className="status-label status-label--unresolved">고분 탐사 기록</span>
-        <h2 id="barrow-heading">{definition?.name || delve.behemothName || '고분 탐사'}</h2>
-        <p>{definition?.challenge || delve.behemothName} · {localizeBehemothClass(definition?.behemothClass || delve.behemothClass)} · 원문 p.{definition?.sourcePage || delve.sourcePage || '116–125'}</p>
+        <h2 id="barrow-heading">{delveNameLabels[definition?.name || ''] || definition?.name || delve.behemothName || '고분 탐사'}</h2>
+        <p>{challengeLabels[definition?.challenge || ''] || definition?.challenge || delve.behemothName} · {localizeBehemothClass(definition?.behemothClass || delve.behemothClass)} · 원문 p.{definition?.sourcePage || delve.sourcePage || '116–125'}</p>
       </div>
       <div className="barrow-field-note__suit" aria-label="도전 문양">{delve.challengeSuit || delve.suit || '·'}</div>
     </header>
@@ -48,8 +95,8 @@ export function BarrowPanel({ delve }: { delve: any }) {
         <div><dt>후퇴 비용</dt><dd>{delve.fleeState?.costDays ?? 1}일 · 다음 속도 {delve.fleeState?.nextMoveSpeed ?? 1}</dd></div>
       </dl>
       <div className="barrow-field-note__column"><span>뽑은 카드</span><strong>{cards.length ? cards.map((card: any) => `${card.suit || ''}${card.ruleValue ?? card.value ?? ''}`).join(' · ') : '아직 없음'}</strong></div>
-      <div className="barrow-field-note__column"><span>선택한 영약재와 도구</span><strong>{selected.length ? selected.map((item: any) => item.itemId || item).join(' · ') : '아직 없음'}</strong></div>
-      <div className="barrow-field-note__column"><span>보상</span><strong>{reward.trinkets ? `장신구 ${reward.trinkets}` : ''}{reward.reputation ? ` · 명성 ${reward.reputation}` : ''}{reward.toolId ? ` · ${reward.toolId}` : ''}{!reward.trinkets && !reward.reputation && !reward.toolId ? '도전 결과에 따라 기록' : ''}</strong></div>
+      <div className="barrow-field-note__column"><span>선택한 영약재와 도구</span><strong>{selected.length ? selected.map(selectedItemLabel).join(' · ') : '아직 없음'}</strong></div>
+      <div className="barrow-field-note__column"><span>보상</span><strong>{reward.trinkets ? `장신구 ${reward.trinkets}` : ''}{reward.reputation ? ` · 명성 ${reward.reputation}` : ''}{reward.toolId ? ` · ${rewardToolLabel(reward.toolId)}` : ''}{!reward.trinkets && !reward.reputation && !reward.toolId ? '도전 결과에 따라 기록' : ''}</strong></div>
       <div className="barrow-field-note__column"><span>지도 결과</span><strong>{delve.removedFromMap ? '고분이 지도에서 사라짐' : '해결 전까지 현재 위치 유지'}</strong></div>
     </div>
 

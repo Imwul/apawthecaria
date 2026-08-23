@@ -39,7 +39,7 @@ describe('local-care journey composition', () => {
     expect(appSource).toContain('|| state.activePatientId');
     expect(appSource).toContain('&& !state.activePatientId && !state.activeAilment && !state.scroungingMode');
     expect(appSource).toContain('현지 진료 중 여정 요약');
-    expect(appSource).toContain('진료를 마치면 지도와 다음 Move 경로 편집기가 다시 열립니다.');
+    expect(appSource).toContain('진료를 마치면 지도와 다음 이동 경로 편집기가 다시 열립니다.');
     expect(appSource).toContain("play-with-map${localCarePhase ? ' play-with-map--care' : ''}");
     expect(appSource).toContain('{!localCarePhase && (\n          <div id="active-journey-panel"');
     expect(appSource).toContain('{!localCarePhase && (\n              <>\n                <div className="prose-summary"');

@@ -151,7 +151,7 @@ export function ChapterOpening({
   return (
     <header className={`chapter-opening chapter-opening--${tab}`} aria-labelledby={`chapter-title-${tab}`}>
       <span className="chapter-opening__mark emoji-icon" aria-hidden="true">{chapterEmoji}</span>
-      <span className="chapter-opening__folio" aria-hidden="true">FIELD NOTE / {String(NAVIGATION.findIndex(item => item.id === tab) + 1).padStart(2, '0')}</span>
+      <span className="chapter-opening__folio" aria-hidden="true">들녘 기록 / {String(NAVIGATION.findIndex(item => item.id === tab) + 1).padStart(2, '0')}</span>
       <div className="chapter-opening__copy">
         <p className="chapter-opening__kicker">{chapter.kicker}</p>
         <h2 id={`chapter-title-${tab}`}>{chapter.title}</h2>
@@ -241,7 +241,7 @@ export function TodayOverview({
       <div className="today-focus">
       <div className="today-scene">
         <span className="today-scene__mark emoji-icon" aria-hidden="true">🧭</span>
-        <span className="today-scene__folio" aria-hidden="true">FIELD NOTE / 01</span>
+        <span className="today-scene__folio" aria-hidden="true">들녘 기록 / 01</span>
         <div className="today-scene__copy">
           <span className="today-scene__season"><span className="emoji-icon" aria-hidden="true">🌤️</span> {localizeSeasonLabel(state.currentSeason)}</span>
           <p>오늘의 들녘 기록</p>
