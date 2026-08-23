@@ -31,7 +31,7 @@ export interface CanonicalDowntimeState {
 type CanonicalDowntimeInput =
   | { activity: 'general-practice'; ailmentId: string; originalTag: RuleTag; replacementTag: RuleTag; journalText?: string }
   | { activity: 'replenish'; items: EngineInventoryItem[]; addedItemIds?: string[]; totalCapacity: number; journalText?: string }
-  | { activity: 'explore'; fromId: string; toId: string; kind: 'path' | 'waterway'; journalText?: string }
+  | { activity: 'explore'; fromId: string; toId: string; kind: 'path' | 'waterway'; playerConfirmedClose: boolean; journalText?: string }
   | { activity: 'self-improvement'; choice: 'speed' | 'carry' | 'style'; travelStyle?: string; styleSpeed?: number; styleCarry?: number; journalText?: string }
   | { activity: 'reconnect'; nearestCityId: string; noteItem: EngineInventoryItem; journalText?: string };
 
@@ -79,12 +79,10 @@ const validateReplenish = (
   if (addedIds.size === 0) throw new Error('Replenish requires at least one canonical Reagent Part.');
   const region = state.graph[state.currentLocationId]?.region;
   if (!region || region === 'Soar') throw new Error('Replenish requires the canonical Region where the last Journey ended.');
-  const tools = new Set(input.items.filter(item => item.type === 'tool').flatMap(item => item.canonicalToolId ? [item.canonicalToolId] : []));
   input.items.filter(item => addedIds.has(item.id)).forEach(item => {
     const reagent = item.canonicalReagentId ? REAGENT_BY_ID.get(item.canonicalReagentId) : null;
     const preparation = reagent?.preparations.find(row => row.id === item.preparationId);
     if (!reagent || !preparation || item.type !== 'reagent') throw new Error('Replenish requires canonical Reagent Preparations.');
-    if (preparation.requiredTools.some(tool => tool !== 'none' && !tools.has(tool))) throw new Error(`${preparation.name} requires its canonical preparation Tool.`);
     if (reagent.regionAvailability[region] === 'Unavailable' || reagent.seasonAvailability[state.currentSeason] !== 'Common') {
       throw new Error(`${reagent.canonicalName} is not both local and in season.`);
     }
@@ -111,8 +109,7 @@ export const resolveCanonicalDowntime = (transactionId: string, state: Canonical
     const from = next.graph[input.fromId];
     const to = next.graph[input.toId];
     if (!from || !to || input.fromId === input.toId || from.edges.some(edge => edge.to === input.toId)) throw new Error('Explore requires two distinct, nearby, unconnected Locations.');
-    const nearby = graphDistances(next.graph, next.currentLocationId);
-    if ((nearby.get(from.id) ?? Infinity) > 2 || (nearby.get(to.id) ?? Infinity) > 2) throw new Error('Both Explore Locations must be close to where the last Journey ended.');
+    if (!input.playerConfirmedClose) throw new Error('Explore requires the player to confirm both Locations are close to where the last Journey ended.');
     next = { ...next, graph: { ...next.graph, [from.id]: { ...from, edges: [...from.edges, { to: to.id, kind: input.kind }] }, [to.id]: { ...to, edges: [...to.edges, { to: from.id, kind: input.kind }] } } };
   } else if (input.activity === 'self-improvement') {
     if (input.choice === 'speed') next = { ...next, speed: next.speed + 1 };

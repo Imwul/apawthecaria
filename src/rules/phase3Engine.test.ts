@@ -18,6 +18,10 @@ import {
   findJourneyDestinationCandidates,
   migrateSavedRulesState,
   normalizeLegacyArchiveRecord,
+  projectLegacyJournalGoalProgress,
+  reconcileLegacyJournalGoalProgress,
+  recordJourneyProgress,
+  removeJourneyProgress,
   resolveAilmentTimerEffect,
   resolveBarterEncounter,
   resolveBarterGossip,
@@ -321,11 +325,15 @@ describe('Phase 3 Journey, Goal, and Ending engines', () => {
   });
 
   it('[JOURNEY-001/JOURNEY-003/JOURNEY-004] requires Reason and starts Justice with Weight 1 Evidence', () => {
+    const unstartedState = journeyRuntime();
+    const unstartedSnapshot = structuredClone(unstartedState);
     const invalid = resolveJourneyStart({
-      transactionId: 'journey-invalid', state: journeyRuntime(), graph: journeyGraph(), originId: 'origin', season: 'Spring',
+      transactionId: 'journey-invalid', state: unstartedState, graph: journeyGraph(), originId: 'origin', season: 'Spring',
       destinationCard: { value: 1, suit: '♥' }, destinationId: 'north-5', goalCard: 8, reason: '', startDate: 1, rulesetId: 'original-1e-3p'
     });
     expect(invalid.status).toBe('invalid');
+    expect(unstartedState).toEqual(unstartedSnapshot);
+    expect(unstartedState.appliedTransactionIds).not.toContain('journey-invalid');
     const wrongLocationType = resolveJourneyStart({
       transactionId: 'journey-wilds', state: journeyRuntime(), graph: journeyGraph(), originId: 'origin', season: 'Spring',
       destinationCard: { value: 1, suit: '♥' }, destinationId: 'north-1', goalCard: 8, reason: 'Carry the truth', startDate: 1, rulesetId: 'original-1e-3p'
@@ -409,6 +417,102 @@ describe('Phase 3 Journey, Goal, and Ending engines', () => {
       const result = evaluateJourneyGoal(journey, { inventory: testCase.inventory || [], reputation: testCase.reputation ?? 5, patients: [] });
       expect(result.complete, testCase.id).toBe(true);
     });
+  });
+
+  it('[JOURNEY-004] removes a deleted app journal event and immediately rebuilds goal evidence', () => {
+    const journey = journeyFor('partnership');
+    journey.goalState.events = [1, 2, 3].map(index => ({
+      id: `journal-${index}:journey`,
+      type: 'journal',
+      category: 'familiar'
+    }));
+    journey.goalState.evaluation = evaluateJourneyGoal(journey, { inventory: [], reputation: 5, patients: [] });
+    expect(journey.goalState.evaluation.complete).toBe(true);
+
+    const next = removeJourneyProgress(journey, 'journal-2:journey', {
+      inventory: [], reputation: 5, patients: []
+    });
+    expect(next.goalState.events.map(event => event.id)).toEqual([
+      'journal-1:journey',
+      'journal-3:journey'
+    ]);
+    expect(next.goalState.evaluation.complete).toBe(false);
+    expect(projectLegacyJournalGoalProgress(next)).toEqual({ counter: 2, checklist: [] });
+    expect(reconcileLegacyJournalGoalProgress({
+      counter: 3,
+      checklist: [],
+      beforeJourney: journey,
+      afterJourney: next
+    })).toEqual({ counter: 2, checklist: [] });
+  });
+
+  it('[JOURNEY-004] mirrors newly created survey journals without counting one location twice', () => {
+    const runtime = { inventory: [] as EngineInventoryItem[], reputation: 5, patients: [] as PatientState[] };
+    const original = journeyFor('survey');
+    const first = recordJourneyProgress(original, {
+      id: 'journal-a:journey', type: 'journal', category: 'survey', region: 'Forest', locationId: 'clearing'
+    }, runtime);
+    const firstLegacy = reconcileLegacyJournalGoalProgress({
+      counter: 0,
+      checklist: [],
+      beforeJourney: original,
+      afterJourney: first
+    });
+    expect(firstLegacy).toEqual({ counter: 1, checklist: ['Forest'] });
+
+    const second = recordJourneyProgress(first, {
+      id: 'journal-b:journey', type: 'journal', category: 'survey', region: 'Forest', locationId: 'clearing'
+    }, runtime);
+    expect(reconcileLegacyJournalGoalProgress({
+      counter: firstLegacy.counter,
+      checklist: firstLegacy.checklist,
+      beforeJourney: first,
+      afterJourney: second
+    })).toEqual({ counter: 1, checklist: ['Forest'] });
+  });
+
+  it('[JOURNEY-004] keeps imported legacy progress while applying only the removed journal delta', () => {
+    const journey = journeyFor('partnership');
+    journey.goalState.events = [1, 2, 3].map(index => ({
+      id: `journal-${index}:journey`,
+      type: 'journal',
+      category: 'familiar'
+    }));
+    const next = removeJourneyProgress(journey, 'journal-2:journey', {
+      inventory: [], reputation: 5, patients: []
+    });
+    expect(reconcileLegacyJournalGoalProgress({
+      counter: 5,
+      checklist: ['legacy-note'],
+      beforeJourney: journey,
+      afterJourney: next
+    })).toEqual({ counter: 4, checklist: ['legacy-note'] });
+  });
+
+  it('[JOURNEY-004] does not lower survey progress when another journal covers the same location', () => {
+    const journey = journeyFor('survey');
+    journey.goalState.events = [
+      { id: 'journal-a:journey', type: 'journal', category: 'survey', region: 'Forest', locationId: 'clearing' },
+      { id: 'journal-b:journey', type: 'journal', category: 'survey', region: 'Forest', locationId: 'clearing' },
+      { id: 'journal-c:journey', type: 'journal', category: 'survey', region: 'Forest', locationId: 'brook' }
+    ];
+    expect(projectLegacyJournalGoalProgress(journey)).toEqual({
+      counter: 2,
+      checklist: ['Forest', 'Forest']
+    });
+    const next = removeJourneyProgress(journey, 'journal-a:journey', {
+      inventory: [], reputation: 5, patients: []
+    });
+    expect(projectLegacyJournalGoalProgress(next)).toEqual({
+      counter: 2,
+      checklist: ['Forest', 'Forest']
+    });
+    expect(reconcileLegacyJournalGoalProgress({
+      counter: 2,
+      checklist: ['Forest', 'Forest'],
+      beforeJourney: journey,
+      afterJourney: next
+    })).toEqual({ counter: 2, checklist: ['Forest', 'Forest'] });
   });
 
   it('[TRAVEL-010/ENDING-001/ENDING-002/ENDING-003] blocks ending away from Destination and removes fixed original-mode Reputation', () => {

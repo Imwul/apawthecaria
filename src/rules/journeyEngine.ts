@@ -86,6 +86,11 @@ export interface JourneyGoalState {
   evaluation: GoalEvaluation;
 }
 
+export interface LegacyJournalGoalProgress {
+  counter: number;
+  checklist: string[];
+}
+
 export interface JourneyState {
   journeyId: string;
   originId: string;
@@ -489,6 +494,132 @@ export const recordJourneyProgress = (journey: JourneyState, event: JourneyProgr
   if (journey.goalState.events.some(row => row.id === event.id)) return journey;
   const next = { ...journey, goalState: { ...journey.goalState, events: [...journey.goalState.events, event] } };
   return { ...next, goalState: { ...next.goalState, evaluation: evaluateJourneyGoal(next, runtime) } };
+};
+
+/**
+ * Remove one recorded progress event and immediately rebuild the canonical
+ * evaluation. Journal deletion uses this instead of mutating the event array
+ * directly so a previously completed goal cannot retain stale evidence.
+ */
+export const removeJourneyProgress = (
+  journey: JourneyState,
+  eventId: string,
+  runtime: Pick<JourneyRuntimeState, 'inventory' | 'reputation' | 'patients'>
+): JourneyState => {
+  if (!journey.goalState.events.some(row => row.id === eventId)) return journey;
+  const next = {
+    ...journey,
+    goalState: {
+      ...journey.goalState,
+      events: journey.goalState.events.filter(row => row.id !== eventId)
+    }
+  };
+  return { ...next, goalState: { ...next.goalState, evaluation: evaluateJourneyGoal(next, runtime) } };
+};
+
+/**
+ * The current save schema still mirrors a small amount of goal progress in
+ * legacy counter/checklist fields. Only journal-driven goals are projected
+ * here; inventory, treatment, and encounter goals keep their existing legacy
+ * bookkeeping.
+ */
+export const projectLegacyJournalGoalProgress = (journey: JourneyState): LegacyJournalGoalProgress | null => {
+  const journalEvents = journey.goalState.events.filter(row => row.type === 'journal');
+  if (journey.goalId === 'partnership') {
+    return {
+      counter: journalEvents.filter(row => row.category === 'familiar').length,
+      checklist: []
+    };
+  }
+  if (journey.goalId === 'closure') {
+    return {
+      counter: journalEvents.filter(row => row.category === 'conflict').length,
+      checklist: []
+    };
+  }
+  if (journey.goalId === 'survey') {
+    const seenLocations = new Set<string>();
+    const checklist: string[] = [];
+    journalEvents.forEach(event => {
+      if (event.category !== 'survey' || !event.region || !event.locationId) return;
+      const key = `${event.region}:${event.locationId}`;
+      if (seenLocations.has(key)) return;
+      seenLocations.add(key);
+      checklist.push(event.region);
+    });
+    const counts = checklist.reduce<Record<string, number>>((result, region) => {
+      result[region] = (result[region] || 0) + 1;
+      return result;
+    }, {});
+    return {
+      counter: Math.max(0, ...Object.values(counts)),
+      checklist
+    };
+  }
+  if (journey.goalId === 'wanderlust') {
+    const requiredRegions = new Set<Region>(['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain']);
+    const checklist = Array.from(new Set(journalEvents
+      .map(row => row.region)
+      .filter((region): region is Region => Boolean(region && requiredRegions.has(region)))));
+    return { counter: checklist.length, checklist };
+  }
+  return null;
+};
+
+const sameStringList = (left: readonly string[], right: readonly string[]) =>
+  left.length === right.length && left.every((value, index) => value === right[index]);
+
+const listCounts = (values: readonly string[]) => values.reduce<Record<string, number>>((result, value) => {
+  result[value] = (result[value] || 0) + 1;
+  return result;
+}, {});
+
+/**
+ * Apply only the canonical transition's delta to mirrored legacy progress.
+ * Exact current-schema mirrors become exactly equal to the new projection,
+ * while additional progress from older/imported saves is preserved.
+ */
+export const reconcileLegacyJournalGoalProgress = ({
+  counter,
+  checklist,
+  beforeJourney,
+  afterJourney
+}: {
+  counter: number;
+  checklist: readonly string[];
+  beforeJourney: JourneyState;
+  afterJourney: JourneyState;
+}): LegacyJournalGoalProgress => {
+  const before = projectLegacyJournalGoalProgress(beforeJourney);
+  const after = projectLegacyJournalGoalProgress(afterJourney);
+  if (!before || !after) return { counter, checklist: [...checklist] };
+
+  const nextCounter = counter === before.counter
+    ? after.counter
+    : Math.max(0, counter + after.counter - before.counter);
+  if (sameStringList(checklist, before.checklist)) {
+    return { counter: nextCounter, checklist: [...after.checklist] };
+  }
+
+  const beforeCounts = listCounts(before.checklist);
+  const afterCounts = listCounts(after.checklist);
+  const removals = Object.fromEntries(Object.entries(beforeCounts).map(([value, count]) => [
+    value,
+    Math.max(0, count - (afterCounts[value] || 0))
+  ]));
+  const additions = Object.fromEntries(Object.entries(afterCounts).map(([value, count]) => [
+    value,
+    Math.max(0, count - (beforeCounts[value] || 0))
+  ]));
+  const nextChecklist = checklist.filter(value => {
+    if (!removals[value]) return true;
+    removals[value] -= 1;
+    return false;
+  });
+  Object.entries(additions).forEach(([value, count]) => {
+    for (let index = 0; index < count; index += 1) nextChecklist.push(value);
+  });
+  return { counter: nextCounter, checklist: nextChecklist };
 };
 
 export const resolveJourneyEnding = (input: {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { migrateSavedRulesState, SAVE_MIGRATIONS } from './migrations';
 import { CURRENT_SCHEMA_VERSION } from './state';
+import { createSerializedForagingRollbackSnapshot } from '../foragingRecovery';
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 
@@ -53,7 +54,13 @@ const richSaveAt = (schemaVersion: number | string) => ({
       independentUsedThisAilment: false,
       lastForageCardValue: 4,
       toolStates: [{ instanceId: 'tool-mortar', toolId: 'mortar-and-pestle', broken: false, consumed: false }],
-      pendingAlternativeAcquisition: null
+      pendingAlternativeAcquisition: null,
+      rollbackState: createSerializedForagingRollbackSnapshot('forage-pending', {
+        bag: [{ id: 'reagent-dandelion' }],
+        pendingManualEffect: null,
+        activeDelve: undefined,
+        journals: [{ id: 'journal-before-forage' }]
+      })
     }
   },
   pendingEncounter: {
@@ -108,7 +115,17 @@ describe('save migration torture matrix', () => {
           patientReagentsGathered: ['reagent-dandelion'],
           activeAilmentForagingPoints: 3,
           activeAilmentReagentsGathered: ['reagent-dandelion'],
-          lastForageCardValue: 4
+          lastForageCardValue: 4,
+          rollbackState: {
+            version: 1,
+            transactionId: 'forage-pending',
+            fields: {
+              bag: { present: true, value: [{ id: 'reagent-dandelion' }] },
+              pendingManualEffect: { present: true, value: null },
+              activeDelve: { present: true }
+            },
+            journalIds: ['journal-before-forage']
+          }
         }
       });
       expect(migrated.pendingEncounter).toMatchObject({

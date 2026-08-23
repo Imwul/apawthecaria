@@ -5,27 +5,31 @@ import { describe, expect, it } from 'vitest';
 const appSource = readFileSync('src/App.tsx', 'utf8');
 
 describe('foraging workflow order', () => {
-  it('requires a researched target before the draw and persists it through the pending transaction', () => {
-    const planningStep = appSource.indexOf('1. 목표 영약재 조사');
-    const drawStep = appSource.indexOf('2. 채집 카드');
-    expect(planningStep).toBeGreaterThan(-1);
-    expect(drawStep).toBeGreaterThan(planningStep);
-    expect(appSource).toContain('disabled={!effectiveForageTargetReagentId}');
-    expect(appSource).toContain('targetReagentId,\n      timerCostAfterEncounter');
-    expect(appSource).toContain('targetReagentId: pending.targetReagentId');
-    expect(appSource).toContain('plannedForageReagentId');
+  it('draws before the player chooses from the discovered ingredients', () => {
+    const drawStep = appSource.indexOf('label="채집 카드"');
+    const planningStep = appSource.indexOf('채집 전 조사 노트 · 선택');
+    expect(drawStep).toBeGreaterThan(-1);
+    expect(planningStep).toBeGreaterThan(drawStep);
+    expect(appSource).toContain('카드 값과 이곳의 조사 목록을 비교한 뒤, 실제로 채집할 영약재를 고릅니다.');
+    expect(appSource).toContain("forageContext.actionAllowed ? (");
+    expect(appSource).toContain('const forageActionLabel = forageDrawCard');
+    expect(appSource).toContain('`이 카드로 ${foragePlaceLabel} 채집하기`');
+    expect(appSource).toContain('`${foragePlaceLabel} 카드 뽑고 채집하기`');
+    expect(appSource).not.toContain('disabled={!effectiveForageTargetReagentId}');
   });
 
-  it('lets the player choose a required tag before comparing ranked reagent candidates', () => {
-    expect(appSource).toContain('먼저 필요한 약효 태그를 고르세요');
+  it('offers an optional, pastoral research note without making it a rules gate', () => {
+    expect(appSource).toContain('환자의 처방에 보탤 힘을 미리 살펴보세요');
+    expect(appSource).toContain('이 메모는 선택을 돕는 조사 기록입니다. 실제 채집은 카드를 뽑은 뒤 발견 목록에서 정합니다.');
     expect(appSource).toContain('role="group" aria-label={`${effectiveForageTargetTag} 채집 후보`}');
     expect(appSource).toContain('right.bestCoverageCount - left.bestCoverageCount');
     expect(appSource).toContain('left.breakdown.finalRarity - right.breakdown.finalRarity');
-    expect(appSource).toContain('const plannedValue = selectedForagePlans.reduce');
+    expect(appSource).toContain('const plannedValue = aggregateRemedyTagPotency');
     expect(appSource).toContain('aria-pressed={selected}');
     expect(appSource).toContain('previous.filter(reagentId => reagentId !== row.reagent.id)');
     expect(appSource).toContain("[...previous, row.reagent.id]");
-    expect(appSource).toContain('맨 앞 재료부터 한 번에 하나씩 판정합니다.');
+    expect(appSource).toContain('카드 뒤의 최종 선택은 언제나 플레이어의 몫입니다.');
+    expect(appSource).toContain('기억해 두기');
     expect(appSource).not.toContain('id="forage-target-reagent"');
   });
 

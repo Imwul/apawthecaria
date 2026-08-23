@@ -737,6 +737,12 @@ describe('patient, downtime, and season procedures', () => {
     });
     expect(relax.status).toBe('manual');
     expect(resolveDowntime({ transactionId: 'down-relax-again', activity: 'relax-familiar', state: relax.value!.nextState }).status).toBe('invalid');
+
+    const rumourAsActivity = resolveDowntime({
+      transactionId: 'down-rumour', activity: 'rumour' as never,
+      state: { downtimeCompleted: false, reputation: 15, trinkets: 0, journalEvents: [], appliedTransactionIds: [] }
+    });
+    expect(rumourAsActivity).toMatchObject({ status: 'invalid', value: null });
   });
 
   it('[DOWNTIME-007/WAGON-001/WAGON-002] charges the canonical Wagon transaction cost exactly once', () => {

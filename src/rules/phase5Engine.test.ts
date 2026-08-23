@@ -83,9 +83,33 @@ describe('Phase 5 canonical closure', () => {
   });
 
   it('[DOWNTIME-003/DOWNTIME-005] makes one canonical activity idempotent and graph-backed', () => {
-    const explored = resolveCanonicalDowntime('explore:1', downtimeState(), { activity: 'explore', fromId: 'a', toId: 'b', kind: 'path' });
+    const explored = resolveCanonicalDowntime('explore:1', downtimeState(), { activity: 'explore', fromId: 'a', toId: 'b', kind: 'path', playerConfirmedClose: true });
     expect(explored.downtimeCompleted).toBe(true);
     expect(explored.graph.a.edges).toContainEqual({ to: 'b', kind: 'path' });
     expect(() => resolveCanonicalDowntime('explore:2', explored, { activity: 'self-improvement', choice: 'carry' })).toThrow();
+  });
+
+  it('[DOWNTIME-005] leaves p.41 close-to-the-journey-end judgment to the player', () => {
+    const state = downtimeState();
+    state.currentLocationId = 'start';
+    state.graph = {
+      start: { id: 'start', name: 'Journey End', region: 'Forest', locationType: 'Wilds', edges: [{ to: 'left-1', kind: 'path' }, { to: 'right-1', kind: 'path' }] },
+      'left-1': { id: 'left-1', name: 'Left One', region: 'Forest', locationType: 'Wilds', edges: [{ to: 'start', kind: 'path' }, { to: 'left-2', kind: 'path' }] },
+      'left-2': { id: 'left-2', name: 'Left Two', region: 'Forest', locationType: 'Wilds', edges: [{ to: 'left-1', kind: 'path' }, { to: 'left-far', kind: 'path' }] },
+      'left-far': { id: 'left-far', name: 'Left Far', region: 'Forest', locationType: 'Wilds', edges: [{ to: 'left-2', kind: 'path' }] },
+      'right-1': { id: 'right-1', name: 'Right One', region: 'Meadow', locationType: 'Wilds', edges: [{ to: 'start', kind: 'path' }, { to: 'right-2', kind: 'path' }] },
+      'right-2': { id: 'right-2', name: 'Right Two', region: 'Meadow', locationType: 'Wilds', edges: [{ to: 'right-1', kind: 'path' }, { to: 'right-far', kind: 'path' }] },
+      'right-far': { id: 'right-far', name: 'Right Far', region: 'Meadow', locationType: 'Wilds', edges: [{ to: 'right-2', kind: 'path' }] }
+    };
+
+    expect(() => resolveCanonicalDowntime('explore:unconfirmed', state, {
+      activity: 'explore', fromId: 'left-far', toId: 'right-far', kind: 'waterway', playerConfirmedClose: false
+    })).toThrow(/player to confirm/i);
+
+    const explored = resolveCanonicalDowntime('explore:confirmed', state, {
+      activity: 'explore', fromId: 'left-far', toId: 'right-far', kind: 'waterway', playerConfirmedClose: true
+    });
+    expect(explored.graph['left-far'].edges).toContainEqual({ to: 'right-far', kind: 'waterway' });
+    expect(explored.graph['right-far'].edges).toContainEqual({ to: 'left-far', kind: 'waterway' });
   });
 });

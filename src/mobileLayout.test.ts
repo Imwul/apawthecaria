@@ -61,7 +61,9 @@ describe('mobile layout regression guards', () => {
     expect(appSource).toContain('className="treatment-workspace"');
     expect(appSource).toContain('className={`treatment-submit-bar');
     expect(cssSource).toMatch(/#treatment-workspace \.treatment-workspace\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\)/);
-    expect(cssSource).toMatch(/\.treatment-submit-bar > button\s*\{[\s\S]*?min-height:\s*50px/);
+    expect(cssSource).toMatch(/\.treatment-submit-actions > button\s*\{[\s\S]*?min-height:\s*50px/);
+    expect(cssSource).toMatch(/\.patience-clock-mark\s*\{[\s\S]*?min-width:\s*44px[\s\S]*?min-height:\s*44px/);
+    expect(cssSource).toMatch(/\.trinket-spend-button\s*\{[\s\S]*?min-width:\s*44px[\s\S]*?min-height:\s*44px/);
     expect(cssSource).toMatch(/@media \(max-width: 560px\)[\s\S]*?#treatment-workspace \.treatment-workspace,[\s\S]*?\.treatment-submit-bar\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/);
   });
 

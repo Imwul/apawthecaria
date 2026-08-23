@@ -45,6 +45,8 @@ describe('encounter player-experience guards', () => {
     expect(cancelSource).toContain("tone: 'destructive'");
     expect(cancelSource).not.toContain('askWindowConfirm');
     expect(appSource).toContain('updateState(() => checkpoint.state)');
+    expect(appSource).toContain('readSerializedForagingRollbackSnapshot(');
+    expect(appSource).toContain('restoreSerializedForagingRollbackState(');
     expect(appSource).toContain('item.provenance?.sourceTransactionId !== pending.transactionId');
     expect(appSource).toContain('(patient.foragingPoints || 0) + spent - gained');
     expect(appSource).toContain('toolStates: Array.isArray(undo?.toolStates)');
@@ -59,17 +61,48 @@ describe('encounter player-experience guards', () => {
     expect(appSource).toContain('채집 조우 이어가기');
   });
 
+  it('finishes manual forage effects before applying the p.33 Remedy or Timer checkpoint', () => {
+    expect(appSource.match(/resolveForagingPostEncounterCheckpoint\(\{/g)).toHaveLength(2);
+    expect(appSource).toContain("!queue.some(row => row.context.continuation === 'foraging')");
+    expect(appSource).toContain('manualEffectPending: Boolean(manualDraft)');
+    expect(appSource).toContain('manualEffectPending: false');
+  });
+
   it('lets the player remove a mistaken reagent without leaving a stale treatment draft', () => {
     const discardStart = appSource.indexOf('const handleDiscardTreatmentReagent');
     const discardEnd = appSource.indexOf('\n  useEffect(() =>', discardStart);
     const discardSource = appSource.slice(discardStart, discardEnd);
     expect(discardSource).toContain('await requestControlledPrompt');
     expect(discardSource).toContain("tone: 'destructive'");
-    expect(discardSource).toContain('bag: current.bag.filter(row => row.id !== item.id)');
-    expect(discardSource).toContain('draft.selectedParts.filter(part => part.itemId !== item.id)');
-    expect(discardSource).toContain('draft.catalyse.filter(row => !row.itemIds.includes(item.id))');
+    expect(discardSource).toContain('const nextBag = current.bag.filter(row => row.id !== item.id)');
+    expect(discardSource).toContain('reconcileTreatmentDraftAfterBagRemoval({');
+    expect(discardSource).toContain('removedItemId: item.id');
+    expect(discardSource).toContain('remainingInventory: nextBag');
     expect(appSource).toContain('>재료 빼기</button>');
     expect(appSource).not.toContain("? treatmentPreview.requiresCatalyse ? 'CATALYSE로 완성' : '치료제 완성'\n                        : '준비 조건 확인'");
+  });
+
+  it('lets the player clear a mistaken concoction without discarding inventory', () => {
+    const clearStart = appSource.indexOf('const clearTreatmentDraft');
+    const clearEnd = appSource.indexOf('\n\n  const handleDiscardTreatmentReagent', clearStart);
+    const clearSource = appSource.slice(clearStart, clearEnd);
+    expect(clearSource).toContain('setSelectedBagItems([])');
+    expect(clearSource).toContain('setSelectedTools([])');
+    expect(clearSource).toContain('setUsePurify(false)');
+    expect(clearSource).toContain('treatmentDraft: null');
+    expect(clearSource).not.toContain('bag:');
+    expect(appSource).toContain('조제대 비우기');
+    expect(appSource).toContain('가방의 재료와 도구는 그대로입니다.');
+  });
+
+  it('keeps destructive bag actions inside the journal interface', () => {
+    const trinketStart = appSource.indexOf('const handleSpendTrinket');
+    const trinketEnd = appSource.indexOf('\n\n  const handleToggleBandolier', trinketStart);
+    const trinketSource = appSource.slice(trinketStart, trinketEnd);
+    expect(trinketSource).toContain('await requestControlledPrompt');
+    expect(trinketSource).toContain("tone: 'destructive'");
+    expect(trinketSource).not.toContain('askWindowConfirm');
+    expect(appSource).toContain('className="trinket-spend-button"');
   });
 
   it('does not make the player enter the same manual result twice', () => {

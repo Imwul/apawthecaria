@@ -1,8 +1,10 @@
 import {
   applyAilmentTagOverrides,
   evaluateRequirement,
+  REAGENT_BY_ID,
   type RequirementExpression,
   type RuleTag,
+  type TreatmentDraft,
   type TreatmentAilmentTagOverride
 } from './rules';
 
@@ -16,6 +18,76 @@ export interface TreatmentRequirementProgressRow {
   state: TreatmentRequirementRowState;
   stateLabel: string;
 }
+
+export interface TreatmentDraftInventoryItem {
+  id: string;
+  canonicalReagentId?: string;
+  preparationId?: string;
+  provenance?: {
+    source?: string;
+    region?: string;
+  };
+}
+
+/**
+ * Rebuild the persisted treatment selection after an inventory item is
+ * removed.  The inventory order is significant: PURIFY is legal only when
+ * the last gathered selected Reagent came from a Mountain location (p.180).
+ *
+ * Keeping this calculation outside the two inventory UIs prevents a removed
+ * Part or Tool from surviving in CATALYSE, FAIR/FOUL, or PURIFY mirrors.
+ */
+export const reconcileTreatmentDraftAfterBagRemoval = ({
+  draft,
+  removedItemId,
+  remainingInventory,
+  updatedAt = Date.now()
+}: {
+  draft: TreatmentDraft;
+  removedItemId: string;
+  remainingInventory: readonly TreatmentDraftInventoryItem[];
+  updatedAt?: number;
+}): TreatmentDraft => {
+  const remainingById = new Map(remainingInventory.map(item => [item.id, item]));
+  const selectedParts = draft.selectedParts
+    .filter(part => part.itemId !== removedItemId && remainingById.has(part.itemId))
+    .map(part => {
+      const item = remainingById.get(part.itemId)!;
+      return {
+        itemId: part.itemId,
+        reagentId: item.canonicalReagentId || part.reagentId,
+        preparationId: item.preparationId || part.preparationId
+      };
+    });
+  const selectedPartIds = new Set(selectedParts.map(part => part.itemId));
+  const preparations = selectedParts.flatMap(part => part.reagentId && part.preparationId
+    ? [REAGENT_BY_ID.get(part.reagentId)?.preparations.find(row => row.id === part.preparationId)]
+    : []).filter((row): row is NonNullable<typeof row> => Boolean(row));
+  const fair = preparations.reduce((sum, preparation) => sum + preparation.tags
+    .filter(tag => tag.tag === 'FAIR')
+    .reduce((part, tag) => part + tag.value, 0), 0);
+  const rawFoul = preparations.reduce((sum, preparation) => sum + preparation.tags
+    .filter(tag => tag.tag === 'FOUL')
+    .reduce((part, tag) => part + tag.value, 0), 0);
+  const lastSelectedReagent = [...remainingInventory].reverse().find(item => selectedPartIds.has(item.id));
+  const purify = Boolean(draft.purify
+    && lastSelectedReagent?.provenance?.source === 'forage'
+    && lastSelectedReagent.provenance.region === 'Mountain');
+
+  return {
+    ...draft,
+    selectedParts,
+    selectedPreparationIds: selectedParts.flatMap(part => part.preparationId ? [part.preparationId] : []),
+    selectedToolIds: draft.selectedToolIds.filter(toolId => toolId !== removedItemId),
+    catalyse: draft.catalyse.filter(row => row.itemIds.length === 2
+      && row.itemIds[0] !== row.itemIds[1]
+      && row.itemIds.every(itemId => selectedPartIds.has(itemId))),
+    fair,
+    foul: purify ? 0 : rawFoul,
+    purify,
+    updatedAt
+  };
+};
 
 const tagsInRequirement = (requirement: RequirementExpression): RuleTag[] => {
   if (requirement.kind === 'tag') return [requirement.tag];

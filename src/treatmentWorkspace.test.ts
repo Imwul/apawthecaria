@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildTreatmentRequirementRows } from './treatmentWorkspace';
-import type { RequirementExpression } from './rules';
+import { buildTreatmentRequirementRows, reconcileTreatmentDraftAfterBagRemoval } from './treatmentWorkspace';
+import { REAGENTS, type RequirementExpression, type TreatmentDraft } from './rules';
 
 describe('Treatment workspace requirement comparison', () => {
   it('distinguishes selected, available, and missing canonical requirements', () => {
@@ -69,5 +69,69 @@ describe('Treatment workspace requirement comparison', () => {
       ownedTags: { JOY: 2 }
     });
     expect(rows[0]).toMatchObject({ label: 'JOY 2', state: 'satisfied' });
+  });
+
+  it('removes a discarded Part from every dependent treatment draft field', () => {
+    const fairReagent = REAGENTS.find(reagent => reagent.preparations.some(part => part.tags.some(tag => tag.tag === 'FAIR'))) !;
+    const fairPart = fairReagent.preparations.find(part => part.tags.some(tag => tag.tag === 'FAIR'))!;
+    const foulReagent = REAGENTS.find(reagent => reagent.preparations.some(part => part.tags.some(tag => tag.tag === 'FOUL'))) !;
+    const foulPart = foulReagent.preparations.find(part => part.tags.some(tag => tag.tag === 'FOUL'))!;
+    const fairValue = fairPart.tags.filter(tag => tag.tag === 'FAIR').reduce((sum, tag) => sum + tag.value, 0);
+    const draft: TreatmentDraft = {
+      id: 'draft', patientId: 'patient', ailmentInstanceId: 'ailment',
+      selectedParts: [
+        { itemId: 'fair-part', reagentId: fairReagent.id, preparationId: fairPart.id },
+        { itemId: 'foul-part', reagentId: foulReagent.id, preparationId: foulPart.id }
+      ],
+      selectedPreparationIds: [fairPart.id, foulPart.id],
+      selectedToolIds: ['alembic', 'discarded-tool'],
+      catalyse: [{ tag: 'MOOD', itemIds: ['fair-part', 'foul-part'] }],
+      fair: 999, foul: 999, purify: true, replacementContext: null,
+      status: 'draft', committedTransactionId: null, createdAt: 1, updatedAt: 1
+    };
+
+    const next = reconcileTreatmentDraftAfterBagRemoval({
+      draft,
+      removedItemId: 'foul-part',
+      remainingInventory: [{
+        id: 'fair-part', canonicalReagentId: fairReagent.id, preparationId: fairPart.id,
+        provenance: { source: 'forage', region: 'Mountain' }
+      }, { id: 'alembic' }, { id: 'discarded-tool' }],
+      updatedAt: 2
+    });
+
+    expect(next.selectedParts.map(part => part.itemId)).toEqual(['fair-part']);
+    expect(next.selectedPreparationIds).toEqual([fairPart.id]);
+    expect(next.catalyse).toEqual([]);
+    expect(next.fair).toBe(fairValue);
+    expect(next.foul).toBe(0);
+    expect(next.purify).toBe(true);
+    expect(next.updatedAt).toBe(2);
+  });
+
+  it('removes discarded Tools and disables PURIFY when the last remaining selected Part is not Mountain-gathered', () => {
+    const reagent = REAGENTS.find(candidate => candidate.preparations.length > 0)!;
+    const part = reagent.preparations[0];
+    const draft: TreatmentDraft = {
+      id: 'draft', patientId: 'patient', ailmentInstanceId: 'ailment',
+      selectedParts: [{ itemId: 'part', reagentId: reagent.id, preparationId: part.id }],
+      selectedPreparationIds: [part.id], selectedToolIds: ['discarded-tool'], catalyse: [],
+      fair: 0, foul: 0, purify: true, replacementContext: null,
+      status: 'draft', committedTransactionId: null, createdAt: 1, updatedAt: 1
+    };
+
+    const next = reconcileTreatmentDraftAfterBagRemoval({
+      draft,
+      removedItemId: 'discarded-tool',
+      remainingInventory: [{
+        id: 'part', canonicalReagentId: reagent.id, preparationId: part.id,
+        provenance: { source: 'forage', region: 'Forest' }
+      }],
+      updatedAt: 2
+    });
+
+    expect(next.selectedToolIds).toEqual([]);
+    expect(next.selectedParts).toHaveLength(1);
+    expect(next.purify).toBe(false);
   });
 });

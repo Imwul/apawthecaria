@@ -113,6 +113,23 @@ describe('map interaction contracts', () => {
     expect(appSource).not.toMatch(/setJourneyReason\(e\.target\.value\)/);
   });
 
+  it('orders the reversible journey draft like the printed setup sequence', () => {
+    const originAndSeason = appSource.indexOf('출발지와 계절 (p.18)');
+    const destination = appSource.indexOf('<legend>목적지 정하기 (p.19)</legend>');
+    const reason = appSource.indexOf('>여정을 떠나는 이유</label>');
+    const goal = appSource.indexOf('<legend>목표 정하기 (p.20–21)</legend>');
+    const urgency = appSource.indexOf('여정 기한 (p.21)');
+    expect(originAndSeason).toBeGreaterThan(-1);
+    expect(destination).toBeGreaterThan(originAndSeason);
+    expect(reason).toBeGreaterThan(destination);
+    expect(goal).toBeGreaterThan(reason);
+    expect(urgency).toBeGreaterThan(goal);
+    expect(appSource).toContain('출발 준비 지우기');
+    expect(appSource).toContain('저장된 캠페인과 지도 연결은 바뀌지 않습니다.');
+    expect(appSource).toContain("if (choice === 'clear') clearJourneyStartDraft();");
+    expect(appSource).toContain('key={journeyStartDraftRevision}');
+  });
+
   it('interprets a drawn destination card and lists measured confirmed-route candidates', () => {
     expect(appSource).toContain('journey-card-result');
     expect(appSource).toContain('이 카드의 목적지');

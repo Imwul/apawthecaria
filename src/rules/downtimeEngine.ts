@@ -1,7 +1,6 @@
 import type { EngineJournalEvent } from './gameplay';
 
 export type DowntimeActivity =
-  | 'rumour'
   | 'general-practice'
   | 'replenish'
   | 'explore'
@@ -35,7 +34,6 @@ export interface DowntimeEngineOutcome {
 }
 
 const MANUAL_STEPS: Record<DowntimeActivity, string[]> = {
-  rumour: [],
   'general-practice': ['Choose the temporary Ailment Tag after drawing the General Practice card.'],
   replenish: ['Choose and prepare the locally available Reagent Parts.'],
   explore: ['Record the newly discovered path on the map.'],
@@ -58,6 +56,9 @@ export const resolveDowntime = (input: DowntimeEngineInput): {
   }
   if (input.state.downtimeCompleted) {
     return { status: 'invalid', value: null, messages: ['Exactly one Downtime activity is allowed between Journeys.'] };
+  }
+  if (!Object.prototype.hasOwnProperty.call(MANUAL_STEPS, input.activity)) {
+    return { status: 'invalid', value: null, messages: ['Unknown Downtime activity.'] };
   }
   const wagonCost = input.activity === 'commission-wagon' ? input.resourceCost ?? 20 : 0;
   if (input.activity === 'commission-wagon' && (!Number.isFinite(wagonCost) || wagonCost < 0 || !input.atCity || input.state.trinkets < wagonCost)) {

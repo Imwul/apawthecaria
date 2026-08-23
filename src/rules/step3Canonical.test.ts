@@ -425,6 +425,20 @@ describe('Step 3 canonical Downtime transactions', () => {
     const item: EngineInventoryItem = { id: 'stock:1', name: preparation.name, type: 'reagent', weight: preparation.weight, quantity: 1, canonicalReagentId: reagent.id, preparationId: preparation.id };
     const result = resolveCanonicalDowntime('stock:1', base, { activity: 'replenish', items: [item], addedItemIds: [item.id], totalCapacity: 4 });
     expect(result.inventory).toEqual([item]);
+
+    const toolReagent = REAGENTS.find(row => row.regionAvailability.Forest !== 'Unavailable'
+      && row.seasonAvailability.Spring === 'Common'
+      && row.preparations.some(part => part.requiredTools.some(tool => tool !== 'none') && part.weight > 0 && part.weight <= 4))!;
+    const toolPreparation = toolReagent.preparations.find(part => part.requiredTools.some(tool => tool !== 'none') && part.weight > 0 && part.weight <= 4)!;
+    const unpreparedPart: EngineInventoryItem = {
+      id: 'stock:tool-free', name: toolPreparation.name, type: 'reagent', weight: toolPreparation.weight, quantity: 1,
+      canonicalReagentId: toolReagent.id, preparationId: toolPreparation.id
+    };
+    const withoutPreparationTool = resolveCanonicalDowntime('stock:tool-free', base, {
+      activity: 'replenish', items: [unpreparedPart], addedItemIds: [unpreparedPart.id], totalCapacity: 4
+    });
+    expect(withoutPreparationTool.inventory).toEqual([unpreparedPart]);
+
     expect(() => resolveCanonicalDowntime('stock:heavy', base, { activity: 'replenish', items: [{ ...item, id: 'stock:heavy', quantity: 100 }], totalCapacity: 4 })).toThrow(/capacity/);
   });
 
