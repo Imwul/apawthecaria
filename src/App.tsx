@@ -7616,6 +7616,7 @@ export default function App() {
                 activeForageEncounter={activeForageEncounter}
                 setActiveForageEncounter={setActiveForageEncounter}
                 onResumeForageEncounter={() => setDeferredForageEncounterId(null)}
+                onRestartForaging={cancelCurrentForagingAttempt}
                 onStartForaging={beginForagingUndoCheckpoint}
                 foragingRestartToken={foragingRestartToken}
                 setSeasonedDraws={setSeasonedDraws}
@@ -9036,6 +9037,7 @@ function PlayView({
   activeForageEncounter,
   setActiveForageEncounter,
   onResumeForageEncounter,
+  onRestartForaging,
   onStartForaging,
   foragingRestartToken,
   setSeasonedDraws,
@@ -9062,6 +9064,7 @@ function PlayView({
   activeForageEncounter: any;
   setActiveForageEncounter: any;
   onResumeForageEncounter: () => void;
+  onRestartForaging: () => Promise<void>;
   onStartForaging: (transactionId: string, snapshot: GameState) => ForagingUndoSnapshot;
   foragingRestartToken: number;
   setSeasonedDraws: any;
@@ -9332,6 +9335,63 @@ function PlayView({
         }
       };
     });
+  };
+
+  const handleDiscardTreatmentReagent = async (item: BagItem) => {
+    const itemName = formatReagentItemName(item.name, item.canonicalReagentId);
+    const confirmation = await requestControlledPrompt({
+      title: `${itemName}을(를) 가방에서 뺄까요?`,
+      message: '이 재료만 가방과 현재 치료제 선택에서 제거합니다. 채집 판정과 사용한 시간까지 되돌리려면 아래의 ‘이번 채집 처음부터’를 사용하세요.',
+      kicker: '가방 정리',
+      defaultValue: item.id,
+      hideField: true,
+      cancelLabel: '그대로 두기',
+      confirmLabel: '재료 빼기',
+      tone: 'destructive'
+    });
+    if (confirmation !== item.id) return;
+
+    const nextSelectedItemIds = selectedBagItems.filter(id => id !== item.id);
+    const remainingLastSelected = [...state.bag].reverse().find(row =>
+      row.id !== item.id && row.type === 'reagent' && nextSelectedItemIds.includes(row.id)
+    );
+    const nextPurify = Boolean(usePurify
+      && remainingLastSelected?.provenance?.source === 'forage'
+      && remainingLastSelected.provenance.region === 'Mountain');
+
+    setSelectedBagItems(nextSelectedItemIds);
+    setUsePurify(nextPurify);
+    updateState((current: GameState) => {
+      const draft = current.treatmentDraft;
+      if (!draft || draft.status !== 'draft') {
+        return { ...current, bag: current.bag.filter(row => row.id !== item.id) };
+      }
+      const selectedParts = draft.selectedParts.filter(part => part.itemId !== item.id);
+      const preparations = selectedParts.flatMap(part => part.reagentId && part.preparationId
+        ? [REAGENT_BY_ID.get(part.reagentId)?.preparations.find(row => row.id === part.preparationId)]
+        : []).filter(Boolean);
+      const fair = preparations.reduce((sum, preparation) => sum + (preparation?.tags
+        .filter(tag => tag.tag === 'FAIR')
+        .reduce((part, tag) => part + tag.value, 0) || 0), 0);
+      const foul = nextPurify ? 0 : preparations.reduce((sum, preparation) => sum + (preparation?.tags
+        .filter(tag => tag.tag === 'FOUL')
+        .reduce((part, tag) => part + tag.value, 0) || 0), 0);
+      return {
+        ...current,
+        bag: current.bag.filter(row => row.id !== item.id),
+        treatmentDraft: {
+          ...draft,
+          selectedParts,
+          selectedPreparationIds: selectedParts.flatMap(part => part.preparationId ? [part.preparationId] : []),
+          catalyse: draft.catalyse.filter(row => !row.itemIds.includes(item.id)),
+          fair,
+          foul,
+          purify: nextPurify,
+          updatedAt: Date.now()
+        }
+      };
+    });
+    showAlert(`${itemName}을(를) 가방에서 뺐습니다.`);
   };
 
   useEffect(() => {
@@ -9607,6 +9667,9 @@ function PlayView({
     const row = forageCandidateRows.find(candidate => candidate.reagent.id === reagentId);
     return row ? [row] : [];
   });
+  const currentForageGatheredItems = state.pendingForaging
+    ? state.bag.filter(item => item.provenance?.sourceTransactionId === state.pendingForaging?.transactionId)
+    : [];
 
   const [barrowJournalNote, setBarrowJournalNote] = useState('');
   const [barrowSelectedItemIds, setBarrowSelectedItemIds] = useState<string[]>([]);
@@ -16483,6 +16546,26 @@ function PlayView({
                 </div>
 
                 <section id="patient-acquisition-panel" className="patient-workflow__acquisition" aria-label="치료 재료 마련">
+                {state.pendingForaging && (
+                  <aside className="forage-recovery-panel" aria-label="진행 중인 채집 관리">
+                    <div className="forage-recovery-panel__summary">
+                      <strong>진행 중인 채집</strong>
+                      <span>
+                        {localizeRegionLabel(state.pendingForaging.region)}
+                        {currentForageGatheredItems.length > 0
+                          ? ` · 가방에 넣은 부위 ${currentForageGatheredItems.length}개`
+                          : ' · 재료 판정 중'}
+                      </span>
+                      {currentForageGatheredItems.length > 0 && (
+                        <small>{currentForageGatheredItems.map(item => formatReagentItemName(item.name, item.canonicalReagentId)).join(' · ')}</small>
+                      )}
+                    </div>
+                    <div className="forage-recovery-panel__actions">
+                      <button type="button" className="btn-cozy-secondary" onClick={onResumeForageEncounter}>채집 조우 이어가기</button>
+                      <button type="button" className="btn-cozy-danger" onClick={() => void onRestartForaging()}>이번 채집 처음부터</button>
+                    </div>
+                  </aside>
+                )}
                 <section className="forage-context" aria-label="현재 채집 조건">
                   <div className="forage-location-controls">
                     <label>
@@ -17050,7 +17133,10 @@ function PlayView({
                                   </small>
                                 </span>
                               </label>
-                              {item.canonicalReagentId && <button type="button" className="treatment-reference-link" onClick={() => onOpenReference({ entryId: `ingredient:${item.canonicalReagentId}`, title: `${formatReagentItemName(item.name, item.canonicalReagentId)} 원문` })}>원문</button>}
+                              <div className="treatment-option__actions">
+                                {item.canonicalReagentId && <button type="button" className="treatment-reference-link" onClick={() => onOpenReference({ entryId: `ingredient:${item.canonicalReagentId}`, title: `${formatReagentItemName(item.name, item.canonicalReagentId)} 원문` })}>원문</button>}
+                                <button type="button" className="treatment-discard-link" onClick={() => void handleDiscardTreatmentReagent(item)}>재료 빼기</button>
+                              </div>
                             </div>;
                           })
                         )}
@@ -17128,10 +17214,11 @@ function PlayView({
                       onClick={handleConcoctRemedy}
                       disabled={!treatmentPreview?.ready || isTreatmentSubmitting}
                       aria-describedby="treatment-submit-help"
+                      title={!treatmentPreview?.ready ? treatmentBlockingMessage : undefined}
                     >
                       {isTreatmentSubmitting ? '치료 결과를 기록하는 중…' : treatmentPreview?.ready
                         ? treatmentPreview.requiresCatalyse ? 'CATALYSE로 완성' : '치료제 완성'
-                        : '준비 조건 확인'}
+                        : '치료제 완성'}
                     </button>
                   </div>
                 </div>

@@ -54,6 +54,22 @@ describe('encounter player-experience guards', () => {
     expect(appSource).toContain('setForagingRestartToken(token => token + 1)');
     expect(appSource).toContain('setForageTargetReagentIds([])');
     expect(appSource).toContain('setForageDrawCard(null)');
+    expect(appSource).toContain('onRestartForaging={cancelCurrentForagingAttempt}');
+    expect(appSource).toContain('이번 채집 처음부터');
+    expect(appSource).toContain('채집 조우 이어가기');
+  });
+
+  it('lets the player remove a mistaken reagent without leaving a stale treatment draft', () => {
+    const discardStart = appSource.indexOf('const handleDiscardTreatmentReagent');
+    const discardEnd = appSource.indexOf('\n  useEffect(() =>', discardStart);
+    const discardSource = appSource.slice(discardStart, discardEnd);
+    expect(discardSource).toContain('await requestControlledPrompt');
+    expect(discardSource).toContain("tone: 'destructive'");
+    expect(discardSource).toContain('bag: current.bag.filter(row => row.id !== item.id)');
+    expect(discardSource).toContain('draft.selectedParts.filter(part => part.itemId !== item.id)');
+    expect(discardSource).toContain('draft.catalyse.filter(row => !row.itemIds.includes(item.id))');
+    expect(appSource).toContain('>재료 빼기</button>');
+    expect(appSource).not.toContain("? treatmentPreview.requiresCatalyse ? 'CATALYSE로 완성' : '치료제 완성'\n                        : '준비 조건 확인'");
   });
 
   it('does not make the player enter the same manual result twice', () => {
