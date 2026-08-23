@@ -9450,10 +9450,15 @@ function PlayView({
     const itemName = item.type === 'reagent'
       ? formatReagentItemName(item.name, item.canonicalReagentId)
       : localizeInventoryItemName(item.name);
+    const belongsToCurrentForage = item.type === 'reagent'
+      && item.provenance?.source === 'forage'
+      && item.provenance.sourceTransactionId === state.pendingForaging?.transactionId;
     const confirmation = await requestControlledPrompt({
       title: `${itemName}을(를) 가방에서 뺄까요?`,
       message: item.type === 'reagent'
-        ? '이 재료만 가방과 현재 치료제 선택에서 제거합니다. 채집 판정과 사용한 시간까지 되돌리려면 아래의 ‘이번 채집 처음부터’를 사용하세요.'
+        ? belongsToCurrentForage
+          ? '이 재료만 가방과 현재 치료제 선택에서 제거합니다. 채집 판정과 사용한 시간까지 되돌리려면 이 창을 닫고, 화면 위의 진행 중인 채집에서 ‘이번 채집 처음부터’를 누르세요.'
+          : '이 재료만 가방과 현재 치료제 선택에서 제거합니다. 이미 끝난 채집 판정과 사용한 시간은 바뀌지 않습니다.'
         : '이 물건을 가방과 현재 치료 준비에서 함께 제거합니다. 이미 확정한 판정은 바뀌지 않습니다.',
       kicker: '가방 정리',
       defaultValue: item.id,
@@ -16695,21 +16700,8 @@ function PlayView({
                   </div>
                 </div>
 
-                <details
-                  id="patient-acquisition-panel"
-                  className="patient-workflow__acquisition"
-                  aria-label="치료 재료 마련"
-                  open={treatmentAcquisitionNeedsAttention || showAcquisitionOptions}
-                  onToggle={event => {
-                    if (!treatmentAcquisitionNeedsAttention) setShowAcquisitionOptions(event.currentTarget.open);
-                  }}
-                >
-                <summary className="patient-workflow__acquisition-summary">
-                  <span>{treatmentAcquisitionNeedsAttention ? '부족한 재료를 들녘과 거래에서 마련하기' : '재료를 바꾸거나 더 모으기'}</span>
-                  <small>{treatmentAcquisitionNeedsAttention ? '현재 처방에 빈 약효가 있어 이 단계를 펼쳐 두었습니다.' : '현재 가방으로 조제를 이어갈 수 있어 보조 절차를 접었습니다.'}</small>
-                </summary>
                 {state.pendingForaging && (
-                  <aside className="forage-recovery-panel" aria-label="진행 중인 채집 관리">
+                  <aside className="forage-recovery-panel patient-workflow__forage-recovery" aria-label="진행 중인 채집 관리">
                     <div className="forage-recovery-panel__summary">
                       <strong>진행 중인 채집</strong>
                       <span>
@@ -16728,6 +16720,20 @@ function PlayView({
                     </div>
                   </aside>
                 )}
+
+                <details
+                  id="patient-acquisition-panel"
+                  className="patient-workflow__acquisition"
+                  aria-label="치료 재료 마련"
+                  open={treatmentAcquisitionNeedsAttention || showAcquisitionOptions}
+                  onToggle={event => {
+                    if (!treatmentAcquisitionNeedsAttention) setShowAcquisitionOptions(event.currentTarget.open);
+                  }}
+                >
+                <summary className="patient-workflow__acquisition-summary">
+                  <span>{treatmentAcquisitionNeedsAttention ? '부족한 재료를 들녘과 거래에서 마련하기' : '재료를 바꾸거나 더 모으기'}</span>
+                  <small>{treatmentAcquisitionNeedsAttention ? '현재 처방에 빈 약효가 있어 이 단계를 펼쳐 두었습니다.' : '현재 가방으로 조제를 이어갈 수 있어 보조 절차를 접었습니다.'}</small>
+                </summary>
                 <section className="forage-context" aria-label="현재 채집 조건">
                   <div className="forage-location-controls">
                     <label>

@@ -59,6 +59,10 @@ describe('encounter player-experience guards', () => {
     expect(appSource).toContain('onRestartForaging={cancelCurrentForagingAttempt}');
     expect(appSource).toContain('이번 채집 처음부터');
     expect(appSource).toContain('채집 조우 이어가기');
+    const recoveryPanelStart = appSource.indexOf('<aside className="forage-recovery-panel patient-workflow__forage-recovery"');
+    const acquisitionPanelStart = appSource.indexOf('<details\n                  id="patient-acquisition-panel"');
+    expect(recoveryPanelStart).toBeGreaterThan(-1);
+    expect(acquisitionPanelStart).toBeGreaterThan(recoveryPanelStart);
   });
 
   it('finishes manual forage effects before applying the p.33 Remedy or Timer checkpoint', () => {
@@ -74,11 +78,15 @@ describe('encounter player-experience guards', () => {
     const discardSource = appSource.slice(discardStart, discardEnd);
     expect(discardSource).toContain('await requestControlledPrompt');
     expect(discardSource).toContain("tone: 'destructive'");
+    expect(discardSource).toContain("item.provenance?.source === 'forage'");
+    expect(discardSource).toContain('item.provenance.sourceTransactionId === state.pendingForaging?.transactionId');
+    expect(discardSource).toContain('화면 위의 진행 중인 채집');
     expect(discardSource).toContain('const nextBag = current.bag.filter(row => row.id !== item.id)');
     expect(discardSource).toContain('reconcileTreatmentDraftAfterBagRemoval({');
     expect(discardSource).toContain('removedItemId: item.id');
     expect(discardSource).toContain('remainingInventory: nextBag');
     expect(appSource).toContain('>재료 빼기</button>');
+    expect(appSource).not.toContain('아래의 ‘이번 채집 처음부터’');
     expect(appSource).not.toContain("? treatmentPreview.requiresCatalyse ? 'CATALYSE로 완성' : '치료제 완성'\n                        : '준비 조건 확인'");
   });
 
