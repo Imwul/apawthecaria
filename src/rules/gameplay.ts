@@ -84,6 +84,17 @@ export interface PendingForagingState {
   /** The player completed a required prompt outside the text field (spoken/drawn). */
   journalAcknowledged?: boolean;
   phase: 'choose-reagent' | 'encounter' | 'timer' | 'resolved';
+  /**
+   * Rulebook p.33 checkpoint: the encounter is complete and the Bags now
+   * contain a complete Remedy, so the player must resolve that Remedy before
+   * starting another acquisition or Move. This is persisted so reload cannot
+   * silently skip the checkpoint or decrease the deferred Timer.
+   */
+  awaitingImmediateRemedy?: boolean;
+  /** Patient whose complete Remedy created the p.33 checkpoint. */
+  immediateRemedyPatientId?: string;
+  /** Exact active Ailment instances that were treatable at the checkpoint. */
+  immediateRemedyAilmentIds?: string[];
   reagentTypeFilter?: 'PLANT' | 'ANIMAL' | 'INSECT' | 'EARTH' | 'TITAN';
   source?: 'standard' | 'companion-wasp' | 'familiar-independent' | 'barrow-delve';
   ignoreNegativeEncounterEffects?: boolean;

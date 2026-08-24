@@ -1,4 +1,5 @@
 import {
+  aggregateRemedyTagPotency,
   applyAilmentTagOverrides,
   evaluateRequirement,
   REAGENT_BY_ID,
@@ -28,6 +29,44 @@ export interface TreatmentDraftInventoryItem {
     region?: string;
   };
 }
+
+export interface ForageRequirementProgress {
+  ownedPotency: number;
+  plannedPotency: number;
+  projectedPotency: number;
+  satisfied: boolean;
+  potential: boolean;
+}
+
+/**
+ * A research note is only a plan (rulebook pp.30-32), never an owned Part.
+ * Keep its projected contribution visible without allowing it to satisfy the
+ * treatment requirement before the Part is actually in Inventory.
+ */
+export const deriveForageRequirementProgress = ({
+  tag,
+  threshold,
+  ownedPotency,
+  plannedPotencies
+}: {
+  tag: RuleTag;
+  threshold: number;
+  ownedPotency: number;
+  plannedPotencies: readonly number[];
+}): ForageRequirementProgress => {
+  const owned = aggregateRemedyTagPotency(tag, [ownedPotency]);
+  const planned = aggregateRemedyTagPotency(tag, [...plannedPotencies]);
+  const projected = aggregateRemedyTagPotency(tag, [owned, ...plannedPotencies]);
+  const required = Math.max(0, threshold);
+  const satisfied = owned >= required;
+  return {
+    ownedPotency: owned,
+    plannedPotency: planned,
+    projectedPotency: projected,
+    satisfied,
+    potential: !satisfied && projected >= required
+  };
+};
 
 /**
  * Rebuild the persisted treatment selection after an inventory item is

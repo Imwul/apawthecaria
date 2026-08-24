@@ -53,6 +53,31 @@ export interface ArchiveInput {
   status?: PatientArchiveStatus;
 }
 
+const minimumTimer = (timers: ReadonlyArray<{ current: number }>): number | null => {
+  const values = timers.map(timer => timer.current).filter(Number.isFinite);
+  return values.length > 0 ? Math.min(...values) : null;
+};
+
+/**
+ * Active cases read their Timer from the canonical live Patient. Archive
+ * timers are immutable historical snapshots and are only a fallback when the
+ * case is historical or no matching live Patient remains.
+ */
+export const derivePatientArchiveTimer = (
+  record: CanonicalPatientArchiveRecord,
+  livePatient?: PatientState | null
+): number | null => {
+  const matchingActivePatient = record.status === 'active'
+    && livePatient?.id === record.patientId
+    && livePatient.status === 'active'
+    ? livePatient
+    : null;
+  if (matchingActivePatient) {
+    return minimumTimer(matchingActivePatient.timers.filter(timer => timer.status === 'active'));
+  }
+  return minimumTimer(record.timers);
+};
+
 const deriveStatus = (patient: PatientState, result: CanonicalPatientArchiveRecord['treatmentResult']): PatientArchiveStatus => {
   if (result === 'success' || patient.status === 'cured') return 'treated';
   if (result === 'failure' || patient.status === 'failed') return 'failed';
@@ -135,7 +160,10 @@ export const normalizeLegacyArchiveRecord = (legacy: LegacyArchiveRecord): Canon
           : 'none';
   return {
     caseId: String(legacy.caseId || legacy.id || legacy.sourceId || 'legacy-case'),
-    patientId: String(legacy.patientId || legacy.sourceId || 'legacy-patient'),
+    // `id` is often the archive/case identity in older saves, while
+    // `sourceId` points back to the live Patient. Preserve that relationship
+    // whenever both are present; id-only saves still retain their identity.
+    patientId: String(legacy.patientId || legacy.sourceId || legacy.id || 'legacy-patient'),
     patientName: String(legacy.patientName || legacy.name || ''),
     personality: String(legacy.personality || ''),
     descriptor: String(legacy.descriptor || legacy.species || ''),

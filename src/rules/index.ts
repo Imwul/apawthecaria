@@ -10,6 +10,7 @@ export * from './engine';
 export * from './encounterEngine';
 export * from './foragingEngine';
 export * from './gameplay';
+export * from './immediateRemedyEngine';
 export * from './journeyEngine';
 export * from './leaveEngine';
 export * from './mobilityEngine';

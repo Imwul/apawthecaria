@@ -1,14 +1,25 @@
 import { AILMENTS } from './data/ailments';
+import type { CompanionState } from './data/mobility';
 import { REAGENTS } from './data/reagents';
 import { normalizeLegacyArchiveRecord } from './archiveEngine';
-import { normalizeLegacyManualEffectDraft } from './almanackEngine';
+import {
+  acquireQueenBeeCompanion,
+  BEES_MANUAL_OWNER_ID,
+  normalizeLegacyManualEffectDraft,
+  normalizePendingManualFollowUp,
+  QUEEN_BEE_COMPANION_ID
+} from './almanackEngine';
 import { BARROW_DELVE_BY_ID, type BarrowDelveId, type BehemothClass } from './data/barrows';
 import { normalizeRouteDraft } from '../map/routeComposer';
 import { normalizeSaveRevision } from '../persistence/revision';
 import { normalizeSecondaryDrawCard, readSecondaryCardHistory } from '../secondaryCardHistory';
 import { readCalendarClocks } from '../calendarTime';
 import { migrateRulesetMetadata } from './rulesets';
+import { immediatelyTreatableAilmentIds } from './immediateRemedyEngine';
 import { CURRENT_SCHEMA_VERSION, type PatientState, type TreatmentDraft } from './state';
+import type { EngineInventoryItem } from './gameplay';
+import type { CanonicalToolState } from './toolEngine';
+import type { TreatmentAilmentTagOverride } from './treatmentEngine';
 import type { AilmentSeverity, RulebookEdition, RulesetId, RuleTag } from './types';
 
 export interface LegacyBagItem {
@@ -458,7 +469,11 @@ const migrateV6ToV7: SaveMigration = saved => {
     manualEffectDraft: deferred || pending,
     manualEffectQueue: uniqueDrafts,
     manualEffectRecords: Array.isArray(saved.manualEffectRecords) ? saved.manualEffectRecords : [],
-    pendingManualFollowUps: Array.isArray(saved.pendingManualFollowUps) ? saved.pendingManualFollowUps : [],
+    pendingManualFollowUps: Array.isArray(saved.pendingManualFollowUps)
+      ? saved.pendingManualFollowUps
+        .map(row => normalizePendingManualFollowUp(row))
+        .filter((row): row is NonNullable<typeof row> => Boolean(row))
+      : [],
     manualConditions: Array.isArray(saved.manualConditions) ? saved.manualConditions.map(String) : [],
     schemaVersion: 7
   };
@@ -717,12 +732,89 @@ const normalizePendingEncounter = (value: unknown): SaveRecord | null => {
   };
 };
 
-const normalizePendingForaging = (value: unknown): SaveRecord | null => {
+const normalizeImmediateRemedyFields = ({
+  value,
+  eligible,
+  patients,
+  fallbackPatientId,
+  inventory,
+  overrides,
+  toolStates
+}: {
+  value: SaveRecord;
+  eligible: boolean;
+  patients: PatientState[];
+  fallbackPatientId: string | null;
+  inventory: EngineInventoryItem[];
+  overrides: TreatmentAilmentTagOverride[];
+  toolStates: CanonicalToolState[];
+}) => {
+  if (!eligible || value.awaitingImmediateRemedy !== true) {
+    return {
+      awaitingImmediateRemedy: false,
+      immediateRemedyPatientId: undefined,
+      immediateRemedyAilmentIds: undefined
+    };
+  }
+  const requestedPatientId = typeof value.immediateRemedyPatientId === 'string'
+    && value.immediateRemedyPatientId.trim()
+    ? value.immediateRemedyPatientId.trim()
+    : fallbackPatientId;
+  const patient = patients.find(row => row.id === requestedPatientId);
+  if (!patient) {
+    // An orphan has no canonical Timer on which to settle the deferred cost.
+    // Clearing the malformed gate avoids permanently locking the campaign.
+    return {
+      awaitingImmediateRemedy: false,
+      immediateRemedyPatientId: undefined,
+      immediateRemedyAilmentIds: undefined
+    };
+  }
+  const activeAilmentIds = new Set(patient.ailments
+    .filter(ailment => ailment.status === 'active')
+    .map(ailment => ailment.id));
+  const hasPersistedExactIds = Array.isArray(value.immediateRemedyAilmentIds);
+  const exactAilmentIds = hasPersistedExactIds
+    ? [...new Set(stringArray(value.immediateRemedyAilmentIds))].filter(id => activeAilmentIds.has(id))
+    : immediatelyTreatableAilmentIds(
+      patient,
+      inventory,
+      overrides,
+      toolStates.filter(tool => !tool.broken && !tool.consumed).map(tool => tool.toolId),
+      toolStates
+    );
+  return {
+    awaitingImmediateRemedy: true,
+    immediateRemedyPatientId: patient.id,
+    immediateRemedyAilmentIds: exactAilmentIds
+  };
+};
+
+const normalizePendingForaging = (
+  value: unknown,
+  context: {
+    patients: PatientState[];
+    activePatientId: string | null;
+    inventory: EngineInventoryItem[];
+    overrides: TreatmentAilmentTagOverride[];
+    toolStates: CanonicalToolState[];
+  }
+): SaveRecord | null => {
   if (!isSaveRecord(value) || typeof value.transactionId !== 'string') return null;
   const card = normalizeCard(value.card);
   const validRegions = ['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain', 'Titan'];
   if (!card || !validRegions.includes(String(value.region))) return null;
   const validPhases = ['choose-reagent', 'encounter', 'timer', 'resolved'];
+  const phase = validPhases.includes(String(value.phase)) ? value.phase : 'choose-reagent';
+  const immediateRemedy = normalizeImmediateRemedyFields({
+    value,
+    eligible: phase === 'resolved',
+    patients: context.patients,
+    fallbackPatientId: context.activePatientId,
+    inventory: context.inventory,
+    overrides: context.overrides,
+    toolStates: context.toolStates
+  });
   return {
     ...value,
     card,
@@ -735,7 +827,36 @@ const normalizePendingForaging = (value: unknown): SaveRecord | null => {
       ? Math.max(0, Number(value.timerCostAfterEncounter))
       : 0,
     encounterId: typeof value.encounterId === 'string' ? value.encounterId : null,
-    phase: validPhases.includes(String(value.phase)) ? value.phase : 'choose-reagent'
+    phase,
+    ...immediateRemedy
+  };
+};
+
+const normalizePendingBarter = (
+  value: unknown,
+  context: {
+    patients: PatientState[];
+    activePatientId: string | null;
+    inventory: EngineInventoryItem[];
+    overrides: TreatmentAilmentTagOverride[];
+    toolStates: CanonicalToolState[];
+  }
+): SaveRecord | null => {
+  if (!isSaveRecord(value)) return null;
+  const patientId = typeof value.patientId === 'string' && value.patientId.trim()
+    ? value.patientId.trim()
+    : context.activePatientId;
+  return {
+    ...value,
+    ...normalizeImmediateRemedyFields({
+      value,
+      eligible: value.status === 'completed',
+      patients: context.patients,
+      fallbackPatientId: patientId,
+      inventory: context.inventory,
+      overrides: context.overrides,
+      toolStates: context.toolStates
+    })
   };
 };
 
@@ -749,18 +870,49 @@ const normalizeCurrentSave = (saved: SaveRecord): SaveRecord => {
   const requestedActivePatientId = typeof withMetadata.activePatientId === 'string'
     ? withMetadata.activePatientId
     : null;
+  const activePatientId = requestedActivePatientId && patients.some(patient => patient.id === requestedActivePatientId)
+    ? requestedActivePatientId
+    : null;
+  const bag = recordArray(withMetadata.bag).map(item => migrateLegacyBagItem(item)) as EngineInventoryItem[];
+  const toolStates = canonicalToolStates(withMetadata) as CanonicalToolState[];
+  const ailmentTagOverrides = (Array.isArray(withMetadata.ailmentTagOverrides)
+    ? withMetadata.ailmentTagOverrides
+    : []) as TreatmentAilmentTagOverride[];
+  const checkpointContext = {
+    patients,
+    activePatientId,
+    inventory: bag,
+    overrides: ailmentTagOverrides,
+    toolStates
+  };
   const appliedTransactionIds = [...new Set(stringArray(withMetadata.appliedTransactionIds))];
   const normalizedPendingManualEffect = normalizeLegacyManualEffectDraft(withMetadata.pendingManualEffect);
-  const pendingManualEffect = normalizedPendingManualEffect?.transactionId ? null : normalizedPendingManualEffect;
+  const pendingManualEffect = normalizedPendingManualEffect?.status === 'manual'
+    && !normalizedPendingManualEffect.transactionId
+    ? normalizedPendingManualEffect
+    : null;
   const manualEffectDraft = normalizeLegacyManualEffectDraft(withMetadata.manualEffectDraft);
   const manualEffectQueue = Array.isArray(withMetadata.manualEffectQueue)
     ? withMetadata.manualEffectQueue
       .map(row => normalizeLegacyManualEffectDraft(row))
       .filter((row): row is NonNullable<typeof row> => Boolean(row))
     : [];
-  const uniqueManualQueue = [...new Map(manualEffectQueue
+  const uniqueManualQueue = [...new Map([
+    ...(manualEffectDraft && !manualEffectDraft.transactionId ? [manualEffectDraft] : []),
+    ...(normalizedPendingManualEffect && !normalizedPendingManualEffect.transactionId ? [normalizedPendingManualEffect] : []),
+    ...manualEffectQueue
+  ]
     .filter(row => !row.transactionId)
     .map(row => [row.effectId, row])).values()];
+  const normalizedPendingForaging = normalizePendingForaging(withMetadata.pendingForaging, checkpointContext);
+  const pendingForaging = normalizedPendingForaging?.phase === 'resolved'
+    && normalizedPendingForaging.awaitingImmediateRemedy !== true
+    && !uniqueManualQueue.some(draft => (draft.status === 'manual' || draft.status === 'deferred')
+      && draft.context.continuation === 'foraging'
+      && draft.context.encounterTransactionId === `${normalizedPendingForaging.transactionId}:encounter`)
+    ? null
+    : normalizedPendingForaging;
+  const pendingBarter = normalizePendingBarter(withMetadata.pendingBarter, checkpointContext);
   const companionHiveStates = Array.isArray(withMetadata.companionHiveStates)
     ? withMetadata.companionHiveStates
     : recordArray(withMetadata.companionHive).map((row, index) => ({
@@ -773,6 +925,39 @@ const normalizeCurrentSave = (saved: SaveRecord): SaveRecord => {
         pendingForageDraws: 0,
         migratedFromLegacy: true
       }));
+  const manualConditions = stringArray(withMetadata.manualConditions);
+  const savedCompanionStates = (Array.isArray(withMetadata.companionStates) ? withMetadata.companionStates : []) as CompanionState[];
+  const isLegacyQueenCondition = (condition: string) =>
+    condition.startsWith(`manual:${BEES_MANUAL_OWNER_ID}:`)
+    && /queen bee companion acquired now/i.test(condition);
+  const legacyQueenAcquired = manualConditions.some(isLegacyQueenCondition);
+  const canonicalManualConditions = manualConditions.filter(condition => !isLegacyQueenCondition(condition));
+  const companionStates = legacyQueenAcquired
+    && !savedCompanionStates.some(row => isSaveRecord(row) && row.companionId === QUEEN_BEE_COMPANION_ID)
+    ? acquireQueenBeeCompanion(savedCompanionStates, 'legacy-protect-queen')
+    : savedCompanionStates;
+  const normalizedPendingManualFollowUps = Array.isArray(withMetadata.pendingManualFollowUps)
+    ? withMetadata.pendingManualFollowUps
+      .map(row => normalizePendingManualFollowUp(row))
+      .filter((row): row is NonNullable<typeof row> => Boolean(row))
+    : [];
+  const hasLegacyQueenRehomeReminder = normalizedPendingManualFollowUps.some(row =>
+    row.ownerId === BEES_MANUAL_OWNER_ID
+    && /queen bee follow-up|re-home.{0,120}(?:queen|beehive)/i.test(row.description)
+  );
+  const pendingManualFollowUps = legacyQueenAcquired && !hasLegacyQueenRehomeReminder
+    ? [...normalizedPendingManualFollowUps, {
+        id: 'legacy-protect-queen:follow-up:rehome',
+        effectId: 'legacy-protect-queen',
+        ownerId: BEES_MANUAL_OWNER_ID,
+        trigger: 'encounter' as const,
+        description: 'Queen Bee follow-up: after a future re-home in a wild Meadow, Bog, or Forest, mark that Location as a new Beehive.',
+        context: { continuation: 'travel' as const },
+        createdAt: 0,
+        transactionId: 'legacy-protect-queen',
+        status: 'pending' as const
+      }]
+    : normalizedPendingManualFollowUps;
   return {
     ...withMetadata,
     schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -782,17 +967,15 @@ const normalizeCurrentSave = (saved: SaveRecord): SaveRecord => {
       ? withMetadata.calendarHistory.filter((entry): entry is string => typeof entry === 'string')
       : [],
     currentSeason: normalizeSeason(withMetadata.currentSeason),
-    bag: recordArray(withMetadata.bag).map(item => migrateLegacyBagItem(item)),
+    bag,
     routeDraft: normalizeRouteDraft(withMetadata.routeDraft),
-    activePatientId: requestedActivePatientId && patients.some(patient => patient.id === requestedActivePatientId)
-      ? requestedActivePatientId
-      : null,
+    activePatientId,
     patients,
     appliedTransactionIds,
     appliedEncounterEffectIds: [...new Set(stringArray(withMetadata.appliedEncounterEffectIds))],
     pendingEncounter: normalizePendingEncounter(withMetadata.pendingEncounter),
-    pendingForaging: normalizePendingForaging(withMetadata.pendingForaging),
-    pendingBarter: isSaveRecord(withMetadata.pendingBarter) ? withMetadata.pendingBarter : null,
+    pendingForaging,
+    pendingBarter,
     journey: normalizeJourneyState(withMetadata.journey, withMetadata),
     pendingEnding: isSaveRecord(withMetadata.pendingEnding) ? withMetadata.pendingEnding : null,
     pendingLeaveObligation: isSaveRecord(withMetadata.pendingLeaveObligation) ? withMetadata.pendingLeaveObligation : null,
@@ -802,14 +985,14 @@ const normalizeCurrentSave = (saved: SaveRecord): SaveRecord => {
     activeDelve: isSaveRecord(withMetadata.activeDelve) ? withMetadata.activeDelve : null,
     pendingServices: Array.isArray(withMetadata.pendingServices) ? withMetadata.pendingServices : [],
     serviceMapMutations: Array.isArray(withMetadata.serviceMapMutations) ? withMetadata.serviceMapMutations : [],
-    toolStates: canonicalToolStates(withMetadata),
+    toolStates,
     wagonState: isSaveRecord(withMetadata.wagonState) ? withMetadata.wagonState : null,
-    companionStates: Array.isArray(withMetadata.companionStates) ? withMetadata.companionStates : [],
+    companionStates,
     companionHiveStates,
     rumours: Array.isArray(withMetadata.rumours) ? withMetadata.rumours : [],
     clinics: Array.isArray(withMetadata.clinics) ? withMetadata.clinics : [],
     clinicAgendaIds: stringArray(withMetadata.clinicAgendaIds),
-    ailmentTagOverrides: Array.isArray(withMetadata.ailmentTagOverrides) ? withMetadata.ailmentTagOverrides : [],
+    ailmentTagOverrides,
     trinketRecords: Array.isArray(withMetadata.trinketRecords) ? withMetadata.trinketRecords : [],
     legacyTrinketCount: Number.isInteger(withMetadata.legacyTrinketCount) && Number(withMetadata.legacyTrinketCount) >= 0
       ? Number(withMetadata.legacyTrinketCount)
@@ -819,8 +1002,8 @@ const normalizeCurrentSave = (saved: SaveRecord): SaveRecord => {
     manualEffectDraft,
     manualEffectQueue: uniqueManualQueue,
     manualEffectRecords: Array.isArray(withMetadata.manualEffectRecords) ? withMetadata.manualEffectRecords : [],
-    pendingManualFollowUps: Array.isArray(withMetadata.pendingManualFollowUps) ? withMetadata.pendingManualFollowUps : [],
-    manualConditions: stringArray(withMetadata.manualConditions),
+    pendingManualFollowUps,
+    manualConditions: canonicalManualConditions,
     offlineOutbox: Array.isArray(withMetadata.offlineOutbox) ? withMetadata.offlineOutbox : [],
     downtimeCompleted: typeof withMetadata.downtimeCompleted === 'boolean' ? withMetadata.downtimeCompleted : false,
     downtimeRequired: typeof withMetadata.downtimeRequired === 'boolean' ? withMetadata.downtimeRequired : false,

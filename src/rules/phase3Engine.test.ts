@@ -22,6 +22,7 @@ import {
   reconcileLegacyJournalGoalProgress,
   recordJourneyProgress,
   removeJourneyProgress,
+  releaseImmediateRemedyCheckpoint,
   resolveAilmentTimerEffect,
   resolveBarterEncounter,
   resolveBarterGossip,
@@ -286,6 +287,82 @@ describe('Phase 3 canonical Barter transactions', () => {
 
       expect(result.value?.patient.timers.map(timer => timer.current)).toEqual(before.map(value => value - 1));
     }
+  });
+
+  it('[BARTER-007/REMEDY-008] persists p.35 until the exact newly-treatable Ailment receives its Remedy', () => {
+    const ailment = AILMENTS.find(row => row.canonicalName === 'Waen Drops')!;
+    const activePatient = resolvePatient({
+      id: 'barter-immediate-remedy', name: 'Patient', species: 'Mouse', ailmentIds: [ailment.id]
+    }).value!;
+    const rows = REAGENTS.flatMap(reagent => reagent.preparations.map(preparation => ({ reagent, preparation })));
+    const pain = rows.find(row => row.preparation.tags.some(tag => tag.tag === 'PAIN' && tag.value >= 2))!;
+    const fair = rows.find(row => row.preparation.tags.some(tag => tag.tag === 'FAIR' && tag.value >= 3))!;
+    const requiredToolId = pain.preparation.requiredTools.find(tool => tool !== 'none');
+    const inventory: EngineInventoryItem[] = [{
+      id: 'barter-ready:pain',
+      name: pain.preparation.name,
+      type: 'reagent',
+      weight: pain.preparation.weight,
+      canonicalReagentId: pain.reagent.id,
+      preparationId: pain.preparation.id,
+      usesRemaining: pain.preparation.uses
+    }];
+    if (requiredToolId) inventory.push({
+      id: 'barter-ready:tool',
+      name: requiredToolId,
+      type: 'tool',
+      weight: 0,
+      canonicalToolId: requiredToolId
+    });
+    const before = activePatient.timers.map(timer => timer.current);
+    const state: BarterRuntimeState = {
+      ...barterState(activePatient),
+      inventory,
+      pendingBarter: {
+        barterId: 'barter-ready',
+        patientId: activePatient.id,
+        targetReagentId: fair.reagent.id,
+        preparationId: fair.preparation.id,
+        locationId: 'settlement',
+        locationType: 'Settlement',
+        attemptIndex: 1,
+        attemptsRemaining: 0,
+        socialEncounter: null,
+        firstCard: { value: 1, suit: '♥' },
+        secondCard: { value: 1, suit: '♦' },
+        calculatedBR: 1,
+        modifiers: [],
+        availability: { region: 'Common', season: 'Common' },
+        paymentRequired: 0,
+        paymentSelection: { trinkets: 0, reputation: 0 },
+        status: 'awaiting-payment',
+        appliedEffectIds: []
+      }
+    };
+
+    const resolved = resolveBarterPayment({
+      transactionId: 'barter-ready:payment',
+      state,
+      payment: { trinkets: 0, reputation: 0 }
+    });
+    const reloaded = JSON.parse(JSON.stringify(resolved.value!)) as BarterRuntimeState;
+    expect(reloaded.patient.timers.map(timer => timer.current)).toEqual(before);
+    expect(reloaded.pendingBarter).toMatchObject({
+      status: 'completed',
+      awaitingImmediateRemedy: true,
+      immediateRemedyPatientId: activePatient.id,
+      immediateRemedyAilmentIds: [activePatient.ailments[0].id]
+    });
+    expect(releaseImmediateRemedyCheckpoint(
+      reloaded.pendingBarter,
+      activePatient.id,
+      'another-ailment'
+    )).toEqual(reloaded.pendingBarter);
+    expect(releaseImmediateRemedyCheckpoint(
+      reloaded.pendingBarter,
+      activePatient.id,
+      activePatient.ailments[0].id
+    )).toBeNull();
   });
 
   it('[BARTER-008/REMEDY-008/SAVE-004] backing out decreases every active Timer once after reload-safe state', () => {

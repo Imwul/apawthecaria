@@ -1,10 +1,12 @@
 import { getRuleCardValue, type RuleCard } from './cards';
 import type { EngineInventoryItem } from './gameplay';
-import type {
-  PrintedCanonicalActionTemplate,
-  PrintedEffectDefinition,
-  PrintedResolutionInput,
-  PrintedTrigger
+import type { CompanionState } from './data/mobility';
+import {
+  isPrintedResolutionInputSatisfied,
+  type PrintedCanonicalActionTemplate,
+  type PrintedEffectDefinition,
+  type PrintedResolutionInput,
+  type PrintedTrigger
 } from './printedEffects';
 import type { PatientState } from './state';
 
@@ -12,6 +14,58 @@ const OBJECTS = ['Implement or Gadget', 'Container', 'Accessory', 'Clothing or E
 const MATERIALS = ['Titanesque', 'Hardwood', 'Bone', 'Iron', 'Silver', 'Repurposed', 'Copper', 'Flint', 'Grasses / Plant Fibres', 'Pretty Stone', 'Glass', 'Softwood'] as const;
 const ORIGINS = ['Unwanted Gift', 'Tattered & sentimental', 'Inherited from family', 'Discovered by roadside', 'Handmade by owner', 'Part of a collection', 'Traded from faraway', 'Survived spring cleaning', 'Imported from the west coast', 'Permanently borrowed', 'Too big or small for the original owner', 'A friend’s (they went Elsewhere)'] as const;
 const uniqueRows = <T,>(rows: T[]): T[] => [...new Set(rows)];
+
+export const BEES_MANUAL_OWNER_ID = 'social-meadow-spring-♣';
+export const BETTING_MANUAL_OWNER_ID = 'social-forest-summer-♣';
+export const QUEEN_BEE_COMPANION_ID = 'queen-bee';
+export const BETTING_MATCH_TRINKET_ACTION_ID = `${BETTING_MANUAL_OWNER_ID}:branch:bet:trinkets`;
+export const BETTING_MATCH_WAGER_OPTIONS = ['1', '2', '4'] as const;
+export const BETTING_MATCH_RESULT_OPTIONS = [
+  '1st — double the bet',
+  '2nd — make the bet back',
+  '3rd or 4th — lose the bet'
+] as const;
+
+export interface BettingMatchTrinketOutcome {
+  wager: 1 | 2 | 4;
+  result: typeof BETTING_MATCH_RESULT_OPTIONS[number];
+  /** Net change after the wager itself is returned or lost. */
+  netChange: number;
+}
+
+/** p.196: first place returns the stake plus equal winnings, second returns
+ * only the stake, and third/fourth loses it. */
+export const deriveBettingMatchTrinketOutcome = (
+  wagerValue: unknown,
+  resultValue: unknown
+): BettingMatchTrinketOutcome | null => {
+  const wager = Number(String(wagerValue ?? '').trim());
+  if (wager !== 1 && wager !== 2 && wager !== 4) return null;
+  const result = String(resultValue ?? '').trim();
+  if (!BETTING_MATCH_RESULT_OPTIONS.includes(result as typeof BETTING_MATCH_RESULT_OPTIONS[number])) return null;
+  return {
+    wager,
+    result: result as typeof BETTING_MATCH_RESULT_OPTIONS[number],
+    netChange: result === BETTING_MATCH_RESULT_OPTIONS[0]
+      ? wager
+      : result === BETTING_MATCH_RESULT_OPTIONS[1] ? 0 : -wager
+  };
+};
+
+export const acquireQueenBeeCompanion = (
+  companions: CompanionState[],
+  transactionId: string
+): CompanionState[] => companions.some(row => row.instanceId === `${transactionId}:companion:${QUEEN_BEE_COMPANION_ID}`)
+  ? companions
+  : [...companions, {
+      instanceId: `${transactionId}:companion:${QUEEN_BEE_COMPANION_ID}`,
+      companionId: QUEEN_BEE_COMPANION_ID,
+      pathsTravelled: 0,
+      seasonsTravelled: 0,
+      usedThisJourney: false,
+      pendingForage: null,
+      pendingForageDraws: 0
+    }];
 
 export interface TrinketRecord {
   trinketId: string;
@@ -62,6 +116,8 @@ export interface ManualEffectDraft {
 
 export interface ManualEffectContext {
   encounterTransactionId?: string;
+  /** Stable selected Encounter branch; optional for pre-v9/legacy drafts. */
+  encounterChoiceId?: string;
   barterId?: string;
   patientId?: string;
   ailmentInstanceId?: string;
@@ -79,6 +135,10 @@ export interface PendingManualFollowUp {
   createdAt: number;
   transactionId: string;
   status: 'pending' | 'resolved';
+  /** Typed canonical work carried by this follow-up. Omitted for narrative-only rows. */
+  kind?: 'cocoon-hatch';
+  /** Stable Bag item created by the originating transaction. */
+  targetInventoryItemId?: string;
 }
 
 export interface ManualEffectRecord {
@@ -92,6 +152,7 @@ export interface ManualEffectRecord {
   overrideReason: string;
   inputValues: Record<string, string | number | boolean>;
   appliedActionIds: string[];
+  actionTargets: Record<string, string>;
   resultSummary: string;
   journalNote: string;
   transactionId: string;
@@ -108,6 +169,9 @@ export interface ManualResolutionRuntimeState {
   conditions: string[];
   pendingFollowUps: PendingManualFollowUp[];
   appliedTransactionIds: string[];
+  /** Optional only for legacy callers; the production runtime always supplies these. */
+  companions?: CompanionState[];
+  companionCapacity?: number;
 }
 
 export interface ManualEffectTransactionResolution {
@@ -198,16 +262,190 @@ export const normalizeLegacyManualEffectDraft = (value: unknown, now = Date.now(
   };
 };
 
+export const normalizePendingManualFollowUp = (
+  value: unknown,
+  now = 0
+): PendingManualFollowUp | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const row = value as Partial<PendingManualFollowUp>;
+  if (typeof row.id !== 'string' || !row.id.trim()) return null;
+  const allowedTriggers = new Set<PendingManualFollowUp['trigger']>([
+    'encounter',
+    'diagnosis',
+    'timer-change',
+    'barter',
+    'treatment-success',
+    'treatment-failure',
+    'leave',
+    'service-follow-up'
+  ]);
+  const trigger = allowedTriggers.has(row.trigger as PendingManualFollowUp['trigger'])
+    ? row.trigger as PendingManualFollowUp['trigger']
+    : 'service-follow-up';
+  const context = row.context && typeof row.context === 'object' && !Array.isArray(row.context)
+    ? row.context
+    : { continuation: 'none' as const };
+  const parsedCreatedAt = Number(row.createdAt);
+  const fallbackCreatedAt = Number(now);
+  const ownerId = typeof row.ownerId === 'string' && row.ownerId.trim() ? row.ownerId : row.id;
+  const description = typeof row.description === 'string' ? row.description : '';
+  const kind = ownerId === BETTING_MANUAL_OWNER_ID
+    && (row.kind === 'cocoon-hatch'
+      || /\bcocoon\b.{0,180}\b(?:hatch(?:es|ed|ing)?|butterfly)\b/i.test(description))
+    ? 'cocoon-hatch' as const
+    : undefined;
+  const targetInventoryItemId = kind
+    && typeof row.targetInventoryItemId === 'string'
+    && row.targetInventoryItemId.trim()
+    ? row.targetInventoryItemId
+    : undefined;
+  return {
+    id: row.id,
+    effectId: typeof row.effectId === 'string' && row.effectId.trim() ? row.effectId : row.id,
+    ownerId,
+    trigger,
+    description,
+    context,
+    createdAt: Number.isFinite(parsedCreatedAt)
+      ? parsedCreatedAt
+      : Number.isFinite(fallbackCreatedAt) ? fallbackCreatedAt : 0,
+    transactionId: typeof row.transactionId === 'string' && row.transactionId.trim()
+      ? row.transactionId
+      : `${row.id}:legacy`,
+    status: row.status === 'resolved' ? 'resolved' : 'pending',
+    ...(kind ? { kind } : {}),
+    ...(targetInventoryItemId ? { targetInventoryItemId } : {})
+  };
+};
+
+export interface ManualFollowUpRuntimeState {
+  inventory: EngineInventoryItem[];
+  companions: CompanionState[];
+  companionCapacity?: number;
+  pendingFollowUps: PendingManualFollowUp[];
+  appliedTransactionIds: string[];
+}
+
+export interface ManualFollowUpTransactionResolution {
+  status: 'resolved' | 'invalid';
+  value: {
+    followUp: PendingManualFollowUp;
+    nextState: ManualFollowUpRuntimeState;
+    canonicalResult: string;
+  } | null;
+  messages: string[];
+}
+
+const cocoonItemForFollowUp = (
+  inventory: readonly EngineInventoryItem[],
+  followUp: PendingManualFollowUp
+): EngineInventoryItem | null => {
+  const isCanonicalCocoon = (item: EngineInventoryItem): boolean => item.type === 'item'
+    && item.quantity > 0
+    && /^cocoon$/i.test(item.name.trim());
+  const belongsToOriginatingTransaction = (item: EngineInventoryItem): boolean =>
+    item.id.startsWith(`${followUp.transactionId}:inventory:`);
+  if (followUp.targetInventoryItemId) {
+    const exactTarget = inventory.find(item => item.id === followUp.targetInventoryItemId);
+    return exactTarget
+      && belongsToOriginatingTransaction(exactTarget)
+      && isCanonicalCocoon(exactTarget)
+      ? exactTarget
+      : null;
+  }
+  const fromOriginatingTransaction = inventory.filter(item =>
+    belongsToOriginatingTransaction(item) && isCanonicalCocoon(item)
+  );
+  if (fromOriginatingTransaction.length === 1) return fromOriginatingTransaction[0];
+  return null;
+};
+
+/** Commits a confirmed follow-up against the latest canonical state exactly once. */
+export const resolveManualFollowUpTransaction = (input: {
+  followUpId: string;
+  transactionId: string;
+  state: ManualFollowUpRuntimeState;
+  eligibilityEvidence?: 'travelled-10-paths' | 'journey-ended';
+}): ManualFollowUpTransactionResolution => {
+  if (!input.transactionId || input.state.appliedTransactionIds.includes(input.transactionId)) {
+    return { status: 'invalid', value: null, messages: ['Manual follow-up transaction is missing or already applied.'] };
+  }
+  const stored = input.state.pendingFollowUps.find(row => row.id === input.followUpId);
+  const current = normalizePendingManualFollowUp(stored);
+  if (!current || current.status !== 'pending') {
+    return { status: 'invalid', value: null, messages: ['This manual follow-up is no longer pending.'] };
+  }
+
+  let inventory = input.state.inventory.map(item => ({ ...item }));
+  let companions = input.state.companions.map(row => ({ ...row }));
+  let canonicalResult = '후속 판정을 기록했습니다.';
+
+  if (current.kind === 'cocoon-hatch') {
+    if (input.eligibilityEvidence !== 'travelled-10-paths'
+      && input.eligibilityEvidence !== 'journey-ended') {
+      return {
+        status: 'invalid',
+        value: null,
+        messages: ['Confirm that the Cocoon has travelled 10 Paths since it was gained, or that its Journey has ended.']
+      };
+    }
+    const cocoon = cocoonItemForFollowUp(inventory, current);
+    if (!cocoon) {
+      return {
+        status: 'invalid',
+        value: null,
+        messages: ['The Cocoon created by this result is missing or ambiguous. Restore the affected item before completing its hatch.']
+      };
+    }
+    if (typeof input.state.companionCapacity === 'number' && companions.length >= input.state.companionCapacity) {
+      return {
+        status: 'invalid',
+        value: null,
+        messages: ['No travelling Companion slot is available for the Butterfly.']
+      };
+    }
+    inventory = cocoon.quantity > 1
+      ? inventory.map(item => item.id === cocoon.id ? { ...item, quantity: item.quantity - 1 } : item)
+      : inventory.filter(item => item.id !== cocoon.id);
+    companions = [...companions, {
+      instanceId: `${input.transactionId}:companion:butterfly`,
+      companionId: 'butterfly',
+      pathsTravelled: 0,
+      seasonsTravelled: 0,
+      usedThisJourney: false,
+      pendingForage: null,
+      pendingForageDraws: 0
+    }];
+    const evidenceLabel = input.eligibilityEvidence === 'travelled-10-paths'
+      ? 'Cocoon을 얻은 뒤 10 Paths 이동 완료'
+      : 'Cocoon을 얻은 여정 종료';
+    canonicalResult = `${evidenceLabel}: Cocoon 1개가 Butterfly 동반자로 부화했습니다.`;
+  }
+
+  const followUp = { ...current, status: 'resolved' as const };
+  return {
+    status: 'resolved',
+    value: {
+      followUp,
+      canonicalResult,
+      nextState: {
+        inventory,
+        companions,
+        companionCapacity: input.state.companionCapacity,
+        pendingFollowUps: input.state.pendingFollowUps.map(row => row.id === current.id ? followUp : row),
+        appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId]
+      }
+    },
+    messages: []
+  };
+};
+
 export const resolveManualEffect = (draft: ManualEffectDraft, transactionId: string, override = false): ManualEffectDraft => {
   if (!transactionId || draft.transactionId) throw new Error('Manual effect transaction is missing or already applied.');
   if (!draft.resultSummary.trim() || !draft.journalNote.trim()) throw new Error('Result summary and journal note are required.');
   if (override && !draft.overrideReason.trim()) throw new Error('Override reason is required.');
   return { ...draft, transactionId, status: override ? 'overridden' : 'resolved', updatedAt: Date.now() };
 };
-
-const hasFieldValue = (value: string | number | boolean | undefined) => value === true
-  || typeof value === 'number'
-  || (typeof value === 'string' && value.trim().length > 0);
 
 const printedInventoryWeight = (target: string, sourceText: string): number => {
   const text = `${target} ${sourceText}`
@@ -229,6 +467,19 @@ const printedInventoryName = (target: string): string => target
   .replace(/^['‘’“”"]+|['‘’“”"]+$/g, '')
   .trim();
 
+const expectedPrintedChoiceForContext = (draft: ManualEffectDraft): string | null => {
+  if (draft.ownerId === BEES_MANUAL_OWNER_ID) {
+    if (draft.context.encounterChoiceId === 'protect-the-queen') return 'Protect the Queen';
+    if (draft.context.encounterChoiceId === 'release-the-queen') return 'Release The Queen';
+    if (draft.context.encounterChoiceId === 'wish-them-luck') return 'Wish Them Luck';
+  }
+  if (draft.ownerId === BETTING_MANUAL_OWNER_ID) {
+    if (draft.context.encounterChoiceId === 'an-opportunity') return 'An Opportunity';
+    if (draft.context.encounterChoiceId === 'place-a-bet') return 'Place a Bet';
+  }
+  return null;
+};
+
 export const resolveManualEffectTransaction = (input: {
   draft: ManualEffectDraft;
   transactionId: string;
@@ -243,9 +494,17 @@ export const resolveManualEffectTransaction = (input: {
     return { status: 'invalid', value: null, messages: ['Result summary and journal note are required.'] };
   }
   const missingFields = input.draft.inputFields
-    .filter(field => field.required && !hasFieldValue(input.draft.inputValues[field.id]))
+    .filter(field => field.required && !isPrintedResolutionInputSatisfied(field, input.draft.inputValues[field.id]))
     .map(field => field.label);
   if (missingFields.length > 0) return { status: 'invalid', value: null, messages: missingFields.map(label => `Required resolution input: ${label}`) };
+  const expectedPrintedChoice = expectedPrintedChoiceForContext(input.draft);
+  if (expectedPrintedChoice && input.draft.inputValues['printed-choice'] !== expectedPrintedChoice) {
+    return {
+      status: 'invalid',
+      value: null,
+      messages: ['The persisted printed choice does not match the selected Encounter branch. Re-select the printed choice before resolving.']
+    };
+  }
   if (input.override && !input.draft.overrideReason.trim()) {
     return { status: 'invalid', value: null, messages: ['Override reason is required and is recorded separately from a normal resolution.'] };
   }
@@ -253,12 +512,60 @@ export const resolveManualEffectTransaction = (input: {
   const actionById = new Map(input.draft.actionTemplates.map(action => [action.id, action]));
   const selectedActions = input.draft.selectedActionIds.map(id => actionById.get(id));
   if (selectedActions.some(action => !action)) return { status: 'invalid', value: null, messages: ['A selected canonical action is not part of this printed effect.'] };
+  if (input.draft.ownerId === BETTING_MANUAL_OWNER_ID && input.draft.context.encounterChoiceId === 'place-a-bet') {
+    const outcome = deriveBettingMatchTrinketOutcome(
+      input.draft.inputValues['bet-wager'],
+      input.draft.inputValues['bet-result']
+    );
+    if (!outcome) {
+      return { status: 'invalid', value: null, messages: ['Choose the printed wager and finishing result for Place a Bet.'] };
+    }
+    const action = actionById.get(BETTING_MATCH_TRINKET_ACTION_ID);
+    if (!action
+      || action.kind !== 'modify-trinkets'
+      || action.required !== true
+      || action.amount !== outcome.netChange
+      || input.draft.selectedActionIds.length !== 1
+      || input.draft.selectedActionIds[0] !== BETTING_MATCH_TRINKET_ACTION_ID) {
+      return { status: 'invalid', value: null, messages: ['The Place a Bet Trinket result does not match the persisted wager and finishing result.'] };
+    }
+    if (input.state.trinkets < outcome.wager) {
+      return { status: 'invalid', value: null, messages: [`Place a Bet requires ${outcome.wager} Trinkets before resolving the wager.`] };
+    }
+  }
+  const missingRequiredActions = input.draft.actionTemplates.filter(action =>
+    action.required && !input.draft.selectedActionIds.includes(action.id)
+  );
+  if (missingRequiredActions.length > 0) {
+    return {
+      status: 'invalid',
+      value: null,
+      messages: missingRequiredActions.map(action => `Required printed action is not selected: ${action.label}`)
+    };
+  }
+  const actionTarget = (action: PrintedCanonicalActionTemplate): string => {
+    if (action.fixedTarget) return action.fixedTarget;
+    if (action.targetInputId) return String(input.draft.inputValues[action.targetInputId] ?? '');
+    return input.draft.actionTargets[action.id] || '';
+  };
+  const missingActionTargets = (selectedActions as PrintedCanonicalActionTemplate[]).filter(action =>
+    (action.targetType === 'inventory-item' || action.targetType === 'location' || action.targetType === 'free-text')
+    && !actionTarget(action).trim()
+  );
+  if (missingActionTargets.length > 0) {
+    return {
+      status: 'invalid',
+      value: null,
+      messages: missingActionTargets.map(action => `Choose the required target for: ${action.label}`)
+    };
+  }
   let nextState: ManualResolutionRuntimeState = {
     ...input.state,
     inventory: [...input.state.inventory],
     conditions: [...input.state.conditions],
     pendingFollowUps: [...input.state.pendingFollowUps],
-    appliedTransactionIds: [...input.state.appliedTransactionIds]
+    appliedTransactionIds: [...input.state.appliedTransactionIds],
+    companions: [...(input.state.companions || [])]
   };
 
   for (const action of selectedActions as PrintedCanonicalActionTemplate[]) {
@@ -268,7 +575,7 @@ export const resolveManualEffectTransaction = (input: {
     if (action.kind === 'modify-foraging-points') nextState.foragingPoints = Math.max(0, nextState.foragingPoints + (action.amount || 0));
     if (action.kind === 'modify-timer') {
       if (!nextState.patient) return { status: 'invalid', value: null, messages: ['This Timer action requires the affected Patient to remain available.'] };
-      const targetId = input.draft.actionTargets[action.id];
+      const targetId = actionTarget(action);
       const eligible = nextState.patient.timers.filter(timer => timer.status === 'active' && (!targetId || timer.id === targetId));
       if (eligible.length === 0) return { status: 'invalid', value: null, messages: ['Choose an active Timer for the printed Timer change.'] };
       const eligibleIds = new Set(eligible.map(timer => timer.id));
@@ -282,14 +589,14 @@ export const resolveManualEffectTransaction = (input: {
       };
     }
     if (action.kind === 'remove-inventory') {
-      const targetId = input.draft.actionTargets[action.id];
+      const targetId = actionTarget(action);
       if (!targetId || !nextState.inventory.some(item => item.id === targetId)) {
         return { status: 'invalid', value: null, messages: ['Choose an eligible Inventory item to remove.'] };
       }
       nextState.inventory = nextState.inventory.filter(item => item.id !== targetId);
     }
     if (action.kind === 'gain-inventory') {
-      const rawItemName = input.draft.actionTargets[action.id]?.trim();
+      const rawItemName = actionTarget(action).trim();
       const itemName = rawItemName ? printedInventoryName(rawItemName) : '';
       if (!itemName) return { status: 'invalid', value: null, messages: ['Name the printed Inventory item to gain.'] };
       nextState.inventory.push({
@@ -302,31 +609,65 @@ export const resolveManualEffectTransaction = (input: {
       });
     }
     if (action.kind === 'record-condition') {
-      const description = input.draft.actionTargets[action.id] || action.sourceText;
-      nextState.conditions = [...new Set([...nextState.conditions, `manual:${input.draft.ownerId}:${description}`])];
+      const description = actionTarget(action) || action.sourceText;
+      const isQueenAcquisitionRecord = input.draft.ownerId === BEES_MANUAL_OWNER_ID
+        && input.draft.context.encounterChoiceId === 'protect-the-queen'
+        && /queen bee companion acquired now/i.test(description);
+      if (!isQueenAcquisitionRecord) {
+        nextState.conditions = [...new Set([...nextState.conditions, `manual:${input.draft.ownerId}:${description}`])];
+      }
     }
   }
 
+  const isQueenProtect = input.draft.ownerId === BEES_MANUAL_OWNER_ID
+    && input.draft.context.encounterChoiceId === 'protect-the-queen';
+  if (isQueenProtect) {
+    const companions = nextState.companions || [];
+    const queenInstanceId = `${input.transactionId}:companion:queen-bee`;
+    if (!companions.some(row => row.instanceId === queenInstanceId)
+      && typeof nextState.companionCapacity === 'number'
+      && companions.length >= nextState.companionCapacity) {
+      return {
+        status: 'invalid',
+        value: null,
+        messages: ['No travelling Companion slot is available. Defer this result, then release or store a Companion before protecting the Queen.']
+      };
+    }
+    nextState.companions = acquireQueenBeeCompanion(nextState.companions || [], input.transactionId);
+  }
+
   const resolvedFollowUp = String(input.draft.inputValues['follow-up-result'] || '').trim();
-  const pendingDescriptions = resolvedFollowUp ? [] : input.draft.followUpRequirements;
+  const pendingDescriptions = resolvedFollowUp ? [] : [...input.draft.followUpRequirements];
   for (const action of selectedActions as PrintedCanonicalActionTemplate[]) {
     if (action.kind === 'record-map-change' || action.kind === 'record-movement') {
-      pendingDescriptions.push(input.draft.actionTargets[action.id] || action.sourceText);
+      pendingDescriptions.push(actionTarget(action) || action.sourceText);
     }
   }
-  const createdFollowUps: PendingManualFollowUp[] = uniqueRows(pendingDescriptions).map((description, index) => ({
-    id: `${input.transactionId}:follow-up:${index + 1}`,
-    effectId: input.draft.effectId,
-    ownerId: input.draft.ownerId,
-    trigger: input.draft.trigger,
-    description,
-    context: { ...input.draft.context },
-    createdAt: input.resolvedAt || Date.now(),
-    transactionId: input.transactionId,
-    status: 'pending'
-  }));
+  const cocoonAction = (selectedActions as PrintedCanonicalActionTemplate[]).find(action =>
+    action.kind === 'gain-inventory' && /\bcocoon\b/i.test(`${action.fixedTarget || ''} ${action.sourceText}`)
+  );
+  const cocoonInventoryItemId = cocoonAction
+    ? `${input.transactionId}:inventory:${cocoonAction.id}`
+    : undefined;
+  const createdFollowUps: PendingManualFollowUp[] = uniqueRows(pendingDescriptions).map((description, index) => {
+    const isCocoonHatch = input.draft.ownerId === BETTING_MANUAL_OWNER_ID
+      && Boolean(cocoonInventoryItemId)
+      && /\bcocoon\b.{0,180}\b(?:hatch(?:es|ed|ing)?|butterfly)\b/i.test(description);
+    return {
+      id: `${input.transactionId}:follow-up:${index + 1}`,
+      effectId: input.draft.effectId,
+      ownerId: input.draft.ownerId,
+      trigger: input.draft.trigger,
+      description,
+      context: { ...input.draft.context },
+      createdAt: input.resolvedAt || Date.now(),
+      transactionId: input.transactionId,
+      status: 'pending',
+      ...(isCocoonHatch ? { kind: 'cocoon-hatch' as const, targetInventoryItemId: cocoonInventoryItemId } : {})
+    };
+  });
   nextState.pendingFollowUps = [...nextState.pendingFollowUps, ...createdFollowUps];
-  nextState.appliedTransactionIds = [...nextState.appliedTransactionIds, input.transactionId];
+  nextState.appliedTransactionIds = [...new Set([...nextState.appliedTransactionIds, input.transactionId])];
   const resolvedAt = input.resolvedAt || Date.now();
   const draft = {
     ...input.draft,
@@ -345,6 +686,10 @@ export const resolveManualEffectTransaction = (input: {
     overrideReason: input.override ? draft.overrideReason : '',
     inputValues: { ...draft.inputValues },
     appliedActionIds: selectedActions.map(action => action!.id),
+    actionTargets: Object.fromEntries((selectedActions as PrintedCanonicalActionTemplate[]).flatMap(action => {
+      const target = actionTarget(action);
+      return target ? [[action.id, target]] : [];
+    })),
     resultSummary: draft.resultSummary,
     journalNote: draft.journalNote,
     transactionId: input.transactionId,

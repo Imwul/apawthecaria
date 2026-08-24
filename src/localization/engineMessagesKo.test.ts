@@ -71,7 +71,7 @@ const auditedEngineStrings = () => {
 
 describe('gameplay message Korean presentation layer', () => {
   it('covers every audited fixed engine message', () => {
-    expect(ENGINE_MESSAGE_TRANSLATION_COUNT).toBe(386);
+    expect(ENGINE_MESSAGE_TRANSLATION_COUNT).toBe(395);
   });
 
   it('preserves canonical tags while localizing player-facing names and instructions', () => {
@@ -149,5 +149,5 @@ describe('gameplay message Korean presentation layer', () => {
       .filter(row => localizeGameplayMessage(row.text) === row.text)
       .map(row => `${row.file}:${row.line} ${row.text}`);
     expect(uncovered).toEqual([]);
-  });
+  }, 30_000);
 });

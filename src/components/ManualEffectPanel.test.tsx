@@ -47,6 +47,10 @@ const staleProjectLaunchDraft: ManualEffectDraft = {
 };
 
 describe('ManualEffectPanel', () => {
+  const primaryActionTag = (markup: string): string => (
+    markup.match(/<button type="button" class="btn-cozy-primary"[^>]*>/)?.[0] || ''
+  );
+
   it('repairs stale encounter copy by stable ids and presents choices as toggle buttons', () => {
     const markup = renderToStaticMarkup(<ManualEffectPanel
       draft={staleProjectLaunchDraft}
@@ -81,5 +85,134 @@ describe('ManualEffectPanel', () => {
     expect(why).toBeLessThan(scene);
     expect(scene).toBeLessThan(changes);
     expect(changes).toBeLessThan(record);
+  });
+
+  it('does not relabel a nested choice list with the top-level encounter choices', () => {
+    const nestedChoiceDraft: ManualEffectDraft = {
+      ...staleProjectLaunchDraft,
+      effectId: 'betting-nested-choice',
+      ownerId: 'social-forest-summer-♣',
+      summary: 'Betting Match',
+      printedText: 'Betting Match',
+      choices: ['An Opportunity', 'Place a Bet'],
+      inputFields: [
+        {
+          id: 'printed-choice',
+          type: 'choice',
+          label: '적용한 원문 분기 또는 선택',
+          required: true,
+          options: ['An Opportunity', 'Place a Bet']
+        },
+        {
+          id: 'betting-opportunity-choice',
+          type: 'choice',
+          label: '뜻밖의 기회 결과',
+          required: true,
+          options: ['A Snack!', 'A Friend!']
+        }
+      ],
+      inputValues: { 'printed-choice': 'An Opportunity' }
+    };
+
+    const markup = renderToStaticMarkup(<ManualEffectPanel
+      draft={nestedChoiceDraft}
+      onChange={() => undefined}
+      onDefer={() => undefined}
+      onResolve={() => undefined}
+    />);
+
+    expect(markup).toContain('A Snack!');
+    expect(markup).toContain('A Friend!');
+  });
+
+  it('renders one authoritative selector for an affected inventory item', () => {
+    const inventoryTargetDraft: ManualEffectDraft = {
+      ...staleProjectLaunchDraft,
+      effectId: 'inventory-target',
+      inputFields: [],
+      inputValues: {},
+      actionTemplates: [{
+        id: 'remove-item',
+        kind: 'remove-inventory',
+        label: '영향을 받은 물품 버리기',
+        sourceText: 'Discard the affected item.',
+        targetType: 'inventory-item',
+        required: true
+      }],
+      selectedActionIds: ['remove-item'],
+      actionTargets: {}
+    };
+
+    const markup = renderToStaticMarkup(<ManualEffectPanel
+      draft={inventoryTargetDraft}
+      inventoryItems={[{ id: 'parcel', name: 'Parcel' }]}
+      onChange={() => undefined}
+      onDefer={() => undefined}
+      onResolve={() => undefined}
+    />);
+
+    expect(markup.match(/<select/g)).toHaveLength(1);
+    expect(markup).toContain('value="parcel"');
+    expect(markup).not.toContain('영향을 받은 물품 또는 자원');
+  });
+
+  it.each([
+    { name: 'unchecked condition', inputValues: { confirmation: false, choice: 'Allowed choice' } },
+    { name: 'string-shaped condition', inputValues: { confirmation: 'true', choice: 'Allowed choice' } },
+    { name: 'choice outside printed options', inputValues: { confirmation: true, choice: 'Forged choice' } }
+  ] as const)('keeps resolution disabled for a malformed required $name', ({ inputValues }) => {
+    const draft: ManualEffectDraft = {
+      ...staleProjectLaunchDraft,
+      inputFields: [{
+        id: 'confirmation',
+        type: 'condition',
+        label: 'Confirm printed condition',
+        required: true
+      }, {
+        id: 'choice',
+        type: 'choice',
+        label: 'Printed choice',
+        required: true,
+        options: ['Allowed choice']
+      }],
+      inputValues,
+      resultSummary: 'Recorded result'
+    };
+    const markup = renderToStaticMarkup(<ManualEffectPanel
+      draft={draft}
+      onChange={() => undefined}
+      onDefer={() => undefined}
+      onResolve={() => undefined}
+    />);
+
+    expect(primaryActionTag(markup)).toContain('disabled=""');
+  });
+
+  it('enables resolution only when the condition is true and the choice is printed', () => {
+    const draft: ManualEffectDraft = {
+      ...staleProjectLaunchDraft,
+      inputFields: [{
+        id: 'confirmation',
+        type: 'condition',
+        label: 'Confirm printed condition',
+        required: true
+      }, {
+        id: 'choice',
+        type: 'choice',
+        label: 'Printed choice',
+        required: true,
+        options: ['Allowed choice']
+      }],
+      inputValues: { confirmation: true, choice: 'Allowed choice' },
+      resultSummary: 'Recorded result'
+    };
+    const markup = renderToStaticMarkup(<ManualEffectPanel
+      draft={draft}
+      onChange={() => undefined}
+      onDefer={() => undefined}
+      onResolve={() => undefined}
+    />);
+
+    expect(primaryActionTag(markup)).not.toContain('disabled');
   });
 });

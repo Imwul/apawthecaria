@@ -290,6 +290,75 @@ describe('save migration torture matrix', () => {
     expect(state.appliedTransactionIds.filter(id => id === 'cycle-2')).toHaveLength(1);
   });
 
+  it('preserves and normalizes the persisted p.33 immediate-Remedy checkpoint idempotently', () => {
+    const source = richSaveAt(CURRENT_SCHEMA_VERSION);
+    const once = migrateSavedRulesState(clone({
+      ...source,
+      pendingForaging: {
+        ...source.pendingForaging,
+        phase: 'resolved',
+        awaitingImmediateRemedy: true,
+        immediateRemedyPatientId: '  patient-1  '
+      }
+    }));
+    const twice = migrateSavedRulesState(clone(once));
+
+    expect(once.pendingForaging).toMatchObject({
+      phase: 'resolved',
+      awaitingImmediateRemedy: true,
+      immediateRemedyPatientId: 'patient-1',
+      immediateRemedyAilmentIds: []
+    });
+    expect(twice).toEqual(once);
+
+    const malformed = migrateSavedRulesState(clone({
+      ...source,
+      pendingForaging: {
+        ...source.pendingForaging,
+        phase: 'encounter',
+        awaitingImmediateRemedy: true,
+        immediateRemedyPatientId: 'patient-1'
+      }
+    }));
+    expect(malformed.pendingForaging).toMatchObject({
+      phase: 'encounter',
+      awaitingImmediateRemedy: false
+    });
+    expect(malformed.pendingForaging.immediateRemedyPatientId).toBeUndefined();
+
+    const orphan = migrateSavedRulesState(clone({
+      ...source,
+      pendingForaging: {
+        ...source.pendingForaging,
+        phase: 'resolved',
+        awaitingImmediateRemedy: true,
+        immediateRemedyPatientId: 'missing-patient',
+        immediateRemedyAilmentIds: ['missing-ailment']
+      }
+    }));
+    expect(orphan.pendingForaging).toBeNull();
+    expect(migrateSavedRulesState(clone(orphan))).toEqual(orphan);
+
+    const orphanBarter = migrateSavedRulesState(clone({
+      ...source,
+      pendingBarter: {
+        barterId: 'barter-orphan',
+        patientId: 'missing-patient',
+        status: 'completed',
+        awaitingImmediateRemedy: true,
+        immediateRemedyPatientId: 'missing-patient',
+        immediateRemedyAilmentIds: ['missing-ailment']
+      }
+    }));
+    expect(orphanBarter.pendingBarter).toMatchObject({
+      barterId: 'barter-orphan',
+      status: 'completed',
+      awaitingImmediateRemedy: false
+    });
+    expect(orphanBarter.pendingBarter.immediateRemedyPatientId).toBeUndefined();
+    expect(migrateSavedRulesState(clone(orphanBarter))).toEqual(orphanBarter);
+  });
+
   it('rejects a future schema instead of silently reinterpreting it as current', () => {
     expect(() => migrateSavedRulesState({ schemaVersion: CURRENT_SCHEMA_VERSION + 1, patients: [] }))
       .toThrow(/newer than supported/);

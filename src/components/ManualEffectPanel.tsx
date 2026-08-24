@@ -1,6 +1,14 @@
 import { lazy, Suspense } from 'react';
 import type { ManualEffectDraft } from '../rules';
+import { isPrintedResolutionInputSatisfied } from '../rules/printedEffects';
 import { ENCOUNTERS } from '../rules/data/encounters';
+import {
+  patchManualEffectDraft,
+  setManualEffectActionSelected,
+  setManualEffectActionTarget,
+  setManualEffectInput,
+  type ManualEffectDraftUpdater
+} from '../manualEffectDraftState';
 import {
   localizeEncounterDisplayText,
   localizeEncounterTitle,
@@ -38,13 +46,15 @@ export default function ManualEffectPanel({
   draft: ManualEffectDraft;
   inventoryItems?: Array<{ id: string; name: string }>;
   timers?: Array<{ id: string; label: string }>;
-  onChange: (draft: ManualEffectDraft) => void;
+  onChange: (updater: ManualEffectDraftUpdater) => void;
   onDefer: () => void;
   onResolve: (override: boolean) => void;
 }) {
-  const update = (patch: Partial<ManualEffectDraft>) => onChange({ ...draft, ...patch });
-  const updateInput = (id: string, value: string | number | boolean) => update({ inputValues: { ...draft.inputValues, [id]: value } });
-  const requiredComplete = draft.inputFields.every(field => !field.required || draft.inputValues[field.id] === true || String(draft.inputValues[field.id] ?? '').trim().length > 0);
+  const update = (patch: Partial<ManualEffectDraft>) => onChange(patchManualEffectDraft(patch));
+  const updateInput = (id: string, value: string | number | boolean) => onChange(setManualEffectInput(id, value));
+  const requiredComplete = draft.inputFields.every(field =>
+    !field.required || isPrintedResolutionInputSatisfied(field, draft.inputValues[field.id])
+  );
   const selectedActions = draft.actionTemplates.filter(action => draft.selectedActionIds.includes(action.id));
   const encounter = draft.ownerType === 'encounter'
     ? ENCOUNTERS.find(candidate => candidate.id === draft.ownerId)
@@ -60,21 +70,30 @@ export default function ManualEffectPanel({
     : localizeManualEffectValue(draft.resolutionInstruction);
   const hasLocalizedPrintedText = localizedPrintedText !== draft.printedText;
   const savedSourceLabel = /[가-힣]/u.test(draft.printedText) ? '저장 당시 문구 보기' : '영문 원문 보기';
+  const actionTarget = (action: ManualEffectDraft['actionTemplates'][number]): string => {
+    if (action.fixedTarget) return action.fixedTarget;
+    if (action.targetInputId) return String(draft.inputValues[action.targetInputId] ?? '');
+    return draft.actionTargets[action.id] || '';
+  };
   const actionTargetsComplete = selectedActions.every(action =>
     action.targetType !== 'inventory-item'
     && action.targetType !== 'location'
     && action.targetType !== 'free-text'
       ? true
-      : Boolean(draft.actionTargets[action.id]?.trim())
+      : Boolean(actionTarget(action).trim())
   );
   const canResolve = requiredComplete && actionTargetsComplete && draft.resultSummary.trim().length > 0;
   const hasChoiceField = draft.inputFields.some(field => field.type === 'choice');
 
   const localizedOption = (option: string, optionIndex: number, options: string[]): string => {
     const normalizedOption = normalizeChoiceHeading(option);
+    const usesTopLevelEncounterChoiceOrder = options.length === draft.choices.length
+      && options.every((candidate, index) => candidate === draft.choices[index]);
     const matchedChoice = encounter?.choices.find(choice =>
       choice.label === option || normalizeChoiceHeading(choice.label) === normalizedOption
-    ) || (encounter?.choices.length === options.length ? encounter.choices[optionIndex] : undefined);
+    ) || (usesTopLevelEncounterChoiceOrder && encounter?.choices.length === options.length
+      ? encounter.choices[optionIndex]
+      : undefined);
     return localizeManualEffectOption(option, encounter ? draft.ownerId : undefined, matchedChoice?.id);
   };
 
@@ -128,7 +147,10 @@ export default function ManualEffectPanel({
                     type="button"
                     className={`manual-effect__choice-option${selected ? ' is-selected' : ''}`}
                     aria-pressed={selected}
-                    onClick={() => updateInput(field.id, selected ? '' : option)}
+                    onClick={() => {
+                      if (selected && field.required) return;
+                      updateInput(field.id, selected ? '' : option);
+                    }}
                   >{localizedOption(option, optionIndex, options)}</button>;
                 })}
               </div>
@@ -158,15 +180,18 @@ export default function ManualEffectPanel({
 
       {draft.actionTemplates.length > 0 ? <div className="manual-effect__canonical">{draft.actionTemplates.map(action => {
         const selected = draft.selectedActionIds.includes(action.id);
-        const target = draft.actionTargets[action.id] || '';
+        const target = actionTarget(action);
+        const targetOwnedByInput = Boolean(action.targetInputId);
         return <div key={action.id} className={`manual-effect__action-row${selected ? ' is-selected' : ''}`}>
-          <label className="manual-effect__check"><input type="checkbox" checked={selected} onChange={event => update({ selectedActionIds: event.target.checked ? [...draft.selectedActionIds, action.id] : draft.selectedActionIds.filter(id => id !== action.id) })} /><span>{localizeManualEffectValue(action.label)}</span></label>
+          <label className="manual-effect__check"><input type="checkbox" checked={selected} disabled={action.required} onChange={event => onChange(setManualEffectActionSelected(action.id, event.target.checked))} /><span>{localizeManualEffectValue(action.label)}{action.required ? ' · 필수' : ''}</span></label>
           <small>{localizeManualEffectLine(action.sourceText)}</small>
-          {selected && action.targetType === 'inventory-item' && <select aria-label={`${localizeManualEffectValue(action.label)} 대상`} value={target} onChange={event => update({ actionTargets: { ...draft.actionTargets, [action.id]: event.target.value } })}><option value="">가방에서 선택</option>{inventoryItems.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}
-          {selected && action.targetType === 'timer' && <select aria-label={`${localizeManualEffectValue(action.label)} 대상`} value={target} onChange={event => update({ actionTargets: { ...draft.actionTargets, [action.id]: event.target.value } })}><option value="">모든 활성 타이머</option>{timers.map(timer => <option key={timer.id} value={timer.id}>{timer.label}</option>)}</select>}
-          {selected && (action.targetType === 'location' || action.targetType === 'free-text') && <input aria-label={`${localizeManualEffectValue(action.label)} 대상 또는 결과`} value={target} onChange={event => update({ actionTargets: { ...draft.actionTargets, [action.id]: event.target.value } })} placeholder="원문이 지정한 대상이나 결과" />}
+          {selected && action.fixedTarget && <small className="manual-effect__fixed-target">{localizeManualEffectValue(action.fixedTarget)}</small>}
+          {selected && action.targetInputId && target && <small className="manual-effect__fixed-target">{localizeManualEffectValue(target)}</small>}
+          {selected && !targetOwnedByInput && action.targetType === 'inventory-item' && <select aria-label={`${localizeManualEffectValue(action.label)} 대상`} value={target} onChange={event => onChange(setManualEffectActionTarget(action.id, event.target.value))}><option value="">가방에서 선택</option>{inventoryItems.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}
+          {selected && action.targetType === 'timer' && <select aria-label={`${localizeManualEffectValue(action.label)} 대상`} value={target} onChange={event => onChange(setManualEffectActionTarget(action.id, event.target.value))}><option value="">모든 활성 타이머</option>{timers.map(timer => <option key={timer.id} value={timer.id}>{timer.label}</option>)}</select>}
+          {selected && !targetOwnedByInput && (action.targetType === 'location' || action.targetType === 'free-text') && <input aria-label={`${localizeManualEffectValue(action.label)} 대상 또는 결과`} value={target} onChange={event => onChange(setManualEffectActionTarget(action.id, event.target.value))} placeholder="원문이 지정한 대상이나 결과" />}
         </div>;
-      })}{selectedActions.length > 0 && <div className="manual-effect__preview"><strong>적용할 변화</strong><ul>{selectedActions.map(action => <li key={action.id}>{localizeManualEffectValue(action.label)}{draft.actionTargets[action.id] ? ` · ${draft.actionTargets[action.id]}` : ''}</li>)}</ul></div>}</div>
+      })}{selectedActions.length > 0 && <div className="manual-effect__preview"><strong>적용할 변화</strong><ul>{selectedActions.map(action => { const target = actionTarget(action); return <li key={action.id}>{localizeManualEffectValue(action.label)}{target ? ` · ${target}` : ''}</li>; })}</ul></div>}</div>
         : <p className="manual-effect__no-change">이 판정은 앱의 수치를 자동으로 바꾸지 않습니다. 아래에 장면의 결과만 기록하면 됩니다.</p>}
 
       {draft.followUpRequirements.length > 0 && <div className="manual-effect__follow-up"><h4>이어서 확인할 판정</h4><ul>{draft.followUpRequirements.map((row, index) => <li key={`${index}:${row}`}>{localizeManualEffectLine(row)}</li>)}</ul><p>지금 완료 내용을 입력하지 않으면 별도의 미해결 후속 판정으로 저장됩니다.</p></div>}

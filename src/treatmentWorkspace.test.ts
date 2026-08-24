@@ -1,8 +1,42 @@
 import { describe, expect, it } from 'vitest';
-import { buildTreatmentRequirementRows, reconcileTreatmentDraftAfterBagRemoval } from './treatmentWorkspace';
+import {
+  buildTreatmentRequirementRows,
+  deriveForageRequirementProgress,
+  reconcileTreatmentDraftAfterBagRemoval
+} from './treatmentWorkspace';
 import { REAGENTS, type RequirementExpression, type TreatmentDraft } from './rules';
 
 describe('Treatment workspace requirement comparison', () => {
+  it('keeps a researched PAIN 2 plan potential-only until the Part is owned', () => {
+    const planned = deriveForageRequirementProgress({
+      tag: 'PAIN',
+      threshold: 2,
+      ownedPotency: 0,
+      plannedPotencies: [2]
+    });
+    expect(planned).toEqual({
+      ownedPotency: 0,
+      plannedPotency: 2,
+      projectedPotency: 2,
+      satisfied: false,
+      potential: true
+    });
+
+    const acquired = deriveForageRequirementProgress({
+      tag: 'PAIN',
+      threshold: 2,
+      ownedPotency: 2,
+      plannedPotencies: []
+    });
+    expect(acquired).toEqual({
+      ownedPotency: 2,
+      plannedPotency: 0,
+      projectedPotency: 2,
+      satisfied: true,
+      potential: false
+    });
+  });
+
   it('distinguishes selected, available, and missing canonical requirements', () => {
     const requirement: RequirementExpression = {
       kind: 'allOf',

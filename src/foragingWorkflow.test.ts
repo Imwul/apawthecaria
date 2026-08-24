@@ -22,7 +22,9 @@ describe('foraging workflow order', () => {
     expect(appSource).toContain('환자의 처방에 보탤 힘을 미리 살펴보세요');
     expect(appSource).toContain('이 메모는 선택을 돕는 조사 기록입니다. 실제 채집은 카드를 뽑은 뒤 발견 목록에서 정합니다.');
     expect(appSource).toContain('role="group" aria-label={`${effectiveForageTargetTag} 채집 후보`}');
-    expect(appSource).toContain('const plannedValue = aggregateRemedyTagPotency');
+    expect(appSource).toContain('const progress = deriveForageRequirementProgress');
+    expect(appSource).toContain('const covered = progress.satisfied');
+    expect(appSource).toContain('progress.potential');
     expect(appSource).toContain('aria-pressed={selected}');
     expect(appSource).toContain('previous.filter(reagentId => reagentId !== row.reagent.id)');
     expect(appSource).toContain("[...previous, row.reagent.id]");

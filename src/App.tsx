@@ -89,6 +89,11 @@ import {
   type ConfirmedRouteSummary,
   type RouteStop
 } from "./map/routeComposer";
+import {
+  applyRacingBetsSnackSpeed,
+  consumeRacingBetsSnackSpeed,
+  type TravelSpeedConditionMode
+} from "./racingBetsSpeedCondition";
 import { RouteComposer } from "./components/RouteComposer";
 import { MapNodeAppearance } from "./map/MapNodeAppearance";
 import { mergeCharacterJournals } from "./characterJournals";
@@ -119,8 +124,11 @@ import {
   TOOL_UPGRADE_BY_ID,
   PRINTED_EFFECT_BY_OWNER,
   hasImmediatelyTreatableAilment,
+  immediatelyTreatableAilmentIds,
+  isAwaitingImmediateRemedy as isAwaitingImmediateRemedyCheckpoint,
+  reconcileImmediateRemedyCheckpoint,
+  releaseImmediateRemedyCheckpoint as releaseImmediateRemedyCheckpointRule,
   applyAilmentTagOverrides,
-  aggregateRemedyTagPotency,
   previewTreatmentSelection,
   canTreatAilmentWithInventory,
   calculatePawnReward,
@@ -130,6 +138,7 @@ import {
   clinicServiceArea,
   createMakeDoAcquisition,
   createPatientArchiveRecord,
+  derivePatientArchiveTimer,
   createManualEffectDraft,
   createReplacementAcquisition,
   commitAlternativeAcquisition,
@@ -170,7 +179,9 @@ import {
   urgencyFor,
   resolveLeave,
   resolveManualEffectTransaction,
+  resolveManualFollowUpTransaction,
   normalizeLegacyManualEffectDraft,
+  normalizePendingManualFollowUp,
   resolveMobilityTravel,
   resolvePassengerArrival,
   resolvePassengerBoarding,
@@ -329,6 +340,13 @@ import { migrateLegacyTerminology } from './localization/legacyTerminology';
 import { localizeEncounterTitle, localizeManualEffectValue, localizeManualJournalText, localizeManualJournalTitle } from './localization/manualEffectKo';
 import { formatManualEffectJournalEntry } from './manualEffectJournal';
 import {
+  canonicalizeManualEffectActionTargets,
+  scopeManualEffectDraftForEncounterChoice,
+  setManualEffectEncounterChoice,
+  type ManualEffectDraftUpdater
+} from './manualEffectDraftState';
+import { selectAutoOpenManualDraft } from './manualEffectQueue';
+import {
   formatReagentItemName,
   formatReagentName,
   gatheredReagentSummary,
@@ -336,9 +354,17 @@ import {
   reagentInventorySearchText,
   splitForagingTags
 } from './foragingInventoryPresentation';
-import { buildTreatmentRequirementRows, reconcileTreatmentDraftAfterBagRemoval } from './treatmentWorkspace';
+import {
+  buildTreatmentRequirementRows,
+  deriveForageRequirementProgress,
+  reconcileTreatmentDraftAfterBagRemoval
+} from './treatmentWorkspace';
 import {
   createSerializedForagingRollbackSnapshot,
+  hasPendingManualForagingCheckpoint as hasPendingManualForagingCheckpointForState,
+  isAwaitingImmediateRemedy,
+  manualForagingCheckpointMatchesDraft,
+  pendingForagingAfterEncounterCheckpoint,
   readSerializedForagingRollbackSnapshot,
   restoreSerializedForagingRollbackState,
   resolveForagingPostEncounterCheckpoint,
@@ -2707,15 +2733,26 @@ const refreshManualDraftFromRegistry = (draft: ManualEffectDraft | null): Manual
   if (effect?.status === 'implemented' && !effect.manualResolution) return null;
   if (draft.trigger === 'service-follow-up' || !effect?.manualResolution || !effect.supportedTriggers.includes(draft.trigger)) return draft;
   const trigger = draft.trigger as Parameters<typeof createManualEffectDraft>[1];
-  const canonical = createManualEffectDraft(effect, trigger, draft.context, draft.createdAt);
+  const canonicalBase = createManualEffectDraft(effect, trigger, draft.context, draft.createdAt);
+  // Rebuild source metadata around the saved Encounter branch before
+  // filtering values. This preserves synthetic branch inputs (for example,
+  // Betting Match's Snack/Friend choice) across reloads without trusting a
+  // stale saved copy of the printed rules.
+  const canonical = scopeManualEffectDraftForEncounterChoice({
+    ...canonicalBase,
+    inputValues: { ...draft.inputValues },
+    selectedActionIds: [...draft.selectedActionIds],
+    actionTargets: { ...draft.actionTargets }
+  }, draft.updatedAt);
   const validInputFields = new Map(canonical.inputFields.map(field => [field.id, field]));
-  const inputValues = Object.fromEntries(Object.entries(draft.inputValues).filter(([fieldId, value]) => {
+  const savedInputValues = Object.fromEntries(Object.entries(draft.inputValues).filter(([fieldId, value]) => {
     const field = validInputFields.get(fieldId);
     if (!field) return false;
     return field.type !== 'choice' || !value || (field.options || []).includes(String(value));
   }));
   const actionIds = new Set(canonical.actionTemplates.map(action => action.id));
-  return {
+  const savedActionTargets = Object.fromEntries(Object.entries(draft.actionTargets).filter(([id]) => actionIds.has(id)));
+  return scopeManualEffectDraftForEncounterChoice({
     ...draft,
     ruleId: canonical.ruleId,
     ruleIds: canonical.ruleIds,
@@ -2725,18 +2762,25 @@ const refreshManualDraftFromRegistry = (draft: ManualEffectDraft | null): Manual
     ownerId: canonical.ownerId,
     ownerType: canonical.ownerType,
     trigger: canonical.trigger,
+    context: canonical.context,
     printedText: canonical.printedText,
     resolutionInstruction: canonical.resolutionInstruction,
     mandatoryConditions: canonical.mandatoryConditions,
     choices: canonical.choices,
     canonicalActions: canonical.canonicalActions,
     inputFields: canonical.inputFields,
-    inputValues,
+    inputValues: { ...canonical.inputValues, ...savedInputValues },
     actionTemplates: canonical.actionTemplates,
-    selectedActionIds: draft.selectedActionIds.filter(id => actionIds.has(id)),
-    actionTargets: Object.fromEntries(Object.entries(draft.actionTargets).filter(([id]) => actionIds.has(id))),
+    selectedActionIds: [...new Set([
+      ...canonical.selectedActionIds,
+      ...draft.selectedActionIds.filter(id => actionIds.has(id))
+    ])],
+    actionTargets: canonicalizeManualEffectActionTargets(
+      canonical.actionTemplates,
+      { ...canonical.actionTargets, ...savedActionTargets }
+    ),
     followUpRequirements: canonical.followUpRequirements
-  };
+  }, draft.updatedAt);
 };
 
 const encounterChoiceSlug = (value: string): string => value
@@ -2754,17 +2798,18 @@ const prefillManualDraftFromEncounterChoice = (
   if (!selectedChoiceId) return draft;
   const selectedChoice = encounter.choices.find(choice => choice.id === selectedChoiceId);
   if (!selectedChoice) return draft;
+  const selectedDraft = setManualEffectEncounterChoice(selectedChoiceId, draft.updatedAt)(draft);
   const choiceText = selectedChoice.label.replace(/\s+/g, ' ').toLowerCase();
-  const matchingOption = draft.inputFields
+  const matchingOption = selectedDraft.inputFields
     .filter(field => field.type === 'choice')
     .flatMap(field => (field.options || []).map(option => ({ fieldId: field.id, option })))
     .find(({ option }) => encounterChoiceSlug(option) === selectedChoiceId || choiceText.startsWith(option.toLowerCase()));
-  const immediateBagActions = draft.actionTemplates.filter(action =>
+  const immediateBagActions = selectedDraft.actionTemplates.filter(action =>
     action.kind === 'gain-inventory'
     && /\badd\b[\s\S]{0,80}\bto\s+(?:your\s+)?bags?\b/i.test(action.sourceText)
     && choiceText.includes(action.sourceText.replace(/\s+/g, ' ').toLowerCase())
   );
-  const actionTargets = { ...draft.actionTargets };
+  const actionTargets = { ...selectedDraft.actionTargets };
   immediateBagActions.forEach(action => {
     const match = action.sourceText.match(/\badd\s+(?:an?\s+)?['“”"]?([^.;]{1,60}?)['“”"]?\s+to\s+(?:your\s+)?bags?\b/i);
     if (match) actionTargets[action.id] = match[1].trim();
@@ -2775,12 +2820,12 @@ const prefillManualDraftFromEncounterChoice = (
       ? [secondaryCard]
       : [];
   const secondaryInput = secondaryHistory.length > 0
-    ? draft.inputFields.find(field => field.type === 'card-reference')
+    ? selectedDraft.inputFields.find(field => field.type === 'card-reference')
     : undefined;
-  return {
-    ...draft,
+  return scopeManualEffectDraftForEncounterChoice({
+    ...selectedDraft,
     inputValues: {
-      ...draft.inputValues,
+      ...selectedDraft.inputValues,
       ...(matchingOption ? { [matchingOption.fieldId]: matchingOption.option } : {}),
       ...(secondaryInput
         ? {
@@ -2790,9 +2835,9 @@ const prefillManualDraftFromEncounterChoice = (
           }
         : {})
     },
-    selectedActionIds: [...new Set([...draft.selectedActionIds, ...immediateBagActions.map(action => action.id)])],
+    selectedActionIds: [...new Set([...selectedDraft.selectedActionIds, ...immediateBagActions.map(action => action.id)])],
     actionTargets
-  };
+  }, draft.updatedAt);
 };
 
 const enqueueManualDrafts = (state: GameState, drafts: Array<ManualEffectDraft | null>, open = true): GameState => {
@@ -2802,7 +2847,7 @@ const enqueueManualDrafts = (state: GameState, drafts: Array<ManualEffectDraft |
   const queue = [...new Map([...state.manualEffectQueue, ...incoming]
     .filter(draft => !resolvedIds.has(draft.effectId) && !draft.transactionId)
     .map(draft => [draft.effectId, draft])).values()];
-  const pending = state.pendingManualEffect || (open ? queue[0] || null : null);
+  const pending = state.pendingManualEffect || (open ? selectAutoOpenManualDraft(queue) : null);
   return {
     ...state,
     manualEffectQueue: queue,
@@ -2821,6 +2866,39 @@ const appendEngineJournals = (current: JournalEntry[], events: BarterRuntimeStat
 
 const getActivePatient = (s: GameState): PatientState | null =>
   s.patients.find(patient => patient.id === s.activePatientId) || null;
+
+const hasPendingManualForagingCheckpoint = (s: GameState): boolean => Boolean(
+  hasPendingManualForagingCheckpointForState(s.pendingForaging, s.manualEffectQueue)
+);
+
+const hasImmediateRemedyCheckpoint = (s: GameState): boolean =>
+  isAwaitingImmediateRemedy(s.pendingForaging)
+  || isAwaitingImmediateRemedyCheckpoint(s.pendingBarter);
+
+const hasAcquisitionCheckpoint = (s: GameState): boolean =>
+  hasImmediateRemedyCheckpoint(s) || hasPendingManualForagingCheckpoint(s);
+
+const hasStaleImmediateRemedyCheckpoint = (s: GameState): boolean => {
+  const tools = canonicalToolsFromState(s);
+  const availableToolIds = tools.filter(tool => !tool.broken && !tool.consumed).map(tool => tool.toolId);
+  return [s.pendingForaging, s.pendingBarter].some(checkpoint => {
+    if (!isAwaitingImmediateRemedyCheckpoint(checkpoint)) return false;
+    const patient = s.patients.find(row => row.id === checkpoint?.immediateRemedyPatientId);
+    if (!patient) return true;
+    const captured = Array.isArray(checkpoint?.immediateRemedyAilmentIds)
+      ? checkpoint.immediateRemedyAilmentIds
+      : [];
+    if (captured.length === 0) return true;
+    const treatableNow = immediatelyTreatableAilmentIds(
+      patient,
+      toEngineInventory(s.bag),
+      s.ailmentTagOverrides,
+      availableToolIds,
+      tools
+    );
+    return !captured.some(id => treatableNow.includes(id));
+  });
+};
 
 const canonicalCompanionId = (value: string): string => value.replace(/_/g, '-');
 
@@ -2938,7 +3016,10 @@ const toJourneyRuntime = (s: GameState): JourneyRuntimeState => ({
   inventory: toEngineInventory(s.bag),
   patients: s.patients,
   pendingEncounter: s.pendingEncounter,
-  pendingBarter: s.pendingBarter && !['completed', 'abandoned'].includes(s.pendingBarter.status) ? s.pendingBarter : null,
+  pendingBarter: s.pendingBarter && (
+    !['completed', 'abandoned'].includes(s.pendingBarter.status)
+    || isAwaitingImmediateRemedyCheckpoint(s.pendingBarter)
+  ) ? s.pendingBarter : null,
   pendingForaging: s.pendingForaging,
   pendingManualEffect: s.pendingManualEffect,
   manualEffectQueue: s.manualEffectQueue,
@@ -3000,6 +3081,7 @@ const applyLeaveRuntime = (s: GameState, runtime: LeaveRuntimeState): GameState 
     scroungingMode: canScrounge,
     pendingLeaveObligation: runtime.pendingObligation,
     activePatientId: runtime.activePatientId === undefined ? s.activePatientId : runtime.activePatientId,
+    pendingForaging: s.pendingForaging,
     patientArchive: runtime.patientArchive || s.patientArchive,
     appliedTransactionIds: runtime.appliedTransactionIds,
     journals: appendEngineJournals(s.journals, runtime.journalEvents)
@@ -3043,6 +3125,58 @@ const settleExpiredPatientAfterTimer = (
       : null;
   });
   return enqueueManualDrafts(next, failureDrafts);
+};
+
+/** Keep the p.33/p.35 deferred Timer and its Remedy gate in one atomic state
+ * transition. Any Bag/Tool mutation passes through updateState, so a Remedy
+ * that ceases to be possible cannot strand the campaign behind a stale gate. */
+const reconcileGameImmediateRemedyCheckpoints = (state: GameState): GameState => {
+  let next = state;
+  const reconcile = (
+    kind: 'foraging' | 'barter',
+    checkpoint: PendingForagingState | PendingBarterState | null,
+    deferredTimerCost: number,
+    transactionId: string
+  ) => {
+    if (!isAwaitingImmediateRemedyCheckpoint(checkpoint)) return;
+    const patient = next.patients.find(row => row.id === checkpoint?.immediateRemedyPatientId) || null;
+    const tools = canonicalToolsFromState(next);
+    const result = reconcileImmediateRemedyCheckpoint({
+      checkpoint,
+      patient,
+      inventory: toEngineInventory(next.bag),
+      ailmentTagOverrides: next.ailmentTagOverrides,
+      availableToolIds: tools.filter(tool => !tool.broken && !tool.consumed).map(tool => tool.toolId),
+      toolStates: tools,
+      deferredTimerCost
+    });
+    next = {
+      ...next,
+      ...(kind === 'foraging'
+        ? { pendingForaging: result.checkpoint as PendingForagingState | null }
+        : { pendingBarter: result.checkpoint as PendingBarterState | null }),
+      patients: result.patient ? replacePatient(next.patients, result.patient) : next.patients
+    };
+    if (result.timerApplied && result.patient) {
+      next = settleExpiredPatientAfterTimer(next, result.patient, transactionId);
+    }
+  };
+
+  const pendingForaging = next.pendingForaging;
+  reconcile(
+    'foraging',
+    pendingForaging || null,
+    pendingForaging?.timerCostAfterEncounter || 0,
+    `${pendingForaging?.transactionId || 'orphan-foraging'}:deferred-remedy-timer`
+  );
+  const pendingBarter = next.pendingBarter;
+  reconcile(
+    'barter',
+    pendingBarter || null,
+    1,
+    `${pendingBarter?.barterId || 'orphan-barter'}:deferred-remedy-timer`
+  );
+  return next;
 };
 
 const toCanonicalDowntimeRuntime = (s: GameState): CanonicalDowntimeState => ({
@@ -3291,16 +3425,27 @@ const freePathLocationIdsFromState = (s: GameState): string[] =>
     .filter(condition => condition.startsWith('free-path:'))
     .map(condition => condition.slice('free-path:'.length));
 
-const previewTravelSpeed = (s: GameState, weight: number): number => {
+const previewTravelSpeed = (
+  s: GameState,
+  weight: number,
+  mode: TravelSpeedConditionMode = 'move'
+): number => {
+  // Over-encumbered Speed is the final value 1; one-shot and Tool bonuses do
+  // not make the route preview disagree with the canonical Move transaction.
+  if (weight > getMaxCarry(s)) return 1;
   let speed = getTravelSpeed(s, weight);
   const hasStilts = canonicalToolsFromState(s).some(tool => tool.toolId === 'stilts' && !tool.broken && !tool.consumed);
   if (s.currentRegion === 'Bog' && hasStilts) speed += 1;
   if ((s.manualConditions || []).includes('next-move-speed-double')) speed *= 2;
-  return speed;
+  return applyRacingBetsSnackSpeed(speed, s.manualConditions || [], mode);
 };
 
-const consumeTravelConditions = (conditions: string[], destinationId: string, originId?: string): string[] =>
-  conditions.filter(condition => {
+const consumeTravelConditions = (
+  conditions: string[],
+  destinationId: string,
+  originId?: string,
+  mode: TravelSpeedConditionMode = 'move'
+): string[] => consumeRacingBetsSnackSpeed(conditions.filter(condition => {
     if (condition === 'ignore-midges-until-move') return false;
     if (condition === 'next-move-speed-double') return false;
     if (condition === 'location-encounter-fp:3') return false;
@@ -3308,7 +3453,7 @@ const consumeTravelConditions = (conditions: string[], destinationId: string, or
     if (condition === `free-path:${destinationId}`) return false;
     if (originId && condition === `ignore-negative:${originId}`) return false;
     return true;
-  });
+  }), mode);
 
 const defaultEncounterChoiceId = (encounter: { choices?: Array<{ id: string }> } | null | undefined, selectedChoiceId?: string): string | undefined => {
   const choices = encounter?.choices || [];
@@ -4377,6 +4522,9 @@ const migrateState = (s: any): GameState => {
       || s.activeAilment?.id
       || null
   });
+  const refreshedPendingManualEffect = refreshManualDraftFromRegistry(
+    normalizeLegacyManualEffectDraft(s.pendingManualEffect)
+  );
   return syncWorldMemory({
     ...INITIAL_STATE,
     ...s,
@@ -4485,12 +4633,18 @@ const migrateState = (s: any): GameState => {
     ailmentTagOverrides: s.ailmentTagOverrides || [],
     trinketRecords: s.trinketRecords || [],
     legacyTrinketCount: Number.isInteger(s.legacyTrinketCount) ? s.legacyTrinketCount : 0,
-    pendingManualEffect: refreshManualDraftFromRegistry(normalizeLegacyManualEffectDraft(s.pendingManualEffect)),
+    pendingManualEffect: refreshedPendingManualEffect?.status === 'manual'
+      ? refreshedPendingManualEffect
+      : null,
     treatmentDraft: s.treatmentDraft || null,
     manualEffectDraft: refreshManualDraftFromRegistry(normalizeLegacyManualEffectDraft(s.manualEffectDraft)),
     manualEffectQueue: Array.isArray(s.manualEffectQueue) ? s.manualEffectQueue.map((row: unknown) => refreshManualDraftFromRegistry(normalizeLegacyManualEffectDraft(row))).filter((row: ManualEffectDraft | null): row is ManualEffectDraft => Boolean(row)) : [],
     manualEffectRecords: Array.isArray(s.manualEffectRecords) ? s.manualEffectRecords : [],
-    pendingManualFollowUps: Array.isArray(s.pendingManualFollowUps) ? s.pendingManualFollowUps : [],
+    pendingManualFollowUps: Array.isArray(s.pendingManualFollowUps)
+      ? s.pendingManualFollowUps
+        .map((row: unknown) => normalizePendingManualFollowUp(row))
+        .filter((row: PendingManualFollowUp | null): row is PendingManualFollowUp => Boolean(row))
+      : [],
     manualConditions: Array.isArray(s.manualConditions) ? s.manualConditions.map(String) : [],
     offlineOutbox: s.offlineOutbox || [],
     downtimeCompleted: s.downtimeCompleted || false,
@@ -4802,6 +4956,42 @@ const canonicalWagonFromState = (s: GameState): WagonState => {
     expansionIds,
     clayPotReagentId: null,
     clayPotMoves: 0
+  };
+};
+
+const resolveManualEffectAgainstGameState = (
+  s: GameState,
+  draft: ManualEffectDraft,
+  transaction: { id: string; at: number },
+  override: boolean
+) => {
+  const resolutionDraft = draft.journalNote.trim()
+    ? draft
+    : { ...draft, journalNote: draft.resultSummary.trim() };
+  const patient = s.patients.find(row => row.id === resolutionDraft.context.patientId)
+    || s.patients.find(row => row.id === s.activePatientId)
+    || null;
+  return {
+    draft: resolutionDraft,
+    resolution: resolveManualEffectTransaction({
+      draft: resolutionDraft,
+      transactionId: transaction.id,
+      override,
+      resolvedAt: transaction.at,
+      state: {
+        reputation: s.reputation,
+        trinkets: s.trinkets.length,
+        calendarDays: s.calendarDays,
+        foragingPoints: s.activeAilment?.foragingPoints || 0,
+        inventory: toEngineInventory(s.bag),
+        patient,
+        conditions: s.manualConditions,
+        pendingFollowUps: s.pendingManualFollowUps,
+        appliedTransactionIds: s.appliedTransactionIds,
+        companions: s.companionStates,
+        companionCapacity: resolveWagonCapabilities(canonicalWagonFromState(s)).companionSlots
+      }
+    })
   };
 };
 
@@ -5663,6 +5853,7 @@ export default function App() {
     setState(prev => {
       if (!prev) return prev;
       let next = updater(withCanonicalPatientView(prev));
+      next = reconcileGameImmediateRemedyCheckpoints(next);
       next = {
         ...withoutLegacyPatientWrite(next),
         schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -5697,6 +5888,15 @@ export default function App() {
     });
   };
 
+  useEffect(() => {
+    if (!state || !hasStaleImmediateRemedyCheckpoint(state)) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) updateState(current => current);
+    });
+    return () => { cancelled = true; };
+  }, [state]);
+
   const beginForagingUndoCheckpoint = (transactionId: string, snapshot: GameState) => {
     foragingUndoCheckpointRef.current = {
       transactionId,
@@ -5708,6 +5908,10 @@ export default function App() {
   const cancelCurrentForagingAttempt = async () => {
     if (!state?.pendingForaging || resolvingForageEncounterRef.current) return;
     const pending = state.pendingForaging;
+    if (pending.phase === 'resolved') {
+      showAlert('채집 결과가 이미 반영되어 시작 전으로 되돌릴 수 없습니다. 남은 직접 판정이나 즉시 치료를 먼저 마쳐 주세요.');
+      return;
+    }
     const confirmation = await requestControlledPrompt({
       title: '채집을 처음부터 다시 할까요?',
       message: '가방에 넣은 부위, 채집 포인트, 사용한 도구 상태를 시작 전으로 되돌리고 목표 재료 선택부터 다시 시작합니다.',
@@ -5962,13 +6166,16 @@ export default function App() {
             }, ...next.journals]
           };
           if (leftover) {
-            const draft = createPrintedManualDraft(encounter.id, 'encounter', {
+            const createdDraft = createPrintedManualDraft(encounter.id, 'encounter', {
               encounterTransactionId: `${pending.barterId}:social`,
               barterId: pending.barterId,
               patientId: patient.id,
               locationId: pending.locationId,
               continuation: 'barter-social'
             });
+            const draft = createdDraft
+              ? prefillManualDraftFromEncounterChoice(createdDraft, encounter, selectedChoiceId)
+              : null;
             next = enqueueManualDrafts(next, [draft]);
           }
           return next;
@@ -6538,6 +6745,12 @@ export default function App() {
   }
 
   function handlePassHour(amt: number = 1, timerIds?: string[]) {
+    if (hasAcquisitionCheckpoint(state)) {
+      showAlert(hasImmediateRemedyCheckpoint(state)
+        ? '룰북 p.33·35: 필요한 재료가 모두 모였으므로 Timer를 줄이기 전에 먼저 치료제를 만들어야 합니다.'
+        : '채집 조우의 직접 판정을 마쳐야 Timer를 줄이거나 다음 행동을 할 수 있습니다.');
+      return;
+    }
     const patient = state.patients.find(row => row.id === state.activePatientId);
     if (!patient) return;
     const timerResult = resolveTimer({ patient, hours: amt, timerIds });
@@ -7623,7 +7836,7 @@ export default function App() {
       canonicalActions: ['날씨 예보 보호 적용', ...manualDraft.canonicalActions]
     };
     let patient: PatientState | null = runtime.patient ? { ...runtime.patient, foragingPoints: runtime.foragingPoints } : null;
-    patient = resolveForagingPostEncounterCheckpoint({
+    const foragingCheckpoint = resolveForagingPostEncounterCheckpoint({
       patient,
       inventory: runtime.inventory,
       ailmentTagOverrides: state.ailmentTagOverrides,
@@ -7633,7 +7846,8 @@ export default function App() {
       toolStates: canonicalToolsFromState(state),
       timerCost: pending.timerCostAfterEncounter,
       manualEffectPending: Boolean(manualDraft)
-    }).patient;
+    });
+    patient = foragingCheckpoint.patient;
     updateState(s => {
       let next: GameState = {
         ...applyCalendarAdvance(s, runtime.calendarDays, '채집 조우의 지시를 달력에 표시했습니다.'),
@@ -7644,7 +7858,7 @@ export default function App() {
         activePatientId: encounterAilmentInstanceId && patient ? patient.id : s.activePatientId,
         toolStates: encounterAilmentInstanceId ? encounterAilmentToolStates : s.toolStates,
         appliedEncounterEffectIds: runtime.appliedEffectIds,
-        pendingForaging: manualDraft ? { ...pending, phase: 'resolved' } : null,
+        pendingForaging: pendingForagingAfterEncounterCheckpoint(pending, foragingCheckpoint),
         needsLocalHelpBeforeMove: encounterAilmentInstanceId ? true : s.needsLocalHelpBeforeMove,
         treatmentDraft: encounterAilmentInstanceId ? null : s.treatmentDraft,
         manualConditions: Array.from(new Set([
@@ -7728,27 +7942,80 @@ export default function App() {
   const handleCompleteManualFollowUp = async (followUpId: string) => {
     const followUp = state.pendingManualFollowUps.find(row => row.id === followUpId && row.status === 'pending');
     if (!followUp) return;
-    const note = await requestControlledPrompt({
-      title: '후속 판정 기록',
-      message: localizeManualEffectValue(followUp.description),
-      defaultValue: '화면에 표시된 조건을 확인하고 후속 판정을 완료했다.',
-      kicker: '직접 판정',
-      label: '해결 기록',
-      inputMode: 'multiline'
-    });
+    let eligibilityEvidence: 'travelled-10-paths' | 'journey-ended' | undefined;
+    let note: string | null;
+    if (followUp.kind === 'cocoon-hatch') {
+      const evidence = await requestControlledPrompt({
+        title: 'Cocoon 부화 조건 확인',
+        message: '룰북 p.196: Cocoon을 얻은 뒤 10 Paths를 이동했거나, 해당 여정을 끝내야 Butterfly로 부화합니다.',
+        defaultValue: 'travelled-10-paths',
+        kicker: 'Racing Bets · 후속 판정',
+        label: '충족한 조건',
+        options: [
+          { value: 'travelled-10-paths', label: 'Cocoon을 얻은 뒤 10 Paths를 이동했다' },
+          { value: 'journey-ended', label: 'Cocoon을 얻은 여정을 끝냈다' }
+        ],
+        confirmLabel: '부화 기록'
+      });
+      if (evidence !== 'travelled-10-paths' && evidence !== 'journey-ended') return;
+      eligibilityEvidence = evidence;
+      note = evidence === 'travelled-10-paths'
+        ? 'Cocoon을 얻은 뒤 10 Paths를 이동했다.'
+        : 'Cocoon을 얻은 여정을 끝냈다.';
+    } else {
+      note = await requestControlledPrompt({
+        title: '후속 판정 기록',
+        message: localizeManualEffectValue(followUp.description),
+        defaultValue: '화면에 표시된 조건을 확인하고 후속 판정을 완료했다.',
+        kicker: '직접 판정',
+        label: '해결 기록',
+        inputMode: 'multiline'
+      });
+    }
     if (!note?.trim()) return;
     const transaction = createClientTransaction('manual-follow-up');
+    const preview = resolveManualFollowUpTransaction({
+      followUpId,
+      transactionId: transaction.id,
+      eligibilityEvidence,
+      state: {
+        inventory: toEngineInventory(state.bag),
+        companions: state.companionStates,
+        companionCapacity: resolveWagonCapabilities(canonicalWagonFromState(state)).companionSlots,
+        pendingFollowUps: state.pendingManualFollowUps,
+        appliedTransactionIds: state.appliedTransactionIds
+      }
+    });
+    if (!preview.value) {
+      showAlert(preview.messages.join('\n'));
+      return;
+    }
     updateState(s => {
       const current = s.pendingManualFollowUps.find(row => row.id === followUpId && row.status === 'pending');
-      if (!current || s.appliedTransactionIds.includes(transaction.id)) return s;
+      if (!current) return s;
+      const outcome = resolveManualFollowUpTransaction({
+        followUpId,
+        transactionId: transaction.id,
+        eligibilityEvidence,
+        state: {
+          inventory: toEngineInventory(s.bag),
+          companions: s.companionStates,
+          companionCapacity: resolveWagonCapabilities(canonicalWagonFromState(s)).companionSlots,
+          pendingFollowUps: s.pendingManualFollowUps,
+          appliedTransactionIds: s.appliedTransactionIds
+        }
+      });
+      if (!outcome.value) return s;
       return {
         ...s,
-        pendingManualFollowUps: s.pendingManualFollowUps.map(row => row.id === followUpId ? { ...row, status: 'resolved' as const } : row),
-        appliedTransactionIds: [...s.appliedTransactionIds, transaction.id],
+        bag: fromEngineInventory(outcome.value.nextState.inventory, s.bag),
+        companionStates: outcome.value.nextState.companions,
+        pendingManualFollowUps: outcome.value.nextState.pendingFollowUps,
+        appliedTransactionIds: outcome.value.nextState.appliedTransactionIds,
         journals: [{
           id: `${transaction.id}:journal`,
           title: `후속 판정 완료: ${current.ownerId}`,
-          text: `${current.description}\n\n${note.trim()}`,
+          text: `${current.description}\n\n${note.trim()}\n\n${outcome.value.canonicalResult}`,
           timestamp: transaction.at
         }, ...s.journals]
       };
@@ -8265,7 +8532,16 @@ export default function App() {
               draft={state.pendingManualEffect}
               inventoryItems={state.bag.map(item => ({ id: item.id, name: formatReagentItemName(item.name, item.canonicalReagentId) }))}
               timers={(state.patients.find(patient => patient.id === state.pendingManualEffect?.context.patientId) || state.patients.find(patient => patient.id === state.activePatientId))?.timers.filter(timer => timer.status === 'active').map(timer => ({ id: timer.id, label: `${timer.ailmentInstanceId} · ${timer.current}/${timer.maximum}` })) || []}
-              onChange={draft => updateState(s => ({ ...s, pendingManualEffect: draft, manualEffectDraft: draft, manualEffectQueue: s.manualEffectQueue.map(row => row.effectId === draft.effectId ? draft : row) }))}
+              onChange={(updater: ManualEffectDraftUpdater) => updateState(s => {
+                if (!s.pendingManualEffect) return s;
+                const draft = updater(s.pendingManualEffect);
+                return {
+                  ...s,
+                  pendingManualEffect: draft,
+                  manualEffectDraft: draft,
+                  manualEffectQueue: s.manualEffectQueue.map(row => row.effectId === draft.effectId ? draft : row)
+                };
+              })}
               onDefer={() => updateState(s => {
                 if (!s.pendingManualEffect) return s;
                 const deferred = { ...s.pendingManualEffect, status: 'deferred' as const, updatedAt: Date.now() };
@@ -8274,37 +8550,22 @@ export default function App() {
               })}
               onResolve={override => {
                 const transaction = createClientTransaction('manual-effect');
-                const draft = state.pendingManualEffect!;
-                const resolvedDraft = draft.journalNote.trim()
-                  ? draft
-                  : { ...draft, journalNote: draft.resultSummary.trim() };
-                const patient = state.patients.find(row => row.id === draft.context.patientId) || state.patients.find(row => row.id === state.activePatientId) || null;
-                const resolved = resolveManualEffectTransaction({
-                  draft: resolvedDraft,
-                  transactionId: transaction.id,
-                  override,
-                  resolvedAt: transaction.at,
-                  state: {
-                    reputation: state.reputation,
-                    trinkets: state.trinkets.length,
-                    calendarDays: state.calendarDays,
-                    foragingPoints: state.activeAilment?.foragingPoints || 0,
-                    inventory: toEngineInventory(state.bag),
-                    patient,
-                    conditions: state.manualConditions,
-                    pendingFollowUps: state.pendingManualFollowUps,
-                    appliedTransactionIds: state.appliedTransactionIds
-                  }
-                });
-                if (!resolved.value) {
-                  showAlert(resolved.messages.join('\n'));
+                const previewDraft = state.pendingManualEffect!;
+                const preview = resolveManualEffectAgainstGameState(state, previewDraft, transaction, override);
+                if (!preview.resolution.value) {
+                  showAlert(preview.resolution.messages.join('\n'));
                   return;
                 }
                 updateState(s => {
-                  const outcome = resolved.value!;
-                  const stillPending = s.manualEffectQueue.some(row => row.effectId === draft.effectId && !row.transactionId);
-                  const alreadyResolved = s.manualEffectRecords.some(record => record.effectId === draft.effectId);
+                  const currentDraft = s.pendingManualEffect;
+                  if (!currentDraft || currentDraft.effectId !== previewDraft.effectId) return s;
+                  const stillPending = s.manualEffectQueue.some(row => row.effectId === currentDraft.effectId && !row.transactionId);
+                  const alreadyResolved = s.manualEffectRecords.some(record => record.effectId === currentDraft.effectId);
                   if (!stillPending || alreadyResolved) return s;
+                  const commit = resolveManualEffectAgainstGameState(s, currentDraft, transaction, override);
+                  if (!commit.resolution.value) return s;
+                  const draft = commit.draft;
+                  const outcome = commit.resolution.value;
                   const nextPatient = outcome.nextState.patient;
                   const queue = s.manualEffectQueue.filter(row => row.effectId !== draft.effectId);
                   const pendingFollowUps = [...new Map([...s.pendingManualFollowUps, ...outcome.nextState.pendingFollowUps].map(row => [row.id, row])).values()];
@@ -8316,12 +8577,13 @@ export default function App() {
                     patients: nextPatient
                       ? replacePatient(s.patients, { ...nextPatient, foragingPoints: outcome.nextState.foragingPoints })
                       : s.patients,
-                    manualConditions: Array.from(new Set([...s.manualConditions, ...outcome.nextState.conditions])),
+                    manualConditions: outcome.nextState.conditions,
                     pendingManualFollowUps: pendingFollowUps,
+                    companionStates: outcome.nextState.companions || s.companionStates,
                     appliedTransactionIds: Array.from(new Set([...s.appliedTransactionIds, ...outcome.nextState.appliedTransactionIds])),
                     manualEffectQueue: queue,
                     manualEffectRecords: [...s.manualEffectRecords, outcome.record],
-                    pendingManualEffect: queue[0] || null,
+                    pendingManualEffect: selectAutoOpenManualDraft(queue),
                     manualEffectDraft: queue[0] || null,
                     journals: [{
                       id: `${transaction.id}:journal`,
@@ -8361,13 +8623,12 @@ export default function App() {
                       if (social.value) next = applyBarterRuntime(next, social.value);
                     }
                   }
-                  if (draft.context.continuation === 'foraging'
-                    && next.pendingForaging?.phase === 'resolved'
-                    && !queue.some(row => row.context.continuation === 'foraging')) {
+                  if (manualForagingCheckpointMatchesDraft(next.pendingForaging, draft)
+                    && !queue.some(row => manualForagingCheckpointMatchesDraft(next.pendingForaging, row))) {
                     const foragePending = next.pendingForaging;
                     const foragePatientId = draft.context.patientId || next.activePatientId;
                     const foragePatient = next.patients.find(row => row.id === foragePatientId) || null;
-                    const patientAfterTime = resolveForagingPostEncounterCheckpoint({
+                    const foragingCheckpoint = resolveForagingPostEncounterCheckpoint({
                       patient: foragePatient,
                       inventory: toEngineInventory(next.bag),
                       ailmentTagOverrides: next.ailmentTagOverrides,
@@ -8377,13 +8638,14 @@ export default function App() {
                       toolStates: canonicalToolsFromState(next),
                       timerCost: foragePending.timerCostAfterEncounter,
                       manualEffectPending: false
-                    }).patient;
+                    });
+                    const patientAfterTime = foragingCheckpoint.patient;
                     next = {
                       ...next,
                       patients: patientAfterTime
                         ? next.patients.map(row => row.id === patientAfterTime.id ? patientAfterTime : row)
                         : next.patients,
-                      pendingForaging: null
+                      pendingForaging: pendingForagingAfterEncounterCheckpoint(foragePending, foragingCheckpoint)
                     };
                     if (patientAfterTime) {
                       next = settleExpiredPatientAfterTimer(
@@ -9910,6 +10172,7 @@ function PlayView({
   const [destName, setDestName] = useState("");
   const [journeyReason, setJourneyReason] = useState("");
   const journeyReasonRef = useRef("");
+  const travelMoveTransactionPendingRef = useRef(false);
   const [destRegion, setDestRegion] = useState("Forest");
   const [travelMode, setTravelMode] = useState<'move' | 'soar'>('move');
   const [journeyDestinationMode, setJourneyDestinationMode] = useState<'draw' | 'choose'>('draw');
@@ -10115,9 +10378,19 @@ function PlayView({
       catalyseTags: treatmentOwnedPreview?.catalyseTags || []
     })
     : [];
+  const awaitingForagingImmediateRemedy = isAwaitingImmediateRemedy(state.pendingForaging);
+  const awaitingBarterImmediateRemedy = isAwaitingImmediateRemedyCheckpoint(state.pendingBarter);
+  const awaitingImmediateRemedy = awaitingForagingImmediateRemedy || awaitingBarterImmediateRemedy;
+  const awaitingManualForaging = hasPendingManualForagingCheckpoint(state);
+  const acquisitionCheckpointBlocked = awaitingImmediateRemedy || awaitingManualForaging;
+  const immediateRemedyBlockingMessage = '룰북 p.33·35: 필요한 재료가 모두 모였으므로 Timer를 줄이거나 다음 행동을 하기 전에 먼저 치료제를 만들어야 합니다.';
+  const acquisitionCheckpointBlockingMessage = awaitingImmediateRemedy
+    ? immediateRemedyBlockingMessage
+    : '채집 조우의 직접 판정을 마쳐야 채집·거래·시간 경과·이동을 계속할 수 있습니다.';
   const treatmentAcquisitionNeedsAttention = Boolean(
     (treatmentPatient && treatmentAilment && !treatmentCanTreatFromOwned)
-    || state.pendingForaging
+    || (state.pendingForaging && !awaitingForagingImmediateRemedy)
+    || awaitingBarterImmediateRemedy
     || activeForageEncounter
     || (state.pendingBarter && !['completed', 'abandoned'].includes(state.pendingBarter.status))
   );
@@ -11685,7 +11958,11 @@ function PlayView({
 	    clearJourneyStartDraft();
 	  };
 
-  const executeCanonicalTravelMove = async (drawnSuit: string, cardVal: number) => {
+  const executeCanonicalTravelMoveTransaction = async (drawnSuit: string, cardVal: number) => {
+    if (acquisitionCheckpointBlocked) {
+      showAlert(acquisitionCheckpointBlockingMessage);
+      return;
+    }
     const mapNodes = buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || []);
     const composedDraft = routeDraftRef.current;
     const currentLocationId = resolveCurrentMapLocationKey(state)
@@ -11802,7 +12079,11 @@ function PlayView({
         currentLocationName: state.currentLocationName,
         currentRegion: (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as TravelRegion,
         currentLocationType: canonicalLocationType(state.currentLocationType),
-        baseSpeed: (isHitchMove ? 5 : (state.nextMoveSpeedOverride ?? getTravelSpeed(state, currentWeight))) + (travelStartTools?.speedDelta || 0),
+        baseSpeed: applyRacingBetsSnackSpeed(
+          isHitchMove ? 5 : (state.nextMoveSpeedOverride ?? getTravelSpeed(state, currentWeight)),
+          state.manualConditions || [],
+          movementMode
+        ) + (travelStartTools?.speedDelta || 0),
         carry: getMaxCarry(state),
         inventory: toEngineInventory(state.bag),
         calendarDays: state.calendarDays,
@@ -12003,7 +12284,7 @@ function PlayView({
         if (beetle.value) next = applyMobilityRuntime(next, beetle.value);
       }
       const originId = currentLocationId;
-      let nextConditions = consumeTravelConditions(s.manualConditions || [], destinationId, originId);
+      let nextConditions = consumeTravelConditions(s.manualConditions || [], destinationId, originId, movementMode);
       if (printedIgnoreHere) nextConditions = nextConditions.filter(condition => condition !== `ignore-negative:${destinationId}`);
       next = {
       ...applyCalendarAdvance(next, outcome.nextState.calendarDays),
@@ -12055,6 +12336,21 @@ function PlayView({
     setNextLocName('');
   };
 
+  const executeCanonicalTravelMove = async (drawnSuit: string, cardVal: number) => {
+    if (travelMoveTransactionPendingRef.current) return;
+    travelMoveTransactionPendingRef.current = true;
+    try {
+      await executeCanonicalTravelMoveTransaction(drawnSuit, cardVal);
+    } finally {
+      // Keep the lock through the browser's rapid-click window as well as the
+      // async prompts above; React may not have painted the committed location
+      // before a second click event is delivered.
+      window.setTimeout(() => {
+        travelMoveTransactionPendingRef.current = false;
+      }, 300);
+    }
+  };
+
   const handleRecordExternalAilmentResolution = async () => {
     const hasUnresolvedAppPatient = state.patients.some(patient => patient.status === 'active'
       && patient.ailments.some(ailment => ailment.status === 'active'));
@@ -12087,6 +12383,11 @@ function PlayView({
   const handleTravelMove = (e: React.FormEvent) => {
     e.preventDefault();
     if (!state.journeyActive) return;
+
+    if (acquisitionCheckpointBlocked) {
+      showAlert(acquisitionCheckpointBlockingMessage);
+      return;
+    }
 
     if (state.needsLocalHelpBeforeMove) {
       showAlert("룰북 p.25: 이동 후 현지 야수의 질환 하나를 해결해야 다시 이동할 수 있습니다. 아래 환자 진료를 진행하세요.");
@@ -12539,6 +12840,10 @@ function PlayView({
     source: PendingForagingState['source'] = 'standard',
     targetReagentId?: string
   ) => {
+    if (acquisitionCheckpointBlocked) {
+      showAlert(acquisitionCheckpointBlockingMessage);
+      return;
+    }
     const region = (overrideRegion || state.currentRegion) as Exclude<TravelRegion, 'Soar'>;
     const transactionId = createClientTransaction('forage').id;
     const locationRelation = overrideRegion ? 'adjacent' as const : 'current' as const;
@@ -12677,6 +12982,10 @@ function PlayView({
 
   const handleForageDraw = (e?: React.MouseEvent) => {
     if (e) e.preventDefault();
+    if (acquisitionCheckpointBlocked) {
+      showAlert(acquisitionCheckpointBlockingMessage);
+      return;
+    }
     if (!state.activeAilment) return;
 
     const familiarMechanic = getActiveFamiliarMechanic(state);
@@ -12736,6 +13045,10 @@ function PlayView({
 
   // Scrounging Forage Draw Resolver
   const executeScroungeForageDraw = (regionName: string, drawnSuit: string, cardVal: number, cost: number) => {
+    if (acquisitionCheckpointBlocked) {
+      showAlert(acquisitionCheckpointBlockingMessage);
+      return;
+    }
     const transactionId = `scrounge:foraging:${Date.now()}`;
     const relation = cost === 2 ? 'adjacent' as const : 'current' as const;
     const result = resolveForaging({
@@ -12824,6 +13137,10 @@ function PlayView({
   };
 
   const handleScroungeForage = (regionName: string, cost: number) => {
+    if (acquisitionCheckpointBlocked) {
+      showAlert(acquisitionCheckpointBlockingMessage);
+      return;
+    }
     const patient = state.patients.find(row => row.id === state.activePatientId) || state.patients.at(-1);
     if (!patient) return;
     const result = resolveScrounge({
@@ -12844,6 +13161,10 @@ function PlayView({
   };
 
   const handleScroungeGainReagent = async (reagentName: string, cost: number) => {
+    if (acquisitionCheckpointBlocked) {
+      showAlert(acquisitionCheckpointBlockingMessage);
+      return;
+    }
     const patient = state.patients.find(row => row.id === state.activePatientId) || state.patients.at(-1);
     const normalized = reagentName.toLowerCase();
     const reagent = REAGENTS.find(row => row.displayName.toLowerCase() === normalized || row.canonicalName.toLowerCase() === normalized || row.displayName.toLowerCase().includes(normalized));
@@ -12918,6 +13239,10 @@ function PlayView({
   };
 
   const handleAbandonPatient = async () => {
+    if (acquisitionCheckpointBlocked) {
+      showAlert(acquisitionCheckpointBlockingMessage);
+      return;
+    }
     const patient = state.patients.find(row => row.id === state.activePatientId);
     if (!patient) return;
     const confirmation = await requestControlledPrompt({
@@ -12998,6 +13323,10 @@ function PlayView({
   };
 
   const handleKnitProject = () => {
+    if (acquisitionCheckpointBlocked) {
+      showAlert(acquisitionCheckpointBlockingMessage);
+      return;
+    }
     if (!hasTool(state, 'tool_needles') && !hasTool(state, '뜨개바늘') && !hasTool(state, 'Knitting Needles')) {
       showAlert("뜨개바늘이 필요합니다.");
       return;
@@ -13370,6 +13699,10 @@ function PlayView({
   };
 
   const handleSoddenLogHarvest = () => {
+    if (acquisitionCheckpointBlocked) {
+      showAlert(acquisitionCheckpointBlockingMessage);
+      return;
+    }
     const patient = getActivePatient(state);
     const ailment = patient?.ailments.find(row => row.status === 'active');
     const reagent = state.soddenLogInsect ? REAGENT_BY_ID.get(state.soddenLogInsect) : null;
@@ -13507,6 +13840,10 @@ function PlayView({
 
   // Bartering Resolution
   const handleBarterAttempt = async (reagentName: string, barterLocation?: BarterLocationOption) => {
+    if (acquisitionCheckpointBlocked) {
+      showAlert(acquisitionCheckpointBlockingMessage);
+      return;
+    }
     const patient = state.patients.find(row => row.id === state.activePatientId);
     if (!patient) {
       showAlert('먼저 현재 환자를 확정해야 합니다.');
@@ -13911,26 +14248,34 @@ function PlayView({
       showAlert(result.messages.join('\n'));
       return;
     }
-    if (result.value.trinketReward > 0) {
+    const giftingPreview = resolveTreatmentTransaction({ ...treatmentInput, gifting: true });
+    if (giftingPreview.value?.giftingApplied) {
+      // Preview Gifting through the same pure transaction that will be committed.
+      // This keeps the universal Severity rapport and the +2 Gifting bonus in one
+      // canonical calculation instead of presenting the bonus as the total.
+      const tradingResult = result;
+      const giftingResult = giftingPreview;
+      if (!giftingResult.value) {
+        showAlert(giftingResult.messages.join('\n'));
+        return;
+      }
+      const tradingReputation = tradingResult.value.reputationChange;
+      const giftingReputation = giftingResult.value.reputationChange;
       const rewardChoice = await requestControlledPrompt({
         title: '치료 보상 선택',
-        message: `Trading은 장신구 ${result.value.trinketReward}개를 받고, Gifting은 장신구를 받지 않는 대신 Guild Reputation +2를 얻습니다.`,
+        message: `Trading은 장신구 ${tradingResult.value.trinketReward}개와 Guild Reputation +${tradingReputation}, Gifting은 장신구 대신 Guild Reputation +${giftingReputation}를 얻습니다.`,
         defaultValue: 'trading',
         kicker: '치료 완료',
         label: '보상 방식',
         options: [
-          { value: 'trading', label: `Trading · 장신구 ${result.value.trinketReward}개` },
-          { value: 'gifting', label: 'Gifting · Guild Reputation +2' }
+          { value: 'trading', label: `Trading · 장신구 ${tradingResult.value.trinketReward}개 · Guild Reputation +${tradingReputation}` },
+          { value: 'gifting', label: `Gifting · Guild Reputation +${giftingReputation}` }
         ]
       });
       if (!rewardChoice) return;
       if (rewardChoice === 'gifting') {
         treatmentInput = { ...treatmentInput, gifting: true };
-        result = resolveTreatmentTransaction(treatmentInput);
-        if (!result.value) {
-          showAlert(result.messages.join('\n'));
-          return;
-        }
+        result = giftingResult;
       }
     }
     const outcome = result.value;
@@ -13969,6 +14314,8 @@ function PlayView({
         appliedTransactionIds: outcome.nextState.appliedTransactionIds,
         treatmentDraft: null,
         pendingAlternativeAcquisition: null,
+        pendingForaging: releaseImmediateRemedyCheckpointRule(s.pendingForaging, nextPatient.id, ailment.id),
+        pendingBarter: releaseImmediateRemedyCheckpointRule(s.pendingBarter, nextPatient.id, ailment.id),
         needsLocalHelpBeforeMove: !outcome.allAilmentsResolved,
         curedAilmentInThisWilds: allAilmentsCured && s.currentLocationType === 'Wilds',
         scroungingMode: allAilmentsCured && remainingTime > 0,
@@ -14342,8 +14689,10 @@ function PlayView({
   const currentBarrow = (state.barrows || []).find(b => !b.removed && b.locationName === state.currentLocationName);
   const patientReagentCount = state.bag.filter(item => item.type === 'reagent').length;
   const maxCarry = getMaxCarry(state);
-  const activeTravelSpeed = state.journeyActive ? getTravelSpeed(state, currentWeight) : state.bio.speed;
   const activeRouteMode: 'move' | 'soar' = hasPendingTaxiMove ? 'soar' : travelMode;
+  const activeTravelSpeed = state.journeyActive
+    ? previewTravelSpeed(state, currentWeight, activeRouteMode)
+    : state.bio.speed;
   const activeTravelWagon = canonicalWagonFromState(state);
   const activeTravelWagonCapabilities = resolveWagonCapabilities(activeTravelWagon);
   const hasPersonalFlight = state.bio.travelStyle === '가볍고 신속하게'
@@ -14675,6 +15024,18 @@ function PlayView({
     });
   }
 
+  if (awaitingBarterImmediateRemedy) {
+    addActionHubItem({
+      id: 'barter-immediate-remedy',
+      label: '즉시 치료제 만들기',
+      detail: '거래로 필요한 재료가 모두 모였습니다. p.35에 따라 Timer를 줄이거나 다음 행동을 하기 전에 치료제를 만듭니다.',
+      meta: '물꼬 거래 완료 · Timer 감소 보류',
+      targetId: 'treatment-workspace',
+      tone: 'warning',
+      activate: () => document.getElementById('treatment-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    });
+  }
+
   if (state.pendingEncounter) {
     const pendingEffect = PRINTED_EFFECT_BY_OWNER.get(state.pendingEncounter.encounterId);
     const pendingEncounterLabel = state.pendingEncounter.encounter.encounterType === 'social' ? '사회 조우' : '이동 조우';
@@ -14695,15 +15056,21 @@ function PlayView({
   } else if (state.pendingForaging) {
     addActionHubItem({
       id: 'pending-foraging',
-      label: '미해결 채집 절차',
-      detail: state.pendingForaging.phase === 'choose-reagent' ? '영약재 하나와 부위를 선택합니다.' : '채집 조우와 타이머를 해결합니다.',
-      meta: `${localizeRegionLabel(state.pendingForaging.region)} · ${state.pendingForaging.timerCostAfterEncounter}시간`,
-      targetId: 'patient-clinic-panel',
+      label: awaitingForagingImmediateRemedy ? '즉시 치료제 만들기' : '미해결 채집 절차',
+      detail: awaitingForagingImmediateRemedy
+        ? '가방에 필요한 재료가 모두 모였습니다. p.33에 따라 Timer를 줄이거나 다음 행동을 하기 전에 치료제를 만듭니다.'
+        : state.pendingForaging.phase === 'choose-reagent' ? '영약재 하나와 부위를 선택합니다.' : '채집 조우와 타이머를 해결합니다.',
+      meta: awaitingForagingImmediateRemedy
+        ? '채집 조우 완료 · Timer 감소 보류'
+        : `${localizeRegionLabel(state.pendingForaging.region)} · ${state.pendingForaging.timerCostAfterEncounter}시간`,
+      targetId: awaitingForagingImmediateRemedy ? 'treatment-workspace' : 'patient-clinic-panel',
       tone: 'warning',
-      activate: () => {
-        onResumeForageEncounter();
-        setActiveForageEncounter(null);
-      }
+      activate: awaitingForagingImmediateRemedy
+        ? () => document.getElementById('treatment-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        : () => {
+            onResumeForageEncounter();
+            setActiveForageEncounter(null);
+          }
     });
   }
 
@@ -17667,20 +18034,27 @@ function PlayView({
                 {state.pendingForaging && (
                   <aside className="forage-recovery-panel patient-workflow__forage-recovery" aria-label="진행 중인 채집 관리">
                     <div className="forage-recovery-panel__summary">
-                      <strong>진행 중인 채집</strong>
+                      <strong>{awaitingForagingImmediateRemedy ? '치료제를 먼저 만드세요' : '진행 중인 채집'}</strong>
                       <span>
-                        {localizeRegionLabel(state.pendingForaging.region)}
-                        {currentForageGatheredItems.length > 0
-                          ? ` · 가방에 넣은 부위 ${currentForageGatheredItems.length}개`
-                          : ' · 재료 판정 중'}
+                        {awaitingForagingImmediateRemedy
+                          ? 'p.33 · 채집 조우 완료 · Timer 감소 보류'
+                          : `${localizeRegionLabel(state.pendingForaging.region)}${currentForageGatheredItems.length > 0
+                            ? ` · 가방에 넣은 부위 ${currentForageGatheredItems.length}개`
+                            : ' · 재료 판정 중'}`}
                       </span>
-                      {currentForageGatheredItems.length > 0 && (
+                      {awaitingForagingImmediateRemedy
+                        ? <small>필요한 재료가 가방에 모두 있습니다. 치료제를 해결하면 다음 행동이 다시 열립니다.</small>
+                        : currentForageGatheredItems.length > 0 && (
                         <small>{currentForageGatheredItems.map(item => formatReagentItemName(item.name, item.canonicalReagentId)).join(' · ')}</small>
                       )}
                     </div>
                     <div className="forage-recovery-panel__actions">
-                      <button type="button" className="btn-cozy-secondary" onClick={onResumeForageEncounter}>채집 조우 이어가기</button>
-                      <button type="button" className="btn-cozy-danger" onClick={() => void onRestartForaging()}>이번 채집 처음부터</button>
+                      {awaitingForagingImmediateRemedy
+                        ? <button type="button" className="btn-cozy-secondary" onClick={() => document.getElementById('treatment-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>치료제 만들기</button>
+                        : <button type="button" className="btn-cozy-secondary" onClick={onResumeForageEncounter}>채집 조우 이어가기</button>}
+                      {state.pendingForaging.phase !== 'resolved' && (
+                        <button type="button" className="btn-cozy-danger" onClick={() => void onRestartForaging()}>이번 채집 처음부터</button>
+                      )}
                     </div>
                   </aside>
                 )}
@@ -17753,12 +18127,16 @@ function PlayView({
                                     .filter(tag => tag.tag === requirement.tag)
                                     .map(tag => tag.value))
                                 ));
-                                const plannedValue = aggregateRemedyTagPotency(requirement.tag, plannedValues);
-                                const combinedValue = aggregateRemedyTagPotency(requirement.tag, [ownedValue, ...plannedValues]);
-                                const covered = combinedValue >= requirement.threshold;
+                                const progress = deriveForageRequirementProgress({
+                                  tag: requirement.tag,
+                                  threshold: requirement.threshold,
+                                  ownedPotency: ownedValue,
+                                  plannedPotencies: plannedValues
+                                });
+                                const covered = progress.satisfied;
                                 const progressLabel = requirement.tag === 'FAIR' || requirement.tag === 'FOUL'
-                                  ? `가방 ${ownedValue} + 계획 ${plannedValue}`
-                                  : `가장 강한 약효 ${combinedValue}`;
+                                  ? `가방 ${progress.ownedPotency} + 계획 ${progress.plannedPotency}`
+                                  : `가방 약효 ${progress.ownedPotency}${progress.plannedPotency > 0 ? ` · 계획 ${progress.plannedPotency}` : ''}`;
                                 return (
                                   <button
                                     key={requirement.tag}
@@ -17771,7 +18149,11 @@ function PlayView({
                                     }}
                                   >
                                     <strong>{requirement.tag} {requirement.threshold}</strong>
-                                    <small>{covered ? `${progressLabel} · 충족` : plannedValue > 0 || ownedValue > 0 ? progressLabel : '후보 보기'}</small>
+                                    <small>{covered
+                                      ? `${progressLabel} · 충족`
+                                      : progress.potential
+                                        ? `${progressLabel} · 채집하면 충족`
+                                        : progress.plannedPotency > 0 || progress.ownedPotency > 0 ? progressLabel : '후보 보기'}</small>
                                   </button>
                                 );
                               })}
@@ -17866,7 +18248,7 @@ function PlayView({
                       helper="장소와 조사 목록을 확인했다면 카드를 뽑으세요. 카드 값과 기록한 희귀도를 비교한 뒤, 발견한 재료 중 실제로 가져갈 부위를 정합니다. 비워 두면 시작할 때 한 장을 자동으로 뽑습니다."
                       card={forageDrawCard}
                       onCard={setForageDrawCard}
-                      disabled={!forageContext.actionAllowed}
+                      disabled={!forageContext.actionAllowed || acquisitionCheckpointBlocked}
                     />
                   </div>
                   {currentWeight > maxCarry && <p className="forage-context__note">소지 한도를 넘겨도 채집 자체는 할 수 있습니다. 조우 뒤 가방을 정리하세요.</p>}
@@ -17878,10 +18260,12 @@ function PlayView({
                     const currentForageAllowed = ['Wilds', 'Ruin', 'Barrow'].includes(state.currentLocationType);
                     const locationUnavailable = (forageLocationType === 'current' && !currentForageAllowed)
                       || (forageLocationType === 'adjacent' && !scroungeAdjacentRegions.includes(toRuleRegion(effectiveForageAdjacentRegion)));
-                    const forageDisabled = locationUnavailable;
-                    const forageDisabledReason = locationUnavailable
-                      ? '현재 위치 채집은 야생 구역, 티탄 유적, 거수 고분에서만 가능합니다.'
-                      : '';
+                    const forageDisabled = locationUnavailable || acquisitionCheckpointBlocked;
+                    const forageDisabledReason = acquisitionCheckpointBlocked
+                      ? acquisitionCheckpointBlockingMessage
+                      : locationUnavailable
+                        ? '현재 위치 채집은 야생 구역, 티탄 유적, 거수 고분에서만 가능합니다.'
+                        : '';
                     const foragePlaceLabel = forageLocationType === 'adjacent'
                       ? `${localizeRegionLabel(effectiveForageAdjacentRegion)}에서`
                       : '이곳에서';
@@ -17924,7 +18308,8 @@ function PlayView({
                     const pendingBarter = state.pendingBarter && !['completed', 'abandoned'].includes(state.pendingBarter.status)
                       ? state.pendingBarter
                       : null;
-                    const canBarter = Boolean(pendingBarter) || (barterOptions.length > 0 && remaining > 0);
+                    const canBarter = !acquisitionCheckpointBlocked
+                      && (Boolean(pendingBarter) || (barterOptions.length > 0 && remaining > 0));
                     const barterButtonLabel = pendingBarter?.status === 'manual-social'
                       ? '사교 조우 판정 계속'
                       : pendingBarter?.status === 'awaiting-second-card'
@@ -17993,7 +18378,11 @@ function PlayView({
                           if (req) handleBarterAttempt(req, selectedLocation);
                         }}
                         disabled={!canBarter}
-                        title={barterOptions.length === 0 ? '현재 또는 인접한 정착지/도시에서만 가능' : remaining === 0 ? '거래 횟수 초과' : ''}
+                        title={acquisitionCheckpointBlocked
+                          ? acquisitionCheckpointBlockingMessage
+                          : barterOptions.length === 0
+                            ? '현재 또는 인접한 정착지/도시에서만 가능'
+                            : remaining === 0 ? '거래 횟수 초과' : ''}
                         style={{ flex: 1, padding: '0.7rem', background: canBarter ? 'var(--secondary-light)' : '#eee', color: canBarter ? 'var(--secondary)' : '#aaa', border: `1.5px solid ${canBarter ? 'var(--secondary)' : '#ccc'}`, borderRadius: '8px', fontWeight: 'bold', cursor: canBarter ? 'pointer' : 'not-allowed' }}
                       >
                         🤝 {barterButtonLabel}
@@ -21672,7 +22061,7 @@ function PatientArchiveView({
               const remedyParts = recordedRemedyParts.some(part => !part.includes('treatment:') && !part.includes('forage:'))
                 ? recordedRemedyParts
                 : historyRemedyParts;
-              const activeTimer = record.timers.length > 0 ? Math.min(...record.timers.map(timer => timer.current)) : null;
+              const activeTimer = derivePatientArchiveTimer(record, patient);
               const statusLabel: Record<CanonicalPatientArchiveRecord['status'], string> = {
                 encountered: '만남', active: '치료 중', treated: '치료 성공', failed: '치료 실패', abandoned: '떠나보냄', unresolved: '미해결'
               };

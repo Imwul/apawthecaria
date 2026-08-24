@@ -87,6 +87,7 @@ export interface TreatmentEngineOutcome {
   foul: number;
   trinketReward: number;
   reputationChange: number;
+  giftingApplied: boolean;
   consumedItemIds: string[];
   manualEffects: StructuredRuleEffect[];
   badIdeaOutcomeApplied: boolean;
@@ -492,6 +493,7 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
       foul: 0,
       trinketReward: 0,
       reputationChange: 0,
+      giftingApplied: false,
       consumedItemIds: [],
       manualEffects: [],
       badIdeaOutcomeApplied: false,
@@ -556,6 +558,7 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
         foul: 0,
         trinketReward: 0,
         reputationChange: reputationLoss === 0 ? 0 : -reputationLoss,
+        giftingApplied: false,
         consumedItemIds: [],
         manualEffects: [],
         badIdeaOutcomeApplied: false,
@@ -753,6 +756,7 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
       foul: effectiveFoul,
       trinketReward,
       reputationChange,
+      giftingApplied: gifting,
       consumedItemIds: consumed.consumedIds,
       manualEffects,
       badIdeaOutcomeApplied: badIdeaQualifies,

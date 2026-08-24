@@ -9,6 +9,7 @@ import {
   encounterChoiceAvailability,
   executeEncounter,
   migrateSavedRulesState,
+  normalizePendingManualFollowUp,
   resolveManualEffectTransaction,
   type ManualEffectDraft,
   type ManualResolutionRuntimeState
@@ -73,6 +74,20 @@ describe('Step 2 printed-effect registry coverage', () => {
         expect(draft.ruleIds.length).toBeGreaterThan(0);
         expect(draft.resolutionInstruction).not.toMatch(/^resolve this effect manually\.?$/i);
         expect(draft.inputFields.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('[CORE-002/UX-001] gives each affected item or map target one canonical input owner', () => {
+    for (const effect of PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'manual')) {
+      for (const trigger of effect.supportedTriggers) {
+        const draft = createManualEffectDraft(effect, trigger, { continuation: 'none' }, 100);
+        if (draft.actionTemplates.some(action => action.targetType === 'inventory-item' || action.kind === 'gain-inventory')) {
+          expect(draft.inputFields.some(field => field.id === 'resource-item'), effect.ownerId).toBe(false);
+        }
+        if (draft.actionTemplates.some(action => action.targetType === 'location')) {
+          expect(draft.inputFields.some(field => field.id === 'map-target'), effect.ownerId).toBe(false);
+        }
       }
     }
   });
@@ -249,8 +264,86 @@ describe('Step 2 manual resolution transaction', () => {
       selectedActionIds: [action.id],
       actionTargets: { [action.id]: 'target-1' }
     });
-    expect(migrated.pendingManualFollowUps).toEqual([{ id: 'follow-up-1', status: 'pending' }]);
+    expect(migrated.pendingManualFollowUps).toEqual([{
+      id: 'follow-up-1',
+      effectId: 'follow-up-1',
+      ownerId: 'follow-up-1',
+      trigger: 'service-follow-up',
+      description: '',
+      context: { continuation: 'none' },
+      createdAt: 0,
+      transactionId: 'follow-up-1:legacy',
+      status: 'pending'
+    }]);
+    expect(migrateSavedRulesState(migrated).pendingManualFollowUps).toEqual(migrated.pendingManualFollowUps);
     expect(migrated.manualEffectRecords).toEqual([{ id: 'record-1', status: 'resolved' }]);
+  });
+
+  it('[SAVE-005/CORE-002] normalizes legacy pending follow-ups without inventing canonical completion', () => {
+    const normalized = normalizePendingManualFollowUp({
+      id: 'legacy-follow-up',
+      description: 'Queen Bee follow-up: after a future re-home in a wild Meadow, Bog, or Forest, mark that Location as a new Beehive.',
+      status: 'pending'
+    }, 123);
+    expect(normalized).toEqual({
+      id: 'legacy-follow-up',
+      effectId: 'legacy-follow-up',
+      ownerId: 'legacy-follow-up',
+      trigger: 'service-follow-up',
+      description: 'Queen Bee follow-up: after a future re-home in a wild Meadow, Bog, or Forest, mark that Location as a new Beehive.',
+      context: { continuation: 'none' },
+      transactionId: 'legacy-follow-up:legacy',
+      createdAt: 123,
+      status: 'pending'
+    });
+  });
+
+  it('[SAVE-005/CORE-002] preserves the legacy Protect Queen re-home reminder as a typed pending follow-up', () => {
+    const legacyCondition = 'manual:social-meadow-spring-♣:Queen Bee Companion acquired now. Later, re-home her in a wild Meadow, Bog, or Forest; only then mark that Location as a new Beehive.';
+    const first = migrateSavedRulesState({
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      manualConditions: [legacyCondition],
+      companionStates: [],
+      pendingManualFollowUps: []
+    });
+
+    expect(first.manualConditions).not.toContain(legacyCondition);
+    expect(first.companionStates).toEqual(expect.arrayContaining([
+      expect.objectContaining({ companionId: 'queen-bee' })
+    ]));
+    expect(first.pendingManualFollowUps).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'legacy-protect-queen:follow-up:rehome',
+        ownerId: 'social-meadow-spring-♣',
+        status: 'pending'
+      })
+    ]));
+
+    const repeated = migrateSavedRulesState(first);
+    expect(repeated.pendingManualFollowUps).toEqual(first.pendingManualFollowUps);
+    expect(repeated.companionStates).toEqual(first.companionStates);
+  });
+
+  it('[SAVE-005/CORE-002] repairs malformed follow-ups idempotently', () => {
+    const malformed = {
+      id: 'malformed-follow-up',
+      trigger: 'invented-trigger',
+      context: [],
+      createdAt: 'not-a-number'
+    };
+    const first = normalizePendingManualFollowUp(malformed, 456);
+    expect(first).toEqual({
+      id: 'malformed-follow-up',
+      effectId: 'malformed-follow-up',
+      ownerId: 'malformed-follow-up',
+      trigger: 'service-follow-up',
+      description: '',
+      context: { continuation: 'none' },
+      createdAt: 456,
+      transactionId: 'malformed-follow-up:legacy',
+      status: 'pending'
+    });
+    expect(normalizePendingManualFollowUp(JSON.parse(JSON.stringify(first)), 999)).toEqual(first);
   });
 
   it('[TRAVEL-009/FORAGE-006/TABLE-004] covers seasonal, choice, follow-up, location, and state-changing Encounter examples', () => {

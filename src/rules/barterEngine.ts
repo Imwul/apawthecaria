@@ -1,6 +1,11 @@
 import { getRuleCardValue, type RuleCard } from './cards';
 import { REAGENT_BY_ID } from './data/reagents';
-import { canTreatAilmentWithInventory, type TreatmentAilmentTagOverride } from './treatmentEngine';
+import {
+  immediatelyTreatableAilmentIds,
+  withImmediateRemedyCheckpoint,
+  withoutImmediateRemedyCheckpoint
+} from './immediateRemedyEngine';
+import type { TreatmentAilmentTagOverride } from './treatmentEngine';
 import type { CanonicalToolState } from './toolEngine';
 import type { EngineInventoryItem, EngineJournalEvent } from './gameplay';
 import type { PatientState } from './state';
@@ -61,6 +66,10 @@ export interface PendingBarterState {
     ruleIds: string[];
     sourcePage: number;
   };
+  /** Rulebook p.35: successful Barter made an immediate Remedy possible. */
+  awaitingImmediateRemedy?: boolean;
+  immediateRemedyPatientId?: string;
+  immediateRemedyAilmentIds?: string[];
 }
 
 export interface BarterRuntimeState {
@@ -336,15 +345,6 @@ const decrementAllActiveTimers = (patient: PatientState): PatientState => {
   return { ...patient, timers, ailments };
 };
 
-const readyForRemedy = (
-  patient: PatientState,
-  inventory: EngineInventoryItem[],
-  overrides: readonly TreatmentAilmentTagOverride[] = [],
-  toolStates: readonly CanonicalToolState[] = []
-) => patient.ailments
-  .filter(ailment => ailment.status === 'active')
-  .some(ailment => canTreatAilmentWithInventory(patient, ailment.id, inventory, overrides, [], toolStates));
-
 const finalizeSuccessfulBarter = (
   state: BarterRuntimeState,
   pending: PendingBarterState,
@@ -364,19 +364,29 @@ const finalizeSuccessfulBarter = (
     quantity: 1
   };
   const inventory = [...state.inventory, acquired];
-  const patient = readyForRemedy(state.patient, inventory, state.ailmentTagOverrides, state.toolStates) ? state.patient : decrementAllActiveTimers(state.patient);
+  const treatableAilmentIds = immediatelyTreatableAilmentIds(
+    state.patient,
+    inventory,
+    state.ailmentTagOverrides,
+    [],
+    state.toolStates
+  );
+  const patient = treatableAilmentIds.length > 0 ? state.patient : decrementAllActiveTimers(state.patient);
+  const completedPending = withoutImmediateRemedyCheckpoint({
+    ...pending,
+    paymentSelection: payment,
+    status: 'completed' as const,
+    appliedEffectIds: [...pending.appliedEffectIds, transactionId]
+  });
   return {
     ...state,
     inventory,
     patient,
     trinkets: state.trinkets - payment.trinkets,
     reputation: state.reputation - payment.reputation,
-    pendingBarter: {
-      ...pending,
-      paymentSelection: payment,
-      status: 'completed',
-      appliedEffectIds: [...pending.appliedEffectIds, transactionId]
-    },
+    pendingBarter: treatableAilmentIds.length > 0
+      ? withImmediateRemedyCheckpoint(completedPending, state.patient.id, treatableAilmentIds)
+      : completedPending,
     journalEvents: [...state.journalEvents, {
       id: `${transactionId}:journal`,
       type: 'encounter',

@@ -114,10 +114,26 @@ describe('encounter player-experience guards', () => {
 
   it('finishes manual forage effects before applying the p.33 Remedy or Timer checkpoint', () => {
     expect(appSource.match(/resolveForagingPostEncounterCheckpoint\(\{/g)).toHaveLength(2);
-    expect(appSource.match(/settleExpiredPatientAfterTimer\(/g)).toHaveLength(2);
-    expect(appSource).toContain("!queue.some(row => row.context.continuation === 'foraging')");
+    expect(appSource.match(/pendingForagingAfterEncounterCheckpoint\(/g)).toHaveLength(2);
+    expect(appSource.match(/settleExpiredPatientAfterTimer\(/g)).toHaveLength(3);
+    expect(appSource).toContain('!queue.some(row => manualForagingCheckpointMatchesDraft(next.pendingForaging, row))');
     expect(appSource).toContain('manualEffectPending: Boolean(manualDraft)');
     expect(appSource).toContain('manualEffectPending: false');
+  });
+
+  it('keeps p.33/p.35 immediate Remedy as a persisted gate until the exact matching treatment commits', () => {
+    expect(appSource).toContain('const awaitingForagingImmediateRemedy = isAwaitingImmediateRemedy(state.pendingForaging);');
+    expect(appSource).toContain('const awaitingBarterImmediateRemedy = isAwaitingImmediateRemedyCheckpoint(state.pendingBarter);');
+    expect(appSource).toContain('const acquisitionCheckpointBlocked = awaitingImmediateRemedy || awaitingManualForaging;');
+    expect(appSource).toContain('pendingForaging: pendingForagingAfterEncounterCheckpoint(pending, foragingCheckpoint)');
+    expect(appSource).toContain('pendingForaging: pendingForagingAfterEncounterCheckpoint(foragePending, foragingCheckpoint)');
+    expect(appSource).toContain('pendingForaging: releaseImmediateRemedyCheckpointRule(s.pendingForaging, nextPatient.id, ailment.id)');
+    expect(appSource).toContain('pendingBarter: releaseImmediateRemedyCheckpointRule(s.pendingBarter, nextPatient.id, ailment.id)');
+    expect(appSource).toContain('if (hasAcquisitionCheckpoint(state))');
+    expect(appSource).toContain('const forageDisabled = locationUnavailable || acquisitionCheckpointBlocked;');
+    expect(appSource).toContain('const canBarter = !acquisitionCheckpointBlocked');
+    expect(appSource).toContain('Timer 감소 보류');
+    expect(appSource).toContain('치료제를 먼저 만드세요');
   });
 
   it('lets the player remove a mistaken reagent without leaving a stale treatment draft', () => {
@@ -193,7 +209,8 @@ describe('encounter player-experience guards', () => {
 
     expect(manualSource).toContain('className={`manual-effect__choice-option${selected ? \' is-selected\' : \'\'}`}');
     expect(manualSource).toContain('aria-pressed={selected}');
-    expect(manualSource).toContain("onClick={() => updateInput(field.id, selected ? '' : option)}");
+    expect(manualSource).toContain('if (selected && field.required) return;');
+    expect(manualSource).toContain("updateInput(field.id, selected ? '' : option);");
     expect(manualSource).not.toContain('<select value={String(value ?? \'\')}');
     expect(rulebookContextSource).not.toContain('구현 누락');
     expect(rulebookContextSource).toContain('플레이어가 고른 결과만 기록합니다.');

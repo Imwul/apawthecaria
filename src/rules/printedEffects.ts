@@ -34,12 +34,37 @@ export interface PrintedResolutionInput {
   helpText?: string;
 }
 
+/**
+ * Returns whether a required printed-resolution input has a canonical value.
+ * Conditions are confirmations rather than generic booleans, and a choice is
+ * only complete when it is one of the options printed for that field.
+ */
+export const isPrintedResolutionInputSatisfied = (
+  field: Pick<PrintedResolutionInput, 'type' | 'options'>,
+  value: unknown
+): boolean => {
+  if (field.type === 'condition') return value === true;
+  if (field.type === 'choice') {
+    return typeof value === 'string'
+      && Array.isArray(field.options)
+      && field.options.includes(value);
+  }
+  return typeof value === 'number'
+    || (typeof value === 'string' && value.trim().length > 0);
+};
+
 export interface PrintedCanonicalActionTemplate {
   id: string;
   kind: PrintedCanonicalActionKind;
   label: string;
+  /** The selected printed branch makes this state change mandatory. */
+  required?: boolean;
   amount?: number;
   targetType?: 'inventory-item' | 'timer' | 'location' | 'free-text';
+  /** Canonical target supplied by the printed rule; it is displayed, not edited. */
+  fixedTarget?: string;
+  /** Resolution input that owns this action's target; avoids a duplicate target field. */
+  targetInputId?: string;
   sourceText: string;
 }
 
@@ -227,8 +252,6 @@ const deriveManualResolution = (input: {
   const inputFields: PrintedResolutionInput[] = [];
   if (choices.length > 0) inputFields.push({ id: 'printed-choice', type: 'choice', label: '적용한 원문 분기 또는 선택', required: false, options: choices });
   if (/\bdraw (?:another |two |one |a )?cards?\b/i.test(text)) inputFields.push({ id: 'follow-up-card', type: 'card-reference', label: '뽑은 후속 카드와 결과', required: false, helpText: '실제로 뽑은 문양과 값을 기록하세요.' });
-  if (actionTemplates.some(action => action.targetType === 'inventory-item' || action.kind === 'gain-inventory')) inputFields.push({ id: 'resource-item', type: 'resource-item', label: '영향을 받은 물품 또는 자원', required: false });
-  if (actionTemplates.some(action => action.targetType === 'location')) inputFields.push({ id: 'map-target', type: 'target', label: '선택한 위치, 경로 또는 지도 대상', required: false });
   if (/\b(?:if|when|unless|may|can|choose whether)\b/i.test(text)) inputFields.push({ id: 'condition-check', type: 'condition', label: '어떤 원문 조건과 분기가 적용되었는지 확인', required: true });
   if (/\?/u.test(text)) inputFields.push({ id: 'narrative-outcome', type: 'free-text', label: '원문이 묻는 서사적 결과', required: true });
   if (/\b(?:any number|as many|how many)\b/i.test(text)) inputFields.push({ id: 'quantity', type: 'number', label: '원문이 플레이어에게 정하도록 한 수량', required: false });

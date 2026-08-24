@@ -627,9 +627,11 @@ describe('foraging and treatment transactions', () => {
     const first = resolveTreatment(input);
     expect(first.value?.trinketReward).toBe(0);
     expect(first.value?.reputationChange).toBe(3);
+    expect(first.value?.giftingApplied).toBe(true);
     expect(first.value?.nextState.patient.ailments[0].status).toBe('treated');
     const repeated = resolveTreatment({ ...input, state: first.value!.nextState });
     expect(repeated.value?.reputationChange).toBe(0);
+    expect(repeated.value?.giftingApplied).toBe(false);
   });
 
   it('[AILMENT-003/REMEDY-007/TOOL-003/SAVE-004] commits Bad Idea Inspiration as part of the treatment transaction', () => {

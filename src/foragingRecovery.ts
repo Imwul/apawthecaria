@@ -1,15 +1,22 @@
 import {
-  hasImmediatelyTreatableAilment,
+  immediatelyTreatableAilmentIds,
+  isAwaitingImmediateRemedy as isAwaitingImmediateRemedyCheckpoint,
+  releaseImmediateRemedyCheckpoint as releaseImmediateRemedyCheckpointRule,
   resolveTimer,
+  withImmediateRemedyCheckpoint,
+  withoutImmediateRemedyCheckpoint,
   type AilmentTagOverride,
   type CanonicalToolState,
   type EngineInventoryItem,
+  type ManualEffectDraft,
+  type PendingForagingState,
   type PatientState
 } from './rules';
 
 export interface ForagingPostEncounterResolution {
   patient: PatientState | null;
   immediatelyTreatable: boolean;
+  immediatelyTreatableAilmentIds: string[];
   timerApplied: boolean;
   waitingForManualEffect: boolean;
 }
@@ -36,27 +43,109 @@ export const resolveForagingPostEncounterCheckpoint = ({
   timerCost: number;
   manualEffectPending: boolean;
 }): ForagingPostEncounterResolution => {
-  if (!patient || manualEffectPending) {
+  if (manualEffectPending) {
     return {
       patient,
       immediatelyTreatable: false,
+      immediatelyTreatableAilmentIds: [],
       timerApplied: false,
-      waitingForManualEffect: Boolean(patient && manualEffectPending)
+      waitingForManualEffect: true
     };
   }
-  const immediatelyTreatable = hasImmediatelyTreatableAilment(
+  if (!patient) {
+    return {
+      patient: null,
+      immediatelyTreatable: false,
+      immediatelyTreatableAilmentIds: [],
+      timerApplied: false,
+      waitingForManualEffect: false
+    };
+  }
+  const treatableAilmentIds = immediatelyTreatableAilmentIds(
     patient,
     inventory,
     ailmentTagOverrides,
     availableToolIds,
     toolStates
   );
+  const immediatelyTreatable = treatableAilmentIds.length > 0;
   if (immediatelyTreatable || timerCost <= 0) {
-    return { patient, immediatelyTreatable, timerApplied: false, waitingForManualEffect: false };
+    return {
+      patient,
+      immediatelyTreatable,
+      immediatelyTreatableAilmentIds: treatableAilmentIds,
+      timerApplied: false,
+      waitingForManualEffect: false
+    };
   }
   const resolved = resolveTimer({ patient, hours: timerCost }).value || patient;
-  return { patient: resolved, immediatelyTreatable: false, timerApplied: true, waitingForManualEffect: false };
+  return {
+    patient: resolved,
+    immediatelyTreatable: false,
+    immediatelyTreatableAilmentIds: [],
+    timerApplied: true,
+    waitingForManualEffect: false
+  };
 };
+
+/**
+ * Persist the unfinished portion of the p.33 checkpoint. A printed manual
+ * effect still owns the encounter until it is resolved; after that, a complete
+ * Remedy owns the checkpoint until the matching patient receives a Remedy.
+ */
+export const pendingForagingAfterEncounterCheckpoint = (
+  pending: PendingForagingState,
+  resolution: ForagingPostEncounterResolution
+): PendingForagingState | null => {
+  if (resolution.waitingForManualEffect) {
+    return withoutImmediateRemedyCheckpoint({
+      ...pending,
+      phase: 'resolved'
+    });
+  }
+  if (!resolution.immediatelyTreatable || !resolution.patient) return null;
+  return withImmediateRemedyCheckpoint({
+    ...pending,
+    phase: 'resolved'
+  }, resolution.patient.id, resolution.immediatelyTreatableAilmentIds);
+};
+
+export const isAwaitingImmediateRemedy = (
+  pending: PendingForagingState | null | undefined
+): boolean => Boolean(pending?.phase === 'resolved' && isAwaitingImmediateRemedyCheckpoint(pending));
+
+/** Release only the checkpoint belonging to the Remedy's patient. */
+export const releaseImmediateRemedyCheckpoint = (
+  pending: PendingForagingState | null | undefined,
+  patientId: string,
+  treatedAilmentId: string
+): PendingForagingState | null => releaseImmediateRemedyCheckpointRule(
+  pending,
+  patientId,
+  treatedAilmentId
+);
+
+/** A manual result may resume only the Foraging transaction that created it. */
+export const manualForagingCheckpointMatchesDraft = (
+  pending: PendingForagingState | null | undefined,
+  draft: ManualEffectDraft | null | undefined
+): boolean => Boolean(
+  pending?.phase === 'resolved'
+  && draft
+  && !draft.transactionId
+  && (draft.status === 'manual' || draft.status === 'deferred')
+  && draft.context.continuation === 'foraging'
+  && draft.context.encounterTransactionId === `${pending.transactionId}:encounter`
+);
+
+export const hasPendingManualForagingCheckpoint = (
+  pending: PendingForagingState | null | undefined,
+  drafts: readonly ManualEffectDraft[]
+): boolean => Boolean(
+  pending?.phase === 'resolved'
+  && !isAwaitingImmediateRemedy(pending)
+  && drafts.some(draft => manualForagingCheckpointMatchesDraft(pending, draft))
+);
 
 /** Fields that a Foraging transaction can mutate before the player is able to
  * choose “start this forage over”. Static route/map-edge data is deliberately
