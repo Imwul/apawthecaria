@@ -1,9 +1,10 @@
 import { Suspense, useEffect, useRef } from 'react';
-import { localizeLocationName, localizeRegionLabel, localizeSavedJourneyText, localizeSeasonLabel } from '../localization/gameplayKo';
+import { localizeJourneyGoalText, localizeLocationName, localizeRegionLabel, localizeSavedJourneyText, localizeSeasonLabel } from '../localization/gameplayKo';
 import { localizeGameplayMessage } from '../localization/engineMessagesKo';
 import { referenceForJournalTab } from '../rulebook/context';
 import type { RulebookReferenceRequest } from '../rulebook/types';
 import { getCampaignContinuity } from '../campaignContinuity';
+import { readCalendarClocks } from '../calendarTime';
 import type { JournalTab } from '../sessionNavigation';
 import { isActivityJournalEntry, presentEncounterJournal } from '../encounterJournal';
 import LocalizedManualEffectText from './LocalizedManualEffectText';
@@ -216,19 +217,20 @@ export function TodayOverview({
       })()
     : recentJournalText;
   const continuity = getCampaignContinuity(state);
+  const calendarClocks = readCalendarClocks(state);
   const recentTimeChanges = (state.calendarHistory || []).slice(-2).reverse();
   const dayPlace = localizeLocationName(state.currentLocationName) || '현재 위치 미기록';
   const dayPhrase = state.journeyActive ? '여정을 이어가는 날' : '이곳에 머무는 날';
   const continuityFacts = state.journeyActive
     ? [
         { label: '여정 목적지', value: localizeLocationName(state.journeyDestination) || '미정' },
-        { label: '여정 경과', value: `${Math.max(0, state.calendarDays || 0)} / ${Math.max(0, state.calendarMaxDays || 0)}일` },
-        { label: '남은 기한', value: `${Math.max(0, (state.calendarMaxDays || 0) - (state.calendarDays || 0))}일` },
-        { label: '누적 경과', value: `${Math.max(0, state.cumulativeDays || 0)}일` },
+        { label: '여정 달력', value: `${calendarClocks.calendarDays} / ${Math.max(0, state.calendarMaxDays || 0)}일` },
+        { label: '남은 여정 기한', value: `${Math.max(0, (state.calendarMaxDays || 0) - calendarClocks.calendarDays)}일` },
+        { label: '캠페인 누적 일수', value: `${calendarClocks.cumulativeDays}일` },
         { label: 'Guild Reputation', value: `${Math.max(0, state.reputation || 0)}` }
       ]
     : [
-        { label: '누적 경과', value: `${Math.max(0, state.cumulativeDays || 0)}일` },
+        { label: '캠페인 누적 일수', value: `${calendarClocks.cumulativeDays}일` },
         { label: '마친 계절', value: `${Math.max(0, state.completedSeasons || 0)}회` },
         { label: 'Guild Reputation', value: `${Math.max(0, state.reputation || 0)}` }
       ];
@@ -284,6 +286,19 @@ export function TodayOverview({
             <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>
           ))}
         </dl>
+        {state.journeyActive && state.journeyGoalTitle ? (
+          <div className="campaign-continuity__goal">
+            <span>이번 여정의 목표</span>
+            <strong>{state.journeyGoalTitle}</strong>
+            <p>{localizeJourneyGoalText(state.journeyGoalDesc || state.journeyGoalProgress || '완료 조건을 여정 기록에서 확인하세요.')}</p>
+          </div>
+        ) : null}
+        {patient || legacyAilment ? (
+          <p className="campaign-continuity__clock-note">
+            <strong>달력과 질환 Timer는 별개입니다.</strong>
+            <span>채집·물물교환은 환자의 남은 시간을 줄이고, 여정 달력은 Move 완료 또는 조우의 ‘하루 표시’ 지시 때만 갑니다.</span>
+          </p>
+        ) : null}
         <p className="campaign-continuity__guidance">
           <strong>{continuity.nextAction}</strong>
           <span>{continuity.guidance}</span>
@@ -305,8 +320,9 @@ export function TodayOverview({
           <p>{patient?.species || legacyAilment?.species || '종 미기록'}</p>
           <dl>
             <div><dt>병증</dt><dd>{ailmentName}</dd></div>
-            <div><dt>남은 시간</dt><dd>{patient ? displayTimer(patient) : `${legacyAilment.timer}시간`}</dd></div>
+            <div><dt>질환 Timer</dt><dd>{patient ? displayTimer(patient) : `${legacyAilment.timer}시간`}</dd></div>
           </dl>
+          <p className="today-patient__clock-note">이 시간은 여정 일수와 별개입니다. 치료를 마치면 Moving On으로 다음 Move를 준비합니다.</p>
           <button type="button" className="journal-text-action" onClick={() => onNavigate('ailments')}>
             <span className="emoji-icon" aria-hidden="true">🩺</span> 진료 수첩 펼치기
           </button>

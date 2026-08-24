@@ -1,3 +1,5 @@
+import { readCalendarClocks } from './calendarTime';
+
 export type CampaignStage = 'journey' | 'manual-effect' | 'downtime-required' | 'season-ready' | 'journey-ready';
 
 export interface CampaignContinuityState {
@@ -72,7 +74,7 @@ export const getCampaignContinuity = (state: CampaignContinuityState): CampaignC
               : state.activeAilment
                 ? '현재 환자의 치료를 이어가세요.'
                 : state.scroungingMode
-                  ? '남은 치료 시간으로 여분 채집을 하거나 마감하세요.'
+                  ? '치료를 마쳤습니다. 여분 채집을 하거나 Moving On으로 다음 이동을 준비하세요.'
                   : state.needsLocalHelpBeforeMove
                     ? '현지 야수의 질환을 해결해야 다시 이동할 수 있습니다.'
                     : '현재 위치에서 다음 Move를 해결하세요.';
@@ -91,7 +93,7 @@ export const getCampaignContinuity = (state: CampaignContinuityState): CampaignC
               : state.activeAilment
                 ? '환자 치료 이어가기'
                 : state.scroungingMode
-                  ? '여분 채집 이어가기'
+                  ? 'Moving On 준비'
                   : state.needsLocalHelpBeforeMove
                     ? '현지 진료 이어가기'
                     : '다음 Move 이어가기';
@@ -166,15 +168,20 @@ interface CalendarState {
 
 export const applyManualCalendarAdjustment = <T extends CalendarState>(state: T, requestedDay: number): T => {
   const maximum = Math.max(0, Math.floor(state.calendarMaxDays || 0));
-  const previous = Math.max(0, Math.floor(state.calendarDays || 0));
+  const clocks = readCalendarClocks(state);
+  const previous = clocks.calendarDays;
   const next = Math.max(0, Math.min(maximum, Math.floor(requestedDay)));
   const delta = next - previous;
-  if (delta === 0) return state;
+  if (delta === 0) return {
+    ...state,
+    calendarDays: clocks.calendarDays,
+    cumulativeDays: clocks.cumulativeDays
+  };
   const direction = delta > 0 ? `+${delta}` : String(delta);
   return {
     ...state,
     calendarDays: next,
-    cumulativeDays: Math.max(0, Math.floor(state.cumulativeDays || 0) + delta),
+    cumulativeDays: Math.max(0, clocks.cumulativeDays + delta),
     calendarHistory: [
       ...(state.calendarHistory || []),
       `${next}일째: 앱 밖 판정 반영을 위해 달력을 직접 조정했습니다. (경과일 ${direction})`

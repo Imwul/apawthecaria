@@ -352,6 +352,8 @@ import { fuzzyReferenceTextMatch } from './rulebook/referenceRegistry';
 import { PaperMap, type MapClinicOverlay, type MapPickLocation, type MapSavedConnection, type MapSelectionIntent } from './map/PaperMap';
 import { type MapPlace, type MapPlaceType } from './map/mapLayers';
 import { applyManualCalendarAdjustment, getCampaignContinuity, getCampaignResumeActionIds, inferCompletedSeasons } from './campaignContinuity';
+import { applyCalendarAdvance, readCalendarClocks } from './calendarTime';
+import { resetJourneyForPlanning } from './journeyRecovery';
 import { buildEncounterJournalText, isActivityJournalEntry, presentEncounterJournal } from './encounterJournal';
 import {
   isRulebookHistoryState,
@@ -4433,7 +4435,7 @@ const migrateState = (s: any): GameState => {
     soddenLogInsect: s.soddenLogInsect || "",
     soddenLogHarvestedThisAilment: s.soddenLogHarvestedThisAilment || false,
     goodwillDonationsVal: s.goodwillDonationsVal || 0,
-    cumulativeDays: s.cumulativeDays || 0,
+    cumulativeDays: readCalendarClocks(s).cumulativeDays,
     completedSeasons: inferCompletedSeasons(s),
     completedReconnecting: s.completedReconnecting || false,
     journeyGoalCounter: s.journeyGoalCounter || 0,
@@ -4899,11 +4901,8 @@ const applyBarrowRuntime = (s: GameState, runtime: BarrowRuntimeState): GameStat
     };
     customMapLocations = [...customMapLocations.filter(row => row.id !== settlement.id), settlement];
   }
-  const calendarDelta = Math.max(0, runtime.calendarDays - before.calendarDays);
   return {
-    ...s,
-    calendarDays: runtime.calendarDays,
-    cumulativeDays: (s.cumulativeDays || 0) + calendarDelta,
+    ...applyCalendarAdvance(s, runtime.calendarDays, '거수 고분 판정으로 달력에 표시했습니다.'),
     reputation: runtime.reputation,
     trinkets: resizeTrinkets(s.trinkets, runtime.trinkets, '고분 보상 장신구'),
     bio: {
@@ -5945,10 +5944,9 @@ export default function App() {
               : row)
             : s.patients;
           let next: GameState = {
-            ...s,
+            ...applyCalendarAdvance(s, runtimeState.calendarDays, '사교 조우의 지시를 달력에 표시했습니다.'),
             reputation: runtimeState.reputation,
             trinkets: Array.from({ length: runtimeState.trinkets }, (_, index) => s.trinkets[index] || '사교 조우 장신구'),
-            calendarDays: runtimeState.calendarDays,
             bag: fromEngineInventory(runtimeState.inventory, s.bag),
             patients,
             appliedEncounterEffectIds: runtimeState.appliedEffectIds,
@@ -6214,17 +6212,14 @@ export default function App() {
 
     updateState(s => {
       const nextTrust = Math.min(100, (s.familiarTrust || 0) + 5);
-      const nextDays = s.calendarDays + 1;
-      const nextCumulative = s.cumulativeDays + 1;
+      const timedState = applyCalendarAdvance(s, s.calendarDays + 1, '길동무와 하루를 보냈습니다.');
       const timestamp = Date.now();
       const memory = `${formatDateTime(timestamp)} / ${s.currentLocationName}: 하루를 함께 보내며 친밀도 ${(s.familiarTrust || 0)}%에서 ${nextTrust}%로 깊어졌다.`;
 
       return {
-        ...s,
+        ...timedState,
         familiarTrust: nextTrust,
         familiarMemories: [memory, ...(s.familiarMemories || [])],
-        calendarDays: nextDays,
-        cumulativeDays: nextCumulative,
         journals: [
           {
             id: 'familiar_bond_' + timestamp,
@@ -7065,8 +7060,10 @@ export default function App() {
       let nextTrinkets = [...s.trinkets];
       let nextPursued = s.pursuedByBehemoth;
       let nextReputation = s.reputation;
-      let nextCalendarDays = s.calendarDays;
-      let nextCumulative = s.cumulativeDays || 0;
+      const currentClocks = readCalendarClocks(s);
+      let nextCalendarDays = currentClocks.calendarDays;
+      let nextCumulative = currentClocks.cumulativeDays;
+      let nextCalendarHistory = [...(s.calendarHistory || [])];
       let nextJourneyActive = s.journeyActive;
       let nextCurrentLocationName = s.currentLocationName;
       let nextCurrentLocationType = s.currentLocationType;
@@ -7111,6 +7108,7 @@ export default function App() {
       } else if (effect === 'markDay') {
         nextCalendarDays = nextCalendarDays + amount;
         nextCumulative = nextCumulative + amount;
+        nextCalendarHistory = [...nextCalendarHistory, `${nextCalendarDays}일째: 조우 지시를 달력에 표시했습니다. (+${amount}일)`];
         note = `조우 효과: 일정 +${amount}일`;
       } else if (effect === 'endJourney') {
         if (!askWindowConfirm("이 조우 효과로 현재 여정을 종료할까요?")) return s;
@@ -7127,6 +7125,7 @@ export default function App() {
         reputation: nextReputation,
         calendarDays: nextCalendarDays,
         cumulativeDays: nextCumulative,
+        calendarHistory: nextCalendarHistory,
         journeyActive: nextJourneyActive,
         currentLocationName: nextCurrentLocationName,
         currentLocationType: nextCurrentLocationType,
@@ -7352,10 +7351,9 @@ export default function App() {
         ? checkReagentGatherForGoal(s, REAGENT_BY_ID.get(inBloomReward.canonicalReagentId)?.canonicalName || inBloomReward.name)
         : { nextGoalCounter: s.journeyGoalCounter, nextChecklist: s.journeyGoalChecklist };
       const next: GameState = {
-        ...s,
+        ...applyCalendarAdvance(s, runtime.calendarDays, '여정 조우의 지시를 달력에 표시했습니다.'),
         reputation: runtime.reputation,
         trinkets: Array.from({ length: runtime.trinkets }, (_, index) => s.trinkets[index] || '조우 보상 장신구'),
-        calendarDays: runtime.calendarDays,
         bag: fromEngineInventory(runtime.inventory, s.bag),
         patients,
         appliedEncounterEffectIds: runtime.appliedEffectIds,
@@ -7638,10 +7636,9 @@ export default function App() {
     }).patient;
     updateState(s => {
       let next: GameState = {
-        ...s,
+        ...applyCalendarAdvance(s, runtime.calendarDays, '채집 조우의 지시를 달력에 표시했습니다.'),
         reputation: runtime.reputation,
         trinkets: Array.from({ length: runtime.trinkets }, (_, index) => s.trinkets[index] || '채집 조우 보상 장신구'),
-        calendarDays: runtime.calendarDays,
         bag: fromEngineInventory(runtime.inventory, s.bag),
         patients: patient ? replacePatient(s.patients, patient) : s.patients,
         activePatientId: encounterAilmentInstanceId && patient ? patient.id : s.activePatientId,
@@ -8262,7 +8259,7 @@ export default function App() {
 
       {state.pendingManualEffect && (
         <div className="phase4-modal-backdrop" role="presentation">
-          <div className="phase4-modal" role="dialog" aria-modal="true" aria-label="직접 판정 기록">
+          <div className="phase4-modal phase4-modal--manual-effect" role="dialog" aria-modal="true" aria-label="직접 판정 기록">
             <Suspense fallback={<div className="manual-effect">판정 기록을 펼치는 중...</div>}>
               <ManualEffectPanel
               draft={state.pendingManualEffect}
@@ -8312,11 +8309,9 @@ export default function App() {
                   const queue = s.manualEffectQueue.filter(row => row.effectId !== draft.effectId);
                   const pendingFollowUps = [...new Map([...s.pendingManualFollowUps, ...outcome.nextState.pendingFollowUps].map(row => [row.id, row])).values()];
                   let next: GameState = {
-                    ...s,
+                    ...applyCalendarAdvance(s, outcome.nextState.calendarDays, '직접 판정의 날짜 변화를 반영했습니다.'),
                     reputation: outcome.nextState.reputation,
                     trinkets: resizeTrinkets(s.trinkets, outcome.nextState.trinkets, '직접 판정 장신구'),
-                    calendarDays: outcome.nextState.calendarDays,
-                    cumulativeDays: (s.cumulativeDays || 0) + Math.max(0, outcome.nextState.calendarDays - s.calendarDays),
                     bag: fromEngineInventory(outcome.nextState.inventory, s.bag),
                     patients: nextPatient
                       ? replacePatient(s.patients, { ...nextPatient, foragingPoints: outcome.nextState.foragingPoints })
@@ -11446,6 +11441,71 @@ function PlayView({
 	    if (choice === 'clear') clearJourneyStartDraft();
 	  };
 
+    const handleRestartJourneyPlanning = async () => {
+      if (!state.journeyActive) return;
+      const choice = await requestControlledPrompt({
+        title: '이번 여정만 처음부터 다시 준비할까요?',
+        message: '현재 여정의 목적지·목표·경과일·경로와 진행 중인 환자·조우·채집 판정을 정리하고, 이번 여정의 출발 위치로 돌아갑니다. 약제사, 가방, Guild Reputation, 지도 수정, 환자 기록장, 과거 일지와 캠페인 누적 일수는 그대로 둡니다.',
+        defaultValue: 'keep',
+        kicker: '여정 복구',
+        label: '선택',
+        options: [
+          { value: 'keep', label: '현재 여정 계속하기' },
+          { value: 'reset', label: '이번 여정만 초기화' }
+        ]
+      });
+      if (choice !== 'reset') return;
+      const journeyMapNodes = buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || []);
+      const storedJourneyOriginId = state.journey?.originId?.trim();
+      const storedOriginExists = Boolean(storedJourneyOriginId && (
+        REVIEWED_MAP_LOCATION_BY_ID.has(storedJourneyOriginId)
+        || MARKER_BY_ID.has(storedJourneyOriginId)
+        || journeyMapNodes[storedJourneyOriginId]
+      ));
+      const journeyOriginId = storedOriginExists
+        ? storedJourneyOriginId
+        : findMapLocationKey(state.journeyOrigin || '', state.customMapLocations || []);
+      const journeyOriginNode = journeyOriginId
+        ? REVIEWED_MAP_LOCATION_BY_ID.get(journeyOriginId)
+          || MARKER_BY_ID.get(journeyOriginId)
+          || journeyMapNodes[journeyOriginId]
+        : null;
+      const resetOrigin = journeyOriginNode ? {
+        id: journeyOriginId,
+        name: journeyOriginNode.label || state.journeyOrigin,
+        locationType: toMapPlaceType(journeyOriginNode.kind),
+        region: journeyOriginNode.region || state.currentRegion
+      } : {
+        id: journeyOriginId || undefined,
+        name: state.journeyOrigin || state.currentLocationName
+      };
+      const timestamp = Date.now();
+      updateState((current: GameState) => {
+        const reset = resetJourneyForPlanning(current, resetOrigin);
+        return {
+          ...reset,
+          journals: [{
+            id: `journey-reset:${timestamp}`,
+            title: '여정 다시 준비',
+            text: `${current.journeyDestination || '진행 중이던 목적지'} 여정을 플레이 복구 목적으로 접고, 출발지 ${reset.currentLocationName}로 돌아갔습니다. 약제사와 가방, 지도, 누적 기록은 보존했습니다.`,
+            timestamp
+          }, ...reset.journals]
+        };
+      });
+      clearJourneyStartDraft();
+      routeDraftRef.current = { stops: [], edgeKinds: [] };
+      setRouteDraftState({ stops: [], edgeKinds: [] });
+      setNextLocName('');
+      setActiveTravelEncounter(null);
+      setActiveForageEncounter(null);
+      setSelectedBagItems([]);
+      setSelectedTools([]);
+      setDestRegion(resetOrigin.region || state.currentRegion);
+      setDowntimeTab('start');
+      window.setTimeout(() => document.getElementById('journey-start-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+      showAlert(`이번 여정만 정리하고 출발지 ${resetOrigin.name || '기존 위치'}로 돌아갔습니다. 목적지와 목표를 다시 정해 주세요.`);
+    };
+
 	  const handleStartJourney = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!state.bio.name.trim()) {
@@ -11946,13 +12006,11 @@ function PlayView({
       let nextConditions = consumeTravelConditions(s.manualConditions || [], destinationId, originId);
       if (printedIgnoreHere) nextConditions = nextConditions.filter(condition => condition !== `ignore-negative:${destinationId}`);
       next = {
-      ...next,
+      ...applyCalendarAdvance(next, outcome.nextState.calendarDays),
       currentMapLocationId: destinationId,
       currentLocationName: outcome.nextState.currentLocationName,
       currentRegion: destinationRegion,
       currentLocationType: destinationType === 'Titan Ruin' ? 'Ruin' : destinationType === 'Behemoth Barrow' ? 'Barrow' : destinationType,
-      calendarDays: outcome.nextState.calendarDays,
-      cumulativeDays: (s.cumulativeDays || 0) + (outcome.nextState.calendarDays - s.calendarDays),
       visitedLocations: Array.from(new Set([...(s.visitedLocations || []), outcome.nextState.currentLocationName])),
       // p.25 Earning Your Keep applies after every completed Move/Soar. Skipping
       // or blocking an Encounter does not waive the separate Ailment obligation.
@@ -12856,7 +12914,7 @@ function PlayView({
       scroungingMode: false,
       scroungingTimer: 0
     }));
-    showAlert("🚪 여분 채집이 마감되었습니다. 여정을 재개합니다.");
+    showAlert('Moving On을 마쳤습니다. 달력은 아직 늘지 않으며, 다음 Move와 도착 조우를 완료하면 1일이 표시됩니다.');
   };
 
   const handleAbandonPatient = async () => {
@@ -13194,6 +13252,7 @@ function PlayView({
 
   const handlePantryHibernate = () => {
     if (!atClinicLocation) return showAlert('식료품 저장고에서의 동면은 약제소에 머물 때만 사용할 수 있습니다.');
+    if (state.journeyActive) return showAlert('현재 여정을 마친 뒤 동면해 주세요. 동면은 계절과 날짜를 정산하므로 여정 중에는 진행할 수 없습니다.');
     const occupantsInput = prompt('함께 동면할 인원 수를 입력하세요. Guild Reputation 15 미만이면 인원당 장신구 15개가 필요합니다.', '1');
     if (occupantsInput === null) return;
     const occupants = Math.max(1, parseInt(occupantsInput, 10) || 1);
@@ -13975,7 +14034,7 @@ function PlayView({
     setSelectedTools([]);
     setUsePurify(false);
     const consumedNames = selectedBagItems.map(itemId => localizeInventoryItemName(state.bag.find(item => item.id === itemId)?.name || itemId));
-    showAlert(`치료가 완료되었습니다.\n소비: ${consumedNames.join(', ')}\nGuild Reputation ${outcome.reputationChange >= 0 ? '+' : ''}${outcome.reputationChange} · 장신구 +${outcome.trinketReward}\n남은 치료 시간: ${remainingTime}시간${outcome.badIdeaOutcomeApplied ? '\nInspiration 도구 보상도 함께 저장했습니다.' : ''}${treatmentManualDraft ? '\n이어지는 인쇄 효과는 전용 직접 판정에 열었습니다.' : ''}`);
+    showAlert(`치료가 완료되었습니다.\n소비: ${consumedNames.join(', ')}\nGuild Reputation ${outcome.reputationChange >= 0 ? '+' : ''}${outcome.reputationChange} · 장신구 +${outcome.trinketReward}\n남은 질환 Timer: ${remainingTime}시간\n${remainingTime > 0 ? '여분 채집을 하거나 Moving On으로 바로 떠날 준비를 마칠 수 있습니다.' : 'Moving On이 완료되어 다음 Move를 준비할 수 있습니다. 다음 Move 완료 시 달력 1일이 경과합니다.'}${outcome.badIdeaOutcomeApplied ? '\nInspiration 도구 보상도 함께 저장했습니다.' : ''}${treatmentManualDraft ? '\n이어지는 인쇄 효과는 전용 직접 판정에 열었습니다.' : ''}`);
     window.setTimeout(() => {
       document.getElementById('patient-clinic-panel')?.scrollIntoView({ block: 'start' });
     }, 0);
@@ -14733,9 +14792,9 @@ function PlayView({
     if (state.scroungingMode) {
       addActionHubItem({
         id: 'scrounging',
-        label: '여분 채집 사용',
-        detail: `치료 후 남은 ${state.scroungingTimer || 0}시간으로 추가 약재를 확보합니다.`,
-        meta: `가방 약재 ${patientReagentCount}개`,
+        label: 'Moving On 또는 여분 채집',
+        detail: `치료를 마쳤습니다. 남은 ${state.scroungingTimer || 0}시간을 쓰거나 바로 다음 Move를 준비합니다.`,
+        meta: `떠날 준비 · 가방 약재 ${patientReagentCount}개`,
         targetId: 'patient-clinic-panel',
         tone: 'primary'
       });
@@ -15008,7 +15067,22 @@ function PlayView({
               <strong>{state.journeyDestination || '미정'}</strong>
               <small>{journeyMinimumDistance === null ? '저장된 연결로 거리 미확정' : `저장된 최소 ${journeyMinimumDistance}경로`}</small>
             </div>
-    <p>지금은 현지 야수를 도울 차례입니다. 진료를 마치면 지도와 다음 이동 경로 편집기가 다시 열립니다.</p>
+            <div className="journey-care-context__goal">
+              <span>이번 여정의 목표</span>
+              <strong>{state.journeyGoalTitle || '기록된 목표 없음'}</strong>
+              <small>{localizeJourneyGoalText(state.journeyGoalDesc || state.journeyGoalProgress || '여정 준비에서 정한 완료 조건을 기억하세요.')}</small>
+            </div>
+            <footer>
+              <p>{state.scroungingMode
+                ? '치료를 마쳤습니다. 여분 채집은 선택이며, Moving On을 마쳐야 다음 Move로 이어집니다.'
+                : '지금은 현지 야수를 도울 차례입니다. 채집·물물교환은 질환 Timer를 쓰며 여정 달력은 그대로입니다.'}</p>
+              <div>
+                {state.scroungingMode ? (
+                  <button type="button" className="btn-cozy-primary" onClick={handleFinishScrounging}>Moving On · 다음 이동 준비</button>
+                ) : null}
+                <button type="button" className="btn-cozy-secondary" onClick={() => void handleRestartJourneyPlanning()}>이번 여정 다시 준비</button>
+              </div>
+            </footer>
           </section>
         ) : (
         <aside id="play-journey-map" className="play-with-map__map" aria-label="여정 지도">
@@ -16729,13 +16803,16 @@ function PlayView({
                 <br />
                 출발한 지 <strong>{state.calendarDays}일째</strong>, 남은 시간은 <strong>{Math.max(0, state.calendarMaxDays - state.calendarDays)}일</strong>.
               </div>
-              <button
-                type="button"
-                onClick={handleEndJourney}
-                style={{ padding: '0.4rem 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '20px', fontSize: '0.82rem', whiteSpace: 'nowrap', flexShrink: 0 }}
-              >
-                여정 마감
-              </button>
+              <div className="journey-record__actions">
+                <button type="button" className="btn-cozy-secondary" onClick={() => void handleRestartJourneyPlanning()}>이번 여정 다시 준비</button>
+                <button
+                  type="button"
+                  onClick={handleEndJourney}
+                  style={{ padding: '0.4rem 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '20px', fontSize: '0.82rem', whiteSpace: 'nowrap', flexShrink: 0 }}
+                >
+                  여정 마감
+                </button>
+              </div>
             </div>
             <div style={{ marginTop: '0.8rem', background: '#ffffff', padding: '0.7rem', borderRadius: '8px', border: '1px solid var(--glass-border)', fontSize: '0.9rem', lineHeight: 1.55 }}>
               목표: <strong style={{ color: 'var(--primary)' }}>{state.journeyGoalTitle}</strong>
@@ -17369,7 +17446,7 @@ function PlayView({
                   onClick={handleFinishScrounging}
                   style={{ width: '100%', padding: '0.8rem', background: '#d97706', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '1rem', marginTop: '1rem', cursor: 'pointer' }}
                 >
-                  🚪 여분 채집 마감하고 여정 계속하기
+                  Moving On · 떠날 준비 마치고 다음 이동으로
                 </button>
               </div>
             ) : !state.activeAilment ? (

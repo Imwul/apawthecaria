@@ -6,6 +6,7 @@ import { BARROW_DELVE_BY_ID, type BarrowDelveId, type BehemothClass } from './da
 import { normalizeRouteDraft } from '../map/routeComposer';
 import { normalizeSaveRevision } from '../persistence/revision';
 import { normalizeSecondaryDrawCard, readSecondaryCardHistory } from '../secondaryCardHistory';
+import { readCalendarClocks } from '../calendarTime';
 import { migrateRulesetMetadata } from './rulesets';
 import { CURRENT_SCHEMA_VERSION, type PatientState, type TreatmentDraft } from './state';
 import type { AilmentSeverity, RulebookEdition, RulesetId, RuleTag } from './types';
@@ -609,6 +610,76 @@ const normalizeSeason = (value: unknown): 'Spring' | 'Summer' | 'Autumn' | 'Wint
   return 'Spring';
 };
 
+const normalizeJourneyState = (value: unknown, save: SaveRecord): SaveRecord | null => {
+  if (!isSaveRecord(value)) return null;
+  const goalId = typeof value.goalId === 'string' && value.goalId.trim() ? value.goalId.trim() : 'custom';
+  const storedGoal = isSaveRecord(value.customGoal) ? value.customGoal : null;
+  const legacyGoalTitle = typeof save.journeyGoalTitle === 'string' && save.journeyGoalTitle.trim()
+    ? save.journeyGoalTitle.trim()
+    : '기존 여정 목표';
+  const legacyGoalRequirement = typeof save.journeyGoalDesc === 'string' && save.journeyGoalDesc.trim()
+    ? save.journeyGoalDesc.trim()
+    : typeof save.journeyGoalProgress === 'string' && save.journeyGoalProgress.trim()
+      ? save.journeyGoalProgress.trim()
+      : '예전 기록을 확인한 뒤 완료 여부를 직접 판단합니다.';
+  const goalState = isSaveRecord(value.goalState) ? value.goalState : {};
+  const evaluation = isSaveRecord(goalState.evaluation) ? goalState.evaluation : {};
+  const urgency = isSaveRecord(value.urgency) ? value.urgency : {};
+  const urgencyDays = Number.isFinite(Number(urgency.days))
+    ? Math.max(1, Math.floor(Number(urgency.days)))
+    : Number.isFinite(Number(save.calendarMaxDays))
+      ? Math.max(1, Math.floor(Number(save.calendarMaxDays)))
+      : 12;
+  const urgencyLabel = ['Relaxed', 'Important', 'Urgent', 'Dire'].includes(String(urgency.label))
+    ? String(urgency.label)
+    : 'Important';
+  const status = ['setup', 'active', 'ending', 'completed', 'abandoned'].includes(String(value.status))
+    ? String(value.status)
+    : save.journeyActive ? 'active' : 'setup';
+  return {
+    ...value,
+    journeyId: typeof value.journeyId === 'string' && value.journeyId.trim() ? value.journeyId.trim() : 'legacy-active-journey',
+    // A printed location name is not a stable map id. Keep a missing id empty
+    // so the UI can resolve the saved name against the current reviewed map.
+    originId: typeof value.originId === 'string' ? value.originId.trim() : '',
+    destinationId: typeof value.destinationId === 'string' ? value.destinationId.trim() : '',
+    season: normalizeSeason(value.season || save.currentSeason),
+    reason: typeof value.reason === 'string' && value.reason.trim() ? value.reason : '기존 여정 기록에서 복구됨',
+    goalId,
+    customGoal: goalId === 'custom'
+      ? {
+          title: typeof storedGoal?.title === 'string' && storedGoal.title.trim() ? storedGoal.title.trim() : legacyGoalTitle,
+          requiredState: typeof storedGoal?.requiredState === 'string' && storedGoal.requiredState.trim() ? storedGoal.requiredState.trim() : legacyGoalRequirement
+        }
+      : storedGoal,
+    goalState: {
+      ...goalState,
+      events: recordArray(goalState.events),
+      playerDeclaredComplete: Boolean(goalState.playerDeclaredComplete),
+      gmOverride: Boolean(goalState.gmOverride),
+      evaluation: {
+        ...evaluation,
+        goalId,
+        complete: Boolean(evaluation.complete),
+        automaticComplete: Boolean(evaluation.automaticComplete),
+        evidence: recordArray(evaluation.evidence),
+        manualConfirmationRequired: goalId === 'custom' || Boolean(evaluation.manualConfirmationRequired)
+      }
+    },
+    urgency: { label: urgencyLabel, days: urgencyDays },
+    startDate: Number.isFinite(Number(value.startDate)) ? Number(value.startDate) : 0,
+    status,
+    journalPrompts: stringArray(value.journalPrompts),
+    deviations: stringArray(value.deviations),
+    rulesetId: typeof value.rulesetId === 'string' ? value.rulesetId : String(save.rulesetId || 'legacy-campaign'),
+    startReputation: Number.isFinite(Number(value.startReputation))
+      ? Number(value.startReputation)
+      : Number.isFinite(Number(save.journeyStartReputation))
+        ? Number(save.journeyStartReputation)
+        : Number.isFinite(Number(save.reputation)) ? Number(save.reputation) : 5
+  };
+};
+
 const normalizeCard = (value: unknown): { value: number; suit?: string } | null => {
   const cardValue = Number(isSaveRecord(value) ? value.value : Number.NaN);
   if (!isSaveRecord(value) || !Number.isInteger(cardValue) || cardValue < 1 || cardValue > 13) return null;
@@ -670,6 +741,10 @@ const normalizePendingForaging = (value: unknown): SaveRecord | null => {
 
 const normalizeCurrentSave = (saved: SaveRecord): SaveRecord => {
   const withMetadata = migrateRulesetMetadata(saved);
+  const calendarClocks = readCalendarClocks({
+    calendarDays: withMetadata.calendarDays,
+    cumulativeDays: withMetadata.cumulativeDays
+  });
   const patients = normalizePatients(withMetadata.patients);
   const requestedActivePatientId = typeof withMetadata.activePatientId === 'string'
     ? withMetadata.activePatientId
@@ -701,6 +776,11 @@ const normalizeCurrentSave = (saved: SaveRecord): SaveRecord => {
   return {
     ...withMetadata,
     schemaVersion: CURRENT_SCHEMA_VERSION,
+    calendarDays: calendarClocks.calendarDays,
+    cumulativeDays: calendarClocks.cumulativeDays,
+    calendarHistory: Array.isArray(withMetadata.calendarHistory)
+      ? withMetadata.calendarHistory.filter((entry): entry is string => typeof entry === 'string')
+      : [],
     currentSeason: normalizeSeason(withMetadata.currentSeason),
     bag: recordArray(withMetadata.bag).map(item => migrateLegacyBagItem(item)),
     routeDraft: normalizeRouteDraft(withMetadata.routeDraft),
@@ -713,7 +793,7 @@ const normalizeCurrentSave = (saved: SaveRecord): SaveRecord => {
     pendingEncounter: normalizePendingEncounter(withMetadata.pendingEncounter),
     pendingForaging: normalizePendingForaging(withMetadata.pendingForaging),
     pendingBarter: isSaveRecord(withMetadata.pendingBarter) ? withMetadata.pendingBarter : null,
-    journey: isSaveRecord(withMetadata.journey) ? withMetadata.journey : null,
+    journey: normalizeJourneyState(withMetadata.journey, withMetadata),
     pendingEnding: isSaveRecord(withMetadata.pendingEnding) ? withMetadata.pendingEnding : null,
     pendingLeaveObligation: isSaveRecord(withMetadata.pendingLeaveObligation) ? withMetadata.pendingLeaveObligation : null,
     pendingAlternativeAcquisition: isSaveRecord(withMetadata.pendingAlternativeAcquisition) ? withMetadata.pendingAlternativeAcquisition : null,

@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 const appSource = readFileSync(fileURLToPath(new URL('./App.tsx', import.meta.url)), 'utf8');
 const manualSource = readFileSync(fileURLToPath(new URL('./components/ManualEffectPanel.tsx', import.meta.url)), 'utf8');
+const rulebookContextSource = readFileSync(fileURLToPath(new URL('./components/RulebookSourceContext.tsx', import.meta.url)), 'utf8');
 
 describe('encounter player-experience guards', () => {
   it('waits for account bootstrap before opening an editable campaign', () => {
@@ -173,5 +174,28 @@ describe('encounter player-experience guards', () => {
     expect(manualSource).toContain('draft.resultSummary.trim().length > 0;');
     expect(manualSource).toContain('비우면 판정 결과 요약을 그대로 기록합니다');
     expect(appSource).toContain(': { ...draft, journalNote: draft.resultSummary.trim() };');
+  });
+
+  it('presents a pending manual encounter as scene, state change, then record', () => {
+    expect(appSource).toContain('phase4-modal phase4-modal--manual-effect');
+    expect(manualSource).toContain('localizeEncounterDisplayText(draft.summary, draft.printedText, draft.ownerId)');
+    expect(manualSource).toContain('localizeEncounterTitle(draft.summary, draft.ownerId)');
+    expect(manualSource).toContain('localizeManualEffectOption(option, encounter ? draft.ownerId : undefined, matchedChoice?.id)');
+
+    const why = manualSource.indexOf('왜 직접 고르나요?');
+    const scene = manualSource.indexOf('장면을 읽고 고르기');
+    const changes = manualSource.indexOf('바뀌는 값 확인하기');
+    const record = manualSource.indexOf('결과를 기록하기');
+    expect(why).toBeGreaterThan(-1);
+    expect(why).toBeLessThan(scene);
+    expect(scene).toBeLessThan(changes);
+    expect(changes).toBeLessThan(record);
+
+    expect(manualSource).toContain('className={`manual-effect__choice-option${selected ? \' is-selected\' : \'\'}`}');
+    expect(manualSource).toContain('aria-pressed={selected}');
+    expect(manualSource).toContain("onClick={() => updateInput(field.id, selected ? '' : option)}");
+    expect(manualSource).not.toContain('<select value={String(value ?? \'\')}');
+    expect(rulebookContextSource).not.toContain('구현 누락');
+    expect(rulebookContextSource).toContain('플레이어가 고른 결과만 기록합니다.');
   });
 });

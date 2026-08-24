@@ -30,7 +30,7 @@ describe('campaign continuity', () => {
     expect(getCampaignContinuity({ ...journey, activeAilment: { id: 'patient' } }).nextAction)
       .toBe('현재 환자의 치료를 이어가세요.');
     expect(getCampaignContinuity({ ...journey, scroungingMode: true }).nextAction)
-      .toBe('남은 치료 시간으로 여분 채집을 하거나 마감하세요.');
+      .toBe('치료를 마쳤습니다. 여분 채집을 하거나 Moving On으로 다음 이동을 준비하세요.');
     expect(getCampaignContinuity({ ...journey, needsLocalHelpBeforeMove: true }).nextAction)
       .toBe('현지 야수의 질환을 해결해야 다시 이동할 수 있습니다.');
     expect(getCampaignContinuity({ ...journey, activeAilment: { id: 'patient' } }).continueLabel)
@@ -85,6 +85,9 @@ describe('campaign continuity', () => {
     expect(back.calendarDays).toBe(3);
     expect(back.cumulativeDays).toBe(18);
     expect(back.calendarHistory.at(-1)).toContain('경과일 -2');
+
+    const repaired = applyManualCalendarAdjustment({ calendarDays: 2, calendarMaxDays: 12, cumulativeDays: 1, calendarHistory: [] }, 2);
+    expect(repaired).toMatchObject({ calendarDays: 2, cumulativeDays: 2 });
   });
 
   it('never invents completed seasons from elapsed days in a legacy save', () => {

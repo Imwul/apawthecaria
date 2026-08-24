@@ -105,6 +105,11 @@ describe('save migration torture matrix', () => {
       expect(migrated.patientArchive).toHaveLength(1);
       expect(migrated.toolStates).toEqual(expect.arrayContaining([expect.objectContaining({ instanceId: 'tool-mortar', toolId: 'mortar-and-pestle' })]));
       expect(migrated.journey).toMatchObject({ journeyId: 'journey-1', destinationId: 'destination' });
+      expect(migrated.journey).toMatchObject({
+        goalId: 'custom',
+        goalState: { events: [], playerDeclaredComplete: false, gmOverride: false },
+        urgency: { label: 'Important', days: 12 }
+      });
       expect(migrated.pendingForaging).toMatchObject({
         transactionId: 'forage-pending', region: 'Forest', phase: 'choose-reagent',
         targetReagentId: 'reagent-dandelion',
@@ -153,6 +158,41 @@ describe('save migration torture matrix', () => {
       expect(twice, `idempotency v${version}`).toEqual(once);
       expect(roundTripped, `round trip v${version}`).toEqual(once);
     }
+  });
+
+  it('repairs a legacy journey whose cumulative calendar fell behind its current journey day', () => {
+    const migrated = migrateSavedRulesState({
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      calendarDays: 2,
+      cumulativeDays: 1,
+      calendarHistory: ['1일째: 기존 기록', null, 7],
+      patients: [],
+      routeDraft: { stops: [], edgeKinds: [] }
+    });
+    expect(migrated).toMatchObject({
+      calendarDays: 2,
+      cumulativeDays: 2,
+      calendarHistory: ['1일째: 기존 기록']
+    });
+    expect(migrateSavedRulesState(clone(migrated))).toEqual(migrated);
+  });
+
+  it('does not reinterpret legacy location names as stable map ids', () => {
+    const migrated = migrateSavedRulesState({
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      journeyActive: true,
+      journeyOrigin: 'Odoak',
+      journeyDestination: 'Fort Bulrush',
+      journey: { journeyId: 'legacy-names-only', status: 'active' },
+      patients: [],
+      routeDraft: { stops: [], edgeKinds: [] }
+    });
+    expect(migrated.journey).toMatchObject({
+      journeyId: 'legacy-names-only',
+      originId: '',
+      destinationId: ''
+    });
+    expect(migrated).toMatchObject({ journeyOrigin: 'Odoak', journeyDestination: 'Fort Bulrush' });
   });
 
   it('recovers partial current-schema arrays, patients, route data, and legacy enum values', () => {

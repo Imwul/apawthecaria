@@ -17,7 +17,7 @@ export default function RulebookSourceContext({ ownerId, page }: { ownerId: stri
   return (
     <details className="manual-effect__rulebook-context">
       <summary>원문 맥락과 해당 페이지 펼치기</summary>
-      <p className="manual-effect__intent"><strong>직접 판정은 구현 누락이 아닙니다.</strong> 원문이 선택, 서술 또는 후속 판단을 요구하므로 앱은 결론을 대신 만들지 않습니다.</p>
+      <p className="manual-effect__intent">이 페이지는 선택과 서술을 플레이어에게 맡깁니다. 앱은 원문 맥락을 참고용으로 보여 주고, 플레이어가 고른 결과만 기록합니다.</p>
       {related.length > 0 && <dl>{related.map(entry => <div key={entry.id}><dt>{RULEBOOK_KIND_LABELS[entry.kind]}</dt><dd>{entry.title} · {RULEBOOK_STATUS_LABELS[entry.runtimeStatus]}</dd></div>)}</dl>}
       <h4>룰북 p.{page}</h4>
       <pre>{source?.text || '원문 페이지를 불러오는 중...'}</pre>
