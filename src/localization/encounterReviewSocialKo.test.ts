@@ -30,10 +30,10 @@ describe('fully reviewed social encounter Korean copy', () => {
   });
 
   it('covers every actual social choice and no generated continue action', () => {
-    // The current canonical data has 92 printed/player choices. The other 18
+    // The current canonical data has 89 printed/player choices. The other 18
     // rows use the shared generated "기록하고 계속" action and need no override.
-    expect(canonicalChoices).toHaveLength(92);
-    expect(reviewedChoices).toHaveLength(92);
+    expect(canonicalChoices).toHaveLength(89);
+    expect(reviewedChoices).toHaveLength(89);
     expect(sortedKeys(reviewedChoices)).toEqual(sortedKeys(canonicalChoices));
     expect(reviewedChoices.some(choice => choice.choiceId === 'continue')).toBe(false);
   });
@@ -82,10 +82,8 @@ describe('fully reviewed social encounter Korean copy', () => {
       .toContain('Burned Wood(탄 나무)의 Ash(재) 부위');
     expect(SOCIAL_ENCOUNTER_REVIEW_CHOICE_KO['social-loch-newdam-♦']['mother-o-fruits'])
       .toContain('Fruit(과일, 무게 1)');
-    expect(SOCIAL_ENCOUNTER_REVIEW_CHOICE_KO['social-meadow-spring-♣']['release-the-queen'])
-      .toContain('Beehive(벌집)의 Honey(꿀) 및 Wax(밀랍) 부위');
     expect(SOCIAL_ENCOUNTER_REVIEW_CHOICE_KO['social-meadow-spring-♣']['protect-the-queen'])
-      .toContain('동료로 얻습니다');
+      .toMatch(/Queen Bee\(여왕벌\)[\s\S]*Beehive[\s\S]*Honey\(꿀\)[\s\S]*Wax\(밀랍\)/);
     expect(SOCIAL_ENCOUNTER_REVIEW_CHOICE_KO['social-mountain-spoolkeep-♦'].woolworks)
       .toContain('Behemoth Bits의 Fur(빠진 털) 부위');
     expect(SOCIAL_ENCOUNTER_REVIEW_CHOICE_KO['social-mountain-summer-♣']['storied-swap'])

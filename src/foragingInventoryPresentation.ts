@@ -1,6 +1,6 @@
 import { formatPreparationName, localizeInventoryItemName, localizePreparationMethod } from './localization/gameplayKo';
 import { REAGENT_BY_ID, REAGENTS } from './rules/data/reagents';
-import type { ReagentDefinition } from './rules/types';
+import type { ReagentDefinition, RuleTag, TagValue } from './rules/types';
 
 // Only use established Korean common names here. Loanword transliterations are
 // intentionally omitted: the rulebook's English name remains the stable label.
@@ -71,6 +71,24 @@ type ParsedReagentItem = {
   reagent: ReagentDefinition | null;
   detail: string;
 };
+
+export interface ForagingTagGroups {
+  remedy: TagValue[];
+  trade: TagValue[];
+}
+
+const TRADE_TAGS = new Set<RuleTag>(['FAIR', 'FOUL']);
+
+/**
+ * Rulebook p.27: FAIR and FOUL are not ordinary treatment requirements. They
+ * change the Trinket value of a finished Remedy, stack, and cancel each other.
+ * Keep them out of the curative tag row so a gathered Part never appears to
+ * satisfy a patient's ailment merely because it has trade value.
+ */
+export const splitForagingTags = (tags: readonly TagValue[]): ForagingTagGroups => ({
+  remedy: tags.filter(tag => !TRADE_TAGS.has(tag.tag)),
+  trade: tags.filter(tag => TRADE_TAGS.has(tag.tag))
+});
 
 const splitItemName = (value: string): { base: string; preparation?: string; method?: string } => {
   const prepared = value.match(/^(.+?) \(([^,]+),\s*([^)]+)\)$/);

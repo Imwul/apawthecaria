@@ -68,11 +68,22 @@ describe('combined encounter review layer', () => {
         if (choice.id === 'continue') continue;
         const source = tokens(choice.label);
         const reviewed = tokens(ENCOUNTER_REVIEW_CHOICE_KO[encounter.id]?.[choice.id] || '');
-        // Some parser-generated choice labels contain only the heading while
-        // the printed result lives in the prompt. Those reviewed choices may
-        // correctly add tokens; whenever the canonical label does contain
-        // tokens, however, the review layer must preserve them exactly.
-        if (source.length > 0 && source.join('|') !== reviewed.join('|')) {
+        // Some parser-generated choice labels contain only part of the
+        // printed procedure. A reviewed parent choice may therefore add the
+        // suit outcomes that used to live in removed child choices. Require
+        // every token already present on the canonical choice to survive,
+        // while the hierarchy-specific tests verify those added outcomes.
+        const reviewedCounts = reviewed.reduce<Record<string, number>>((counts, token) => {
+          counts[token] = (counts[token] || 0) + 1;
+          return counts;
+        }, {});
+        const sourceCounts = source.reduce<Record<string, number>>((counts, token) => {
+          counts[token] = (counts[token] || 0) + 1;
+          return counts;
+        }, {});
+        const preservesSource = Object.entries(sourceCounts)
+          .every(([token, count]) => (reviewedCounts[token] || 0) >= count);
+        if (!preservesSource) {
           mismatches.push({ key: `${encounter.id}/${choice.id}`, source, reviewed });
         }
       }

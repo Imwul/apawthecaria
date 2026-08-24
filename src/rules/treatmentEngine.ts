@@ -524,7 +524,12 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
         outcome: 'failure',
         effects: []
       };
-      reputationLoss += severityValue(ailment.severity);
+      // Some encounter patients explicitly grant and cost no Reputation or
+      // Trinkets (for example The Branded, p.162). That printed exception
+      // applies to failure as well as successful treatment.
+      if (ailment.specialState?.rewardMode !== 'none') {
+        reputationLoss += severityValue(ailment.severity);
+      }
       patient = updateAilment(patient, ailment, treatment, 'failed');
     }
     const nextState = {
@@ -550,7 +555,7 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
         fair: 0,
         foul: 0,
         trinketReward: 0,
-        reputationChange: -reputationLoss,
+        reputationChange: reputationLoss === 0 ? 0 : -reputationLoss,
         consumedItemIds: [],
         manualEffects: [],
         badIdeaOutcomeApplied: false,
@@ -694,14 +699,19 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
     ? Math.max(0, collected.fair - effectiveFoul)
     : collected.fair - effectiveFoul;
   const baseReward = Math.max(0, severityValue(definition.severity) + Math.trunc(netFair / 2));
-  const gifting = Boolean(input.gifting && baseReward > 0);
-  const trinketReward = gifting ? 0 : baseReward + Math.max(0, Math.floor(input.trinketRewardBonus || 0));
+  const rewardsSuppressed = specialState.rewardMode === 'none';
+  const gifting = Boolean(!rewardsSuppressed && input.gifting && baseReward > 0);
+  const trinketReward = rewardsSuppressed
+    ? 0
+    : gifting ? 0 : baseReward + Math.max(0, Math.floor(input.trinketRewardBonus || 0));
   const brandCareChange = definition.canonicalName === 'Brand Care' && specialState.brandCareChoice !== 'treat' ? -2 : 0;
   const stingshockChange = definition.canonicalName === 'Stingshock' && doseCount >= 2 ? 3 : 0;
   const cookedWakeChange = definition.canonicalName === 'Wake'
     && selected.some(row => row.preparation?.method.toUpperCase().includes('COOK')) ? 2 : 0;
-  const reputationChange = severityValue(definition.severity) + (gifting ? 2 : 0)
-    + brandCareChange + stingshockChange + cookedWakeChange;
+  const reputationChange = rewardsSuppressed
+    ? 0
+    : severityValue(definition.severity) + (gifting ? 2 : 0)
+      + brandCareChange + stingshockChange + cookedWakeChange;
   const treatment: TreatmentHistoryEntry = {
     id: `${input.transactionId}:treatment`,
     ailmentInstanceIds: [ailment.id],

@@ -33,6 +33,51 @@ describe('encounter player-experience guards', () => {
     expect(appSource).toContain("{resolvingForageEncounter ? '조우 해결 중…' : '조우 해결하고 기록하기'}");
   });
 
+  it('shows and enforces conditional travel encounter choices before resolution', () => {
+    const travelDialogStart = appSource.indexOf('{/* Travel Encounter Dialog Modal */}');
+    const forageDialogStart = appSource.indexOf('{/* Foraging Encounter Dialog Modal */}', travelDialogStart);
+    const travelDialogSource = appSource.slice(travelDialogStart, forageDialogStart);
+    expect(travelDialogSource).toContain('현재 Guild Reputation');
+    expect(travelDialogSource).toContain('encounterChoiceAvailability(choice, {');
+    expect(travelDialogSource).toContain('disabled={!choiceAvailability.available}');
+    expect(travelDialogSource).toContain('현재 선택 불가');
+    expect(travelDialogSource).toContain('!travelChoiceReady');
+  });
+
+  it('distinguishes a Settlement social encounter from a Wilds travel encounter', () => {
+    expect(appSource).toContain("const encounterKindLabel = activeTravelEncounter.encounterType === 'social' ? '사회 조우' : '여정 조우';");
+    expect(appSource).toContain("사회 조우는 문양만 사용");
+    expect(appSource).toContain("const pendingEncounterLabel = state.pendingEncounter.encounter.encounterType === 'social' ? '사회 조우' : '이동 조우';");
+    expect(appSource).toContain("정착지·도시에 도착하면 문양으로 사회 조우를 찾습니다.");
+    expect(appSource).toContain("야생·유적·고분에 도착하면 숫자와 계절로 여정 조우를 찾습니다.");
+  });
+
+  it('keeps conditional forage encounter choices from reaching resolution while unavailable', () => {
+    const forageDialogStart = appSource.indexOf('{/* Foraging Encounter Dialog Modal */}');
+    const forageDialogEnd = appSource.indexOf('{/* Seasoned (베테랑 여행자) 카드 선택 모달 */}', forageDialogStart);
+    const forageDialogSource = appSource.slice(forageDialogStart, forageDialogEnd);
+    expect(forageDialogSource).toContain('const forageChoiceReady =');
+    expect(forageDialogSource).toContain('selectedForageChoiceDisabledReason');
+    expect(forageDialogSource).toContain('!forageChoiceReady');
+    expect(forageDialogSource).toContain('회색 선택지에는 부족한 조건이 표시됩니다.');
+  });
+
+  it('records a secondary draw before the player can switch encounter branches', () => {
+    const slotStart = appSource.indexOf('const TravelSecondaryDrawSlot');
+    const slotEnd = appSource.indexOf('\n// =================================================================\n// 3.5.', slotStart);
+    const slotSource = appSource.slice(slotStart, slotEnd);
+
+    expect(slotSource).not.toContain('window.setTimeout');
+    expect(slotSource.indexOf('onDraw(drawPlayingCard())')).toBeLessThan(slotSource.indexOf('window.requestAnimationFrame'));
+  });
+
+  it('edits the identity attached to an encounter Patient without overwriting the original local Patient', () => {
+    expect(appSource).toContain("const isEncounterPatient = typeof focusedAilment?.specialState?.encounterPatientName === 'string'");
+    expect(appSource).toContain('specialState: { ...ailment.specialState, encounterPatientName: nextName }');
+    expect(appSource).toContain('specialState: { ...ailment.specialState, encounterPatientSpecies: nextSpecies }');
+    expect(appSource).toContain('동시에 돌보는 질환과 개별 타이머');
+  });
+
   it('can restart a forage after gathering and restore its pre-draw state', () => {
     const cancelStart = appSource.indexOf('const cancelCurrentForagingAttempt');
     const cancelEnd = appSource.indexOf('\n  useEffect(() =>', cancelStart);
@@ -68,6 +113,7 @@ describe('encounter player-experience guards', () => {
 
   it('finishes manual forage effects before applying the p.33 Remedy or Timer checkpoint', () => {
     expect(appSource.match(/resolveForagingPostEncounterCheckpoint\(\{/g)).toHaveLength(2);
+    expect(appSource.match(/settleExpiredPatientAfterTimer\(/g)).toHaveLength(2);
     expect(appSource).toContain("!queue.some(row => row.context.continuation === 'foraging')");
     expect(appSource).toContain('manualEffectPending: Boolean(manualDraft)');
     expect(appSource).toContain('manualEffectPending: false');

@@ -5,12 +5,15 @@ import {
   canTreatAilmentWithInventory,
   createPatientArchiveRecord,
   previewTreatmentSelection,
+  resolveLeave,
   resolvePatient,
+  startEncounterPatientAilment,
   resolveTimer,
   resolveTreatment,
   upsertPatientArchive,
   type CanonicalToolState,
   type EngineInventoryItem,
+  type LeaveRuntimeState,
   type PatientState
 } from './index';
 
@@ -42,6 +45,206 @@ const treatmentState = (patient: PatientState, inventory: EngineInventoryItem[])
 });
 
 describe('Treatment and Patient edge-case transactions', () => {
+  it('starts a fixed-Severity encounter patient in front of the concurrent case without freezing existing Timers', () => {
+    const fixture = waenFixture();
+    const lesserRows = AILMENTS.filter(row => row.severity === 'lesser');
+    const started = startEncounterPatientAilment({
+      transactionId: 'branded-follow-up',
+      patient: fixture.patient,
+      ailmentCard: { value: 2, suit: '♥' },
+      severity: 'lesser',
+      encounterId: 'foraging-forest-9-spring',
+      patientName: '낙인찍힌 추방자',
+      species: '야수',
+      context: 'Guild Reputation/Trinket 보상 없음 · Overstay Your Welcome 전에 해결',
+      rewardMode: 'none',
+      deadline: 'before-overstay'
+    });
+    expect(started.status).toBe('resolved');
+    expect(started.value?.ailmentId).toBe(lesserRows[1].id);
+    expect(started.value?.patient.ailments).toHaveLength(fixture.patient.ailments.length + 1);
+    expect(started.value?.patient.ailments[0]).toMatchObject({
+      id: started.value.ailmentInstanceId,
+      severity: 'lesser',
+      specialState: expect.objectContaining({ rewardMode: 'none', deadline: 'before-overstay' })
+    });
+    expect(started.value?.patient.ailments.slice(1)).toEqual(fixture.patient.ailments);
+    expect(started.value?.patient.timers.slice(1)).toEqual(fixture.patient.timers);
+
+    const advanced = resolveTimer({ patient: started.value!.patient, hours: 1 }).value!;
+    expect(advanced.timers).toHaveLength(started.value!.patient.timers.length);
+    advanced.timers.forEach(timer => {
+      const before = started.value!.patient.timers.find(candidate => candidate.id === timer.id)!;
+      expect(timer.current).toBe(Math.max(0, before.current - 1));
+    });
+
+    const replayed = startEncounterPatientAilment({
+      transactionId: 'branded-follow-up',
+      patient: started.value!.patient,
+      ailmentCard: { value: 2, suit: '♥' },
+      severity: 'lesser',
+      encounterId: 'foraging-forest-9-spring',
+      patientName: '낙인찍힌 추방자',
+      species: '야수',
+      context: 'Guild Reputation/Trinket 보상 없음 · Overstay Your Welcome 전에 해결',
+      rewardMode: 'none',
+      deadline: 'before-overstay'
+    });
+    expect(replayed.value?.patient.ailments).toHaveLength(started.value!.patient.ailments.length);
+    expect(replayed.messages).toContain('Encounter Ailment was already started.');
+  });
+
+  it('suppresses both success rewards and failure Reputation loss for a no-reward encounter Ailment', () => {
+    const fixture = waenFixture();
+    const patient = {
+      ...fixture.patient,
+      ailments: fixture.patient.ailments.map(ailment => ({
+        ...ailment,
+        specialState: { ...ailment.specialState, rewardMode: 'none' }
+      }))
+    };
+    const success = resolveTreatment({
+      mode: 'treat', transactionId: 'no-reward-success',
+      state: treatmentState(patient, [...fixture.ingredients, ...fixture.tools]),
+      ailmentInstanceId: patient.ailments[0].id,
+      selectedItemIds: fixture.ingredients.map(item => item.id),
+      selectedToolIds: fixture.tools.map(item => item.id),
+      journalText: 'The exiled beast was treated in confidence.'
+    });
+    expect(success.value?.reputationChange).toBe(0);
+    expect(success.value?.trinketReward).toBe(0);
+    expect(success.value?.nextState).toMatchObject({ reputation: 5, trinkets: 0 });
+
+    const expired = resolveTimer({ patient, hours: fixture.ailment.timer }).value!;
+    const failure = resolveTreatment({
+      mode: 'fail-expired', transactionId: 'no-reward-failure',
+      state: treatmentState(expired, []),
+      ailmentInstanceIds: [expired.ailments[0].id],
+      journalText: 'The confidential treatment was not completed in time.'
+    });
+    expect(failure.value?.reputationChange).toBe(0);
+    expect(failure.value?.nextState.reputation).toBe(5);
+  });
+
+  it('does not restore a waived Reputation penalty when leaving with a no-reward encounter Ailment unresolved', () => {
+    const lesser = AILMENTS.find(row => row.severity === 'lesser')!;
+    const severe = AILMENTS.find(row => row.severity === 'severe')!;
+    const patient = resolvePatient({
+      id: 'mixed-leave-patient',
+      name: 'Patient',
+      species: 'Vole',
+      ailmentIds: [lesser.id, severe.id]
+    }).value!;
+    const noRewardId = patient.ailments.find(row => row.ailmentId === lesser.id)!.id;
+    const markedPatient: PatientState = {
+      ...patient,
+      ailments: patient.ailments.map(ailment => ailment.id === noRewardId
+        ? { ...ailment, specialState: { ...ailment.specialState, rewardMode: 'none', deadline: 'before-overstay' } }
+        : ailment)
+    };
+    const state: LeaveRuntimeState = {
+      inventory: [],
+      patient: markedPatient,
+      reputation: 10,
+      trinkets: 0,
+      currentRegion: 'Forest',
+      adjacentRegions: ['Meadow'],
+      foragingPoints: 0,
+      pendingObligation: null,
+      journalEvents: [],
+      appliedTransactionIds: [],
+      activePatientId: markedPatient.id,
+      patientArchive: [],
+      archiveContext: {
+        location: 'Forest Wilds',
+        encounteredAt: 1,
+        resolvedAt: 2,
+        sourceJourneyId: null
+      }
+    };
+
+    const left = resolveLeave({
+      transactionId: 'leave:mixed-no-reward',
+      state,
+      status: 'abandoned',
+      journalNote: 'Both unresolved Ailments face their printed consequences.'
+    });
+
+    expect(left.status).toBe('resolved');
+    expect(left.value?.reputation).toBe(7);
+    expect(left.value?.patient.ailments).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: noRewardId, status: 'failed', consequenceResolved: true })
+    ]));
+    expect(left.value?.patientArchive?.[0].penalty.reputation).toBe(3);
+  });
+
+  it('keeps an earlier Ailment failure when the final active Ailment is treated before leaving', () => {
+    const lesser = AILMENTS.find(row => row.severity === 'lesser')!;
+    const severe = AILMENTS.find(row => row.severity === 'severe')!;
+    const basePatient = resolvePatient({
+      id: 'partially-treated-patient',
+      name: 'Patient',
+      species: 'Vole',
+      ailmentIds: [lesser.id, severe.id]
+    }).value!;
+    const mixedPatient: PatientState = {
+      ...basePatient,
+      status: 'failed',
+      ailments: basePatient.ailments.map((ailment, index) => index === 0
+        ? { ...ailment, status: 'failed', failureResolved: true, consequenceResolved: true }
+        : { ...ailment, status: 'treated', successResolved: true }),
+      timers: basePatient.timers.map(timer => ({ ...timer, status: 'stopped' }))
+    };
+    const priorFailure = createPatientArchiveRecord({
+      caseId: mixedPatient.id,
+      patient: mixedPatient,
+      location: 'Forest Wilds',
+      encounteredAt: 1,
+      treatedAt: 2,
+      treatmentResult: 'failure',
+      penalty: { reputation: 1 },
+      transactionIds: ['timer-failure:1']
+    });
+    const state: LeaveRuntimeState = {
+      inventory: [],
+      patient: mixedPatient,
+      reputation: 9,
+      trinkets: 0,
+      currentRegion: 'Forest',
+      adjacentRegions: ['Meadow'],
+      foragingPoints: 0,
+      pendingObligation: null,
+      journalEvents: [],
+      appliedTransactionIds: ['timer-failure:1'],
+      activePatientId: mixedPatient.id,
+      patientArchive: [priorFailure],
+      archiveContext: {
+        location: 'Forest Wilds',
+        encounteredAt: 1,
+        resolvedAt: 3,
+        sourceJourneyId: null
+      }
+    };
+
+    const left = resolveLeave({
+      transactionId: 'leave:partial-treatment',
+      state,
+      status: 'treated'
+    });
+
+    expect(left.status).toBe('resolved');
+    expect(left.value?.patient.status).toBe('failed');
+    expect(left.value?.patient.ailments.map(ailment => ailment.status)).toEqual(['failed', 'treated']);
+    expect(left.value?.patientArchive?.[0]).toMatchObject({
+      status: 'failed',
+      treatmentResult: 'failure',
+      success: false,
+      failure: true,
+      penalty: { reputation: 1 }
+    });
+    expect(left.value?.reputation).toBe(9);
+  });
+
   it('covers empty, one-missing, multi-missing, missing-Tool, exact, and excess Inventory previews', () => {
     const fixture = waenFixture();
     const preview = (selectedItemIds: string[], selectedToolIds: string[], inventory = [...fixture.ingredients, ...fixture.tools]) =>

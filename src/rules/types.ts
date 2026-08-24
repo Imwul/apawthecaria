@@ -147,6 +147,21 @@ export interface EncounterChoice {
   id: string;
   label: string;
   effects: StructuredRuleEffect[];
+  requiresJournal?: boolean;
+  requirements?: {
+    minGuildReputation?: number;
+    maxGuildReputation?: number;
+    minTrinkets?: number;
+    requiredConditionId?: string;
+  };
+  followUp?: {
+    type: 'start-patient';
+    timing: 'immediate';
+    severity: AilmentSeverity;
+    rewardMode: 'none' | 'standard';
+    deadline?: 'before-overstay';
+    patientKind?: 'exiled-beast' | 'local-beast';
+  };
 }
 
 export interface EncounterDefinition extends CanonicalRuleRecord {

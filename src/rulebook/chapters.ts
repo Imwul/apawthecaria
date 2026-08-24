@@ -1,15 +1,18 @@
+import { normalizeCanonicalGuildReputationTerms } from '../localization/guildReputation';
 import type { RulebookReferenceEntry } from './types';
 
 type ChapterSpec = Omit<RulebookReferenceEntry, 'id' | 'kind' | 'runtimeStatus' | 'details' | 'relatedIds' | 'searchText'> & { id: string };
 
 const chapter = (spec: ChapterSpec): RulebookReferenceEntry => ({
   ...spec,
+  title: normalizeCanonicalGuildReputationTerms(spec.title),
+  summary: normalizeCanonicalGuildReputationTerms(spec.summary),
   id: `chapter:${spec.id}`,
   kind: 'rule',
   runtimeStatus: 'reference-only',
   details: [{ label: '범위', value: `p.${spec.sourcePage}${spec.endPage && spec.endPage !== spec.sourcePage ? `-${spec.endPage}` : ''}` }],
   relatedIds: [],
-  searchText: `${spec.title} ${spec.summary} ${spec.ruleIds.join(' ')}`.toLowerCase()
+  searchText: `${spec.title} ${spec.summary} ${normalizeCanonicalGuildReputationTerms(spec.title)} ${normalizeCanonicalGuildReputationTerms(spec.summary)} ${spec.ruleIds.join(' ')}`.toLowerCase()
 });
 
 export const RULEBOOK_CHAPTERS: RulebookReferenceEntry[] = [

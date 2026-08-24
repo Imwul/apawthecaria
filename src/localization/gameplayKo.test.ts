@@ -61,7 +61,7 @@ describe('gameplay presentation localization', () => {
     expect(localizeJourneyGoalText('Journal in Bog, Forest, Loch, Meadow, and Mountain.'))
       .toBe('늪지, 숲, 호수, 초원, 산맥 각 지역에서 일지를 기록합니다.');
     expect(localizeJourneyGoalText('End the 여정 with 5 more Guild 길드 명성 than at its start.'))
-      .toBe('출발할 때보다 길드 명성을 5 이상 높인 채 여정을 마칩니다.');
+      .toBe('출발할 때보다 Guild Reputation을 5 이상 높인 채 여정을 마칩니다.');
     expect(localizeAilmentPresentationText('Steel Axe가 필요하며 하루를 소모(Mark 1 Day)합니다.'))
       .toBe('Steel Axe가 필요하며 하루를 소모합니다.');
     expect(localizeAilmentPresentationText('치료제에 COOKED Preparation을 사용합니다.'))

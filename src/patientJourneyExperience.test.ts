@@ -18,6 +18,14 @@ describe('patient identity experience', () => {
     expect(appSource).toContain('patientSpeciesCandidates');
   });
 
+  it('records the complete severity decision and keeps canonical severity names visible', () => {
+    expect(appSource).toContain('→ 원래 ${canonicalSeverityLabel(result.value.drawnSeverity)}');
+    expect(appSource).toContain('Guild Reputation ${state.reputation} (${guildReputationRank(state.reputation)}) 상한 ${canonicalSeverityLabel(result.value.reputationSeverityLimit)}');
+    expect(appSource).toContain('최종 적용 ${canonicalSeverityLabel(result.value.appliedSeverity)}');
+    expect(appSource).toContain('중증도: {canonicalSeverityLabel(state.activeAilment.severity)}');
+    expect(appSource).not.toContain('>병색의 깊이: {getNaturalSeverityDescription(state.activeAilment.severity)}');
+  });
+
   it('keeps names player-authored and permits active patient identity corrections', () => {
     expect(appSource).toContain('환자 이름 (선택 · 지금 정하거나 진료 중에 수정)');
     expect(appSource).toContain('onClick={handleEditActivePatientIdentity}>이름·종 수정');
@@ -59,5 +67,13 @@ describe('treatment tool layout', () => {
     expect(cssSource).toContain('grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));');
     expect(cssSource).toContain('.treatment-option--tool strong');
     expect(cssSource).toContain('word-break: break-word;');
+  });
+
+  it('does not turn a mixed failed/treated case into a cure or Scrounging phase', () => {
+    expect(appSource).toContain("const allAilmentsCured = outcome.allAilmentsResolved && nextPatient.status === 'cured';");
+    expect(appSource).toContain("treatmentResult: allAilmentsCured ? 'success' : outcome.allAilmentsResolved ? 'failure' : 'pending'");
+    expect(appSource).toContain('curedAilmentInThisWilds: allAilmentsCured');
+    expect(appSource).toContain('scroungingMode: allAilmentsCured && remainingTime > 0');
+    expect(appSource).toContain('if (!outcome.allAilmentsResolved || (allAilmentsCured && remainingTime > 0)) return withArchive;');
   });
 });

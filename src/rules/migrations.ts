@@ -5,6 +5,7 @@ import { normalizeLegacyManualEffectDraft } from './almanackEngine';
 import { BARROW_DELVE_BY_ID, type BarrowDelveId, type BehemothClass } from './data/barrows';
 import { normalizeRouteDraft } from '../map/routeComposer';
 import { normalizeSaveRevision } from '../persistence/revision';
+import { normalizeSecondaryDrawCard, readSecondaryCardHistory } from '../secondaryCardHistory';
 import { migrateRulesetMetadata } from './rulesets';
 import { CURRENT_SCHEMA_VERSION, type PatientState, type TreatmentDraft } from './state';
 import type { AilmentSeverity, RulebookEdition, RulesetId, RuleTag } from './types';
@@ -615,6 +616,23 @@ const normalizeCard = (value: unknown): { value: number; suit?: string } | null 
   return { value: cardValue, ...(suit ? { suit } : {}) };
 };
 
+const normalizeSecondaryCardFields = (value: SaveRecord) => {
+  const selectedChoiceId = typeof value.selectedChoiceId === 'string' && value.selectedChoiceId.trim()
+    ? value.selectedChoiceId.trim()
+    : undefined;
+  const secondaryCardChoiceId = typeof value.secondaryCardChoiceId === 'string' && value.secondaryCardChoiceId.trim()
+    ? value.secondaryCardChoiceId.trim()
+    : undefined;
+  const belongsToSelectedChoice = !secondaryCardChoiceId || !selectedChoiceId || secondaryCardChoiceId === selectedChoiceId;
+  const hasPersistedHistory = Array.isArray(value.secondaryCards) || Boolean(normalizeSecondaryDrawCard(value.secondaryCard));
+  const secondaryCards = belongsToSelectedChoice ? readSecondaryCardHistory(value) : [];
+  return {
+    secondaryCard: secondaryCards.at(-1),
+    secondaryCards: hasPersistedHistory ? secondaryCards : undefined,
+    secondaryCardChoiceId
+  };
+};
+
 const normalizePendingEncounter = (value: unknown): SaveRecord | null => {
   if (!isSaveRecord(value) || typeof value.transactionId !== 'string' || !isSaveRecord(value.encounter)) return null;
   const card = normalizeCard(value.card);
@@ -622,6 +640,7 @@ const normalizePendingEncounter = (value: unknown): SaveRecord | null => {
   return {
     ...value,
     card,
+    ...normalizeSecondaryCardFields(value),
     phase: value.phase === 'manual' || value.phase === 'resolved' ? value.phase : 'pending',
     unresolvedEffectCodes: stringArray(value.unresolvedEffectCodes)
   };
@@ -636,6 +655,7 @@ const normalizePendingForaging = (value: unknown): SaveRecord | null => {
   return {
     ...value,
     card,
+    ...normalizeSecondaryCardFields(value),
     targetReagentId: typeof value.targetReagentId === 'string' && value.targetReagentId.trim()
       ? value.targetReagentId.trim()
       : undefined,

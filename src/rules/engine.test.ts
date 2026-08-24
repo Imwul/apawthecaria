@@ -27,6 +27,33 @@ describe('rule engine foundation entry points', () => {
     expect(settlement.value?.encounterType).toBe('social');
   });
 
+  it('uses only the suit for a Settlement social encounter while the same J card uses the seasonal Travel table in Wilds', () => {
+    const card = { val: 11, suit: '♥' as const };
+    const settlement = resolveTravel({
+      destinationRegion: 'Loch',
+      destinationType: 'Settlement',
+      card,
+      season: 'Spring'
+    });
+    const wilds = resolveTravel({
+      destinationRegion: 'Loch',
+      destinationType: 'Wilds',
+      card,
+      season: 'Spring'
+    });
+
+    expect(settlement.value).toMatchObject({
+      id: 'social-loch-settlement-♥',
+      encounterType: 'social',
+      title: expect.stringContaining('Fresh Catch')
+    });
+    expect(wilds.value).toMatchObject({
+      id: 'travel-loch-j-spring',
+      encounterType: 'travel',
+      choices: expect.arrayContaining([expect.objectContaining({ id: 'race' })])
+    });
+  });
+
   it('[AILMENT-004/PATIENT-004] expands repeated ailments into separate ailment and timer records', () => {
     const result = resolvePatient({
       id: 'patient-one',

@@ -5,7 +5,8 @@ import {
   formatReagentName,
   gatheredReagentSummary,
   groupReagentPartNames,
-  reagentInventorySearchText
+  reagentInventorySearchText,
+  splitForagingTags
 } from './foragingInventoryPresentation';
 
 describe('foraging and inventory presentation', () => {
@@ -44,5 +45,37 @@ describe('foraging and inventory presentation', () => {
     const searchable = reagentInventorySearchText({ name: '금잔화/메리골드 (꽃잎)', canonicalReagentId: 'reagent-marigold' });
     expect(searchable).toContain('marigold');
     expect(searchable).toContain('금잔화');
+  });
+
+  it('separates ordinary treatment tags from the FAIR/FOUL reward modifiers', () => {
+    expect(splitForagingTags([
+      { tag: 'STOMACH', value: 2 },
+      { tag: 'FAIR', value: 3 },
+      { tag: 'FOUL', value: 1 }
+    ])).toEqual({
+      remedy: [{ tag: 'STOMACH', value: 2 }],
+      trade: [{ tag: 'FAIR', value: 3 }, { tag: 'FOUL', value: 1 }]
+    });
+  });
+
+  it('keeps effects attached to each canonical part and preparation instead of merging a reagent into one tag row', () => {
+    const horseChestnuts = REAGENT_BY_ID.get('reagent-horse-chestnuts')!;
+    const options = horseChestnuts.preparations.map(part => ({
+      id: part.id,
+      name: part.name,
+      method: part.method,
+      ...splitForagingTags(part.tags)
+    }));
+
+    expect(options).toHaveLength(4);
+    expect(options.filter(option => option.name === 'Chestnuts')).toHaveLength(2);
+    expect(options.find(option => option.method === 'BOILED')).toMatchObject({
+      remedy: [{ tag: 'STOMACH', value: 2 }],
+      trade: []
+    });
+    expect(options.find(option => option.method === 'COOKED')).toMatchObject({
+      remedy: [],
+      trade: [{ tag: 'FAIR', value: 2 }]
+    });
   });
 });

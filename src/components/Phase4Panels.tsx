@@ -96,7 +96,7 @@ export function BarrowPanel({ delve }: { delve: any }) {
       </dl>
       <div className="barrow-field-note__column"><span>뽑은 카드</span><strong>{cards.length ? cards.map((card: any) => `${card.suit || ''}${card.ruleValue ?? card.value ?? ''}`).join(' · ') : '아직 없음'}</strong></div>
       <div className="barrow-field-note__column"><span>선택한 영약재와 도구</span><strong>{selected.length ? selected.map(selectedItemLabel).join(' · ') : '아직 없음'}</strong></div>
-      <div className="barrow-field-note__column"><span>보상</span><strong>{reward.trinkets ? `장신구 ${reward.trinkets}` : ''}{reward.reputation ? ` · 명성 ${reward.reputation}` : ''}{reward.toolId ? ` · ${rewardToolLabel(reward.toolId)}` : ''}{!reward.trinkets && !reward.reputation && !reward.toolId ? '도전 결과에 따라 기록' : ''}</strong></div>
+      <div className="barrow-field-note__column"><span>보상</span><strong>{reward.trinkets ? `장신구 ${reward.trinkets}` : ''}{reward.reputation ? ` · Guild Reputation ${reward.reputation}` : ''}{reward.toolId ? ` · ${rewardToolLabel(reward.toolId)}` : ''}{!reward.trinkets && !reward.reputation && !reward.toolId ? '도전 결과에 따라 기록' : ''}</strong></div>
       <div className="barrow-field-note__column"><span>지도 결과</span><strong>{delve.removedFromMap ? '고분이 지도에서 사라짐' : '해결 전까지 현재 위치 유지'}</strong></div>
     </div>
 

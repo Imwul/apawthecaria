@@ -78,6 +78,13 @@ describe('printed effect Korean reading layer', () => {
       .toContain('어색한 잡담 — 이용 가능한 승강기로 달려가자');
   });
 
+  it('preserves unmatched player-authored journal prose verbatim', () => {
+    const prose = '\uAE38\uB4DC\uC758 \uD3C9\uD310\uC744 \uC801\uACE0 \uBA85\uC131 2\uB97C \uC774\uC57C\uAE30\uD588\uB2E4.';
+    expect(localizeManualJournalText(prose)).toBe(prose);
+    expect(localizeManualJournalText('[p.80] Gain 1 Reputation.'))
+      .toBe('[p.80] Guild Reputation 1\uC744 \uC5BB\uC2B5\uB2C8\uB2E4.');
+  });
+
   it('separates encounter context from choices and removes PDF extraction residue', () => {
     const damPrompt = '. How do they feel about their work? What gossip have the builders got to share? Beaver Flood - This location has been flooded with river water from a local dam. Mark on your map that this is a Beaver Dam, and that its Region has changed Loch. Dam Burst - The dam bursts after Winter, causing this Location to return to being a Forest Region. 161';
     expect(localizeEncounterDisplayText('Dam Lotta Trouble', damPrompt)).toBe('비버들이 댐을 지으려고 이곳의 나무를 베어 놓았습니다. 비버들은 자기 일에 관해 어떻게 생각하며, 어떤 소문을 들려주나요?');
@@ -97,10 +104,12 @@ describe('printed effect Korean reading layer', () => {
     expect(localizeEncounterDisplayText('Inspection', inspection.prompt)).toBe(
       '화려한 겉옷을 입은 야수가 손짓해 당신을 부릅니다. 현지 자원봉사자들이 곡물 같은 귀중한 물자에 포자를 옮길 오염원이 없는지 여행자들의 가방을 검사하고 있습니다.'
     );
-    expect(localizeManualEffectOption(inspection.choices[0].label)).toContain('그냥 통과');
-    expect(localizeManualEffectOption(inspection.choices[0].label)).not.toContain('과거에 손');
-    expect(localizeManualEffectOption(inspection.choices[1].label)).toContain('엄중한 주의');
-    expect(localizeManualEffectOption(inspection.choices[1].label)).not.toContain('엄중한 강의');
+    expect(inspection.choices.map(choice => choice.id)).toEqual(['inspect-bags']);
+    const inspectionProcedure = localizeManualEffectOption(inspection.choices[0].label);
+    expect(inspectionProcedure).toContain('가방 검사');
+    expect(inspectionProcedure).toContain('미소와 함께 통과');
+    expect(inspectionProcedure).toContain('엄중한 주의');
+    expect(inspectionProcedure).not.toMatch(/과거에 손|엄중한 강의/);
   });
 
   it('renders the Market encounter with natural rule terms', () => {
@@ -123,7 +132,7 @@ describe('printed effect Korean reading layer', () => {
       '각지에서 온 야수들이 현지 장인발 길드원의 최신 발명품 공개를 보려고 모였습니다. 이 발명품은 무슨 용도인가요? 제대로 작동하나요? 작동하지 않는다면 어떤 대형 사고가 벌어지나요?'
     );
     expect(projectLaunch.choices.map(choice => localizeManualEffectOption(choice.label))).toEqual([
-      '공개 지켜보기 — 모든 타이머를 2 줄입니다. ‘길드 소문’(무게 없음) 하나를 가방에 넣습니다. 이 소문을 아무 정착지에나 가져가면 길드 명성 2를 얻습니다.',
+      '공개 지켜보기 — 모든 타이머를 2 줄입니다. ‘길드 소문’(무게 없음) 하나를 가방에 넣습니다. 이 소문을 아무 정착지에나 가져가면 Guild Reputation 2를 얻습니다.',
       '몸을 사리기 — 발명가들의 소동에 끼어들지 않고 채집을 계속합니다.'
     ]);
     expect(localizeManualEffectValue('Project Launch')).toBe('새 발명품 공개');
@@ -139,8 +148,8 @@ describe('printed effect Korean reading layer', () => {
       '녹은 눈과 얼음으로 물이 불어나 길과 굴이 모두 잠겼습니다. 홍수로 큰 피해를 입은 야수가 있나요? 현지 야수들은 이 변화에 어떻게 적응했나요?'
     );
     expect(flood.choices.map(choice => localizeManualEffectOption(choice.label))).toEqual([
-      '발 벗고 돕기 — 모든 타이머를 2 줄이고 길드 명성 1을 얻습니다.',
-      '어깨를 으쓱하고 지나가기 — 길드 명성 1을 잃습니다.'
+      '발 벗고 돕기 — 모든 타이머를 2 줄이고 Guild Reputation 1을 얻습니다.',
+      '어깨를 으쓱하고 지나가기 — Guild Reputation 1을 잃습니다.'
     ]);
     expect(localizeManualEffectOption('Paws In')).toBe('발 벗고 돕기');
     expect(localizeManualEffectValue('Paws In')).toBe('발 벗고 돕기');
@@ -159,6 +168,32 @@ describe('printed effect Korean reading layer', () => {
         text: localizeManualEffectOption(choice.label)
       }))
     ]).filter(row => malformedParticle.test(row.text));
+
+    expect(unresolved).toEqual([]);
+  });
+
+  it('keeps the exact Guild Reputation term on every manual-effect surface', () => {
+    const unresolved = PRINTED_EFFECT_REGISTRY.flatMap(effect => displayedManualStrings(effect).map(text => ({
+      effectId: effect.id,
+      text: localizeManualEffectValue(text)
+    }))).filter(row =>
+      /(?:\uBA85\uC131|\uC2E0\uB8B0\uB3C4|\uD3C9\uD310)/.test(row.text)
+      || /\bReputation\b/i.test(row.text.replace(/\bGuild Reputation\b/gi, ''))
+    );
+
+    expect(unresolved).toEqual([]);
+  });
+
+  it('keeps Guild Reputation and its printed rank names canonical in every encounter popup', () => {
+    const translatedRuleTerm = /길드\s*(?:명성|신뢰도|평판)|길드의\s*(?:명성|신뢰도|평판)|(?:명성|평판)\s*[+−-]?\d+|\d+\s*(?:명성|평판)|(?:명성|평판)(?:을|를|은|는|이|가)\s*(?:얻|잃|받|올|내리|높|낮|증가|감소|획득|추가|차감|변환|돌려받)|신망 있음|자리 잡음|신뢰받음|명망 높음|인지도 있음/;
+    const unresolved = ENCOUNTERS.flatMap(encounter => [
+      { encounterId: encounter.id, surface: 'context', text: localizeEncounterDisplayText(encounter.title, encounter.prompt, encounter.id) },
+      ...encounter.choices.map(choice => ({
+        encounterId: encounter.id,
+        surface: choice.id,
+        text: localizeManualEffectOption(choice.label, encounter.id, choice.id)
+      }))
+    ]).filter(row => translatedRuleTerm.test(row.text));
 
     expect(unresolved).toEqual([]);
   });
@@ -209,7 +244,7 @@ describe('printed effect Korean reading layer', () => {
     expect(choices).toEqual([
       '장신구로 내기 — 장신구 1개를 잃습니다. 갑자기 전리품을 얻은 들쥐 아이는 어떤 반응을 보이나요?',
       '결투로 대신하기 — 달력에 1일을 표시합니다. 들쥐 아이와 모의 결투를 벌이고, 둘 중 누가 누구를 ‘쓰러뜨렸는지’ 일지에 기록하세요.',
-      '그냥 지나치기 — 아이를 성급히 지나쳐 여정을 계속합니다. 길드 명성 1을 잃습니다.'
+      '그냥 지나치기 — 아이를 성급히 지나쳐 여정을 계속합니다. Guild Reputation 1을 잃습니다.'
     ]);
     expect(choices.join(' ')).not.toMatch(/쥐 새끼|강아지|목숨을 걸고|인내심을 잃고/);
     expect(localizeManualEffectOption('Pay with your life')).toBe('결투로 대신하기');
@@ -233,7 +268,9 @@ describe('printed effect Korean reading layer', () => {
     const unresolved = ENCOUNTERS.flatMap(encounter => encounter.choices.map(choice => ({
       encounterId: encounter.id,
       text: localizeManualEffectOption(choice.label)
-    }))).filter(row => englishInstruction.test(row.text.replaceAll('Foreign Reagent', '')));
+    }))).filter(row => englishInstruction.test(row.text
+      .replaceAll('Foreign Reagent', '')
+      .replaceAll('Guild Reputation', '')));
     expect(unresolved).toEqual([]);
   });
 
@@ -242,7 +279,7 @@ describe('printed effect Korean reading layer', () => {
     const unresolved = ENCOUNTERS.map(encounter => ({
       encounterId: encounter.id,
       text: localizeEncounterDisplayText(encounter.title, encounter.prompt)
-    })).filter(row => englishInstruction.test(row.text));
+    })).filter(row => englishInstruction.test(row.text.replaceAll('Guild Reputation', '')));
     expect(unresolved).toEqual([]);
   });
 

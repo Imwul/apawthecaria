@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import { localizeLocationName, localizeRegionLabel, localizeSavedJourneyText, localizeSeasonLabel } from '../localization/gameplayKo';
 import { localizeGameplayMessage } from '../localization/engineMessagesKo';
 import { referenceForJournalTab } from '../rulebook/context';
@@ -6,10 +6,9 @@ import type { RulebookReferenceRequest } from '../rulebook/types';
 import { getCampaignContinuity } from '../campaignContinuity';
 import type { JournalTab } from '../sessionNavigation';
 import { isActivityJournalEntry, presentEncounterJournal } from '../encounterJournal';
+import LocalizedManualEffectText from './LocalizedManualEffectText';
 
 export type { JournalTab } from '../sessionNavigation';
-
-const LocalizedManualEffectText = lazy(() => import('./LocalizedManualEffectText'));
 
 type ChapterTab = Exclude<JournalTab, 'play'>;
 
@@ -111,7 +110,7 @@ export function ChapterOpening({
       kicker: '여행 채비',
       title: '배낭과 약제사',
       body: '여행 도구와 길동무, 모아둔 약재를 한데 펼쳐보고 다음 걸음을 준비하는 페이지입니다.',
-      notes: [`속도 ${state.bio?.speed ?? '미기록'} · 소지 ${maxCarry}`, `평판 ${state.reputation ?? 0} · 마친 계절 ${state.completedSeasons ?? 0}`, `${localizeSeasonLabel(state.currentSeason)} · 누적 ${state.cumulativeDays ?? 0}일`]
+      notes: [`속도 ${state.bio?.speed ?? '미기록'} · 소지 ${maxCarry}`, `Guild Reputation ${state.reputation ?? 0} · 마친 계절 ${state.completedSeasons ?? 0}`, `${localizeSeasonLabel(state.currentSeason)} · 누적 ${state.cumulativeDays ?? 0}일`]
     },
     map: {
       kicker: '지도 기록',
@@ -226,12 +225,12 @@ export function TodayOverview({
         { label: '여정 경과', value: `${Math.max(0, state.calendarDays || 0)} / ${Math.max(0, state.calendarMaxDays || 0)}일` },
         { label: '남은 기한', value: `${Math.max(0, (state.calendarMaxDays || 0) - (state.calendarDays || 0))}일` },
         { label: '누적 경과', value: `${Math.max(0, state.cumulativeDays || 0)}일` },
-        { label: '길드 평판', value: `${Math.max(0, state.reputation || 0)}` }
+        { label: 'Guild Reputation', value: `${Math.max(0, state.reputation || 0)}` }
       ]
     : [
         { label: '누적 경과', value: `${Math.max(0, state.cumulativeDays || 0)}일` },
         { label: '마친 계절', value: `${Math.max(0, state.completedSeasons || 0)}회` },
-        { label: '길드 평판', value: `${Math.max(0, state.reputation || 0)}` }
+        { label: 'Guild Reputation', value: `${Math.max(0, state.reputation || 0)}` }
       ];
   const isOverCapacity = currentWeight > maxCarry;
   const hasResumeContext = Boolean(patient || legacyAilment || requirements.length || isOverCapacity || recentJournal);

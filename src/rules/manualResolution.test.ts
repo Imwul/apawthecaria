@@ -6,6 +6,7 @@ import {
   PRINTED_EFFECT_BY_OWNER,
   PRINTED_EFFECT_REGISTRY,
   createManualEffectDraft,
+  encounterChoiceAvailability,
   executeEncounter,
   migrateSavedRulesState,
   resolveManualEffectTransaction,
@@ -50,8 +51,8 @@ const completeRequiredInputs = (draft: ManualEffectDraft): ManualEffectDraft => 
 describe('Step 2 printed-effect registry coverage', () => {
   it('[CORE-002/TRAVEL-009/FORAGE-006/TABLE-004/AILMENT-003] has one reachable row for every canonical owner', () => {
     expect(PRINTED_EFFECT_REGISTRY).toHaveLength(358);
-    expect(PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'implemented')).toHaveLength(22);
-    expect(PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'manual')).toHaveLength(336);
+    expect(PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'implemented')).toHaveLength(29);
+    expect(PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'manual')).toHaveLength(329);
     expect(new Set(PRINTED_EFFECT_REGISTRY.map(row => `${row.ownerType}:${row.ownerId}`)).size).toBe(358);
     expect(PRINTED_EFFECT_REGISTRY.filter(row => row.ownerType === 'encounter' && ENCOUNTERS.find(owner => owner.id === row.ownerId)?.encounterType === 'travel')).toHaveLength(103);
     expect(PRINTED_EFFECT_REGISTRY.filter(row => row.ownerType === 'encounter' && ENCOUNTERS.find(owner => owner.id === row.ownerId)?.encounterType === 'foraging')).toHaveLength(144);
@@ -61,7 +62,7 @@ describe('Step 2 printed-effect registry coverage', () => {
     expect(PRINTED_EFFECT_REGISTRY.every(row => !/^[.,;:]\s/.test(row.printedText))).toBe(true);
   });
 
-  it('[CORE-002/UX-001] builds a source-complete, trigger-specific task for all 342 manual rows', () => {
+  it('[CORE-002/UX-001] builds a source-complete, trigger-specific task for every manual row', () => {
     const manual = PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'manual');
     for (const effect of manual) {
       for (const trigger of effect.supportedTriggers) {
@@ -79,13 +80,14 @@ describe('Step 2 printed-effect registry coverage', () => {
   it('[TRAVEL-009/FORAGE-006/TABLE-004] sends every manual Encounter row through runtime resolution', () => {
     const manualEncounters = ENCOUNTERS.filter(encounter => PRINTED_EFFECT_BY_OWNER.get(encounter.id)?.status === 'manual');
     for (const encounter of manualEncounters) {
-      const firstChoice = encounter.choices[0];
+      const state = encounterState();
+      const firstChoice = encounter.choices.find(choice => encounterChoiceAvailability(choice, state).available);
       const result = executeEncounter({
         transactionId: `reach:${encounter.id}`,
         encounter,
         choiceId: firstChoice?.id,
         journalAcknowledged: true,
-        state: encounterState()
+        state
       });
       expect(result.status, encounter.id).not.toBe('invalid');
       expect(result.value, encounter.id).toBeTruthy();

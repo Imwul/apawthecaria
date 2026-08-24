@@ -55,6 +55,10 @@ export interface PendingEncounterState {
   unresolvedEffectCodes: string[];
   card: { value: number; suit?: string };
   secondaryCard?: { value: number; suit: string };
+  /** Ordered auxiliary draws for printed outcomes that require multiple cards. */
+  secondaryCards?: { value: number; suit: string }[];
+  /** Choice that owns the auxiliary draws, preventing reuse after switching branches. */
+  secondaryCardChoiceId?: string;
   ignoreNegativeEncounterEffects?: boolean;
   encounterProtection?: 'negative' | 'all';
 }
@@ -65,6 +69,10 @@ export interface PendingForagingState {
   locationRelation: 'current' | 'adjacent';
   card: { value: number; suit?: string };
   secondaryCard?: { value: number; suit: string };
+  /** Ordered auxiliary draws for printed outcomes that require multiple cards. */
+  secondaryCards?: { value: number; suit: string }[];
+  /** Choice that owns the auxiliary draws, preventing reuse after switching branches. */
+  secondaryCardChoiceId?: string;
   /** Reagent researched and listed before the Foraging card was drawn (pp.30–32). */
   targetReagentId?: string;
   selectedReagentId?: string;

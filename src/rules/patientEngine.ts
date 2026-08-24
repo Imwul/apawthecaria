@@ -57,6 +57,7 @@ export interface PatientCardEngineInput {
 export interface PatientCardEngineOutcome {
   patient: PatientState;
   drawnSeverity: AilmentSeverity;
+  reputationSeverityLimit: AilmentSeverity;
   appliedSeverity: AilmentSeverity;
   severityCappedByReputation: boolean;
   ailmentIds: string[];
@@ -65,6 +66,33 @@ export interface PatientCardEngineOutcome {
 export interface PatientCardEngineResolution {
   status: 'resolved' | 'manual' | 'invalid';
   value: PatientCardEngineOutcome | null;
+  messages: string[];
+}
+
+export interface EncounterPatientAilmentInput {
+  transactionId: string;
+  patient: PatientState | null;
+  ailmentCard: RuleCard;
+  severity: AilmentSeverity;
+  encounterId: string;
+  patientName: string;
+  species: string;
+  context: string;
+  rewardMode?: 'none' | 'standard';
+  deadline?: 'before-overstay';
+  timerBonus?: number;
+  lesserIntermediateTimerBonus?: number;
+}
+
+export interface EncounterPatientAilmentOutcome {
+  patient: PatientState;
+  ailmentInstanceId: string;
+  ailmentId: string;
+}
+
+export interface EncounterPatientAilmentResolution {
+  status: 'resolved' | 'invalid';
+  value: EncounterPatientAilmentOutcome | null;
   messages: string[];
 }
 
@@ -189,6 +217,7 @@ export const resolvePatientCards = (input: PatientCardEngineInput): PatientCardE
     value: {
       patient,
       drawnSeverity,
+      reputationSeverityLimit: maxSeverity,
       appliedSeverity,
       severityCappedByReputation: drawnSeverity !== appliedSeverity,
       ailmentIds: ailmentsToCreate.map(ailment => ailment.id)
@@ -196,5 +225,112 @@ export const resolvePatientCards = (input: PatientCardEngineInput): PatientCardE
     messages: drawnSeverity !== appliedSeverity
       ? [`Severity was capped at ${appliedSeverity} by Guild Reputation.`]
       : []
+  };
+};
+
+/**
+ * Adds the patient/Ailment created by an Encounter to the currently running
+ * local-beast case. The rulebook explicitly says all concurrent Ailment
+ * Timers move together (p.29), so keeping the new instance in the same active
+ * PatientState avoids silently freezing the original patient's Timer.
+ *
+ * The newly encountered beast's identity is stored on the Ailment itself;
+ * this lets the treatment workspace show the right patient while preserving
+ * the original case identity for the other active Ailments.
+ */
+export const startEncounterPatientAilment = (
+  input: EncounterPatientAilmentInput
+): EncounterPatientAilmentResolution => {
+  if (!input.transactionId.trim() || !input.encounterId.trim()) {
+    return { status: 'invalid', value: null, messages: ['Encounter Ailment requires stable transaction and encounter IDs.'] };
+  }
+  const definition = ailmentAt(input.severity, input.ailmentCard);
+  if (!definition) {
+    return { status: 'invalid', value: null, messages: ['Encounter Ailment card did not resolve on the requested Severity table.'] };
+  }
+
+  const patientId = input.patient?.id || `patient-${input.transactionId}`;
+  const ailmentInstanceId = `${patientId}:${input.encounterId}:${input.transactionId}:${definition.id}`;
+  if (input.patient?.ailments.some(row => row.id === ailmentInstanceId)) {
+    return {
+      status: 'resolved',
+      value: { patient: input.patient, ailmentInstanceId, ailmentId: definition.id },
+      messages: ['Encounter Ailment was already started.']
+    };
+  }
+  const timerId = `${ailmentInstanceId}:timer`;
+  const tierBonus = definition.severity === 'lesser' || definition.severity === 'intermediate'
+    ? input.lesserIntermediateTimerBonus || 0
+    : 0;
+  const maximum = definition.timer + (input.timerBonus || 0) + tierBonus;
+  const ailment: PatientAilmentState = {
+    id: ailmentInstanceId,
+    ailmentId: definition.id,
+    severity: definition.severity,
+    timerIds: [timerId],
+    conditionIds: [`${ailmentInstanceId}:encounter-context`],
+    treatmentHistoryIds: [],
+    status: 'active',
+    instance: 1,
+    repeatIndex: 1,
+    specialState: {
+      sourceEncounterId: input.encounterId,
+      encounterPatientName: input.patientName,
+      encounterPatientSpecies: input.species,
+      encounterContext: input.context,
+      rewardMode: input.rewardMode || 'standard',
+      deadline: input.deadline || null
+    },
+    successResolved: false,
+    failureResolved: false,
+    consequenceResolved: false,
+    effectIds: []
+  };
+  const timer: PatientTimerState = {
+    id: timerId,
+    ailmentInstanceId,
+    current: maximum,
+    maximum,
+    status: 'active'
+  };
+  const condition = {
+    id: `${ailmentInstanceId}:encounter-context`,
+    ailmentInstanceId,
+    code: `encounter-patient:${input.encounterId}`,
+    description: input.context,
+    active: true
+  };
+  const journalEvent = {
+    id: `${input.transactionId}:diagnosis`,
+    type: 'diagnosis' as const,
+    text: `${input.patientName} (${input.species}) · ${definition.canonicalName} · ${input.context}`
+  };
+  const base: PatientState = input.patient || {
+    id: patientId,
+    name: input.patientName,
+    species: input.species,
+    foragingPoints: 0,
+    reagentsGathered: [],
+    status: 'active',
+    ailments: [],
+    timers: [],
+    conditions: [],
+    treatmentHistory: [],
+    journalEvents: []
+  };
+  const patient: PatientState = {
+    ...base,
+    status: 'active',
+    // Put the new encounter Ailment first so the immediate transition opens
+    // the treatment workspace on the beast the player just chose to help.
+    ailments: [ailment, ...base.ailments],
+    timers: [timer, ...base.timers],
+    conditions: [condition, ...base.conditions],
+    journalEvents: [journalEvent, ...base.journalEvents]
+  };
+  return {
+    status: 'resolved',
+    value: { patient, ailmentInstanceId, ailmentId: definition.id },
+    messages: []
   };
 };

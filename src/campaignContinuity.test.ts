@@ -18,6 +18,13 @@ describe('campaign continuity', () => {
     const journey = { journeyActive: true, journeyDestination: 'Widrow', calendarDays: 3, calendarMaxDays: 12 };
     expect(getCampaignContinuity({ ...journey, pendingEncounter: { id: 'travel' } }).nextAction)
       .toBe('열어 둔 이동 조우를 먼저 해결하세요.');
+    expect(getCampaignContinuity({
+      ...journey,
+      pendingEncounter: { encounter: { encounterType: 'social' } }
+    })).toMatchObject({
+      nextAction: '열어 둔 사회 조우를 먼저 해결하세요.',
+      continueLabel: '사회 조우 이어가기'
+    });
     expect(getCampaignContinuity({ ...journey, pendingForaging: { id: 'forage' }, activeAilment: { id: 'patient' } }).nextAction)
       .toBe('열어 둔 채집 조우를 먼저 해결하세요.');
     expect(getCampaignContinuity({ ...journey, activeAilment: { id: 'patient' } }).nextAction)

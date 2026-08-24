@@ -288,15 +288,29 @@ export const resolveLeave = (input: {
   if (input.state.pendingObligation && !input.state.pendingObligation.resolved) return { status: 'invalid', value: null, messages: ['Resolve the pending Encounter or Delve before Moving On.'] };
   const activeAilments = input.state.patient.ailments.filter(ailment => ailment.status === 'active');
   if (input.status === 'treated' && activeAilments.length > 0) return { status: 'invalid', value: null, messages: ['All Ailments must be resolved before leaving as treated.'] };
-  const failedCount = activeAilments.length;
-  const severityLoss = activeAilments.reduce((sum, ailment) => sum + ({ lesser: 1, intermediate: 2, severe: 3, dire: 4 }[ailment.severity]), 0);
+  const severityLoss = activeAilments.reduce((sum, ailment) => {
+    // Some encounter patients explicitly waive both gains and losses of Guild
+    // Reputation (The Branded, p.162). Leaving with that Ailment unresolved
+    // still closes it as a failure, but must not reintroduce the standard
+    // Severity penalty through the generic Prepare to Leave transaction.
+    if (ailment.specialState?.rewardMode === 'none') return sum;
+    return sum + ({ lesser: 1, intermediate: 2, severe: 3, dire: 4 }[ailment.severity]);
+  }, 0);
   const ailments = input.state.patient.ailments.map(ailment => ailment.status === 'active'
     ? { ...ailment, status: 'failed' as const, failureResolved: true, consequenceResolved: true }
     : ailment);
+  // A case with one treated Ailment and one failed Ailment is resolved, but it
+  // is not an all-success case. Callers finish the final active Ailment with a
+  // `treated` leave request; preserve any earlier per-Ailment failure instead
+  // of letting that last success relabel the whole patient and archive.
+  const effectiveStatus = input.status === 'treated' && ailments.some(ailment => ailment.status === 'failed')
+    ? 'failed'
+    : input.status;
+  const totalFailedCount = ailments.filter(ailment => ailment.status === 'failed').length;
   const patient = {
     ...input.state.patient,
     foragingPoints: 0,
-    status: (input.status === 'treated' ? 'cured' : input.status === 'failed' ? 'failed' : 'departed') as PatientState['status'],
+    status: (effectiveStatus === 'treated' ? 'cured' : effectiveStatus === 'failed' ? 'failed' : 'departed') as PatientState['status'],
     ailments,
     timers: input.state.patient.timers.map(timer => timer.status === 'active' ? { ...timer, status: 'stopped' as const } : timer)
   };
@@ -308,7 +322,7 @@ export const resolveLeave = (input: {
     location: context.location,
     encounteredAt: context.encounteredAt,
     treatedAt: context.resolvedAt,
-    treatmentResult: input.status === 'treated' ? 'success' : input.status === 'failed' ? 'failure' : 'abandoned',
+    treatmentResult: effectiveStatus === 'treated' ? 'success' : effectiveStatus === 'failed' ? 'failure' : 'abandoned',
     penalty: { reputation: input.status === 'treated' ? 0 : severityLoss },
     specialEffects: input.journalNote?.trim() ? [input.journalNote.trim()] : [],
     journalEntryIds: [journalEventId],
@@ -329,8 +343,8 @@ export const resolveLeave = (input: {
       pendingObligation: { transactionId: input.transactionId, kind: 'move-on', source: 'leave', resolved: true },
       appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
       journalEvents: [...input.state.journalEvents, {
-        id: journalEventId, type: input.status === 'treated' ? 'treatment' : 'failure', title: 'Preparing to Leave',
-        text: input.journalNote?.trim() || (failedCount > 0 ? `${failedCount} unresolved Ailments faced their Consequences.` : 'All Ailments were resolved before Moving On.')
+        id: journalEventId, type: effectiveStatus === 'treated' ? 'treatment' : 'failure', title: 'Preparing to Leave',
+        text: input.journalNote?.trim() || (totalFailedCount > 0 ? `${totalFailedCount} Ailments faced their Consequences.` : 'All Ailments were resolved before Moving On.')
       }]
     },
     messages: []

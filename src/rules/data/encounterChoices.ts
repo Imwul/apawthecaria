@@ -137,7 +137,9 @@ export const encounterChoiceRequiresJournal = (
   encounter: Pick<EncounterDefinition, 'choices'> | null | undefined,
   choiceId?: string
 ): boolean => {
-  const label = encounter?.choices.find(choice => choice.id === choiceId)?.label || '';
+  const choice = encounter?.choices.find(candidate => candidate.id === choiceId);
+  if (choice?.requiresJournal) return true;
+  const label = choice?.label || '';
   return sourceClauses(label).some(clause => {
     if (!/\bJournal (?:about|your)\b/i.test(clause)) return false;
     if (/\b(?:in the future|if you draw this event again|replace negative outcomes)\b/i.test(clause)) return false;

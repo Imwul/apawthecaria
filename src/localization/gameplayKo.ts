@@ -1,3 +1,5 @@
+import { normalizeGuildReputationTerms } from './guildReputation';
+
 const preparationNames: Record<string, string> = {
   Acorns: '도토리',
   Ash: '재',
@@ -412,12 +414,15 @@ export const localizeSeasonLabel = (value: string | undefined): string => ({
 } as Record<string, string>)[value || ''] || value || '계절 미기록';
 
 export const localizeJourneyGoalText = (value: string): string => {
-  if (journeyGoalText[value]) return journeyGoalText[value];
-  const legacyMatch = Object.entries(journeyGoalText).find(([source]) => legacyPolishedGoal(source) === value);
-  if (legacyMatch) return legacyMatch[1];
-  const plantRegion = value.match(/^Plant Part gathered in (.+)$/);
+  const normalizedValue = normalizeGuildReputationTerms(value);
+  const direct = journeyGoalText[value] || journeyGoalText[normalizedValue];
+  if (direct) return normalizeGuildReputationTerms(direct);
+  const legacyMatch = Object.entries(journeyGoalText).find(([source]) =>
+    normalizeGuildReputationTerms(legacyPolishedGoal(source)) === normalizedValue);
+  if (legacyMatch) return normalizeGuildReputationTerms(legacyMatch[1]);
+  const plantRegion = normalizedValue.match(/^Plant Part gathered in (.+)$/);
   if (plantRegion) return `${plantRegion[1]}에서 식물 영약재 부위 채집`;
-  const journalRegion = value.match(/^Journal in (.+)$/);
+  const journalRegion = normalizedValue.match(/^Journal in (.+)$/);
   if (journalRegion) return `${journalRegion[1]}에서 일지 기록`;
-  return value;
+  return normalizedValue;
 };

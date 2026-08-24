@@ -45,7 +45,7 @@ describe('ENCOUNTER_REVIEW_TRAVEL_CONTEXT_KO', () => {
 
 describe('ENCOUNTER_REVIEW_TRAVEL_CHOICE_KO', () => {
   it('reviews every canonical non-continue choice without stale ids', () => {
-    expect(canonicalChoiceIds).toHaveLength(124);
+    expect(canonicalChoiceIds).toHaveLength(120);
     expect(reviewedChoiceIds).toEqual(canonicalChoiceIds);
   });
 
@@ -71,7 +71,7 @@ describe('ENCOUNTER_REVIEW_TRAVEL_CHOICE_KO', () => {
     expect(ENCOUNTER_REVIEW_TRAVEL_CHOICE_KO['travel-mountain-j-spring'].quest).toContain('경로 24개');
     expect(ENCOUNTER_REVIEW_TRAVEL_CHOICE_KO['travel-soar-9-10-spring'].outmanoeuvre).toContain('[WOUND 3] [INFECTION 2] [PAIN 2]');
     expect(ENCOUNTER_REVIEW_TRAVEL_CHOICE_KO['travel-titan-7-8']['duty-calls']).toContain('[HIDE 2] [POISON 1]');
-    expect(ENCOUNTER_REVIEW_TRAVEL_CHOICE_KO['travel-meadow-9-10-winter']['this-trophy-counts-as-a-trinket']).toContain('장신구로 취급');
+    expect(ENCOUNTER_REVIEW_TRAVEL_CHOICE_KO['travel-meadow-9-10-winter']['challenge-accepted']).toContain('장신구로 취급');
     expect(ENCOUNTER_REVIEW_TRAVEL_CONTEXT_KO['travel-loch-7-8']).toContain('경로 2개');
     expect(Object.values(ENCOUNTER_REVIEW_TRAVEL_CONTEXT_KO).join('\n')).not.toContain('육로');
     expect(Object.values(ENCOUNTER_REVIEW_TRAVEL_CHOICE_KO).flatMap(choices => Object.values(choices)).join('\n')).not.toContain('육로');
@@ -90,6 +90,6 @@ describe('ENCOUNTER_REVIEW_TRAVEL_CHOICE_KO', () => {
     expect(reviewed).toContain('Hornweed(마름풀)');
     expect(reviewed).toContain('Honeybees(꿀벌)의 Pollen(꽃가루)');
     expect(reviewed).toContain('Cranky Contraption(성질 고약한 기계장치)');
-    expect(reviewed).toContain('Sketch(소묘)');
+    expect(reviewed).toContain('Sketch(소묘, 무게 1/3)');
   });
 });

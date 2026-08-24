@@ -28,6 +28,18 @@ export interface CampaignContinuity {
   guidance: string;
 }
 
+const pendingEncounterLabel = (pendingEncounter: unknown): '이동 조우' | '사회 조우' => {
+  if (!pendingEncounter || typeof pendingEncounter !== 'object') return '이동 조우';
+  const encounter = 'encounter' in pendingEncounter
+    && pendingEncounter.encounter
+    && typeof pendingEncounter.encounter === 'object'
+    ? pendingEncounter.encounter
+    : pendingEncounter;
+  return 'encounterType' in encounter && encounter.encounterType === 'social'
+    ? '사회 조우'
+    : '이동 조우';
+};
+
 export const getCampaignContinuity = (state: CampaignContinuityState): CampaignContinuity => {
   const hasManualEffect = Boolean(state.pendingManualEffect || (state.manualEffectQueue?.length || 0) > 0);
   if (hasManualEffect && !state.journeyActive) {
@@ -44,10 +56,11 @@ export const getCampaignContinuity = (state: CampaignContinuityState): CampaignC
     const elapsed = Math.max(0, state.calendarDays || 0);
     const limit = Math.max(0, state.calendarMaxDays || 0);
     const remaining = Math.max(0, limit - elapsed);
+    const encounterLabel = pendingEncounterLabel(state.pendingEncounter);
     const nextAction = hasManualEffect
       ? '보류한 직접 판정을 먼저 마무리하세요.'
       : state.pendingEncounter
-      ? '열어 둔 이동 조우를 먼저 해결하세요.'
+      ? `열어 둔 ${encounterLabel}를 먼저 해결하세요.`
       : state.pendingForaging
         ? '열어 둔 채집 조우를 먼저 해결하세요.'
         : state.pendingPatientArchive
@@ -66,7 +79,7 @@ export const getCampaignContinuity = (state: CampaignContinuityState): CampaignC
     const continueLabel = hasManualEffect
       ? '보류 판정 이어가기'
       : state.pendingEncounter
-      ? '이동 조우 이어가기'
+      ? `${encounterLabel} 이어가기`
       : state.pendingForaging
         ? '채집 조우 이어가기'
         : state.pendingPatientArchive

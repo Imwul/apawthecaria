@@ -1,4 +1,5 @@
 import { localizeCanonicalToolName } from './gameplayKo';
+import { normalizeGuildReputationTerms } from './guildReputation';
 
 const exactEngineMessages: Record<string, string> = {
   "Acknowledge the printed journaling prompt before resolving.": "룰북의 일지 질문을 확인한 뒤 판정하세요.",
@@ -76,7 +77,11 @@ const exactEngineMessages: Record<string, string> = {
   "Every failed Ailment must have a newly expired Timer and an unresolved Consequence.": "각 실패 질환에는 방금 만료된 타이머와 아직 적용하지 않은 결과가 있어야 합니다.",
   "Every selected Remedy ingredient needs enough remaining Uses for the complete dose.": "선택한 모든 치료제 재료에 완전한 투약분을 만들 만큼 사용 횟수가 남아 있어야 합니다.",
   "Expired Ailment instances must be a non-empty unique list.": "만료 질환 목록은 비어 있지 않아야 하며 같은 질환을 중복해서 포함할 수 없습니다.",
+  "Timer failure recovery requires a transaction ID.": "만료된 환자 타이머를 마감할 처리 정보가 없습니다.",
   "Encounter requires a transaction ID.": "조우 처리 정보가 없습니다.",
+  "Encounter Ailment requires stable transaction and encounter IDs.": "조우 질환을 시작하려면 안정적인 조우 및 처리 식별 정보가 필요합니다.",
+  "Encounter Ailment card did not resolve on the requested Severity table.": "뽑은 조우 질환 카드가 지정된 심각도 표에서 결과로 이어지지 않았습니다.",
+  "Encounter Ailment was already started.": "이 조우 질환은 이미 시작되었습니다.",
   "End the active Journey first.": "먼저 진행 중인 여정을 끝내세요.",
   "Ending transaction was already applied.": "결말 처리를 이미 적용했습니다.",
   "Escaping the Barrow requires a journal note.": "고분에서 탈출하려면 일지 기록이 필요합니다.",
@@ -543,6 +548,6 @@ const localizeLine = (line: string): string => {
 };
 
 export const localizeGameplayMessage = (message: string): string =>
-  message.split('\n').map(localizeLine).join('\n');
+  normalizeGuildReputationTerms(message.split('\n').map(localizeLine).join('\n'));
 
 export const ENGINE_MESSAGE_TRANSLATION_COUNT = Object.keys(exactEngineMessages).length;

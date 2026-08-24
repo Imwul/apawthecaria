@@ -1,5 +1,5 @@
 import type { EncounterRuntimeState } from './gameplay';
-import type { EncounterDefinition, RuleEffect, StructuredRuleEffect } from './types';
+import type { EncounterChoice, EncounterDefinition, RuleEffect, StructuredRuleEffect } from './types';
 import { encounterChoiceRequiresJournal } from './data/encounterChoices';
 
 export interface EncounterExecutionInput {
@@ -24,6 +24,33 @@ export interface EncounterExecutionResolution {
   value: EncounterExecutionOutcome | null;
   messages: string[];
 }
+
+export interface EncounterChoiceAvailability {
+  available: boolean;
+  reasons: string[];
+}
+
+export const encounterChoiceAvailability = (
+  choice: EncounterChoice,
+  state: Pick<EncounterRuntimeState, 'reputation' | 'trinkets'> & { conditions?: readonly string[] }
+): EncounterChoiceAvailability => {
+  const requirements = choice.requirements;
+  if (!requirements) return { available: true, reasons: [] };
+  const reasons: string[] = [];
+  if (typeof requirements.minGuildReputation === 'number' && state.reputation < requirements.minGuildReputation) {
+    reasons.push(`Requires Guild Reputation ${requirements.minGuildReputation} or higher.`);
+  }
+  if (typeof requirements.maxGuildReputation === 'number' && state.reputation > requirements.maxGuildReputation) {
+    reasons.push(`Requires Guild Reputation ${requirements.maxGuildReputation} or lower.`);
+  }
+  if (typeof requirements.minTrinkets === 'number' && state.trinkets < requirements.minTrinkets) {
+    reasons.push(`Requires ${requirements.minTrinkets} Trinket(s).`);
+  }
+  if (requirements.requiredConditionId && !state.conditions?.includes(requirements.requiredConditionId)) {
+    reasons.push(`Requires encounter condition: ${requirements.requiredConditionId}.`);
+  }
+  return { available: reasons.length === 0, reasons };
+};
 
 const applyEffect = (state: EncounterRuntimeState, effect: RuleEffect): EncounterRuntimeState | null => {
   if (effect.type === 'modifyReputation') return { ...state, reputation: Math.max(0, state.reputation + effect.amount) };
@@ -100,6 +127,10 @@ export const executeEncounter = (input: EncounterExecutionInput): EncounterExecu
   if (input.choiceId && !choice) return { status: 'invalid', value: null, messages: [`Unknown encounter choice: ${input.choiceId}`] };
   if (input.encounter.choices.length > 0 && !choice) {
     return { status: 'manual', value: null, messages: ['Select one printed encounter choice before resolving.'] };
+  }
+  if (choice) {
+    const availability = encounterChoiceAvailability(choice, input.state);
+    if (!availability.available) return { status: 'invalid', value: null, messages: availability.reasons };
   }
   if (choice && encounterChoiceRequiresJournal(input.encounter, choice.id)
     && !input.journalNote?.trim() && !input.journalAcknowledged) {

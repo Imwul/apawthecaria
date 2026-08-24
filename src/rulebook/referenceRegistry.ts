@@ -22,6 +22,7 @@ import {
   type RuleEffect,
   type StructuredRuleEffect
 } from '../rules';
+import { normalizeCanonicalGuildReputationTerms } from '../localization/guildReputation';
 import { RULEBOOK_CHAPTERS } from './chapters';
 import type { RulebookReferenceEntry, RulebookReferenceKind } from './types';
 
@@ -58,11 +59,23 @@ const structuredEffectsText = (effects: StructuredRuleEffect[]) => effects.lengt
 
 const createEntry = (input: Omit<RulebookReferenceEntry, 'searchText'> & { search?: string[] }): RulebookReferenceEntry => {
   const { search = [], ...entry } = input;
-  return {
+  const canonicalEntry = {
     ...entry,
+    title: normalizeCanonicalGuildReputationTerms(entry.title),
+    summary: normalizeCanonicalGuildReputationTerms(entry.summary),
+    details: entry.details.map(row => ({
+      label: normalizeCanonicalGuildReputationTerms(row.label),
+      value: normalizeCanonicalGuildReputationTerms(row.value)
+    }))
+  };
+  return {
+    ...canonicalEntry,
     searchText: compact([
       entry.id, entry.kind, entry.title, entry.summary, entry.ownerId || '', entry.ruleIds.join(' '),
-      entry.details.map(row => `${row.label} ${row.value}`).join(' '), search.join(' '), `p.${entry.sourcePage}`
+      entry.details.map(row => `${row.label} ${row.value}`).join(' '),
+      canonicalEntry.title, canonicalEntry.summary,
+      canonicalEntry.details.map(row => `${row.label} ${row.value}`).join(' '),
+      search.join(' '), `p.${entry.sourcePage}`
     ].join(' ')).toLowerCase()
   };
 };

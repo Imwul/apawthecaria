@@ -50,7 +50,7 @@ describe('human-reviewed Korean foraging encounters', () => {
       ))
       .sort();
 
-    expect(canonicalChoiceKeys).toHaveLength(262);
+    expect(canonicalChoiceKeys).toHaveLength(224);
     expect(reviewedChoiceKeys).toEqual(canonicalChoiceKeys);
   });
 
@@ -93,8 +93,8 @@ describe('human-reviewed Korean foraging encounters', () => {
       .toContain('채집 포인트 2');
 
     expect(ENCOUNTER_REVIEW_FORAGING_CONTEXT_KO['foraging-mountain-10-autumn'])
-      .toContain('몸 낮추기');
-    expect(ENCOUNTER_REVIEW_FORAGING_CONTEXT_KO['foraging-mountain-10-autumn'])
+      .not.toContain('몸 낮추기');
+    expect(ENCOUNTER_REVIEW_FORAGING_CHOICE_KO['foraging-mountain-10-autumn']['stay-low'])
       .toContain('모든 타이머를 2 줄입니다');
 
     expect(ENCOUNTER_REVIEW_FORAGING_CONTEXT_KO['foraging-loch-a'])
@@ -141,7 +141,7 @@ describe('human-reviewed Korean foraging encounters', () => {
         .toContain('Beetles(딱정벌레)');
       expect(ENCOUNTER_REVIEW_FORAGING_CHOICE_KO[`foraging-titan-j-${season}`].rescue)
         .toMatch(/♥ 또는 ♦/);
-      expect(ENCOUNTER_REVIEW_FORAGING_CHOICE_KO[`foraging-titan-m-${season}`].discovery)
+      expect(ENCOUNTER_REVIEW_FORAGING_CHOICE_KO[`foraging-titan-m-${season}`]['resolve-bakar-visit'])
         .toContain('모든 티탄 유적');
     });
   });
@@ -155,8 +155,8 @@ describe('human-reviewed Korean foraging encounters', () => {
       .toMatch(/Beetles\(딱정벌레\).*Maggots\(구더기\).*Wasps\(말벌\)/);
     expect(ENCOUNTER_REVIEW_FORAGING_CHOICE_KO['foraging-titan-8'].quick)
       .toContain('위험을 무릅쓰고');
-    expect(ENCOUNTER_REVIEW_FORAGING_CHOICE_KO['foraging-meadow-10-winter'].snotladen)
-      .toContain('심한 콧물');
+    expect(ENCOUNTER_REVIEW_FORAGING_CHOICE_KO['foraging-meadow-10-winter']['hot-toddy'])
+      .toContain('텐트');
     expect(ENCOUNTER_REVIEW_FORAGING_CHOICE_KO['foraging-titan-10-spring'].stunned)
       .toMatch(/Beetles\(딱정벌레\).*Honeybees\(꿀벌\).*Wasps\(말벌\)/);
     expect(ENCOUNTER_REVIEW_FORAGING_CHOICE_KO['foraging-titan-10-spring'].burrowed)
@@ -164,7 +164,7 @@ describe('human-reviewed Korean foraging encounters', () => {
   });
 
   it('uses direct player instructions for card-indexed inventory loss', () => {
-    expect(ENCOUNTER_REVIEW_FORAGING_CHOICE_KO['foraging-forest-j-summer']['lost-item'])
+    expect(ENCOUNTER_REVIEW_FORAGING_CHOICE_KO['foraging-forest-j-summer']['give-chase'])
       .toContain('마지막으로 센 물품 하나를 버리세요');
     expect(ENCOUNTER_REVIEW_FORAGING_CHOICE_KO['foraging-bog-m-spring']['get-a-better-view'])
       .toContain('마지막으로 센 물품 하나를 버리세요');

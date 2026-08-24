@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error Vitest runs this source audit in Node; the app build intentionally exposes browser types only.
 import { readFileSync } from 'node:fs';
 import { AILMENTS, GUILD_SERVICES, PRINTED_EFFECT_REGISTRY, REAGENTS, TOOLS, TOOL_UPGRADES, classifyPrintedEffect } from '../rules';
+import { normalizeCanonicalGuildReputationTerms } from '../localization/guildReputation';
 import {
   RULEBOOK_COVERAGE,
   RULEBOOK_KIND_COUNTS,
@@ -40,6 +41,24 @@ describe('personal rulebook transplant registry', () => {
     expect(RULEBOOK_KIND_COUNTS.encounter).toBe(313);
     expect(RULEBOOK_KIND_COUNTS.example).toBe(12);
     expect(RULEBOOK_KIND_COUNTS.downtime).toBe(1);
+  });
+
+  it('uses the exact Guild Reputation term on every canonical reference surface', () => {
+    const forbiddenKorean = /(?:\uBA85\uC131|\uC2E0\uB8B0\uB3C4|\uD3C9\uD310)/;
+    const surfaces = RULEBOOK_REFERENCE_ENTRIES.flatMap(entry => [
+      { id: entry.id, field: 'title', text: entry.title },
+      { id: entry.id, field: 'summary', text: entry.summary },
+      ...entry.details.flatMap(row => [
+        { id: entry.id, field: `detail-label:${row.label}`, text: row.label },
+        { id: entry.id, field: `detail-value:${row.label}`, text: row.value }
+      ])
+    ]);
+    const unresolved = surfaces.filter(row =>
+      forbiddenKorean.test(row.text)
+      || /\bReputation\b/i.test(row.text.replace(/\bGuild Reputation\b/gi, ''))
+    );
+
+    expect(unresolved).toEqual([]);
   });
 
   it('supports entity, rule ID and printed page searches', () => {
@@ -96,15 +115,15 @@ describe('personal rulebook transplant registry', () => {
     GUILD_SERVICES.forEach(service => expect(detailsFor(`service:${service.id}`).Duration).toBe(service.duration));
 
     const manual = PRINTED_EFFECT_REGISTRY.filter(effect => effect.status !== 'implemented');
-    expect(manual).toHaveLength(336);
+    expect(manual).toHaveLength(329);
     manual.forEach(effect => {
       const entry = RULEBOOK_REFERENCE_BY_ID.get(`printed-effect:${effect.id}`);
       const detail = detailsFor(`printed-effect:${effect.id}`);
       expect(entry?.sourcePage).toBe(effect.sourcePage);
       expect(entry?.runtimeStatus).toBe(classifyPrintedEffect(effect) === 'ambiguous' ? 'ambiguous' : 'manual');
-      expect(detail['필요한 결정']).toBe(effect.manualResolution?.decision);
-      expect(detail['선택']).toBe(effect.manualResolution?.choices.join(' / ') || '없음');
-      expect(detail['후속']).toBe(effect.manualResolution?.followUpRequirements.join(' / ') || effect.followUpState || '없음');
+      expect(detail['필요한 결정']).toBe(normalizeCanonicalGuildReputationTerms(effect.manualResolution?.decision || ''));
+      expect(detail['선택']).toBe(normalizeCanonicalGuildReputationTerms(effect.manualResolution?.choices.join(' / ') || '없음'));
+      expect(detail['후속']).toBe(normalizeCanonicalGuildReputationTerms(effect.manualResolution?.followUpRequirements.join(' / ') || effect.followUpState || '없음'));
       expect(detail.Transaction).toBe(effect.executor);
     });
   });

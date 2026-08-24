@@ -2,6 +2,10 @@ import generatedTranslations from './printedEffectKo.generated.json';
 import { PRINTED_EFFECT_REGISTRY } from '../rules/printedEffects';
 import { ENCOUNTERS } from '../rules/data/encounters';
 import { localizeRegionLabel, localizeSeasonLabel } from './gameplayKo';
+import {
+  normalizeCanonicalGuildReputationTerms,
+  normalizeGuildReputationTerms
+} from './guildReputation';
 import { ENCOUNTER_TITLE_KO } from './encounterTitleKo';
 import {
   ENCOUNTER_OPENING_FORAGING_KO,
@@ -123,34 +127,23 @@ const REVIEWED_ENCOUNTER_CONTEXT_KO: Record<string, string> = {
 type ReviewedEncounterChoice = { encounterId: string; choiceId: string; text: string };
 
 const REVIEWED_ENCOUNTER_CHOICES: ReviewedEncounterChoice[] = [
-  { encounterId: 'travel-bog-3-4', choiceId: 'spare-material', text: '여분 재료 — 장신구 1개를 거래해 일반 또는 희귀 늪지 영약재 하나를 얻습니다.' },
+  { encounterId: 'travel-bog-3-4', choiceId: 'trade-spare-material', text: '여분 재료 — 장신구 1개를 거래해 일반 또는 희귀 늪지 영약재 하나를 얻습니다.' },
   { encounterId: 'travel-mountain-9-10-summer', choiceId: 'stop-for-a-tale', text: '이야기 듣기 — 바카르가 따뜻한 바위 그늘에서 티탄 구조물 그림이 든 수첩을 보여 줍니다. 달력에 1일을 표시하고 ‘티탄 이야기’(무게 없음)를 가방에 넣습니다. 흥정할 때 버리면 영약재 부위 하나를 자동으로 얻습니다.' },
   { encounterId: 'travel-titan-5-6', choiceId: 'well-fed', text: '든든한 한 끼 — 다음 타이머에 2를 더합니다.' },
-  { encounterId: 'foraging-meadow-10-winter', choiceId: 'chill', text: '오한 — 채집하는 동안 감기의 조짐이 시작됩니다. 감기 타이머를 6으로 설정하세요. 이 타이머는 채집할 때만 줄어듭니다.' },
-  { encounterId: 'foraging-meadow-10-winter', choiceId: 'snotladen', text: '콧물 감기 — 감기 타이머가 0이 되면 몸을 너무 혹사한 탓에 질한 감기를 앓게 됩니다. 다음 이동 전에 달력에 2일을 표시하고 푹 쉬세요.' },
   { encounterId: 'foraging-meadow-10-winter', choiceId: 'hot-toddy', text: '따뜻한 토디차 — 텐트가 있다면 채집하는 동안 몸을 피할 야영지를 차리고 따뜻한 음료를 끓입니다. 모든 타이머를 1 줄입니다. 같은 질환을 치료하는 동안 이 사건을 다시 만나면 토디차에 관해 일지에 기록하세요.' },
-  { encounterId: 'foraging-titan-8', choiceId: 'searching', text: '탐색하기 — 조심히 탐색할지, 서둘러 탐색할지 고르세요.' },
   { encounterId: 'foraging-titan-8', choiceId: 'careful', text: '조심히 탐색하기 — 티탄의 함정을 자주 살피느라 각 조우가 끝날 때마다 타이머를 추가로 1 줄입니다.' },
   { encounterId: 'foraging-titan-8', choiceId: 'quick', text: '서둘러 탐색하기 — 위험을 무릎쓰고 빠르게 움직입니다. 각 조우가 끝날 때마다 카드를 뽑으세요. ♣ 또는 ♠이면 위험한 장치를 건드려 고통이 온몸을 관통합니다. 상처를 돌보기 위해 이 위치를 떠나 채집을 끝냅니다.' },
   { encounterId: 'social-loch-autumn-♣', choiceId: 'working-for-a-snack', text: '간식값 하기 — “조개를 깰 힘은 있지만 등에 난 종기에는 손이 안 닿아. 종기를 터뜨려 주면 싱싱한 조개를 줄게!” 잠시 도와 원하는 타이머를 1 줄이고 Fresh Clams(싱싱한 조개, 무게 2/3)를 가방에 넣습니다. 물물교환할 때 장신구 3개와 같은 가치이며, 다음에 달력에 1일을 표시하면 상합니다.' },
-  { encounterId: 'travel-forest-7-8', choiceId: 'trade-it-to-the-craftpaws', text: '장인발 길드와 교환하기 — 도시에서 이 스케치를 장인발 길드원에게 건네면, 값에 상관없이 현지 영약재 하나와 교환할 수 있습니다.' },
-  { encounterId: 'travel-forest-7-8', choiceId: 'trade-it-to-the-knowers', text: '지식꾼 길드와 교환하기 — 여정 끝의 휴식기에 수수께끼 까치 한 마리가 찾아옵니다. 스케치를 건네면 장신구 5개나 원하는 도구 하나를 받습니다.' },
   { encounterId: 'travel-loch-m-spring', choiceId: 'choppy-waters', text: '거친 물결 — 큰 배가 만든 파도에 휘말려 따라갑니다. 카드를 뽑으세요.\nJ 또는 M — 배가 원하는 방향으로 갑니다. 경로 1개를 이동하거나 제자리에 머물러도 됩니다.\n2–10 — 배가 육지로 향합니다. 가장 가까운 해안 쪽으로 경로 1개를 이동하세요.\nA — 배가 바로 이쪽으로 다가옵니다. 충돌해 전복되며, 방수 가방이 없다면 가방이 물에 젖습니다.' },
-  { encounterId: 'travel-mountain-j-spring', choiceId: 'quest', text: '특별 여정 시작! — 원한다면 진행 중인 여정을 포기하고 원정을 시작합니다. 같은 계절에, 무작위 방향으로 경로 24개 거리의 목적지를 정하고 긴급도는 중요함으로 설정합니다. 목표는 잔인한 거수를 쓰러뜨리는 것입니다. 이 여정에서 뽑는 질환은 원정대와 관련됩니다. 목적지에 거수 고분을 표시하세요.' },
-  { encounterId: 'travel-mountain-j-spring', choiceId: 'fighting-the-behemoth', text: '거수와 맞서기 — 기한 안에 고분에 도착했다면 카드를 뽑습니다. 원정 중 해결하지 못한 질환마다 카드 값을 2씩 낮춥니다. 최종 값이 7 이상이면 원정대가 거수를 쓰러뜨립니다. 7 미만이면 거수가 승리합니다. 어떻게 벗어났나요?' },
-  { encounterId: 'travel-mountain-j-spring', choiceId: 'too-late', text: '너무 늦음 — 기한을 넘겼다면 거수는 자취를 감췄습니다. 원정대는 도움에 감사하며 당신 없이 길을 떠납니다. 여정을 마칠 때 성공적으로 해결한 질환마다 길드 명성 1을 얻습니다. 거수를 쓰러뜨렸다면 보물 더미에서 장신구 10개와 원하는 도구 하나를 얻습니다.' },
+  { encounterId: 'travel-mountain-j-spring', choiceId: 'quest', text: '원정 시작하기! — 현재 여정을 포기하고 같은 계절에 특별 원정을 시작합니다. 무작위 방향으로 경로 24개 떨어진 곳을 목적지로 정하고 긴급도는 중요함(9일)으로 설정하세요. 목적지에는 거수 고분을 표시하고, 이 여정에서 만나는 질환은 원정대 야수들과 연결합니다.\n기한 안에 도착 — 카드 1장을 뽑고 해결하지 못한 질환마다 최종 값을 2 낮춥니다. 7 이상이면 거수를 쓰러뜨리고, 7 미만이면 거수가 이깁니다.\n기한을 넘김 — 거수는 자취를 감추고 원정대는 당신 없이 떠납니다.\n여정 종료 — 성공적으로 해결한 질환마다 Guild Reputation 1을 얻습니다. 거수를 쓰러뜨렸다면 장신구 10개와 원하는 Tool 하나를 얻습니다.' },
+  { encounterId: 'travel-mountain-j-spring', choiceId: 'decline-quest', text: '원정 사양하기 — 현재 여정을 유지하고 원정대가 당신 없이 길을 계속하도록 둡니다.' },
   { encounterId: 'travel-titan-a-2', choiceId: 'what-a-wind-up', text: '성질 고약한 기계장치 — 성질 고약한 기계장치 길동무를 얻습니다.' },
-  { encounterId: 'foraging-bog-2', choiceId: 'dig', text: '파헤치기! — 빛나는 금속 조각을 파낼 수 있습니다. 타이머를 1 줄이고 카드를 뽑습니다. 카드 값이 10 이상이면 물건을 꺼내 티탄 장치 하나를 가방에 넣습니다.' },
-  { encounterId: 'foraging-bog-9-spring', choiceId: 'assistant', text: '보조하기 — 이탄 잠수부가 질식할 듯한 진흙 아래를 탐사하려면 누군가 호흡 장치의 풀무를 밟아야 합니다. 돕겠다면 타이머를 2 줄이고 장신구 1개를 얻습니다.' },
-  { encounterId: 'foraging-bog-9-spring', choiceId: 'new-connections', text: '새로운 인연 — 돕든 그냥 지나치든, 이 신생 ‘혼자뿐인 길드’는 당신을 잊지 않습니다. 길드 명성 1을 얻습니다.' },
+  { encounterId: 'foraging-bog-2', choiceId: 'dig', text: '파헤치기! — 모든 타이머를 1 줄이고 카드를 뽑습니다. 카드 값이 10 이상이면 Titan Thingamabob(티탄 장치) 하나를 얻습니다. 10 미만이면 물건이 진흙 아래로 가라앉아 아무것도 얻지 못합니다.' },
+  { encounterId: 'foraging-bog-9-spring', choiceId: 'assistant', text: '보조하기 — 이탄 잠수부가 질식할 듯한 진흙 아래를 탐사하도록 호흡 장치의 풀무를 밟습니다. 모든 타이머를 2 줄이고 장신구 1개를 얻습니다. 돕든 지나치든 이 신생 ‘1인 길드’와의 인연으로 Guild Reputation 1을 얻습니다.' },
+  { encounterId: 'foraging-bog-9-spring', choiceId: 'keep-moving', text: '돕지 않고 계속 — 탐사에는 참여하지 않지만, 새로 생긴 ‘1인 길드’와의 인연은 남아 Guild Reputation 1을 얻습니다.' },
   { encounterId: 'foraging-bog-10-spring', choiceId: 'sail', text: '항해하기 — 나무껍질 배가 있다면 불어난 물을 타고 벗어날 수 있습니다. 카드를 뽑으세요.\n♥ 또는 ♦ — 인접한 위치로 탈출합니다. 가장 아찔했던 순간은 언제였나요?\n♣ 또는 ♠ — 배가 전복됩니다. 안전한 땅으로 헤엄쳐 나오며 타이머를 1 줄입니다.' },
   { encounterId: 'foraging-forest-9-winter', choiceId: 'dodge', text: '피하기 — 카드를 뽑습니다.\n♥·♦·♣ — 탁 피해 빠져나갑니다.\n♠ — 고드름에 베어 [WOUND 2]를 즉시 치료해야 합니다. 바로 치료할 수 없다면 가장 가까운 정착지까지의 경로 1개마다 모든 타이머를 1씩 줄이고, 그곳의 바느질꾼에게 치료받으세요.' },
-  { encounterId: 'foraging-meadow-m-summer', choiceId: 'intervene-stitcher', text: '중재 · M 아님 · 바느질꾼 치료 — 길드 명성 6을 얻습니다. [WOUND 2]를 입은 뒤 바느질꾼에게 치료받느라 타이머를 8 줄입니다.' },
-  { encounterId: 'foraging-titan-2', choiceId: 'look-around', text: '둘러보기 — 채집 중 J 또는 M을 뽑으면 영약재 대신 티탄 기호가 적힌 물건을 발견할 수 있습니다. 발견했다면 문 열기를 선택할 수 있습니다.' },
-  { encounterId: 'foraging-titan-2', choiceId: 'open-the-door', text: '문 열기 — 기호 버튼을 누르자 잠금이 풀리며 안쪽이 드러납니다. 이 티탄 유적을 묘사한 방식에 따라 둘 중 하나를 고르세요. 티탄 서고를 얻어 여정 끝에 지식꾼 길드와 장신구 20개에 교환하거나, 이 위치에 약제소를 세워 조건을 충족하지 않은 새 서비스 하나를 아젠다에 더하세요.' },
-  { encounterId: 'foraging-titan-4', choiceId: 'wailing-curse', text: '통곡하는 저주 — 새로 드러난 방에 들어가려면 카드를 뽑으세요.\n♥ 또는 ♦ — 진입에 성공해 고요하고 먼지 쌓인 방을 둘러봅니다. 탐사할 수 있지만 무단침입하는 듯한 기분이 듭니다.\n♣ 또는 ♠ — 잠든 늑대를 깨운 듯 귀를 찢르는 굉음이 울리고 천장에서 먼지가 떨어집니다. 티탄 장치가 없다면 도망쳐야 합니다.' },
-  { encounterId: 'foraging-titan-4', choiceId: 'if-you-make-it-into-the-chamber', text: '방에 들어감 — 오래전 죽은 거수들 사이에서 너무 커서 쓸 수 없는 도구 자루를 찾습니다. 자루 안에는 수수께끼 장치도 여럿 있습니다. 성질 고약한 기계장치 길동무, 티탄 장치, 또는 값 8 이하의 티탄 영약재 중 하나를 얻습니다.' },
-  { encounterId: 'foraging-titan-5', choiceId: 'trapped', text: '갇힘 — ‘고양이 아닌 것’이 밖을 배회하는 동안 상처를 돌보며 기회를 기다립니다. 카드를 뽑고 그 값만큼 모든 타이머를 줄이세요. 탈출할 틈을 찾기까지 그만큼 오래 걸립니다. 긴 시간 갇혀 지내는 동안 무엇을 느꼈고, 어떻게 벗어났나요?' },
+  { encounterId: 'foraging-titan-2', choiceId: 'look-around', text: '둘러보기 — 이번 채집 중 이후 J 또는 M을 뽑으면 Reagent 대신 티탄 문양이 적힌 물건을 찾을 수 있습니다. 문양을 찾은 뒤에만 문을 열 수 있습니다. 유적을 묘사한 방식에 따라 Titan Codex(티탄 기록서, 무게 1)를 얻어 여정 끝에 Knowers 길드와 장신구 20개에 교환하거나, 이 위치에 Clinic을 세우고 자격이 없는 새 Service 하나를 Agenda에 더합니다.' },
   { encounterId: 'foraging-titan-6', choiceId: 'light', text: '빛 — 티탄 장치를 홈에 넣습니다. 다음 장소로 이동할 때까지, 이 위치에서 조우를 마칠 때마다 채집 포인트 3을 얻습니다.' },
   { encounterId: 'foraging-titan-6', choiceId: 'cameras', text: '미래의 환영 — 티탄 장치를 홈에 넣습니다. 다음 장소로 이동할 때까지 조우 카드 하나를 한 번 다시 뽑을 수 있습니다.' },
   { encounterId: 'foraging-titan-6', choiceId: 'action', text: '장치 작동 — 티탄 장치를 홈에 넣습니다. 유적 안에서 무언가가 움직이며, 원하는 티탄 영약재 하나가 드러납니다.' },
@@ -159,11 +152,12 @@ const REVIEWED_ENCOUNTER_CHOICES: ReviewedEncounterChoice[] = [
   { encounterId: 'social-forest-autumn-♠', choiceId: 'check-for-rot', text: '썩은 곳 살피기 — 약제사로서 곰팡이를 잘 알고 있습니다. 집나무에서 위험하거나 독이 있는 버섯을 찾는 현지 작업반을 어떻게 도왔는지 일지에 기록하세요.' },
   { encounterId: 'social-loch-spring-♣', choiceId: 'depthdivers', text: '물밑잠수 길드 — 이 길드에는 수달·물찌기새·영원·개구리가 많습니다. 강바닥과 호수 밑을 수색하며 무엇을 찾았을까요?' },
   { encounterId: 'social-meadow-summer-♠', choiceId: 'stitcher-s-care', text: '바느질꾼의 돌봄 — 바느질꾼 길드는 약제사 길드와 가까운 일을 합니다. 약제사가 습포제와 약초 치료제를 만들 때, 이들은 수술을 위해 야수의 몸과 내부 구조를 연구하고 기록합니다. 바느질꾼들을 어떻게 생각하나요? 야수 의료에서 이들은 어떤 역할을 할까요?' },
-  { encounterId: 'social-mountain-summer-♣', choiceId: 'talents-of-all-sizes', text: '모든 크기의 재능 — 대부분은 광석장이 길드를 Odoak의 뿌리 아래서 처음 세운 오소리들을 떠올립니다. 지금은 구리발톱·은주둥이·백랍발 등 여러 소부 직종에 온갖 야수가 일합니다. 오늘은 어떤 야수가 보이나요? 그들은 타고난 재능을 일에 어떻게 쓰고 있나요?' },
-  { encounterId: 'social-glasswall-♦', choiceId: 'a-reintroduction', text: '다시 인사하기 — 그리프를 이미 만났더라도, 정신없는 큰들꿩은 처음 보는 듯 다시 자기소개를 시작합니다. 중간쯤 되어서야 당신을 정확히 기억해 냅니다! 둘은 길 위의 어떤 이야기를 나누나요? 그리프는 어떻게 Glasswall에 왔고, 어디에서 왔나요?' }
+  { encounterId: 'social-mountain-summer-♣', choiceId: 'talents-of-all-sizes', text: '모든 크기의 재능 — 대부분은 광석장이 길드를 Odoak의 뿌리 아래서 처음 세운 오소리들을 떠올립니다. 지금은 구리발톱·은주둥이·백랍발 등 여러 소부 직종에 온갖 야수가 일합니다. 오늘은 어떤 야수가 보이나요? 그들은 타고난 재능을 일에 어떻게 쓰고 있나요?' }
 ];
 
 const exactTranslations: Record<string, string> = {
+  'Little wagons laden with foods and goods are backed up along the path; a fallen tree blocks the road while beavers gnaw it clear. If you have a Wagon, mark 1 Day on the Calendar while stuck in traffic. Without a Wagon, slip through and scramble over the trunk with a friendly boost from the beavers.': '음식과 물건을 가득 실은 작은 마차들이 길을 따라 늘어서 있습니다. 쓰러진 나무가 앞길을 막아 비버들이 갉아 내는 중입니다. Wagon과 함께라면 교통이 풀릴 때까지 기다리며 달력에 1일을 표시합니다. Wagon 없이 이동 중이라면 마차 사이를 빠져나와 비버의 도움으로 나무줄기를 넘습니다.',
+  'If you have a Wagon, mark 1 Day on the Calendar while stuck in traffic.': 'Wagon과 함께라면 교통이 풀릴 때까지 기다리며 달력에 1일을 표시합니다.',
   'A massive heron swoops down at you, giving you just enough time to take cover. It laughs and taunts as it raises its wings to put you in shade. It seems like it might be a clawlicker or a bandit. What do they want?': '커다란 왜가리가 급강하자 간신히 몸을 숨길 틈을 찾습니다. 왜가리는 날개로 그늘을 드리우며 비웃고 조롱합니다. 발톱잡이일까요, 산적일까요? 무엇을 원하는 걸까요?',
   'Go Fish': '낚시하기',
   'Fish Some More': '조금 더 낚시하기',
@@ -514,7 +508,6 @@ const polishGenericRuleTerms = (text: string, names: string[] = protectedRuleNam
     .replace(/\bSoar\b/g, '활공')
     .replace(/\bBehemoth\b/g, '거수')
     .replace(/\bBarrow\b/g, '고분')
-    .replace(/\bUpstanding\b/g, '신망 있음')
     .replace(/\bTowering\b/g, '거대한')
     .replace(/\bMany\b/g, '다수의')
     .replace(/\bnon-Loch\b|비Loch/g, '호수가 아닌')
@@ -568,7 +561,9 @@ const polishGenericRuleTerms = (text: string, names: string[] = protectedRuleNam
     .replace(/\s+or\s+/gi, ' 또는 ')
     .replace(/\s+--\s+/g, ' — ')
     .replace(/\.{3,}/g, '…');
-  return protectedNames.reduce((current, name, index) => current.replaceAll(`\uE000${index}\uE001`, name), polished);
+  return normalizeCanonicalGuildReputationTerms(
+    protectedNames.reduce((current, name, index) => current.replaceAll(`\uE000${index}\uE001`, name), polished)
+  );
 };
 const normalizeTranslationKey = (text: string): string => text
   .replace(/\s+/g, ' ')
@@ -685,12 +680,15 @@ const getGeneratedEncounterOptionMap = (): Map<string, string> => {
   return result;
 };
 
-export const localizeManualEffectValue = (text: string): string => {
+const translatedManualEffectValue = (text: string): string | undefined => {
   const compact = text.trim();
   const normalized = normalizeTranslationKey(compact);
   const translated = exactTranslations[compact] || exactTranslations[normalized] || generatedTranslationMap[hashTranslationKey(compact)];
-  return translated ? polishGenericRuleTerms(translated) : text;
+  return translated ? normalizeCanonicalGuildReputationTerms(polishGenericRuleTerms(translated)) : undefined;
 };
+
+export const localizeManualEffectValue = (text: string): string =>
+  translatedManualEffectValue(text) || normalizeCanonicalGuildReputationTerms(text);
 
 export const localizeEncounterTitle = (text: string, encounterId?: string): string => {
   const persistedEncounter = encounterId
@@ -708,7 +706,7 @@ export const localizeEncounterTitle = (text: string, encounterId?: string): stri
   return (canonicalTitle ? ENCOUNTER_TITLE_KO[canonicalTitle] : undefined) || localizeManualEffectValue(compact);
 };
 
-export const localizeManualEffectText = (summary: string, text: string): string => {
+const localizeManualEffectTextUnnormalized = (summary: string, text: string): string => {
   if (summary === 'Mushroom Pickers') return MUSHROOM_PICKERS_TEXT;
   const compact = text.trim();
   const cleanSummary = cleanPrintedDisplayText(summary);
@@ -754,6 +752,9 @@ export const localizeManualEffectText = (summary: string, text: string): string 
   return localized.some((block, index) => block !== blocks[index]) ? localized.join('') : text;
 };
 
+export const localizeManualEffectText = (summary: string, text: string): string =>
+  normalizeGuildReputationTerms(localizeManualEffectTextUnnormalized(summary, text));
+
 const encounterChoiceSourceHeadings = (encounter: (typeof ENCOUNTERS)[number]): string[] =>
   [...new Set(encounter.choices.flatMap(choice => {
     const heading = choice.label.match(/^(.+?)\s+[—-]\s+/)?.[1]?.trim();
@@ -787,7 +788,7 @@ const promptStartsWithChoice = (encounter: (typeof ENCOUNTERS)[number], text: st
   encounterChoiceSourceHeadings(encounter)
     .some(heading => text.startsWith(`${heading} - `) || text.startsWith(`${heading} — `));
 
-export const localizeEncounterDisplayText = (summary: string, text: string, encounterId?: string): string => {
+const localizeEncounterDisplayTextUnnormalized = (summary: string, text: string, encounterId?: string): string => {
   const raw = normalizeTranslationKey(text);
   const cleanSummary = cleanPrintedDisplayText(summary);
   const persistedEncounterContext = encounterId
@@ -853,6 +854,9 @@ export const localizeEncounterDisplayText = (summary: string, text: string, enco
   return [opening, remainder].filter(Boolean).join('\n\n');
 };
 
+export const localizeEncounterDisplayText = (summary: string, text: string, encounterId?: string): string =>
+  normalizeGuildReputationTerms(localizeEncounterDisplayTextUnnormalized(summary, text, encounterId));
+
 export const localizeManualEffectLine = (text: string): string => {
   const compact = text.trim();
   if (/^Dam Burst\s*-/i.test(compact)) return '겨울이 끝나면 댐이 무너져 이 위치가 다시 숲 지역이 됩니다.';
@@ -875,24 +879,24 @@ export const localizeManualJournalTitle = (text: string): string => {
   return `${match[1]}${localizeEncounterTitle(effect?.ownerName || match[2])}`;
 };
 
-export const localizeManualJournalText = (text: string): string => text
-  .split(/(\n\s*\n)/)
-  .map(block => {
+export const localizeManualJournalText = (text: string): string =>
+  text.split(/(\n\s*\n)/)
+    .map(block => {
     if (/^\n\s*\n$/.test(block)) return block;
     const pagePrefix = block.match(/^(\[p\.\d+\]\s*)([\s\S]+)$/);
     if (pagePrefix) return `${pagePrefix[1]}${localizeManualEffectValue(pagePrefix[2])}`;
-    const direct = localizeManualEffectValue(block);
-    if (direct !== block) return direct;
+    const direct = translatedManualEffectValue(block);
+    if (direct) return direct;
     const embeddedEncounter = ENCOUNTERS.find(encounter => encounter.prompt.length > 40 && block.includes(encounter.prompt));
     if (!embeddedEncounter) return block;
     return block.replace(
       embeddedEncounter.prompt,
       localizeManualEffectText(embeddedEncounter.title, embeddedEncounter.prompt)
     );
-  })
-  .join('');
+    })
+    .join('');
 
-export const localizeManualEffectOption = (option: string, encounterId?: string, choiceId?: string): string => {
+const localizeManualEffectOptionUnnormalized = (option: string, encounterId?: string, choiceId?: string): string => {
   const compact = option.trim();
   const persistedChoice = encounterId && choiceId
     ? ENCOUNTER_REVIEW_CHOICE_KO[encounterId]?.[choiceId]
@@ -941,6 +945,9 @@ export const localizeManualEffectOption = (option: string, encounterId?: string,
   }
   return cleanEncounterOptionText(localizeManualEffectValue(compact).replace(/\s+or\s+/gi, ' 또는 '));
 };
+
+export const localizeManualEffectOption = (option: string, encounterId?: string, choiceId?: string): string =>
+  normalizeGuildReputationTerms(localizeManualEffectOptionUnnormalized(option, encounterId, choiceId));
 
 export const localizeManualEffectTrigger = (trigger: string): string => ({
   encounter: '조우',

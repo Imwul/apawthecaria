@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { executeEncounter } from '../encounterEngine';
+import { encounterChoiceAvailability, executeEncounter } from '../encounterEngine';
 import { BEAR_SCURRY_ENCOUNTER, ENCOUNTERS, FORAGING_ENCOUNTERS, SOCIAL_ENCOUNTERS, TRAVEL_ENCOUNTERS, findEncounter } from './encounters';
 import { encounterChoiceRequiresJournal, enrichEncounterChoices, leftoverNeeded, parseMechanicalEffects, splitEncounterChoices } from './encounterChoices';
 import { resolvePatient } from '../engine';
@@ -131,6 +131,276 @@ describe('printed encounter choice execution', () => {
     expect(result.value?.nextState.patient?.timers[0].current).toBe(before - 2);
   });
 
+  it('enforces every Fowl Fare branch and always leaves a no-cost way to continue', () => {
+    const fowlFare = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-meadow-8')!;
+    expect(fowlFare.sourcePage).toBe(173);
+    expect(fowlFare.choices.map(choice => choice.id)).toEqual(['airlift', 'taxi', 'decline']);
+    const [airlift, taxi, decline] = fowlFare.choices;
+
+    expect(encounterChoiceAvailability(airlift, { reputation: 35, trinkets: 0 }).available).toBe(true);
+    expect(encounterChoiceAvailability(airlift, { reputation: 34, trinkets: 10 }).available).toBe(false);
+    expect(encounterChoiceAvailability(taxi, { reputation: 34, trinkets: 1 }).available).toBe(true);
+    expect(encounterChoiceAvailability(taxi, { reputation: 35, trinkets: 1 }).available).toBe(false);
+    expect(encounterChoiceAvailability(taxi, { reputation: 25, trinkets: 0 }).available).toBe(false);
+    expect(encounterChoiceAvailability(decline, { reputation: 0, trinkets: 0 }).available).toBe(true);
+
+    const baseState = {
+      reputation: 35, trinkets: 0, calendarDays: 0, foragingPoints: 2,
+      inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: []
+    };
+    const lifted = executeEncounter({ transactionId: 'fowl-airlift', encounter: fowlFare, choiceId: 'airlift', state: baseState });
+    expect(lifted.status).toBe('resolved');
+    expect(lifted.value?.nextState.foragingPoints).toBe(6);
+
+    const paid = executeEncounter({
+      transactionId: 'fowl-taxi', encounter: fowlFare, choiceId: 'taxi',
+      state: { ...baseState, reputation: 25, trinkets: 1 }
+    });
+    expect(paid.status).toBe('resolved');
+    expect(paid.value?.nextState).toMatchObject({ trinkets: 0, foragingPoints: 6 });
+    expect(executeEncounter({
+      transactionId: 'fowl-taxi-empty', encounter: fowlFare, choiceId: 'taxi',
+      state: { ...baseState, reputation: 25, trinkets: 0 }
+    }).status).toBe('invalid');
+
+    const continued = executeEncounter({
+      transactionId: 'fowl-decline', encounter: fowlFare, choiceId: 'decline',
+      state: { ...baseState, reputation: 25, trinkets: 0 }
+    });
+    expect(continued.status).toBe('resolved');
+    expect(continued.value?.nextState).toMatchObject({ trinkets: 0, foragingPoints: 2 });
+  });
+
+  it('does not grant benefits from optional one-Trinket offers when the Bags contain no Trinkets', () => {
+    const paidChoices: Array<[string, string]> = [
+      ['foraging-bog-3', 'communal'],
+      ['foraging-bog-m-winter', 'bargain'],
+      ['travel-forest-m-winter', 'aid'],
+      ['social-meadow-settlement-♦', 'weave-a-trinket'],
+      ['social-loch-vessel-♦', 'homecooked-meal']
+    ];
+    const emptyState = {
+      reputation: 0, trinkets: 0, calendarDays: 0, foragingPoints: 0,
+      inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: []
+    };
+
+    for (const [encounterId, choiceId] of paidChoices) {
+      const encounter = ENCOUNTERS.find(row => row.id === encounterId)!;
+      const choice = encounter.choices.find(row => row.id === choiceId)!;
+      expect(encounterChoiceAvailability(choice, { reputation: 0, trinkets: 0 }), encounterId).toMatchObject({ available: false });
+      expect(encounterChoiceAvailability(choice, { reputation: 0, trinkets: 1 }), encounterId).toMatchObject({ available: true });
+      expect(executeEncounter({
+        transactionId: `empty-payment:${encounterId}`,
+        encounter,
+        choiceId,
+        state: emptyState
+      }).status, encounterId).toBe('invalid');
+    }
+  });
+
+  it('gates the other unambiguous Guild Reputation encounter branches at their printed thresholds', () => {
+    const baseState = {
+      reputation: 0, trinkets: 0, calendarDays: 0, foragingPoints: 2,
+      inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: []
+    };
+
+    const aerialSupport = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-bog-j-summer')!;
+    const helpingWing = aerialSupport.choices.find(choice => choice.id === 'helping-wing')!;
+    const unknown = aerialSupport.choices.find(choice => choice.id === 'unknown')!;
+    expect(encounterChoiceAvailability(helpingWing, { reputation: 25, trinkets: 0 }).available).toBe(true);
+    expect(encounterChoiceAvailability(helpingWing, { reputation: 24, trinkets: 0 }).available).toBe(false);
+    expect(encounterChoiceAvailability(unknown, { reputation: 24, trinkets: 0 }).available).toBe(true);
+    expect(encounterChoiceAvailability(unknown, { reputation: 25, trinkets: 0 }).available).toBe(false);
+    expect(executeEncounter({
+      transactionId: 'aerial-help', encounter: aerialSupport, choiceId: 'helping-wing',
+      state: { ...baseState, reputation: 25 }
+    }).value?.nextState.foragingPoints).toBe(6);
+
+    const insectPicnic = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-forest-9-autumn')!;
+    const refused = insectPicnic.choices.find(choice => choice.id === 'guild-level-is-established-or-lower')!;
+    const offered = insectPicnic.choices.find(choice => choice.id === 'guild-level-is-upstanding-or-higher')!;
+    expect(encounterChoiceAvailability(refused, { reputation: 24, trinkets: 0 }).available).toBe(true);
+    expect(encounterChoiceAvailability(refused, { reputation: 25, trinkets: 0 }).available).toBe(false);
+    expect(encounterChoiceAvailability(offered, { reputation: 25, trinkets: 0 }).available).toBe(true);
+    expect(encounterChoiceAvailability(offered, { reputation: 24, trinkets: 0 }).available).toBe(false);
+    expect(executeEncounter({
+      transactionId: 'insect-low', encounter: insectPicnic,
+      choiceId: 'guild-level-is-upstanding-or-higher', state: { ...baseState, reputation: 24 }
+    }).status).toBe('invalid');
+
+    const freshlyGrilled = TRAVEL_ENCOUNTERS.find(row => row.id === 'travel-forest-j-summer')!;
+    const recognised = freshlyGrilled.choices.find(choice => choice.id === 'recognised-by-the-guild')!;
+    const passedBy = freshlyGrilled.choices.find(choice => choice.id === 'unknown-to-the-guild')!;
+    expect(encounterChoiceAvailability(recognised, { reputation: 15, trinkets: 0 }).available).toBe(true);
+    expect(encounterChoiceAvailability(recognised, { reputation: 14, trinkets: 0 }).available).toBe(false);
+    expect(encounterChoiceAvailability(passedBy, { reputation: 14, trinkets: 0 }).available).toBe(true);
+    expect(encounterChoiceAvailability(passedBy, { reputation: 15, trinkets: 0 }).available).toBe(false);
+    const invited = executeEncounter({
+      transactionId: 'freshly-grilled-invited', encounter: freshlyGrilled,
+      choiceId: 'recognised-by-the-guild', state: { ...baseState, reputation: 15 }
+    });
+    expect(invited.status).toBe('manual');
+    expect(invited.value?.unresolvedEffects).toContainEqual(expect.objectContaining({
+      effect: expect.objectContaining({ type: 'customEffect', code: 'FRESHLY_GRILLED_NEXT_TIMER' })
+    }));
+    expect(executeEncounter({
+      transactionId: 'freshly-grilled-pass', encounter: freshlyGrilled,
+      choiceId: 'unknown-to-the-guild', state: { ...baseState, reputation: 14 }
+    }).status).toBe('resolved');
+  });
+
+  it('models The Branded compassion as an immediate no-reward Patient follow-up', () => {
+    const branded = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-forest-9-spring')!;
+    expect(branded.sourcePage).toBe(162);
+    expect(branded.choices.map(choice => choice.id)).toEqual(['compassion', 'duty']);
+    expect(branded.choices.find(choice => choice.id === 'compassion')?.followUp).toEqual({
+      type: 'start-patient',
+      timing: 'immediate',
+      severity: 'lesser',
+      rewardMode: 'none',
+      deadline: 'before-overstay',
+      patientKind: 'exiled-beast'
+    });
+
+    const baseState = {
+      reputation: 10, trinkets: 2, calendarDays: 0, foragingPoints: 0,
+      inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: []
+    };
+    const compassion = executeEncounter({
+      transactionId: 'branded-compassion', encounter: branded, choiceId: 'compassion', state: baseState
+    });
+    expect(compassion.status).toBe('manual');
+    expect(compassion.value?.nextState).toMatchObject({
+      reputation: 10,
+      trinkets: 2,
+      conditions: ['helped-exiled-or-branded-beast']
+    });
+    expect(compassion.value?.unresolvedEffects).toContainEqual(expect.objectContaining({
+      effect: expect.objectContaining({ type: 'customEffect', code: 'START_BRANDED_LESSER_AILMENT' })
+    }));
+
+    const duty = executeEncounter({
+      transactionId: 'branded-duty', encounter: branded, choiceId: 'duty', state: baseState
+    });
+    expect(duty.status).toBe('resolved');
+    expect(duty.value?.nextState.reputation).toBe(11);
+  });
+
+  it('carries canonical help for a Branded beast into the later Fangs a’Hungering Kindness branch', () => {
+    const rightThing = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-bog-j-winter')!;
+    const fangs = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-forest-m-winter')!;
+    const baseState = {
+      reputation: 10, trinkets: 0, calendarDays: 0, foragingPoints: 0,
+      inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: []
+    };
+
+    expect(rightThing.sourcePage).toBe(159);
+    expect(rightThing.choices.map(choice => choice.id)).toEqual(['help', 'turn-away']);
+    expect(encounterChoiceRequiresJournal(rightThing, 'help')).toBe(true);
+    expect(encounterChoiceRequiresJournal(rightThing, 'turn-away')).toBe(false);
+    expect(fangs.sourcePage).toBe(165);
+    expect(fangs.choices.map(choice => choice.id)).toEqual(['flee', 'kindness']);
+
+    const flee = fangs.choices.find(choice => choice.id === 'flee')!;
+    const kindness = fangs.choices.find(choice => choice.id === 'kindness')!;
+    expect(encounterChoiceAvailability(flee, baseState).available).toBe(true);
+    expect(encounterChoiceAvailability(kindness, baseState)).toEqual({
+      available: false,
+      reasons: ['Requires encounter condition: helped-exiled-or-branded-beast.']
+    });
+    expect(executeEncounter({
+      transactionId: 'fangs-kindness-too-soon', encounter: fangs, choiceId: 'kindness', state: baseState
+    }).status).toBe('invalid');
+
+    const helped = executeEncounter({
+      transactionId: 'right-thing-help', encounter: rightThing, choiceId: 'help',
+      journalAcknowledged: true, state: baseState
+    });
+    expect(helped.status).toBe('resolved');
+    expect(helped.value?.nextState.conditions).toContain('helped-exiled-or-branded-beast');
+    const reloadedAfterHelp = JSON.parse(JSON.stringify(helped.value!.nextState));
+    expect(encounterChoiceAvailability(kindness, reloadedAfterHelp).available).toBe(true);
+    expect(executeEncounter({
+      transactionId: 'fangs-kindness-after-help', encounter: fangs, choiceId: 'kindness', state: reloadedAfterHelp
+    }).status).toBe('resolved');
+
+    const turnedAway = executeEncounter({
+      transactionId: 'right-thing-turn-away', encounter: rightThing, choiceId: 'turn-away', state: baseState
+    });
+    expect(turnedAway.status).toBe('resolved');
+    expect(turnedAway.value?.nextState.conditions).not.toContain('helped-exiled-or-branded-beast');
+
+    expect(executeEncounter({
+      transactionId: 'right-thing-help-without-journal', encounter: rightThing, choiceId: 'help', state: baseState
+    }).status).toBe('invalid');
+  });
+
+  it('does not silently extend the p.180 Upstanding PURIFY lesson to Trusted', () => {
+    const specialTechnique = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-mountain-10-spring')!;
+    expect(specialTechnique.sourcePage).toBe(180);
+    expect(specialTechnique.choices.map(choice => choice.id)).toEqual([
+      'secrets-of-the-craft',
+      'shunned',
+      'trusted-source-gap'
+    ]);
+    const [secrets, shunned, trustedGap] = specialTechnique.choices;
+
+    expect(encounterChoiceAvailability(secrets, { reputation: 25, trinkets: 0 }).available).toBe(true);
+    expect(encounterChoiceAvailability(secrets, { reputation: 34, trinkets: 0 }).available).toBe(true);
+    expect(encounterChoiceAvailability(secrets, { reputation: 35, trinkets: 0 }).available).toBe(false);
+    expect(encounterChoiceAvailability(shunned, { reputation: 24, trinkets: 0 }).available).toBe(true);
+    expect(encounterChoiceAvailability(shunned, { reputation: 25, trinkets: 0 }).available).toBe(false);
+    expect(encounterChoiceAvailability(trustedGap, { reputation: 35, trinkets: 0 }).available).toBe(true);
+
+    const taught = executeEncounter({
+      transactionId: 'special-technique-upstanding', encounter: specialTechnique, choiceId: secrets.id,
+      state: {
+        reputation: 25, trinkets: 0, calendarDays: 0, foragingPoints: 0,
+        inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: []
+      }
+    });
+    expect(taught.status).toBe('resolved');
+    expect(taught.value?.nextState.conditions).toContain('purify-trained');
+
+    const trusted = executeEncounter({
+      transactionId: 'special-technique-trusted', encounter: specialTechnique, choiceId: trustedGap.id,
+      state: {
+        reputation: 35, trinkets: 0, calendarDays: 0, foragingPoints: 0,
+        inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: []
+      }
+    });
+    expect(trusted.status).toBe('manual');
+    expect(trusted.value?.nextState.conditions).not.toContain('purify-trained');
+  });
+
+  it('gates the p.158 Rusty Pick free ore and keeps a neutral way to continue', () => {
+    const rustyPick = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-bog-9-autumn')!;
+    expect(rustyPick.sourcePage).toBe(158);
+    expect(rustyPick.choices.map(choice => choice.id)).toEqual(['bog-bargains', 'pounder-s-take', 'continue']);
+    const freeOre = rustyPick.choices.find(choice => choice.id === 'pounder-s-take')!;
+    const continueChoice = rustyPick.choices.find(choice => choice.id === 'continue')!;
+    expect(encounterChoiceAvailability(freeOre, { reputation: 34, trinkets: 0 }).available).toBe(false);
+    expect(encounterChoiceAvailability(freeOre, { reputation: 35, trinkets: 0 }).available).toBe(true);
+    expect(encounterChoiceAvailability(continueChoice, { reputation: 0, trinkets: 0 }).available).toBe(true);
+
+    const rejected = executeEncounter({
+      transactionId: 'rusty-pick-under-ranked', encounter: rustyPick, choiceId: freeOre.id,
+      state: {
+        reputation: 34, trinkets: 0, calendarDays: 0, foragingPoints: 0,
+        inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: []
+      }
+    });
+    expect(rejected.status).toBe('invalid');
+    const continued = executeEncounter({
+      transactionId: 'rusty-pick-continue', encounter: rustyPick, choiceId: continueChoice.id,
+      state: {
+        reputation: 0, trinkets: 0, calendarDays: 0, foragingPoints: 0,
+        inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: []
+      }
+    });
+    expect(continued.status).toBe('resolved');
+  });
+
   it('keeps every forage and social encounter selectable', () => {
     const forageWithChoices = FORAGING_ENCOUNTERS.filter(row => row.choices.length > 0);
     expect(forageWithChoices.length).toBe(FORAGING_ENCOUNTERS.length);
@@ -257,7 +527,7 @@ describe('printed encounter choice execution', () => {
       ['travel-mountain-j-winter', ['sled', 'long-walk']],
       ['travel-mountain-m-summer', ['fetch-the-oil', 'shrug']],
       ['foraging-loch-m-winter', ['trade', 'visit', 'help']],
-      ['foraging-mountain-m-winter', ['just-in-time', 'too-late']],
+      ['foraging-mountain-m-winter', ['start-ailment', 'decline-ailment']],
       ['social-bog-winter-♣', ['wish-them-luck', 'pitch-in-briefly', 'pitch-in-for-the-day']]
     ];
     idsAndChoices.forEach(([id, choices]) => {
@@ -359,7 +629,7 @@ describe('printed encounter choice execution', () => {
 
   it('keeps non-scalar printed procedures manual instead of silently resolving them', () => {
     const manualChoices: Array<[string, string]> = [
-      ['travel-loch-m-autumn', 'vigiliante'],
+      ['travel-loch-m-autumn', 'keep-quiet'],
       ['travel-meadow-9-10-winter', 'challenge-accepted'],
       ['travel-mountain-m-spring', 'drink-up'],
       ['foraging-bog-9-autumn', 'pounder-s-take'],
@@ -368,11 +638,10 @@ describe('printed encounter choice execution', () => {
       ['foraging-forest-9-spring', 'compassion'],
       ['foraging-loch-9-summer', 'tadpediatrician'],
       ['foraging-loch-10-summer', 'summertime-swim'],
-      ['foraging-meadow-10-winter', 'chill'],
-      ['foraging-mountain-10-spring', 'secrets-of-the-craft'],
+      ['foraging-meadow-10-winter', 'hot-toddy'],
       ['foraging-mountain-10-autumn', 'blood-to-blood'],
       ['foraging-titan-2', 'look-around'],
-      ['foraging-titan-7', 'memento']
+      ['foraging-titan-7', 'attend-to-the-remains']
     ];
     manualChoices.forEach(([encounterId, choiceId]) => {
       const choice = ENCOUNTERS.find(row => row.id === encounterId)?.choices.find(row => row.id === choiceId);
@@ -392,6 +661,73 @@ describe('printed encounter choice execution', () => {
     });
     expect(result.status).toBe('invalid');
     expect(result.value).toBeNull();
+  });
+
+  it('keeps voluntary travel trades and a tool-gated rescue escapable', () => {
+    const baseState = {
+      reputation: 0, trinkets: 0, calendarDays: 0, foragingPoints: 0,
+      inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: []
+    };
+
+    const spareMaterial = TRAVEL_ENCOUNTERS.find(row => row.id === 'travel-bog-3-4')!;
+    expect(spareMaterial.sourcePage).toBe(74);
+    expect(spareMaterial.choices.map(choice => choice.id)).toEqual([
+      'trade-spare-material',
+      'continue-without-trading'
+    ]);
+    const trade = spareMaterial.choices[0];
+    expect(encounterChoiceAvailability(trade, baseState).available).toBe(false);
+    expect(executeEncounter({
+      transactionId: 'spare-material-empty', encounter: spareMaterial,
+      choiceId: trade.id, state: baseState
+    }).status).toBe('invalid');
+    const paid = executeEncounter({
+      transactionId: 'spare-material-paid', encounter: spareMaterial,
+      choiceId: trade.id, state: { ...baseState, trinkets: 1 }
+    });
+    expect(paid.status).toBe('manual');
+    expect(paid.value?.nextState.trinkets).toBe(0);
+    expect(paid.value?.unresolvedEffects).toContainEqual(expect.objectContaining({
+      effect: expect.objectContaining({ type: 'customEffect', code: 'SPARE_MATERIAL_REAGENT' })
+    }));
+    expect(executeEncounter({
+      transactionId: 'spare-material-pass', encounter: spareMaterial,
+      choiceId: 'continue-without-trading', state: baseState
+    }).status).toBe('resolved');
+
+    const cafe = TRAVEL_ENCOUNTERS.find(row => row.id === 'travel-bog-9-10-autumn')!;
+    expect(cafe.sourcePage).toBe(76);
+    expect(cafe.choices.map(choice => choice.id)).toEqual(['buy-boxes-of-treats', 'leave-the-cafe']);
+    expect(encounterChoiceAvailability(cafe.choices[0], baseState).available).toBe(false);
+    const cafePurchase = executeEncounter({
+      transactionId: 'pumpkin-cafe-buy', encounter: cafe,
+      choiceId: 'buy-boxes-of-treats', state: { ...baseState, trinkets: 2 }
+    });
+    expect(cafePurchase.status).toBe('manual');
+    expect(cafePurchase.value?.nextState.trinkets).toBe(2);
+    expect(cafePurchase.value?.unresolvedEffects).toContainEqual(expect.objectContaining({
+      effect: expect.objectContaining({ type: 'customEffect', code: 'PUMPKIN_CAFE_TREATS' })
+    }));
+    expect(executeEncounter({
+      transactionId: 'pumpkin-cafe-pass', encounter: cafe,
+      choiceId: 'leave-the-cafe', state: baseState
+    }).status).toBe('resolved');
+
+    const wasp = TRAVEL_ENCOUNTERS.find(row => row.id === 'travel-loch-j-autumn')!;
+    expect(wasp.sourcePage).toBe(84);
+    expect(wasp.choices.map(choice => choice.id)).toEqual(['a-second-chance', 'do-not-risk-it']);
+    const rescued = executeEncounter({
+      transactionId: 'wasp-rescue', encounter: wasp,
+      choiceId: 'a-second-chance', state: baseState
+    });
+    expect(rescued.status).toBe('manual');
+    expect(rescued.value?.unresolvedEffects).toContainEqual(expect.objectContaining({
+      effect: expect.objectContaining({ type: 'customEffect', code: 'WASP_COMPANION_RESCUE' })
+    }));
+    expect(executeEncounter({
+      transactionId: 'wasp-pass', encounter: wasp,
+      choiceId: 'do-not-risk-it', state: baseState
+    }).status).toBe('resolved');
   });
 
   it('requires acknowledgement only for a current printed journaling prompt', () => {

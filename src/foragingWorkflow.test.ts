@@ -47,15 +47,58 @@ describe('foraging workflow order', () => {
     expect(appSource).not.toContain('이번 카드로 발견한 재료');
   });
 
-  it('summarizes only currently obtainable preparation tags without exposing part details', () => {
-    expect(appSource).toContain('const availableForagePreparations = (find: ForageFind) =>');
-    expect(appSource).toContain("part.requiredTools.every(tool => tool === 'none' || forageToolIds.has(tool))");
+  it('shows seasonally obtainable effects per part and marks preparation methods blocked by missing tools', () => {
+    expect(appSource).toContain('const foragePreparationOptions = (find: ForageFind) =>');
     expect(appSource).toContain('isForagingPreparationAvailableInSeason(part, state.currentSeason)');
-    expect(appSource).toContain('highestValueByTag.set(tag, Math.max(highestValueByTag.get(tag) || 0, value))');
+    expect(appSource).toContain("missingTools: part.requiredTools.filter(tool => tool !== 'none' && !forageToolIds.has(tool))");
+    expect(appSource).toContain('const availableForagePartOptions = (find: ForageFind) => foragePreparationOptions(find).map(({ part, missingTools }) => ({');
+    expect(appSource).toContain('tagGroups: splitForagingTags(part.tags)');
     expect(appSource).toContain('className="forage-candidate__tags"');
-    expect(appSource).toContain('이 재료에서 얻을 수 있는 약효');
+    expect(appSource).toContain('부위와 조제법마다 얻을 수 있는 효과');
+    expect(appSource).toContain('부위별 효과 · 한 줄이 한 가지 선택지입니다');
+    expect(appSource).toContain('흐린 행은 필요한 조제 도구가 없어 이번에는 고를 수 없습니다.');
     expect(appSource).toContain('{tag} {value}');
-    expect(appSource).not.toContain('matchingForageParts');
+    expect(appSource).not.toContain('highestValueByTag');
+  });
+
+  it('separates patient-remedy tags from the FAIR/FOUL reward modifiers before part selection', () => {
+    expect(appSource).toContain('remedyTags: tagGroups.remedy.map(tag => `${tag.tag} ${tag.value}`)');
+    expect(appSource).toContain('tradeTags: tagGroups.trade.map(tag => `${tag.tag} ${tag.value}`)');
+    expect(appSource).toContain('<small>치료 약효</small>');
+    expect(appSource).toContain('<small>거래 가치 · FAIR/FOUL</small>');
+    expect(appSource).toContain('일반 치료 태그와 FAIR/FOUL 거래 가치는 서로 다른 칸에서 확인하세요.');
+    expect(appSource).toContain('도구가 없는 조제법도 미리 볼 수 있지만 이번에는 선택할 수 없습니다.');
+    expect(appSource).toContain('disabledReason: missingTools.length > 0');
+    expect(appSource).toContain('선택한 행의 효과만 획득');
+  });
+
+  it('keeps optional gather decisions inside the app without changing decline semantics', () => {
+    const gatherStart = appSource.indexOf('const handleAddForageFindToBag');
+    const gatherEnd = appSource.indexOf('\n  const applyEncounterStateEffect', gatherStart);
+    const gatherSource = appSource.slice(gatherStart, gatherEnd);
+
+    expect(gatherSource).not.toContain('askWindowConfirm');
+    expect(gatherSource).toContain("title: '화강암 절구와 공이를 사용할까요?'");
+    expect(gatherSource).toContain("poundWithGranite = graniteChoice === 'pound'");
+    expect(gatherSource).toContain("title: '채집 포인트를 사용할까요?'");
+    expect(gatherSource).toContain("cancelLabel: '사용하지 않고 실패 기록'");
+    expect(gatherSource).toContain("spendGap = gapChoice === 'spend'");
+    expect(gatherSource).toContain('const gatherWillSucceed = Boolean(find.cardSuccess || find.fpAvailable || spendGap)');
+    expect(gatherSource).toContain('if (gatherWillSucceed && graniteMortar');
+    expect(gatherSource).toContain('if (gatherWillSucceed && hasEfficientKettle');
+    expect(gatherSource.indexOf("title: '채집 포인트를 사용할까요?'")).toBeLessThan(gatherSource.indexOf("title: '화강암 절구와 공이를 사용할까요?'"));
+  });
+
+  it('keeps Scrounging part selection in-app and leaves state unchanged when cancelled', () => {
+    const scroungeStart = appSource.indexOf('const handleScroungeGainReagent');
+    const scroungeEnd = appSource.indexOf('\n  const handleFinishScrounging', scroungeStart);
+    const scroungeSource = appSource.slice(scroungeStart, scroungeEnd);
+
+    expect(scroungeSource).not.toContain('prompt(');
+    expect(scroungeSource).toContain("title: '여분 채집으로 얻을 부위를 고르세요'");
+    expect(scroungeSource).toContain('if (chosenPartId === null) return;');
+    expect(scroungeSource).toContain('eligibleParts.find(part => part.id === chosenPartId)');
+    expect(scroungeSource.indexOf('if (chosenPartId === null) return;')).toBeLessThan(scroungeSource.indexOf('resolveScrounge({'));
   });
 
   it('uses the canonical Korean region name in every player-facing foraging hint', () => {
