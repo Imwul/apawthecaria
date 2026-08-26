@@ -13,12 +13,22 @@ describe('campaign save safety', () => {
   it('does not treat an empty or unnamed save as progress', () => {
     expect(campaignSaveHasProgress(null)).toBe(false);
     expect(campaignSaveHasProgress({ bio: {}, journals: [] })).toBe(false);
+    expect(campaignSaveHasProgress({ workflowDrafts: { character: null, patient: null, journey: null }, pendingTreatmentReward: null })).toBe(false);
     expect(campaignSaveHasProgress({ bio: { name: 'Bramble' } })).toBe(true);
     expect(campaignSaveHasProgress({ journals: [{ id: '1' }] })).toBe(true);
     expect(campaignSaveHasProgress({ journeyActive: true })).toBe(true);
     expect(campaignSaveHasProgress({ routeDraft: { stops: [{ id: 'a' }, { id: 'b' }] } })).toBe(true);
     expect(campaignSaveHasProgress({ patients: [{ id: 'patient' }] })).toBe(true);
     expect(campaignSaveHasProgress({ saveRevision: '4' })).toBe(true);
+  });
+
+  it.each([
+    ['Character creation', { workflowDrafts: { character: { version: 1, touched: ['name'], name: 'Bramble' } } }],
+    ['Patient intake', { workflowDrafts: { patient: { version: 1, transactionId: 'intake:1', name: 'Pip' } } }],
+    ['Journey preparation', { workflowDrafts: { journey: { version: 1, reason: 'A promise' } } }],
+    ['Treatment reward', { pendingTreatmentReward: { version: 1, transactionId: 'treatment:1' } }]
+  ])('treats a meaningful unfinished %s checkpoint as local progress', (_label, save) => {
+    expect(campaignSaveHasProgress(save)).toBe(true);
   });
 
   it('recognizes partial historical saves without requiring bio and bag', () => {
@@ -119,5 +129,26 @@ describe('campaign save safety', () => {
       cloudHasNamedApothecary: true,
       confirmOverwrite
     })).toBe('load-cloud');
+  });
+
+  it('does not silently replace an unnamed local workflow draft with another cloud campaign', () => {
+    const confirmOverwrite = vi.fn(() => false);
+    const localRaw = JSON.stringify({
+      bio: { name: '' },
+      workflowDrafts: {
+        character: { version: 1, touched: ['name'], name: 'Still choosing' },
+        patient: null,
+        journey: null
+      },
+      saveRevision: 0
+    });
+
+    expect(decideCloudSaveAction({
+      localRaw,
+      cloudRevision: 8,
+      cloudHasNamedApothecary: true,
+      confirmOverwrite
+    })).toBe('keep-local');
+    expect(confirmOverwrite).toHaveBeenCalledTimes(1);
   });
 });

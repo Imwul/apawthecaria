@@ -4538,6 +4538,49 @@ body {
   cursor: not-allowed;
 }
 
+.treatment-reward-checkpoint {
+  margin-top: 1rem;
+  padding: 1rem 0;
+  border-block: 1px solid rgba(91, 74, 57, 0.32);
+}
+
+.treatment-reward-checkpoint h4 {
+  margin: 0.2rem 0 0.35rem;
+  color: var(--primary);
+}
+
+.treatment-reward-checkpoint p {
+  max-width: 62rem;
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.treatment-reward-checkpoint__choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+}
+
+.treatment-reward-checkpoint__choices > button {
+  display: grid;
+  min-height: 58px;
+  min-width: 0;
+  gap: 0.15rem;
+  align-content: center;
+  text-align: left;
+}
+
+.treatment-reward-checkpoint__choices span {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .treatment-reward-checkpoint__choices {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .treatment-result-receipt {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

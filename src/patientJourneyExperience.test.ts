@@ -7,9 +7,9 @@ const cssSource = readFileSync('src/index.css', 'utf8');
 
 describe('patient identity experience', () => {
   it('lets the descriptor card lead to rulebook animal candidates before severity is drawn', () => {
-    const descriptorDraw = appSource.indexOf('const descriptorCard = drawPlayingCard()');
+    const descriptorDraw = appSource.indexOf('let descriptorCard = intakeDraft.descriptorCard');
     const speciesPrompt = appSource.indexOf("title: '환자의 동물 종을 정하세요'", descriptorDraw);
-    const severityDraw = appSource.indexOf('const severityCard = drawPlayingCard()', descriptorDraw);
+    const severityDraw = appSource.indexOf('let severityCard = intakeDraft.severityCard', descriptorDraw);
 
     expect(descriptorDraw).toBeGreaterThan(-1);
     expect(speciesPrompt).toBeGreaterThan(descriptorDraw);
@@ -28,7 +28,8 @@ describe('patient identity experience', () => {
 
   it('keeps names player-authored and permits active patient identity corrections', () => {
     expect(appSource).toContain('환자 이름 (선택 · 지금 정하거나 진료 중에 수정)');
-    expect(appSource).toContain('onClick={handleEditActivePatientIdentity}>이름·종 수정');
+    expect(appSource).toContain('onClick={handleEditActivePatientIdentity}');
+    expect(appSource).toContain('이름·종 수정');
     expect(appSource).toContain('activeAilment: s.activePatientId === patient.id && s.activeAilment');
     expect(appSource).toContain('patientArchive: s.patientArchive.map(record => record.patientId === patient.id');
     expect(appSource).toContain("journal.title.startsWith('새 환자:')");

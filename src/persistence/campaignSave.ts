@@ -16,13 +16,20 @@ type CampaignSaveShape = {
   downtimeRequired?: boolean;
   downtimeCompleted?: boolean;
   saveRevision?: unknown;
+  workflowDrafts?: {
+    character?: unknown;
+    patient?: unknown;
+    journey?: unknown;
+  };
+  pendingTreatmentReward?: unknown;
 };
 
 const CAMPAIGN_SAVE_MARKERS = new Set([
   'schemaVersion', 'rulesetId', 'rulebookEdition', 'bio', 'bag', 'journals',
   'journeyActive', 'journey', 'patients', 'activePatientId', 'activeAilment',
   'patientArchive', 'patientCasebook', 'routeDraft', 'currentSeason',
-  'currentLocationName', 'calendarDays', 'downtimeRequired', 'saveRevision'
+  'currentLocationName', 'calendarDays', 'downtimeRequired', 'saveRevision',
+  'workflowDrafts', 'pendingTreatmentReward'
 ]);
 
 /** Accepts partial historical saves, but not arrays or unrelated JSON objects. */
@@ -47,7 +54,9 @@ export const campaignSaveHasProgress = (parsed: unknown): boolean => {
     || (Array.isArray(save.routeDraft?.stops) && save.routeDraft.stops.length > 1)
     || normalizeSaveRevision(save.saveRevision) > 0
     || (typeof save.calendarDays === 'number' && save.calendarDays > 0)
-    || Boolean(save.downtimeRequired || save.downtimeCompleted);
+    || Boolean(save.downtimeRequired || save.downtimeCompleted)
+    || Boolean(save.workflowDrafts?.character || save.workflowDrafts?.patient || save.workflowDrafts?.journey)
+    || Boolean(save.pendingTreatmentReward);
 };
 
 export const tryMigrateCampaignSave = <T>(

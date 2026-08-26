@@ -124,7 +124,7 @@ describe('encounter player-experience guards', () => {
   it('keeps p.33/p.35 immediate Remedy as a persisted gate until the exact matching treatment commits', () => {
     expect(appSource).toContain('const awaitingForagingImmediateRemedy = isAwaitingImmediateRemedy(state.pendingForaging);');
     expect(appSource).toContain('const awaitingBarterImmediateRemedy = isAwaitingImmediateRemedyCheckpoint(state.pendingBarter);');
-    expect(appSource).toContain('const acquisitionCheckpointBlocked = awaitingImmediateRemedy || awaitingManualForaging;');
+    expect(appSource).toContain('const acquisitionCheckpointBlocked = awaitingImmediateRemedy || awaitingManualForaging || awaitingTreatmentReward;');
     expect(appSource).toContain('pendingForaging: pendingForagingAfterEncounterCheckpoint(pending, foragingCheckpoint)');
     expect(appSource).toContain('pendingForaging: pendingForagingAfterEncounterCheckpoint(foragePending, foragingCheckpoint)');
     expect(appSource).toContain('pendingForaging: releaseImmediateRemedyCheckpointRule(s.pendingForaging, nextPatient.id, ailment.id)');
