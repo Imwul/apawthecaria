@@ -294,6 +294,9 @@ describe('cloud save slots', () => {
     expect(appSource).toContain('[CAMPAIGN_SAVE_KEY]: deleteField()');
     expect(appSource).toContain('cloudSlotPayloadDocumentBelongsToAccount');
     expect(appSource).toContain('readCloudAccountBinding() === uid');
+    expect(appSource).toContain('로컬 저장 공간이 부족해 클라우드 저장으로 전환합니다');
+    expect(appSource).toContain('writeCloudSaveDirectly(uid, slot, jsonString)');
+    expect(appSource).toContain('클라우드에는 저장했습니다. 이 화면을 닫기 전');
     expect(appSource).toContain('window.confirm.call(window, message)');
     expect(readFileSync(fileURLToPath(new URL('./cloudSlots.ts', import.meta.url)), 'utf8')).toContain('window.confirm.call(window, message)');
   });

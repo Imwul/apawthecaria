@@ -735,9 +735,13 @@ export function PaperMap({
                     <span
                       className={[
                         'map-location-destination',
-                        position.x < 18 ? 'is-left-edge' : '',
-                        position.x > 82 ? 'is-right-edge' : '',
-                        position.y < 10 ? 'is-below' : ''
+                        // Keep the complete label inside the map viewport. The
+                        // marker's 44px hit target is centred on the map point,
+                        // so a label can clip well before the point reaches the
+                        // literal edge of the image.
+                        position.x < 24 ? 'is-left-edge' : '',
+                        position.x > 76 ? 'is-right-edge' : '',
+                        position.y < 18 ? 'is-below' : ''
                       ].filter(Boolean).join(' ')}
                       aria-hidden="true"
                     >

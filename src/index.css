@@ -9330,6 +9330,7 @@ button,
   width: max-content;
   min-width: 5.5rem;
   max-width: min(12rem, calc(100vw - 2rem));
+  box-sizing: border-box;
   padding: 0.3rem 0.48rem 0.34rem;
   transform: translateX(-50%);
   border: 1px solid rgba(91, 116, 67, 0.72);
@@ -9377,7 +9378,8 @@ button,
   line-height: 1.3;
   text-overflow: clip;
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: keep-all;
 }
 
 .map-location-destination.is-left-edge {

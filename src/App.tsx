@@ -1074,6 +1074,21 @@ const flushQueuedCloudSavesForCurrentUser = async (): Promise<OfflineSaveEntry[]
   return result;
 };
 
+// A full localStorage quota must not prevent a signed-in player from saving
+// to their cloud slot. The normal outbox intentionally lives in localStorage,
+// so keep a small direct path for this one failure mode. It is still serialized
+// through the same queue and therefore keeps the revision/conflict checks in
+// writeCloudSlotRecord intact.
+const writeCloudSaveDirectly = async (uid: string, slot: CloudSlotId, payload: string) => {
+  cloudSaveQueue = cloudSaveQueue.catch(() => undefined).then(async () => {
+    await writeCloudSlotRecord(
+      cloudSlotRecordFromPayload(slot, payload, new Date().toISOString()),
+      uid
+    );
+  });
+  await cloudSaveQueue;
+};
+
 type SaveWriteResult = {
   localSaved: boolean;
   pendingCloudSaves: number;
@@ -1083,21 +1098,28 @@ type SaveWriteResult = {
 const store = {
   set: async (key: string, value: any) => {
     let jsonString: string;
+    let localSaved = true;
     try {
       jsonString = JSON.stringify(value);
-      localStorage.setItem(key, jsonString);
+      try {
+        localStorage.setItem(key, jsonString);
+      } catch (error) {
+        // Keep going: a signed-in user may still have a healthy cloud slot.
+        localSaved = false;
+        console.warn('로컬 저장 공간이 부족해 클라우드 저장으로 전환합니다:', error);
+      }
     } catch (e) {
       console.error('로컬 저장 에러:', e);
       return { localSaved: false, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
     }
     if (summarizeCloudUploadSource(jsonString).payloadBytes >= CLOUD_PAYLOAD_SAFE_BYTES) {
       console.warn('캠페인 파일이 클라우드 저장 한도를 넘어 로컬에만 저장했습니다.');
-      return { localSaved: true, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
+      return { localSaved, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
     }
     const uid = auth?.currentUser?.uid;
     if (isFirebaseConfigured && db && uid && readCloudAccountBinding() === uid) {
       if (!campaignSaveHasNamedApothecary(value)) {
-        return { localSaved: true, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
+        return { localSaved, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
       }
       const revision = normalizeSaveRevision(value?.saveRevision);
       const queuedAt = Date.now();
@@ -1112,7 +1134,13 @@ const store = {
         queuedAt
       });
       if (!writeSaveOutbox(queued)) {
-        return { localSaved: true, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
+        try {
+          await writeCloudSaveDirectly(uid, slot, jsonString);
+          return { localSaved, pendingCloudSaves: 0, cloudStatus: 'synced' } satisfies SaveWriteResult;
+        } catch (error) {
+          console.error('로컬 재시도 큐를 저장하지 못해 클라우드 직접 저장도 실패했습니다:', error);
+          return { localSaved, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
+        }
       }
       const remaining = await flushQueuedCloudSavesForCurrentUser();
       const pendingCloudSaves = pendingCloudSaveCountForUser(uid, remaining);
@@ -1122,7 +1150,10 @@ const store = {
         cloudStatus: pendingCloudSaves > 0 ? 'pending' : 'synced'
       } satisfies SaveWriteResult;
     }
-    return { localSaved: true, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
+    // If the campaign itself could not be written locally, there is no safe
+    // fallback without an account-bound cloud slot. Preserve that distinction
+    // so the UI can explain the recovery action instead of claiming success.
+    return { localSaved, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
   },
   load: async (key: string, fallback: any) => {
     let localValue: any = null;
@@ -5689,6 +5720,7 @@ export default function App() {
   const [rulebookRequest, setRulebookRequest] = useState<RulebookReferenceRequest | null>(null);
   const [saveLoadError, setSaveLoadError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'ready' | 'saving' | 'saved' | 'error'>('ready');
+  const [localSaveUnavailable, setLocalSaveUnavailable] = useState(false);
   const initialSetupRouted = useRef(false);
   const officialMapDefaultsLoaded = useRef(false);
   const cloudBootstrapSkipped = useRef(false);
@@ -6276,6 +6308,17 @@ export default function App() {
         if (requestId !== saveRequestSequence) return;
         setPendingCloudSaveCount(result.pendingCloudSaves);
         setCloudSyncStatus(result.cloudStatus);
+        setLocalSaveUnavailable(!result.localSaved);
+        if (result.cloudStatus === 'synced') {
+          setSaveStatus('saved');
+          if (result.localSaved) {
+            saveFailureNotified = false;
+          } else if (!saveFailureNotified) {
+            saveFailureNotified = true;
+            showAlert('브라우저 저장 공간이 부족해 기기 저장은 건너뛰었지만, 클라우드에는 저장했습니다. 이 화면을 닫기 전 기록을 내보내거나 브라우저 저장 공간을 정리해 주세요.');
+          }
+          return;
+        }
         if (result.localSaved) {
           setSaveStatus('saved');
           saveFailureNotified = false;
@@ -6289,6 +6332,7 @@ export default function App() {
       }).catch(error => {
         console.error('자동 저장 에러:', error);
         if (requestId !== saveRequestSequence) return;
+        setLocalSaveUnavailable(false);
         setSaveStatus('error');
         if (!saveFailureNotified) {
           saveFailureNotified = true;
@@ -8660,15 +8704,19 @@ export default function App() {
     : saveStatus === 'error'
       ? '저장 실패'
       : saveStatus === 'saved'
-        ? isFirebaseConfigured && user
-          ? pendingCloudSaveCount > 0
-            ? `기기에 저장됨 · 클라우드 재시도 ${pendingCloudSaveCount}건`
-            : !cloudAccountLinked
-              ? '기기에 저장됨 · 클라우드 연결 선택 필요'
-              : cloudSyncStatus === 'synced'
-                ? '기기·클라우드에 저장됨'
-                : '기기에 저장됨 · 클라우드 연결됨'
-          : '기기에 저장됨'
+        ? localSaveUnavailable
+          ? cloudSyncStatus === 'synced'
+            ? '클라우드에 저장됨 · 기기 저장 공간 부족'
+            : '기기 저장 공간 부족 · 클라우드 미동기화'
+          : isFirebaseConfigured && user
+            ? pendingCloudSaveCount > 0
+              ? `기기에 저장됨 · 클라우드 재시도 ${pendingCloudSaveCount}건`
+              : !cloudAccountLinked
+                ? '기기에 저장됨 · 클라우드 연결 선택 필요'
+                : cloudSyncStatus === 'synced'
+                  ? '기기·클라우드에 저장됨'
+                  : '기기에 저장됨 · 클라우드 연결됨'
+            : '기기에 저장됨'
         : '자동 저장 준비됨';
 
   return (
@@ -8719,7 +8767,7 @@ export default function App() {
               )}
             </>
           )}
-          <span className={`save-state save-state--${saveStatus}`} role={saveStatus === 'error' ? 'alert' : 'status'} aria-live="polite" title={saveStatus === 'error' ? '기기 저장 공간을 확인하고 기록을 내보내 주세요.' : undefined}>
+          <span className={`save-state save-state--${saveStatus}`} role={saveStatus === 'error' || localSaveUnavailable ? 'alert' : 'status'} aria-live="polite" title={saveStatus === 'error' || localSaveUnavailable ? '브라우저 저장 공간을 확인하고 기록을 내보내 주세요.' : undefined}>
             {saveStatusText}
           </span>
         </div>
