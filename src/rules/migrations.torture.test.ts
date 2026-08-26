@@ -44,7 +44,9 @@ const richSaveAt = (schemaVersion: number | string) => ({
   pendingForaging: {
     transactionId: 'forage-pending', region: 'Forest', locationRelation: 'current',
     card: { value: 7, suit: '♥' }, timerCostAfterEncounter: 1, encounterId: null, phase: 'choose-reagent',
-    targetReagentId: 'reagent-dandelion',
+    targetReagentId: 'reagent-dandelions',
+    rememberedReagentIds: [' reagent-marigold ', 'reagent-nettles', 'reagent-marigold', 'missing-reagent'],
+    candidateSelectionReagentId: ' reagent-marigold ',
     journalNote: '말린 풀 냄새와 젖은 흙을 기억했다.', journalAcknowledged: true,
     undoSnapshot: {
       activePatientId: 'patient-1',
@@ -113,7 +115,9 @@ describe('save migration torture matrix', () => {
       });
       expect(migrated.pendingForaging).toMatchObject({
         transactionId: 'forage-pending', region: 'Forest', phase: 'choose-reagent',
-        targetReagentId: 'reagent-dandelion',
+        targetReagentId: 'reagent-dandelions',
+        rememberedReagentIds: ['reagent-marigold', 'reagent-nettles'],
+        candidateSelectionReagentId: 'reagent-marigold',
         journalNote: '말린 풀 냄새와 젖은 흙을 기억했다.', journalAcknowledged: true,
         undoSnapshot: {
           activePatientId: 'patient-1',
@@ -159,6 +163,72 @@ describe('save migration torture matrix', () => {
       expect(twice, `idempotency v${version}`).toEqual(once);
       expect(roundTripped, `round trip v${version}`).toEqual(once);
     }
+  });
+
+  it('round-trips remembered Foraging research and an uncommitted canonical candidate selection', () => {
+    const source = richSaveAt(CURRENT_SCHEMA_VERSION);
+    const once = migrateSavedRulesState(clone({
+      ...source,
+      pendingForaging: {
+        ...source.pendingForaging,
+        targetReagentId: ' reagent-nettles ',
+        rememberedReagentIds: [
+          ' reagent-marigold ',
+          'reagent-nettles',
+          'reagent-marigold',
+          'unknown-reagent',
+          null
+        ],
+        candidateSelectionReagentId: ' reagent-marigold '
+      }
+    }));
+    const reloaded = migrateSavedRulesState(JSON.parse(JSON.stringify(once)));
+
+    expect(once.pendingForaging).toMatchObject({
+      phase: 'choose-reagent',
+      targetReagentId: 'reagent-nettles',
+      rememberedReagentIds: ['reagent-marigold', 'reagent-nettles'],
+      candidateSelectionReagentId: 'reagent-marigold'
+    });
+    expect(reloaded).toEqual(once);
+    expect(reloaded.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+  });
+
+  it('drops invalid Foraging reagent IDs and never carries a draft selection past commitment', () => {
+    const source = richSaveAt(CURRENT_SCHEMA_VERSION);
+    const committed = migrateSavedRulesState(clone({
+      ...source,
+      pendingForaging: {
+        ...source.pendingForaging,
+        phase: 'encounter',
+        targetReagentId: 'unknown-target',
+        rememberedReagentIds: ['unknown-reagent', 'reagent-nettles', 'reagent-nettles', 42],
+        candidateSelectionReagentId: 'reagent-marigold',
+        selectedReagentId: ' reagent-nettles '
+      }
+    }));
+
+    expect(committed.pendingForaging).toMatchObject({
+      phase: 'encounter',
+      rememberedReagentIds: ['reagent-nettles'],
+      selectedReagentId: 'reagent-nettles'
+    });
+    expect(committed.pendingForaging.targetReagentId).toBeUndefined();
+    expect(committed.pendingForaging.candidateSelectionReagentId).toBeUndefined();
+
+    const malformed = migrateSavedRulesState(clone({
+      ...source,
+      pendingForaging: {
+        ...source.pendingForaging,
+        rememberedReagentIds: 'reagent-marigold',
+        candidateSelectionReagentId: 'not-canonical',
+        selectedReagentId: 'not-canonical'
+      }
+    }));
+    expect(malformed.pendingForaging.rememberedReagentIds).toBeUndefined();
+    expect(malformed.pendingForaging.candidateSelectionReagentId).toBeUndefined();
+    expect(malformed.pendingForaging.selectedReagentId).toBeUndefined();
+    expect(migrateSavedRulesState(clone(malformed))).toEqual(malformed);
   });
 
   it('reconciles the canonical Journey status mirror and preserves an in-progress ending draft', () => {

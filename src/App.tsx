@@ -379,6 +379,10 @@ import {
   splitForagingTags
 } from './foragingInventoryPresentation';
 import {
+  filterForageCandidateRows,
+  type ForageCandidateFilter
+} from './foragingCandidateWorkspace';
+import {
   buildCanonicalBarterSelections,
   findCanonicalBarterSelection,
   matchesCanonicalSearchText
@@ -4417,29 +4421,47 @@ const CardDrawSlot = ({
         {isChoosing && (
           <div className="card-draw-compact__manual">
             <span>오프라인에서 뽑은 카드 입력</span>
-            <select aria-label="카드 문양" value={manualSuit} onChange={e => setManualSuit(e.target.value)} disabled={disabled}>
-              <option value="♥">1. 문양: ♥{showSuitDirections ? ' · 북쪽/위' : ''}</option>
-              <option value="♦">1. 문양: ♦{showSuitDirections ? ' · 남쪽/아래' : ''}</option>
-              <option value="♣">1. 문양: ♣{showSuitDirections ? ' · 동쪽/오른쪽' : ''}</option>
-              <option value="♠">1. 문양: ♠{showSuitDirections ? ' · 서쪽/왼쪽' : ''}</option>
-            </select>
-            <select aria-label="카드 숫자" value={manualValue} onChange={e => setManualValue(Number(e.target.value))} disabled={disabled}>
-              <option value={1}>2. 숫자: A</option>
-              <option value={2}>2. 숫자: 2</option>
-              <option value={3}>2. 숫자: 3</option>
-              <option value={4}>2. 숫자: 4</option>
-              <option value={5}>2. 숫자: 5</option>
-              <option value={6}>2. 숫자: 6</option>
-              <option value={7}>2. 숫자: 7</option>
-              <option value={8}>2. 숫자: 8</option>
-              <option value={9}>2. 숫자: 9</option>
-              <option value={10}>2. 숫자: 10</option>
-              <option value={11}>2. 숫자: J</option>
-              <option value={12}>2. 숫자: Q / Monarch</option>
-              <option value={13}>2. 숫자: K / Monarch</option>
-            </select>
-            <button type="button" onClick={applyManual} disabled={disabled}>
-              카드 채우기
+            <div className="card-draw-compact__manual-step">
+              <strong>1. 문양</strong>
+              <div className="suit-btn-row" role="group" aria-label="카드 문양">
+                {SUIT_OPTIONS.map(suit => {
+                  const direction = suit === '♥' ? '북쪽/위' : suit === '♦' ? '남쪽/아래' : suit === '♣' ? '동쪽/오른쪽' : '서쪽/왼쪽';
+                  return (
+                    <button
+                      key={suit}
+                      type="button"
+                      className={`suit-btn${showSuitDirections ? ' suit-btn--directional' : ''}${manualSuit === suit ? ' active' : ''}`}
+                      aria-pressed={manualSuit === suit}
+                      aria-label={`${suit}${showSuitDirections ? ` · ${direction}` : ''}`}
+                      onClick={() => setManualSuit(suit)}
+                      disabled={disabled}
+                    >
+                      <span>{suit}</span>
+                      {showSuitDirections && <small>{direction}</small>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="card-draw-compact__manual-step">
+              <strong>2. 숫자</strong>
+              <div className="value-chip-strip" role="group" aria-label="카드 숫자">
+                {VALUE_OPTIONS.map(value => (
+                  <button
+                    key={value.value}
+                    type="button"
+                    className={`value-chip${manualValue === value.value ? ' active' : ''}`}
+                    aria-pressed={manualValue === value.value}
+                    onClick={() => setManualValue(value.value)}
+                    disabled={disabled}
+                  >
+                    {value.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button type="button" className="card-draw-compact__apply" onClick={applyManual} disabled={disabled}>
+              {manualSuit} {VALUE_OPTIONS.find(value => value.value === manualValue)?.label} 카드 놓기
             </button>
           </div>
         )}
@@ -5650,6 +5672,12 @@ export default function App() {
   const [forageDrawCard, setForageDrawCard] = useState<PlayingCard | null>(null);
   const [forageTargetReagentIds, setForageTargetReagentIds] = useState<string[]>([]);
   const [forageTargetTag, setForageTargetTag] = useState<RuleTag | ''>('');
+  const [forageCandidateQuery, setForageCandidateQuery] = useState('');
+  const [forageCandidateFilter, setForageCandidateFilter] = useState<ForageCandidateFilter>('all');
+  const [expandedForageCandidateIds, setExpandedForageCandidateIds] = useState<string[]>([]);
+  const [forageCandidateActionBusy, setForageCandidateActionBusy] = useState<string | null>(null);
+  const forageCandidateActionRef = useRef(false);
+  const forageCandidateWorkspaceTransactionRef = useRef('');
   const [forageLocationType, setForageLocationType] = useState<'current' | 'adjacent'>('current');
   const [forageAdjacentRegion, setForageAdjacentRegion] = useState<string>('Forest');
   const foragePlanningKeyRef = useRef('');
@@ -5816,6 +5844,12 @@ export default function App() {
     setForageDrawCard(null);
     setForageTargetReagentIds([]);
     setForageTargetTag('');
+    setForageCandidateQuery('');
+    setForageCandidateFilter('all');
+    setExpandedForageCandidateIds([]);
+    setForageCandidateActionBusy(null);
+    forageCandidateActionRef.current = false;
+    forageCandidateWorkspaceTransactionRef.current = '';
     setForageLocationType('current');
     setForageAdjacentRegion('Forest');
     foragePlanningKeyRef.current = '';
@@ -5831,6 +5865,17 @@ export default function App() {
     setForageLocationType('current');
     setForageAdjacentRegion('Forest');
   }, [state?.activePatientId, state?.activeAilment?.id]);
+
+  useEffect(() => {
+    const transactionId = activeForageEncounter?.transactionId || '';
+    if (!transactionId || forageCandidateWorkspaceTransactionRef.current === transactionId) return;
+    forageCandidateWorkspaceTransactionRef.current = transactionId;
+    setForageCandidateQuery('');
+    setForageCandidateFilter('all');
+    setExpandedForageCandidateIds([]);
+    setForageCandidateActionBusy(null);
+    forageCandidateActionRef.current = false;
+  }, [activeForageEncounter?.transactionId]);
 
   // Preload card & map images for zero-latency display
   useEffect(() => {
@@ -6183,6 +6228,8 @@ export default function App() {
         page: encounter?.sourcePage || 152,
         cardValue: cardDisplayValue(pending.card.value), suitLabel: suitLabels[pending.card.suit || '♥'], suit: pending.card.suit || '♥',
         targetReagentId: pending.targetReagentId,
+        rememberedReagentIds: pending.rememberedReagentIds || [],
+        candidateSelectionReagentId: pending.candidateSelectionReagentId,
         foundReagents: result.value!.candidates.map(candidate => ({
           name: REAGENT_BY_ID.has(candidate.reagentId)
             ? formatReagentName(REAGENT_BY_ID.get(candidate.reagentId)!)
@@ -7376,7 +7423,9 @@ export default function App() {
 
   const handleRecordForageMiss = (find: ForageFind) => {
     const pending = state.pendingForaging;
-    if (!pending || !find.reagentId) return;
+    if (!pending || !find.reagentId || forageCandidateActionRef.current) return;
+    forageCandidateActionRef.current = true;
+    setForageCandidateActionBusy(find.reagentId);
     const activePatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
     const result = resolveForaging({
       transactionId: pending.transactionId,
@@ -7402,7 +7451,11 @@ export default function App() {
       ...canonicalForagingModifiers(state),
       weatherProtectionActive: pending.ignoreNegativeEncounterEffects || state.forecastActiveAtLocation
     });
-    if (!result.value) return showAlert(result.messages.join('\n'));
+    if (!result.value) {
+      forageCandidateActionRef.current = false;
+      setForageCandidateActionBusy(null);
+      return showAlert(result.messages.join('\n'));
+    }
     const outcome = result.value;
     updateState(s => ({
       ...s,
@@ -7415,6 +7468,7 @@ export default function App() {
       pendingForaging: {
         ...pending,
         selectedReagentId: find.reagentId,
+        candidateSelectionReagentId: undefined,
         timerCostAfterEncounter: outcome.timerCostAfterEncounter,
         encounterId: outcome.encounter?.id || null,
         phase: 'encounter'
@@ -7425,6 +7479,7 @@ export default function App() {
       ...current,
       foundReagents: [find],
       selectedReagentId: find.reagentId,
+      candidateSelectionReagentId: undefined,
       gatheredPartCount: 0,
       timerBaseCost: outcome.timerCostAfterEncounter,
       forageFailed: true,
@@ -7436,7 +7491,7 @@ export default function App() {
   const handleAddForageFindToBag = async (find: ForageFind, _idx: number) => {
     const pending = state.pendingForaging;
     const reagent = REAGENTS.find(row => row.id === find.reagentId);
-    if (!pending || !reagent) return;
+    if (!pending || !reagent || forageCandidateActionRef.current) return;
     const availableToolIds = new Set(canonicalToolsFromState(state)
       .filter(tool => !tool.broken && !tool.consumed)
       .map(tool => tool.toolId));
@@ -7450,6 +7505,17 @@ export default function App() {
       showAlert(`${localizeSeasonLabel(state.currentSeason)}에는 채집할 수 있는 부위가 없습니다.`);
       return;
     }
+    forageCandidateActionRef.current = true;
+    setForageCandidateActionBusy(reagent.id);
+    setActiveForageEncounter((current: any) => current ? { ...current, candidateSelectionReagentId: reagent.id } : current);
+    updateState(s => ({
+      ...s,
+      pendingForaging: s.pendingForaging?.transactionId === pending.transactionId
+        ? { ...s.pendingForaging, candidateSelectionReagentId: reagent.id }
+        : s.pendingForaging
+    }));
+    let committed = false;
+    try {
     const selectionPatient = state.patients.find(patient => patient.id === state.activePatientId) || null;
     const selectionAilment = selectionPatient?.ailments.find(ailment => ailment.status === 'active');
     const selectionAilmentDefinition = AILMENTS.find(ailment => ailment.id === selectionAilment?.ailmentId);
@@ -7618,6 +7684,7 @@ export default function App() {
         pendingForaging: {
           ...pending,
           selectedReagentId: reagent.id,
+          candidateSelectionReagentId: undefined,
           timerCostAfterEncounter: outcome.timerCostAfterEncounter,
           encounterId: outcome.encounter?.id || null,
           phase: 'encounter'
@@ -7642,6 +7709,7 @@ export default function App() {
       ...prev,
       foundReagents: [{ ...find, name: formatReagentName(reagent) }],
       selectedReagentId: reagent.id,
+      candidateSelectionReagentId: undefined,
       gatheredPartCount: outcome.gatheredItems.length,
       timerBaseCost: outcome.timerCostAfterEncounter,
       forageFailed: outcome.gatheredItems.length === 0,
@@ -7650,7 +7718,14 @@ export default function App() {
         ? `${gatheredReagentSummary(outcome.gatheredItems, finalInventory)}${outcome.foragingPointsSpent > 0 ? ` · 채집 포인트 -${outcome.foragingPointsSpent}` : ''}`
         : `채집 실패 · 채집 포인트 +${outcome.foragingPointsGained}`
     } : prev);
+    committed = true;
     if (outcome.gatheredItems.length === 0) showAlert(result.messages.join('\n'));
+    } finally {
+      if (!committed) {
+        forageCandidateActionRef.current = false;
+        setForageCandidateActionBusy(null);
+      }
+    }
   };
 
   const applyEncounterStateEffect = async (effect: 'gainFP' | 'loseFP' | 'gainTime' | 'loseTime' | 'gainReagent' | 'loseReagent' | 'gainTrinket' | 'loseTrinket' | 'startPursuit' | 'clearPursuit' | 'gainRep' | 'loseRep' | 'markDay' | 'moveSettlement' | 'endJourney') => {
@@ -8547,6 +8622,8 @@ export default function App() {
         }));
       }
       setActiveForageEncounter(null);
+      setForageCandidateActionBusy(null);
+      forageCandidateActionRef.current = false;
     }
   };
 
@@ -9495,7 +9572,6 @@ export default function App() {
       })()}
 
       {/* Foraging Encounter Dialog Modal */}
-      {/* eslint-disable-next-line react-hooks/refs -- The ref is touched only after an encounter action, never while producing JSX. */}
       {activeForageEncounter && (() => {
         const printedEffect = PRINTED_EFFECT_BY_OWNER.get(activeForageEncounter.id || state.pendingForaging?.encounterId || '');
         const encTitle: string = localizeGameplayMessage(printedEffect?.ownerName || activeForageEncounter.title || '');
@@ -9555,7 +9631,7 @@ export default function App() {
           tagGroups: splitForagingTags(part.tags),
           missingTools
         }));
-        const forageFinds = (activeForageEncounter.foundReagents || []).map(normalizeForageFind);
+        const forageFinds: ForageFind[] = (activeForageEncounter.foundReagents || []).map(normalizeForageFind);
         const plannedForageReagentId = activeForageEncounter.targetReagentId || state.pendingForaging?.targetReagentId;
         const displayedForageFinds = activeForageEncounter.selectedReagentId
           ? forageFinds.filter((find: ForageFind) => find.reagentId === activeForageEncounter.selectedReagentId)
@@ -9605,12 +9681,75 @@ export default function App() {
             && currentForagingPoints >= (find.gapCost || 0)
           )
         );
-        const reachableForageFinds = displayedForageFinds.filter(canGatherForageFind);
-        const missedForageFinds = displayedForageFinds.filter(find => !canGatherForageFind(find));
+        const rememberedForageReagentIds = new Set<string>([
+          ...(activeForageEncounter.rememberedReagentIds || []),
+          ...(state.pendingForaging?.rememberedReagentIds || [])
+        ]);
+        const ownedForageQuantities = state.bag.reduce((totals, item) => {
+          if (!item.canonicalReagentId) return totals;
+          totals.set(item.canonicalReagentId, (totals.get(item.canonicalReagentId) || 0) + Math.max(1, item.qty || 1));
+          return totals;
+        }, new Map<string, number>());
+        const foragePatientRelevance = (find: ForageFind) => {
+          const matchingParts = availableForagePartOptions(find).flatMap(({ part, missingTools }) => {
+            const tags = treatmentRelevantPreparationTags(part.tags, neededForageRequirements);
+            return tags.length > 0 ? [{ tags, missingTools }] : [];
+          });
+          const tags = Array.from(new Map(
+            matchingParts.flatMap(part => part.tags).map(tag => [`${tag.tag}:${tag.value}`, tag])
+          ).values());
+          return {
+            tags,
+            relevant: tags.length > 0,
+            allNeedTools: matchingParts.length > 0 && matchingParts.every(part => part.missingTools.length > 0)
+          };
+        };
+        const patientRelevantForageReagentIds = new Set<string>(displayedForageFinds.flatMap(find =>
+          find.reagentId && foragePatientRelevance(find).relevant ? [find.reagentId] : []
+        ));
+        const ownedForageReagentIds = new Set<string>(Array.from(ownedForageQuantities.entries()).flatMap(([id, quantity]) =>
+          quantity > 0 ? [id] : []
+        ));
+        const forageCandidateAliases = new Map<string, string[]>(displayedForageFinds.flatMap(find => {
+          if (!find.reagentId) return [];
+          const reagent = REAGENT_BY_ID.get(find.reagentId);
+          return [[find.reagentId, [reagent?.canonicalName || '', reagent?.displayName || ''].filter(Boolean)]];
+        }));
+        const visibleForageFinds = filterForageCandidateRows(displayedForageFinds, {
+          query: forageCandidateQuery,
+          filter: forageCandidateFilter,
+          aliasesByReagentId: forageCandidateAliases,
+          rememberedReagentIds: rememberedForageReagentIds,
+          patientRelevantReagentIds: patientRelevantForageReagentIds,
+          ownedReagentIds: ownedForageReagentIds
+        });
+        const reachableForageFinds = visibleForageFinds.filter(canGatherForageFind);
+        const missedForageFinds = visibleForageFinds.filter(find => !canGatherForageFind(find));
+        const allReachableForageCount = displayedForageFinds.filter(canGatherForageFind).length;
+        const allMissedForageCount = displayedForageFinds.length - allReachableForageCount;
+        const candidateFilterCounts = {
+          remembered: displayedForageFinds.filter(find => Boolean(find.reagentId && rememberedForageReagentIds.has(find.reagentId))).length,
+          patient: displayedForageFinds.filter(find => Boolean(find.reagentId && patientRelevantForageReagentIds.has(find.reagentId))).length,
+          owned: displayedForageFinds.filter(find => Boolean(find.reagentId && (ownedForageQuantities.get(find.reagentId) || 0) > 0)).length
+        };
+        const candidateSelectionReagentId = activeForageEncounter.candidateSelectionReagentId
+          || state.pendingForaging?.candidateSelectionReagentId;
+        const forageCandidateFilteringActive = Boolean(forageCandidateQuery.trim() || forageCandidateFilter !== 'all');
+        const clearForageCandidateFilters = () => {
+          setForageCandidateQuery('');
+          setForageCandidateFilter('all');
+        };
+        /* eslint-disable react-hooks/refs -- Candidate handlers read the re-entry guard only after the player clicks. */
         const renderForageCandidateList = (finds: ForageFind[]) => (
           <ul className="forage-candidate-list">
             {finds.map((normalizedFind: ForageFind, idx: number) => {
               const availablePartOptions = availableForagePartOptions(normalizedFind);
+              const candidateId = normalizedFind.reagentId || `${normalizedFind.name}:${idx}`;
+              const candidateDetailId = `forage-candidate-detail-${candidateId.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+              const expanded = expandedForageCandidateIds.includes(candidateId);
+              const remembered = Boolean(normalizedFind.reagentId && rememberedForageReagentIds.has(normalizedFind.reagentId));
+              const selected = Boolean(normalizedFind.reagentId && candidateSelectionReagentId === normalizedFind.reagentId);
+              const patientRelevance = foragePatientRelevance(normalizedFind);
               const canSpendGap = !normalizedFind.cardSuccess
                 && !normalizedFind.fpAvailable
                 && (normalizedFind.gapCost || 0) > 0
@@ -9623,16 +9762,64 @@ export default function App() {
                   : canSpendGap
                     ? `FP ${normalizedFind.gapCost} 사용 가능`
                     : '이번 카드로는 찾지 못함';
-              const ownedQuantity = state.bag
-                .filter(item => item.canonicalReagentId === normalizedFind.reagentId)
-                .reduce((sum, item) => sum + Math.max(1, item.qty || 1), 0);
+              const ownedQuantity = normalizedFind.reagentId ? ownedForageQuantities.get(normalizedFind.reagentId) || 0 : 0;
               return (
-                <li key={`${normalizedFind.name}_${idx}`} className="forage-candidate">
+                <li
+                  key={`${normalizedFind.name}_${idx}`}
+                  className={`forage-candidate${expanded ? ' is-expanded' : ''}${selected ? ' is-selected' : ''}`}
+                >
                   <div className="forage-candidate__copy">
-                    <span>{normalizedFind.name} · 보유 {ownedQuantity}{normalizedFind.rarity ? ` · ${status}` : ''}</span>
-                    {normalizedFind.rarity > 0 && <small className="forage-candidate__rarity">{rarityExplanation(normalizedFind)}</small>}
-                    {availablePartOptions.length > 0 && (
-                      <div className="forage-candidate__tags" aria-label="부위와 조제법마다 얻을 수 있는 효과">
+                    <span>{normalizedFind.name}</span>
+                    <div className="forage-candidate__context" aria-label="현재 채집 맥락">
+                      <small>{normalizedFind.rarity > 0 ? `희귀도 ${normalizedFind.rarity} · ` : ''}{status}</small>
+                      <small>가방 {ownedQuantity}개</small>
+                      {remembered && <small className="is-remembered">조사 노트에 있음</small>}
+                      {patientRelevance.relevant && (
+                        <small className="is-patient-relevant">
+                          부위에 따라 처방 기여 · {Array.from(new Set(patientRelevance.tags.map(tag => tag.tag))).join(' / ')}
+                          {patientRelevance.allNeedTools ? ' · 조제 도구 필요' : ''}
+                        </small>
+                      )}
+                      {selected && <small className="is-selected">선택 중 · 확정 전 변경 가능</small>}
+                    </div>
+                  </div>
+                  <div className="forage-candidate__actions">
+                    <button
+                      type="button"
+                      className="forage-candidate__inspect"
+                      aria-expanded={expanded}
+                      aria-controls={candidateDetailId}
+                      onClick={() => setExpandedForageCandidateIds(previous => expanded
+                        ? previous.filter(id => id !== candidateId)
+                        : [...previous, candidateId])}
+                    >
+                      {expanded ? '접기' : '살피기'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => canGather
+                        ? handleAddForageFindToBag(normalizedFind, idx)
+                        : handleRecordForageMiss(normalizedFind)}
+                      disabled={Boolean(activeForageEncounter.selectedReagentId || forageCandidateActionBusy)}
+                      className={canGather ? 'forage-candidate__action' : 'forage-candidate__action forage-candidate__action--miss'}
+                    >
+                      {forageCandidateActionBusy === normalizedFind.reagentId
+                        ? '여는 중…'
+                        : activeForageEncounter.selectedReagentId
+                          ? '선택 완료'
+                          : canGather
+                            ? selected ? '선택 계속' : '부위 선택'
+                            : '실패 기록 · FP +1'}
+                    </button>
+                  </div>
+                  {expanded && availablePartOptions.length > 0 && (
+                    <div
+                      id={candidateDetailId}
+                      className="forage-candidate__tags"
+                      role="region"
+                      aria-label={`${normalizedFind.name} 부위와 조제법마다 얻을 수 있는 효과`}
+                    >
+                        {normalizedFind.rarity > 0 && <small className="forage-candidate__rarity">판정 근거 · {rarityExplanation(normalizedFind)}</small>}
                         <span>부위별 효과 · 한 줄이 한 가지 선택지입니다</span>
                         <div className="forage-candidate__part-options">
                           {availablePartOptions.map(({ part, tagGroups, missingTools }) => (
@@ -9661,24 +9848,26 @@ export default function App() {
                           ))}
                         </div>
                         <em>실제 획득 효과는 ‘부위 골라 담기’에서 선택한 행에만 적용됩니다. 흐린 행은 필요한 조제 도구가 없어 이번에는 고를 수 없습니다.</em>
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => canGather
-                      ? handleAddForageFindToBag(normalizedFind, idx)
-                      : handleRecordForageMiss(normalizedFind)}
-                    disabled={Boolean(activeForageEncounter.selectedReagentId)}
-                    className={canGather ? 'forage-candidate__action' : 'forage-candidate__action forage-candidate__action--miss'}
-                  >
-                    {activeForageEncounter.selectedReagentId ? '선택 완료' : canGather ? '부위 골라 담기' : '실패로 기록 · 채집 포인트 +1'}
-                  </button>
+                        {normalizedFind.reagentId && (
+                          <button
+                            type="button"
+                            className="forage-candidate__reference"
+                            onClick={() => openRulebookReference({
+                              entryId: `ingredient:${normalizedFind.reagentId}`,
+                              title: `${normalizedFind.name} 도감·원문`
+                            })}
+                          >
+                            도감·원문에서 더 보기
+                          </button>
+                        )}
+                    </div>
+                  )}
                 </li>
               );
             })}
           </ul>
         );
+        /* eslint-enable react-hooks/refs */
 
         return (
           <div className="encounter-dialog-backdrop">
@@ -9806,42 +9995,103 @@ export default function App() {
                 </div>
               )}
 
-              <div style={{ marginTop: '1rem', background: '#f0f9f4', padding: '1rem', borderRadius: '10px', borderLeft: '4.5px solid var(--secondary)' }}>
-                <h4 style={{ margin: '0 0 0.5rem 0', color: 'var(--secondary)', fontSize: '0.95rem' }}>🌿 {plannedForageReagentId ? '목표 영약재 판정' : '채집 발견 처리'}</h4>
-                {plannedForageReagentId && !activeForageEncounter.selectedReagentId && (
+              {!activeForageEncounter.selectedReagentId && <div className="forage-discovery-surface">
+                <header className="forage-discovery-surface__context">
+                  <h4>🌿 {plannedForageReagentId ? '목표 영약재 판정' : '채집 발견 처리'}</h4>
+                  <span>{localizeRegionLabel(activeForageEncounter.region)} · {localizeSeasonLabel(activeForageEncounter.season || state.currentSeason)} · {activeForageEncounter.cardValue} {activeForageEncounter.suitLabel}</span>
+                </header>
+                {plannedForageReagentId && (
                   <p style={{ margin: '0 0 0.7rem', color: '#4f6d58', fontSize: '0.84rem', lineHeight: 1.55 }}>
                     카드 뽑기 전에 조사해 둔 영약재만 판정합니다. 카드 값과 희귀도를 비교한 뒤 부위를 고르세요.
                   </p>
                 )}
-                {!plannedForageReagentId && !activeForageEncounter.selectedReagentId && forageFinds.length > 0 && (
-                  <p style={{ margin: '0 0 0.7rem', color: '#4f6d58', fontSize: '0.84rem', lineHeight: 1.55 }}>
-                    이번 채집에서 손이 닿는 재료를 들녘의 인쇄 순서대로 펼쳤습니다. 지금 얻을 수 있는 부위의 약효를 곁에 표시했습니다.
+                {!plannedForageReagentId && forageFinds.length > 0 && (
+                  <p className="forage-discovery-surface__intro">
+                    후보는 룰북의 중립 순서 그대로입니다. 이름과 현재 맥락을 먼저 훑고, 궁금한 재료만 살펴 부위와 약효를 확인하세요.
+                  </p>
+                )}
+                {displayedForageFinds.length >= 10 && (
+                  <div className="forage-candidate-toolbar">
+                    <label>
+                      <span>현재 결과 안에서 찾기</span>
+                      <input
+                        type="search"
+                        value={forageCandidateQuery}
+                        onChange={event => setForageCandidateQuery(event.target.value)}
+                        placeholder="재료 이름 검색"
+                        autoComplete="off"
+                      />
+                    </label>
+                    <div className="forage-candidate-toolbar__filters" role="group" aria-label="현재 후보 필터">
+                      {([
+                        ['all', `전체 ${displayedForageFinds.length}`],
+                        ['remembered', `조사 노트 ${candidateFilterCounts.remembered}`],
+                        ['patient', `처방 연관 ${candidateFilterCounts.patient}`],
+                        ['owned', `가방에 있음 ${candidateFilterCounts.owned}`]
+                      ] as const).map(([filter, label]) => (
+                        <button
+                          key={filter}
+                          type="button"
+                          aria-pressed={forageCandidateFilter === filter}
+                          className={forageCandidateFilter === filter ? 'is-active' : ''}
+                          onClick={() => setForageCandidateFilter(filter)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <small>필터는 이번 카드의 합법 후보를 숨겨 보기만 합니다. 추천하거나 순서를 바꾸지 않습니다.</small>
+                  </div>
+                )}
+                {candidateSelectionReagentId && (
+                  <p className="forage-candidate-selection-note" role="status">
+                    <span><strong>{REAGENT_BY_ID.has(candidateSelectionReagentId) ? formatReagentName(REAGENT_BY_ID.get(candidateSelectionReagentId)!) : '고른 재료'}</strong>의 부위를 고르는 중입니다. 확정 전에는 다른 후보로 바꿀 수 있습니다.</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clearForageCandidateFilters();
+                        setExpandedForageCandidateIds(previous => previous.includes(candidateSelectionReagentId)
+                          ? previous
+                          : [...previous, candidateSelectionReagentId]);
+                      }}
+                    >
+                      선택한 재료 보기
+                    </button>
                   </p>
                 )}
                 {displayedForageFinds.length > 0 ? (
-                  activeForageEncounter.selectedReagentId ? renderForageCandidateList(displayedForageFinds) : (
+                  visibleForageFinds.length > 0 ? (
                     <div className="forage-discovery-workspace">
                       {reachableForageFinds.length > 0 ? (
                         <section className="forage-discovery-workspace__found" aria-labelledby="forage-found-heading">
                           <header>
                             <strong id="forage-found-heading">이번에 채집할 수 있는 재료</strong>
-                            <span>{reachableForageFinds.length}가지</span>
+                            <span>{forageCandidateFilteringActive ? `${reachableForageFinds.length} / ${allReachableForageCount}가지` : `${allReachableForageCount}가지`}</span>
                           </header>
                           {renderForageCandidateList(reachableForageFinds)}
                         </section>
                       ) : (
-                        <p className="forage-discovery-workspace__empty">이번 카드로 바로 발견한 재료가 없습니다. 아래 목록에서 한 재료의 실패를 기록해 채집 포인트를 얻을 수 있습니다.</p>
+                        <p className="forage-discovery-workspace__empty">
+                          {allReachableForageCount > 0
+                            ? '현재 검색·필터에 맞는 채집 가능 재료는 없습니다.'
+                            : '이번 카드로 바로 발견한 재료가 없습니다. 아래 목록에서 한 재료의 실패를 기록해 채집 포인트를 얻을 수 있습니다.'}
+                        </p>
                       )}
                       {missedForageFinds.length > 0 && (
                         <details className="forage-discovery-workspace__missed" open={reachableForageFinds.length === 0}>
                           <summary>
                             <span>아직 닿지 않은 재료</span>
-                            <small>{missedForageFinds.length}가지 · 펼쳐서 실패 기록</small>
+                            <small>{forageCandidateFilteringActive ? `${missedForageFinds.length} / ${allMissedForageCount}가지` : `${allMissedForageCount}가지`} · 펼쳐서 실패 기록</small>
                           </summary>
                           <p>원한다면 이 가운데 한 재료를 이번 채집의 실패로 기록하고 채집 포인트 1을 얻습니다.</p>
                           {renderForageCandidateList(missedForageFinds)}
                         </details>
                       )}
+                    </div>
+                  ) : (
+                    <div className="forage-candidate-filter-empty">
+                      <p>현재 검색·필터에 맞는 재료가 없습니다. 후보는 사라진 것이 아니라 잠시 가려져 있습니다.</p>
+                      <button type="button" onClick={clearForageCandidateFilters}>전체 후보 다시 보기</button>
                     </div>
                   )
                 ) : (
@@ -9849,11 +10099,14 @@ export default function App() {
                     영약재의 희귀도가 뽑은 카드 값보다 높아 발견하지 못했습니다. (+1 채집 포인트 획득)
                   </div>
                 )}
-              </div>
+              </div>}
 
               {activeForageEncounter.selectedReagentId && (
                 <div className={`forage-result-receipt ${activeForageEncounter.forageFailed ? 'is-failure' : 'is-success'}`} role="status" aria-live="polite">
                   <strong>{activeForageEncounter.forageFailed ? '채집 판정 완료' : '가방에 담았습니다'}</strong>
+                  <span>선택한 재료 · {REAGENT_BY_ID.has(activeForageEncounter.selectedReagentId)
+                    ? formatReagentName(REAGENT_BY_ID.get(activeForageEncounter.selectedReagentId)!)
+                    : activeForageEncounter.selectedReagentId}</span>
                   <span>{activeForageEncounter.resultNotice || (activeForageEncounter.forageFailed ? '채집에 실패했습니다.' : '선택한 영약재 부위를 획득했습니다.')}</span>
                   <span>현재 가방 {formatWeight(currentWeight)} / {maxCarry}{currentWeight > maxCarry ? ' · 소지 한도 초과(채집은 허용됨)' : ''}</span>
                   <span>
@@ -14256,6 +14509,7 @@ function PlayView({
       locationRelation,
       card: { value: cardVal, suit: drawnSuit },
       targetReagentId,
+      rememberedReagentIds: [...effectiveForageTargetReagentIds],
       timerCostAfterEncounter: result.value.timerCostAfterEncounter,
       encounterId: encounter?.id || null,
       phase: 'choose-reagent',
@@ -14273,6 +14527,7 @@ function PlayView({
       suitLabel: suitLabels[drawnSuit],
       suit: drawnSuit,
       targetReagentId,
+      rememberedReagentIds: [...effectiveForageTargetReagentIds],
       foundReagents: result.value.candidates.map(candidate => ({
         name: REAGENT_BY_ID.has(candidate.reagentId)
           ? formatReagentName(REAGENT_BY_ID.get(candidate.reagentId)!)
@@ -19778,9 +20033,6 @@ function PlayView({
                                     <strong>{formatReagentName(row.reagent)}</strong>
                                     <small className="forage-target-row__story">
                                       {localizeSeasonLabel(state.currentSeason)}의 {localizeRegionLabel(forageContext.region)}에서 찾을 수 있는 {localizeReagentType(row.reagent.type)}입니다.
-                                    </small>
-                                    <small className="forage-target-row__preparations">
-                                      {Array.from(new Set(row.matchingParts.map(part => `${localizePreparationName(part.part.name)} · ${localizePreparationMethod(part.part.method)} 조제`))).join(' / ')}
                                     </small>
                                   </span>
                                   <span className="forage-target-row__tags">

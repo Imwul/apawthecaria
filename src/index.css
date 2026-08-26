@@ -471,6 +471,313 @@ button:active {
   }
 }
 
+/* Large forage results are a field index first and a reference page second.
+   Keep the canonical candidate order, expose context without ranking it, and
+   defer dense Part/tool details until the player asks to inspect one row. */
+.encounter-dialog--forage {
+  width: min(1180px, calc(100vw - 4rem));
+}
+
+.forage-discovery-surface {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-left: 4px solid var(--secondary);
+  background: rgba(240, 249, 244, 0.78);
+}
+
+.forage-discovery-surface__intro {
+  margin: 0 0 0.75rem;
+  color: #4f6d58;
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+.forage-discovery-surface__context {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: -1rem -1rem 0.65rem;
+  padding: 0.72rem 1rem 0.62rem;
+  border-bottom: 1px solid rgba(79, 109, 88, 0.3);
+  background: rgba(240, 249, 244, 0.97);
+}
+
+.forage-discovery-surface__context h4 {
+  margin: 0;
+  color: var(--secondary);
+  font-size: 0.98rem;
+}
+
+.forage-discovery-surface__context span {
+  color: #536958;
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.forage-candidate-toolbar {
+  display: grid;
+  grid-template-columns: minmax(15rem, 0.8fr) minmax(0, 1.6fr);
+  align-items: end;
+  gap: 0.55rem 0.8rem;
+  margin: 0.8rem 0 1rem;
+  padding-block: 0.75rem;
+  border-block: 1px solid rgba(79, 109, 88, 0.28);
+}
+
+.forage-candidate-toolbar label {
+  display: grid;
+  gap: 0.28rem;
+  color: #4b6652;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.forage-candidate-toolbar input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(70, 91, 75, 0.58);
+  border-radius: 3px;
+  background: rgba(255, 254, 249, 0.94);
+  color: var(--text-bright);
+  font-size: 1rem;
+}
+
+.forage-candidate-toolbar__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.forage-candidate-toolbar__filters button,
+.forage-candidate-filter-empty button {
+  min-height: 40px;
+  padding: 0.45rem 0.68rem;
+  border: 1px solid rgba(79, 109, 88, 0.42);
+  border-radius: 3px;
+  background: rgba(255, 254, 249, 0.88);
+  color: #4f6554;
+  font-weight: 650;
+}
+
+.forage-candidate-toolbar__filters button.is-active {
+  border-color: #3f6248;
+  outline: 2px solid rgba(63, 98, 72, 0.2);
+  outline-offset: 1px;
+  color: #294e33;
+}
+
+.forage-candidate-toolbar > small {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.forage-candidate-selection-note,
+.forage-candidate-filter-empty {
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-left: 3px solid #8b7052;
+  background: rgba(247, 239, 224, 0.78);
+  color: #5d4e3d;
+  line-height: 1.55;
+}
+
+.forage-candidate-selection-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.forage-candidate-selection-note button {
+  min-width: max-content;
+  min-height: 40px;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid rgba(112, 86, 51, 0.45);
+  border-radius: 3px;
+  background: rgba(255, 254, 249, 0.9);
+  color: #6b4e32;
+  font-weight: 700;
+}
+
+.forage-candidate-filter-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.forage-candidate-filter-empty p {
+  margin: 0;
+}
+
+.forage-candidate-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 0 1rem;
+}
+
+.forage-candidate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+  min-width: 0;
+  min-height: 64px;
+  padding: 0.58rem 0.15rem;
+  border-bottom: 1px dotted rgba(83, 110, 91, 0.44);
+}
+
+.forage-candidate.is-expanded {
+  grid-column: 1 / -1;
+  padding: 0.75rem;
+  border: 1px solid rgba(79, 109, 88, 0.38);
+  background: rgba(255, 254, 249, 0.72);
+}
+
+.forage-candidate.is-selected {
+  border-left: 3px solid #745b3f;
+  padding-left: 0.6rem;
+}
+
+.forage-candidate__copy > span {
+  color: #344d3a;
+  font-size: 0.98rem;
+  line-height: 1.35;
+}
+
+.forage-candidate__context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.12rem 0.48rem;
+  margin-top: 0.18rem;
+}
+
+.forage-candidate__context small {
+  color: #69645a;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.forage-candidate__context small + small::before {
+  content: "·";
+  margin-right: 0.48rem;
+  color: #a49b8e;
+}
+
+.forage-candidate__context .is-remembered {
+  color: #765719;
+  font-weight: 700;
+}
+
+.forage-candidate__context .is-patient-relevant {
+  color: #315d3d;
+  font-weight: 700;
+}
+
+.forage-candidate__context .is-selected {
+  color: #6b4e32;
+  font-weight: 800;
+}
+
+.forage-candidate__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  gap: 0.3rem;
+}
+
+.forage-candidate__inspect,
+.forage-candidate__reference {
+  min-width: 4.4rem;
+  min-height: 44px;
+  flex-shrink: 0;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid rgba(79, 109, 88, 0.48);
+  border-radius: 3px;
+  background: rgba(255, 254, 249, 0.82);
+  color: #4c6653;
+  font-weight: 650;
+}
+
+.forage-candidate__action {
+  min-width: 7.6rem;
+  min-height: 44px;
+  flex-shrink: 0;
+  padding: 0.45rem 0.65rem;
+  border-radius: 3px;
+  white-space: normal;
+}
+
+.forage-candidate__tags {
+  grid-column: 1 / -1;
+  margin-top: 0.18rem;
+  padding-top: 0.62rem;
+  border-top: 1px dotted rgba(79, 109, 88, 0.4);
+}
+
+.forage-candidate__rarity {
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.forage-candidate__reference {
+  width: fit-content;
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 899px) {
+  .encounter-dialog--forage {
+    width: min(760px, 100%);
+  }
+
+  .forage-candidate-toolbar,
+  .forage-candidate-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .forage-candidate-toolbar > small {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 620px) {
+  .encounter-dialog--forage {
+    width: 100%;
+  }
+
+  .forage-candidate,
+  .forage-candidate.is-expanded {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .forage-candidate__actions,
+  .forage-candidate-filter-empty,
+  .forage-candidate-selection-note,
+  .forage-discovery-surface__context {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .forage-discovery-surface__context span {
+    white-space: normal;
+  }
+
+  .forage-candidate__actions button,
+  .forage-candidate-filter-empty button,
+  .forage-candidate-selection-note button {
+    width: 100%;
+  }
+}
+
 /* Journey setup reads as one decision spread rather than a stack of unrelated cards. */
 .journey-start-summary {
   display: grid;
@@ -738,7 +1045,7 @@ button:active {
 
 .forage-candidate__part-option {
   display: grid;
-  grid-template-columns: minmax(10rem, 1fr) minmax(12rem, 1.35fr) auto;
+  grid-template-columns: minmax(10rem, 0.9fr) minmax(12rem, 1.2fr) minmax(8rem, 0.8fr);
   align-items: center;
   gap: 0.35rem 0.55rem;
   padding: 0.35rem 0.45rem;
@@ -3718,13 +4025,6 @@ body {
 .forage-target-row__story {
   color: #586752 !important;
   font-family: var(--font-base);
-}
-
-.forage-target-row__preparations {
-  padding-top: 0.12rem;
-  border-top: 1px dotted rgba(91, 116, 67, 0.24);
-  color: #756b5c !important;
-  font-size: 0.875rem !important;
 }
 
 .forage-target-row__tags {
@@ -12211,9 +12511,11 @@ details.rulebook-source-text > summary {
 
 .card-draw-compact__manual {
   display: grid;
-  grid-template-columns: minmax(12rem, 1.2fr) minmax(10rem, 0.9fr) auto;
+  width: min(100%, 48rem);
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.5rem;
-  align-items: stretch;
+  align-items: start;
+  justify-items: start;
   padding: 0.65rem;
   border: 1px dashed var(--border-cozy);
   border-radius: 6px;
@@ -12221,22 +12523,66 @@ details.rulebook-source-text > summary {
 }
 
 .card-draw-compact__manual > span {
-  grid-column: 1 / -1;
   color: var(--text-muted);
   line-height: 1.4;
 }
 
-.card-draw-compact__manual :is(select, button) {
+.card-draw-compact__manual-step {
+  display: grid;
+  width: 100%;
+  gap: 0.35rem;
+}
+
+.card-draw-compact__manual-step > strong {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.card-draw-compact__manual .suit-btn-row,
+.card-draw-compact__manual .value-chip-strip {
+  max-width: none;
+  justify-content: flex-start;
+}
+
+.card-draw-compact__manual .suit-btn,
+.card-draw-compact__manual .value-chip,
+.card-draw-compact__manual .card-draw-compact__apply {
   width: 100%;
   min-width: 0;
-  min-height: 46px;
   height: auto !important;
-  padding: 0.55rem 0.7rem;
   line-height: 1.35;
 }
 
-.card-draw-compact__manual button {
-  min-width: 7.5rem;
+.card-draw-compact__manual .suit-btn {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.card-draw-compact__manual .suit-btn--directional {
+  width: auto;
+  min-width: 5.4rem;
+  flex-direction: column;
+  gap: 0.08rem;
+  padding: 0.28rem 0.45rem;
+}
+
+.card-draw-compact__manual .suit-btn--directional small {
+  font-size: 0.68rem;
+  line-height: 1.15;
+}
+
+.card-draw-compact__manual .value-chip {
+  width: auto;
+  min-width: 34px;
+  min-height: 36px;
+}
+
+.card-draw-compact__manual .card-draw-compact__apply {
+  width: auto;
+  min-width: 8.5rem;
+  min-height: 44px;
+  padding: 0.5rem 0.8rem;
   border: 1px solid var(--primary);
   border-radius: 4px;
   background: #fff;
@@ -12541,5 +12887,39 @@ details.rulebook-source-text > summary {
   .patient-workflow__treatment {
     padding-inline: 0;
     background: transparent;
+  }
+}
+
+/* Keep forage-specific proportions after the shared dialog/control rules. */
+.encounter-dialog.encounter-dialog--forage {
+  width: min(1180px, calc(100vw - 4rem));
+}
+
+.forage-candidate__actions button {
+  font-size: 0.875rem !important;
+  line-height: 1.25;
+}
+
+.forage-candidate__actions .forage-candidate__inspect {
+  min-width: 4rem;
+}
+
+.forage-candidate__actions .forage-candidate__action {
+  min-width: 5.2rem;
+}
+
+.forage-candidate__actions .forage-candidate__action--miss {
+  min-width: 7.6rem;
+}
+
+@media (max-width: 899px) {
+  .encounter-dialog.encounter-dialog--forage {
+    width: min(760px, 100%);
+  }
+}
+
+@media (max-width: 620px) {
+  .encounter-dialog.encounter-dialog--forage {
+    width: 100%;
   }
 }

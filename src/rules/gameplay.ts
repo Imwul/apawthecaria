@@ -79,6 +79,11 @@ export interface PendingForagingState {
   secondaryCardChoiceId?: string;
   /** Reagent researched and listed before the Foraging card was drawn (pp.30–32). */
   targetReagentId?: string;
+  /** Player-marked research notes carried into this exact unresolved draw. */
+  rememberedReagentIds?: string[];
+  /** Uncommitted candidate choice. Distinct from selectedReagentId, which means the result was applied. */
+  candidateSelectionReagentId?: string;
+  /** Reagent whose gather or miss result has already been committed. */
   selectedReagentId?: string;
   timerCostAfterEncounter: number;
   encounterId: string | null;

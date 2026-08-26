@@ -125,7 +125,13 @@ describe('foraging workflow order', () => {
 
   it('only describes suit directions in the journey destination card control', () => {
     expect(appSource).toContain('showSuitDirections = false');
-    expect(appSource).toContain("{showSuitDirections ? ' · 북쪽/위' : ''}");
+    expect(appSource).toContain('aria-label={`${suit}${showSuitDirections ? ` · ${direction}` : \'\'}`}');
+    expect(appSource).toContain('{showSuitDirections && <small>{direction}</small>}');
     expect(appSource).toMatch(/label="목적지와 방향 카드"\s+showSuitDirections/);
+  });
+
+  it('shows each planned preparation once in the contribution column', () => {
+    expect(appSource).toContain('className="forage-target-row__part-tags"');
+    expect(appSource).not.toContain('forage-target-row__preparations');
   });
 });

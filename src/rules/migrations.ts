@@ -844,6 +844,17 @@ const normalizePendingForaging = (
   if (!card || !validRegions.includes(String(value.region))) return null;
   const validPhases = ['choose-reagent', 'encounter', 'timer', 'resolved'];
   const phase = validPhases.includes(String(value.phase)) ? value.phase : 'choose-reagent';
+  const canonicalReagentId = (candidate: unknown): string | undefined => {
+    if (typeof candidate !== 'string') return undefined;
+    const id = candidate.trim();
+    return id && REAGENT_BY_ID.has(id) ? id : undefined;
+  };
+  const rememberedReagentIds = Array.isArray(value.rememberedReagentIds)
+    ? [...new Set(value.rememberedReagentIds.flatMap(candidate => {
+        const id = canonicalReagentId(candidate);
+        return id ? [id] : [];
+      }))]
+    : undefined;
   const immediateRemedy = normalizeImmediateRemedyFields({
     value,
     eligible: phase === 'resolved',
@@ -857,9 +868,12 @@ const normalizePendingForaging = (
     ...value,
     card,
     ...normalizeSecondaryCardFields(value),
-    targetReagentId: typeof value.targetReagentId === 'string' && value.targetReagentId.trim()
-      ? value.targetReagentId.trim()
+    targetReagentId: canonicalReagentId(value.targetReagentId),
+    rememberedReagentIds,
+    candidateSelectionReagentId: phase === 'choose-reagent'
+      ? canonicalReagentId(value.candidateSelectionReagentId)
       : undefined,
+    selectedReagentId: canonicalReagentId(value.selectedReagentId),
     locationRelation: value.locationRelation === 'adjacent' ? 'adjacent' : 'current',
     timerCostAfterEncounter: Number.isFinite(Number(value.timerCostAfterEncounter))
       ? Math.max(0, Number(value.timerCostAfterEncounter))
