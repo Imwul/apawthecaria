@@ -2285,6 +2285,17 @@ button:active {
   color: #fff;
 }
 
+.cloud-slot__actions .cloud-slot__delete {
+  border-color: rgba(143, 47, 40, 0.45);
+  color: #8f2f28;
+  background: rgba(246, 228, 220, 0.58);
+}
+
+.cloud-slot__actions .cloud-slot__delete:hover:not(:disabled) {
+  border-color: #8f2f28;
+  background: #f6e4dc;
+}
+
 .cloud-slot__actions button:disabled {
   opacity: 0.45;
 }
@@ -11336,14 +11347,16 @@ details.rulebook-source-text > summary {
   color: var(--editorial-ink);
   font-family: var(--font-display);
   font-size: clamp(2rem, 5vw, 3.5rem);
-  line-height: 0.98;
+  /* The display face has a tall Korean glyph box; the previous sub-1 line
+     height made the two-line welcome title visually collide at desktop sizes. */
+  line-height: 1.1;
 }
 
 .onboarding-focus__intro p {
   max-width: 62ch;
   margin: 0;
   color: rgba(37, 33, 28, 0.76);
-  line-height: 1.65;
+  line-height: 1.78;
 }
 
 .character-wizard--focused {

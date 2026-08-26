@@ -288,6 +288,9 @@ describe('cloud save slots', () => {
     expect(appSource).toContain('CloudSlotsDialog');
     expect(appSource).toContain('handleDownloadCloudSlot');
     expect(appSource).toContain('handleUploadCloudSlot');
+    expect(appSource).toContain('handleDeleteCloudSlot');
+    expect(appSource).toContain('deleteCloudSlotRecord');
+    expect(appSource).toContain('이 작업은 되돌릴 수 없습니다.');
     expect(appSource).toContain('runTransaction');
     expect(appSource).toContain("setDoc(doc(db, 'saves', payloadDocumentId)");
     expect(appSource).toContain("getDoc(doc(db, 'saves', record.payloadDocumentId))");

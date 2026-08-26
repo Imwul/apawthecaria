@@ -822,6 +822,37 @@ const writeCloudSlotRecord = async (
   }
 };
 
+const deleteCloudSlotRecord = async (uid: string, slot: CloudSlotId): Promise<CloudSlotView[]> => {
+  const docRef = userSaveDocRef(uid);
+  if (!docRef || auth?.currentUser?.uid !== uid) throw cloudSlotError('not-signed-in');
+  let removed: CloudSlotRecord | null = null;
+  const views = await withTimeout(runTransaction(db!, async transaction => {
+    if (auth?.currentUser?.uid !== uid) throw cloudSlotError('not-signed-in');
+    const snap = await transaction.get(docRef);
+    const current = readCloudSlotsFromDocument(
+      snap.exists() ? snap.data() as Record<string, unknown> : null,
+      snap.exists() ? snapshotUpdatedAt(snap) : null
+    );
+    removed = current.records[slot - 1] || null;
+    if (!removed) return current.views;
+    const records = current.records.map((record, index) => index === slot - 1 ? null : record);
+    const compactDocument = assembleCloudSlotDocument(records);
+    transaction.set(docRef, {
+      ownerUid: uid,
+      ...compactDocument,
+      [CAMPAIGN_SAVE_KEY]: deleteField()
+    }, { merge: true });
+    return readCloudSlotsFromDocument(compactDocument, new Date().toISOString()).views;
+  }), 30000);
+  if (removed?.payloadDocumentId) {
+    await removeCloudSlotPayloadDocumentBestEffort(removed.payloadDocumentId, uid);
+  }
+  if (removed?.storagePath) {
+    await removeCloudSlotPayloadBestEffort(removed.storagePath);
+  }
+  return views;
+};
+
 type CloudMapConnectionIndex = {
   activeSnapshotId: string | null;
   publishedSnapshotId: string | null;
@@ -5649,7 +5680,7 @@ const isGuildServiceAvailableAtLocation = (service: any, s: GameState, bypass: b
 
 type CloudSlotOperation =
   | { kind: 'loading' }
-  | { kind: 'uploading' | 'downloading'; slot: CloudSlotId }
+  | { kind: 'uploading' | 'downloading' | 'deleting'; slot: CloudSlotId }
   | null;
 
 const CLOUD_BOOTSTRAP_TIMEOUT_MS = 3000;
@@ -7231,6 +7262,39 @@ export default function App() {
     } catch (error) {
       if (!operationStillCurrent()) return;
       console.error('Failed to upload cloud slot:', error);
+      showAlert(cloudWriteErrorMessage(error as { code?: string; message?: string }));
+    } finally {
+      cloudSlotOperationInFlightRef.current = false;
+      setCloudSlotOperation(null);
+    }
+  };
+
+  const handleDeleteCloudSlot = async (slot: CloudSlotId) => {
+    if (cloudSlotBusy || cloudSlotOperationInFlightRef.current) return;
+    const uid = auth?.currentUser?.uid;
+    if (!uid || !userSaveDocRef(uid)) {
+      showAlert('구글 계정에 먼저 로그인해 주세요.');
+      return;
+    }
+    const currentView = cloudSlotViews.find(view => view.slot === slot);
+    if (!currentView || currentView.empty) return;
+    if (!askWindowConfirm(`슬롯 ${slot}의 ${currentView.name || '캠페인 기록'}을 클라우드에서 영구 삭제할까요? 이 작업은 되돌릴 수 없습니다.`)) return;
+    const operationGeneration = ++cloudSlotOperationGenerationRef.current;
+    const operationStillCurrent = () => cloudSlotOperationGenerationRef.current === operationGeneration
+      && auth?.currentUser?.uid === uid;
+    cloudSlotOperationInFlightRef.current = true;
+    setCloudSlotOperation({ kind: 'deleting', slot });
+    try {
+      const views = await deleteCloudSlotRecord(uid, slot);
+      if (!operationStillCurrent()) return;
+      setCloudSlotViews(views);
+      const cleaned = readSaveOutbox().filter(entry => !(entry.ownerUid === uid && entry.slot === slot));
+      writeSaveOutbox(cleaned);
+      setPendingCloudSaveCount(pendingCloudSaveCountForUser(uid, cleaned));
+      showAlert(`슬롯 ${slot}의 클라우드 기록을 삭제했습니다.`);
+    } catch (error) {
+      if (!operationStillCurrent()) return;
+      console.error('Failed to delete cloud slot:', error);
       showAlert(cloudWriteErrorMessage(error as { code?: string; message?: string }));
     } finally {
       cloudSlotOperationInFlightRef.current = false;
@@ -10468,6 +10532,7 @@ export default function App() {
           pendingSaveCount={pendingCloudSaveCount}
           onDownload={slot => void handleDownloadCloudSlot(slot)}
           onUpload={slot => void handleUploadCloudSlot(slot)}
+          onDelete={slot => void handleDeleteCloudSlot(slot)}
           onClose={() => {
             if (!cloudSlotBusy && !cloudSlotOperationInFlightRef.current) setShowCloudSlots(false);
           }}
@@ -10613,6 +10678,7 @@ function CloudSlotsDialog({
   pendingSaveCount,
   onDownload,
   onUpload,
+  onDelete,
   onClose
 }: {
   slots: CloudSlotView[];
@@ -10624,6 +10690,7 @@ function CloudSlotsDialog({
   pendingSaveCount: number;
   onDownload: (slot: CloudSlotId) => void;
   onUpload: (slot: CloudSlotId) => void;
+  onDelete: (slot: CloudSlotId) => void;
   onClose: () => void;
 }) {
   const busy = operation !== null;
@@ -10636,7 +10703,9 @@ function CloudSlotsDialog({
     : operation?.kind === 'uploading'
       ? `슬롯 ${operation.slot}에 올리고 있습니다…`
       : operation?.kind === 'downloading'
-        ? `슬롯 ${operation.slot}에서 내려받고 있습니다…`
+      ? `슬롯 ${operation.slot}에서 내려받고 있습니다…`
+      : operation?.kind === 'deleting'
+        ? `슬롯 ${operation.slot}을 삭제하고 있습니다…`
         : null;
   return (
     <div
@@ -10721,6 +10790,14 @@ function CloudSlotsDialog({
                   {operation?.kind === 'uploading' && operation.slot === slot.slot
                     ? '올리는 중…'
                     : slot.empty ? '이 슬롯에 올리기' : '이 기록으로 덮어쓰기'}
+                </button>
+                <button
+                  type="button"
+                  className="cloud-slot__delete"
+                  disabled={busy || slot.empty}
+                  onClick={() => onDelete(slot.slot)}
+                >
+                  {operation?.kind === 'deleting' && operation.slot === slot.slot ? '삭제 중…' : '슬롯 삭제'}
                 </button>
               </div>
             </li>
@@ -22169,6 +22246,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                             key={idx}
                             type="button"
                             disabled={!calendarOverride}
+                            aria-label={isPassed ? `${idx + 1}일 경과` : `${idx + 1}일`}
                             onClick={() => {
                               if (!calendarOverride) return;
                               if (isPassed) {
@@ -22193,7 +22271,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                               boxShadow: isPassed ? 'none' : '0 2px 4px rgba(0,0,0,0.05)'
                             }}
                           >
-                            {isPassed ? '印' : idx + 1}
+                            {isPassed ? '🐾' : idx + 1}
                           </button>
                         );
                       })}
