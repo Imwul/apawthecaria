@@ -1,6 +1,7 @@
 import { AILMENTS } from './data/ailments';
 import type { CompanionState } from './data/mobility';
-import { REAGENTS } from './data/reagents';
+import { SOCIAL_ENCOUNTERS } from './data/encounters';
+import { REAGENTS, REAGENT_BY_ID } from './data/reagents';
 import { normalizeLegacyArchiveRecord } from './archiveEngine';
 import {
   acquireQueenBeeCompanion,
@@ -14,6 +15,7 @@ import { normalizeRouteDraft } from '../map/routeComposer';
 import { normalizeSaveRevision } from '../persistence/revision';
 import { normalizeSecondaryDrawCard, readSecondaryCardHistory } from '../secondaryCardHistory';
 import { readCalendarClocks } from '../calendarTime';
+import { getRuleCardValue } from './cards';
 import { migrateRulesetMetadata } from './rulesets';
 import { immediatelyTreatableAilmentIds } from './immediateRemedyEngine';
 import { CURRENT_SCHEMA_VERSION, type PatientState, type TreatmentDraft } from './state';
@@ -732,6 +734,12 @@ const normalizeCard = (value: unknown): { value: number; suit?: string } | null 
   return { value: cardValue, ...(suit ? { suit } : {}) };
 };
 
+const normalizeNonNegativeInteger = (value: unknown): number | null => {
+  if (!['number', 'string'].includes(typeof value) || String(value).trim() === '') return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+};
+
 const normalizeSecondaryCardFields = (value: SaveRecord) => {
   const selectedChoiceId = typeof value.selectedChoiceId === 'string' && value.selectedChoiceId.trim()
     ? value.selectedChoiceId.trim()
@@ -873,14 +881,76 @@ const normalizePendingBarter = (
   }
 ): SaveRecord | null => {
   if (!isSaveRecord(value)) return null;
+  const status = typeof value.status === 'string' ? value.status : '';
   const patientId = typeof value.patientId === 'string' && value.patientId.trim()
     ? value.patientId.trim()
     : context.activePatientId;
+  const terminal = status === 'completed' || status === 'abandoned';
+  if (terminal) {
+    return {
+      ...value,
+      patientId,
+      appliedEffectIds: stringArray(value.appliedEffectIds),
+      ...normalizeImmediateRemedyFields({
+        value,
+        eligible: status === 'completed',
+        patients: context.patients,
+        fallbackPatientId: patientId,
+        inventory: context.inventory,
+        overrides: context.overrides,
+        toolStates: context.toolStates
+      })
+    };
+  }
+
+  // Only checkpoints the current UI can resume are kept. Older `activeBarter`
+  // objects did not identify a canonical Part, so guessing a replacement here
+  // could buy the wrong ingredient or crash when payment is finalized.
+  if (!['manual-social', 'awaiting-second-card', 'awaiting-payment'].includes(status)) return null;
+  if (!patientId || !context.patients.some(patient => patient.id === patientId)) return null;
+  const barterId = typeof value.barterId === 'string' ? value.barterId.trim() : '';
+  const reagentId = typeof value.targetReagentId === 'string' ? value.targetReagentId.trim() : '';
+  const preparationId = typeof value.preparationId === 'string' ? value.preparationId.trim() : '';
+  const locationId = typeof value.locationId === 'string' ? value.locationId.trim() : '';
+  const reagent = REAGENT_BY_ID.get(reagentId);
+  const preparation = reagent?.preparations.find(row => row.id === preparationId);
+  const locationType = value.locationType === 'City' || value.locationType === 'Settlement'
+    ? value.locationType
+    : null;
+  const calculatedBR = normalizeNonNegativeInteger(value.calculatedBR);
+  const firstCard = normalizeCard(value.firstCard);
+  const secondCard = normalizeCard(value.secondCard);
+  const socialEncounterId = isSaveRecord(value.socialEncounter) && typeof value.socialEncounter.id === 'string'
+    ? value.socialEncounter.id.trim()
+    : '';
+  const socialEncounter = SOCIAL_ENCOUNTERS.find(encounter => encounter.id === socialEncounterId) ?? null;
+  const paymentRequired = normalizeNonNegativeInteger(value.paymentRequired);
+  if (!barterId || !reagent || !preparation || reagent.type === 'TITAN' || !locationId || !locationType || calculatedBR === null) {
+    return null;
+  }
+  if ((status === 'manual-social' || status === 'awaiting-second-card') && (!firstCard || !socialEncounter)) return null;
+  if (status === 'awaiting-payment') {
+    if (!firstCard || !secondCard || !socialEncounter || paymentRequired === null || paymentRequired <= 0) return null;
+    const expectedPayment = Math.max(0, calculatedBR - getRuleCardValue(secondCard, 'barter'));
+    if (paymentRequired !== expectedPayment) return null;
+  }
   return {
     ...value,
+    barterId,
+    patientId,
+    targetReagentId: reagent.id,
+    preparationId: preparation.id,
+    locationId,
+    locationType,
+    calculatedBR,
+    firstCard,
+    secondCard,
+    socialEncounter,
+    paymentRequired: status === 'awaiting-payment' ? paymentRequired : 0,
+    appliedEffectIds: stringArray(value.appliedEffectIds),
     ...normalizeImmediateRemedyFields({
       value,
-      eligible: value.status === 'completed',
+      eligible: false,
       patients: context.patients,
       fallbackPatientId: patientId,
       inventory: context.inventory,

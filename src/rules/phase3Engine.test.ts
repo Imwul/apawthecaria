@@ -916,7 +916,7 @@ describe('Phase 3 Leave, Pawn, Archive, and persistence', () => {
         activeBarter: { phase: 'social', reagentName: 'Beech' }, patients: [patient()]
       },
       verify: (migrated: ReturnType<typeof migrateSavedRulesState>) => {
-        expect(migrated.pendingBarter).toMatchObject({ migratedFromLegacy: true });
+        expect(migrated.pendingBarter).toBeNull();
         expect(migrated.journey).toMatchObject({ migratedFromLegacy: true, rulesetId: 'legacy-campaign' });
       }
     },

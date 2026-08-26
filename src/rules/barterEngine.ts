@@ -361,7 +361,12 @@ const finalizeSuccessfulBarter = (
     canonicalReagentId: reagent.id,
     preparationId: preparation.id,
     usesRemaining: preparation.uses,
-    quantity: 1
+    quantity: 1,
+    provenance: {
+      acquisitionId: `${pending.barterId}:${preparation.id}`,
+      source: 'barter',
+      sourceTransactionId: pending.barterId
+    }
   };
   const inventory = [...state.inventory, acquired];
   const treatableAilmentIds = immediatelyTreatableAilmentIds(

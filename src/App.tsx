@@ -168,6 +168,7 @@ import {
   listJourneyDestinationChoices,
   getBarterAttemptLimit,
   getBarterAttemptsRemaining,
+  calculateBarterBR,
   getGuildLedgerForagingPointBonus,
   hasGuildLogisticalMap,
   recordJourneyProgress,
@@ -377,6 +378,11 @@ import {
   reagentInventorySearchText,
   splitForagingTags
 } from './foragingInventoryPresentation';
+import {
+  buildCanonicalBarterSelections,
+  findCanonicalBarterSelection,
+  matchesCanonicalSearchText
+} from './barterIngredientSelection';
 import {
   buildTreatmentRequirementRows,
   deriveForageRequirementProgress,
@@ -5649,6 +5655,7 @@ export default function App() {
   const foragePlanningKeyRef = useRef('');
   const [controlledPrompt, setControlledPrompt] = useState<ControlledPromptRequest | null>(null);
   const [controlledPromptValue, setControlledPromptValue] = useState('');
+  const [controlledPromptEpoch, setControlledPromptEpoch] = useState(0);
   const controlledPromptResolverRef = useRef<ControlledPromptResolver | null>(null);
   const [noticeQueue, setNoticeQueue] = useState<string[]>([]);
   const [rulebookRequest, setRulebookRequest] = useState<RulebookReferenceRequest | null>(null);
@@ -5665,6 +5672,7 @@ export default function App() {
     settleControlledPromptResolver(controlledPromptResolverRef, null);
     controlledPromptResolverRef.current = resolve;
     setControlledPromptValue(request.defaultValue);
+    setControlledPromptEpoch(epoch => epoch + 1);
     setControlledPrompt(request);
   }), []);
 
@@ -9027,6 +9035,7 @@ export default function App() {
 
       {controlledPrompt && (
         <ControlledPromptDialog
+          key={controlledPromptEpoch}
           request={controlledPrompt}
           value={controlledPromptValue}
           onChange={setControlledPromptValue}
@@ -10263,6 +10272,9 @@ interface ControlledPromptOption {
   remedyTags?: string[];
   tradeTags?: string[];
   meta?: string;
+  searchText?: string;
+  selectionSummary?: string;
+  relevanceText?: string;
   relevant?: boolean;
   disabled?: boolean;
   disabledReason?: string;
@@ -10283,6 +10295,10 @@ interface ControlledPromptRequest {
   multiSelect?: {
     allowRepeat?: boolean;
     maxTotal?: number;
+  };
+  searchable?: {
+    placeholder?: string;
+    emptyMessage?: string;
   };
 }
 
@@ -10463,23 +10479,47 @@ function ControlledPromptDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeSearchIndex, setActiveSearchIndex] = useState(0);
   const multiSelectOptions = request.multiSelect && request.options ? request.options : null;
+  const searchableOptions = request.searchable && request.options
+    ? request.options.filter(option => matchesCanonicalSearchText(
+        option.searchText || `${option.label} ${option.title || ''} ${option.detail || ''}`,
+        searchQuery
+      ))
+    : null;
+  const enabledSearchableOptions = searchableOptions?.filter(option => !option.disabled) || [];
+  const boundedActiveSearchIndex = Math.min(activeSearchIndex, Math.max(0, enabledSearchableOptions.length - 1));
+  const selectedSearchableOption = request.searchable
+    ? request.options?.find(option => option.value === value) || null
+    : null;
   const selectedQuantities = multiSelectOptions
     ? decodeMultiSelectPromptValue(value, multiSelectOptions.filter(option => !option.disabled).map(option => option.value))
     : {};
   const selectedTotal = totalMultiSelectPromptQuantity(selectedQuantities);
   const updateSelection = (next: Record<string, number>) => onChange(encodeMultiSelectPromptValue(next));
 
+  const moveSearchCursor = (nextIndex: number, focusResult: boolean) => {
+    const bounded = Math.max(0, Math.min(nextIndex, enabledSearchableOptions.length - 1));
+    setActiveSearchIndex(bounded);
+    window.requestAnimationFrame(() => {
+      const option = document.getElementById(`controlled-prompt-option-${bounded}`);
+      option?.scrollIntoView({ block: 'nearest' });
+      if (focusResult) option?.focus();
+    });
+  };
+
   return (
     <div
       className="phase4-modal-backdrop controlled-prompt-backdrop app-dialog-backdrop"
       role="presentation"
       onKeyDown={event => {
+        if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
         if (event.key === 'Escape') onCancel();
       }}
     >
       <form
-        className={`phase4-modal controlled-prompt app-dialog app-dialog--prompt${request.tone === 'destructive' ? ' app-dialog--destructive' : ''}${multiSelectOptions ? ' app-dialog--multi-select' : ''}`}
+        className={`phase4-modal controlled-prompt app-dialog app-dialog--prompt${request.tone === 'destructive' ? ' app-dialog--destructive' : ''}${multiSelectOptions ? ' app-dialog--multi-select' : ''}${searchableOptions ? ' app-dialog--searchable' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="controlled-prompt-title"
@@ -10496,7 +10536,7 @@ function ControlledPromptDialog({
           </div>
         </header>
         <p id="controlled-prompt-message" className="app-dialog__message">{request.message}</p>
-        {!request.hideField && <div className={`app-dialog__field${multiSelectOptions ? ' app-dialog__field--multi-select' : ''}`}>
+        {!request.hideField && <div className={`app-dialog__field${multiSelectOptions ? ' app-dialog__field--multi-select' : ''}${searchableOptions ? ' app-dialog__field--searchable' : ''}`}>
         {multiSelectOptions
           ? <span id="controlled-prompt-field-label" className="app-dialog__field-label">{request.label || '선택'}</span>
           : <label htmlFor="controlled-prompt-input">{request.label || '선택'}</label>}
@@ -10561,6 +10601,103 @@ function ControlledPromptDialog({
                 : '채집할 부위를 하나 이상 고르세요.'}
             </p>
           </div>
+        ) : searchableOptions ? (
+          <div className="controlled-prompt__search-picker">
+            <input
+              id="controlled-prompt-input"
+              type="search"
+              value={searchQuery}
+              placeholder={request.searchable?.placeholder || '이름이나 부위를 입력하세요'}
+              autoComplete="off"
+              autoFocus
+              role="combobox"
+              aria-expanded="true"
+              aria-autocomplete="list"
+              aria-controls="controlled-prompt-search-results"
+              aria-activedescendant={enabledSearchableOptions[boundedActiveSearchIndex]
+                ? `controlled-prompt-option-${boundedActiveSearchIndex}`
+                : undefined}
+              onChange={event => {
+                setSearchQuery(event.target.value);
+                setActiveSearchIndex(0);
+                if (value) onChange('');
+              }}
+              onKeyDown={event => {
+                if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
+                if (event.key === 'ArrowDown') {
+                  event.preventDefault();
+                  moveSearchCursor(boundedActiveSearchIndex + 1, false);
+                } else if (event.key === 'ArrowUp') {
+                  event.preventDefault();
+                  moveSearchCursor(boundedActiveSearchIndex - 1, false);
+                } else if (event.key === 'Enter') {
+                  event.preventDefault();
+                  const option = enabledSearchableOptions[boundedActiveSearchIndex];
+                  if (option) onChange(option.value);
+                }
+              }}
+            />
+            <div className="controlled-prompt__search-status" aria-live="polite">
+              <span>{searchableOptions.length}개 부위</span>
+              <small>↑↓로 살피고 Enter로 선택할 수 있습니다.</small>
+            </div>
+            <div id="controlled-prompt-search-results" className="controlled-prompt__search-results" role="listbox" aria-label={request.label || '선택 가능한 영약재 부위'}>
+              {searchableOptions.map(option => {
+                const enabledIndex = enabledSearchableOptions.findIndex(candidate => candidate.value === option.value);
+                const selected = option.value === value;
+                const active = enabledIndex === boundedActiveSearchIndex;
+                return (
+                  <button
+                    id={enabledIndex >= 0 ? `controlled-prompt-option-${enabledIndex}` : undefined}
+                    key={option.value}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    aria-disabled={option.disabled || undefined}
+                    disabled={option.disabled}
+                    tabIndex={active ? 0 : -1}
+                    className={`controlled-prompt__search-option${selected ? ' is-selected' : ''}${option.relevant ? ' is-relevant' : ''}${active ? ' is-active' : ''}`}
+                    onClick={() => {
+                      if (enabledIndex >= 0) setActiveSearchIndex(enabledIndex);
+                      onChange(option.value);
+                    }}
+                    onKeyDown={event => {
+                      if (event.key === 'ArrowDown') {
+                        event.preventDefault();
+                        moveSearchCursor(boundedActiveSearchIndex + 1, true);
+                      } else if (event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        moveSearchCursor(boundedActiveSearchIndex - 1, true);
+                      } else if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onChange(option.value);
+                      }
+                    }}
+                  >
+                    <span className="controlled-prompt__search-copy">
+                      <strong>{option.title || option.label}</strong>
+                      {option.detail && <small>{option.detail}</small>}
+                    </span>
+                    <span className="controlled-prompt__search-context">
+                      {option.remedyTags && option.remedyTags.length > 0 && <span>{option.remedyTags.map(tag => <b key={tag}>{tag}</b>)}</span>}
+                      {option.tradeTags && option.tradeTags.length > 0 && <span>{option.tradeTags.map(tag => <b key={tag} className={tag.startsWith('FAIR ') ? 'is-fair' : 'is-foul'}>{tag}</b>)}</span>}
+                      {option.meta && <small>{option.meta}</small>}
+                      {option.relevant && <em>{option.relevanceText || '현재 처방 태그 충족'}</em>}
+                    </span>
+                  </button>
+                );
+              })}
+              {searchableOptions.length === 0 && (
+                <p className="controlled-prompt__search-empty">{request.searchable?.emptyMessage || '일치하는 선택지가 없습니다.'}</p>
+              )}
+            </div>
+            {selectedSearchableOption?.selectionSummary && (
+              <p className="controlled-prompt__search-selection" aria-live="polite">
+                <strong>선택한 부위</strong>
+                {selectedSearchableOption.selectionSummary}
+              </p>
+            )}
+          </div>
         ) : request.options ? (
           <select
             id="controlled-prompt-input"
@@ -10592,7 +10729,7 @@ function ControlledPromptDialog({
         </div>}
         <footer className="controlled-prompt__actions app-dialog__actions">
           <button type="button" autoFocus={request.hideField} onClick={onCancel}>{request.cancelLabel || '취소'}</button>
-          <button className="app-dialog__primary" type="submit" disabled={Boolean(multiSelectOptions) && selectedTotal === 0}>{request.confirmLabel || '선택 확정'}</button>
+          <button className="app-dialog__primary" type="submit" disabled={(Boolean(multiSelectOptions) && selectedTotal === 0) || (Boolean(searchableOptions) && !selectedSearchableOption)}>{request.confirmLabel || '선택 확정'}</button>
         </footer>
       </form>
     </div>
@@ -10714,6 +10851,7 @@ function PlayView({
 }) {
   const getLatestPlayState = useStableCallback(() => state);
   const playViewAliveRef = useRef(true);
+  const barterSelectionPendingRef = useRef(false);
   useEffect(() => {
     playViewAliveRef.current = true;
     return () => { playViewAliveRef.current = false; };
@@ -15065,7 +15203,7 @@ function PlayView({
   };
 
   // Bartering Resolution
-  const handleBarterAttempt = async (reagentName: string, barterLocation?: BarterLocationOption) => {
+  const handleBarterAttempt = (selection: { reagentId: string; preparationId: string }, barterLocation?: BarterLocationOption) => {
     if (acquisitionCheckpointBlocked) {
       showAlert(acquisitionCheckpointBlockingMessage);
       return;
@@ -15075,13 +15213,10 @@ function PlayView({
       showAlert('먼저 현재 환자를 확정해야 합니다.');
       return;
     }
-    const normalized = reagentName.trim().toLowerCase();
-    const reagent = REAGENTS.find(row =>
-      row.displayName.toLowerCase().includes(normalized)
-      || row.canonicalName.toLowerCase().includes(normalized)
-    );
-    if (!reagent) {
-      showAlert("해당 이름의 영약재를 찾을 수 없습니다.");
+    const reagent = REAGENT_BY_ID.get(selection.reagentId);
+    const preparation = reagent?.preparations.find(row => row.id === selection.preparationId);
+    if (!reagent || !preparation) {
+      showAlert('선택한 영약재 부위를 정규 도감에서 확인할 수 없습니다. 목록을 다시 열어 선택해 주세요.');
       return;
     }
     if (reagent.type === 'TITAN') {
@@ -15096,21 +15231,11 @@ function PlayView({
       return;
     }
 
-    const preparationChoice = reagent.preparations.length === 1
-      ? '1'
-      : await requestControlledPrompt({
-        title: '거래할 부위를 선택하세요',
-        message: formatReagentName(reagent),
-        defaultValue: '1',
-        kicker: '물꼬 거래',
-        options: reagent.preparations.map((row, index) => ({
-          value: String(index + 1),
-          label: `${index + 1}. ${localizePreparationName(row.name)} · ${localizePreparationMethod(row.method)} · ${row.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 없음'} · 무게 ${formatWeight(row.weight)} · ${row.uses}회분`
-        }))
-      });
-    if (!preparationChoice) return;
-    const preparation = reagent.preparations[Math.max(0, (parseInt(preparationChoice) || 1) - 1)] || reagent.preparations[0];
     const graph = toBarterMapGraph(state);
+    if (!graph[selectedBarterLocation.key]) {
+      showAlert('선택한 거래 장소를 현재 지도 기록에서 확인할 수 없습니다. 지도 기록을 확인한 뒤 다시 시도해 주세요.');
+      return;
+    }
     const currentLocationId = resolveCurrentMapLocationKey(state);
     const transactionId = createClientTransaction(`barter:${patient.id}`).id;
     const started = resolveBarterStart({
@@ -19783,9 +19908,13 @@ function PlayView({
                           : barterOptions.length > 0
                             ? `물꼬 거래 ${remaining}/${maxBarters}회 남음`
                             : '물꼬 거래 — 현재/인접 정착지·도시만 가능';
+                    const pendingTargetReagent = pendingBarter ? REAGENT_BY_ID.get(pendingBarter.targetReagentId) : null;
+                    const pendingTargetPreparation = pendingTargetReagent?.preparations.find(row => row.id === pendingBarter?.preparationId);
                     return (
+                      <div className="barter-action">
                       <button
                         onClick={async () => {
+                          if (barterSelectionPendingRef.current) return;
                           if (pendingBarter?.status === 'manual-social' || pendingBarter?.status === 'awaiting-second-card') {
                             handleBarterProgressToDeal();
                             return;
@@ -19817,29 +19946,88 @@ function PlayView({
                             if (payment) handleBarterFinalize(true, payment.trinkets, payment.reputation);
                             return;
                           }
-                          let selectedLocation = barterOptions[0];
-                          if (barterOptions.length > 1) {
-                            const choice = await requestControlledPrompt({
-                              title: '거래할 장소를 선택하세요',
-                              message: '현재 위치 또는 인접한 정착지와 도시에서 거래할 수 있습니다.',
-                              defaultValue: '1',
-                              kicker: '물꼬 거래',
-                              options: barterOptions.map((option, idx) => ({
-                                value: String(idx + 1),
-                                label: `${idx + 1}. ${option.name} (${option.type === 'City' ? '도시' : '정착지'}, ${option.relation === 'current' ? '현재 위치' : '인접 위치'})`
-                              }))
+                          barterSelectionPendingRef.current = true;
+                          try {
+                            let selectedLocation = barterOptions[0];
+                            if (barterOptions.length > 1) {
+                              const choice = await requestControlledPrompt({
+                                title: '거래할 장소를 선택하세요',
+                                message: '현재 위치 또는 인접한 정착지와 도시에서 거래할 수 있습니다.',
+                                defaultValue: '1',
+                                kicker: '물꼬 거래',
+                                options: barterOptions.map((option, idx) => ({
+                                  value: String(idx + 1),
+                                  label: `${idx + 1}. ${option.name} (${option.type === 'City' ? '도시' : '정착지'}, ${option.relation === 'current' ? '현재 위치' : '인접 위치'})`
+                                }))
+                              });
+                              if (!choice || !playViewAliveRef.current) return;
+                              selectedLocation = barterOptions[Math.max(0, (parseInt(choice) || 1) - 1)] || barterOptions[0];
+                            }
+                            const graph = toBarterMapGraph(state);
+                            if (!graph[selectedLocation.key]) {
+                              showAlert('선택한 거래 장소를 현재 지도 기록에서 확인할 수 없습니다. 지도 기록을 확인한 뒤 다시 시도해 주세요.');
+                              return;
+                            }
+                            const patientRequirements = treatmentWorkspaceRequirement
+                              ? requirementTagThresholds(treatmentWorkspaceRequirement)
+                              : [];
+                            const catalogue = buildCanonicalBarterSelections({
+                              inventory: state.bag,
+                              patientRequirements
                             });
-                            if (!choice) return;
-                            selectedLocation = barterOptions[Math.max(0, (parseInt(choice) || 1) - 1)] || barterOptions[0];
+                            const choice = await requestControlledPrompt({
+                              title: '거래할 영약재 부위를 고르세요',
+                              message: `${patientDisplayName(treatmentPatient?.name)}의 현재 처방: ${treatmentRequirementRows.map(row => row.label).join(' · ') || '원문에서 직접 확인할 조건'}\n현재 처방의 약효 수치를 그 부위 하나로 충족하는 경우에만 작은 표시를 덧붙였습니다. 어느 재료를 고를지는 약제사의 몫이며, 다른 비티탄 부위도 모두 고를 수 있습니다.`,
+                              defaultValue: '',
+                              kicker: `${selectedLocation.name} · 물꼬 거래`,
+                              label: '영약재·부위 검색',
+                              confirmLabel: '이 부위로 거래 시작',
+                              searchable: {
+                                placeholder: '영문·한국어 재료명, 부위 또는 조제법',
+                                emptyMessage: '일치하는 정규 영약재 부위가 없습니다. 철자를 줄여 다시 찾아보세요.'
+                              },
+                              options: catalogue.map(row => {
+                                const calculation = calculateBarterBR({
+                                  targetReagentId: row.reagentId,
+                                  preparationId: row.preparationId,
+                                  locationId: selectedLocation.key,
+                                  season: state.currentSeason,
+                                  reputation: state.reputation,
+                                  graph
+                                });
+                                const modifierText = calculation.modifiers
+                                  .map(modifier => `${modifier.label} ${modifier.amount >= 0 ? '+' : ''}${modifier.amount}`)
+                                  .join(' · ');
+                                return {
+                                  value: row.key,
+                                  label: `${row.reagentLabel} — ${row.preparationLabel}`,
+                                  title: `${row.reagentLabel} — ${row.preparationLabel}`,
+                                  detail: `${row.methodLabel} · 무게 ${formatWeight(row.preparation.weight)} · ${row.preparation.uses}회분`,
+                                  remedyTags: row.remedyTags.map(tag => `${tag.tag} ${tag.value}`),
+                                  tradeTags: row.tradeTags.map(tag => `${tag.tag} ${tag.value}`),
+                                  meta: `거래 희귀도 ${calculation.br} · 현재 보유 ${row.ownedQuantity}개`,
+                                  relevant: row.patientRelevantTags.length > 0,
+                                  relevanceText: row.patientRelevantTags.length > 0
+                                    ? `현재 처방 태그 중 ${row.patientRelevantTags.map(tag => `${tag.tag} ${tag.value}`).join(' · ')} 충족`
+                                    : undefined,
+                                  searchText: row.searchText,
+                                  selectionSummary: `${row.reagentLabel} — ${row.preparationLabel} · ${row.methodLabel}\n기본 희귀도 ${row.reagent.baseRarity}${modifierText ? ` · ${modifierText}` : ''} → 거래 희귀도 ${calculation.br}\n확정하면 거리로 나가 사교 조우를 시작하며, 이 환자·장소의 거래 1회를 사용합니다.`
+                                };
+                              })
+                            });
+                            if (!choice || !playViewAliveRef.current) return;
+                            const selected = findCanonicalBarterSelection(catalogue, choice);
+                            if (!selected) {
+                              showAlert('정규 목록에 없는 값은 거래 대상으로 사용할 수 없습니다.');
+                              return;
+                            }
+                            handleBarterAttempt({
+                              reagentId: selected.reagentId,
+                              preparationId: selected.preparationId
+                            }, selectedLocation);
+                          } finally {
+                            barterSelectionPendingRef.current = false;
                           }
-                          const req = await requestControlledPrompt({
-                            title: '구매할 영약재',
-                            message: `${selectedLocation.name}에서 수소문할 영약재 이름을 입력하세요.`,
-                            defaultValue: '',
-                            kicker: '물꼬 거래',
-                            label: '영약재 이름'
-                          });
-                          if (req) handleBarterAttempt(req, selectedLocation);
                         }}
                         disabled={!canBarter}
                         title={acquisitionCheckpointBlocked
@@ -19847,10 +20035,18 @@ function PlayView({
                           : barterOptions.length === 0
                             ? '현재 또는 인접한 정착지/도시에서만 가능'
                             : remaining === 0 ? '거래 횟수 초과' : ''}
-                        style={{ flex: 1, padding: '0.7rem', background: canBarter ? 'var(--secondary-light)' : '#eee', color: canBarter ? 'var(--secondary)' : '#aaa', border: `1.5px solid ${canBarter ? 'var(--secondary)' : '#ccc'}`, borderRadius: '8px', fontWeight: 'bold', cursor: canBarter ? 'pointer' : 'not-allowed' }}
+                        style={{ width: '100%', padding: '0.7rem', background: canBarter ? 'var(--secondary-light)' : '#eee', color: canBarter ? 'var(--secondary)' : '#aaa', border: `1.5px solid ${canBarter ? 'var(--secondary)' : '#ccc'}`, borderRadius: '8px', fontWeight: 'bold', cursor: canBarter ? 'pointer' : 'not-allowed' }}
                       >
                         🤝 {barterButtonLabel}
                       </button>
+                      {pendingTargetReagent && pendingTargetPreparation && (
+                        <p className="barter-action__target" aria-live="polite">
+                          <span>거래 대상</span>
+                          <strong>{formatReagentName(pendingTargetReagent)} — {localizePreparationName(pendingTargetPreparation.name)}</strong>
+                          <small>{localizePreparationMethod(pendingTargetPreparation.method)} · 거래 희귀도 {pendingBarter?.calculatedBR}</small>
+                        </p>
+                      )}
+                      </div>
                     );
                   })()}
 

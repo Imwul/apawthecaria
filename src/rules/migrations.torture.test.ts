@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { migrateSavedRulesState, SAVE_MIGRATIONS } from './migrations';
 import { CURRENT_SCHEMA_VERSION } from './state';
 import { createSerializedForagingRollbackSnapshot } from '../foragingRecovery';
+import { SOCIAL_ENCOUNTERS } from './data/encounters';
 
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 
@@ -397,6 +398,101 @@ describe('save migration torture matrix', () => {
     });
     expect(orphanBarter.pendingBarter.immediateRemedyPatientId).toBeUndefined();
     expect(migrateSavedRulesState(clone(orphanBarter))).toEqual(orphanBarter);
+  });
+
+  it('keeps only resumable canonical Barter checkpoints and clears unsafe legacy identity', () => {
+    const source = richSaveAt(CURRENT_SCHEMA_VERSION);
+    const canonicalSocialEncounter = SOCIAL_ENCOUNTERS[0];
+    const validPendingBarter = {
+      barterId: 'barter-resume',
+      patientId: 'patient-1',
+      targetReagentId: 'reagent-nettles',
+      preparationId: 'nettles-leaves-brewed-1',
+      locationId: 'settlement',
+      locationType: 'Settlement',
+      attemptIndex: 1,
+      attemptsRemaining: 0,
+      socialEncounter: canonicalSocialEncounter,
+      firstCard: { value: 5, suit: '♥' },
+      secondCard: { value: 1, suit: '♦' },
+      calculatedBR: 3,
+      modifiers: [],
+      availability: { region: 'Common', season: 'Common' },
+      paymentRequired: 2,
+      paymentSelection: { trinkets: 0, reputation: 0 },
+      status: 'awaiting-payment',
+      appliedEffectIds: []
+    };
+    const valid = migrateSavedRulesState(clone({ ...source, pendingBarter: validPendingBarter }));
+
+    expect(valid.pendingBarter).toMatchObject({
+      barterId: 'barter-resume',
+      patientId: 'patient-1',
+      targetReagentId: 'reagent-nettles',
+      preparationId: 'nettles-leaves-brewed-1',
+      status: 'awaiting-payment',
+      paymentRequired: 2
+    });
+    expect(migrateSavedRulesState(clone(valid))).toEqual(valid);
+
+    const wrongPreparation = migrateSavedRulesState(clone({
+      ...source,
+      pendingBarter: { ...validPendingBarter, preparationId: 'roses-rosehips-crushed-3' }
+    }));
+    expect(wrongPreparation.pendingBarter).toBeNull();
+
+    const emptyNumbers = migrateSavedRulesState(clone({
+      ...source,
+      pendingBarter: { ...validPendingBarter, calculatedBR: '', paymentRequired: null }
+    }));
+    expect(emptyNumbers.pendingBarter).toBeNull();
+
+    const mismatchedGap = migrateSavedRulesState(clone({
+      ...source,
+      pendingBarter: { ...validPendingBarter, paymentRequired: 1 }
+    }));
+    expect(mismatchedGap.pendingBarter).toBeNull();
+
+    const unknownSocialEncounter = migrateSavedRulesState(clone({
+      ...source,
+      pendingBarter: { ...validPendingBarter, socialEncounter: { id: 'unknown-social' } }
+    }));
+    expect(unknownSocialEncounter.pendingBarter).toBeNull();
+
+    const legacyWithoutCanonicalPart = migrateSavedRulesState(clone({
+      ...source,
+      schemaVersion: 3,
+      activeBarter: { phase: 'social', reagentName: 'Nettles' }
+    }));
+    expect(legacyWithoutCanonicalPart.pendingBarter).toBeNull();
+  });
+
+  it('preserves an acquired Barter Part and its canonical provenance through migration and reload', () => {
+    const source = richSaveAt(4);
+    const acquiredPart = {
+      id: 'barter-acquire:nettles-leaves-brewed-1',
+      name: '쐐기풀 (Leaves)',
+      type: 'reagent',
+      canonicalReagentId: 'reagent-nettles',
+      preparationId: 'nettles-leaves-brewed-1',
+      quantity: 1,
+      usesRemaining: 1,
+      weight: 1 / 3,
+      provenance: {
+        acquisitionId: 'barter-acquire:nettles-leaves-brewed-1',
+        source: 'barter',
+        sourceTransactionId: 'barter-acquire'
+      }
+    };
+    const once = migrateSavedRulesState(clone({
+      ...source,
+      bag: [...source.bag, acquiredPart]
+    }));
+    const twice = migrateSavedRulesState(JSON.parse(JSON.stringify(once)));
+    const restored = (once.bag as Array<Record<string, unknown>>).find(item => item.id === acquiredPart.id);
+
+    expect(restored).toMatchObject(acquiredPart);
+    expect(twice).toEqual(once);
   });
 
   it('rejects a future schema instead of silently reinterpreting it as current', () => {
