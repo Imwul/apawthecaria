@@ -695,6 +695,36 @@ const normalizeJourneyState = (value: unknown, save: SaveRecord): SaveRecord | n
   };
 };
 
+const normalizePendingJourneyEnding = (value: unknown, journey: SaveRecord | null): SaveRecord | null => {
+  if (!isSaveRecord(value) || !journey || !['active', 'ending'].includes(String(journey.status))) return null;
+  const journeyId = typeof value.journeyId === 'string' && value.journeyId.trim()
+    ? value.journeyId.trim()
+    : String(journey.journeyId || '');
+  if (!journeyId || journeyId !== journey.journeyId) return null;
+  const goalState = isSaveRecord(journey.goalState) ? journey.goalState : {};
+  const evaluation = isSaveRecord(value.evaluation)
+    ? value.evaluation
+    : isSaveRecord(goalState.evaluation) ? goalState.evaluation : null;
+  if (!evaluation) return null;
+  const selectedOutcome = ['success', 'partial', 'failure', 'abandoned'].includes(String(value.selectedOutcome))
+    ? String(value.selectedOutcome)
+    : undefined;
+  const journalText = typeof value.journalText === 'string' ? value.journalText : undefined;
+  const updatedAt = Number.isFinite(Number(value.updatedAt)) ? Math.max(0, Number(value.updatedAt)) : undefined;
+  return {
+    journeyId,
+    blockers: stringArray(value.blockers),
+    evaluation,
+    ...(selectedOutcome ? { selectedOutcome } : {}),
+    ...(journalText !== undefined ? { journalText } : {}),
+    ...(typeof value.playerDeclaredGoalComplete === 'boolean'
+      ? { playerDeclaredGoalComplete: value.playerDeclaredGoalComplete }
+      : {}),
+    ...(typeof value.gmOverride === 'boolean' ? { gmOverride: value.gmOverride } : {}),
+    ...(updatedAt !== undefined ? { updatedAt } : {})
+  };
+};
+
 const normalizeCard = (value: unknown): { value: number; suit?: string } | null => {
   const cardValue = Number(isSaveRecord(value) ? value.value : Number.NaN);
   if (!isSaveRecord(value) || !Number.isInteger(cardValue) || cardValue < 1 || cardValue > 13) return null;
@@ -958,6 +988,14 @@ const normalizeCurrentSave = (saved: SaveRecord): SaveRecord => {
         status: 'pending' as const
       }]
     : normalizedPendingManualFollowUps;
+  const normalizedJourney = normalizeJourneyState(withMetadata.journey, withMetadata);
+  const normalizedPendingEnding = normalizePendingJourneyEnding(withMetadata.pendingEnding, normalizedJourney);
+  const journey = normalizedJourney && normalizedPendingEnding && normalizedJourney.status === 'active'
+    ? { ...normalizedJourney, status: 'ending' }
+    : normalizedJourney;
+  const journeyActive = journey
+    ? ['active', 'ending'].includes(String(journey.status))
+    : Boolean(withMetadata.journeyActive);
   return {
     ...withMetadata,
     schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -976,8 +1014,9 @@ const normalizeCurrentSave = (saved: SaveRecord): SaveRecord => {
     pendingEncounter: normalizePendingEncounter(withMetadata.pendingEncounter),
     pendingForaging,
     pendingBarter,
-    journey: normalizeJourneyState(withMetadata.journey, withMetadata),
-    pendingEnding: isSaveRecord(withMetadata.pendingEnding) ? withMetadata.pendingEnding : null,
+    journey,
+    journeyActive,
+    pendingEnding: normalizedPendingEnding,
     pendingLeaveObligation: isSaveRecord(withMetadata.pendingLeaveObligation) ? withMetadata.pendingLeaveObligation : null,
     pendingAlternativeAcquisition: isSaveRecord(withMetadata.pendingAlternativeAcquisition) ? withMetadata.pendingAlternativeAcquisition : null,
     patientArchive: recordArray(withMetadata.patientArchive).map(row => normalizeLegacyArchiveRecord(row)),

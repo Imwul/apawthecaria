@@ -43,9 +43,10 @@ describe('patient identity experience', () => {
 
 describe('local-care journey composition', () => {
   it('replaces the fixed map and route editor with a full-width progress summary while local help is required', () => {
-    expect(appSource).toContain('const localCarePhase = Boolean(state.journeyActive && (');
-    expect(appSource).toContain('|| state.activePatientId');
-    expect(appSource).toContain('&& !state.activePatientId && !state.activeAilment && !state.scroungingMode');
+    expect(appSource).toContain('const localCarePhase = journeyUiContext.active && (');
+    expect(appSource).toContain("journeyUiContext.phase === 'manual-pending'");
+    expect(appSource).toContain("|| journeyUiContext.phase === 'foraging-pending'");
+    expect(appSource).toContain("|| journeyUiContext.phase === 'local-care'");
     expect(appSource).toContain('현지 진료 중 여정 요약');
     expect(appSource).toContain('채집·물물교환은 질환 Timer를 쓰며 여정 달력은 그대로입니다.');
     expect(appSource).toContain('이번 여정의 목표');
@@ -53,7 +54,8 @@ describe('local-care journey composition', () => {
     expect(appSource).toContain('이번 여정 다시 준비');
     expect(appSource).toContain('REVIEWED_MAP_LOCATION_BY_ID.get(journeyOriginId)\n          || MARKER_BY_ID.get(journeyOriginId)\n          || journeyMapNodes[journeyOriginId]');
     expect(appSource).toContain("play-with-map${localCarePhase ? ' play-with-map--care' : ''}");
-    expect(appSource).toContain('{!localCarePhase && (\n          <div id="active-journey-panel"');
+    expect(appSource).toContain('{localCarePhase ? (\n          <section className="journey-care-context"');
+    expect(appSource).toContain('{!localCarePhase && !journeyUiContext.atDestination && (\n          <div id="active-journey-panel"');
     expect(appSource).toContain('{!localCarePhase && (\n              <>\n                <div className="prose-summary"');
     expect(cssSource).toContain('.play-with-map.play-with-map--care');
     expect(cssSource).toContain('grid-template-columns: minmax(0, 1fr);');

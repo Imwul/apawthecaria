@@ -23,6 +23,7 @@ type RouteComposerProps = {
   protectsFromSoaking: boolean;
   soakableItemNames: string[];
   canTravel: boolean;
+  readOnly?: boolean;
   movementMode?: 'move' | 'soar';
   travelBlockedReason?: string | null;
   availableStops?: RouteStop[];
@@ -77,6 +78,7 @@ export function RouteComposer({
   protectsFromSoaking,
   soakableItemNames,
   canTravel,
+  readOnly = false,
   movementMode = 'move',
   travelBlockedReason,
   availableStops = [],
@@ -112,7 +114,7 @@ export function RouteComposer({
     mustUseFullSpeed: true
   });
   const count = draft.stops.length;
-  const travelReady = canTravel
+  const travelReady = !readOnly && canTravel
     && Boolean(destination)
     && (movementMode === 'soar' || evaluation.reason === 'legal');
   const readinessText = routeReadinessText({
@@ -188,11 +190,11 @@ export function RouteComposer({
   };
 
   return (
-    <section className="route-composer" aria-label="경로 짜기">
+    <section className={`route-composer${readOnly ? ' route-composer--read-only' : ''}`} aria-label={readOnly ? '마지막 이동 경로 기록' : '경로 짜기'}>
       <div className="route-composer__title-row">
         <div>
-          <span className="route-composer__eyebrow">이번 이동</span>
-          <h2>경로 짜기</h2>
+          <span className="route-composer__eyebrow">{readOnly ? '방금 마친 이동' : '이번 이동'}</span>
+          <h2>{readOnly ? '경로 기록' : '경로 짜기'}</h2>
         </div>
         <div className="route-composer__conditions" aria-label="이번 이동 조건">
           <span>속도 <strong>{evaluation.effectiveSpeed}</strong></span>
@@ -207,7 +209,7 @@ export function RouteComposer({
 
       <header className="route-composer__header">
         <div className="route-composer__endpoint">
-          <span>현재 위치</span>
+          <span>{readOnly ? '출발 위치' : '현재 위치'}</span>
           {origin ? (
             <div className="route-composer__endpoint-info">
               <MapGlyph kind={origin.kind} terrain={origin.terrain} size={22} />
@@ -219,7 +221,7 @@ export function RouteComposer({
           )}
         </div>
         <div className="route-composer__endpoint">
-          <span>이번 이동 도착</span>
+          <span>{readOnly ? '도착 위치' : '이번 이동 도착'}</span>
           {destination ? (
             <div className="route-composer__endpoint-info">
               <MapGlyph kind={destination.kind} terrain={destination.terrain} size={22} />
@@ -244,7 +246,7 @@ export function RouteComposer({
         </div>
       </header>
 
-      {onAddStop && availableStops.length > 0 && (
+      {!readOnly && onAddStop && availableStops.length > 0 && (
         <div className="route-composer__picker">
           <div className="route-composer__picker-copy">
             <strong>다음 위치</strong>
@@ -293,7 +295,7 @@ export function RouteComposer({
             aria-pressed={!compactView}
             onClick={() => setCompactView(current => !current)}
           >
-            {compactView ? '세부 편집' : '간결 보기'}
+            {compactView ? (readOnly ? '상세 보기' : '세부 편집') : '간결 보기'}
           </button>
           {displayedCount > 2 && (
             <div className="route-composer__scroll-actions" aria-label="긴 경로 보기">
@@ -329,11 +331,11 @@ export function RouteComposer({
                         title={row.name}
                         placeholder="이름 없음"
                         autoComplete="off"
-                        readOnly={isLockedTarget}
+                        readOnly={readOnly || isLockedTarget}
                         onChange={event => onChangeStop(index, { name: event.target.value })}
                       />
                     </div>
-                    {compactView || isLockedTarget ? (
+                    {compactView || isLockedTarget || readOnly ? (
                       <span className="route-card__meta" title={stopMeta(row)}>{stopMeta(row)}</span>
                     ) : (
                       <div className="route-card__controls">
@@ -373,7 +375,9 @@ export function RouteComposer({
                         )}
                       </div>
                     )}
-                    {index === 0 ? (
+                    {readOnly ? (
+                      <span className="route-card__fixed">기록된 위치</span>
+                    ) : index === 0 ? (
                       <span className="route-card__fixed">현재 위치 · 순서 고정</span>
                     ) : isLockedTarget ? (
                       <div className="route-card__target-actions">
@@ -425,7 +429,13 @@ export function RouteComposer({
                   {index < count - 1 && (
                     <div className="route-connector" role="group" aria-label={`구간 ${index + 1}: ${row.name || '이름 없음'}에서 ${nextStop?.name || '이름 없음'}까지`}>
                       <div className={`route-connector__line route-connector__line--${edgeKind}`} />
-                      <button
+                      {readOnly ? <span
+                        className={`route-connector__btn route-connector__btn--${edgeKind}`}
+                        aria-label={`구간 ${index + 1}: ${row.name || '이름 없음'}에서 ${nextStop?.name || '이름 없음'}까지, ${routeEdgeLabel(edgeKind)}`}
+                      >
+                        <span className={`route-connector__mark route-connector__mark--${edgeKind}`} aria-hidden="true" />
+                        <span className="route-connector__label">{routeEdgeLabel(edgeKind)}</span>
+                      </span> : <button
                         type="button"
                         className={`route-connector__btn route-connector__btn--${edgeKind}`}
                         onClick={() => changeEdge(index, edgeKind, row, nextStop)}
@@ -435,7 +445,7 @@ export function RouteComposer({
                         <span className={`route-connector__mark route-connector__mark--${edgeKind}`} aria-hidden="true" />
                         <span className="route-connector__label">{routeEdgeLabel(edgeKind)}</span>
                         <span className="sr-only">눌러 변경</span>
-                      </button>
+                      </button>}
                       <div className={`route-connector__line route-connector__line--${edgeKind}`} />
                     </div>
                   )}
@@ -467,7 +477,7 @@ export function RouteComposer({
 
       {routeFeedback && <p className="route-composer__feedback" role="status" aria-live="polite">{routeFeedback}</p>}
 
-      {count > 1 && (
+      {!readOnly && count > 1 && (
         <p className="route-composer__edge-hint">
           위치 사이의 연결 버튼을 눌러 육로·강·수로를 바꾸세요. 수로는 호수·강에 닿는 구간에서만 선택됩니다.
         </p>
@@ -522,7 +532,7 @@ export function RouteComposer({
           {travelBlockedReason && <p className="route-composer__blocker">{travelBlockedReason}</p>}
         </div>
 
-        <div className="route-composer__actions">
+        {!readOnly && <div className="route-composer__actions">
           <button type="button" onClick={onClear} disabled={count <= 1}>경로 초기화</button>
           <button
             type="button"
@@ -534,7 +544,7 @@ export function RouteComposer({
               ? (movementMode === 'soar' ? '마지막 위치로 활공' : '이 경로로 이동')
               : (travelBlockedReason || (movementMode === 'soar' ? '착륙 위치를 고르세요' : blockedActionText(evaluation.reason)))}
           </button>
-        </div>
+        </div>}
       </footer>
     </section>
   );

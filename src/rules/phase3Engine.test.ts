@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AILMENTS,
+  applyForcedJourneyAbandonment,
   CURRENT_SCHEMA_VERSION,
   ENCOUNTERS,
   JOURNEY_GOALS,
@@ -414,6 +415,33 @@ const journeyFor = (goalId: JourneyGoalId): JourneyState => ({
 });
 
 describe('Phase 3 Journey, Goal, and Ending engines', () => {
+  it('[ENDING-001/DOWNTIME-001] makes forced Journey exits canonical and reload-safe', () => {
+    const journey = journeyFor('responsibility');
+    const forced = applyForcedJourneyAbandonment({
+      journeyActive: true,
+      journey: { ...journey, status: 'ending' },
+      pendingEnding: {
+        journeyId: journey.journeyId,
+        blockers: [],
+        evaluation: journey.goalState.evaluation,
+        selectedOutcome: 'partial'
+      },
+      downtimeRequired: false,
+      downtimeCompleted: true,
+      unrelatedMemory: 'preserved'
+    });
+
+    expect(forced).toMatchObject({
+      journeyActive: false,
+      journey: { status: 'abandoned' },
+      pendingEnding: null,
+      downtimeRequired: true,
+      downtimeCompleted: false,
+      unrelatedMemory: 'preserved'
+    });
+    expect(applyForcedJourneyAbandonment(JSON.parse(JSON.stringify(forced)))).toEqual(forced);
+  });
+
   it('[JOURNEY-003] filters actual graph candidates by direction, distance, and location type', () => {
     const graph = journeyGraph();
     expect(findJourneyDestinationCandidates({ graph, originId: 'origin', card: { value: 1, suit: '♥' } }).map(row => row.id)).toContain('north-5');
@@ -707,6 +735,97 @@ describe('Phase 3 Journey, Goal, and Ending engines', () => {
     expect(pending.messages).toContain('Resolve the pending manual effect.');
     expect(queued.status).toBe('invalid');
     expect(queued.messages).toContain('Resolve the pending manual effect.');
+  });
+
+  it.each(['success', 'partial', 'failure', 'abandoned'] as const)(
+    '[ENDING-001] preserves a staged %s selection across save/reload and commits that exact outcome',
+    outcome => {
+      const journey = journeyFor('responsibility');
+      journey.startReputation = 0;
+      const arrived = { ...journeyRuntime(), currentLocationId: journey.destinationId, journey, reputation: 5 };
+      const preflight = resolveJourneyEnding({
+        transactionId: `end-${outcome}-preflight`,
+        state: arrived,
+        endedAt: 10
+      });
+      expect(preflight).toMatchObject({ status: 'manual' });
+      expect(preflight.value?.journey?.status).toBe('ending');
+
+      const selected = resolveJourneyEnding({
+        transactionId: `end-${outcome}-selection`,
+        state: preflight.value!,
+        endedAt: 11,
+        outcome
+      });
+      expect(selected).toMatchObject({ status: 'manual' });
+      expect(selected.value?.pendingEnding?.selectedOutcome).toBe(outcome);
+
+      const reloaded = JSON.parse(JSON.stringify(selected.value)) as JourneyRuntimeState;
+      expect(reloaded.pendingEnding?.selectedOutcome).toBe(outcome);
+      const completed = resolveJourneyEnding({
+        transactionId: `end-${outcome}-commit`,
+        state: reloaded,
+        endedAt: 12,
+        journalText: `The ${outcome} ending I chose.`
+      });
+      expect(completed.status).toBe('resolved');
+      expect(completed.value?.journey?.ending?.outcome).toBe(outcome);
+      expect(completed.value?.pendingEnding).toBeNull();
+      expect(completed.value?.journey?.status).toBe(outcome === 'abandoned' ? 'abandoned' : 'completed');
+
+      const duplicate = resolveJourneyEnding({
+        transactionId: `end-${outcome}-commit`,
+        state: completed.value!,
+        endedAt: 13,
+        outcome: outcome === 'success' ? 'failure' : 'success',
+        journalText: 'A duplicate must not replace the result.'
+      });
+      expect(duplicate.status).toBe('resolved');
+      expect(duplicate.value?.journey?.ending?.outcome).toBe(outcome);
+    }
+  );
+
+  it('[ENDING-001] reopening a complete saved ending draft never commits it as a side effect', () => {
+    const journey = journeyFor('responsibility');
+    journey.startReputation = 0;
+    journey.status = 'ending';
+    const arrived = {
+      ...journeyRuntime(),
+      currentLocationId: journey.destinationId,
+      journey,
+      reputation: 5,
+      pendingEnding: {
+        journeyId: journey.journeyId,
+        blockers: [],
+        evaluation: journey.goalState.evaluation,
+        selectedOutcome: 'success' as const,
+        journalText: 'A complete memoir waiting for final confirmation.',
+        playerDeclaredGoalComplete: true,
+        updatedAt: 10
+      }
+    };
+
+    const reopened = resolveJourneyEnding({
+      transactionId: 'end-complete-draft-reopen',
+      state: JSON.parse(JSON.stringify(arrived)) as JourneyRuntimeState,
+      endedAt: 11
+    });
+    expect(reopened.status).toBe('manual');
+    expect(reopened.value?.journey?.status).toBe('ending');
+    expect(reopened.value?.pendingEnding?.journalText).toBe('A complete memoir waiting for final confirmation.');
+    expect(reopened.value?.appliedTransactionIds).not.toContain('end-complete-draft-reopen');
+
+    const confirmed = resolveJourneyEnding({
+      transactionId: 'end-complete-draft-confirm',
+      state: reopened.value!,
+      endedAt: 12,
+      journalText: reopened.value!.pendingEnding!.journalText
+    });
+    expect(confirmed.status).toBe('resolved');
+    expect(confirmed.value?.journey?.ending).toMatchObject({
+      outcome: 'success',
+      journalText: 'A complete memoir waiting for final confirmation.'
+    });
   });
 });
 

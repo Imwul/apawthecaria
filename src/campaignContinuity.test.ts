@@ -49,14 +49,51 @@ describe('campaign continuity', () => {
     const journey = { journeyActive: true, journeyDestination: 'Widrow', calendarDays: 3, calendarMaxDays: 12 };
     expect(getCampaignResumeActionIds({ ...journey, activeAilment: { id: 'patient' } }).slice(0, 2))
       .toEqual(['active-patient', 'barter-reagent']);
-    expect(getCampaignResumeActionIds({ ...journey, activeAilment: { id: 'patient' } }).indexOf('active-patient'))
-      .toBeLessThan(getCampaignResumeActionIds({ ...journey, activeAilment: { id: 'patient' } }).indexOf('travel-next'));
+    expect(getCampaignResumeActionIds({ ...journey, activeAilment: { id: 'patient' } })).not.toContain('travel-next');
     expect(getCampaignResumeActionIds({ ...journey, pendingEncounter: { id: 'travel' } }).at(0))
       .toBe('pending-encounter');
     expect(getCampaignResumeActionIds({ ...journey, pendingForaging: { id: 'forage' }, manualEffectQueue: [{ id: 'manual' }] }).slice(0, 2))
       .toEqual(['manual-effect', 'pending-foraging']);
     expect(getCampaignResumeActionIds({ journeyActive: false, downtimeRequired: true, downtimeCompleted: false }).at(0))
       .toBe('downtime-activities');
+  });
+
+  it('hands destination arrival and a saved ending draft to Journey completion, not another Move', () => {
+    const arrived = {
+      journeyActive: true,
+      journey: { journeyId: 'journey-1', destinationId: 'obridge', status: 'active' as const },
+      currentMapLocationId: 'obridge',
+      currentLocationName: 'Obridge',
+      journeyDestination: 'Obridge',
+      calendarDays: 4,
+      calendarMaxDays: 12
+    };
+    expect(getCampaignContinuity(arrived)).toMatchObject({
+      nextAction: '목적지에 도착했습니다. 여정을 돌아보고 실제 결말을 정하세요.',
+      continueLabel: '여정 결말 정하기'
+    });
+    expect(getCampaignResumeActionIds(arrived).at(0)).toBe('journey-end');
+    expect(getCampaignResumeActionIds(arrived)).not.toContain('travel-next');
+
+    const arrivedWithEncounter = {
+      ...arrived,
+      pendingEncounter: { id: 'destination-encounter' }
+    };
+    expect(getCampaignContinuity(arrivedWithEncounter).guidance)
+      .toContain('Obridge 도착 · 마지막 Move의 현지 절차 진행 중');
+    expect(getCampaignResumeActionIds(arrivedWithEncounter).at(0)).toBe('pending-encounter');
+    expect(getCampaignResumeActionIds(arrivedWithEncounter)).not.toContain('travel-next');
+
+    const ending = {
+      ...arrived,
+      journey: { ...arrived.journey, status: 'ending' as const },
+      pendingEnding: { journeyId: 'journey-1', selectedOutcome: 'partial' as const }
+    };
+    expect(getCampaignContinuity(ending)).toMatchObject({
+      continueLabel: '여정 결말 이어가기'
+    });
+    expect(getCampaignContinuity(ending).guidance).toContain('부분 성공 선택 저장됨');
+    expect(getCampaignResumeActionIds(ending).at(0)).toBe('journey-end');
   });
 
   it('resumes a queued manual ruling before downtime or a new journey outside an active journey', () => {

@@ -23,6 +23,7 @@ export type JourneyGoalId =
 
 export type JourneyDirection = 'north' | 'south' | 'east' | 'west';
 export type JourneyStatus = 'setup' | 'active' | 'ending' | 'completed' | 'abandoned';
+export type JourneyEndingOutcome = 'success' | 'partial' | 'failure' | 'abandoned';
 
 export interface JourneyMapNode {
   id: string;
@@ -111,11 +112,50 @@ export interface JourneyState {
   rulesetId: RulesetId;
   startReputation: number;
   ending?: {
-    outcome: 'success' | 'partial' | 'failure' | 'abandoned';
+    outcome: JourneyEndingOutcome;
     journalText: string;
     endedAt: number;
   };
 }
+
+export interface JourneyEndingDraft {
+  journeyId: string;
+  blockers: string[];
+  evaluation: GoalEvaluation;
+  selectedOutcome?: JourneyEndingOutcome;
+  journalText?: string;
+  playerDeclaredGoalComplete?: boolean;
+  gmOverride?: boolean;
+  updatedAt?: number;
+}
+
+interface ForcedJourneyAbandonmentState {
+  journeyActive: boolean;
+  journey: JourneyState | null;
+  pendingEnding: JourneyEndingDraft | null;
+  downtimeRequired: boolean;
+  downtimeCompleted?: boolean;
+}
+
+/**
+ * Printed effects can end a Journey outside the normal memoir form. Keep the
+ * canonical Journey record, its legacy activity mirror, and the p.40 Downtime
+ * hand-off atomic so save/reload cannot revive the Journey.
+ */
+export const applyForcedJourneyAbandonment = <T extends ForcedJourneyAbandonmentState>(state: T): T => {
+  const canonicalActive = state.journey?.status === 'active' || state.journey?.status === 'ending';
+  if (!state.journeyActive && !canonicalActive) return state;
+  return {
+    ...state,
+    journeyActive: false,
+    journey: canonicalActive && state.journey
+      ? { ...state.journey, status: 'abandoned' }
+      : state.journey,
+    pendingEnding: null,
+    downtimeRequired: true,
+    downtimeCompleted: false
+  };
+};
 
 export interface JourneyGoalDefinition extends CanonicalRuleRecord {
   id: JourneyGoalId;
@@ -141,7 +181,7 @@ export interface JourneyRuntimeState {
   manualEffectQueue?: unknown[];
   needsLocalHelp?: boolean;
   journey: JourneyState | null;
-  pendingEnding: { journeyId: string; blockers: string[]; evaluation: GoalEvaluation } | null;
+  pendingEnding: JourneyEndingDraft | null;
   downtimeRequired: boolean;
   downtimeCompleted?: boolean;
   journalEvents: EngineJournalEvent[];
@@ -628,7 +668,7 @@ export const resolveJourneyEnding = (input: {
   transactionId: string;
   state: JourneyRuntimeState;
   endedAt: number;
-  outcome?: 'success' | 'partial' | 'failure' | 'abandoned';
+  outcome?: JourneyEndingOutcome;
   journalText?: string;
   playerDeclaredGoalComplete?: boolean;
   gmOverride?: boolean;
@@ -638,7 +678,13 @@ export const resolveJourneyEnding = (input: {
     return { status: 'resolved', value: input.state, messages: ['Ending transaction was already applied.'] };
   }
   const journey = input.state.journey;
-  if (!journey || journey.status !== 'active') return { status: 'invalid', value: null, messages: ['There is no active Journey to end.'] };
+  if (!journey || !['active', 'ending'].includes(journey.status)) return { status: 'invalid', value: null, messages: ['There is no active Journey to end.'] };
+  const savedDraft = input.state.pendingEnding?.journeyId === journey.journeyId
+    ? input.state.pendingEnding
+    : null;
+  if (journey.status === 'ending' && input.state.pendingEnding && !savedDraft) {
+    return { status: 'invalid', value: null, messages: ['The saved Journey ending belongs to another Journey.'] };
+  }
   const blockers: string[] = [];
   if (input.state.currentLocationId !== journey.destinationId) blockers.push('You have not arrived at the canonical Destination.');
   if (input.state.pendingEncounter) blockers.push('Resolve the pending Encounter.');
@@ -648,32 +694,55 @@ export const resolveJourneyEnding = (input: {
   if (input.state.needsLocalHelp) blockers.push('Resolve a local beast’s Ailment before ending the Move at this Location.');
   if (input.state.patients.some(patient => patient.status === 'active' && (patient.ailments.some(row => row.status === 'active') || patient.timers.some(row => row.status === 'active')))) blockers.push('Resolve or leave every active Patient and Timer.');
   if (blockers.length > 0) return { status: 'invalid', value: null, messages: blockers };
+  const selectedOutcome = input.outcome ?? savedDraft?.selectedOutcome;
+  const journalText = input.journalText ?? savedDraft?.journalText;
+  const playerDeclaredGoalComplete = input.playerDeclaredGoalComplete
+    ?? savedDraft?.playerDeclaredGoalComplete
+    ?? journey.goalState.playerDeclaredComplete;
+  const gmOverride = input.gmOverride ?? savedDraft?.gmOverride ?? journey.goalState.gmOverride;
   const declaredJourney = {
     ...journey,
     goalState: {
       ...journey.goalState,
-      playerDeclaredComplete: Boolean(input.playerDeclaredGoalComplete),
-      gmOverride: Boolean(input.gmOverride)
+      playerDeclaredComplete: Boolean(playerDeclaredGoalComplete),
+      gmOverride: Boolean(gmOverride)
     }
   };
   const evaluation = evaluateJourneyGoal(declaredJourney, input.state);
   const evaluatedJourney = { ...declaredJourney, goalState: { ...declaredJourney.goalState, evaluation } };
-  if (!input.outcome || !input.journalText?.trim()) {
+  // Merely reopening a saved ending is a read/resume operation. Even a fully
+  // populated draft must not commit until this invocation explicitly supplies
+  // the memoir text as the final confirmation step.
+  const commitRequested = typeof input.journalText === 'string';
+  if (!commitRequested || !selectedOutcome || !journalText?.trim()) {
     return {
       status: 'manual',
-      value: { ...input.state, journey: { ...evaluatedJourney, status: 'ending' }, pendingEnding: { journeyId: journey.journeyId, blockers: [], evaluation } },
+      value: {
+        ...input.state,
+        journey: { ...evaluatedJourney, status: 'ending' },
+        pendingEnding: {
+          journeyId: journey.journeyId,
+          blockers: [],
+          evaluation,
+          ...(selectedOutcome ? { selectedOutcome } : {}),
+          ...(journalText !== undefined ? { journalText } : {}),
+          ...(playerDeclaredGoalComplete !== undefined ? { playerDeclaredGoalComplete: Boolean(playerDeclaredGoalComplete) } : {}),
+          ...(gmOverride !== undefined ? { gmOverride: Boolean(gmOverride) } : {}),
+          updatedAt: input.endedAt
+        }
+      },
       messages: ['Choose success, partial, failure, or abandoned and write the Journey ending.']
     };
   }
-  if (input.outcome === 'success' && !evaluation.complete && !input.gmOverride) {
+  if (selectedOutcome === 'success' && !evaluation.complete && !gmOverride) {
     return { status: 'invalid', value: null, messages: ['The Goal evidence does not support a successful ending. Choose partial/failure or record the required evidence.'] };
   }
   const legacyStakes = journey.rulesetId === 'legacy-campaign' && input.journeyStakesEnabled;
-  const reputationChange = legacyStakes ? (input.outcome === 'success' ? 5 : input.outcome === 'failure' ? -3 : 0) : 0;
+  const reputationChange = legacyStakes ? (selectedOutcome === 'success' ? 5 : selectedOutcome === 'failure' ? -3 : 0) : 0;
   const nextJourney: JourneyState = {
     ...evaluatedJourney,
-    status: input.outcome === 'abandoned' ? 'abandoned' : 'completed',
-    ending: { outcome: input.outcome, journalText: input.journalText.trim(), endedAt: input.endedAt }
+    status: selectedOutcome === 'abandoned' ? 'abandoned' : 'completed',
+    ending: { outcome: selectedOutcome, journalText: journalText.trim(), endedAt: input.endedAt }
   };
   return {
     status: 'resolved',
@@ -685,8 +754,8 @@ export const resolveJourneyEnding = (input: {
       downtimeRequired: true,
       appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
       journalEvents: [...input.state.journalEvents, {
-        id: `${input.transactionId}:journal`, type: 'travel', title: `Journey ${input.outcome}`,
-        text: input.journalText.trim()
+        id: `${input.transactionId}:journal`, type: 'travel', title: `Journey ${selectedOutcome}`,
+        text: journalText.trim()
       }]
     },
     messages: []

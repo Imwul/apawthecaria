@@ -4,6 +4,7 @@ import { localizeGameplayMessage } from '../localization/engineMessagesKo';
 import { referenceForJournalTab } from '../rulebook/context';
 import type { RulebookReferenceRequest } from '../rulebook/types';
 import { getCampaignContinuity } from '../campaignContinuity';
+import { getJourneyUiContext } from '../journeyUiContext';
 import { readCalendarClocks } from '../calendarTime';
 import type { JournalTab } from '../sessionNavigation';
 import { isActivityJournalEntry, presentEncounterJournal } from '../encounterJournal';
@@ -80,6 +81,7 @@ export function ChapterOpening({
   onReturnToToday: () => void;
   onOpenReference: (request: RulebookReferenceRequest) => void;
 }) {
+  const journeyActive = getJourneyUiContext(state).active;
   const patient = state.patients?.find((row: any) => row.id === state.activePatientId && row.status === 'active');
   const ailment = patient?.ailments?.find((row: any) => row.status === 'active');
   const legacyAilment = state.activeAilment;
@@ -117,7 +119,7 @@ export function ChapterOpening({
       kicker: '지도 기록',
       title: '접어둔 지도',
       body: `${localizeLocationName(state.currentLocationName) || '이름 없는 길목'}에서 시작해 지나온 숲과 아직 걷지 않은 길을 함께 펼칩니다.`,
-      notes: [localizeRegionLabel(state.currentRegion), `${state.visitedLocations?.length || 0}곳의 발자국`, state.journeyActive ? `${localizeLocationName(state.journeyDestination) || '목적지'}로 이동 중` : '머무르는 중']
+      notes: [localizeRegionLabel(state.currentRegion), `${state.visitedLocations?.length || 0}곳의 발자국`, journeyActive ? `${localizeLocationName(state.journeyDestination) || '목적지'}로 이동 중` : '머무르는 중']
     },
     almanack: {
       kicker: '들녘의 참고 기록',
@@ -217,11 +219,12 @@ export function TodayOverview({
       })()
     : recentJournalText;
   const continuity = getCampaignContinuity(state);
+  const journeyActive = getJourneyUiContext(state).active;
   const calendarClocks = readCalendarClocks(state);
   const recentTimeChanges = (state.calendarHistory || []).slice(-2).reverse();
   const dayPlace = localizeLocationName(state.currentLocationName) || '현재 위치 미기록';
-  const dayPhrase = state.journeyActive ? '여정을 이어가는 날' : '이곳에 머무는 날';
-  const continuityFacts = state.journeyActive
+  const dayPhrase = journeyActive ? '여정을 이어가는 날' : '이곳에 머무는 날';
+  const continuityFacts = journeyActive
     ? [
         { label: '여정 목적지', value: localizeLocationName(state.journeyDestination) || '미정' },
         { label: '여정 달력', value: `${calendarClocks.calendarDays} / ${Math.max(0, state.calendarMaxDays || 0)}일` },
@@ -286,7 +289,7 @@ export function TodayOverview({
             <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>
           ))}
         </dl>
-        {state.journeyActive && state.journeyGoalTitle ? (
+        {journeyActive && state.journeyGoalTitle ? (
           <div className="campaign-continuity__goal">
             <span>이번 여정의 목표</span>
             <strong>{state.journeyGoalTitle}</strong>

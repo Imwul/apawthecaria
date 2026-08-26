@@ -160,6 +160,46 @@ describe('save migration torture matrix', () => {
     }
   });
 
+  it('reconciles the canonical Journey status mirror and preserves an in-progress ending draft', () => {
+    const source = richSaveAt(CURRENT_SCHEMA_VERSION);
+    const ending = migrateSavedRulesState(clone({
+      ...source,
+      journeyActive: false,
+      journey: { ...source.journey, status: 'active' },
+      pendingEnding: {
+        journeyId: 'journey-1',
+        blockers: [],
+        selectedOutcome: 'partial',
+        journalText: 'The road almost reached what I hoped for.',
+        playerDeclaredGoalComplete: false,
+        gmOverride: false,
+        updatedAt: 42
+      }
+    }));
+
+    expect(ending).toMatchObject({
+      journeyActive: true,
+      journey: { journeyId: 'journey-1', status: 'ending' },
+      pendingEnding: {
+        journeyId: 'journey-1',
+        selectedOutcome: 'partial',
+        journalText: 'The road almost reached what I hoped for.',
+        playerDeclaredGoalComplete: false,
+        updatedAt: 42
+      }
+    });
+    expect(migrateSavedRulesState(clone(ending))).toEqual(ending);
+
+    const terminal = migrateSavedRulesState(clone({
+      ...source,
+      journeyActive: true,
+      journey: { ...source.journey, status: 'completed' },
+      pendingEnding: { journeyId: 'journey-1', selectedOutcome: 'failure' }
+    }));
+    expect(terminal.journeyActive).toBe(false);
+    expect(terminal.pendingEnding).toBeNull();
+  });
+
   it('repairs a legacy journey whose cumulative calendar fell behind its current journey day', () => {
     const migrated = migrateSavedRulesState({
       schemaVersion: CURRENT_SCHEMA_VERSION,

@@ -164,7 +164,7 @@ describe('map interaction contracts', () => {
   });
 
   it('does not add a route stop while the map is being used to choose a journey destination', () => {
-    expect(appSource).toContain("onAddWaypoint={playMapMode === 'destination' ? undefined : handleAddRouteWaypoint}");
+    expect(appSource).toContain("onAddWaypoint={playMapMode === 'travel' && journeyUiContext.canMove ? handleAddRouteWaypoint : undefined}");
     expect(appSource).toContain("onSelectedPlaceChange={playMapMode === 'destination' ? handlePlayMapSelection : undefined}");
     expect(appSource).toContain("journeyDestinationMode === 'choose'\n      ? Boolean(journeyGraph[locationId])");
     expect(appSource).toContain('— 출발지가 아닌 목적지를 고르세요 —');

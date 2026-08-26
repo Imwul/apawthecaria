@@ -128,6 +128,7 @@ import {
   isAwaitingImmediateRemedy as isAwaitingImmediateRemedyCheckpoint,
   reconcileImmediateRemedyCheckpoint,
   releaseImmediateRemedyCheckpoint as releaseImmediateRemedyCheckpointRule,
+  applyForcedJourneyAbandonment,
   applyAilmentTagOverrides,
   previewTreatmentSelection,
   canTreatAilmentWithInventory,
@@ -272,6 +273,7 @@ import {
   type GameplayLocationType,
   type GuildServiceId,
   type JourneyMapNode,
+  type JourneyEndingOutcome,
   type JourneyRuntimeState,
   type JourneyState,
   type LeaveRuntimeState,
@@ -378,6 +380,12 @@ import { fuzzyReferenceTextMatch } from './rulebook/referenceRegistry';
 import { PaperMap, type MapClinicOverlay, type MapPickLocation, type MapSavedConnection, type MapSelectionIntent } from './map/PaperMap';
 import { type MapPlace, type MapPlaceType } from './map/mapLayers';
 import { applyManualCalendarAdjustment, getCampaignContinuity, getCampaignResumeActionIds, inferCompletedSeasons } from './campaignContinuity';
+import {
+  getJourneyUiContext,
+  journeyGoalConfirmationDefault,
+  journeyOutcomePromptValue,
+  journeyPhaseTransitionFocusTarget
+} from './journeyUiContext';
 import { applyCalendarAdvance, readCalendarClocks } from './calendarTime';
 import { resetJourneyForPlanning } from './journeyRecovery';
 import { buildEncounterJournalText, isActivityJournalEntry, presentEncounterJournal } from './encounterJournal';
@@ -2386,6 +2394,20 @@ const resolveCurrentMapLocationKey = (s: Pick<GameState, 'currentLocationName' |
   return findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName);
 };
 
+const resolveJourneyDestinationMapKey = (s: Pick<GameState, 'journey' | 'journeyDestination' | 'customMapLocations'>): string => {
+  const candidates = [s.journey?.destinationId, s.journeyDestination]
+    .map(value => String(value || '').trim())
+    .filter(Boolean);
+  for (const candidate of candidates) {
+    const resolved = findMapLocationKey(candidate, s.customMapLocations || []);
+    if (resolved) return resolved;
+  }
+  // Unknown legacy saves used a printed name as the id. Normalizing both the
+  // current and destination keys preserves exact-name compatibility without
+  // allowing two known nodes that merely share a label to count as arrival.
+  return candidates[0] ? normalizeMapLocationName(candidates[0]) : '';
+};
+
 const getMapServiceEntriesWithinHops = (startName: string, maxHops: number = MAP_SERVICE_HOPS, customLocations: CustomMapLocation[] = [], customEdges: CustomMapEdge[] = []) => {
   const graphNodes = buildMapGraphNodes(customLocations, customEdges);
   const startKey = findMapLocationKey(startName, customLocations);
@@ -3024,7 +3046,7 @@ const toJourneyRuntime = (s: GameState): JourneyRuntimeState => ({
   pendingManualEffect: s.pendingManualEffect,
   manualEffectQueue: s.manualEffectQueue,
   needsLocalHelp: Boolean(s.needsLocalHelpBeforeMove),
-  journey: s.journey,
+  journey: s.journey ? { ...s.journey, destinationId: resolveJourneyDestinationMapKey(s) } : null,
   pendingEnding: s.pendingEnding,
   downtimeRequired: s.downtimeRequired,
   downtimeCompleted: s.downtimeCompleted,
@@ -3037,6 +3059,9 @@ const applyJourneyRuntime = (s: GameState, runtime: JourneyRuntimeState): GameSt
   bag: fromEngineInventory(runtime.inventory, s.bag),
   reputation: runtime.reputation,
   journey: runtime.journey,
+  journeyActive: runtime.journey
+    ? runtime.journey.status === 'active' || runtime.journey.status === 'ending'
+    : false,
   pendingEnding: runtime.pendingEnding,
   downtimeRequired: runtime.downtimeRequired,
   appliedTransactionIds: runtime.appliedTransactionIds,
@@ -4525,6 +4550,15 @@ const migrateState = (s: any): GameState => {
   const refreshedPendingManualEffect = refreshManualDraftFromRegistry(
     normalizeLegacyManualEffectDraft(s.pendingManualEffect)
   );
+  const migratedJourney = s.journey
+    ? {
+        ...s.journey,
+        destinationId: resolveJourneyDestinationMapKey(s as GameState) || s.journey.destinationId
+      }
+    : null;
+  const migratedJourneyActive = migratedJourney
+    ? ['active', 'ending'].includes(String(migratedJourney.status))
+    : Boolean(s.journeyActive);
   return syncWorldMemory({
     ...INITIAL_STATE,
     ...s,
@@ -4590,7 +4624,8 @@ const migrateState = (s: any): GameState => {
     journeyGoalChecklist: s.journeyGoalChecklist || [],
     journeyStartReputation: s.journeyStartReputation !== undefined ? s.journeyStartReputation : (s.reputation || 5),
     journeyOrigin: s.journeyOrigin || "",
-    journey: s.journey || null,
+    journeyActive: migratedJourneyActive,
+    journey: migratedJourney,
     pendingEnding: s.pendingEnding || null,
     activeBarter: s.activeBarter || null,
     pendingBarter: s.pendingBarter || null,
@@ -5072,6 +5107,7 @@ const toBarrowRuntime = (s: GameState): BarrowRuntimeState => {
 
 const applyBarrowRuntime = (s: GameState, runtime: BarrowRuntimeState): GameState => {
   const before = toBarrowRuntime(s);
+  const journeyTerminated = runtime.journeyEnded && !before.journeyEnded;
   const mapNodes = buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || []);
   const destination = mapNodes[runtime.currentLocationId];
   const runtimeLocation = runtime.graph[runtime.currentLocationId];
@@ -5091,7 +5127,7 @@ const applyBarrowRuntime = (s: GameState, runtime: BarrowRuntimeState): GameStat
     };
     customMapLocations = [...customMapLocations.filter(row => row.id !== settlement.id), settlement];
   }
-  return {
+  const nextState: GameState = {
     ...applyCalendarAdvance(s, runtime.calendarDays, '거수 고분 판정으로 달력에 표시했습니다.'),
     reputation: runtime.reputation,
     trinkets: resizeTrinkets(s.trinkets, runtime.trinkets, '고분 보상 장신구'),
@@ -5125,13 +5161,14 @@ const applyBarrowRuntime = (s: GameState, runtime: BarrowRuntimeState): GameStat
     needsLocalHelpBeforeMove: runtime.movementBlocked || runtime.needsLocalHelp,
     nextMoveSpeedOverride: runtime.nextMoveSpeedOverride,
     pursuedByBehemoth: runtime.pursuit ? { headStart: runtime.pursuit.headStart } : null,
-    journeyActive: runtime.journeyEnded ? false : s.journeyActive,
+    journeyActive: s.journeyActive,
     patients: runtime.patients || s.patients,
     activePatientId: runtime.activePatientId === undefined ? s.activePatientId : runtime.activePatientId,
     patientArchive: runtime.patientArchive || s.patientArchive,
     appliedTransactionIds: runtime.appliedTransactionIds,
     journals: appendEngineJournals(s.journals, runtime.journalEvents)
   };
+  return journeyTerminated ? applyForcedJourneyAbandonment(nextState) : nextState;
 };
 
 const TOOLS_DB = [
@@ -7277,7 +7314,7 @@ export default function App() {
       let nextCalendarDays = currentClocks.calendarDays;
       let nextCumulative = currentClocks.cumulativeDays;
       let nextCalendarHistory = [...(s.calendarHistory || [])];
-      let nextJourneyActive = s.journeyActive;
+      const nextJourneyActive = s.journeyActive;
       let nextCurrentLocationName = s.currentLocationName;
       let nextCurrentLocationType = s.currentLocationType;
       let nextCustomMapLocations = s.customMapLocations || [];
@@ -7325,11 +7362,10 @@ export default function App() {
         note = `조우 효과: 일정 +${amount}일`;
       } else if (effect === 'endJourney') {
         if (!askWindowConfirm("이 조우 효과로 현재 여정을 종료할까요?")) return s;
-        nextJourneyActive = false;
         note = `조우 효과: 여정 종료`;
       }
 
-      return {
+      const nextState: GameState = {
         ...s,
         activeAilment: nextAilment,
         bag: nextBag,
@@ -7353,6 +7389,7 @@ export default function App() {
           ...s.journals
         ] : s.journals
       };
+      return effect === 'endJourney' ? applyForcedJourneyAbandonment(nextState) : nextState;
     });
   };
 
@@ -9730,6 +9767,14 @@ const patientImpressionLabel = (personality?: string, descriptor?: string): stri
     .filter(Boolean)
     .join(' ');
 
+const journeyOutcomeLabel = (outcome?: JourneyEndingOutcome): string | null => outcome === 'success'
+  ? '성공'
+  : outcome === 'partial'
+    ? '부분 성공'
+    : outcome === 'failure'
+      ? '실패'
+      : outcome === 'abandoned' ? '포기' : null;
+
 interface ControlledPromptOption {
   value: string;
   label: string;
@@ -10200,6 +10245,21 @@ function PlayView({
     () => resolveCurrentMapLocationKey(state),
     [state]
   );
+  const journeyDestinationMapId = useMemo(
+    () => resolveJourneyDestinationMapKey({
+      journey: state.journey,
+      journeyDestination: state.journeyDestination,
+      customMapLocations: state.customMapLocations
+    }),
+    [state.customMapLocations, state.journey, state.journeyDestination]
+  );
+  const journeyUiContext = getJourneyUiContext({
+    ...state,
+    journey: state.journey
+      ? { ...state.journey, destinationId: journeyDestinationMapId }
+      : null,
+    currentMapLocationId: journeyOriginId
+  });
   const confirmedJourneyRoutes = useMemo(
     () => confirmedRouteSummariesFrom(state.customMapEdges || [], journeyOriginId),
     [journeyOriginId, state.customMapEdges]
@@ -10649,8 +10709,8 @@ function PlayView({
       .sort((left, right) => left.name.localeCompare(right.name, 'ko'));
   }, [routeEndId, routeGraphNodes, state.clinics, state.customMapLocations]);
   const routeJourneyTarget = useMemo<RouteStop | null>(() => {
-    const targetId = state.journeyActive
-      ? state.journey?.destinationId || findMapLocationKey(state.journeyDestination, state.customMapLocations || [])
+    const targetId = journeyUiContext.active
+      ? journeyDestinationMapId
       : selectedJourneyDestination?.id;
     if (!targetId) return null;
     const node = routeGraphNodes[targetId];
@@ -10661,7 +10721,7 @@ function PlayView({
         findMapLocationKey(clinic.locationName, state.customMapLocations || []) === targetId
       )
     });
-  }, [routeGraphNodes, selectedJourneyDestination?.id, state.clinics, state.customMapLocations, state.journey, state.journeyActive, state.journeyDestination]);
+  }, [journeyDestinationMapId, journeyUiContext.active, routeGraphNodes, selectedJourneyDestination?.id, state.clinics, state.customMapLocations]);
   const routeConfirmedCoverage = useMemo(
     () => confirmedRouteCoverage(routeDraft, state.customMapEdges || []),
     [routeDraft, state.customMapEdges]
@@ -10674,28 +10734,43 @@ function PlayView({
     ),
     [currentRouteOrigin?.id, routeJourneyTarget?.id, state.customMapEdges]
   );
-  const localCarePhase = Boolean(state.journeyActive && (
-    state.needsLocalHelpBeforeMove
-    || state.activePatientId
-    || state.activeAilment
-    || state.pendingForaging
-    || state.scroungingMode
-  ));
+  const localCarePhase = journeyUiContext.active && (
+    journeyUiContext.phase === 'manual-pending'
+    || journeyUiContext.phase === 'foraging-pending'
+    || journeyUiContext.phase === 'local-care'
+  );
   const journeyDaysRemaining = Math.max(0, state.calendarMaxDays - state.calendarDays);
   const routeJourneyTargetId = routeJourneyTarget?.id || null;
+  const journeyPhase = journeyUiContext.phase;
+  const journeyFocusTargetId = journeyUiContext.focusTargetId;
+  const previousJourneyPhaseRef = useRef(journeyPhase);
+  useEffect(() => {
+    const targetId = journeyPhaseTransitionFocusTarget(previousJourneyPhaseRef.current, journeyPhase, journeyFocusTargetId);
+    previousJourneyPhaseRef.current = journeyPhase;
+    if (!targetId) return;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+      target.scrollIntoView({ behavior, block: 'start' });
+      target.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [journeyFocusTargetId, journeyPhase]);
   useEffect(() => {
     if (!currentRouteOrigin) return;
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
       setRouteDraft(previous => {
+        if (!journeyUiContext.canMove) return previous;
         if (previous.stops.length === 0) return draftFromOrigin(currentRouteOrigin);
         if (previous.stops[0].id === currentRouteOrigin.id) return previous;
         return draftFromOrigin(currentRouteOrigin);
       });
     });
     return () => { cancelled = true; };
-  }, [currentRouteOrigin, setRouteDraft]);
+  }, [currentRouteOrigin, journeyUiContext.canMove, setRouteDraft]);
   const [travelDrawCard, setTravelDrawCard] = useState<PlayingCard | null>(null);
 
   const effectiveForageAdjacentRegion = scroungeAdjacentRegions.includes(toRuleRegion(forageAdjacentRegion))
@@ -11775,7 +11850,6 @@ function PlayView({
       setSelectedTools([]);
       setDestRegion(resetOrigin.region || state.currentRegion);
       setDowntimeTab('start');
-      window.setTimeout(() => document.getElementById('journey-start-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
       showAlert(`이번 여정만 정리하고 출발지 ${resetOrigin.name || '기존 위치'}로 돌아갔습니다. 목적지와 목표를 다시 정해 주세요.`);
     };
 
@@ -11959,6 +12033,10 @@ function PlayView({
 	  };
 
   const executeCanonicalTravelMoveTransaction = async (drawnSuit: string, cardVal: number) => {
+    if (!journeyUiContext.canMove) {
+      showAlert(journeyUiContext.moveBlockedReason || '현재 여정 단계에서는 다음 Move를 시작할 수 없습니다.');
+      return;
+    }
     if (acquisitionCheckpointBlocked) {
       showAlert(acquisitionCheckpointBlockingMessage);
       return;
@@ -12382,7 +12460,12 @@ function PlayView({
 
   const handleTravelMove = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!state.journeyActive) return;
+    if (!journeyUiContext.active) return;
+
+    if (!journeyUiContext.canMove) {
+      showAlert(journeyUiContext.moveBlockedReason || '현재 여정 단계에서는 다음 Move를 시작할 수 없습니다.');
+      return;
+    }
 
     if (acquisitionCheckpointBlocked) {
       showAlert(acquisitionCheckpointBlockingMessage);
@@ -14393,25 +14476,31 @@ function PlayView({
 
 
   const handleEndJourney = async () => {
-    if (!state.journeyActive || !state.journey) return;
+    if (!state.journey || !['active', 'ending'].includes(state.journey.status)) return;
+    const preflightAttempt = createClientTransaction('journey-ending-preflight');
     const preflight = resolveJourneyEnding({
       transactionId: `${state.journey.journeyId}:ending-preflight`,
       state: toJourneyRuntime(state),
-      endedAt: Date.now()
+      endedAt: preflightAttempt.at
     });
-    if (preflight.status === 'invalid') {
+    if (!preflight.value || preflight.status === 'invalid') {
       showAlert(preflight.messages.map(localizeGameplayMessage).join('\n'));
       return;
     }
-    const evaluation = evaluateJourneyGoal(state.journey, {
-      inventory: toEngineInventory(state.bag),
-      reputation: state.reputation,
-      patients: state.patients
-    });
+    let endingRuntime: JourneyRuntimeState = preflight.value;
+    updateState(s => applyJourneyRuntime(s, endingRuntime));
+    const evaluation = endingRuntime.pendingEnding?.evaluation
+      || evaluateJourneyGoal(endingRuntime.journey!, {
+        inventory: endingRuntime.inventory,
+        reputation: endingRuntime.reputation,
+        patients: endingRuntime.patients
+      });
+    const outcomes: JourneyEndingOutcome[] = ['success', 'partial', 'failure', 'abandoned'];
+    const savedOutcome = endingRuntime.pendingEnding?.selectedOutcome;
     const choice = await requestControlledPrompt({
       title: '여정 결말을 선택하세요',
-      message: evaluation.complete ? '현재 목표 조건을 충족했습니다.' : '현재 목표 조건이 완전히 충족되지 않았습니다.',
-      defaultValue: evaluation.complete ? '1' : '2',
+      message: `${evaluation.complete ? '현재 목표 조건을 충족했습니다.' : '현재 목표 조건이 완전히 충족되지 않았습니다.'}\n고른 결말은 즉시 저장되며, 중간에 닫아도 그대로 이어집니다.`,
+      defaultValue: journeyOutcomePromptValue(savedOutcome, evaluation.complete),
       kicker: '여정 마감',
       options: [
         { value: '1', label: '1. 성공' },
@@ -14421,8 +14510,20 @@ function PlayView({
       ]
     });
     if (!choice) return;
-    const outcomes = ['success', 'partial', 'failure', 'abandoned'] as const;
     const outcome = outcomes[Math.max(0, Math.min(3, (parseInt(choice) || 1) - 1))];
+    const selectionAttempt = createClientTransaction('journey-ending-selection');
+    const stagedOutcome = resolveJourneyEnding({
+      transactionId: `${state.journey.journeyId}:ending-selection`,
+      state: endingRuntime,
+      endedAt: selectionAttempt.at,
+      outcome
+    });
+    if (!stagedOutcome.value || stagedOutcome.status === 'invalid') {
+      showAlert(stagedOutcome.messages.map(localizeGameplayMessage).join('\n'));
+      return;
+    }
+    endingRuntime = stagedOutcome.value;
+    updateState(s => applyJourneyRuntime(s, endingRuntime));
     const blanket = state.bag.find(item => item.craftedItemId === 'knitted-blanket' || item.name.includes('Knitted Blanket'));
     if ((outcome === 'failure' || outcome === 'abandoned') && blanket
       && askWindowConfirm('뜨개 담요를 버려 이 여정의 조기 종료를 막을까요?')) {
@@ -14443,22 +14544,30 @@ function PlayView({
         ...s,
         bag: fromEngineInventory(saved.value!.inventory, s.bag),
         appliedTransactionIds: saved.value!.appliedTransactionIds,
-        journals: appendEngineJournals(s.journals, saved.value!.journalEvents)
+        journals: appendEngineJournals(s.journals, saved.value!.journalEvents),
+        journey: s.journey ? { ...s.journey, status: 'active' } : s.journey,
+        pendingEnding: null,
+        journeyActive: true
       }));
       showAlert('담요가 여정을 지켜냈습니다. 여정은 계속됩니다.');
       return;
     }
-    const defaultMemoir = `${state.journeyOrigin || '출발지'}에서 ${state.journeyDestination}까지 ${state.calendarDays}일 동안 여행했다. 목표 ${state.journeyGoalTitle}의 결말과 이 길이 남긴 변화를 기록한다.`;
+    const defaultMemoir = endingRuntime.pendingEnding?.journalText
+      || `${state.journeyOrigin || '출발지'}에서 ${state.journeyDestination}까지 ${state.calendarDays}일 동안 여행했다. 목표 ${state.journeyGoalTitle}의 결말과 이 길이 남긴 변화를 기록한다.`;
     const memoir = await requestControlledPrompt({
       title: '여정의 결말',
-      message: '이 길이 남긴 변화와 결말을 기록하세요.',
+      message: `${journeyOutcomeLabel(outcome)}으로 고른 여정입니다. 이 길이 남긴 변화와 결말을 기록하세요.`,
       defaultValue: defaultMemoir,
       kicker: '여정 마감',
       label: '회고',
       inputMode: 'multiline'
     });
     if (!memoir?.trim()) return;
-    let manualConfirmed = false;
+    let manualConfirmed = journeyGoalConfirmationDefault(
+      outcome,
+      endingRuntime.pendingEnding?.playerDeclaredGoalComplete,
+      evaluation.complete
+    ) === 'confirmed';
     const needsPlayerDeclaration = evaluation.manualConfirmationRequired
       || (outcome === 'success' && !evaluation.complete);
     if (needsPlayerDeclaration) {
@@ -14467,8 +14576,8 @@ function PlayView({
         : '앱 안의 기록만으로는 모든 조건을 확인할 수 없습니다. 종이 저널, 말, 그림처럼 앱 밖에서 남긴 기록도 직접 확인할 수 있습니다.';
       const goalConfirmation = await requestControlledPrompt({
         title: '여정 목표를 직접 확인하세요',
-        message: `${state.journeyGoalTitle}: ${state.journeyGoalDesc || '기록한 완료 조건'}\n\n${automaticNote}\n실제 플레이에서 목표를 달성했다면 그 판단을 결말에 남길 수 있습니다.`,
-        defaultValue: 'confirmed',
+        message: `선택한 결말: ${journeyOutcomeLabel(outcome)}\n${state.journeyGoalTitle}: ${state.journeyGoalDesc || '기록한 완료 조건'}\n\n${automaticNote}\n실제 플레이에서 목표를 달성했다면 그 판단을 결말에 남길 수 있습니다.`,
+        defaultValue: manualConfirmed ? 'confirmed' : 'not-confirmed',
         kicker: '여정 마감 · 플레이어 판정',
         label: '달성 여부',
         options: [
@@ -14480,10 +14589,11 @@ function PlayView({
       manualConfirmed = goalConfirmation === 'confirmed';
     }
     const transactionId = `${state.journey.journeyId}:ending`;
+    const endingAttempt = createClientTransaction('journey-ending-commit');
     const result = resolveJourneyEnding({
       transactionId,
-      state: toJourneyRuntime(state),
-      endedAt: Date.now(),
+      state: endingRuntime,
+      endedAt: endingAttempt.at,
       outcome,
       journalText: memoir,
       playerDeclaredGoalComplete: manualConfirmed,
@@ -14690,7 +14800,7 @@ function PlayView({
   const patientReagentCount = state.bag.filter(item => item.type === 'reagent').length;
   const maxCarry = getMaxCarry(state);
   const activeRouteMode: 'move' | 'soar' = hasPendingTaxiMove ? 'soar' : travelMode;
-  const activeTravelSpeed = state.journeyActive
+  const activeTravelSpeed = journeyUiContext.active
     ? previewTravelSpeed(state, currentWeight, activeRouteMode)
     : state.bio.speed;
   const activeTravelWagon = canonicalWagonFromState(state);
@@ -14713,12 +14823,10 @@ function PlayView({
     && activeRouteEnd
     && ['Ruin', 'Barrow'].includes(activeRouteEnd.kind)
     && !(state.visitedLocations || []).includes(activeRouteEnd.name));
-  const routeTravelBlockedReason = !state.journeyActive
+  const routeTravelBlockedReason = !journeyUiContext.active
     ? '여정을 시작하면 이 경로로 이동할 수 있습니다.'
-    : state.pendingEncounter
-      ? `먼저 현재 ${state.pendingEncounter.encounter.encounterType === 'social' ? '사회 조우' : '이동 조우'}를 해결하세요.`
-      : state.needsLocalHelpBeforeMove
-        ? '현지 야수의 질환을 해결한 뒤 이동할 수 있습니다.'
+    : !journeyUiContext.canMove
+      ? journeyUiContext.moveBlockedReason
         : activeRouteMode === 'soar' && !canSoarNow
           ? currentWeight > maxCarry
             ? '과적 상태에서는 활공할 수 없습니다.'
@@ -14733,11 +14841,11 @@ function PlayView({
   const barterRemaining = barterLocations.reduce((max, option) => Math.max(max,
     state.activePatientId ? getBarterAttemptsRemaining(state.barterAttemptHistory, state.activePatientId, option.key, option.type) : 0
   ), 0);
-  const journeyGoalDone = state.journeyActive ? checkJourneyGoalSatisfaction(state) : false;
+  const journeyGoalDone = journeyUiContext.active ? checkJourneyGoalSatisfaction(state) : false;
   const campaignContinuity = getCampaignContinuity(state);
-  const playMapMode: 'destination' | 'travel' | 'inspect' = !state.journeyActive && downtimeTab === 'start'
+  const playMapMode: 'destination' | 'travel' | 'inspect' = !journeyUiContext.active && downtimeTab === 'start'
     ? 'destination'
-    : state.journeyActive
+    : journeyUiContext.canMove
       ? 'travel'
       : 'inspect';
   const playMapHighlightIds = useMemo(() => {
@@ -14905,6 +15013,10 @@ function PlayView({
   }, [resolveDraftEdgeKind, routeGraphNodes, routeJourneyTargetId, setRouteDraft, state]);
 
   const handleSetMappedCurrentLocation = useCallback((location: MapPickLocation) => {
+    if (journeyUiContext.active) {
+      showAlert('여정 중 현재 위치는 Move 결과로만 바뀝니다. 현재 여정을 다시 준비하거나 마친 뒤 지도의 위치를 고쳐주세요.');
+      return;
+    }
     const node = routeGraphNodes[location.id];
     const stop = node
       ? stopFromGraphNode(location.id, node, { name: location.name || node.label, hasClinic: location.hasClinic })
@@ -14930,7 +15042,7 @@ function PlayView({
     setNextLocName('');
     setDestRegion(stop.terrain || state.currentRegion);
     setRouteDraft(draftFromOrigin(stop));
-  }, [persistRouteStop, routeGraphNodes, setRouteDraft, state.currentRegion, updateState]);
+  }, [journeyUiContext.active, persistRouteStop, routeGraphNodes, setRouteDraft, state.currentRegion, updateState]);
 
   const handleRouteStopChange = useCallback((index: number, patch: Partial<RouteStop>) => {
     setRouteDraft(previous => {
@@ -15008,6 +15120,22 @@ function PlayView({
     }
   };
 
+  if (journeyUiContext.primaryActionId === 'journey-end') {
+    const savedOutcome = state.pendingEnding?.selectedOutcome;
+    const savedOutcomeLabel = journeyOutcomeLabel(savedOutcome);
+    addActionHubItem({
+      id: 'journey-end',
+      label: journeyUiContext.phase === 'ending' ? '여정 결말 이어가기' : '여정 결말 정하기',
+      detail: savedOutcomeLabel
+        ? `${savedOutcomeLabel} 결말을 선택해 두었습니다. 회고와 목표 확인을 이어갑니다.`
+        : `${state.journeyDestination}에 도착했습니다. 이 길을 돌아보고 실제 결말을 정합니다.`,
+      meta: savedOutcomeLabel ? `선택 보존 · ${savedOutcomeLabel}` : '룰북 p.38 · Resolve Your Goal',
+      targetId: 'journey-ending-panel',
+      tone: 'primary',
+      activate: () => void handleEndJourney()
+    });
+  }
+
   if (state.pendingManualEffect || state.manualEffectQueue.length > 0) {
     addActionHubItem({
       id: 'manual-effect',
@@ -15074,7 +15202,7 @@ function PlayView({
     });
   }
 
-  if (!state.journeyActive) {
+  if (!journeyUiContext.active) {
     if (state.downtimeRequired && !state.downtimeCompleted) {
       addActionHubItem({
         id: 'downtime-activities',
@@ -15202,7 +15330,7 @@ function PlayView({
       });
     }
 
-    if (!state.needsLocalHelpBeforeMove && !state.pursuedByBehemoth
+    if (journeyUiContext.canMove && !state.pursuedByBehemoth
       && !state.activePatientId && !state.activeAilment && !state.scroungingMode) {
       addActionHubItem({
         id: 'travel-next',
@@ -15278,11 +15406,49 @@ function PlayView({
     return '';
   })();
 
+  const routeComposerElement = journeyUiContext.active ? (
+    <RouteComposer
+      draft={routeDraft}
+      speed={activeTravelSpeed}
+      carry={maxCarry}
+      weight={currentWeight}
+      waterwaySpan={activeTravelWagonCapabilities.waterwaySpan}
+      canStopInLoch={hasLochStoppingGear(state)}
+      protectsFromSoaking={hasSafeWaterwayTravel(state)}
+      soakableItemNames={state.bag.filter(item => isRuinedWhenSoaked(item)).map(item => item.name)}
+      canTravel={routeTravelBlockedReason === null}
+      readOnly={!journeyUiContext.canMove}
+      movementMode={activeRouteMode}
+      travelBlockedReason={routeTravelBlockedReason}
+      availableStops={routeStopChoices}
+      journeyTarget={routeJourneyTarget}
+      confirmedSegmentCount={routeConfirmedCoverage.confirmed}
+      journeyMinimumDistance={journeyMinimumDistance}
+      seasonLabel={localizeSeasonLabel(state.currentSeason)}
+      daysRemaining={state.calendarMaxDays - state.calendarDays}
+      onAddStop={stop => handleAddRouteWaypoint({
+        id: stop.id,
+        name: stop.name,
+        region: stop.terrain || undefined,
+        kind: locationTypeFromGlyph(stop.kind),
+        x: stop.x,
+        y: stop.y,
+        hasClinic: stop.hasClinic
+      })}
+      onChangeStop={handleRouteStopChange}
+      onChangeEdge={handleRouteEdgeChange}
+      onRemoveStop={handleRemoveRouteStop}
+      onMoveStop={handleMoveRouteStop}
+      onClear={handleClearRouteSides}
+      onTravel={handleComposerTravel}
+    />
+  ) : null;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
       {state.pendingPatientArchive && (
-        <div id="pending-archive-panel" style={{ position: 'fixed', right: '1.2rem', bottom: '1.2rem', zIndex: 1100, width: 'min(420px, calc(100vw - 2.4rem))' }}>
+        <div id="pending-archive-panel" tabIndex={-1} style={{ position: 'fixed', right: '1.2rem', bottom: '1.2rem', zIndex: 1100, width: 'min(420px, calc(100vw - 2.4rem))' }}>
           <div className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--border-cozy)', boxShadow: '0 8px 24px rgba(36,32,24,0.16)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.45rem', marginBottom: '0.7rem' }}>
               <div>
@@ -15462,10 +15628,10 @@ function PlayView({
             includeWilds
             routePlaceIds={routeDraft.stops.map(stop => stop.id)}
             onConfirmDestination={playMapMode === 'destination' ? handlePlayMapPick : undefined}
-            onTravelRequest={playMapMode === 'travel' ? handlePlayMapTravel : undefined}
-            onAddWaypoint={playMapMode === 'destination' ? undefined : handleAddRouteWaypoint}
+            onTravelRequest={playMapMode === 'travel' && journeyUiContext.canMove ? handlePlayMapTravel : undefined}
+            onAddWaypoint={playMapMode === 'travel' && journeyUiContext.canMove ? handleAddRouteWaypoint : undefined}
             onSelectedPlaceChange={playMapMode === 'destination' ? handlePlayMapSelection : undefined}
-            onSetCurrentLocation={handleSetMappedCurrentLocation}
+            onSetCurrentLocation={journeyUiContext.active ? undefined : handleSetMappedCurrentLocation}
             onCreatePlace={undefined}
             onMovePlace={undefined}
             onEditPlace={undefined}
@@ -15475,8 +15641,8 @@ function PlayView({
             veiled
             showSavedConnections
             showWaypointAction={false}
-            travelEnabled={Boolean(state.journeyActive && !state.needsLocalHelpBeforeMove)}
-            travelBlockedReason={state.needsLocalHelpBeforeMove ? '현지 야수의 질환을 해결한 뒤 이동할 수 있습니다.' : null}
+            travelEnabled={journeyUiContext.canMove}
+            travelBlockedReason={journeyUiContext.canMove ? null : journeyUiContext.moveBlockedReason}
             onOpenFullMap={onOpenFullMap}
             showRoutePreview={false}
             companionCaption={
@@ -15492,15 +15658,53 @@ function PlayView({
                       ? '거리·방향·장소 유형을 모두 만족하는 후보를 한 번 누르세요.'
                       : '현재 카드 조건과 저장된 연결을 모두 만족하는 후보가 없습니다. 연결을 확인하거나 카드를 다시 뽑으세요.')
                   : '목적지 카드를 뽑으면 저장된 연결의 최단 거리까지 계산한 후보가 지도에 표시됩니다.')
-                : `룰북 지도를 보고 다음 위치를 누르세요. Route Editor에서 연결 타입과 순서를 고를 수 있습니다.${currentWeight > maxCarry ? ' 현재 과적 상태라 속도는 1입니다.' : ''}`
+                : playMapMode === 'travel'
+                  ? `룰북 지도를 보고 다음 위치를 누르세요. Route Editor에서 연결 타입과 순서를 고를 수 있습니다.${currentWeight > maxCarry ? ' 현재 과적 상태라 속도는 1입니다.' : ''}`
+                  : journeyUiContext.atDestination
+                    ? `${state.journeyDestination}에 도착했습니다. 남은 의무를 끝낸 뒤 여정 결말을 정하세요.`
+                    : '현재 단계의 판정을 마치면 다음 이동 경로를 다시 편집할 수 있습니다.'
             }
           />
         </aside>
         )}
         <div className="play-with-map__panels">
-          {!localCarePhase && (
-          <section id="route-planning-panel" className="route-planning-workspace" aria-label="이번 이동 경로 짜기">
-          {state.journeyActive && (
+          {(journeyUiContext.phase === 'destination-ready' || journeyUiContext.phase === 'ending') && (
+            <section id="journey-ending-panel" className="journey-ending-workspace" tabIndex={-1} aria-labelledby="journey-ending-title">
+              <header>
+                <div>
+                  <span className="document-kicker">목적지 도착 · 룰북 p.38</span>
+                  <h2 id="journey-ending-title">이 길의 결말을 정할 차례입니다</h2>
+                </div>
+                <span className="journal-stamp">{state.journeyDestination}</span>
+              </header>
+              <p>
+                마지막 Move의 조우와 현지 진료를 모두 마쳤습니다. 여정을 돌아보고 목표를 얼마나 이루었는지 직접 판단하세요.
+                앱은 그 선택을 바꾸지 않습니다.
+              </p>
+              <div className="journey-ending-workspace__status">
+                <div>
+                  <span>이번 목표</span>
+                  <strong>{state.journeyGoalTitle}</strong>
+                  <small>{localizeJourneyGoalText(state.journeyGoalDesc)}</small>
+                </div>
+                <div>
+                  <span>현재 기록</span>
+                  <strong>{journeyOutcomeLabel(state.pendingEnding?.selectedOutcome) || '아직 결말을 고르지 않음'}</strong>
+                  <small>{state.pendingEnding?.selectedOutcome
+                    ? '선택이 이 캠페인에 저장되어 있습니다.'
+                    : `${state.calendarDays}/${state.calendarMaxDays}일 · 남은 기한 ${Math.max(0, state.calendarMaxDays - state.calendarDays)}일`}</small>
+                </div>
+              </div>
+              <footer>
+                <button type="button" className="btn-cozy-primary" onClick={() => void handleEndJourney()}>
+                  {journeyUiContext.phase === 'ending' ? '저장한 결말 이어가기' : '여정 돌아보기와 결말 정하기'}
+                </button>
+              </footer>
+            </section>
+          )}
+          {!localCarePhase && journeyUiContext.active && (
+          <section id="route-planning-panel" className="route-planning-workspace" aria-label={journeyUiContext.canMove ? '이번 이동 경로 짜기' : '마지막 이동 경로 확인'} tabIndex={-1}>
+          {journeyUiContext.active && journeyUiContext.canMove && (
             <section className="travel-mode-switch" aria-label="이번 이동 방식">
               <div>
                 <span>이동 방식</span>
@@ -15522,51 +15726,22 @@ function PlayView({
               </select>
             </section>
           )}
-          {state.journeyActive && (
-            <RouteComposer
-              draft={routeDraft}
-              speed={activeTravelSpeed}
-              carry={maxCarry}
-              weight={currentWeight}
-              waterwaySpan={activeTravelWagonCapabilities.waterwaySpan}
-              canStopInLoch={hasLochStoppingGear(state)}
-              protectsFromSoaking={hasSafeWaterwayTravel(state)}
-              soakableItemNames={state.bag.filter(item => isRuinedWhenSoaked(item)).map(item => item.name)}
-              canTravel={routeTravelBlockedReason === null}
-              movementMode={activeRouteMode}
-              travelBlockedReason={routeTravelBlockedReason}
-              availableStops={routeStopChoices}
-              journeyTarget={routeJourneyTarget}
-              confirmedSegmentCount={routeConfirmedCoverage.confirmed}
-              journeyMinimumDistance={journeyMinimumDistance}
-              seasonLabel={localizeSeasonLabel(state.currentSeason)}
-              daysRemaining={state.journeyActive ? state.calendarMaxDays - state.calendarDays : null}
-              onAddStop={stop => handleAddRouteWaypoint({
-                id: stop.id,
-                name: stop.name,
-                region: stop.terrain || undefined,
-                kind: locationTypeFromGlyph(stop.kind),
-                x: stop.x,
-                y: stop.y,
-                hasClinic: stop.hasClinic
-              })}
-              onChangeStop={handleRouteStopChange}
-              onChangeEdge={handleRouteEdgeChange}
-              onRemoveStop={handleRemoveRouteStop}
-              onMoveStop={handleMoveRouteStop}
-              onClear={handleClearRouteSides}
-              onTravel={handleComposerTravel}
-            />
-          )}
+          {journeyUiContext.active && (journeyUiContext.canMove ? routeComposerElement : (
+            <details className="journey-route-receipt">
+              <summary>마지막 이동 경로 보기</summary>
+              <p>완료한 경로는 읽기 전용으로 남습니다. 현재 단계의 판정을 마치기 전에는 새 이동을 시작하거나 경로를 바꿀 수 없습니다.</p>
+              {routeComposerElement}
+            </details>
+          ))}
           </section>
           )}
 
       {/* 1. If journey is NOT active */}
-      {!state.journeyActive && (
+      {!journeyUiContext.active && (
         <div className={`journey-downtime-stack${downtimeTab === 'start' ? ' journey-downtime-stack--start' : ''}`} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
           {/* Downtime record */}
-          <div id="downtime-panel" className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem', boxShadow: 'var(--shadow-md)' }}>
+          <div id="downtime-panel" className="cute-card" tabIndex={-1} style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem', boxShadow: 'var(--shadow-md)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.6rem', marginBottom: '0.8rem' }}>
               <span className="journal-stamp">휴식</span>
               <div>
@@ -16914,7 +17089,7 @@ function PlayView({
 
           {/* 4. Start journey form */}
           {downtimeTab === 'start' && (
-            <div id="journey-start-panel" className="cute-card journey-start-workspace" style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem' }}>
+            <div id="journey-start-panel" className="cute-card journey-start-workspace" tabIndex={-1} style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem' }}>
               <h2 style={{ color: 'var(--secondary)', margin: '0 0 0.4rem 0', fontFamily: 'var(--font-fancy)' }}>새로운 여정 떠나기</h2>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 1.2rem 0' }}>
                 룰북처럼 목적지는 뽑거나 고르고, 목표는 뽑거나 고르거나 직접 만들 수 있습니다. 카드로 뽑으면 저장한 지도 연결에서 거리 조건까지 자동으로 확인합니다.
@@ -17158,11 +17333,11 @@ function PlayView({
       )}
 
       {/* 2. Active Journey Record */}
-      {state.journeyActive && (
+      {journeyUiContext.active && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
           {/* Local care has its own compact journey context above the patient workspace. */}
-          {!localCarePhase && (
+          {!localCarePhase && !journeyUiContext.atDestination && (
           <div id="active-journey-panel" className="cute-card journey-record" style={{ background: '#fffefa', borderColor: 'var(--primary)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem' }}>
               <div className="prose-summary" style={{ fontSize: '0.95rem' }}>
@@ -17172,13 +17347,6 @@ function PlayView({
               </div>
               <div className="journey-record__actions">
                 <button type="button" className="btn-cozy-secondary" onClick={() => void handleRestartJourneyPlanning()}>이번 여정 다시 준비</button>
-                <button
-                  type="button"
-                  onClick={handleEndJourney}
-                  style={{ padding: '0.4rem 0.8rem', background: 'var(--secondary)', color: '#fff', borderRadius: '20px', fontSize: '0.82rem', whiteSpace: 'nowrap', flexShrink: 0 }}
-                >
-                  여정 마감
-                </button>
               </div>
             </div>
             <div style={{ marginTop: '0.8rem', background: '#ffffff', padding: '0.7rem', borderRadius: '8px', border: '1px solid var(--glass-border)', fontSize: '0.9rem', lineHeight: 1.55 }}>
@@ -17356,7 +17524,8 @@ function PlayView({
           )}
 
           {/* Current location and movement form */}
-          <div id="travel-panel" className="cute-card">
+          {journeyUiContext.phase !== 'destination-ready' && journeyUiContext.phase !== 'ending' && (
+          <div id="travel-panel" className="cute-card" tabIndex={-1}>
             {!localCarePhase && (
               <>
                 <div className="prose-summary" style={{ marginBottom: '0.8rem' }}>
@@ -17365,7 +17534,7 @@ function PlayView({
                 <div className="travel-season-status">
                   <span className="travel-season-status__value">현재 계절 <strong>{localizeSeasonLabel(state.currentSeason)}</strong></span>
                   <span className="travel-season-status__reason">
-                    {state.journeyActive
+                    {journeyUiContext.active
                       ? '이 여정을 마친 뒤 휴식기 활동 하나를 완료하면 계절을 전환할 수 있습니다.'
                       : state.downtimeRequired
                         ? '지난 여정의 휴식기 활동 하나를 먼저 선택하세요.'
@@ -17422,7 +17591,7 @@ function PlayView({
                 </button>
               </div>
             )}
-            {!localCarePhase && (
+            {!localCarePhase && journeyUiContext.canMove && (
               <form id="travel-move-form" ref={travelFormRef} onSubmit={handleTravelMove} className="grid-travel-form">
                 <details className="travel-encounter-prep">
                   <summary>실물 덱의 조우 카드 사용 <span>선택</span></summary>
@@ -17441,6 +17610,7 @@ function PlayView({
               </form>
             )}
           </div>
+          )}
 
           {/* ================================================================
               BEHEMOTH CHASE HUD
@@ -17523,7 +17693,7 @@ function PlayView({
               BARROW DELVE TRIGGER (when at a Barrow location)
              ================================================================ */}
           {!state.activeDelve && currentBarrow && !state.pursuedByBehemoth && (
-            <div id="barrow-panel" className="cute-card" style={{ background: '#f5ead8', border: '1.5px solid #9b7851', padding: '1.2rem' }}>
+            <div id="barrow-panel" className="cute-card" tabIndex={-1} style={{ background: '#f5ead8', border: '1.5px solid #9b7851', padding: '1.2rem' }}>
               <h3 style={{ color: '#725537', margin: '0 0 0.6rem' }}>거수의 고분 · {currentBarrow.name}</h3>
               <p style={{ margin: '0 0 0.8rem', lineHeight: 1.65, color: 'var(--text-muted)' }}>
                 {localizeBehemothClass(currentBarrow.behemothClass)} 거수의 고분이다. 탐험을 시작하면 문양에 맞는 도전을 확인한 뒤, 도전 직전까지만 안전하게 물러날 수 있다.
@@ -17575,7 +17745,7 @@ function PlayView({
             );
             const forageDisabled = Boolean(state.pendingForaging || activeForageEncounter);
             return (
-              <div id="barrow-panel" className="cute-card" style={{ background: '#eee9dc', border: '1.5px solid #7d755e', padding: '1.25rem' }}>
+              <div id="barrow-panel" className="cute-card" tabIndex={-1} style={{ background: '#eee9dc', border: '1.5px solid #7d755e', padding: '1.25rem' }}>
                 <BarrowPanel delve={delve} />
                 <p style={{ lineHeight: 1.6, margin: '0.7rem 0' }}><strong>{definition.challenge}</strong> · p.{definition.sourcePage}</p>
                 <textarea
@@ -17670,7 +17840,7 @@ function PlayView({
           })()}
 
           {/* 3. Ailment Patient Care Section */}
-          <div id="patient-clinic-panel" className="cute-card" style={{ border: '1.5px solid var(--accent-purple)' }}>
+          <div id="patient-clinic-panel" className="cute-card" tabIndex={-1} style={{ border: '1.5px solid var(--accent-purple)' }}>
 
             <h3 style={{ color: 'var(--accent-purple)', margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>{state.scroungingMode ? '🔍 여분 채집' : '🤒 환자 약제소'}</span>
@@ -18497,7 +18667,7 @@ function PlayView({
                 </details>
 
                 {/* Concocting Remedy Panel */}
-                <div id="treatment-workspace" className="patient-workflow__treatment" style={{ borderTop: '1px dashed var(--glass-border)', marginTop: '1.5rem', paddingTop: '1rem' }}>
+                <div id="treatment-workspace" className="patient-workflow__treatment" tabIndex={-1} style={{ borderTop: '1px dashed var(--glass-border)', marginTop: '1.5rem', paddingTop: '1rem' }}>
                   <header className="treatment-workbench__header">
                     <div>
                       <span className="document-kicker">환자 → 요구 약효 → 가방 → 판정</span>
@@ -21016,6 +21186,13 @@ function AtlasMapPanel({
     ? new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(createdAt))
     : '시간 정보 없음';
   const canAdministerMap = isMapAdministrator(auth?.currentUser?.uid);
+  const atlasJourneyActive = getJourneyUiContext({
+    ...state,
+    journey: state.journey
+      ? { ...state.journey, destinationId: resolveJourneyDestinationMapKey(state) }
+      : null,
+    currentMapLocationId: resolveCurrentMapLocationKey(state)
+  }).active;
   const hasPrintedOverride = (id: string) => {
     if (isPlayerCreatedMapPlace(id)) return false;
     const printed = MAP_GRAPH_NODES[id];
@@ -21132,7 +21309,7 @@ function AtlasMapPanel({
           if (location.x === undefined || location.y === undefined || !location.id) return;
           persistStop(stopFromRequest(location));
         }}
-      onSetCurrentLocation={location => {
+      onSetCurrentLocation={atlasJourneyActive ? undefined : location => {
         const node = nodes[location.id];
         const stop = node
           ? stopFromGraphNode(location.id, node, { name: location.name || node.label, hasClinic: location.hasClinic })
@@ -21526,10 +21703,15 @@ const MapView = memo(function MapView({
     })
     : [];
   const currentId = resolveCurrentMapLocationKey(state);
-  const destinationId = state.journeyActive
-    ? (state.journey?.destinationId && nodes[state.journey.destinationId]
-      ? state.journey.destinationId
-      : findMapLocationKey(state.journeyDestination, customMapLocations))
+  const mapJourneyUiContext = getJourneyUiContext({
+    ...state,
+    journey: state.journey
+      ? { ...state.journey, destinationId: resolveJourneyDestinationMapKey(state) }
+      : null,
+    currentMapLocationId: currentId
+  });
+  const destinationId = mapJourneyUiContext.active
+    ? resolveJourneyDestinationMapKey(state)
     : null;
   const extraIds = new Set<string>([...highlightLocationIds, selectedLocationId, currentId, destinationId, ...routePlaceIds].filter((id): id is string => Boolean(id)));
   (state.visitedLocations || []).forEach(name => {
@@ -21550,7 +21732,7 @@ const MapView = memo(function MapView({
   );
   const distances = currentId ? collectLocationDistances(nodes, currentId) : new Map<string, number>();
   const weight = state.bag.reduce((sum, item) => sum + item.weight * Math.max(1, item.qty || 1), 0);
-  const movePreviews = state.journeyActive && currentId
+  const movePreviews = mapJourneyUiContext.canMove && currentId
     ? previewMoveStops({
       graph: toTravelEngineGraph(state),
       originId: currentId,

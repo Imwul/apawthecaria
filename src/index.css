@@ -11053,7 +11053,13 @@ details.rulebook-source-text > summary {
 }
 
 .route-planning-workspace,
+#journey-ending-panel,
+#journey-start-panel,
+#downtime-panel,
+#travel-panel,
 #patient-clinic-panel,
+#pending-archive-panel,
+#barrow-panel,
 #patient-acquisition-panel,
 #treatment-workspace {
   scroll-margin-top: 5.5rem;
@@ -11062,6 +11068,117 @@ details.rulebook-source-text > summary {
 .route-planning-workspace {
   display: grid;
   gap: 0.8rem;
+}
+
+.journey-ending-workspace {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1.25rem 1.35rem;
+  border-block: 3px double rgba(78, 91, 66, 0.62);
+  background: rgba(248, 247, 237, 0.82);
+}
+
+.journey-ending-workspace > header,
+.journey-ending-workspace > footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.journey-ending-workspace h2,
+.journey-ending-workspace p {
+  margin: 0;
+}
+
+.journey-ending-workspace h2 {
+  color: var(--primary);
+  font-family: var(--font-fancy);
+  font-size: clamp(1.35rem, 2vw, 1.75rem);
+}
+
+.journey-ending-workspace > p {
+  max-width: 70ch;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+.journey-ending-workspace__status {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 0.72fr);
+  border-block: 1px dashed var(--glass-border);
+}
+
+.journey-ending-workspace__status > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.18rem;
+  padding: 0.85rem 1rem 0.85rem 0;
+}
+
+.journey-ending-workspace__status > div + div {
+  padding-inline: 1rem 0;
+  border-left: 1px dashed var(--glass-border);
+}
+
+.journey-ending-workspace__status span,
+.journey-ending-workspace__status small {
+  color: var(--text-muted);
+}
+
+.journey-ending-workspace__status strong,
+.journey-ending-workspace__status small {
+  overflow-wrap: anywhere;
+}
+
+.journey-ending-workspace > footer {
+  justify-content: flex-end;
+}
+
+.journey-route-receipt {
+  padding: 0.7rem 0;
+  border-block: 1px dashed var(--glass-border);
+}
+
+.journey-route-receipt > summary {
+  min-height: 44px;
+  padding: 0.65rem 0.2rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.journey-route-receipt > p {
+  max-width: 72ch;
+  margin: 0 0 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.route-composer--read-only {
+  border-color: rgba(105, 91, 72, 0.32);
+  background: rgba(255, 253, 248, 0.55);
+}
+
+.route-composer--read-only .route-card__name-input {
+  cursor: default;
+}
+
+@media (max-width: 720px) {
+  .journey-ending-workspace > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .journey-ending-workspace__status {
+    grid-template-columns: 1fr;
+  }
+
+  .journey-ending-workspace__status > div + div {
+    padding-inline: 0;
+    border-top: 1px dashed var(--glass-border);
+    border-left: 0;
+  }
 }
 
 .patient-intake,

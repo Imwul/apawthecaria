@@ -52,6 +52,7 @@ const exactEngineMessages: Record<string, string> = {
   "Choose an eligible Inventory item to remove.": "가방에서 제거할 수 있는 물품을 선택하세요.",
   "Choose one Reagent, then choose one or more Parts from that Reagent.": "영약재 하나를 고른 뒤 그 영약재의 부위를 하나 이상 선택하세요.",
   "Choose success, partial, failure, or abandoned and write the Journey ending.": "성공, 부분 성공, 실패, 포기 중 하나를 선택하고 여정의 결말을 기록하세요.",
+  "The saved Journey ending belongs to another Journey.": "저장된 여정 결말이 현재 여정과 일치하지 않습니다.",
   "Choose the Bad Idea Inspiration reward and its Tool target before committing treatment.": "치료를 확정하기 전에 Bad Idea의 영감 보상과 대상 도구를 선택하세요.",
   "Choose the printed wager and finishing result for Place a Bet.": "Place a Bet의 내기 금액과 순위 결과를 고르세요.",
   "Choose whether to treat Brand Care or refuse under Guild law.": "Brand Care를 치료할지, 길드 규정에 따라 거절할지 선택하세요.",
