@@ -103,17 +103,37 @@ describe('Treatment and Patient edge-case transactions', () => {
         specialState: { ...ailment.specialState, rewardMode: 'none' }
       }))
     };
+    const treatmentMemory = '  The exiled beast was treated in confidence.\nNo one else was told.  ';
     const success = resolveTreatment({
       mode: 'treat', transactionId: 'no-reward-success',
       state: treatmentState(patient, [...fixture.ingredients, ...fixture.tools]),
       ailmentInstanceId: patient.ailments[0].id,
       selectedItemIds: fixture.ingredients.map(item => item.id),
       selectedToolIds: fixture.tools.map(item => item.id),
-      journalText: 'The exiled beast was treated in confidence.'
+      journalText: treatmentMemory
     });
     expect(success.value?.reputationChange).toBe(0);
     expect(success.value?.trinketReward).toBe(0);
     expect(success.value?.nextState).toMatchObject({ reputation: 5, trinkets: 0 });
+    expect(success.value?.nextState.journalEvents.at(-1)).toMatchObject({
+      text: treatmentMemory,
+      playerMemory: treatmentMemory
+    });
+
+    const noMemory = resolveTreatment({
+      mode: 'treat', transactionId: 'no-reward-system-summary',
+      state: treatmentState(patient, [...fixture.ingredients, ...fixture.tools]),
+      ailmentInstanceId: patient.ailments[0].id,
+      selectedItemIds: fixture.ingredients.map(item => item.id),
+      selectedToolIds: fixture.tools.map(item => item.id),
+      journalText: '',
+      journalAuthorship: 'system'
+    });
+    expect(noMemory.value?.nextState.journalEvents.at(-1)).toMatchObject({
+      text: '',
+      authorship: 'system',
+      playerMemory: undefined
+    });
 
     const expired = resolveTimer({ patient, hours: fixture.ailment.timer }).value!;
     const failure = resolveTreatment({
@@ -163,11 +183,12 @@ describe('Treatment and Patient edge-case transactions', () => {
       }
     };
 
+    const leaveMemory = '  Both unresolved Ailments face their printed consequences.\nI wrote to their family.  ';
     const left = resolveLeave({
       transactionId: 'leave:mixed-no-reward',
       state,
       status: 'abandoned',
-      journalNote: 'Both unresolved Ailments face their printed consequences.'
+      journalNote: leaveMemory
     });
 
     expect(left.status).toBe('resolved');
@@ -176,6 +197,8 @@ describe('Treatment and Patient edge-case transactions', () => {
       expect.objectContaining({ id: noRewardId, status: 'failed', consequenceResolved: true })
     ]));
     expect(left.value?.patientArchive?.[0].penalty.reputation).toBe(3);
+    expect(left.value?.patientArchive?.[0].specialEffects).toEqual([leaveMemory]);
+    expect(left.value?.journalEvents.at(-1)).toMatchObject({ text: leaveMemory, playerMemory: leaveMemory });
   });
 
   it('keeps an earlier Ailment failure when the final active Ailment is treated before leaving', () => {

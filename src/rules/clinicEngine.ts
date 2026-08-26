@@ -180,7 +180,7 @@ export const resolveClinicAgendaAction = (input: {
     clinics[clinicIndex] = { ...clinic, gardenHarvestedAilmentIds: [...(clinic.gardenHarvestedAilmentIds || []), action.ailmentInstanceId] };
     next = { ...next, clinics, inventory: [...next.inventory, item] };
     title = 'Clinic Garden harvest';
-    text = `${item.name} was gathered once for ${action.ailmentInstanceId}.`;
+    text = 'The Clinic Garden yielded one prepared Reagent for the current Ailment.';
   } else if (input.action.kind === 'choose-sodden-logs') {
     const reagent = REAGENT_BY_ID.get(input.action.reagentId);
     if (!next.agendaIds.includes('sodden-logs') || reagent?.type !== 'INSECT') throw new Error('Sodden Logs require a canonical Insect Reagent.');
@@ -216,12 +216,19 @@ export const resolveClinicAgendaAction = (input: {
   } else {
     if (!next.agendaIds.includes('mailbox') || !input.action.note.trim()) throw new Error('Mailbox calls must be recorded from the external Guild mailbox.');
     title = 'Guild Mailbox call';
-    text = input.action.note.trim();
+    text = input.action.note;
   }
 
   return {
     ...next,
     appliedTransactionIds: [...next.appliedTransactionIds, input.transactionId],
-    journalEvents: [...next.journalEvents, { id: `${input.transactionId}:journal`, type: 'downtime', title, text }]
+    journalEvents: [...next.journalEvents, {
+      id: `${input.transactionId}:journal`,
+      type: 'downtime',
+      title,
+      text,
+      authorship: input.action.kind === 'record-mailbox-call' ? 'player' : 'system',
+      playerMemory: input.action.kind === 'record-mailbox-call' ? text : undefined
+    }]
   };
 };

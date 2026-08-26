@@ -79,6 +79,7 @@ export const resolveExpiredPatientAfterTimer = (
       : timer)
   };
   const failureTransactionId = `${input.transactionId}:failure`;
+  const playerFailureMemory = input.journalText?.trim() ? input.journalText : undefined;
   const treatmentState: TreatmentTransactionState = {
     inventory: input.state.inventory,
     patient: stagedPatient,
@@ -93,7 +94,8 @@ export const resolveExpiredPatientAfterTimer = (
     transactionId: failureTransactionId,
     state: treatmentState,
     ailmentInstanceIds: expiredAilmentInstanceIds,
-    journalText: input.journalText?.trim() || '환자 타이머가 만료되어 인쇄된 실패 결과를 적용한다.'
+    journalText: playerFailureMemory || '환자 타이머가 만료되어 인쇄된 실패 결과를 적용했습니다.',
+    journalAuthorship: playerFailureMemory ? 'player' : 'system'
   });
   if (!failure.value) {
     return { status: 'invalid', value: null, messages: failure.messages };
@@ -147,7 +149,8 @@ export const resolveExpiredPatientAfterTimer = (
     transactionId: leaveTransactionId,
     state: nextState,
     status: 'failed',
-    journalNote: '환자 타이머가 만료되어 인쇄된 실패 결과를 적용하고 환자 기록을 마감했다.'
+    journalNote: '환자 타이머가 만료되어 인쇄된 실패 결과를 적용하고 환자 기록을 마감했습니다.',
+    journalAuthorship: 'system'
   });
   if (!leave.value) {
     return { status: 'invalid', value: null, messages: [...failure.messages, ...leave.messages] };

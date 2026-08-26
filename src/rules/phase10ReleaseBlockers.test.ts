@@ -165,10 +165,12 @@ describe('Phase 10 release blocker elimination', () => {
     };
     const planted = resolveClinicAgendaAction({ transactionId: 'p10:garden', state: agendaState,
       action: { kind: 'plant-garden', clinicId: commissioned.clinics[0].id, itemId: item.id } });
+    const mailboxNote = '  A Guild request from Odoak.\nBring warm blankets.  ';
     const called = resolveClinicAgendaAction({ transactionId: 'p10:mailbox', state: planted,
-      action: { kind: 'record-mailbox-call', note: 'A Guild request from Odoak.' } });
+      action: { kind: 'record-mailbox-call', note: mailboxNote } });
     expect(called.clinics[0].gardenReagentId).toBe(plant.id);
     expect(called.journalEvents.at(-1)?.title).toBe('Guild Mailbox call');
+    expect(called.journalEvents.at(-1)).toMatchObject({ text: mailboxNote, playerMemory: mailboxNote });
 
     const donated = resolveClinicAgendaAction({
       transactionId: 'p11:goodwill-stack',

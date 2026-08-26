@@ -318,6 +318,10 @@ describe('interrupted workflow persistence', () => {
     expect(normalizePendingTreatmentReward({ ...pendingReward(), ailmentInstanceId: '' })).toBeNull();
     expect(normalizePendingTreatmentReward({ ...pendingReward(), sourceFingerprint: '' })).toBeNull();
     expect(normalizePatientCreationDraft({ ...patientDraft(), missiveChoiceResolved: 'false' })).toMatchObject({ missiveChoiceResolved: false });
+    expect(normalizePendingTreatmentReward({ ...pendingReward(), journalAuthorship: 'system' }))
+      .toMatchObject({ journalAuthorship: 'system' });
+    expect(normalizePendingTreatmentReward({ ...pendingReward(), journalAuthorship: 'unknown' }))
+      .not.toHaveProperty('journalAuthorship');
   });
 
   it.each([

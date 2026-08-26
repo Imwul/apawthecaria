@@ -40,6 +40,10 @@ export interface EngineJournalEvent {
   type: 'travel' | 'encounter' | 'foraging' | 'diagnosis' | 'treatment' | 'failure' | 'season' | 'downtime';
   title: string;
   text: string;
+  /** Distinguishes exact player prose from deterministic engine copy. */
+  authorship?: 'player' | 'system';
+  /** Exact player-authored portion when an event also carries system copy. */
+  playerMemory?: string;
 }
 
 export interface PendingEncounterState {

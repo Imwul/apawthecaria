@@ -520,6 +520,36 @@ describe('Phase 3 Journey, Goal, and Ending engines', () => {
     });
     expect(started.value?.journey?.reason).toBe('Carry the truth');
     expect(started.value?.inventory.find(row => row.name === 'Evidence')?.weight).toBe(1);
+    expect(started.value?.journalEvents.at(-1)).toMatchObject({
+      title: 'Journey started',
+      text: 'Journey started',
+      authorship: 'player',
+      playerMemory: 'Carry the truth'
+    });
+    expect(started.value?.journalEvents.at(-1)?.text).not.toMatch(/origin|north-5|Reason:|Goal:/);
+  });
+
+  it('[JOURNEY-001/ENDING-001] preserves the exact player-authored reason and memoir', () => {
+    const reason = '  약속을 지키러 간다.\n길 위에서 다시 생각한다.  ';
+    const started = resolveJourneyStart({
+      transactionId: 'journey-player-prose', state: journeyRuntime(), graph: journeyGraph(), originId: 'origin', season: 'Spring',
+      destinationSelection: 'choose', destinationId: 'north-1', destinationCard: null,
+      goalCard: 1, reason, startDate: 1, rulesetId: 'original-1e-3p'
+    });
+    expect(started.value?.journey?.reason).toBe(reason);
+    expect(started.value?.journalEvents.at(-1)?.playerMemory).toBe(reason);
+
+    const journey = started.value!.journey!;
+    const memoir = '\n  도착한 밤의 기억.\n\n다음 길을 생각한다.  ';
+    const ended = resolveJourneyEnding({
+      transactionId: 'journey-player-prose:end',
+      state: { ...started.value!, currentLocationId: journey.destinationId },
+      endedAt: 2,
+      outcome: 'partial',
+      journalText: memoir
+    });
+    expect(ended.value?.journey?.ending?.journalText).toBe(memoir);
+    expect(ended.value?.journalEvents.at(-1)).toMatchObject({ text: memoir, playerMemory: memoir });
   });
 
   it('[JOURNEY-001] requires the completed Downtime to cross the Season boundary before another Journey', () => {

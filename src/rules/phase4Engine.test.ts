@@ -67,6 +67,17 @@ describe('Phase 4 canonical catalogues', () => {
 });
 
 describe('Phase 4 Barrow state machines', () => {
+  it('preserves authored Barrow notes while still rejecting whitespace-only notes', () => {
+    const entry = '  입구에서 숨을 고른다.\n발자국을 기록한다.  ';
+    const started = startBarrowDelve({ transactionId: 'start:prose', state: barrowState(), barrowId: 'b1', suit: '♥', journalNote: entry });
+    expect(started.value?.journalEvents.at(-1)).toMatchObject({ text: entry, playerMemory: entry });
+    expect(startBarrowDelve({ transactionId: 'start:blank', state: barrowState(), barrowId: 'b1', suit: '♥', journalNote: ' \n ' }).status).toBe('invalid');
+
+    const retreat = '\n  아직 깨우지 않고 물러났다.  ';
+    const fled = fleeBarrowDelve('flee:prose', started.value!, retreat);
+    expect(fled.value?.journalEvents.at(-1)).toMatchObject({ text: retreat, playerMemory: retreat });
+  });
+
   it('[BARROW-002/BARROW-003] permits rulebook Flee only before challenge and prevents free cancellation', () => {
     const started = startBarrowDelve({ transactionId: 'start', state: barrowState(), barrowId: 'b1', suit: '♥', journalNote: 'Approached.' }).value!;
     const fled = fleeBarrowDelve('flee', started, 'Retreated.');
@@ -94,6 +105,14 @@ describe('Phase 4 Barrow state machines', () => {
 });
 
 describe('Phase 4 Services', () => {
+  it('preserves the exact Guild Service journal note', () => {
+    const note = '  구름 가장자리를 읽었다.\n비 냄새가 났다.  ';
+    const state = { ...serviceState(), currentLocationId: 'n2', currentLocationName: 'Bogstead', currentLocationType: 'Settlement' as const, currentRegion: 'Bog' as const };
+    const result = resolveGuildService({ transactionId: 'forecast:prose', state, serviceId: 'forecast', journalNote: note });
+    expect(result.value?.nextState.journalEvents.at(-1)).toMatchObject({ text: note, playerMemory: note });
+    expect(resolveGuildService({ transactionId: 'forecast:blank', state, serviceId: 'forecast', journalNote: ' \n ' }).status).toBe('invalid');
+  });
+
   it('[SERVICE-001] applies the rulebook page 59 Forecast for exactly three Moves', () => {
     const bog = { ...serviceState(), currentLocationId: 'n2', currentLocationName: 'Bogstead', currentLocationType: 'Settlement' as const, currentRegion: 'Bog' as const };
     const result = resolveGuildService({ transactionId: 'forecast', state: bog, serviceId: 'forecast', journalNote: 'Cloud signs.' });

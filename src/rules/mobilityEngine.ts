@@ -251,6 +251,7 @@ export const resolveCompanionTrigger = (input: {
   if (error) return { status: 'invalid', value: null, messages: [error] };
   const companion = input.state.companions.find(row => canUseCompanion(row, input.trigger));
   if (!companion) return { status: 'invalid', value: null, messages: ['No available canonical Companion matches this trigger.'] };
+  const companionName = COMPANION_BY_ID.get(companion.companionId)?.canonicalName || 'Companion';
   const consumed = input.trigger === 'behemoth';
   const companions = consumed
     ? input.state.companions.filter(row => row.instanceId !== companion.instanceId)
@@ -263,7 +264,7 @@ export const resolveCompanionTrigger = (input: {
       behemothPursuitActive: consumed ? false : input.state.behemothPursuitActive,
       appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
       journalEvents: [...input.state.journalEvents, {
-        id: `${input.transactionId}:journal`, type: 'travel', title: `Companion trigger: ${companion.companionId}`,
+        id: `${input.transactionId}:journal`, type: 'travel', title: `Companion trigger: ${companionName}`,
         text: consumed ? 'The Companion was discarded after preventing the Behemoth outcome.' : `The ${input.trigger} benefit was used for this Journey.`
       }]
     },
@@ -332,7 +333,9 @@ export const resolveWagonUpgrade = (input: {
       }
       wagon = { ...wagon, clayPotReagentId: reagent.id, clayPotMoves: 0 };
     }
-    const label = input.action === 'commission' ? 'Wagon commissioned' : `Wagon expansion installed: ${input.expansionId}`;
+    const label = input.action === 'commission'
+      ? 'Wagon commissioned'
+      : `Wagon expansion installed: ${WAGON_EXPANSION_BY_ID.get(input.expansionId || '')?.canonicalName || 'Expansion'}`;
     return {
       status: 'resolved',
       value: {
@@ -607,13 +610,14 @@ export const resolveCompanionRelease = (input: {
   if (error) return { status: 'invalid', value: null, messages: [error] };
   const companion = input.state.companions.find(row => row.instanceId === input.companionInstanceId);
   if (!companion) return { status: 'invalid', value: null, messages: ['Companion is not travelling with you.'] };
+  const companionName = COMPANION_BY_ID.get(companion.companionId)?.canonicalName || 'Companion';
   return {
     status: 'resolved',
     value: {
       ...input.state,
       companions: input.state.companions.filter(row => row.instanceId !== input.companionInstanceId),
       appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
-      journalEvents: [...input.state.journalEvents, { id: `${input.transactionId}:journal`, type: 'downtime', title: 'Companion released', text: `${companion.companionId} returned to the wild.` }]
+      journalEvents: [...input.state.journalEvents, { id: `${input.transactionId}:journal`, type: 'downtime', title: 'Companion released', text: `${companionName} returned to the wild.` }]
     },
     messages: []
   };
@@ -635,6 +639,7 @@ export const resolveCompanionStorage = (input: {
   const source = input.action === 'store' ? input.state.companions : input.state.storedCompanions;
   const companion = source.find(row => row.instanceId === input.companionInstanceId);
   if (!companion) return { status: 'invalid', value: null, messages: ['Companion is not in the selected roster.'] };
+  const companionName = COMPANION_BY_ID.get(companion.companionId)?.canonicalName || 'Companion';
   let companions = input.state.companions.filter(row => row.instanceId !== companion.instanceId);
   let storedCompanions = input.state.storedCompanions.filter(row => row.instanceId !== companion.instanceId);
   if (input.action === 'store') {
@@ -657,7 +662,7 @@ export const resolveCompanionStorage = (input: {
       journalEvents: [...input.state.journalEvents, {
         id: `${input.transactionId}:journal`, type: 'downtime',
         title: input.action === 'store' ? 'Companion stored' : 'Companion recalled',
-        text: `${companion.companionId} ${input.action === 'store' ? 'stays at the Clinic.' : 'joins the Journey.'}`
+        text: `${companionName} ${input.action === 'store' ? 'stays at the Clinic.' : 'joins the Journey.'}`
       }]
     },
     messages: []

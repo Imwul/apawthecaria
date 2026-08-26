@@ -97,7 +97,7 @@ import {
 } from "./racingBetsSpeedCondition";
 import { RouteComposer } from "./components/RouteComposer";
 import { MapNodeAppearance } from "./map/MapNodeAppearance";
-import { mergeCharacterJournals } from "./characterJournals";
+import { clearCharacterJournalSource, isCharacterJournalId, mergeCharacterJournals } from "./characterJournals";
 import {
   EMPTY_WORKFLOW_DRAFTS,
   normalizePendingTreatmentReward,
@@ -284,6 +284,7 @@ import {
   type ClinicAgendaRuntimeState,
   type DowntimeEngineOutcome,
   type EngineInventoryItem,
+  type EngineJournalEvent,
   type EncounterDefinition,
   type GameplayLocationType,
   type GuildServiceId,
@@ -333,7 +334,6 @@ import {
   localizeReagentType,
   localizeRegionLabel,
   localizeRegionList,
-  localizeSavedJourneyText,
   localizeSeasonLabel,
   localizeSeverityLabel,
   localizeTravelStyle
@@ -356,8 +356,12 @@ import {
 import { localizeGameplayMessage } from './localization/engineMessagesKo';
 import { guildReputationRank } from './localization/guildReputation';
 import { migrateLegacyTerminology } from './localization/legacyTerminology';
-import { localizeEncounterTitle, localizeManualEffectValue, localizeManualJournalText, localizeManualJournalTitle } from './localization/manualEffectKo';
-import { formatManualEffectJournalEntry } from './manualEffectJournal';
+import {
+  localizeEncounterTitle,
+  localizeManualEffectOption,
+  localizeManualEffectValue,
+  localizeManualJournalText
+} from './localization/manualEffectKo';
 import {
   canonicalizeManualEffectActionTargets,
   scopeManualEffectDraftForEncounterChoice,
@@ -405,7 +409,33 @@ import {
 } from './journeyUiContext';
 import { applyCalendarAdvance, readCalendarClocks } from './calendarTime';
 import { resetJourneyForPlanning } from './journeyRecovery';
-import { buildEncounterJournalText, isActivityJournalEntry, presentEncounterJournal } from './encounterJournal';
+import {
+  appendPlayerFacingEngineJournals,
+  createEncounterSemantic,
+  createGameplayEventSemantic,
+  createManualResolutionSemantic,
+  createPlayerMemorySemantic,
+  isActivityJournalEntry,
+  isLongJournalMemory,
+  journalEntriesNewestFirst,
+  journalDisplayTitle,
+  journalPreview,
+  normalizeStoredJournalEntries,
+  presentJournalEntry,
+  type JournalSemanticData
+} from './journalSemantics';
+import {
+  calendarHistoryTimestamp,
+  chronicleDateTimestamp,
+  dedupeJourneyChronicles,
+  isJourneyStartJournalId,
+  newestJourneyArchiveEntries,
+  promoteLegacyCalendarScrapbookRow,
+  reconcileScrapbookMirrors,
+  upsertJourneyChronicle,
+  withoutChronicleMirrorCopies,
+  type ScrapbookMirrorSource
+} from './worldMemorySync';
 import {
   isRulebookHistoryState,
   journalHash,
@@ -1311,11 +1341,16 @@ type ScrapbookKind = 'journey' | 'discovery' | 'patient' | 'remedy';
 interface TravelScrapbookEntry {
   id: string;
   sourceId: string;
+  mirrorSource?: ScrapbookMirrorSource;
   kind: ScrapbookKind;
   title: string;
   text: string;
   locationName: string;
   timestamp: number;
+  /** Preserve authorship when a Journal/Chronicle is mirrored here. */
+  authorship?: 'player' | 'system';
+  playerMemory?: string;
+  semantic?: JournalSemanticData;
 }
 
 interface TrinketMemoryRecord {
@@ -1408,6 +1443,10 @@ interface JournalEntry {
   text: string;
   timestamp: number;
   photos?: JournalPhoto[];
+  type?: EngineJournalEvent['type'];
+  authorship?: EngineJournalEvent['authorship'];
+  playerMemory?: EngineJournalEvent['playerMemory'];
+  semantic?: JournalSemanticData;
 }
 
 interface GameState {
@@ -1507,7 +1546,7 @@ interface GameState {
   legacyClinics?: { locationName: string; region: string; services: string[]; founder: string }[];
   legacyApothecaries?: { name: string; ageOfRetirement: number; clinicsBuilt: number; legacyScore: number }[];
   discoveredRecipes?: Record<string, string[][]>;
-  journeyChronicles?: { id: string; title: string; text: string; date: string }[];
+  journeyChronicles?: { id: string; title: string; text: string; date: string; timestamp?: number }[];
   patientCasebook?: PatientCaseRecord[];
   patientArchive: CanonicalPatientArchiveRecord[];
   pendingPatientArchive?: PendingPatientArchive | null;
@@ -2420,12 +2459,7 @@ const commitPendingAlternativeAcquisition = (
     bag: fromEngineInventory(result.value.inventory, state.bag),
     pendingAlternativeAcquisition: null,
     appliedTransactionIds: result.value.appliedTransactionIds,
-    journals: result.value.journalEvents.map(event => ({
-      id: event.id,
-      title: event.title,
-      text: event.text,
-      timestamp: Date.now()
-    })).concat(state.journals)
+    journals: appendPlayerFacingEngineJournals<JournalEntry>(state.journals, result.value.journalEvents)
   };
 };
 
@@ -2951,11 +2985,7 @@ const enqueueManualDrafts = (state: GameState, drafts: Array<ManualEffectDraft |
 };
 
 const appendEngineJournals = (current: JournalEntry[], events: BarterRuntimeState['journalEvents']) => {
-  const known = new Set(current.map(row => row.id));
-  return [
-    ...events.filter(row => !known.has(row.id)).map(row => ({ ...row, timestamp: Date.now() })),
-    ...current
-  ];
+  return appendPlayerFacingEngineJournals<JournalEntry>(current, events);
 };
 
 const getActivePatient = (s: GameState): PatientState | null =>
@@ -3844,12 +3874,21 @@ const finalizePendingPatientArchive = (pending: PendingPatientArchive, finalArch
   isBookmarked: !!pending.isBookmarked
 });
 
-const classifyJournalForScrapbook = (journal: { id: string; title: string; text: string; timestamp: number }): ScrapbookKind | null => {
+const classifyJournalForScrapbook = (journal: { id: string }): ScrapbookKind | null => {
   if (journal.id.startsWith('character:') || journal.id.startsWith('origin_') || journal.id.startsWith('memento_') || journal.id.startsWith('familiar_') || journal.id.startsWith('relation_')) return 'journey';
-  if (journal.id.startsWith('start_') || journal.id.startsWith('travel_') || journal.id.startsWith('death_travel_')) return 'journey';
+  if (journal.id.startsWith('start_') || journal.id.startsWith('travel_') || journal.id.startsWith('death_travel_') || isJourneyStartJournalId(journal.id)) return 'journey';
   if (journal.id.startsWith('forage_') || journal.id.startsWith('barter_finish_') || journal.id.startsWith('brave_enc_')) return 'discovery';
   if (journal.id.startsWith('cure_') || journal.id.startsWith('cure_fail_')) return 'patient';
   return null;
+};
+
+const legacyScrapbookMirrorSource = (entry: TravelScrapbookEntry): ScrapbookMirrorSource | null => {
+  if (entry.id !== memoryKey('scrap', entry.sourceId)) return null;
+  if (entry.sourceId.endsWith(':chronicle')) return 'chronicle';
+  const journalSourceId = entry.sourceId.endsWith('_remedy')
+    ? entry.sourceId.slice(0, -'_remedy'.length)
+    : entry.sourceId;
+  return classifyJournalForScrapbook({ id: journalSourceId }) ? 'journal' : null;
 };
 
 const syncWorldMemory = (state: GameState): GameState => {
@@ -3991,50 +4030,113 @@ const syncWorldMemory = (state: GameState): GameState => {
     });
   });
 
+  const desiredScrapbookMirrors: TravelScrapbookEntry[] = [];
+  const existingMirrorMetadata = (source: ScrapbookMirrorSource, sourceId: string) =>
+    travelScrapbook.find(entry => entry.sourceId === sourceId && (
+      entry.mirrorSource === source
+      || (entry.id === memoryKey('scrap', sourceId) && legacyScrapbookMirrorSource(entry) === source)
+    ));
+
   (state.journals || []).forEach(journal => {
     const kind = classifyJournalForScrapbook(journal);
     if (kind) {
-      travelScrapbook = addScrapbookEntry(travelScrapbook, {
+      const existing = existingMirrorMetadata('journal', journal.id);
+      desiredScrapbookMirrors.push({
+        id: memoryKey('scrap', journal.id),
         sourceId: journal.id,
+        mirrorSource: 'journal',
         kind,
         title: journal.title,
         text: journal.text,
-        locationName: state.currentLocationName,
-        timestamp: journal.timestamp
+        authorship: journal.authorship,
+        playerMemory: journal.playerMemory,
+        semantic: journal.semantic,
+        locationName: existing?.locationName || journal.semantic?.context?.location || state.currentLocationName,
+        timestamp: existing?.timestamp || journal.timestamp
       });
     }
 
     if (journal.id.startsWith('cure_') && !journal.id.startsWith('cure_fail_')) {
-      travelScrapbook = addScrapbookEntry(travelScrapbook, {
-        sourceId: `${journal.id}_remedy`,
+      const sourceId = `${journal.id}_remedy`;
+      const existing = existingMirrorMetadata('journal', sourceId);
+      desiredScrapbookMirrors.push({
+        id: memoryKey('scrap', sourceId),
+        sourceId,
+        mirrorSource: 'journal',
         kind: 'remedy',
         title: journal.title.replace('완치 성공', '처방 기록'),
         text: journal.text,
-        locationName: state.currentLocationName,
-        timestamp: journal.timestamp
+        authorship: journal.authorship,
+        playerMemory: journal.playerMemory,
+        semantic: journal.semantic,
+        locationName: existing?.locationName || journal.semantic?.context?.location || state.currentLocationName,
+        timestamp: existing?.timestamp || journal.timestamp
       });
     }
   });
 
   (state.journeyChronicles || []).forEach(chronicle => {
-    travelScrapbook = addScrapbookEntry(travelScrapbook, {
+    const existing = existingMirrorMetadata('chronicle', chronicle.id);
+    const chronicleTimestamp = Number.isFinite(chronicle.timestamp)
+      ? chronicle.timestamp!
+      : chronicleDateTimestamp(chronicle.date);
+    desiredScrapbookMirrors.push({
+      id: memoryKey('scrap', chronicle.id),
       sourceId: chronicle.id,
+      mirrorSource: 'chronicle',
       kind: 'journey',
       title: chronicle.title,
       text: chronicle.text,
-      locationName: state.journeyDestination || state.currentLocationName,
-      timestamp: Date.parse(chronicle.date) || now
+      authorship: 'player',
+      playerMemory: chronicle.text,
+      semantic: createPlayerMemorySemantic(chronicle.text),
+      locationName: existing?.locationName || state.journeyDestination || state.currentLocationName,
+      timestamp: existing?.timestamp ?? chronicleTimestamp
     });
   });
 
-  (state.calendarHistory || []).forEach((line, idx) => {
+  const desiredJournalMirrorIds = new Set(
+    desiredScrapbookMirrors.filter(entry => entry.mirrorSource === 'journal').map(entry => entry.sourceId)
+  );
+  const desiredChronicleMirrorIds = new Set(
+    desiredScrapbookMirrors.filter(entry => entry.mirrorSource === 'chronicle').map(entry => entry.sourceId)
+  );
+  travelScrapbook = reconcileScrapbookMirrors(
+    travelScrapbook,
+    desiredScrapbookMirrors,
+    entry => {
+      if (entry.id !== memoryKey('scrap', entry.sourceId)) return null;
+      if (desiredJournalMirrorIds.has(entry.sourceId)) return 'journal';
+      if (desiredChronicleMirrorIds.has(entry.sourceId)) return 'chronicle';
+      return legacyScrapbookMirrorSource(entry);
+    }
+  );
+
+  const calendarJourneyId = state.journey?.journeyId;
+  const calendarHistory = state.calendarHistory || [];
+  calendarHistory.forEach((line, idx) => {
+    const legacySourceId = memoryKey('calendar', String(idx), line);
+    const sourceId = calendarJourneyId
+      ? memoryKey('calendar', calendarJourneyId, String(idx), line)
+      : legacySourceId;
+    if (sourceId !== legacySourceId) {
+      travelScrapbook = promoteLegacyCalendarScrapbookRow(travelScrapbook, {
+        legacyId: memoryKey('scrap', legacySourceId),
+        legacySourceId,
+        scopedId: memoryKey('scrap', sourceId),
+        scopedSourceId: sourceId,
+        text: line
+      });
+    }
     travelScrapbook = addScrapbookEntry(travelScrapbook, {
-      sourceId: memoryKey('calendar', String(idx), line),
+      sourceId,
       kind: 'journey',
       title: line.startsWith('여정 시작') ? '여정 출발 기록' : `여행 기록 ${idx + 1}`,
       text: line,
+      authorship: 'system',
+      semantic: createGameplayEventSemantic({ outcome: line, location: state.currentLocationName }),
       locationName: state.currentLocationName,
-      timestamp: now - idx
+      timestamp: calendarHistoryTimestamp(now, idx, calendarHistory.length)
     });
   });
 
@@ -4817,7 +4919,7 @@ const migrateState = (s: any): GameState => {
     legacyClinics: s.legacyClinics || [],
     legacyApothecaries: s.legacyApothecaries || [],
     discoveredRecipes: s.discoveredRecipes || {},
-    journeyChronicles: s.journeyChronicles || [],
+    journeyChronicles: dedupeJourneyChronicles(Array.isArray(s.journeyChronicles) ? s.journeyChronicles : []),
     patientCasebook: (s.patientCasebook && s.patientCasebook.length > 0)
       ? s.patientCasebook.map(normalizeCaseRecord)
       : legacyCaseRecordsFromJournals(s),
@@ -4826,7 +4928,7 @@ const migrateState = (s: any): GameState => {
       : [],
     pendingPatientArchive: s.pendingPatientArchive || null,
     worldAlmanac: s.worldAlmanac || [],
-    journals: mergeCharacterJournals(Array.isArray(s.journals) ? s.journals : [], { ...INITIAL_BIO, ...(s.bio || {}) }),
+    journals: mergeCharacterJournals(normalizeStoredJournalEntries<JournalEntry>(s.journals), { ...INITIAL_BIO, ...(s.bio || {}) }),
     travelScrapbook: s.travelScrapbook || [],
     trinketArchive: (s.trinketArchive && s.trinketArchive.length > 0)
       ? s.trinketArchive.map(normalizeTrinketRecord)
@@ -6359,6 +6461,11 @@ export default function App() {
         selectedChoiceId = picked;
       }
       if (selectedChoiceId) {
+        const selectedSocialChoice = encounter.choices.find(choice => choice.id === selectedChoiceId);
+        const selectedSocialOutcome = selectedSocialChoice
+          ? localizeManualEffectOption(selectedSocialChoice.label, encounter.id, selectedSocialChoice.id)
+          : '사교 조우를 해결했습니다.';
+        const socialEncounterTitle = localizeEncounterTitle(encounter.title, encounter.id);
         if (encounterChoiceRequiresJournal(encounter, selectedChoiceId)) {
           const note = await requestControlledPrompt({
             title: `${encounter.title} · 일지 기록`,
@@ -6369,7 +6476,7 @@ export default function App() {
             inputMode: 'multiline'
           });
           if (note === null) return;
-          socialJournalNote = note.trim();
+          socialJournalNote = note;
         }
         const executed = resolveEncounter({
           transactionId: `${pending.barterId}:social-choice`,
@@ -6410,12 +6517,22 @@ export default function App() {
             appliedEncounterEffectIds: runtimeState.appliedEffectIds,
             manualConditions: remapEncounterConditions(runtimeState.conditions, s)
           };
-          if (socialJournalNote) next = {
+          next = {
             ...next,
             journals: [{
               id: `${pending.barterId}:social-journal`,
-              title: `사교 조우: ${encounter.title}`,
-              text: socialJournalNote,
+              title: `사교 조우: ${socialEncounterTitle}`,
+              text: socialJournalNote.trim() ? socialJournalNote : selectedSocialOutcome,
+              semantic: createEncounterSemantic({
+                note: socialJournalNote,
+                outcome: selectedSocialOutcome,
+                location: s.currentLocationName,
+                season: s.currentSeason,
+                sourcePage: encounter.sourcePage,
+                sourceTitle: socialEncounterTitle,
+                sourcePrompt: encounter.prompt,
+                sourceChoices: encounter.choices.map(choice => choice.label)
+              }),
               timestamp: Date.now()
             }, ...next.journals]
           };
@@ -6509,7 +6626,13 @@ export default function App() {
     updateState((s: GameState) => {
       const next = applyBarterRuntime(s, offer.value!);
       return barterJournalNote.trim()
-        ? { ...next, journals: [{ id: `${runtime.pendingBarter!.barterId}:social-note`, title: '사교 조우 기록', text: barterJournalNote.trim(), timestamp: Date.now() }, ...next.journals] }
+        ? { ...next, journals: [{
+          id: `${runtime.pendingBarter!.barterId}:social-note`,
+          title: '사교 조우 기록',
+          text: barterJournalNote,
+          semantic: createPlayerMemorySemantic(barterJournalNote),
+          timestamp: Date.now()
+        }, ...next.journals] }
         : next;
     });
   };
@@ -7116,7 +7239,8 @@ export default function App() {
           ailmentTagOverrides: state.ailmentTagOverrides
         },
         ailmentInstanceIds: expiredAilmentIds,
-        journalText: '환자 타이머가 만료되어 인쇄된 실패 결과를 적용한다.'
+        journalText: '환자 타이머가 만료되어 인쇄된 실패 결과를 적용했습니다.',
+        journalAuthorship: 'system'
       });
       if (failure.value) {
         nextPatient = failure.value.nextState.patient;
@@ -7173,7 +7297,8 @@ export default function App() {
         transactionId: `leave-after:${failureTransactionId || `timer:${timestamp}`}`,
         state: toLeaveRuntime(next, nextPatient),
         status: 'failed',
-        journalNote: '환자 타이머가 만료되어 인쇄된 실패 결과를 적용하고 환자 기록을 마감했다.'
+        journalNote: '환자 타이머가 만료되어 인쇄된 실패 결과를 적용하고 환자 기록을 마감했습니다.',
+        journalAuthorship: 'system'
       });
       if (leave.value) next = { ...applyLeaveRuntime(next, leave.value), needsLocalHelpBeforeMove: false };
       return next;
@@ -7754,9 +7879,9 @@ export default function App() {
     const selectedChoiceId = activeTravelEncounter?.selectedChoiceId || pending.selectedChoiceId;
     // The uncontrolled textarea is read at submit time, so typing does not
     // rewrite the entire campaign state and a saved note can still be cleared.
-    const resolvedJournalNote = note.trim();
+    const resolvedJournalNote = note;
     const journalRequired = encounterChoiceRequiresJournal(encounter, selectedChoiceId);
-    const journalAcknowledged = Boolean(resolvedJournalNote || activeTravelEncounter?.journalAcknowledged || pending.journalAcknowledged);
+    const journalAcknowledged = Boolean(resolvedJournalNote.trim() || activeTravelEncounter?.journalAcknowledged || pending.journalAcknowledged);
     if (journalRequired && !journalAcknowledged) {
       showAlert('이 결과는 일지 프롬프트가 있습니다. 메모를 남기거나, 말·그림으로 장면을 떠올렸다고 확인한 뒤 계속하세요.');
       return;
@@ -7874,7 +7999,7 @@ export default function App() {
       )
     );
     const printedEffect = PRINTED_EFFECT_BY_OWNER.get(encounter.id);
-    if (manualDraft && resolvedJournalNote) manualDraft = { ...manualDraft, resultSummary: resolvedJournalNote, journalNote: resolvedJournalNote };
+    if (manualDraft && resolvedJournalNote.trim()) manualDraft = { ...manualDraft, resultSummary: resolvedJournalNote, journalNote: resolvedJournalNote };
     if ((pending.encounterProtection || pending.ignoreNegativeEncounterEffects) && manualDraft) manualDraft = {
       ...manualDraft,
       printedText: `[보호 적용] ${pending.encounterProtection === 'all' ? '이 조우의 기계적 효과 전체' : '부정적 결과'}는 무효입니다.\n\n${manualDraft.printedText}`,
@@ -7891,9 +8016,12 @@ export default function App() {
     const receiptSummary = resolutionSummary.length > 0
       ? resolutionSummary.join(' · ')
       : '추가로 바뀐 수치 없이 장면을 기록했습니다.';
-    const selectedOutcome = encounter.choices
-      .find(choice => choice.id === defaultEncounterChoiceId(encounter, selectedChoiceId))
-      ?.label.split(/\s+[—-]\s+/)[0];
+    const selectedTravelChoice = encounter.choices
+      .find(choice => choice.id === defaultEncounterChoiceId(encounter, selectedChoiceId));
+    const selectedOutcome = selectedTravelChoice
+      ? localizeManualEffectOption(selectedTravelChoice.label, encounter.id, selectedTravelChoice.id).split(/\s+[—-]\s+/)[0]
+      : undefined;
+    const encounterDisplayTitle = localizeEncounterTitle(printedEffect?.ownerName || encounter.title, encounter.id);
     updateState(s => {
       const patients = runtime.patient
         ? s.patients.map(patient => patient.id === runtime.patient!.id
@@ -7916,16 +8044,21 @@ export default function App() {
         manualConditions: remapEncounterConditions(runtime.conditions, s),
         journals: [{
           id: `${pending.transactionId}:${manualDraft ? 'pending-manual' : 'resolved'}`,
-          title: `${manualDraft ? '판정 대기' : encounter.encounterType === 'social' ? '사회 조우' : '여정 조우'}: ${printedEffect?.ownerName || encounter.title}`,
-          text: buildEncounterJournalText({
-            printedText: printedEffect?.printedText || encounter.prompt,
+          title: `${manualDraft ? '판정 대기' : encounter.encounterType === 'social' ? '사회 조우' : '여정 조우'}: ${encounterDisplayTitle}`,
+          text: resolvedJournalNote.trim() ? resolvedJournalNote : [selectedOutcome, receiptSummary, inBloomNote].filter(Boolean).join('\n'),
+          semantic: createEncounterSemantic({
             note: resolvedJournalNote,
-            supportingNote: inBloomNote,
-            location: state.currentLocationName,
-            season: state.currentSeason,
-            outcome: selectedOutcome || (manualDraft ? '직접 판정 이어짐' : '인쇄된 결과 적용'),
-            result: receiptSummary,
-            pendingManualResolution: Boolean(manualDraft)
+            outcome: [
+              selectedOutcome || (manualDraft ? '직접 판정 이어짐' : '인쇄된 결과 적용'),
+              receiptSummary,
+              inBloomNote
+            ].filter(Boolean).join('\n'),
+            location: s.currentLocationName,
+            season: s.currentSeason,
+            sourcePage: encounter.sourcePage,
+            sourceTitle: encounterDisplayTitle,
+            sourcePrompt: printedEffect?.printedText || encounter.prompt,
+            sourceChoices: encounter.choices.map(choice => choice.label)
           }),
           timestamp: Date.now()
         }, ...s.journals]
@@ -7936,7 +8069,7 @@ export default function App() {
       ...current,
       resolved: true,
       resolutionSummary: receiptSummary,
-      journalSaved: Boolean(resolvedJournalNote || inBloomNote),
+      journalSaved: Boolean(resolvedJournalNote.trim() || inBloomNote),
       manualFollowUp: Boolean(manualDraft),
       nextStep: manualDraft
         ? '직접 판정 기록에서 남은 인쇄 지시를 마무리하세요.'
@@ -7965,9 +8098,9 @@ export default function App() {
       return false;
     }
     const selectedChoiceId = activeForageEncounter?.selectedChoiceId || pending.selectedChoiceId;
-    const resolvedJournalNote = note.trim();
+    const resolvedJournalNote = note;
     const journalRequired = encounterChoiceRequiresJournal(activeForageEncounter, selectedChoiceId);
-    const journalAcknowledged = Boolean(resolvedJournalNote || activeForageEncounter?.journalAcknowledged || pending.journalAcknowledged);
+    const journalAcknowledged = Boolean(resolvedJournalNote.trim() || activeForageEncounter?.journalAcknowledged || pending.journalAcknowledged);
     if (journalRequired && !journalAcknowledged) {
       showAlert('이 결과는 일지 프롬프트가 있습니다. 메모를 남기거나, 말·그림으로 장면을 떠올렸다고 확인한 뒤 계속하세요.');
       return false;
@@ -7995,7 +8128,13 @@ export default function App() {
         journals: [{
           id: `${pending.transactionId}:resolved`,
           title: '자유로운 길동무의 채집',
-          text: `${localizeRegionLabel(pending.region)}에서 조우와 시간 소모 없이 채집을 마쳤다.\n\n${note || '길동무가 무사히 돌아왔다.'}`,
+          text: resolvedJournalNote.trim() ? resolvedJournalNote : '길동무가 무사히 돌아왔습니다.',
+          semantic: createEncounterSemantic({
+            note: resolvedJournalNote,
+            outcome: `${localizeRegionLabel(pending.region)}에서 조우와 시간 소모 없이 채집을 마쳤습니다.`,
+            location: s.currentLocationName,
+            season: s.currentSeason
+          }),
           timestamp: Date.now()
         }, ...s.journals]
       }));
@@ -8144,6 +8283,10 @@ export default function App() {
       };
     }
     const printedEffect = PRINTED_EFFECT_BY_OWNER.get(encounter.id || pending.encounterId || '');
+    const selectedForageOutcome = selectedEncounterChoice
+      ? localizeManualEffectOption(selectedEncounterChoice.label, encounter.id, selectedEncounterChoice.id)
+      : undefined;
+    const encounterDisplayTitle = localizeEncounterTitle(printedEffect?.ownerName || encounter.title, encounter.id);
     const unresolvedBeyondStructuredFollowUp = encounterResult.value.unresolvedEffects.filter(effect =>
       !(encounterPatientFollowUp
         && effect.effect.type === 'customEffect'
@@ -8168,7 +8311,7 @@ export default function App() {
           : pending
       )
     );
-    if (manualDraft && note.trim()) manualDraft = { ...manualDraft, resultSummary: note.trim(), journalNote: note.trim() };
+    if (manualDraft && resolvedJournalNote.trim()) manualDraft = { ...manualDraft, resultSummary: resolvedJournalNote, journalNote: resolvedJournalNote };
     if (pending.ignoreNegativeEncounterEffects && manualDraft) manualDraft = {
       ...manualDraft,
       printedText: `[예보 적용] 날씨 태그 조우의 모든 부정적 효과는 무효입니다.\n\n${manualDraft.printedText}`,
@@ -8205,12 +8348,28 @@ export default function App() {
           ...remapEncounterConditions(runtime.conditions, s)
         ])),
         journals: [{
-          id: `${pending.transactionId}:${manualDraft ? 'pending-manual' : 'resolved'}`, title: `${manualDraft ? '판정 대기' : '채집 조우'}: ${printedEffect?.ownerName || encounter.title}`,
-          text: `${printedEffect?.printedText || encounter.prompt}${manualDraft ? '\n\n전용 직접 판정에서 선택과 상태 변화를 완료해야 합니다.' : `\n\n${[
-            note,
+          id: `${pending.transactionId}:${manualDraft ? 'pending-manual' : 'resolved'}`, title: `${manualDraft ? '판정 대기' : '채집 조우'}: ${encounterDisplayTitle}`,
+          text: resolvedJournalNote.trim() ? resolvedJournalNote : [
+            selectedForageOutcome,
             scurryResolutionNote,
-            encounterAilmentInstanceId ? `${encounterAilmentName} 환자를 즉시 맡았다. Guild Reputation/Trinket 보상은 없다.` : ''
-          ].filter(Boolean).join(' · ') || '인쇄된 채집 조우를 해결했다.'}`}`,
+            encounterAilmentInstanceId ? `${encounterAilmentName} 환자를 즉시 맡았습니다. Guild Reputation/Trinket 보상은 없습니다.` : '',
+            manualDraft ? '직접 판정을 이어갑니다.' : '채집 조우를 해결했습니다.'
+          ].filter(Boolean).join('\n'),
+          semantic: createEncounterSemantic({
+            note: resolvedJournalNote,
+            outcome: [
+              selectedForageOutcome || (manualDraft ? '직접 판정 이어짐' : '인쇄된 결과 적용'),
+              scurryResolutionNote,
+              encounterAilmentInstanceId ? `${encounterAilmentName} 환자를 즉시 맡았습니다. Guild Reputation/Trinket 보상은 없습니다.` : '',
+              manualDraft ? '직접 판정에서 남은 결과를 이어서 기록합니다.' : ''
+            ].filter(Boolean).join('\n'),
+            location: s.currentLocationName,
+            season: s.currentSeason,
+            sourcePage: encounter.sourcePage,
+            sourceTitle: encounterDisplayTitle,
+            sourcePrompt: printedEffect?.printedText || encounter.prompt,
+            sourceChoices: encounter.choices.map((choice: EncounterDefinition['choices'][number]) => choice.label)
+          }),
           timestamp: Date.now()
         }, ...s.journals]
       };
@@ -8354,8 +8513,17 @@ export default function App() {
         appliedTransactionIds: outcome.value.nextState.appliedTransactionIds,
         journals: [{
           id: `${transaction.id}:journal`,
-          title: `후속 판정 완료: ${current.ownerId}`,
-          text: `${current.description}\n\n${note.trim()}\n\n${outcome.value.canonicalResult}`,
+          title: '후속 판정 완료',
+          text: followUp.kind === 'cocoon-hatch' ? outcome.value.canonicalResult : note,
+          semantic: createManualResolutionSemantic({
+            resultSummary: [
+              followUp.kind === 'cocoon-hatch' ? note.trim() : '',
+              outcome.value.canonicalResult
+            ].filter(Boolean).join('\n'),
+            journalNote: followUp.kind === 'cocoon-hatch' ? '' : note,
+            sourceTitle: '직접 판정 후속 절차',
+            sourcePrompt: current.description
+          }),
           timestamp: transaction.at
         }, ...s.journals]
       };
@@ -8931,12 +9099,15 @@ export default function App() {
                     journals: [{
                       id: `${transaction.id}:journal`,
                       title: `${override ? '예외 처리' : '직접 판정'}: ${draft.summary}`,
-                      text: formatManualEffectJournalEntry({
-                        ruleIds: draft.ruleIds,
-                        sourcePage: draft.sourcePage,
+                      text: outcome.record.journalNote.trim() ? outcome.record.journalNote : outcome.record.resultSummary.trim(),
+                      semantic: createManualResolutionSemantic({
                         resultSummary: outcome.record.resultSummary,
-                        journalNote: outcome.record.journalNote,
-                        overrideReason: override ? outcome.record.overrideReason : ''
+                        journalNote: currentDraft.journalNote,
+                        overrideReason: override ? outcome.record.overrideReason : '',
+                        sourcePage: draft.sourcePage,
+                        sourceRuleIds: draft.ruleIds,
+                        sourceTitle: draft.summary,
+                        sourcePrompt: draft.printedText
                       }),
                       timestamp: transaction.at
                     }, ...s.journals]
@@ -11118,6 +11289,7 @@ function PlayView({
       trinketRewardBonus: pending.trinketRewardBonus,
       doseCount: pending.doseCount,
       journalText: pending.journalText,
+      journalAuthorship: pending.journalAuthorship,
       badIdeaOutcome: pending.badIdeaOutcome,
       confirmedManualRequirements: pending.confirmedManualRequirements,
       gifting
@@ -11915,7 +12087,8 @@ function PlayView({
         ailmentId: gpAilment,
         originalTag: gpTagChange as RuleTag,
         replacementTag: gpReplacementTag as RuleTag,
-        journalText: `${ailment?.displayName || gpAilment}: ${gpTagChange}를 ${gpReplacementTag}로 바꿨다. ${gpNote.trim()}`
+        journalText: `${ailment?.displayName || gpAilment}: ${gpTagChange}를 ${gpReplacementTag}로 바꿨습니다.`,
+        playerMemory: gpNote
       });
       updateState((s: GameState) => {
         return applyCanonicalDowntimeRuntime(s, runtime);
@@ -11987,7 +12160,8 @@ function PlayView({
         items: [...toEngineInventory(state.bag), ...items],
         addedItemIds: items.map(item => item.id),
         totalCapacity: getMaxCarry(state),
-        journalText: `${state.currentLocationName}에서 ${notes.join(', ')}로 가방을 채웠다. ${replenishNote.trim()}`
+        journalText: `${state.currentLocationName}에서 ${notes.join(', ')}로 가방을 채웠습니다.`,
+        playerMemory: replenishNote.trim() ? replenishNote : undefined
       });
       updateState((s: GameState) => applyCanonicalDowntimeRuntime(s, runtime));
       showAlert(`${items.length}종의 영약재를 가방에 보충했습니다.`);
@@ -12119,12 +12293,12 @@ function PlayView({
       const indexes = [...new Set(raw.split(',').map(value => parseInt(value.trim(), 10) - 1).filter(index => index >= 0 && index < rows.length))].slice(0, maximum);
       return indexes.map(index => rows[index].id);
     };
-    const note = (await requestControlledPrompt({
+    const note = await requestControlledPrompt({
       title: `${definition.name} 이용 기록`,
       message: `${definition.name} 이용 기록을 남겨주세요:`,
       defaultValue: `${definition.name} 서비스를 이용했다.`
-    }))?.trim();
-    if (!note) return;
+    });
+    if (!note?.trim()) return;
     const targetIds: string[] = [];
     let selectedItemIds: string[] = [];
     let selectedReagentId: string | undefined;
@@ -12270,7 +12444,21 @@ function PlayView({
         pendingManualEffect: pendingDraft,
         manualEffectDraft: pendingDraft,
         appliedTransactionIds: outcome.nextState.appliedTransactionIds,
-        journals: [{ id: `${transaction.id}:journal`, title: `길드 서비스: ${outcome.service.name}`, text: `${note}\n${outcome.service.followUp}`, timestamp: transaction.at }, ...s.journals]
+        journals: [{
+          id: `${transaction.id}:journal`,
+          title: `길드 서비스: ${outcome.service.name}`,
+          text: note,
+          semantic: {
+            ...createPlayerMemorySemantic(note),
+            outcome: `${outcome.service.name} 서비스를 이용했습니다.`,
+            source: {
+              page: outcome.service.sourcePage,
+              title: outcome.service.name,
+              prompt: outcome.service.followUp
+            }
+          },
+          timestamp: transaction.at
+        }, ...s.journals]
       };
       return enqueueManualDrafts(next, [pendingDraft]);
     });
@@ -12693,6 +12881,23 @@ function PlayView({
       const withServices = serviceStart.value ? applyServiceRuntime(journeyState, serviceStart.value) : journeyState;
       const mobility = resolveMobilityJourneyStart({ transactionId: `${transactionId}:mobility`, state: toMobilityRuntime(withServices), clayPotReagentId });
       const next = mobility.value ? applyMobilityRuntime(withServices, mobility.value) : withServices;
+      const journeyStartJournals = next.journals.map(journal => journal.id === `${transactionId}:journal`
+        ? {
+            ...journal,
+            text: journeyReason,
+            authorship: 'player' as const,
+            playerMemory: journeyReason,
+            semantic: {
+              ...createPlayerMemorySemantic(journeyReason),
+              outcome: `${s.currentLocationName}에서 ${destination.name}(으)로 여정을 시작했습니다.`,
+              context: {
+                location: s.currentLocationName,
+                season: s.currentSeason,
+                journey: `목표: ${goalTitle} · 여정 기한 ${canonicalJourney.urgency.days}일`
+              }
+            }
+          }
+        : journal);
       const nextBag = [...next.bag];
       if (canonicalJourney.goalId === 'justice') {
         const hasEvidence = nextBag.some(item => item.name.toLowerCase().includes('evidence') || item.name.includes('증거'));
@@ -12733,9 +12938,18 @@ function PlayView({
         journals: journeyStartReflection.trim() ? [{
           id: `${transactionId}:reflection`,
           title: `여정 출발 기록: ${s.currentLocationName}`,
-          text: `출발지 ${s.currentLocationName} · ${localizeSeasonLabel(s.currentSeason)} · 여정 기한 ${canonicalJourney.urgency.days}일\n${journeyStartReflection.trim()}`,
+          text: journeyStartReflection,
+          semantic: {
+            ...createPlayerMemorySemantic(journeyStartReflection),
+            outcome: `${destination.name}(으)로 여정을 시작했습니다.`,
+            context: {
+              location: s.currentLocationName,
+              season: s.currentSeason,
+              journey: `여정 기한 ${canonicalJourney.urgency.days}일`
+            }
+          },
           timestamp: Date.now()
-        }, ...next.journals] : next.journals
+        }, ...journeyStartJournals] : journeyStartJournals
       };
     });
 
@@ -13042,6 +13256,26 @@ function PlayView({
       locName: outcome.nextState.currentLocationName,
       transactionId: outcome.pendingEncounter.transactionId
     });
+    const soakedItemNames = outcome.soakedItemIds.flatMap(itemId => {
+      const item = outcome.nextState.inventory.find(row => row.id === itemId)
+        || travelInventory.find(row => row.id === itemId);
+      return item?.name ? [localizeInventoryItemName(item.name)] : [];
+    });
+    const soakingSummary = outcome.soakedItemIds.length === 0
+      ? ''
+      : soakedItemNames.length > 0
+        ? ` 젖은 물품: ${soakedItemNames.join(', ')}`
+        : ` 물품 ${outcome.soakedItemIds.length}개가 젖었습니다.`;
+    const encounterSummary = servicePreview.value.skipTravelEncounter
+      ? '농부의 마차를 얻어타 여행 조우 대신 마차 안 풍경을 기록했습니다.'
+      : braveApplies
+        ? '용감한 길동무가 거수 조우를 긍정적으로 끝내고 지역 영약재를 확보했습니다.'
+        : crankyApplies
+          ? '성질 고약한 기계장치가 자신을 희생해 거수 조우의 부정적 결과를 모두 막았습니다.'
+          : beetleApplies
+            ? '딱정벌레 길동무가 맹수 조우의 효과를 막았습니다.'
+            : localizeEncounterTitle(outcome.encounter.title, outcome.encounter.id);
+    const moveJournalText = `${outcome.pathCount}구간을 이동했습니다 (이동 비용 ${outcome.movementCost}).${soakingSummary}\n${encounterSummary}`;
     updateState(s => {
       const mobility = resolveMobilityTravel({
         transactionId,
@@ -13097,7 +13331,16 @@ function PlayView({
       journals: [{
         id: `${transactionId}:journal`,
         title: `이동: ${outcome.nextState.currentLocationName}`,
-        text: `${outcome.pathCount}구간을 이동했습니다 (이동 비용 ${outcome.movementCost}).${outcome.soakedItemIds.length ? ` 젖어 버린 물품: ${outcome.soakedItemIds.join(', ')}` : ''}\n${servicePreview.value!.skipTravelEncounter ? '농부의 마차를 얻어타 여행 조우 대신 마차 안 풍경을 기록했습니다.' : braveApplies ? '용감한 길동무가 거수 조우를 긍정적으로 끝내고 지역 영약재를 확보했습니다.' : crankyApplies ? '성질 고약한 기계장치가 자신을 희생해 거수 조우의 부정적 결과를 모두 막았습니다.' : beetleApplies ? '딱정벌레 길동무가 맹수 조우의 효과를 막았습니다.' : outcome.encounter.title}`,
+        text: moveJournalText,
+        semantic: {
+          ...createGameplayEventSemantic({
+            outcome: moveJournalText,
+            location: outcome.nextState.currentLocationName,
+            season: s.currentSeason,
+            journey: s.journeyGoalTitle || s.journey?.customGoal.title
+          }),
+          category: 'activity'
+        },
         timestamp: Date.now()
       }, ...appendEngineJournals(next.journals, toolProtectionJournals)]
       };
@@ -13147,22 +13390,27 @@ function PlayView({
       document.getElementById('patient-clinic-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
-    const note = (await requestControlledPrompt({
+    const note = await requestControlledPrompt({
       title: '앱 밖에서 해결한 질환 기록',
       kicker: '룰북 p.25 · p.28–36',
       message: '종이 기록 등 앱 밖에서 현지 야수의 질환 하나를 끝까지 해결한 경우에만 기록하세요. 단순 채집·숙박·조우 해결은 이동 제한을 해제하지 않습니다.',
       label: '환자와 해결한 질환/결과',
       defaultValue: '',
       inputMode: 'multiline'
-    }))?.trim();
-    if (!note) return;
+    });
+    if (!note?.trim()) return;
     updateState((current: GameState) => ({
       ...current,
       needsLocalHelpBeforeMove: false,
       journals: [{
         id: `local-ailment-external:${Date.now()}`,
         title: '현지 야수의 질환 해결 (외부 기록)',
-        text: `${current.currentLocationName}: ${note}`,
+        text: note,
+        semantic: {
+          ...createPlayerMemorySemantic(note),
+          outcome: '앱 밖에서 현지 야수의 질환을 해결했습니다.',
+          context: { location: current.currentLocationName }
+        },
         timestamp: Date.now()
       }, ...current.journals]
     }));
@@ -13545,7 +13793,7 @@ function PlayView({
       ...patient,
       foragingPoints: getStartingForagingPoints(state) + ailmentStartTools.foragingPoints + ledgerForagingPoints,
       reagentsGathered: [],
-      initialRememberedNote: intakeDraft.initialNote.trim(),
+      initialRememberedNote: intakeDraft.initialNote,
       startedAtDay: state.cumulativeDays || state.calendarDays,
       journeyTitle: state.journeyGoalTitle || state.journeyDestination
     };
@@ -13566,7 +13814,7 @@ function PlayView({
         reagentsGathered: [],
         patientName: patient.name,
         species: patient.species,
-        initialRememberedNote: intakeDraft.initialNote.trim(),
+        initialRememberedNote: intakeDraft.initialNote,
         startedAtDay: state.cumulativeDays || state.calendarDays,
         journeyTitle: state.journeyGoalTitle || state.journeyDestination
       };
@@ -14229,15 +14477,15 @@ function PlayView({
       ]
     });
     if (confirmation !== 'abandon') return;
-    const note = (await requestControlledPrompt({
+    const note = await requestControlledPrompt({
       title: '환자를 떠나보낸 기록',
       message: '떠나보낸 장면과 남은 여파를 기록하세요.',
       defaultValue: '',
       kicker: '환자 기록',
       label: '기록',
       inputMode: 'multiline'
-    }))?.trim();
-    if (!note) return;
+    });
+    if (!note?.trim()) return;
     const transaction = createClientTransaction('leave:abandoned');
     const result = resolveLeave({
       transactionId: transaction.id,
@@ -14386,12 +14634,12 @@ function PlayView({
     const kindChoice = prompt('새 연결의 종류를 선택하세요.\n1. 길\n2. 물길', '1');
     if (kindChoice === null) return;
     const kind = kindChoice === '2' ? 'waterway' as const : 'path' as const;
-    const pathDesc = prompt('길을 벗어나 발견한 풍경과 야생 동물을 기록하세요.', `${from.name}에서 ${to.name}(으)로 이어지는 ${kind === 'waterway' ? '물길' : '길'}을 발견했다.`)?.trim();
-    if (!pathDesc) return;
+    const pathDesc = prompt('길을 벗어나 발견한 풍경과 야생 동물을 기록하세요.', `${from.name}에서 ${to.name}(으)로 이어지는 ${kind === 'waterway' ? '물길' : '길'}을 발견했다.`);
+    if (!pathDesc?.trim()) return;
     const transaction = createClientTransaction('downtime:explore');
     try {
       const runtime = resolveCanonicalDowntime(transaction.id, toCanonicalDowntimeRuntime(state), {
-        activity: 'explore', fromId: from.id, toId: to.id, kind, playerConfirmedClose: true, journalText: pathDesc
+        activity: 'explore', fromId: from.id, toId: to.id, kind, playerConfirmedClose: true, journalText: pathDesc, playerMemory: pathDesc
       });
       updateState((s: GameState) => {
         const next = applyCanonicalDowntimeRuntime(s, runtime);
@@ -14407,7 +14655,8 @@ function PlayView({
     const settlementName = prompt("지도에 추가할 정착지 이름을 입력하세요:")?.trim();
     if (!settlementName) return;
     const regionName = prompt("정착지 지역을 입력하세요: 숲(Forest), 초원(Meadow), 호수(Loch), 늪지(Bog), 산맥(Mountain), 티탄 유적(Titan)", state.currentRegion)?.trim() || state.currentRegion;
-    const sourceNote = prompt("이 정착지가 생긴 이유나 특징을 적어주세요:", "여정의 영구적 결과로 생긴 정착지")?.trim() || "여정의 영구적 결과로 생긴 정착지";
+    const sourceNoteInput = prompt("이 정착지가 생긴 이유나 특징을 적어주세요:", "여정의 영구적 결과로 생긴 정착지");
+    const sourceNote = sourceNoteInput?.trim() ? sourceNoteInput : "여정의 영구적 결과로 생긴 정착지";
 
     updateState((s: GameState) => ({
       ...s,
@@ -14424,7 +14673,12 @@ function PlayView({
         {
           id: 'settlement_map_' + Date.now(),
           title: `🏘️ 지도에 새 정착지 추가: ${settlementName}`,
-          text: `${s.currentLocationName} 근처에 ${settlementName} 정착지를 지도에 표시했습니다.\n지역: ${regionName}\n기록: ${sourceNote}`,
+          text: sourceNote,
+          semantic: {
+            ...createPlayerMemorySemantic(sourceNote),
+            outcome: `${s.currentLocationName} 근처에 ${settlementName} 정착지를 지도에 표시했습니다.`,
+            context: { location: settlementName, journey: `지역: ${localizeRegionLabel(regionName)}` }
+          },
           timestamp: Date.now()
         },
         ...s.journals
@@ -14535,8 +14789,8 @@ function PlayView({
 	  };
 
 	  const handleMailboxPatient = () => {
-    const note = prompt('외부 길드 우체통에서 확인한 도움 요청을 기록하세요:', '도움 요청의 발신자, 위치, 요청 내용을 기록했다.')?.trim();
-    if (!note) return;
+	    const note = prompt('외부 길드 우체통에서 확인한 도움 요청을 기록하세요:', '도움 요청의 발신자, 위치, 요청 내용을 기록했다.');
+	    if (!note?.trim()) return;
     const transaction = createClientTransaction('clinic:mailbox');
     try {
       const outcome = resolveClinicAgendaAction({
@@ -15101,6 +15355,7 @@ function PlayView({
     const remainingTime = nextPatient.timers.length > 0
       ? Math.min(...nextPatient.timers.map(timer => timer.current))
       : 0;
+    const treatmentOutcomeText = `FAIR ${outcome.fair} · FOUL ${outcome.foul}${outcome.remedyFlags.includes('PRESERVED') ? ' · PRESERVED' : ''}\nGuild Reputation ${outcome.reputationChange >= 0 ? '+' : ''}${outcome.reputationChange} · 장신구 +${outcome.trinketReward}${outcome.badIdeaOutcomeApplied ? '\nBad Idea Inspiration을 도구에 적용했습니다.' : ''}`;
     updateState((s: GameState) => {
       if (s.appliedTransactionIds.includes(transactionId)) {
         return s.pendingTreatmentReward?.transactionId === transactionId
@@ -15149,7 +15404,23 @@ function PlayView({
         scroungingTimer: allAilmentsCured ? remainingTime : 0,
         journals: [{
           id: `${transactionId}:journal`, title: `치료: ${treatedDefinition?.displayName || sourceState.activeAilment?.name}`,
-          text: `${journalText}\nFAIR ${outcome.fair}, FOUL ${outcome.foul}${outcome.remedyFlags.includes('PRESERVED') ? ', PRESERVED' : ''}; Guild Reputation ${outcome.reputationChange >= 0 ? '+' : ''}${outcome.reputationChange}, 장신구 +${outcome.trinketReward}${outcome.badIdeaOutcomeApplied ? '\nBad Idea Inspiration을 도구에 적용했다.' : ''}`,
+          text: journalText,
+          semantic: treatmentInput.journalAuthorship === 'system'
+            ? createGameplayEventSemantic({
+              outcome: treatmentOutcomeText,
+              location: s.currentLocationName,
+              season: s.currentSeason,
+              patient: patient.name
+            })
+            : {
+              ...createPlayerMemorySemantic(journalText),
+              outcome: treatmentOutcomeText,
+              context: {
+                location: s.currentLocationName,
+                season: s.currentSeason,
+                patient: patient.name
+              }
+            },
           timestamp: Date.now()
         }, ...s.journals]
       };
@@ -15314,7 +15585,8 @@ function PlayView({
       inputMode: 'multiline'
     });
     if (journalChoice === null) return;
-    const journalText = journalChoice.trim() || `${patient.name}의 치료제를 조제했다.`;
+    const journalText = journalChoice;
+    const journalAuthorship = journalChoice.trim() ? 'player' as const : 'system' as const;
     const toolCards = Object.fromEntries(canonicalTools
       .filter(tool => effectiveSelectedTools.includes(tool.instanceId) && tool.toolId === 'fine-toothed-comb' && !tool.broken && !tool.consumed)
       .map(tool => [tool.instanceId, drawPlayingCard()]));
@@ -15341,7 +15613,8 @@ function PlayView({
       toolCards,
       trinketRewardBonus: getActiveFamiliarMechanic(state) === 'shrewd' ? 1 : 0,
       doseCount,
-      journalText
+      journalText,
+      journalAuthorship
     };
     let treatmentInput: typeof baseInput & { badIdeaOutcome?: BadIdeaOutcomeChoice; confirmedManualRequirements?: string[]; gifting?: boolean } = baseInput;
     let result = resolveTreatmentTransaction(treatmentInput);
@@ -15429,6 +15702,7 @@ function PlayView({
         trinketRewardBonus: treatmentInput.trinketRewardBonus || 0,
         doseCount: treatmentInput.doseCount === 2 ? 2 : 1,
         journalText,
+        journalAuthorship: treatmentInput.journalAuthorship,
         badIdeaOutcome: treatmentInput.badIdeaOutcome,
         confirmedManualRequirements: treatmentInput.confirmedManualRequirements
       };
@@ -15587,8 +15861,9 @@ function PlayView({
     const newChronicle = {
       id: `${transactionId}:chronicle`,
       title: `${state.journeyGoalTitle} · ${state.journeyDestination}`,
-      text: memoir.trim(),
-      date: new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+      text: memoir,
+      date: new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }),
+      timestamp: endingAttempt.at
     };
     updateState((s: GameState) => {
       const journeyState = applyJourneyRuntime(s, result.value!);
@@ -15605,7 +15880,7 @@ function PlayView({
       needsLocalHelpBeforeMove: false,
       pursuedByBehemoth: null,
       calendarDays: 0,
-      journeyChronicles: [newChronicle, ...(s.journeyChronicles || [])]
+      journeyChronicles: upsertJourneyChronicle(s.journeyChronicles || [], newChronicle)
       };
     });
     showAlert(`여정이 ${outcome === 'success' ? '성공' : outcome === 'partial' ? '부분 성공' : outcome === 'failure' ? '실패' : '포기'}으로 기록되었습니다.${state.rulesetId === 'original-1e-3p' ? ' 원작 규칙에는 고정 Guild Reputation 증감이 없습니다.' : ''}`);
@@ -17633,8 +17908,8 @@ function PlayView({
                   <textarea id="lending_note" placeholder="어떤 프로젝트를 도왔는지 묘사해 일지에 남겨주세요." style={{ width: '100%', height: '50px', padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px' }} />
                   <button
                     onClick={() => {
-	                      const note = (document.getElementById('lending_note') as HTMLTextAreaElement)?.value.trim();
-                      if (!note) {
+	                      const note = (document.getElementById('lending_note') as HTMLTextAreaElement)?.value || '';
+	                      if (!note.trim()) {
                         showAlert('도운 프로젝트와 함께한 길드, 맡은 일을 기록해 주세요.');
                         return;
                       }
@@ -17649,7 +17924,11 @@ function PlayView({
                           {
                             id: `${transaction.id}:project`,
                             title: `🐾 자원봉사: 도움의 손길`,
-                            text: `공공 자원봉사 활동에 참여했습니다.\n- Guild Reputation +5 획득\n- 자원봉사 기록: ${note}`,
+                            text: note,
+                            semantic: {
+                              ...createPlayerMemorySemantic(note),
+                              outcome: '공공 자원봉사 활동에 참여해 Guild Reputation +5를 얻었습니다.'
+                            },
                             timestamp: transaction.at
                           },
                           ...next.journals
@@ -20346,16 +20625,16 @@ function CharacterCreationWizard({
         canFly: canFlyFromTravel,
         originName: draft.origin.name,
         originDesc: draft.origin.desc,
-        originJournal: draft.originJournal.trim(),
+        originJournal: draft.originJournal,
         familiarName: draft.familiarName.trim(),
         familiarAnimal: draft.familiarAnimal.trim(),
         familiarDescriptor: draft.familiarDescriptor.name,
         familiarExamples: draft.familiarDescriptor.examples,
         familiarBenefit: matchedBenefit?.name || draft.familiarBenefit.name,
         familiarRelation: `${draft.relationship.name} (${draft.relationship.desc})`,
-        familiarJournal: draft.familiarJournal.trim(),
-        relationshipJournal: draft.relationshipJournal.trim(),
-        mementoNote: draft.mementoNote.trim()
+        familiarJournal: draft.familiarJournal,
+        relationshipJournal: draft.relationshipJournal,
+        mementoNote: draft.mementoNote
       },
       resourcefulReagent: matchedBenefit?.mechanic === 'resourceful' ? draft.resourcefulReagent : "",
       ingenuitiveTool: matchedBenefit?.mechanic === 'ingenuitive' ? draft.ingenuitiveTool : "",
@@ -20950,10 +21229,11 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
 
   const reputationLevel = guildReputationRank(state.reputation);
   const recentProgress = state.journals.find(entry => /^(Downtime:|Journey (success|partial|failure|abandoned)|Guild Reputation|휴식|계절|여정 (성공|부분 성공|실패|포기)|속도|소지|평판|은퇴|친구들과 보낸 휴식|🐾 자원봉사|자기 계발)/i.test(entry.title));
-  const recentProgressTitle = recentProgress ? localizeGameplayMessage(localizeManualJournalTitle(recentProgress.title)) : '';
-  const recentProgressText = recentProgress
-    ? localizeGameplayMessage(localizeManualJournalText(recentProgress.text)).replace(/^\[p\.\d+\]\s*/, '').replace(/\s+/g, ' ').trim()
-    : '';
+  const recentProgressTitle = recentProgress ? journalDisplayTitle(recentProgress) : '';
+  // A recent-progress row can contain exact prose supplied during Downtime or
+  // Journey resolution. `journalPreview` understands that semantic boundary;
+  // sending the whole string through a rule-text localizer does not.
+  const recentProgressText = recentProgress ? journalPreview(recentProgress, 160) : '';
   const bagToolCount = state.bag.filter(item => item.id.startsWith('tool_') || item.type === 'tool').length;
   const bagReagentCount = state.bag.filter(item => !item.id.startsWith('tool_') && item.type !== 'tool').length;
   const characterNextStep = state.journeyActive
@@ -22023,7 +22303,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
                           reagentsGathered: [],
                           patientName: patientName.trim(),
                           species: species.trim(),
-                          initialRememberedNote: initialRememberedNote.trim(),
+                          initialRememberedNote,
                           startedAtDay: s.cumulativeDays || s.calendarDays || 0,
                           journeyTitle: s.journeyGoalTitle || s.journeyDestination || ''
                         }
@@ -23100,23 +23380,37 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
   const herbarium = (state.worldAlmanac || [])
     .filter(entry => entry.category === 'reagent')
     .sort((a, b) => b.lastSeen - a.lastSeen);
-  const journeyEntries = [
-    ...(state.journeyChronicles || []).map(c => ({
-      id: c.id,
-      title: c.title,
-      text: c.text,
-      stamp: c.date
-    })),
-    ...(state.travelScrapbook || [])
+  const travelScrapbook = state.travelScrapbook || [];
+  const chronicleIds = new Set((state.journeyChronicles || []).map(chronicle => chronicle.id));
+  const journeyEntries = newestJourneyArchiveEntries([
+    ...(state.journeyChronicles || []).map(c => {
+      const mirror = travelScrapbook.find(entry => entry.sourceId === c.id && (
+        entry.mirrorSource === 'chronicle' || legacyScrapbookMirrorSource(entry) === 'chronicle'
+      ));
+      return {
+        id: c.id,
+        title: c.title,
+        text: c.text,
+        stamp: c.date,
+        timestamp: mirror?.timestamp ?? (Number.isFinite(c.timestamp) ? c.timestamp! : chronicleDateTimestamp(c.date)),
+        authorship: 'player' as const,
+        playerMemory: c.text,
+        semantic: createPlayerMemorySemantic(c.text)
+      };
+    }),
+    ...withoutChronicleMirrorCopies(travelScrapbook, chronicleIds, legacyScrapbookMirrorSource)
       .filter(entry => entry.kind === 'journey')
-      .slice(0, 8)
       .map(entry => ({
         id: entry.id,
         title: entry.title,
         text: entry.text,
+        timestamp: entry.timestamp,
+        authorship: entry.authorship,
+        playerMemory: entry.playerMemory,
+        semantic: entry.semantic,
         stamp: `${entry.locationName ? getLocalizedLocationName(entry.locationName) : '길 위'} / ${formatDateTime(entry.timestamp)}`
       }))
-  ];
+  ]);
   const trinkets = [...(state.trinketArchive || [])].sort((a, b) => b.timestamp - a.timestamp);
   const routeStops = [...new Set([...(state.visitedLocations || []), state.currentLocationName].filter(Boolean))];
 
@@ -23311,13 +23605,21 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
             ))}
           </div>
           <div style={{ display: 'grid', gap: '0.55rem' }}>
-            {journeyEntries.slice(0, 4).map(entry => (
-              <article key={entry.id} style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '0.5rem' }}>
-                <strong><Suspense fallback={localizeGameplayMessage(entry.title)}><LocalizedManualEffectText kind="journal-title" text={entry.title} /></Suspense></strong>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{entry.stamp}</div>
-                <div style={{ fontSize: '0.82rem', marginTop: '0.25rem', whiteSpace: 'pre-wrap' }}><Suspense fallback={localizeGameplayMessage(localizeSavedJourneyText(entry.text))}><LocalizedManualEffectText kind="journal-text" text={localizeSavedJourneyText(entry.text)} /></Suspense></div>
-              </article>
-            ))}
+            {journeyEntries.slice(0, 4).map(entry => {
+              const presentation = presentJournalEntry(entry);
+              const body = presentation.memory || presentation.outcome || entry.text;
+              return (
+                <article key={entry.id} style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '0.5rem' }}>
+                  <strong>{journalDisplayTitle(entry)}</strong>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{entry.stamp}</div>
+                  <div style={{ fontSize: '0.82rem', marginTop: '0.25rem', whiteSpace: 'pre-wrap' }}>
+                    {presentation.memory
+                      ? body
+                      : <Suspense fallback={localizeGameplayMessage(body)}><LocalizedManualEffectText kind="journal-text" text={body} /></Suspense>}
+                  </div>
+                </article>
+              );
+            })}
             {journeyEntries.length === 0 && <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.85rem' }}>여정을 마무리하거나 길가에서 일기를 적어 지도의 여백을 채우세요.</div>}
           </div>
         </section>
@@ -23694,6 +23996,9 @@ function JournalsView({
   const [viewingPhoto, setViewingPhoto] = useState<{ photo: JournalPhoto; title: string } | null>(null);
   const [subTab, setSubTab] = useState<'casebook' | 'almanac' | 'scrapbook' | 'journals' | 'chronicles' | 'legacy'>('journals');
   const [importNotice, setImportNotice] = useState<{ text: string } | null>(null);
+  const journalsNewestFirst = journalEntriesNewestFirst(state.journals);
+  const storyJournals = journalsNewestFirst.filter(journal => !isActivityJournalEntry(journal));
+  const activityJournals = journalsNewestFirst.filter(journal => isActivityJournalEntry(journal));
 
   useEffect(() => {
     if (highlightedPatientId && subTab === 'casebook') {
@@ -23808,8 +24113,9 @@ function JournalsView({
         journals: [
           {
             id: journalId,
-            title: newTitle.trim(),
-            text: newText.trim(),
+            title: newTitle,
+            text: newText,
+            semantic: createPlayerMemorySemantic(newText),
             timestamp: Date.now(),
             photos: newPhotos
           },
@@ -23829,7 +24135,7 @@ function JournalsView({
         id: `${journalId}:journey`, type: 'journal', category,
         region: toRuleRegion(s.currentRegion),
         locationId: resolveCurrentMapLocationKey(s),
-        text: newText.trim()
+        text: newText
       });
       if (!nextJourney) return nextBase;
       const legacyProgress = reconcileLegacyJournalGoalProgress({
@@ -23857,8 +24163,14 @@ function JournalsView({
       const journal = state.journals.find(j => j.id === id);
       (journal?.photos || []).forEach(photo => void deleteJournalPhotoFromStorage(photo));
       updateState(s => {
+        const deletingCharacterJournal = isCharacterJournalId(id);
+        const bio = deletingCharacterJournal ? clearCharacterJournalSource(s.bio, id) : s.bio;
+        const remainingJournals = s.journals.filter(j => j.id !== id);
+        const journals = deletingCharacterJournal
+          ? mergeCharacterJournals(remainingJournals, bio)
+          : remainingJournals;
         if (!s.journey) {
-          return { ...s, journals: s.journals.filter(j => j.id !== id) };
+          return { ...s, bio, journals };
         }
         const nextJourney = removeJourneyProgress(s.journey, `${id}:journey`, {
           inventory: toEngineInventory(s.bag),
@@ -23873,7 +24185,8 @@ function JournalsView({
         });
         return {
           ...s,
-          journals: s.journals.filter(j => j.id !== id),
+          bio,
+          journals,
           journey: nextJourney,
           journeyGoalCounter: legacyProgress.counter,
           journeyGoalChecklist: legacyProgress.checklist
@@ -24255,18 +24568,26 @@ function JournalsView({
 
       {subTab === 'scrapbook' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {(state.travelScrapbook || []).map(entry => (
-            <div key={entry.id} className="cute-card" style={{ background: '#fffefa' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.45rem', marginBottom: '0.7rem', gap: '0.8rem' }}>
-                <h4 style={{ margin: 0, color: 'var(--text-bright)' }}><Suspense fallback={localizeGameplayMessage(entry.title)}><LocalizedManualEffectText kind="journal-title" text={entry.title} /></Suspense></h4>
-                <span className="document-kicker">{scrapbookLabels[entry.kind]}</span>
+          {(state.travelScrapbook || []).map(entry => {
+            const presentation = presentJournalEntry(entry);
+            const body = presentation.memory || presentation.outcome || entry.text;
+            return (
+              <div key={entry.id} className="cute-card" style={{ background: '#fffefa' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.45rem', marginBottom: '0.7rem', gap: '0.8rem' }}>
+                  <h4 style={{ margin: 0, color: 'var(--text-bright)' }}>{journalDisplayTitle(entry)}</h4>
+                  <span className="document-kicker">{scrapbookLabels[entry.kind]}</span>
+                </div>
+                <p style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem', lineHeight: 1.7, margin: 0 }}>
+                  {presentation.memory
+                    ? body
+                    : <Suspense fallback={localizeGameplayMessage(body)}><LocalizedManualEffectText kind="journal-text" text={body} /></Suspense>}
+                </p>
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '0.6rem' }}>
+                  {entry.locationName ? getLocalizedLocationName(entry.locationName) : '길 위'} / {formatDateTime(entry.timestamp)}
+                </div>
               </div>
-              <p style={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem', lineHeight: 1.7, margin: 0 }}><Suspense fallback={localizeGameplayMessage(localizeSavedJourneyText(entry.text))}><LocalizedManualEffectText kind="journal-text" text={localizeSavedJourneyText(entry.text)} /></Suspense></p>
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-dim)', marginTop: '0.6rem' }}>
-                {entry.locationName ? getLocalizedLocationName(entry.locationName) : '길 위'} / {formatDateTime(entry.timestamp)}
-              </div>
-            </div>
-          ))}
+            );
+          })}
           {(!state.travelScrapbook || state.travelScrapbook.length === 0) && (
             <div className="cute-card" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
               여정, 발견, 환자, 처방 기록이 생기면 자동으로 스크랩북에 붙습니다.
@@ -24358,18 +24679,47 @@ function JournalsView({
 
           {/* List journals */}
           <div className="journal-story-list">
-            <h3>📖 이야기 기록 ({state.journals.filter(j => !isActivityJournalEntry(j.title)).length}개)</h3>
+            <div className="journal-story-list__heading">
+              <div>
+                <span className="journal-note-label">기억과 여정의 결과</span>
+                <h3>이야기 기록 {storyJournals.length}편</h3>
+              </div>
+              <p>내가 쓴 문장을 먼저 읽고, 판정 결과와 원문은 그 뒤에서 확인합니다.</p>
+            </div>
             <div className="journal-story-list__entries">
-              {state.journals.filter(j => !isActivityJournalEntry(j.title)).map(j => {
-                const presentation = presentEncounterJournal(j.title, j.text);
+              {storyJournals.map(j => {
+                const presentation = presentJournalEntry(j);
+                const displayTitle = journalDisplayTitle(j);
+                const hasContext = Boolean(
+                  presentation.context.location
+                  || presentation.context.season
+                  || presentation.context.patient
+                  || presentation.context.journey
+                );
+                const hasSource = Boolean(
+                  presentation.source.page
+                  || presentation.source.ruleIds?.length
+                  || presentation.source.title
+                  || presentation.source.prompt
+                  || presentation.source.choices?.length
+                  || presentation.audit?.overrideReason
+                );
+                const longMemory = isLongJournalMemory(presentation.memory);
+                const isPlayerMemory = presentation.category === 'player-memory';
+                const memoryPreview = longMemory
+                  ? `${presentation.memory.replace(/\s+/g, ' ').trim().slice(0, 260).trimEnd()}…`
+                  : '';
                 return (
-                <div key={j.id} className="cute-card" style={{ background: '#fff' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed #eee', paddingBottom: '0.4rem' }}>
-                    <h4 style={{ margin: 0, color: 'var(--primary)' }}><Suspense fallback={localizeGameplayMessage(j.title)}><LocalizedManualEffectText kind="journal-title" text={j.title} /></Suspense></h4>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{formatDateTime(j.timestamp)}</span>
-                      <label style={{ background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                        📷 사진 추가
+                <article key={j.id} className={`journal-entry journal-entry--${isPlayerMemory ? 'memory' : 'event'}`} data-journal-id={j.id}>
+                  <header className="journal-entry__header">
+                    <div>
+                      <span className="journal-entry__kind">{isPlayerMemory ? '남겨 둔 기억' : '여정에서 일어난 일'}</span>
+                      <h4>{displayTitle}</h4>
+                    </div>
+                    <div className="journal-entry__actions">
+                      <time>{formatDateTime(j.timestamp)}</time>
+                      <label className="journal-entry__photo-action">
+                        사진 추가
                         <input
                           type="file"
                           accept="image/*"
@@ -24381,39 +24731,54 @@ function JournalsView({
                           style={{ display: 'none' }}
                         />
                       </label>
-                      <button onClick={() => handleRemoveJournal(j.id)} style={{ background: 'transparent', border: 'none', color: 'var(--accent-red)', cursor: 'pointer', fontSize: '0.8rem' }}>❌ 삭제</button>
+                      <button type="button" className="journal-entry__delete" onClick={() => handleRemoveJournal(j.id)}>삭제</button>
                     </div>
-                  </div>
-                  {j.text && presentation.isEncounter ? (
-                    <div className="encounter-journal-entry">
-                      {Object.keys(presentation.metadata).length > 0 && (
-                        <dl className="encounter-journal-entry__metadata">
-                          {presentation.metadata.location && <div><dt>장소</dt><dd>{localizeLocationName(presentation.metadata.location)}</dd></div>}
-                          {presentation.metadata.season && <div><dt>계절</dt><dd>{localizeSeasonLabel(presentation.metadata.season)}</dd></div>}
-                          {presentation.metadata.outcome && <div><dt>선택</dt><dd><Suspense fallback={presentation.metadata.outcome}><LocalizedManualEffectText kind="option" text={presentation.metadata.outcome} /></Suspense></dd></div>}
-                          {presentation.metadata.result && <div><dt>결과</dt><dd>{presentation.metadata.result}</dd></div>}
-                        </dl>
-                      )}
-                      <span>내가 남긴 기억</span>
-                      <p>{presentation.memory}</p>
-                      {presentation.context && (
-                        <details>
-                          <summary>조우 원문과 판정 맥락</summary>
-                          <div>
-                            <Suspense fallback={localizeGameplayMessage(localizeSavedJourneyText(presentation.context))}>
-                              <LocalizedManualEffectText kind="journal-text" text={localizeSavedJourneyText(presentation.context)} />
-                            </Suspense>
-                          </div>
-                        </details>
-                      )}
-                    </div>
-                  ) : j.text ? (
-                    <p style={{ fontSize: '0.9rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', color: 'var(--text-bright)', marginTop: '0.5rem' }}>
-                      <Suspense fallback={localizeGameplayMessage(localizeSavedJourneyText(j.text))}><LocalizedManualEffectText kind="journal-text" text={localizeSavedJourneyText(j.text)} /></Suspense>
-                    </p>
+                  </header>
+                  {presentation.memory ? (
+                    <section className="journal-entry__memory" aria-label="플레이어가 남긴 기억">
+                      {longMemory ? (
+                        <>
+                          <p className="journal-entry__memory-preview">{memoryPreview}</p>
+                          <details className="journal-entry__long-memory">
+                            <summary>전체 기억 읽기</summary>
+                            <p>{presentation.memory}</p>
+                          </details>
+                        </>
+                      ) : <p>{presentation.memory}</p>}
+                    </section>
+                  ) : null}
+                  {presentation.outcome && presentation.outcome.trim() !== displayTitle.trim() ? (
+                    <section className="journal-entry__outcome" aria-label="게임에서 일어난 결과">
+                      <span>일어난 일</span>
+                      <p><Suspense fallback={presentation.outcome}><LocalizedManualEffectText kind="journal-text" text={presentation.outcome} /></Suspense></p>
+                    </section>
+                  ) : null}
+                  {hasContext ? (
+                    <dl className="journal-entry__context">
+                      {presentation.context.location ? <div><dt>장소</dt><dd>{localizeLocationName(presentation.context.location)}</dd></div> : null}
+                      {presentation.context.season ? <div><dt>계절</dt><dd>{localizeSeasonLabel(presentation.context.season)}</dd></div> : null}
+                      {presentation.context.patient ? <div><dt>환자</dt><dd>{presentation.context.patient}</dd></div> : null}
+                      {presentation.context.journey ? <div><dt>여정</dt><dd>{presentation.context.journey}</dd></div> : null}
+                    </dl>
+                  ) : null}
+                  {hasSource ? (
+                    <details className="journal-entry__source">
+                      <summary>원문 · 출처 보기{presentation.source.page ? ` · p.${presentation.source.page}` : ''}</summary>
+                      <div>
+                        {presentation.source.ruleIds?.length ? <p><strong>참고 규칙</strong> {presentation.source.ruleIds.join(', ')}</p> : null}
+                        {presentation.source.title ? <h5><Suspense fallback={presentation.source.title}><LocalizedManualEffectText kind="journal-title" text={presentation.source.title} /></Suspense></h5> : null}
+                        {presentation.source.prompt ? <p><Suspense fallback={presentation.source.prompt}><LocalizedManualEffectText kind="journal-text" text={presentation.source.prompt} /></Suspense></p> : null}
+                        {presentation.source.choices?.length ? (
+                          <ul>{presentation.source.choices.map((choice, index) => (
+                            <li key={`${choice}:${index}`}><Suspense fallback={choice}><LocalizedManualEffectText kind="option" text={choice} /></Suspense></li>
+                          ))}</ul>
+                        ) : null}
+                        {presentation.audit?.overrideReason ? <p><strong>예외 처리 사유</strong> {presentation.audit.overrideReason}</p> : null}
+                      </div>
+                    </details>
                   ) : null}
                   {(j.photos || []).length > 0 && (
-                    <div style={{ display: 'grid', gridTemplateColumns: (j.photos || []).length === 1 ? 'minmax(0, 760px)' : 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '1rem', marginTop: '1.1rem', alignItems: 'start' }}>
+                    <div className="journal-entry__photos" style={{ gridTemplateColumns: (j.photos || []).length === 1 ? 'minmax(0, 760px)' : 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))' }}>
                       {(j.photos || []).map(photo => (
                         <figure key={photo.id} style={{ margin: 0, border: '1px solid #e2ddd2', borderRadius: '10px', overflow: 'hidden', background: '#faf8f2', boxShadow: '0 2px 8px rgba(39, 32, 24, 0.08)' }}>
                           <button
@@ -24431,28 +24796,31 @@ function JournalsView({
                       ))}
                     </div>
                   )}
-                </div>
+                </article>
               );})}
-              {state.journals.filter(j => !isActivityJournalEntry(j.title)).length === 0 && (
+              {storyJournals.length === 0 && (
                 <div style={{ fontStyle: 'italic', color: 'var(--text-dim)', textAlign: 'center', marginTop: '1rem' }}>
                   아직 남긴 이야기가 없습니다. 조우에서 기억을 적거나 새 저널을 작성하면 이곳에 모입니다.
                 </div>
               )}
             </div>
-            {state.journals.some(j => isActivityJournalEntry(j.title)) && (
+            {activityJournals.length > 0 && (
               <details className="journal-activity-log">
-                <summary>진행 기록 {state.journals.filter(j => isActivityJournalEntry(j.title)).length}건</summary>
+                <summary>진행 기록 {activityJournals.length}건</summary>
                 <p>이동과 시스템 상태 변화는 이야기와 분리해 보관합니다.</p>
                 <div>
-                  {state.journals.filter(j => isActivityJournalEntry(j.title)).map(j => (
-                    <article key={j.id}>
-                      <header>
-                        <strong>{localizeGameplayMessage(j.title)}</strong>
-                        <time>{formatDateTime(j.timestamp)}</time>
-                      </header>
-                      {j.text && <p>{localizeGameplayMessage(localizeSavedJourneyText(j.text))}</p>}
-                    </article>
-                  ))}
+                  {activityJournals.map(j => {
+                    const presentation = presentJournalEntry(j);
+                    return (
+                      <article key={j.id}>
+                        <header>
+                          <strong>{journalDisplayTitle(j)}</strong>
+                          <time>{formatDateTime(j.timestamp)}</time>
+                        </header>
+                        {presentation.outcome ? <p>{presentation.outcome}</p> : null}
+                      </article>
+                    );
+                  })}
                 </div>
               </details>
             )}

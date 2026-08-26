@@ -1,14 +1,12 @@
-import { Suspense, useEffect, useRef } from 'react';
-import { localizeJourneyGoalText, localizeLocationName, localizeRegionLabel, localizeSavedJourneyText, localizeSeasonLabel } from '../localization/gameplayKo';
-import { localizeGameplayMessage } from '../localization/engineMessagesKo';
+import { useEffect, useRef } from 'react';
+import { localizeJourneyGoalText, localizeLocationName, localizeRegionLabel, localizeSeasonLabel } from '../localization/gameplayKo';
 import { referenceForJournalTab } from '../rulebook/context';
 import type { RulebookReferenceRequest } from '../rulebook/types';
 import { getCampaignContinuity } from '../campaignContinuity';
 import { getJourneyUiContext } from '../journeyUiContext';
 import { readCalendarClocks } from '../calendarTime';
 import type { JournalTab } from '../sessionNavigation';
-import { isActivityJournalEntry, presentEncounterJournal } from '../encounterJournal';
-import LocalizedManualEffectText from './LocalizedManualEffectText';
+import { isActivityJournalEntry, journalDisplayTitle, journalEntriesNewestFirst, journalPreview } from '../journalSemantics';
 
 export type { JournalTab } from '../sessionNavigation';
 
@@ -87,7 +85,7 @@ export function ChapterOpening({
   const legacyAilment = state.activeAilment;
   const patientName = patient?.name || legacyAilment?.patientName;
   const ailmentName = legacyAilment?.name || ailment?.legacyName;
-  const journalCount = state.journals?.filter((row: any) => !isActivityJournalEntry(row.title)).length || 0;
+  const journalCount = state.journals?.filter((row: any) => !isActivityJournalEntry(row)).length || 0;
   const caseCount = state.patientArchive?.length || state.patientCasebook?.length || 0;
   const discoveryCount = state.worldAlmanac?.length || 0;
   const bagCount = state.bag?.reduce((sum: number, item: any) => sum + (item.qty || 1), 0) || 0;
@@ -205,19 +203,16 @@ export function TodayOverview({
   const legacyAilment = state.activeAilment;
   const ailmentName = legacyAilment?.name || ailment?.legacyName || '살펴볼 병증이 없습니다';
   const requirements = requirementWords(legacyAilment?.tags || ailment?.requirementSnapshot || '');
-  const recentJournal = state.journals?.find((row: any) => !isActivityJournalEntry(row.title));
-  const recentJournalPresentation = recentJournal
-    ? presentEncounterJournal(recentJournal.title, recentJournal.text)
-    : null;
-  const recentJournalText = recentJournal ? localizeSavedJourneyText(recentJournal.text) : '';
+  const recentJournal = journalEntriesNewestFirst<any>(state.journals || [])
+    .find((row: any) => !isActivityJournalEntry(row));
   const recentJournalSummary = recentJournal?.title.startsWith('새 환자:')
     ? (() => {
-        const [impression = '', diagnosis = ''] = recentJournalText.split('\n').filter(Boolean);
+        const [impression = '', diagnosis = ''] = recentJournal.text.split('\n').filter(Boolean);
         const cleanImpression = impression.replace(/^첫인상:\s*/, '');
         const cleanDiagnosis = diagnosis.replace(/^병증:\s*/, '');
         return [`첫인상: ${cleanImpression}`, cleanDiagnosis ? `병증: ${cleanDiagnosis}` : ''].filter(Boolean).join('\n');
       })()
-    : recentJournalText;
+    : recentJournal ? journalPreview(recentJournal, 180) : '';
   const continuity = getCampaignContinuity(state);
   const journeyActive = getJourneyUiContext(state).active;
   const calendarClocks = readCalendarClocks(state);
@@ -358,12 +353,8 @@ export function TodayOverview({
         {recentJournal ? (
         <article className="today-journal">
           <span className="journal-note-label">최근에 남긴 기록</span>
-          <h3><Suspense fallback={localizeGameplayMessage(recentJournal.title)}><LocalizedManualEffectText kind="journal-title" text={recentJournal.title} /></Suspense></h3>
-          <p className="today-journal__summary">{recentJournal.text ? (
-            recentJournalPresentation?.isEncounter
-              ? recentJournalPresentation.memory
-              : <Suspense fallback={localizeGameplayMessage(recentJournalSummary).slice(0, 180)}><LocalizedManualEffectText kind="journal-text" text={recentJournalSummary} maxLength={180} /></Suspense>
-          ) : '남긴 내용이 없습니다.'}</p>
+          <h3>{journalDisplayTitle(recentJournal)}</h3>
+          <p className="today-journal__summary">{recentJournalSummary || '남긴 내용이 없습니다.'}</p>
           <button type="button" className="journal-text-action" onClick={() => onNavigate('journals')}>
             <span className="emoji-icon" aria-hidden="true">✒️</span> 지난 기록 읽기
           </button>

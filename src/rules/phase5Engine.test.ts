@@ -106,10 +106,13 @@ describe('Phase 5 canonical closure', () => {
       activity: 'explore', fromId: 'left-far', toId: 'right-far', kind: 'waterway', playerConfirmedClose: false
     })).toThrow(/player to confirm/i);
 
+    const memory = '  물가에서 수달 발자국을 보았다.\n갈대가 길을 가렸다.  ';
     const explored = resolveCanonicalDowntime('explore:confirmed', state, {
-      activity: 'explore', fromId: 'left-far', toId: 'right-far', kind: 'waterway', playerConfirmedClose: true
+      activity: 'explore', fromId: 'left-far', toId: 'right-far', kind: 'waterway', playerConfirmedClose: true,
+      journalText: memory, playerMemory: memory
     });
     expect(explored.graph['left-far'].edges).toContainEqual({ to: 'right-far', kind: 'waterway' });
     expect(explored.graph['right-far'].edges).toContainEqual({ to: 'left-far', kind: 'waterway' });
+    expect(explored.journalEvents.at(-1)).toMatchObject({ text: memory, playerMemory: memory });
   });
 });

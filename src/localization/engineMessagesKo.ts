@@ -44,6 +44,7 @@ const exactEngineMessages: Record<string, string> = {
   "Building Trust requires its Ailment result and a journal note.": "Building Trust에는 질병 판정 결과와 일지 기록이 필요합니다.",
   "Building Trust requires its canonical Patient.": "Building Trust에 해당하는 환자가 필요합니다.",
   "Building Trust requires one drawn Intermediate Ailment.": "Building Trust에는 뽑은 중간 질병 하나가 필요합니다.",
+  "Building Trust": "신뢰 쌓기",
   "Canonical Ailment definition not found.": "룰북 질병 정보를 찾지 못했습니다.",
   "Canonical Tool instance is not present in Inventory.": "해당 룰북 도구가 가방에 없습니다.",
   "Choose a legal destination candidate for the drawn card. Redraw when no candidate exists.": "뽑은 카드로 갈 수 있는 목적지를 선택하세요. 후보가 없다면 다시 뽑으세요.",
@@ -60,6 +61,7 @@ const exactEngineMessages: Record<string, string> = {
   "Clay Pots require one Plant Reagent that is in Season at the start of the Journey.": "이식용 진흙 화분에는 여정 시작 시 제철인 식물 영약재 하나가 필요합니다.",
   "Clay Pots with a planted Reagent are required.": "영약재를 심어 둔 이식용 진흙 화분이 필요합니다.",
   "Collapsed Entrance is not active.": "무너진 입구가 진행 중이 아닙니다.",
+  "Collapsed Entrance": "무너진 입구",
   "Companion is not in the selected roster.": "선택한 명단에 이 길동무가 없습니다.",
   "Companion is not travelling with you.": "이 길동무는 현재 함께 여행하지 않습니다.",
   "Companions are adopted in a City of a Region where they can be found.": "길동무는 해당 종을 만날 수 있는 지역의 도시에서 맞이할 수 있습니다.",
@@ -113,6 +115,8 @@ const exactEngineMessages: Record<string, string> = {
   "Hitch a Ride travels up to 5 Paths and must end in a Meadow Location.": "농부 마차 얻어타기는 최대 5개 경로를 이동하며 초원 장소에서 끝나야 합니다.",
   "Hunted: the Behemoth appeared on a Spade, the Foraging event was abandoned, and the Ailment Timer decreased by 1.": "Hunted: 스페이드에서 거수가 나타나 채집을 포기했고 질병 타이머가 1 줄었습니다.",
   "Inside Job and a journal note are required.": "Inside Job과 일지 기록이 필요합니다.",
+  "Inside Job": "내부 소행",
+  "Invigorating Tea": "활력 차",
   "Invalid Personality or Descriptor card.": "성격 또는 특징 카드가 올바르지 않습니다.",
   "Invalid Tool upgrade.": "도구 개조가 올바르지 않습니다.",
   "Journey Reason is required.": "여정을 떠나는 이유가 필요합니다.",
@@ -131,6 +135,7 @@ const exactEngineMessages: Record<string, string> = {
   "No travelling Companion slot is available for the Butterfly.": "Butterfly가 함께 여행할 자리가 없습니다.",
   "Movement is complete; resolve the printed encounter before continuing.": "이동을 마쳤습니다. 계속하기 전에 룰북 조우를 판정하세요.",
   "Nefarious Concoction requires SLEEP 4 and FOUL 8.": "Nefarious Concoction에는 SLEEP 4와 FOUL 8이 필요합니다.",
+  "Nefarious Concoction": "사악한 조제물",
   "No Barter attempts remain at this location for this patient.": "이 환자를 위해 이 장소에서 시도할 수 있는 물물교환이 남아 있지 않습니다.",
   "No Delve matches this Behemoth and suit.": "이 거수와 카드 무늬에 해당하는 고분 탐사가 없습니다.",
   "No News From The Trail choice remains.": "선택할 수 있는 길 위의 소식 항목이 남아 있지 않습니다.",
@@ -178,10 +183,15 @@ const exactEngineMessages: Record<string, string> = {
   "Pending Guild delivery was not found.": "대기 중인 길드 배달을 찾지 못했습니다.",
   "Pick of the Deep requires a Titan Reagent no rarer than the drawn card.": "깊은 곳의 수확에는 뽑은 카드보다 희귀하지 않은 티탄 영약재가 필요합니다.",
   "Pilfer Unnoticed is not active.": "Pilfer Unnoticed가 진행 중이 아닙니다.",
+  "Pilfer Unnoticed": "들키지 않고 훔치기",
+  "Pilfer Unnoticed: Escaped": "들키지 않고 훔치기: 탈출",
+  "Pilfer Unnoticed: Journey Ended": "들키지 않고 훔치기: 여정 종료",
   "Pinned by Pine decreased this Timer by 1 additional point.": "Pinned by Pine으로 이 타이머가 추가로 1 줄었습니다.",
   "Potent Poison only counts the seven named Reagents with canonical identity.": "Potent Poison은 룰북 식별 정보가 있는 일곱 가지 지정 영약재만 계산합니다.",
   "Potent Poison requires a journal note.": "Potent Poison에는 일지 기록이 필요합니다.",
   "Potent Poison resolves when its Timer reaches 0.": "Potent Poison은 타이머가 0이 되면 판정합니다.",
+  "Potent Poison": "맹독",
+  "Potent Poison Failed": "맹독 실패",
   "Powders and Teas stored with the Granite Mortar cannot exceed Carry score.": "화강암 절구에 보관한 가루와 차의 무게는 소지 한도를 넘을 수 없습니다.",
   "Repair requires a Settlement or City and 2 Trinkets.": "수리에는 정착지 또는 도시와 장신구 2개가 필요합니다.",
   "Replacement can only be committed after a successful Forage or Barter transaction.": "Replacement는 채집 또는 물물교환에 성공한 뒤에만 확정할 수 있습니다.",
@@ -222,10 +232,20 @@ const exactEngineMessages: Record<string, string> = {
   "Smithing requires a Mountain Settlement or City.": "철공 개조는 산맥 정착지 또는 도시에서만 가능합니다.",
   "Social Encounter transaction was already applied.": "교류 조우 처리를 이미 적용했습니다.",
   "Soporific Incense requires SLEEP 6.": "Soporific Incense에는 SLEEP 6이 필요합니다.",
+  "Soporific Incense": "수면 향",
+  "Silent Service": "조용한 시중",
+  "Steal Everything": "모조리 훔치기",
   "Starting a Delve requires a journal note.": "고분 탐사를 시작하려면 일지 기록이 필요합니다.",
   "Suitable Furnishings requires a journal note.": "Suitable Furnishings에는 일지 기록이 필요합니다.",
   "Suitable Furnishings requires exactly five cards.": "Suitable Furnishings에는 정확히 카드 5장이 필요합니다.",
   "Suitable Furnishings requires five ordered Reagents.": "Suitable Furnishings에는 순서를 정한 영약재 5개가 필요합니다.",
+  "Suitable Furnishings": "알맞은 가구",
+  "The Behemoth wakes and pursues the apothecary.": "거수가 깨어나 약제사를 뒤쫓습니다.",
+  "The Bellies of Many": "수많은 허기",
+  "The Strength of a Union": "연대의 힘",
+  "The banquet was incomplete when its Timer reached 0.": "잔치 준비를 마치지 못한 채 타이머가 0이 되었습니다.",
+  "The plot happens before the concoction is finished.": "조제물을 완성하기 전에 음모가 실행되었습니다.",
+  "Making a House into a Home": "집을 보금자리로",
   "Survey Paths can join one Location only to a real existing Path.": "경로 측량은 한 장소를 실제로 존재하는 경로에만 연결할 수 있습니다.",
   "Survey Paths requires two distinct nearby map Locations.": "경로 측량에는 서로 다른 인접 지도 장소 두 곳이 필요합니다.",
   "Take Clippings requires a Plant Reagent.": "온실 꺾꽂이에는 식물 영약재가 필요합니다.",
@@ -264,6 +284,7 @@ const exactEngineMessages: Record<string, string> = {
   "Treatment requires a transaction ID.": "치료 처리 정보가 없습니다.",
   "PURIFY requires the last gathered Reagent to have been gathered in a Mountain Location.": "PURIFY는 마지막으로 모은 영약재가 산맥 장소에서 왔을 때만 사용할 수 있습니다.",
   "Uneasy Sleep success must move exactly 1 Path away.": "Uneasy Sleep 성공 시 정확히 경로 1개만큼 이동해야 합니다.",
+  "Uneasy Sleep": "불안한 잠",
   "Unknown Guild Service.": "알 수 없는 길드 서비스입니다.",
   "Unknown Guild delivery.": "알 수 없는 길드 배달입니다.",
   "Unknown canonical Companion.": "알 수 없는 룰북 길동무입니다.",
@@ -350,6 +371,7 @@ const exactEngineMessages: Record<string, string> = {
   "The selected original Tag is not part of this Ailment.": "선택한 원래 태그가 이 질병에 포함되어 있지 않습니다.",
   "The same Remedy ingredient cannot be selected more than once.": "같은 치료제 재료를 두 번 선택할 수 없습니다.",
   "This Clinic Garden is unavailable for the selected Ailment.": "이 약제소 정원은 선택한 질병에 사용할 수 없습니다.",
+  "The Clinic Garden yielded one prepared Reagent for the current Ailment.": "약제소 정원에서 현재 질병 치료에 쓸 조제 영약재 하나를 수확했습니다.",
   "Tool effects require a transaction ID.": "도구 효과 처리 정보가 없습니다.",
   "Tool transaction is invalid or already applied.": "도구 처리 기록이 올바르지 않거나 이미 적용되었습니다.",
   "Unknown Wagon Expansion.": "알 수 없는 마차 확장입니다.",
@@ -386,8 +408,14 @@ const exactEngineMessages: Record<string, string> = {
   "Passenger boarded": "동승자 탑승",
   "Passenger delivered": "동승자 도착",
   "Pawning": "담보 판매",
+  "Used a Crossbow and discarded one Bolts instance.": "석궁을 사용하고 볼트 한 묶음을 버려 빠져나왔습니다.",
+  "Sacrificed the Cranky Contraption to escape.": "성질 고약한 기계장치를 희생해 빠져나왔습니다.",
+  "No Tool or Benefit could prevent the fatal outcome.": "치명적인 결과를 막을 도구나 혜택이 없어 여정이 끝났습니다.",
+  "Collected the requested item at the current location.": "현재 위치에서 부탁한 물품을 되찾았습니다.",
+  "The recipient confirmed arrival at a Settlement or City and received the package.": "받는 이가 정착지나 도시에 도착해 꾸러미를 받았음을 확인했습니다.",
   "Preparing to Leave": "떠날 준비",
   "Replacement Acquired": "Replacement 재료 획득",
+  "Wagon commissioned": "마차 제작",
   "Reset once-per-Journey Service use while preserving purchased Move and Settlement effects.": "여정당 1회인 서비스 사용 기록을 초기화하고, 구입한 이동 및 정착지 효과는 유지했습니다.",
   "Scrounging": "여분 채집",
   "Selected one of two Travel Encounter cards before reaching the Journey destination.": "목적지에 도착하기 전 이동 조우 카드 두 장 중 하나를 선택했습니다.",
@@ -436,11 +464,24 @@ const localizeEngineActivity = (value: string): string => ({
   Forage: '채집',
   forage: '채집',
   Foraging: '채집',
+  'forage-current': '현재 위치에서 한 차례 채집',
+  'forage-adjacent': '인접 위치에서 한 차례 채집',
+  'guaranteed-current': '현재 위치의 희귀도 2 이하 부위 획득',
+  'guaranteed-adjacent': '인접 위치의 희귀도 2 이하 부위 획득',
   Forecast: '날씨 예보',
   Journey: '여정',
   Scrounging: '여분 채집',
   Treatment: '치료',
   Travel: '이동'
+} as Record<string, string>)[value] || value;
+
+const localizeEngineRegion = (value: string): string => ({
+  Bog: '습지',
+  Forest: '숲',
+  Loch: '호수',
+  Meadow: '초원',
+  Mountain: '산악',
+  Titan: '티탄 지대'
 } as Record<string, string>)[value] || value;
 
 const localizeAilmentSeverity = (value: string): string => ({
@@ -476,7 +517,7 @@ const dynamicEngineMessages: Array<[RegExp, (...matches: string[]) => string]> =
   ,[/^BR (.+); paid (.+) Trinkets and (.+) Reputation\.$/, (br, trinkets, reputation) => `기본 희귀도 ${br}; 장신구 ${trinkets}개와 길드 명성 ${reputation}점을 지불했습니다.`]
   ,[/^(.+) unresolved Ailments faced their Consequences\.$/, count => `해결되지 않은 질병 ${count}개의 결과를 적용했습니다.`]
   ,[/^(.+) was diagnosed with (.+)\.$/, (patient, ailment) => `${patient}에게 ${ailment} 진단을 내렸습니다.`]
-  ,[/^(.+): (Challenge|Failed|Attempt|Diagnosis)$/, (name, step) => `${name}: ${{ Challenge: '도전', Failed: '실패', Attempt: '시도', Diagnosis: '진단' }[step] || step}`]
+  ,[/^(.+): (Challenge|Failed|Attempt|Diagnosis)$/, (name, step) => `${exactEngineMessages[name] || name}: ${{ Challenge: '도전', Failed: '실패', Attempt: '시도', Diagnosis: '진단' }[step] || step}`]
   ,[/^Foraging attempt recorded; Timer is now (.+)\.$/, timer => `채집 시도를 기록했습니다. 현재 타이머는 ${timer}입니다.`]
   ,[/^Reached 50 FP after (.+) draws and completed the Delve\.$/, draws => `카드 ${draws}장을 뽑아 채집 포인트 50에 도달하고 고분 탐사를 마쳤습니다.`]
   ,[/^(.+) will be completed at the start of (Spring|Summer|Autumn|Winter)\.$/, (clinic, season) => `${clinic}은(는) ${localizeSeasonName(season)} 시작에 완공됩니다.`]
@@ -486,7 +527,7 @@ const dynamicEngineMessages: Array<[RegExp, (...matches: string[]) => string]> =
   ,[/^Downtime: (.+)$/, activity => `휴식기 활동: ${localizeDowntimeActivity(activity)}`]
   ,[/^Journey (success|partial|failure|abandoned)$/, outcome => `여정 ${{ success: '성공', partial: '부분 성공', failure: '실패', abandoned: '포기' }[outcome] || outcome}`]
   ,[/^(Spring|Summer|Autumn|Winter) to (Spring|Summer|Autumn|Winter)$/, (from, to) => `${localizeSeasonName(from)}에서 ${localizeSeasonDestination(to)}`]
-  ,[/^(.+) acquired through (forage|barter); BR (.+), Weight (.+), target (.+), source REMEDY-003\.$/, (item, source, br, weight, target) => `${item}을(를) ${source === 'forage' ? '채집' : '물물교환'}으로 획득했습니다. 기본 희귀도 ${br}, 무게 ${weight}, 목표 태그 ${target}, 적용 규칙 REMEDY-003.`]
+  ,[/^(.+) acquired through (forage|barter); BR (.+), Weight (.+), target (.+), source REMEDY-003\.$/, (item, source, br, weight, target) => `${item}을(를) ${source === 'forage' ? '채집' : '물물교환'}으로 획득했습니다. 기본 희귀도 ${br}, 무게 ${weight}, 목표 태그 ${target}.`]
   ,[/^Discarded (.+) Weight and gained (.+) Trinkets\.$/, (weight, trinkets) => `무게 ${weight}만큼 버리고 장신구 ${trinkets}개를 얻었습니다.`]
   ,[/^Remedy: (.+)$/, ailment => `치료제: ${ailment}`]
   ,[/^Tool acquired: (.+)$/, tool => `도구 획득: ${localizeCanonicalToolName(tool)}`]
@@ -496,6 +537,12 @@ const dynamicEngineMessages: Array<[RegExp, (...matches: string[]) => string]> =
   ,[/^Companion adopted: (.+)$/, companion => `길동무 영입: ${companion}`]
   ,[/^Paid (.+) Trinkets\.$/, cost => `장신구 ${cost}개를 지불했습니다.`]
   ,[/^(.+) returned to the wild\.$/, companion => `${companion}을(를) 자연으로 돌려보냈습니다.`]
+  ,[/^(.+) stays at the Clinic\.$/, companion => `${companion}을(를) 약제소에 맡겼습니다.`]
+  ,[/^(.+) joins the Journey\.$/, companion => `${companion}이(가) 여정에 다시 합류했습니다.`]
+  ,[/^The (beast|behemoth|loch-redraw) benefit was used for this Journey\.$/, trigger => `${{ beast: '맹수 조우', behemoth: '거수 조우', 'loch-redraw': '호수 조우 다시 뽑기' }[trigger] || trigger} 길동무 효과를 이번 여정에 사용했습니다.`]
+  ,[/^The Companion was discarded after preventing the Behemoth outcome\.$/, () => '길동무를 떠나보내고 거수 조우의 결과를 막았습니다.']
+  ,[/^Wagon expansion installed: (.+)$/, expansion => `마차 확장 설치: ${expansion}`]
+  ,[/^Collected the requested item at (.+)\.$/, location => `${location}에서 부탁한 물품을 되찾았습니다.`]
   ,[/^(.+) is travelling to (.+)\.$/, (passenger, destination) => `${passenger}이(가) ${destination}(으)로 함께 이동합니다.`]
   ,[/^(.+) was harvested after two Moves\.$/, reagent => `두 번 이동한 뒤 ${reagent}을(를) 수확했습니다.`]
   ,[/^The planted Reagent is ready and remains available until gathered\.$/, () => '심은 영약재를 수확할 준비가 되었으며, 거둘 때까지 그대로 남습니다.']
@@ -512,7 +559,7 @@ const dynamicEngineMessages: Array<[RegExp, (...matches: string[]) => string]> =
   ,[/^Pantry Hibernation requires (.+) Trinkets for (.+) occupant\(s\)\.$/, (cost, occupants) => `식료품 저장고 동면에는 ${occupants}명 기준 장신구 ${cost}개가 필요합니다.`]
   ,[/^No Journey Goal for (.+)\.$/, card => `${card}에 해당하는 여정 목표가 없습니다.`]
   ,[/^(.+) to (.+)\. Reason: (.+)\. Goal: (.+)\.$/, (origin, destination, reason, goal) => `${origin}에서 ${destination}(으)로 떠났습니다. 이유: ${reason}. 목표: ${goal}.`]
-  ,[/^(.+) in (.+); every active Timer decreased by (.+)\.$/, (action, region, cost) => `${region}에서 ${localizeEngineActivity(action)}을(를) 수행해 진행 중인 모든 타이머가 ${cost} 줄었습니다.`]
+  ,[/^(.+) in (.+); every active Timer decreased by (.+)\.$/, (action, region, cost) => `${localizeEngineRegion(region)}에서 ${localizeEngineActivity(action)}을(를) 수행해 진행 중인 모든 타이머가 ${cost} 줄었습니다.`]
   ,[/^Missing save migration from schema version (.+)$/, version => `저장 형식 ${version}을 현재 형식으로 변환할 수 없습니다.`]
   ,[/^(.+) Trinkets spent\.(?: (Bark Coracle) recycled\.)?$/, (cost, coracle) => `장신구 ${cost}개를 사용했습니다.${coracle ? ` ${localizeCanonicalToolName(coracle)}을 재활용했습니다.` : ''}`]
   ,[/^Generated (.+) Hive Reagent after travelling ten Paths\.$/, count => `경로 10개를 이동해 벌집 영약재 ${count}개를 얻었습니다.`]

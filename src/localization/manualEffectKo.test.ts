@@ -59,7 +59,17 @@ describe('printed effect Korean reading layer', () => {
     expect(localizeManualEffectLine('Season: Spring')).toBe('계절: 봄');
     expect(localizeManualJournalTitle('판정 대기: Memories A pleasant wind blows through the trees')).toBe('판정 대기: 추억');
     expect(localizeManualJournalTitle('여정 조우: Cul tivation')).toBe('여정 조우: 가지 가꾸기');
+    expect(localizeManualJournalTitle('사회 조우: Cul tivation')).toBe('사회 조우: 가지 가꾸기');
+    expect(localizeManualJournalTitle('사회 조우: Tree Lift')).toBe('사회 조우: 나무 승강기');
     expect(localizeManualJournalTitle('직접 판정: Dam Lotta Trouble')).toBe('직접 판정: 댐 때문에 골치 아파');
+    expect(localizeManualJournalText('Awkward Small Talk 추가로 바뀐 수치 없이 장면을 기록했습니다.'))
+      .toBe('어색한 잡담 추가로 바뀐 수치 없이 장면을 기록했습니다.');
+    expect(localizeManualJournalText('New Plans 추가로 바뀐 수치 없이 장면을 기록했습니다.'))
+      .toBe('새로운 계획 추가로 바뀐 수치 없이 장면을 기록했습니다.');
+    expect(localizeManualJournalText(". Naturally, pulley lifts are a common feature in most settlements. Awkward Small Talk - You find yourself scampering for an available lift, and a local holds it until you leap aboard. Journal about your experience aboard the lift, out of breath and assailed with polite questions about your day."))
+      .toContain('도르래식 승강기는 대부분의 정착지에서 흔히 볼 수 있습니다.');
+    expect(localizeManualJournalText("Naturally, pulley lifts are a common feature in most settlements. Awkward Small Talk - You find yourself scampering for an available lift, and a local holds it until you leap aboard. Journal about your experience aboard the lift, out of breath and assailed with polite questions about your day."))
+      .toContain('그 경험을 일지에 기록하세요.');
     expect(localizeManualJournalText('[p.79] . You feel your thoughts drift back, reflecting on your past. What moment do you recall?\n\n전용 직접 판정에서 선택과 상태 변화를 완료해야 합니다.')).toContain('어떤 순간이 생각나나요?');
     expect(localizeManualJournalText("[p.196] . Caretakers of any hometree know that now is the time to set plans for the coming year, binding branches into new roads, and pruning their trees to provide additional shelter from the elements. New Plans - Several important looking beasts are crowded around a set of sketched plans pinned to their hometree's bark. What are they building?"))
       .toContain('내년에 대한 계획을 세우고');

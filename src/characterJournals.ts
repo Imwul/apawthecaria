@@ -1,3 +1,5 @@
+import { createPlayerMemorySemantic, type JournalSemanticData } from './journalSemantics';
+
 export type CharacterJournalSource = {
   originName?: string;
   originJournal?: string;
@@ -13,6 +15,7 @@ export type CharacterJournalEntry = {
   text: string;
   timestamp: number;
   source: 'character-origin';
+  semantic: JournalSemanticData;
 };
 
 export const CHARACTER_JOURNAL_IDS = {
@@ -43,17 +46,27 @@ export const isCharacterJournalId = (id: string): boolean =>
   || id.startsWith('familiar_')
   || id.startsWith('relation_');
 
+const sourceFieldForJournalId = (id: string): keyof CharacterJournalSource | null => {
+  if (id === CHARACTER_JOURNAL_IDS.origin || id.startsWith(LEGACY_ID_PREFIX[CHARACTER_JOURNAL_IDS.origin])) return 'originJournal';
+  if (id === CHARACTER_JOURNAL_IDS.memento || id.startsWith(LEGACY_ID_PREFIX[CHARACTER_JOURNAL_IDS.memento])) return 'mementoNote';
+  if (id === CHARACTER_JOURNAL_IDS.familiar || id.startsWith(LEGACY_ID_PREFIX[CHARACTER_JOURNAL_IDS.familiar])) return 'familiarJournal';
+  if (id === CHARACTER_JOURNAL_IDS.relationship || id.startsWith(LEGACY_ID_PREFIX[CHARACTER_JOURNAL_IDS.relationship])) return 'relationshipJournal';
+  return null;
+};
+
+/** Clears the canonical bio source so deleting its mirrored Journal survives reload. */
+export const clearCharacterJournalSource = <T extends CharacterJournalSource>(source: T, id: string): T => {
+  const field = sourceFieldForJournalId(id);
+  return field ? { ...source, [field]: '' } : source;
+};
+
 const textFor = (source: CharacterJournalSource, id: string): string => {
   if (id === CHARACTER_JOURNAL_IDS.origin) {
-    const body = (source.originJournal || '').trim();
-    if (!body) return '';
-    return source.originName ? `${source.originName}\n${body}` : body;
+    return source.originJournal || '';
   }
-  if (id === CHARACTER_JOURNAL_IDS.memento) return (source.mementoNote || '').trim();
-  if (id === CHARACTER_JOURNAL_IDS.familiar) return (source.familiarJournal || '').trim();
-  const relation = (source.relationshipJournal || '').trim();
-  if (!relation) return '';
-  return source.familiarRelation ? `${source.familiarRelation}\n${relation}` : relation;
+  if (id === CHARACTER_JOURNAL_IDS.memento) return source.mementoNote || '';
+  if (id === CHARACTER_JOURNAL_IDS.familiar) return source.familiarJournal || '';
+  return source.relationshipJournal || '';
 };
 
 export const characterJournalsFromBio = (
@@ -62,8 +75,15 @@ export const characterJournalsFromBio = (
 ): CharacterJournalEntry[] =>
   Object.values(CHARACTER_JOURNAL_IDS).flatMap(id => {
     const text = textFor(source, id);
-    if (!text) return [];
-    return [{ id, title: CHARACTER_TITLES[id], text, timestamp, source: 'character-origin' as const }];
+    if (!text.trim()) return [];
+    return [{
+      id,
+      title: CHARACTER_TITLES[id],
+      text,
+      timestamp,
+      source: 'character-origin' as const,
+      semantic: createPlayerMemorySemantic(text)
+    }];
   });
 
 export const mergeCharacterJournals = <T extends { id: string; title: string; text: string; timestamp: number }>(
@@ -81,10 +101,16 @@ export const mergeCharacterJournals = <T extends { id: string; title: string; te
     );
     if (!match) return [entry];
     used.add(match.id);
-    return [{ ...entry, id: match.id, title: match.title, text: match.text }];
+    return [{ ...entry, id: match.id, title: match.title, text: match.text, semantic: match.semantic }];
   });
   incoming.forEach(row => {
-    if (!used.has(row.id)) next.unshift({ id: row.id, title: row.title, text: row.text, timestamp: row.timestamp } as T);
+    if (!used.has(row.id)) next.unshift({
+      id: row.id,
+      title: row.title,
+      text: row.text,
+      timestamp: row.timestamp,
+      semantic: row.semantic
+    } as unknown as T);
   });
   return next;
 };

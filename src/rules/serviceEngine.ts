@@ -176,7 +176,7 @@ const pending = (input: GuildServiceInput, definition: GuildServiceDefinition, s
   itemIds: [...(input.selectedItemIds || [])],
   selectedReagentId: input.selectedReagentId,
   selectedPreparationId: input.selectedPreparationId,
-  journalNote: input.journalNote.trim(),
+  journalNote: input.journalNote,
   createdAtDay: input.state.calendarDays,
   sourcePage: definition.sourcePage
 });
@@ -300,7 +300,7 @@ export const resolveGuildService = (input: GuildServiceInput): GuildServiceResol
   }
 
   if (definition.duration === 'once-per-journey') next = { ...next, usedJourneyServiceIds: [...next.usedJourneyServiceIds, definition.id] };
-  const event: EngineJournalEvent = { id: `${input.transactionId}:journal`, type: 'downtime', title: definition.name, text: input.journalNote.trim() };
+  const event: EngineJournalEvent = { id: `${input.transactionId}:journal`, type: 'downtime', title: definition.name, text: input.journalNote, authorship: 'player', playerMemory: input.journalNote };
   next = { ...next, journalEvents: [...next.journalEvents, event], appliedTransactionIds: [...next.appliedTransactionIds, input.transactionId] };
   return { status: pendingService ? 'manual' : 'resolved', value: { transactionId: input.transactionId, service: definition, nextState: next, pendingService, messages }, messages };
 };
@@ -338,9 +338,12 @@ export const consumeGuildServiceMove = (input: {
     : service);
   const weatherProtectionActive = input.state.weatherProtectionMoves > 0;
   const weatherProtectionMoves = Math.max(0, input.state.weatherProtectionMoves - 1);
+  const pendingMoveName = pendingMove
+    ? GUILD_SERVICE_BY_ID.get(pendingMove.serviceId)?.name || 'Guild Service'
+    : null;
   const event: EngineJournalEvent = {
-    id: `${input.transactionId}:journal`, type: 'travel', title: pendingMove ? `${pendingMove.serviceId} consumed` : 'Guild Service Move',
-    text: `${pendingMove ? `${pendingMove.serviceId} completed. ` : ''}Forecast protection remaining: ${weatherProtectionMoves}.`
+    id: `${input.transactionId}:journal`, type: 'travel', authorship: 'system', title: pendingMoveName ? `${pendingMoveName} consumed` : 'Guild Service Move',
+    text: `${pendingMoveName ? `${pendingMoveName} completed. ` : ''}Forecast protection remaining: ${weatherProtectionMoves}.`
   };
   return {
     status: 'resolved',
@@ -475,7 +478,7 @@ export const completeGuildServiceDelivery = (input: {
     ? { ...service, status: 'completed' as const }
     : service);
   const event: EngineJournalEvent = {
-    id: `${input.transactionId}:journal`, type: 'downtime', title: `${definition.name} completed`,
+    id: `${input.transactionId}:journal`, type: 'downtime', authorship: 'system', title: `${definition.name} completed`,
     text: delivery.serviceId === 'retrieval'
       ? `Collected the requested item at ${input.state.currentLocationName}.`
       : 'The recipient confirmed arrival at a Settlement or City and received the package.'

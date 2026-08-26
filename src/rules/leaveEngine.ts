@@ -283,6 +283,7 @@ export const resolveLeave = (input: {
   state: LeaveRuntimeState;
   status: 'treated' | 'failed' | 'abandoned';
   journalNote?: string;
+  journalAuthorship?: 'player' | 'system';
 }): LeaveResolution => {
   if (!input.transactionId || input.state.appliedTransactionIds.includes(input.transactionId)) return { status: 'invalid', value: null, messages: ['Leave transaction is missing or already applied.'] };
   if (input.state.pendingObligation && !input.state.pendingObligation.resolved) return { status: 'invalid', value: null, messages: ['Resolve the pending Encounter or Delve before Moving On.'] };
@@ -324,7 +325,7 @@ export const resolveLeave = (input: {
     treatedAt: context.resolvedAt,
     treatmentResult: effectiveStatus === 'treated' ? 'success' : effectiveStatus === 'failed' ? 'failure' : 'abandoned',
     penalty: { reputation: input.status === 'treated' ? 0 : severityLoss },
-    specialEffects: input.journalNote?.trim() ? [input.journalNote.trim()] : [],
+    specialEffects: input.journalNote?.trim() ? [input.journalNote] : [],
     journalEntryIds: [journalEventId],
     sourceJourneyId: context.sourceJourneyId,
     transactionIds: [input.transactionId]
@@ -344,7 +345,9 @@ export const resolveLeave = (input: {
       appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
       journalEvents: [...input.state.journalEvents, {
         id: journalEventId, type: effectiveStatus === 'treated' ? 'treatment' : 'failure', title: 'Preparing to Leave',
-        text: input.journalNote?.trim() || (totalFailedCount > 0 ? `${totalFailedCount} Ailments faced their Consequences.` : 'All Ailments were resolved before Moving On.')
+        text: input.journalNote?.trim() ? input.journalNote : (totalFailedCount > 0 ? `${totalFailedCount} Ailments faced their Consequences.` : 'All Ailments were resolved before Moving On.'),
+        authorship: input.journalNote?.trim() && input.journalAuthorship !== 'system' ? 'player' : 'system',
+        playerMemory: input.journalNote?.trim() && input.journalAuthorship !== 'system' ? input.journalNote : undefined
       }]
     },
     messages: []

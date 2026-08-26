@@ -181,6 +181,9 @@ const exactTranslations: Record<string, string> = {
   'To Glide, or not to Glide': '활공할까, 말까',
   'Alluring Odours': '매혹적인 향기',
   'Awkward Small Talk': '어색한 잡담',
+  'New Plans': '새로운 계획',
+  ". Naturally, pulley lifts are a common feature in most settlements. Awkward Small Talk - You find yourself scampering for an available lift, and a local holds it until you leap aboard. Journal about your experience aboard the lift, out of breath and assailed with polite questions about your day.": '도르래식 승강기는 대부분의 정착지에서 흔히 볼 수 있습니다. 어색한 잡담 — 이용 가능한 승강기를 찾아 달려가자 현지 야수가 당신이 올라탈 때까지 붙잡아 줍니다. 숨이 찬 채 승강기에 올라 오늘 하루에 관한 공손한 질문을 연달아 받습니다. 그 경험을 일지에 기록하세요.',
+  "Naturally, pulley lifts are a common feature in most settlements. Awkward Small Talk - You find yourself scampering for an available lift, and a local holds it until you leap aboard. Journal about your experience aboard the lift, out of breath and assailed with polite questions about your day.": '도르래식 승강기는 대부분의 정착지에서 흔히 볼 수 있습니다. 어색한 잡담 — 이용 가능한 승강기를 찾아 달려가자 현지 야수가 당신이 올라탈 때까지 붙잡아 줍니다. 숨이 찬 채 승강기에 올라 오늘 하루에 관한 공손한 질문을 연달아 받습니다. 그 경험을 일지에 기록하세요.',
   "Wheee! — One Craftpaw manages to swirl into a curving flight, up until they slam into the side of the hometree. How far do they fall? Does their contraption survive the crash?": '휘이잉! — 장인발 길드원 하나가 나선형으로 날아오르다 집나무 옆면에 부딪힙니다. 얼마나 아래로 떨어졌나요? 장치는 충돌 뒤에도 멀쩡한가요?',
   "Slowfall — A shadow passes over you, large and round. Its owner is a Craftpaw testing a device they call a 'fall protector'. Its a wide, thin sack that fills with air and slows their descent through the air. Do they get caught in the hometree's branches, or get enveloped by their falling parachute?": '느린 낙하 — 크고 둥근 그림자가 머리 위를 지납니다. 주인은 ‘낙하 보호 장치’를 시험하는 장인발 길드원입니다. 공기로 부풀어 낙하 속도를 늦추는 넓고 얇은 자루입니다. 집나무 가지에 걸렸나요, 아니면 떨어지는 낙하산에 휘감겼나요?',
   Duty: '의무',
@@ -873,7 +876,7 @@ export const localizeManualEffectLine = (text: string): string => {
 };
 
 export const localizeManualJournalTitle = (text: string): string => {
-  const match = text.match(/^((?:판정 대기|여정 조우|채집 조우|직접 판정|예외 처리):\s*)(.+)$/);
+  const match = text.match(/^((?:판정 대기|여정 조우|채집 조우|사회 조우|사교 조우|직접 판정|예외 처리):\s*)(.+)$/);
   if (!match) return text;
   const effect = PRINTED_EFFECT_REGISTRY.find(row => match[2] === row.ownerName || match[2].startsWith(`${row.ownerName} `));
   return `${match[1]}${localizeEncounterTitle(effect?.ownerName || match[2])}`;
@@ -887,6 +890,10 @@ export const localizeManualJournalText = (text: string): string =>
     if (pagePrefix) return `${pagePrefix[1]}${localizeManualEffectValue(pagePrefix[2])}`;
     const direct = translatedManualEffectValue(block);
     if (direct) return direct;
+    const recordedOutcome = block.match(/^(.+?)(\s+추가로 바뀐 수치 없이 장면을 기록했습니다\.)$/);
+    if (recordedOutcome) {
+      return `${localizeManualEffectValue(recordedOutcome[1])}${recordedOutcome[2]}`;
+    }
     const embeddedEncounter = ENCOUNTERS.find(encounter => encounter.prompt.length > 40 && block.includes(encounter.prompt));
     if (!embeddedEncounter) return block;
     return block.replace(

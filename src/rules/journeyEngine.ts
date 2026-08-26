@@ -496,7 +496,7 @@ export const resolveJourneyStart = (input: {
     } : {}),
     destinationSelection: choosesDestination ? 'choose' : 'draw',
     destinationId: input.destinationId,
-    reason: input.reason.trim(),
+    reason: input.reason,
     goalId,
     customGoal,
     goalState: { events: [], playerDeclaredComplete: false, gmOverride: false, evaluation: { goalId, complete: false, automaticComplete: false, evidence: [], manualConfirmationRequired: false } },
@@ -525,7 +525,12 @@ export const resolveJourneyStart = (input: {
       appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
       journalEvents: [...input.state.journalEvents, {
         id: `${input.transactionId}:journal`, type: 'travel', title: 'Journey started',
-        text: `${input.originId} to ${input.destinationId}. Reason: ${input.reason.trim()}. Goal: ${customGoal?.title || JOURNEY_GOAL_BY_ID.get(goalId)?.title}.`
+        // Map node ids and deterministic Journey metadata belong to canonical
+        // state, not to the player's prose.  Keeping them out of `text` also
+        // prevents internal ids from leaking into legacy Journal surfaces.
+        text: 'Journey started',
+        authorship: 'player',
+        playerMemory: input.reason
       }]
     },
     messages: []
@@ -742,7 +747,7 @@ export const resolveJourneyEnding = (input: {
   const nextJourney: JourneyState = {
     ...evaluatedJourney,
     status: selectedOutcome === 'abandoned' ? 'abandoned' : 'completed',
-    ending: { outcome: selectedOutcome, journalText: journalText.trim(), endedAt: input.endedAt }
+    ending: { outcome: selectedOutcome, journalText, endedAt: input.endedAt }
   };
   return {
     status: 'resolved',
@@ -755,7 +760,7 @@ export const resolveJourneyEnding = (input: {
       appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
       journalEvents: [...input.state.journalEvents, {
         id: `${input.transactionId}:journal`, type: 'travel', title: `Journey ${selectedOutcome}`,
-        text: journalText.trim()
+        text: journalText, authorship: 'player', playerMemory: journalText
       }]
     },
     messages: []

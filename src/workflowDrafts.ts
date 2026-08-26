@@ -145,6 +145,7 @@ export interface PendingTreatmentReward {
   trinketRewardBonus: number;
   doseCount: number;
   journalText: string;
+  journalAuthorship?: 'player' | 'system';
   badIdeaOutcome?:
     | { kind: 'upgrade-basic-tool'; toolInstanceId: string; upgradeId: string }
     | { kind: 'lighten-tool'; toolInstanceId: string };
@@ -454,6 +455,9 @@ export const normalizePendingTreatmentReward = (value: unknown): PendingTreatmen
     trinketRewardBonus: Math.max(0, Number.isFinite(row.trinketRewardBonus) ? Number(row.trinketRewardBonus) : 0),
     doseCount: row.doseCount === 2 ? 2 : 1,
     journalText: text(row.journalText),
+    ...(row.journalAuthorship === 'system' || row.journalAuthorship === 'player'
+      ? { journalAuthorship: row.journalAuthorship }
+      : {}),
     badIdeaOutcome,
     confirmedManualRequirements: stringArray(row.confirmedManualRequirements)
   };

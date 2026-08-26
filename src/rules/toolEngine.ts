@@ -147,7 +147,7 @@ export const upgradeCanonicalTool = (input: {
         id: `${input.transactionId}:journal`,
         type: 'downtime',
         title: `Tool upgraded: ${definition.canonicalName}`,
-        text: `${current.instanceId} retained its identity and was upgraded for 3 Trinkets.`
+        text: `${definition.canonicalName} retained its identity and was upgraded for 3 Trinkets.`
       }]
     },
     messages: []

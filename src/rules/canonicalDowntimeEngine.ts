@@ -29,11 +29,11 @@ export interface CanonicalDowntimeState {
 }
 
 type CanonicalDowntimeInput =
-  | { activity: 'general-practice'; ailmentId: string; originalTag: RuleTag; replacementTag: RuleTag; journalText?: string }
-  | { activity: 'replenish'; items: EngineInventoryItem[]; addedItemIds?: string[]; totalCapacity: number; journalText?: string }
-  | { activity: 'explore'; fromId: string; toId: string; kind: 'path' | 'waterway'; playerConfirmedClose: boolean; journalText?: string }
-  | { activity: 'self-improvement'; choice: 'speed' | 'carry' | 'style'; travelStyle?: string; styleSpeed?: number; styleCarry?: number; journalText?: string }
-  | { activity: 'reconnect'; nearestCityId: string; noteItem: EngineInventoryItem; journalText?: string };
+  | { activity: 'general-practice'; ailmentId: string; originalTag: RuleTag; replacementTag: RuleTag; journalText?: string; playerMemory?: string }
+  | { activity: 'replenish'; items: EngineInventoryItem[]; addedItemIds?: string[]; totalCapacity: number; journalText?: string; playerMemory?: string }
+  | { activity: 'explore'; fromId: string; toId: string; kind: 'path' | 'waterway'; playerConfirmedClose: boolean; journalText?: string; playerMemory?: string }
+  | { activity: 'self-improvement'; choice: 'speed' | 'carry' | 'style'; travelStyle?: string; styleSpeed?: number; styleCarry?: number; journalText?: string; playerMemory?: string }
+  | { activity: 'reconnect'; nearestCityId: string; noteItem: EngineInventoryItem; journalText?: string; playerMemory?: string };
 
 const SEVERITY_ORDER: readonly AilmentSeverity[] = ['lesser', 'intermediate', 'severe', 'dire'];
 const maxSeverityForReputation = (reputation: number): AilmentSeverity => {
@@ -142,7 +142,9 @@ export const resolveCanonicalDowntime = (transactionId: string, state: Canonical
       id: `${transactionId}:journal`,
       type: 'downtime',
       title: `Downtime: ${input.activity}`,
-      text: input.journalText?.trim() || 'Canonical Downtime transaction applied.'
+      text: input.journalText?.trim() ? input.journalText : 'Canonical Downtime transaction applied.',
+      authorship: input.playerMemory?.trim() ? 'player' : 'system',
+      playerMemory: input.playerMemory?.trim() ? input.playerMemory : undefined
     }]
   };
 };

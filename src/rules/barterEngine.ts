@@ -390,6 +390,7 @@ const finalizeSuccessfulBarter = (
     journalEvents: [...state.journalEvents, {
       id: `${transactionId}:journal`,
       type: 'encounter',
+      authorship: 'system',
       title: `Barter: ${reagent.canonicalName}`,
       text: `BR ${pending.calculatedBR}; paid ${payment.trinkets} Trinkets and ${payment.reputation} Reputation.`
     }],
@@ -519,7 +520,7 @@ export const resolveBarterLeave = (input: {
       pendingBarter: { ...pending, status: 'abandoned', appliedEffectIds: [...pending.appliedEffectIds, input.transactionId] },
       appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
       journalEvents: [...input.state.journalEvents, {
-        id: `${input.transactionId}:journal`, type: 'encounter', title: 'Barter abandoned',
+        id: `${input.transactionId}:journal`, type: 'encounter', authorship: 'system', title: 'Barter abandoned',
         text: 'The offer was declined; every active Ailment Timer decreased by 1.'
       }]
     },

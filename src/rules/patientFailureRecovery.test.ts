@@ -98,6 +98,18 @@ describe('expired Patient transaction recovery', () => {
       failure: true,
       penalty: { reputation: 1, trinkets: 0 }
     });
+    expect(result.value?.nextState.journalEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'forage:ordinary:timer:failure:journal',
+        authorship: 'system',
+        playerMemory: undefined
+      }),
+      expect.objectContaining({
+        id: 'forage:ordinary:timer:leave:journal',
+        authorship: 'system',
+        playerMemory: undefined
+      })
+    ]));
 
     const replay = resolveExpiredPatientAfterTimer({
       transactionId: 'forage:ordinary:timer',
@@ -107,6 +119,25 @@ describe('expired Patient transaction recovery', () => {
     expect(replay.value?.expiredAilmentInstanceIds).toEqual([]);
     expect(replay.value?.nextState.reputation).toBe(11);
     expect(replay.value?.nextState.patientArchive?.[0].penalty.reputation).toBe(1);
+  });
+
+  it('preserves an explicitly supplied failure note as player memory', () => {
+    const failed = ailment('remembered', 'failed');
+    const memory = '  비가 그친 뒤 조용히 작별했다.\n\n그 문장을 그대로 남긴다.  ';
+    const result = resolveExpiredPatientAfterTimer({
+      transactionId: 'forage:remembered:timer',
+      state: runtime(patient([failed], [timer(failed.id, 0, 'expired')])),
+      journalText: memory
+    });
+
+    expect(result.value?.nextState.journalEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'forage:remembered:timer:failure:journal',
+        text: memory,
+        authorship: 'player',
+        playerMemory: memory
+      })
+    ]));
   });
 
   it('keeps a mixed case active, then preserves the merged encounter patient identity through final Archive reload', () => {

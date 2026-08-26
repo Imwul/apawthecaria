@@ -71,7 +71,7 @@ const auditedEngineStrings = () => {
 
 describe('gameplay message Korean presentation layer', () => {
   it('covers every audited fixed engine message', () => {
-    expect(ENGINE_MESSAGE_TRANSLATION_COUNT).toBe(396);
+    expect(ENGINE_MESSAGE_TRANSLATION_COUNT).toBe(424);
   });
 
   it('preserves canonical tags while localizing player-facing names and instructions', () => {
@@ -93,6 +93,8 @@ describe('gameplay message Korean presentation layer', () => {
       .toBe('Leaves에 필요한 도구가 없습니다: 낡은 캠프 주전자, 유리 증류기');
     expect(localizeGameplayMessage('BR 8; paid 2 Trinkets and 1 Reputation.'))
       .toBe('기본 희귀도 8; 장신구 2개와 Guild Reputation 1점을 지불했습니다.');
+    expect(localizeGameplayMessage('guaranteed-adjacent in Mountain; every active Timer decreased by 2.'))
+      .toBe('산악에서 인접 위치의 희귀도 2 이하 부위 획득을(를) 수행해 진행 중인 모든 타이머가 2 줄었습니다.');
   });
 
   it('keeps engine implementation jargon out of fixed player-facing messages', () => {
@@ -112,7 +114,7 @@ describe('gameplay message Korean presentation layer', () => {
     expect(localizeGameplayMessage('Forecast completed. Forecast protection remaining: 2.'))
       .toBe('날씨 예보 완료. 날씨 예보 보호 남은 횟수: 2.');
     expect(localizeGameplayMessage('Mossmilk acquired through forage; BR 12, Weight 2/3, target PAIN, source REMEDY-003.'))
-      .toContain('목표 태그 PAIN, 적용 규칙 REMEDY-003');
+      .toBe('Mossmilk을(를) 채집으로 획득했습니다. 기본 희귀도 12, 무게 2/3, 목표 태그 PAIN.');
     expect(localizeGameplayMessage('3 Plant Part(s) became weightless Powder or Tea.'))
       .toBe('식물 부위 3개를 무게 없는 가루 또는 차로 만들었습니다.');
   });
@@ -127,6 +129,21 @@ describe('gameplay message Korean presentation layer', () => {
     expect(localizeGameplayMessage('Downtime: self-improvement')).toBe('휴식기 활동: 자기 계발');
     expect(localizeGameplayMessage('Downtime: relax-tool')).toBe('휴식기 활동: 친구들과 휴식하기 · 도구 선물');
     expect(localizeGameplayMessage('Downtime: lend-a-paw')).toBe('휴식기 활동: 도움의 손길');
+    expect(localizeGameplayMessage('Beetle stays at the Clinic.')).toBe('Beetle을(를) 약제소에 맡겼습니다.');
+    expect(localizeGameplayMessage('Wagon expansion installed: Sealed Carriage and Sails')).toBe('마차 확장 설치: Sealed Carriage and Sails');
+  });
+
+  it('localizes canonical Barrow titles, challenges, and generated failure journals', () => {
+    expect(localizeGameplayMessage('Uneasy Sleep: Challenge')).toBe('불안한 잠: 도전');
+    expect(localizeGameplayMessage('The Bellies of Many: Attempt')).toBe('수많은 허기: 시도');
+    expect(localizeGameplayMessage('Inside Job: Failed')).toBe('내부 소행: 실패');
+    expect(localizeGameplayMessage('Soporific Incense')).toBe('수면 향');
+    expect(localizeGameplayMessage('The Behemoth wakes and pursues the apothecary.')).toBe('거수가 깨어나 약제사를 뒤쫓습니다.');
+    expect(localizeGameplayMessage('The banquet was incomplete when its Timer reached 0.')).toBe('잔치 준비를 마치지 못한 채 타이머가 0이 되었습니다.');
+    expect(localizeGameplayMessage('The plot happens before the concoction is finished.')).toBe('조제물을 완성하기 전에 음모가 실행되었습니다.');
+    expect(localizeGameplayMessage('Pilfer Unnoticed: Escaped')).toBe('들키지 않고 훔치기: 탈출');
+    expect(localizeGameplayMessage('Pilfer Unnoticed: Journey Ended')).toBe('들키지 않고 훔치기: 여정 종료');
+    expect(localizeGameplayMessage('Potent Poison Failed')).toBe('맹독 실패');
   });
 
   it('covers rare engine failures and persisted journal formats', () => {

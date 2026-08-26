@@ -65,6 +65,7 @@ export interface TreatmentSuccessInput {
   badIdeaOutcome?: BadIdeaOutcomeChoice;
   toolCards?: Record<string, RuleCard>;
   journalText: string;
+  journalAuthorship?: 'player' | 'system';
 }
 
 export interface TreatmentFailureInput {
@@ -73,6 +74,7 @@ export interface TreatmentFailureInput {
   state: TreatmentTransactionState;
   ailmentInstanceIds: string[];
   journalText: string;
+  journalAuthorship?: 'player' | 'system';
 }
 
 export type TreatmentEngineInput = TreatmentSuccessInput | TreatmentFailureInput;
@@ -542,7 +544,9 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
         id: `${input.transactionId}:journal`,
         type: 'failure' as const,
         title: 'Ailment consequences',
-        text: input.journalText
+        text: input.journalText,
+        authorship: input.journalAuthorship === 'system' ? 'system' as const : 'player' as const,
+        playerMemory: input.journalAuthorship === 'system' ? undefined : input.journalText
       }],
       appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId]
     };
@@ -737,7 +741,9 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
       id: `${input.transactionId}:journal`,
       type: 'treatment',
       title: `Remedy: ${definition.canonicalName}`,
-      text: input.journalText
+      text: input.journalText,
+      authorship: input.journalAuthorship === 'system' ? 'system' : 'player',
+      playerMemory: input.journalAuthorship === 'system' ? undefined : input.journalText
     }],
     appliedTransactionIds: [...badIdeaAppliedTransactionIds, input.transactionId]
   };

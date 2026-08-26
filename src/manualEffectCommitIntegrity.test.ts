@@ -34,6 +34,16 @@ describe('manual effect commit integrity', () => {
     expect(updaterSource).not.toContain('resolved.value!');
   });
 
+  it('does not relabel an automatic result-summary fallback as player-authored memory', () => {
+    const start = appSource.indexOf('onResolve={override => {');
+    const end = appSource.indexOf('\n              }}', start);
+    const resolveSource = appSource.slice(start, end);
+
+    expect(resolveSource).toContain('text: outcome.record.journalNote.trim() ? outcome.record.journalNote : outcome.record.resultSummary.trim()');
+    expect(resolveSource).toContain('journalNote: currentDraft.journalNote,');
+    expect(resolveSource).not.toContain('journalNote: outcome.record.journalNote,');
+  });
+
   it('auto-opens only fresh manual drafts while leaving deferred drafts for explicit resume', () => {
     const enqueueStart = appSource.indexOf('const enqueueManualDrafts');
     const enqueueEnd = appSource.indexOf('\n\nconst appendEngineJournals', enqueueStart);
