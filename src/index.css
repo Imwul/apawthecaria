@@ -1764,6 +1764,51 @@ button:active {
   width: min(560px, 100%);
 }
 
+/* Cloud slots can contain three full records. Keep the shell in the viewport
+   and let only the slot list scroll so the close action never gets clipped. */
+.phase4-modal.controlled-prompt.app-dialog.cloud-slots-dialog {
+  width: min(620px, calc(100vw - 2rem));
+  height: min(92dvh, 980px);
+  max-height: calc(100dvh - 2rem);
+  min-height: 0;
+  display: flex !important;
+  flex-direction: column;
+}
+
+.cloud-slots-dialog .app-dialog__header {
+  justify-content: space-between;
+}
+
+.cloud-slots-dialog__close {
+  flex: 0 0 auto;
+  min-width: 4.5rem;
+  min-height: 42px;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(37, 33, 28, 0.48);
+  background: transparent;
+  color: var(--editorial-ink, #25211c);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.cloud-slots-dialog__close:hover:not(:disabled),
+.cloud-slots-dialog__close:focus-visible {
+  border-color: var(--primary);
+  background: rgba(101, 114, 85, 0.1);
+}
+
+.cloud-slots-dialog__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.cloud-slots-dialog__body .cloud-slots {
+  padding-bottom: 1.15rem;
+}
+
 .phase4-modal.controlled-prompt.app-dialog.app-dialog--multi-select {
   width: min(760px, 100%);
   max-height: min(88dvh, 820px);
@@ -2998,6 +3043,11 @@ button:active {
     border-right: 0;
     border-bottom: 0;
     border-left: 0;
+  }
+
+  .phase4-modal.controlled-prompt.app-dialog.cloud-slots-dialog {
+    height: min(94dvh, 900px);
+    max-height: 94dvh !important;
   }
 
   .phase4-modal.controlled-prompt.app-dialog.app-dialog--multi-select {

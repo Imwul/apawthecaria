@@ -248,6 +248,21 @@ describe('cloud save slots', () => {
     expect(cloudPayloadFingerprint('동일')).not.toBe(cloudPayloadFingerprint('다름'));
   });
 
+  it('uses the character draft name for a pre-confirmation cloud slot', () => {
+    const payload = JSON.stringify({
+      bio: { name: '' },
+      workflowDrafts: { character: { version: 1, name: 'Bramble' } },
+      saveRevision: 2
+    });
+    expect(summarizeCloudUploadSource(payload)).toMatchObject({
+      available: true,
+      canUpload: true,
+      name: 'Bramble',
+      saveRevision: 2
+    });
+    expect(cloudSlotRecordFromPayload(1, payload, '2026-08-16T13:00:00.000Z').name).toBe('Bramble');
+  });
+
   it('allows a sizable slot that would overflow when three campaign bodies share one document', () => {
     const payload = JSON.stringify({
       bio: { name: '대용량 약제사' },
@@ -295,6 +310,7 @@ describe('cloud save slots', () => {
     expect(appSource).toContain("setDoc(doc(db, 'saves', payloadDocumentId)");
     expect(appSource).toContain("getDoc(doc(db, 'saves', record.payloadDocumentId))");
     expect(appSource).toContain('[CAMPAIGN_SAVE_KEY]: deleteField()');
+    expect(appSource).toContain('[`${CLOUD_SLOTS_FIELD}.slot-${slot}`]: deleteField()');
     expect(appSource).toContain('cloudSlotPayloadDocumentBelongsToAccount');
     expect(appSource).toContain('readCloudAccountBinding() === uid');
     expect(appSource).toContain('로컬 저장 공간이 부족해 클라우드 저장으로 전환합니다');

@@ -17,6 +17,9 @@ export type ManualEffectDraftUpdatedAt = number | ((current: ManualEffectDraft) 
 export type ManualEffectDraftPatch = Partial<ManualEffectDraft> | ((current: ManualEffectDraft) => Partial<ManualEffectDraft>);
 
 export const BETTING_OPPORTUNITY_CHOICE_INPUT_ID = 'betting-opportunity-choice';
+export const PARCEL_DELIVERY_CHOICE_ID = 'deliver-the-parcel';
+export const PARCEL_DELIVERY_ADDRESS_INPUT_ID = 'parcel-address';
+export const PARCEL_ENCOUNTER_OWNER_ID = 'travel-meadow-7-8';
 
 const resolveUpdatedAt = (
   current: ManualEffectDraft,
@@ -410,7 +413,63 @@ const scopeBettingDraft = (draft: ManualEffectDraft, branch: BettingBranch): Man
   };
 };
 
+const scopeParcelDeliveryDraft = (draft: ManualEffectDraft): ManualEffectDraft => {
+  const parcelAction = draft.actionTemplates.find(action =>
+    action.kind === 'gain-inventory' && /\bparcel\b/i.test(`${action.sourceText} ${action.label}`)
+  );
+  const parsedAddressAction = draft.actionTemplates.find(action =>
+    action.kind === 'record-map-change' && /(?:choose|location|4\s+paths?)/i.test(action.sourceText)
+  );
+  // Some legacy transcriptions keep the printed address sentence in the
+  // prompt but the mechanical parser cannot classify it as an action. Keep
+  // the player-facing branch usable by adding the one canonical map-note
+  // action here; this is still a manual target, never an inferred location.
+  const addressAction = parsedAddressAction || {
+    id: `${draft.ownerId}:parcel-address`,
+    kind: 'record-map-change' as const,
+    label: '배달 주소 기록',
+    required: true,
+    targetType: 'location' as const,
+    sourceText: 'Choose a Location 4 Paths away for its address.'
+  };
+  if (!parcelAction) return draft;
+  const addressField: PrintedResolutionInput = {
+    id: PARCEL_DELIVERY_ADDRESS_INPUT_ID,
+    type: 'target',
+    label: '소포 주소 (출발지에서 4경로 떨어진 위치)',
+    required: true,
+    helpText: '지도에서 출발지와 정확히 4경로 떨어진 위치 이름을 적으세요. 앱이 경로를 대신 선택하지 않습니다.'
+  };
+  const choiceField = printedChoiceField(draft, ['Deliver the Parcel']);
+  const confirmationField = conditionConfirmationField(draft);
+  const fields = [
+    ...draft.inputFields.filter(field => field.id !== 'printed-choice' && field.id !== 'condition-check' && field.id !== 'parcel-address'),
+    choiceField,
+    addressField,
+    confirmationField
+  ];
+  const actions = [
+    { ...parcelAction, required: true },
+    { ...addressAction, required: true, targetInputId: PARCEL_DELIVERY_ADDRESS_INPUT_ID }
+  ];
+  return {
+    ...draft,
+    choices: ['Deliver the Parcel'],
+    mandatoryConditions: ['Choose a Location exactly 4 Paths away for the Parcel address. Deliver the Parcel only when you reach that Location.'],
+    inputFields: fields,
+    inputValues: restrictInputValues(draft, fields, { 'printed-choice': 'Deliver the Parcel' }),
+    actionTemplates: actions,
+    canonicalActions: actions.map(action => action.label),
+    selectedActionIds: actions.map(action => action.id),
+    actionTargets: restrictActionTargets(draft, actions, { [parcelAction.id]: 'Parcel' }),
+    followUpRequirements: ['Parcel delivery: when you reach the chosen address, remove the Parcel and gain 3 Trinkets.']
+  };
+};
+
 const scopeBranchWithoutTimestamp = (draft: ManualEffectDraft): ManualEffectDraft => {
+  if (draft.ownerId === PARCEL_ENCOUNTER_OWNER_ID && contextChoice(draft) === PARCEL_DELIVERY_CHOICE_ID) {
+    return scopeParcelDeliveryDraft(draft);
+  }
   if (draft.ownerId === BEES_OWNER_ID) {
     const explicit = contextChoice(draft);
     const branch = explicit ? resolveBeesBranch(explicit) : resolveBeesBranch(printedChoice(draft));

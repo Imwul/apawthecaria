@@ -136,9 +136,17 @@ export interface PendingManualFollowUp {
   transactionId: string;
   status: 'pending' | 'resolved';
   /** Typed canonical work carried by this follow-up. Omitted for narrative-only rows. */
-  kind?: 'cocoon-hatch';
+  kind?: 'cocoon-hatch' | 'delivery';
   /** Stable Bag item created by the originating transaction. */
   targetInventoryItemId?: string;
+  /** Destination for a printed delivery quest (for example the Parcel). */
+  targetLocationId?: string;
+  targetLocationName?: string;
+  /** Reward granted exactly once when the carried item reaches its address. */
+  deliveryReward?: {
+    trinkets?: number;
+    reputation?: number;
+  };
 }
 
 export interface ManualEffectRecord {
@@ -289,15 +297,36 @@ export const normalizePendingManualFollowUp = (
   const fallbackCreatedAt = Number(now);
   const ownerId = typeof row.ownerId === 'string' && row.ownerId.trim() ? row.ownerId : row.id;
   const description = typeof row.description === 'string' ? row.description : '';
-  const kind = ownerId === BETTING_MANUAL_OWNER_ID
+  const cocoonKind = ownerId === BETTING_MANUAL_OWNER_ID
     && (row.kind === 'cocoon-hatch'
       || /\bcocoon\b.{0,180}\b(?:hatch(?:es|ed|ing)?|butterfly)\b/i.test(description))
     ? 'cocoon-hatch' as const
     : undefined;
+  const deliveryKind = row.kind === 'delivery'
+    || (typeof row.targetLocationName === 'string' && /parcel|소포/i.test(`${row.targetLocationName} ${description}`))
+    ? 'delivery' as const
+    : undefined;
+  const kind = cocoonKind || deliveryKind;
   const targetInventoryItemId = kind
     && typeof row.targetInventoryItemId === 'string'
     && row.targetInventoryItemId.trim()
     ? row.targetInventoryItemId
+    : undefined;
+  const targetLocationId = deliveryKind
+    && typeof row.targetLocationId === 'string'
+    && row.targetLocationId.trim()
+    ? row.targetLocationId
+    : undefined;
+  const targetLocationName = deliveryKind
+    && typeof row.targetLocationName === 'string'
+    && row.targetLocationName.trim()
+    ? row.targetLocationName.trim()
+    : undefined;
+  const deliveryReward = deliveryKind && row.deliveryReward && typeof row.deliveryReward === 'object'
+    ? {
+        ...(Number.isFinite(Number(row.deliveryReward.trinkets)) ? { trinkets: Math.max(0, Number(row.deliveryReward.trinkets)) } : {}),
+        ...(Number.isFinite(Number(row.deliveryReward.reputation)) ? { reputation: Math.max(0, Number(row.deliveryReward.reputation)) } : {})
+      }
     : undefined;
   return {
     id: row.id,
@@ -314,7 +343,10 @@ export const normalizePendingManualFollowUp = (
       : `${row.id}:legacy`,
     status: row.status === 'resolved' ? 'resolved' : 'pending',
     ...(kind ? { kind } : {}),
-    ...(targetInventoryItemId ? { targetInventoryItemId } : {})
+    ...(targetInventoryItemId ? { targetInventoryItemId } : {}),
+    ...(targetLocationId ? { targetLocationId } : {}),
+    ...(targetLocationName ? { targetLocationName } : {}),
+    ...(deliveryReward && Object.keys(deliveryReward).length > 0 ? { deliveryReward } : {})
   };
 };
 
@@ -335,6 +367,133 @@ export interface ManualFollowUpTransactionResolution {
   } | null;
   messages: string[];
 }
+
+export interface DeliveryFollowUpRuntimeState {
+  inventory: EngineInventoryItem[];
+  reputation: number;
+  trinkets: number;
+  pendingFollowUps: PendingManualFollowUp[];
+  appliedTransactionIds: string[];
+}
+
+export interface DeliveryFollowUpResolution {
+  status: 'resolved' | 'invalid';
+  value: {
+    nextState: DeliveryFollowUpRuntimeState;
+    completedFollowUps: PendingManualFollowUp[];
+    canonicalResult: string;
+  } | null;
+  messages: string[];
+}
+
+const normalizedDeliveryLocation = (value: unknown): string => String(value || '')
+  .normalize('NFKC')
+  .toLocaleLowerCase('en-US')
+  .replace(/[“”‘’'"`]/g, '')
+  .replace(/[^\p{Letter}\p{Number}]+/gu, '')
+  .trim();
+
+const deliveryParcelForFollowUp = (
+  inventory: readonly EngineInventoryItem[],
+  followUp: PendingManualFollowUp
+): EngineInventoryItem | null => {
+  const isParcel = (item: EngineInventoryItem) => item.type === 'item'
+    && item.quantity !== undefined
+    && item.quantity > 0
+    && /^parcel$/i.test(item.name.trim());
+  if (followUp.targetInventoryItemId) {
+    const exact = inventory.find(item => item.id === followUp.targetInventoryItemId);
+    return exact && isParcel(exact) ? exact : null;
+  }
+  const candidates = inventory.filter(item => item.id.startsWith(`${followUp.transactionId}:inventory:`) && isParcel(item));
+  return candidates.length === 1 ? candidates[0] : null;
+};
+
+/**
+ * Resolves printed Parcel deliveries when a Move reaches the chosen address.
+ * The destination is deliberately matched by the player's saved map id or
+ * exact name; this never infers a route or silently completes a wrong stop.
+ */
+export const resolveDeliveryFollowUpsAtLocation = (input: {
+  transactionId: string;
+  destinationId?: string;
+  destinationName: string;
+  state: DeliveryFollowUpRuntimeState;
+}): DeliveryFollowUpResolution => {
+  if (!input.transactionId || input.state.appliedTransactionIds.includes(input.transactionId)) {
+    return { status: 'invalid', value: null, messages: ['Delivery transaction is missing or already applied.'] };
+  }
+  const destinationId = String(input.destinationId || '').trim();
+  const destinationName = normalizedDeliveryLocation(input.destinationName);
+  const matching = input.state.pendingFollowUps
+    .map(row => normalizePendingManualFollowUp(row))
+    .filter((row): row is PendingManualFollowUp => Boolean(row)
+      && row.status === 'pending'
+      && row.kind === 'delivery'
+      && Boolean(row.targetLocationId && destinationId && row.targetLocationId === destinationId
+        || row.targetLocationName && destinationName
+          && normalizedDeliveryLocation(row.targetLocationName) === destinationName));
+  if (matching.length === 0) {
+    return { status: 'invalid', value: null, messages: ['No pending Parcel delivery is addressed to this Location.'] };
+  }
+
+  const inventory = input.state.inventory.map(item => ({ ...item }));
+  const completed: PendingManualFollowUp[] = [];
+  let reputation = input.state.reputation;
+  let trinkets = input.state.trinkets;
+  const completedIds = new Set<string>();
+  for (const followUp of matching) {
+    const parcel = deliveryParcelForFollowUp(inventory, followUp);
+    if (!parcel) continue;
+    const reward = followUp.deliveryReward || {};
+    const rewardTrinkets = Number.isFinite(Number(reward.trinkets)) ? Math.max(0, Number(reward.trinkets)) : 0;
+    const rewardReputation = Number.isFinite(Number(reward.reputation)) ? Math.max(0, Number(reward.reputation)) : 0;
+    const remaining = Math.max(0, Number(parcel.quantity || 0) - 1);
+    if (remaining === 0) {
+      const index = inventory.findIndex(item => item.id === parcel.id);
+      if (index >= 0) inventory.splice(index, 1);
+    } else {
+      const index = inventory.findIndex(item => item.id === parcel.id);
+      if (index >= 0) inventory[index] = { ...inventory[index], quantity: remaining };
+    }
+    trinkets += rewardTrinkets;
+    reputation = Math.max(0, reputation + rewardReputation);
+    completed.push({ ...followUp, status: 'resolved' });
+    completedIds.add(followUp.id);
+  }
+  if (completed.length === 0) {
+    return {
+      status: 'invalid',
+      value: null,
+      messages: ['The addressed Parcel is not in the Bags, so the delivery remains pending.']
+    };
+  }
+  const completedById = new Map(completed.map(row => [row.id, row]));
+  const pendingFollowUps = input.state.pendingFollowUps.map(row => completedById.get(row.id) || row);
+  const rewardText = completed.map(row => {
+    const reward = row.deliveryReward || {};
+    const parts = [
+      Number(reward.trinkets) > 0 ? `장신구 ${Number(reward.trinkets)}개` : '',
+      Number(reward.reputation) > 0 ? `Guild Reputation ${Number(reward.reputation)}` : ''
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(' 및 ') : '보상 없음';
+  }).join(', ');
+  return {
+    status: 'resolved',
+    value: {
+      completedFollowUps: completed,
+      canonicalResult: `${input.destinationName}에 소포를 전달했습니다. ${rewardText}을 받았습니다.`,
+      nextState: {
+        inventory,
+        reputation,
+        trinkets,
+        pendingFollowUps,
+        appliedTransactionIds: [...new Set([...input.state.appliedTransactionIds, input.transactionId])]
+      }
+    },
+    messages: []
+  };
+};
 
 const cocoonItemForFollowUp = (
   inventory: readonly EngineInventoryItem[],
@@ -477,6 +636,8 @@ const expectedPrintedChoiceForContext = (draft: ManualEffectDraft): string | nul
     if (draft.context.encounterChoiceId === 'an-opportunity') return 'An Opportunity';
     if (draft.context.encounterChoiceId === 'place-a-bet') return 'Place a Bet';
   }
+  if (draft.ownerId === 'travel-meadow-7-8'
+    && draft.context.encounterChoiceId === 'deliver-the-parcel') return 'Deliver the Parcel';
   return null;
 };
 
@@ -512,6 +673,27 @@ export const resolveManualEffectTransaction = (input: {
   const actionById = new Map(input.draft.actionTemplates.map(action => [action.id, action]));
   const selectedActions = input.draft.selectedActionIds.map(id => actionById.get(id));
   if (selectedActions.some(action => !action)) return { status: 'invalid', value: null, messages: ['A selected canonical action is not part of this printed effect.'] };
+  const isParcelDeliveryBranch = input.draft.ownerId === 'travel-meadow-7-8'
+    && input.draft.context.encounterChoiceId === 'deliver-the-parcel';
+  if (isParcelDeliveryBranch) {
+    const parcelAction = input.draft.actionTemplates.find(action =>
+      action.kind === 'gain-inventory' && /\bparcel\b/i.test(`${action.sourceText} ${action.label}`));
+    const addressAction = input.draft.actionTemplates.find(action =>
+      action.kind === 'record-map-change' && (action.targetInputId === 'parcel-address'
+        || /(?:choose|location|4\s+paths?)/i.test(action.sourceText)));
+    const selectedIds = new Set(input.draft.selectedActionIds);
+    if (!parcelAction || !addressAction
+      || input.draft.inputValues['printed-choice'] !== 'Deliver the Parcel'
+      || !selectedIds.has(parcelAction.id)
+      || !selectedIds.has(addressAction.id)
+      || input.draft.selectedActionIds.length !== 2) {
+      return {
+        status: 'invalid',
+        value: null,
+        messages: ['The Parcel delivery branch requires the printed Parcel and 4-Path address actions.']
+      };
+    }
+  }
   if (input.draft.ownerId === BETTING_MANUAL_OWNER_ID && input.draft.context.encounterChoiceId === 'place-a-bet') {
     const outcome = deriveBettingMatchTrinketOutcome(
       input.draft.inputValues['bet-wager'],
@@ -637,10 +819,32 @@ export const resolveManualEffectTransaction = (input: {
   }
 
   const resolvedFollowUp = String(input.draft.inputValues['follow-up-result'] || '').trim();
-  const pendingDescriptions = resolvedFollowUp ? [] : [...input.draft.followUpRequirements];
+  // Delivery has a typed resolver below; do not also create the old generic
+  // free-text reminder for the same printed condition.
+  const pendingDescriptions = resolvedFollowUp || isParcelDeliveryBranch
+    ? []
+    : [...input.draft.followUpRequirements];
+  const isParcelDelivery = isParcelDeliveryBranch;
+  const parcelAction = isParcelDelivery
+    ? (selectedActions as PrintedCanonicalActionTemplate[]).find(action =>
+        action.kind === 'gain-inventory' && /\bparcel\b/i.test(`${action.sourceText} ${action.label}`))
+    : undefined;
+  const parcelInventoryItemId = parcelAction
+    ? `${input.transactionId}:inventory:${parcelAction.id}`
+    : undefined;
+  const parcelAddressAction = isParcelDelivery
+    ? (selectedActions as PrintedCanonicalActionTemplate[]).find(action =>
+        action.kind === 'record-map-change' && (action.targetInputId === 'parcel-address'
+          || /(?:choose|location|4\s+paths?)/i.test(action.sourceText)))
+    : undefined;
   for (const action of selectedActions as PrintedCanonicalActionTemplate[]) {
     if (action.kind === 'record-map-change' || action.kind === 'record-movement') {
-      pendingDescriptions.push(actionTarget(action) || action.sourceText);
+      // The Parcel address is a typed delivery follow-up, not a generic
+      // narrative map note. Keeping it out of this list prevents a duplicate
+      // unresolved task from appearing beside the real delivery task.
+      if (!(isParcelDelivery && action === parcelAddressAction)) {
+        pendingDescriptions.push(actionTarget(action) || action.sourceText);
+      }
     }
   }
   const cocoonAction = (selectedActions as PrintedCanonicalActionTemplate[]).find(action =>
@@ -649,7 +853,27 @@ export const resolveManualEffectTransaction = (input: {
   const cocoonInventoryItemId = cocoonAction
     ? `${input.transactionId}:inventory:${cocoonAction.id}`
     : undefined;
-  const createdFollowUps: PendingManualFollowUp[] = uniqueRows(pendingDescriptions).map((description, index) => {
+  const deliveryAddress = parcelAddressAction ? actionTarget(parcelAddressAction).trim() : '';
+  const deliveryFollowUp: PendingManualFollowUp | null = isParcelDelivery
+    && parcelInventoryItemId
+    && deliveryAddress
+    ? {
+        id: `${input.transactionId}:follow-up:delivery`,
+        effectId: input.draft.effectId,
+        ownerId: input.draft.ownerId,
+        trigger: input.draft.trigger,
+        description: `소포를 ${deliveryAddress}에 전달하면 장신구 3개를 받습니다.`,
+        context: { ...input.draft.context },
+        createdAt: input.resolvedAt || Date.now(),
+        transactionId: input.transactionId,
+        status: 'pending',
+        kind: 'delivery',
+        targetInventoryItemId: parcelInventoryItemId,
+        targetLocationName: deliveryAddress,
+        deliveryReward: { trinkets: 3 }
+      }
+    : null;
+  const genericFollowUps: PendingManualFollowUp[] = uniqueRows(pendingDescriptions).map((description, index) => {
     const isCocoonHatch = input.draft.ownerId === BETTING_MANUAL_OWNER_ID
       && Boolean(cocoonInventoryItemId)
       && /\bcocoon\b.{0,180}\b(?:hatch(?:es|ed|ing)?|butterfly)\b/i.test(description);
@@ -666,7 +890,7 @@ export const resolveManualEffectTransaction = (input: {
       ...(isCocoonHatch ? { kind: 'cocoon-hatch' as const, targetInventoryItemId: cocoonInventoryItemId } : {})
     };
   });
-  nextState.pendingFollowUps = [...nextState.pendingFollowUps, ...createdFollowUps];
+  nextState.pendingFollowUps = [...nextState.pendingFollowUps, ...(deliveryFollowUp ? [deliveryFollowUp] : []), ...genericFollowUps];
   nextState.appliedTransactionIds = [...new Set([...nextState.appliedTransactionIds, input.transactionId])];
   const resolvedAt = input.resolvedAt || Date.now();
   const draft = {

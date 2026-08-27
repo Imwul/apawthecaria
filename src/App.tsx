@@ -20,6 +20,7 @@ import {
   type CloudSlotRecord,
   type CloudUploadSourceView,
   type CloudSlotView,
+  CLOUD_SLOTS_FIELD,
   CLOUD_DOCUMENT_SAFE_BYTES,
   CLOUD_PAYLOAD_SAFE_BYTES,
   assembleCloudSlotDocument,
@@ -30,6 +31,7 @@ import {
   cloudSlotPayloadDocumentId,
   cloudSlotPathBelongsToAccount,
   cloudSlotRecordFromPayload,
+  clearCloudAccountBinding,
   confirmManualSlotDownload,
   confirmManualSlotUpload,
   emptyCloudSlotViews,
@@ -197,6 +199,7 @@ import {
   resolveLeave,
   resolveManualEffectTransaction,
   resolveManualFollowUpTransaction,
+  resolveDeliveryFollowUpsAtLocation,
   normalizeLegacyManualEffectDraft,
   normalizePendingManualFollowUp,
   resolveMobilityTravel,
@@ -837,9 +840,12 @@ const deleteCloudSlotRecord = async (uid: string, slot: CloudSlotId): Promise<Cl
     if (!removed) return current.views;
     const records = current.records.map((record, index) => index === slot - 1 ? null : record);
     const compactDocument = assembleCloudSlotDocument(records);
+    // Firestore's merge semantics recursively merge map fields. Writing the
+    // compact map alone therefore leaves a deleted `slot-N` key behind and it
+    // can reappear on the next refresh. Delete the nested key explicitly.
     transaction.set(docRef, {
       ownerUid: uid,
-      ...compactDocument,
+      [`${CLOUD_SLOTS_FIELD}.slot-${slot}`]: deleteField(),
       [CAMPAIGN_SAVE_KEY]: deleteField()
     }, { merge: true });
     return readCloudSlotsFromDocument(compactDocument, new Date().toISOString()).views;
@@ -7206,7 +7212,19 @@ export default function App() {
         showAlert(`슬롯 ${slot}에 먼저 저장해야 할 기록을 동기화하지 못했습니다. 오래된 대기 기록이 새 업로드를 되돌리지 않도록 작업을 멈췄습니다. 연결을 확인한 뒤 다시 시도해 주세요.`);
         return;
       }
-      const localStr = localStorage.getItem(CAMPAIGN_SAVE_KEY) || (state ? JSON.stringify(state) : null);
+      // The React state is the source of truth while a form is being edited;
+      // localStorage can still contain the previous debounced snapshot.
+      const liveStatePayload = state ? JSON.stringify(state) : null;
+      const storedPayload = localStorage.getItem(CAMPAIGN_SAVE_KEY);
+      // Prefer the current React snapshot once the name is committed, but
+      // retain a just-flushed character draft when React has not re-rendered
+      // yet (the draft still lives in localStorage in that brief window).
+      const liveStateParsed = liveStatePayload ? parseCampaignSaveRaw(liveStatePayload) : null;
+      const localStr = liveStatePayload && campaignSaveHasNamedApothecary(liveStateParsed?.ok
+        ? liveStateParsed.value
+        : null)
+        ? liveStatePayload
+        : storedPayload || liveStatePayload;
       const source = summarizeCloudUploadSource(localStr);
       if (!source.available || !localStr) {
         showAlert('이 기기에 올릴 기록이 없습니다.');
@@ -7285,12 +7303,32 @@ export default function App() {
     cloudSlotOperationInFlightRef.current = true;
     setCloudSlotOperation({ kind: 'deleting', slot });
     try {
+      // Drain an earlier automatic write before deleting. Otherwise that
+      // queued write can recreate the just-deleted slot on the next visit.
+      const remainingBeforeDelete = await flushQueuedCloudSavesForCurrentUser();
+      if (!operationStillCurrent()) return;
+      if (remainingBeforeDelete.some(entry => entry.ownerUid === uid && entry.slot === slot)) {
+        showAlert(`슬롯 ${slot}의 대기 중인 저장을 끝내지 못해 삭제를 멈췄습니다. 연결을 확인한 뒤 다시 시도해 주세요.`);
+        return;
+      }
       const views = await deleteCloudSlotRecord(uid, slot);
       if (!operationStillCurrent()) return;
       setCloudSlotViews(views);
       const cleaned = readSaveOutbox().filter(entry => !(entry.ownerUid === uid && entry.slot === slot));
       writeSaveOutbox(cleaned);
       setPendingCloudSaveCount(pendingCloudSaveCountForUser(uid, cleaned));
+      if (slot === readActiveCloudSlot()) {
+        const remainingSlot = views.find(view => !view.empty)?.slot;
+        if (remainingSlot) {
+          writeActiveCloudSlot(remainingSlot);
+          setActiveCloudSlot(remainingSlot);
+        } else {
+          // No active cloud slot remains. Keep the local campaign, but do not
+          // silently recreate the deleted slot on the next local mutation.
+          clearCloudAccountBinding();
+          setCloudSyncStatus('local-only');
+        }
+      }
       showAlert(`슬롯 ${slot}의 클라우드 기록을 삭제했습니다.`);
     } catch (error) {
       if (!operationStillCurrent()) return;
@@ -8760,9 +8798,15 @@ export default function App() {
     : [];
   const isOnboarding = !state.bio.name.trim();
   const cloudAccountLinked = Boolean(user && readCloudAccountBinding() === user.uid);
-  const cloudUploadSource = summarizeCloudUploadSource(
-    showCloudSlots ? localStorage.getItem(CAMPAIGN_SAVE_KEY) || JSON.stringify(state) : null
-  );
+  const liveCloudPayload = state ? JSON.stringify(state) : null;
+  const storedCloudPayload = localStorage.getItem(CAMPAIGN_SAVE_KEY);
+  const liveCloudParsed = liveCloudPayload ? parseCampaignSaveRaw(liveCloudPayload) : null;
+  const cloudPayload = liveCloudPayload && campaignSaveHasNamedApothecary(liveCloudParsed?.ok
+    ? liveCloudParsed.value
+    : null)
+    ? liveCloudPayload
+    : storedCloudPayload || liveCloudPayload;
+  const cloudUploadSource = summarizeCloudUploadSource(showCloudSlots ? cloudPayload : null);
   const saveStatusText = saveStatus === 'saving'
     ? '저장 중…'
     : saveStatus === 'error'
@@ -8797,9 +8841,7 @@ export default function App() {
           <button type="button" className="journal-header__action" onClick={() => openRulebookReference(currentRulebookRequest)} aria-label="현재 페이지의 룰북 맥락 열기" title="현재 페이지의 룰북 맥락">
             <span className="emoji-icon" aria-hidden="true">📚</span><span>룰북</span>
           </button>
-          {!isOnboarding && (
-            <>
-              {isFirebaseConfigured && auth && (
+          {isFirebaseConfigured && auth && (
                 user ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.3rem 0.8rem', background: 'var(--primary-light)', borderRadius: '20px', border: '1.5px solid var(--glass-border)' }}>
                     {user.photoURL ? (
@@ -8821,6 +8863,8 @@ export default function App() {
                   </button>
                 )
               )}
+          {!isOnboarding && (
+            <>
               <button onClick={handleReset} className="journal-header__action journal-header__action--reset" aria-label="현재 진행을 지우고 새 약제사 시작" title="현재 진행을 지우고 새 약제사 시작">
                 <span className="emoji-icon" aria-hidden="true">↺</span><span>새 약제사로 초기화</span>
               </button>
@@ -10721,7 +10765,7 @@ function CloudSlotsDialog({
       }}
     >
       <section
-        className="phase4-modal controlled-prompt app-dialog app-dialog--slots"
+        className="phase4-modal controlled-prompt app-dialog app-dialog--slots cloud-slots-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="cloud-slots-title"
@@ -10733,6 +10777,15 @@ function CloudSlotsDialog({
             <span className="app-dialog__kicker">Google 기록</span>
             <h2 id="cloud-slots-title">클라우드 기록</h2>
           </div>
+          <button
+            type="button"
+            className="cloud-slots-dialog__close"
+            aria-label="클라우드 기록 닫기"
+            disabled={busy}
+            onClick={onClose}
+          >
+            닫기
+          </button>
         </header>
         <p id="cloud-slots-message" className="app-dialog__message">
           슬롯은 최대 3개입니다. 캠페인 본문은 계정별·슬롯별 문서로 따로 보관하므로 슬롯끼리 저장 용량을 합산하지 않습니다.
@@ -10770,9 +10823,10 @@ function CloudSlotsDialog({
             {operationText || `네트워크가 복구되면 다시 올릴 기록 ${pendingSaveCount}건`}
           </p>
         )}
-        <ol className="cloud-slots">
-          {slots.map(slot => (
-            <li key={slot.slot} className={`cloud-slot${slot.empty ? ' cloud-slot--empty' : ''}${slot.slot === activeSlot ? ' cloud-slot--active' : ''}`}>
+        <div className="cloud-slots-dialog__body">
+          <ol className="cloud-slots">
+            {slots.map(slot => (
+              <li key={slot.slot} className={`cloud-slot${slot.empty ? ' cloud-slot--empty' : ''}${slot.slot === activeSlot ? ' cloud-slot--active' : ''}`}>
               <div className="cloud-slot__meta">
                 <strong>슬롯 {slot.slot}</strong>
                 <span>{slot.empty ? '비어 있음' : (slot.name || '이름 없는 기록')}</span>
@@ -10800,9 +10854,10 @@ function CloudSlotsDialog({
                   {operation?.kind === 'deleting' && operation.slot === slot.slot ? '삭제 중…' : '슬롯 삭제'}
                 </button>
               </div>
-            </li>
-          ))}
-        </ol>
+              </li>
+            ))}
+          </ol>
+        </div>
         <footer className="controlled-prompt__actions app-dialog__actions">
           <button type="button" autoFocus disabled={busy} onClick={onClose}>
             {busy ? '작업 중…' : '닫기'}
@@ -13877,6 +13932,45 @@ function PlayView({
           transactionId: `${transactionId}:retrieval`, state: toServiceRuntime(next), serviceTransactionId: retrieval.transactionId
         });
         if (delivered.value) next = applyServiceRuntime(next, delivered.value.nextState);
+      }
+      // A printed Parcel delivery is a delayed consequence of the Encounter,
+      // not a generic manual note. Resolve it only when this completed Move
+      // reaches the exact address the player recorded, and keep the
+      // transaction id separate so a repeated click/reload cannot pay twice.
+      const delivery = resolveDeliveryFollowUpsAtLocation({
+        transactionId: `${transactionId}:manual-delivery`,
+        destinationId,
+        destinationName: outcome.nextState.currentLocationName,
+        state: {
+          inventory: toEngineInventory(next.bag),
+          reputation: next.reputation,
+          trinkets: next.trinkets.length,
+          pendingFollowUps: next.pendingManualFollowUps,
+          appliedTransactionIds: next.appliedTransactionIds
+        }
+      });
+      if (delivery.value) {
+        const resolvedDelivery = delivery.value;
+        next = {
+          ...next,
+          bag: fromEngineInventory(resolvedDelivery.nextState.inventory, next.bag),
+          reputation: resolvedDelivery.nextState.reputation,
+          trinkets: resizeTrinkets(next.trinkets, resolvedDelivery.nextState.trinkets, '소포 배달 보상'),
+          pendingManualFollowUps: resolvedDelivery.nextState.pendingFollowUps,
+          appliedTransactionIds: resolvedDelivery.nextState.appliedTransactionIds,
+          journals: [{
+            id: `${transactionId}:manual-delivery:journal`,
+            title: '소포 배달',
+            text: resolvedDelivery.canonicalResult,
+            semantic: createGameplayEventSemantic({
+              outcome: resolvedDelivery.canonicalResult,
+              location: outcome.nextState.currentLocationName,
+              season: next.currentSeason,
+              journey: next.journeyGoalTitle || next.journey?.customGoal.title
+            }),
+            timestamp: Date.now()
+          }, ...next.journals]
+        };
       }
       return next;
     });

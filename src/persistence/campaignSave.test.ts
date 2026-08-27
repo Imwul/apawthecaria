@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   CAMPAIGN_SAVE_KEY,
+  campaignSaveHasNamedApothecary,
   campaignSaveHasProgress,
   decideCloudSaveAction,
   isRecognizableCampaignSave,
@@ -20,6 +21,17 @@ describe('campaign save safety', () => {
     expect(campaignSaveHasProgress({ routeDraft: { stops: [{ id: 'a' }, { id: 'b' }] } })).toBe(true);
     expect(campaignSaveHasProgress({ patients: [{ id: 'patient' }] })).toBe(true);
     expect(campaignSaveHasProgress({ saveRevision: '4' })).toBe(true);
+  });
+
+  it('recognizes a named character draft as uploadable before card setup is complete', () => {
+    expect(campaignSaveHasNamedApothecary({
+      bio: { name: '' },
+      workflowDrafts: { character: { name: 'Bramble' } }
+    })).toBe(true);
+    expect(campaignSaveHasNamedApothecary({
+      bio: { name: '' },
+      workflowDrafts: { character: { name: '   ' } }
+    })).toBe(false);
   });
 
   it.each([

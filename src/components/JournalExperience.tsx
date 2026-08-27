@@ -55,17 +55,6 @@ export function JournalNavigation({ activeTab, onChange }: { activeTab: JournalT
   );
 }
 
-const CHAPTER_EMOJIS = {
-  ailments: '🩺',
-  reagents: '🌿',
-  bio: '🎒',
-  map: '🗺️',
-  almanack: '📚',
-  patientArchive: '🗂️',
-  livingArchive: '🪻',
-  journals: '✒️'
-};
-
 export function ChapterOpening({
   tab,
   state,
@@ -146,11 +135,8 @@ export function ChapterOpening({
   };
 
   const chapter = content[tab];
-  const chapterEmoji = CHAPTER_EMOJIS[tab];
-
   return (
     <header className={`chapter-opening chapter-opening--${tab}`} aria-labelledby={`chapter-title-${tab}`}>
-      <span className="chapter-opening__mark emoji-icon" aria-hidden="true">{chapterEmoji}</span>
       <span className="chapter-opening__folio" aria-hidden="true">들녘 기록 / {String(NAVIGATION.findIndex(item => item.id === tab) + 1).padStart(2, '0')}</span>
       <div className="chapter-opening__copy">
         <p className="chapter-opening__kicker">{chapter.kicker}</p>

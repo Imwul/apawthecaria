@@ -17,7 +17,7 @@ type CampaignSaveShape = {
   downtimeCompleted?: boolean;
   saveRevision?: unknown;
   workflowDrafts?: {
-    character?: unknown;
+    character?: { name?: unknown } | unknown;
     patient?: unknown;
     journey?: unknown;
   };
@@ -40,7 +40,17 @@ export const isRecognizableCampaignSave = (parsed: unknown): parsed is Record<st
 
 export const campaignSaveHasNamedApothecary = (parsed: unknown): boolean => {
   if (!parsed || typeof parsed !== 'object') return false;
-  return Boolean((parsed as CampaignSaveShape).bio?.name?.trim());
+  const save = parsed as CampaignSaveShape;
+  const savedName = typeof save.bio?.name === 'string' ? save.bio.name.trim() : '';
+  if (savedName) return true;
+  // Character creation is intentionally persisted as a draft. A player who
+  // has already entered their name should be able to back that draft up to
+  // the signed-in slot before finishing the remaining card choices.
+  const draft = save.workflowDrafts?.character;
+  const draftName = draft && typeof draft === 'object' && !Array.isArray(draft)
+    ? String((draft as { name?: unknown }).name || '').trim()
+    : '';
+  return Boolean(draftName);
 };
 
 export const campaignSaveHasProgress = (parsed: unknown): boolean => {

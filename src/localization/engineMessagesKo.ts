@@ -580,6 +580,9 @@ const dynamicEngineMessages: Array<[RegExp, (...matches: string[]) => string]> =
   ,[/^(.+) was chosen for the Sodden Logs\.$/, reagent => `물에 젖은 통나무에 ${reagent}을(를) 지정했습니다.`]
   ,[/^(.+) was gathered; all active Ailment Timers were reduced by 1\.$/, item => `${item}을(를) 수확하고 진행 중인 모든 질병 타이머를 1 줄였습니다.`]
   ,[/^(.+) \((.+) Weight\) was donated\.$/, (item, weight) => `${item}을(를) 무게 ${weight}만큼 기부했습니다.`]
+  ,[/^No pending Parcel delivery is addressed to this Location\.$/, () => '이 위치로 지정된 대기 중인 소포 배달이 없습니다.']
+  ,[/^The addressed Parcel is not in the Bags, so the delivery remains pending\.$/, () => '주소가 지정된 소포가 가방에 없어 배달을 대기 상태로 남겼습니다.']
+  ,[/^The Parcel delivery branch requires the printed Parcel and 4-Path address actions\.$/, () => '소포 배달 분기에는 룰북의 소포 획득과 4경로 주소 기록이 모두 필요합니다.']
 ];
 
 const restoreLegacyEngineTerminology = (line: string): string => line

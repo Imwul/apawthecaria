@@ -10,10 +10,12 @@ import {
   executeEncounter,
   migrateSavedRulesState,
   normalizePendingManualFollowUp,
+  resolveDeliveryFollowUpsAtLocation,
   resolveManualEffectTransaction,
   type ManualEffectDraft,
   type ManualResolutionRuntimeState
 } from './index';
+import { scopeManualEffectDraftForEncounterChoice } from '../manualEffectDraftState';
 
 const encounterState = () => ({
   reputation: 6,
@@ -216,6 +218,62 @@ describe('Step 2 manual resolution transaction', () => {
       expect.objectContaining({ name: 'Parcel', type: 'item', weight: 1, ruinedWhenSoaked: false })
     ]));
     expect(result.value?.nextState.pendingFollowUps).toHaveLength(0);
+  });
+
+  it('[TRAVEL-009/SAVE-004] persists and resolves the printed Parcel delivery at its chosen address exactly once', () => {
+    const sourceDraft = createManualEffectDraft(
+      PRINTED_EFFECT_BY_OWNER.get('travel-meadow-7-8')!,
+      'encounter',
+      {
+        encounterTransactionId: 'parcel-encounter',
+        encounterChoiceId: 'deliver-the-parcel',
+        continuation: 'travel'
+      },
+      100
+    );
+    const scoped = scopeManualEffectDraftForEncounterChoice(sourceDraft);
+    const completedDraft = completeRequiredInputs(scoped);
+    const draft = {
+      ...completedDraft,
+      inputValues: { ...completedDraft.inputValues, 'printed-choice': 'Deliver the Parcel', 'parcel-address': 'Odoak', 'condition-check': true }
+    };
+    const result = resolveManualEffectTransaction({
+      draft,
+      transactionId: 'manual-parcel-delivery',
+      state: manualState(),
+      resolvedAt: 200
+    });
+    expect(result.status).toBe('resolved');
+    const pending = result.value?.nextState.pendingFollowUps;
+    expect(pending).toEqual([expect.objectContaining({
+      kind: 'delivery',
+      targetLocationName: 'Odoak',
+      deliveryReward: { trinkets: 3 },
+      status: 'pending'
+    })]);
+    const delivery = resolveDeliveryFollowUpsAtLocation({
+      transactionId: 'manual-parcel-delivery:move',
+      destinationId: 'odoak',
+      destinationName: 'Odoak',
+      state: {
+        inventory: result.value!.nextState.inventory,
+        reputation: result.value!.nextState.reputation,
+        trinkets: result.value!.nextState.trinkets,
+        pendingFollowUps: pending!,
+        appliedTransactionIds: result.value!.nextState.appliedTransactionIds
+      }
+    });
+    expect(delivery.status).toBe('resolved');
+    expect(delivery.value?.nextState.inventory.some(item => item.name === 'Parcel')).toBe(false);
+    expect(delivery.value?.nextState.trinkets).toBe(7);
+    expect(delivery.value?.nextState.pendingFollowUps[0]).toMatchObject({ status: 'resolved' });
+    const repeated = resolveDeliveryFollowUpsAtLocation({
+      transactionId: 'manual-parcel-delivery:move',
+      destinationId: 'odoak',
+      destinationName: 'Odoak',
+      state: delivery.value!.nextState
+    });
+    expect(repeated.status).toBe('invalid');
   });
 
   it('[CORE-002/SAVE-004] records override separately from normal resolution', () => {

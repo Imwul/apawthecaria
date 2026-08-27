@@ -131,6 +131,10 @@ export const writeCloudAccountBinding = (uid: string, storage: Pick<Storage, 'se
   if (normalized) storage.setItem(CLOUD_ACCOUNT_BINDING_KEY, normalized);
 };
 
+export const clearCloudAccountBinding = (storage: Pick<Storage, 'removeItem'> = localStorage) => {
+  storage.removeItem(CLOUD_ACCOUNT_BINDING_KEY);
+};
+
 export const parseUploadedAt = (value: unknown): string | null => {
   if (!value) return null;
   if (typeof value === 'string') {
@@ -165,7 +169,16 @@ export const formatCloudSlotUploadedAt = (iso: string | null): string => {
 const nameFromPayload = (payload: string): string => {
   const parsed = parseCampaignSaveRaw(payload);
   if (!parsed.ok || !parsed.value || typeof parsed.value !== 'object') return '';
-  return String((parsed.value as { bio?: { name?: string } }).bio?.name || '').trim();
+  const save = parsed.value as {
+    bio?: { name?: unknown };
+    workflowDrafts?: { character?: { name?: unknown } | unknown };
+  };
+  const savedName = String(save.bio?.name || '').trim();
+  if (savedName) return savedName;
+  const draft = save.workflowDrafts?.character;
+  return draft && typeof draft === 'object' && !Array.isArray(draft)
+    ? String((draft as { name?: unknown }).name || '').trim()
+    : '';
 };
 
 const revisionFromPayload = (payload: string): number => {
