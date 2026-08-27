@@ -47,6 +47,7 @@ export const patchManualEffectDraft = (
     ...resolvedPatch,
     context: resolvedPatch.context ? { ...current.context, ...resolvedPatch.context } : current.context,
     inputValues: resolvedPatch.inputValues ? { ...current.inputValues, ...resolvedPatch.inputValues } : current.inputValues,
+    mapTargetIds: resolvedPatch.mapTargetIds ? { ...(current.mapTargetIds || {}), ...resolvedPatch.mapTargetIds } : current.mapTargetIds,
     actionTargets: resolvedPatch.actionTargets ? { ...current.actionTargets, ...resolvedPatch.actionTargets } : current.actionTargets,
     ruleIds: resolvedPatch.ruleIds ? [...resolvedPatch.ruleIds] : current.ruleIds,
     mandatoryConditions: resolvedPatch.mandatoryConditions ? [...resolvedPatch.mandatoryConditions] : current.mandatoryConditions,

@@ -156,6 +156,63 @@ describe('ManualEffectPanel', () => {
     expect(markup).not.toContain('영향을 받은 물품 또는 자원');
   });
 
+  it('offers the current map node and existing nodes for map records', () => {
+    const draft: ManualEffectDraft = {
+      ...staleProjectLaunchDraft,
+      inputFields: [{
+        id: 'map-target',
+        type: 'target',
+        label: '기록할 지도 위치',
+        required: true
+      }],
+      inputValues: {},
+      mapTargetIds: {},
+      resultSummary: '기록'
+    };
+    const markup = renderToStaticMarkup(<ManualEffectPanel
+      draft={draft}
+      mapLocations={[{ id: 'odoak', name: 'Odoak', region: 'Forest', kind: 'city' }, { id: 'loc-1', name: '숲 위치 1', region: 'Forest', kind: 'wild' }]}
+      currentLocation={{ id: 'odoak', name: 'Odoak', region: 'Forest', kind: 'city' }}
+      onChange={() => undefined}
+      onDefer={() => undefined}
+      onResolve={() => undefined}
+    />);
+
+    expect(markup).toContain('이 장소에 표기 · Odoak');
+    expect(markup).toContain('기존 지도 위치에서 선택');
+    expect(markup).toContain('숲 위치 1');
+  });
+
+  it('does not offer the current-place shortcut for last-seen directions', () => {
+    const draft: ManualEffectDraft = {
+      ...staleProjectLaunchDraft,
+      inputFields: [],
+      inputValues: {},
+      actionTemplates: [{
+        id: 'last-seen',
+        kind: 'record-map-change',
+        label: '지도 변경 기록',
+        targetType: 'location',
+        sourceText: 'Show on the map where you last saw the fugitive.'
+      }],
+      selectedActionIds: ['last-seen'],
+      actionTargets: {},
+      resultSummary: '기록',
+      journalNote: '기록'
+    };
+    const markup = renderToStaticMarkup(<ManualEffectPanel
+      draft={draft}
+      mapLocations={[{ id: 'odoak', name: 'Odoak', region: 'Forest', kind: 'city' }]}
+      currentLocation={{ id: 'odoak', name: 'Odoak', region: 'Forest', kind: 'city' }}
+      onChange={() => undefined}
+      onDefer={() => undefined}
+      onResolve={() => undefined}
+    />);
+
+    expect(markup).not.toContain('이 장소에 표기 · Odoak');
+    expect(markup).toContain('기존 지도 위치에서 선택');
+  });
+
   it.each([
     { name: 'unchecked condition', inputValues: { confirmation: false, choice: 'Allowed choice' } },
     { name: 'string-shaped condition', inputValues: { confirmation: 'true', choice: 'Allowed choice' } },

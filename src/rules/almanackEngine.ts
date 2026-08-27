@@ -100,6 +100,8 @@ export interface ManualEffectDraft {
   canonicalActions: string[];
   inputFields: PrintedResolutionInput[];
   inputValues: Record<string, string | number | boolean>;
+  /** Stable map node ids paired with location targets selected in the UI. */
+  mapTargetIds?: Record<string, string>;
   actionTemplates: PrintedCanonicalActionTemplate[];
   selectedActionIds: string[];
   actionTargets: Record<string, string>;
@@ -218,6 +220,7 @@ export const createManualEffectDraft = (
     canonicalActions: metadata.actionTemplates.map(action => action.label),
     inputFields: metadata.inputFields.map(field => ({ ...field, options: field.options ? [...field.options] : undefined })),
     inputValues: {},
+    mapTargetIds: {},
     actionTemplates: metadata.actionTemplates.map(action => ({ ...action })),
     selectedActionIds: [],
     actionTargets: {},
@@ -255,6 +258,9 @@ export const normalizeLegacyManualEffectDraft = (value: unknown, now = Date.now(
     canonicalActions: Array.isArray(row.canonicalActions) ? row.canonicalActions.map(String) : [],
     inputFields: Array.isArray(row.inputFields) ? row.inputFields : [{ id: 'outcome-detail', type: 'free-text', label: 'Saved effect outcome', required: true }],
     inputValues: row.inputValues && typeof row.inputValues === 'object' ? row.inputValues : {},
+    mapTargetIds: row.mapTargetIds && typeof row.mapTargetIds === 'object' && !Array.isArray(row.mapTargetIds)
+      ? Object.fromEntries(Object.entries(row.mapTargetIds).filter(([key, value]) => typeof key === 'string' && typeof value === 'string' && value.trim()))
+      : {},
     actionTemplates: Array.isArray(row.actionTemplates) ? row.actionTemplates : [],
     selectedActionIds: Array.isArray(row.selectedActionIds) ? row.selectedActionIds.map(String) : [],
     actionTargets: row.actionTargets && typeof row.actionTargets === 'object' ? row.actionTargets : {},

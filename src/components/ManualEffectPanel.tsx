@@ -39,6 +39,8 @@ export default function ManualEffectPanel({
   draft,
   inventoryItems = [],
   timers = [],
+  mapLocations = [],
+  currentLocation = null,
   onChange,
   onDefer,
   onResolve
@@ -46,12 +48,77 @@ export default function ManualEffectPanel({
   draft: ManualEffectDraft;
   inventoryItems?: Array<{ id: string; name: string }>;
   timers?: Array<{ id: string; label: string }>;
+  mapLocations?: Array<{ id: string; name: string; region?: string; kind?: string }>;
+  currentLocation?: { id: string; name: string; region?: string; kind?: string } | null;
   onChange: (updater: ManualEffectDraftUpdater) => void;
   onDefer: () => void;
   onResolve: (override: boolean) => void;
 }) {
   const update = (patch: Partial<ManualEffectDraft>) => onChange(patchManualEffectDraft(patch));
   const updateInput = (id: string, value: string | number | boolean) => onChange(setManualEffectInput(id, value));
+  const mapLocationFor = (key: string, value: string): { id: string; name: string } | null => {
+    const selectedId = draft.mapTargetIds?.[key];
+    return mapLocations.find(location => location.id === selectedId)
+      || mapLocations.find(location => location.id === value)
+      || mapLocations.find(location => location.name === value)
+      || null;
+  };
+  const canMarkCurrentLocation = (text: string): boolean => {
+    // A current-place shortcut is only safe for a printed note/mark. Delivery
+    // addresses, path construction, removal, movement, and "last seen"
+    // directions all require a different location chosen by the player.
+    if (/(?:4\s*(?:paths?|경로)|last\s+saw|previous(?:ly)?|nearest\s+settlement|move\s+(?:yourself\s+)?to|connect|remove|path|route|다른\s+위치|네\s*갈래|이전\s+위치|가까운\s+정착지|이동|연결|제거|경로)/iu.test(text)) return false;
+    if (/(?:wild\s+(?:meadow|bog|forest)|야생\s*(?:초원|늪지|숲))/iu.test(text)) {
+      return currentLocation?.kind === 'wild' && ['Meadow', 'Bog', 'Forest'].includes(currentLocation.region || '');
+    }
+    return true;
+  };
+  const updateMapTarget = (key: string, value: string, locationId: string | undefined, targetKind: 'input' | 'action') => onChange(current => {
+    const next = targetKind === 'input'
+      ? setManualEffectInput(key, value)(current)
+      : setManualEffectActionTarget(key, value)(current);
+    const mapTargetIds = { ...(next.mapTargetIds || {}) };
+    if (locationId) mapTargetIds[key] = locationId;
+    else delete mapTargetIds[key];
+    return { ...next, mapTargetIds };
+  });
+  const mapTargetControls = (
+    key: string,
+    value: string,
+    label: string,
+    contextText: string,
+    targetKind: 'input' | 'action',
+    allowCurrentShortcut = true
+  ) => {
+    const selected = mapLocationFor(key, value);
+    const canUseCurrent = Boolean(allowCurrentShortcut && currentLocation && canMarkCurrentLocation(contextText));
+    return <div className="manual-effect__map-target">
+      <div className="manual-effect__map-target-actions">
+        {canUseCurrent && <button
+          type="button"
+          className="manual-effect__map-current"
+          onClick={() => updateMapTarget(key, currentLocation!.name, currentLocation!.id, targetKind)}
+        >이 장소에 표기 · {currentLocation!.name}</button>}
+        <select
+          aria-label={`${label} 지도 위치 선택`}
+          value={selected?.id || ''}
+          onChange={event => {
+            const option = mapLocations.find(location => location.id === event.target.value);
+            updateMapTarget(key, option?.name || '', option?.id, targetKind);
+          }}
+        >
+          <option value="">기존 지도 위치에서 선택</option>
+          {mapLocations.map(location => <option key={location.id} value={location.id}>{location.name}{location.region ? ` · ${location.region}` : ''}</option>)}
+        </select>
+      </div>
+      <input
+        aria-label={`${label} 지도 위치 이름`}
+        value={selected?.name || value}
+        onChange={event => updateMapTarget(key, event.target.value, undefined, targetKind)}
+        placeholder="지도에 남길 위치 이름"
+      />
+    </div>;
+  };
   const requiredComplete = draft.inputFields.every(field =>
     !field.required || isPrintedResolutionInputSatisfied(field, draft.inputValues[field.id])
   );
@@ -159,6 +226,7 @@ export default function ManualEffectPanel({
           }
           if (field.type === 'number') return <label key={field.id}><span>{localizeManualEffectValue(field.label)}{field.required ? ' *' : ''}</span><input type="number" value={typeof value === 'number' ? value : ''} onChange={event => updateInput(field.id, event.target.value === '' ? '' : Number(event.target.value))} />{field.helpText && <small>{localizeManualEffectValue(field.helpText)}</small>}</label>;
           if (field.type === 'condition') return <label key={field.id} className="manual-effect__check"><input type="checkbox" checked={value === true} onChange={event => updateInput(field.id, event.target.checked)} /><span>{localizeManualEffectValue(field.label)}{field.required ? ' *' : ''}</span></label>;
+          if (field.type === 'target') return <label key={field.id} className="manual-effect__target-field"><span>{localizeManualEffectValue(field.label)}{field.required ? ' *' : ''}</span>{mapTargetControls(field.id, String(value ?? ''), localizeManualEffectValue(field.label), `${field.label} ${field.helpText || ''}`, 'input')}{field.helpText && <small>{localizeManualEffectValue(field.helpText)}</small>}</label>;
           return <label key={field.id}><span>{localizeManualEffectValue(field.label)}{field.required ? ' *' : ''}</span>{field.type === 'free-text' ? <textarea rows={3} value={String(value ?? '')} onChange={event => updateInput(field.id, event.target.value)} placeholder={field.helpText ? localizeManualEffectValue(field.helpText) : undefined} /> : <input value={String(value ?? '')} onChange={event => updateInput(field.id, event.target.value)} placeholder={field.helpText ? localizeManualEffectValue(field.helpText) : undefined} />}{field.helpText && field.type === 'free-text' && <small>{localizeManualEffectValue(field.helpText)}</small>}</label>;
         })}
         {!hasChoiceField && draft.choices.length > 0 && <div className="manual-effect__choice-reference"><strong>원문 선택지</strong><ul>{draft.choices.map((option, optionIndex) => <li key={option}>{localizedOption(option, optionIndex, draft.choices)}</li>)}</ul></div>}
@@ -189,7 +257,8 @@ export default function ManualEffectPanel({
           {selected && action.targetInputId && target && <small className="manual-effect__fixed-target">{localizeManualEffectValue(target)}</small>}
           {selected && !targetOwnedByInput && action.targetType === 'inventory-item' && <select aria-label={`${localizeManualEffectValue(action.label)} 대상`} value={target} onChange={event => onChange(setManualEffectActionTarget(action.id, event.target.value))}><option value="">가방에서 선택</option>{inventoryItems.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}
           {selected && action.targetType === 'timer' && <select aria-label={`${localizeManualEffectValue(action.label)} 대상`} value={target} onChange={event => onChange(setManualEffectActionTarget(action.id, event.target.value))}><option value="">모든 활성 타이머</option>{timers.map(timer => <option key={timer.id} value={timer.id}>{timer.label}</option>)}</select>}
-          {selected && !targetOwnedByInput && (action.targetType === 'location' || action.targetType === 'free-text') && <input aria-label={`${localizeManualEffectValue(action.label)} 대상 또는 결과`} value={target} onChange={event => onChange(setManualEffectActionTarget(action.id, event.target.value))} placeholder="원문이 지정한 대상이나 결과" />}
+          {selected && !targetOwnedByInput && action.targetType === 'location' && mapTargetControls(action.id, target, localizeManualEffectValue(action.label), `${action.label} ${action.sourceText}`, 'action', action.kind === 'record-map-change')}
+          {selected && !targetOwnedByInput && action.targetType === 'free-text' && <input aria-label={`${localizeManualEffectValue(action.label)} 대상 또는 결과`} value={target} onChange={event => onChange(setManualEffectActionTarget(action.id, event.target.value))} placeholder="원문이 지정한 대상이나 결과" />}
         </div>;
       })}{selectedActions.length > 0 && <div className="manual-effect__preview"><strong>적용할 변화</strong><ul>{selectedActions.map(action => { const target = actionTarget(action); return <li key={action.id}>{localizeManualEffectValue(action.label)}{target ? ` · ${target}` : ''}</li>; })}</ul></div>}</div>
         : <p className="manual-effect__no-change">이 판정은 앱의 수치를 자동으로 바꾸지 않습니다. 아래에 장면의 결과만 기록하면 됩니다.</p>}

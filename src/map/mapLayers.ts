@@ -75,6 +75,8 @@ export type MapPlace = {
   encounterKind?: 'travel' | 'social';
   usesWaterway?: boolean;
   willSoak?: boolean;
+  /** Player-confirmed encounter notes associated with this node. */
+  mapRecordLabels?: string[];
 };
 
 export const isPlaceMarkerVisible = (

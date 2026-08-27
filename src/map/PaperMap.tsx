@@ -731,6 +731,13 @@ export function PaperMap({
                   {routeIndex !== undefined && (
                     <span className="map-location-order">{routeIndex + 1}</span>
                   )}
+                  {place.mapRecordLabels && place.mapRecordLabels.length > 0 && (
+                    <span
+                      className="map-location-record"
+                      title={`지도 기록: ${place.mapRecordLabels.join(' · ')}`}
+                      aria-label={`지도 기록 ${place.mapRecordLabels.join(' · ')}`}
+                    >기록</span>
+                  )}
                   {destination && (
                     <span
                       className={[
@@ -951,6 +958,9 @@ export function PaperMap({
               <span className="paper-map__waterway-note">파란 물길입니다. 호수·강 야생에서는 멈추지 않습니다.</span>
             )}
             {showTravelRoutes && previewUnmapped && <span className="paper-map__unmapped">경로를 아직 지도에 그리지 못했습니다.</span>}
+            {selectedPlace.mapRecordLabels && selectedPlace.mapRecordLabels.length > 0 && (
+              <span className="paper-map__map-records">지도 기록 · {selectedPlace.mapRecordLabels.join(' · ')}</span>
+            )}
           </div>
           {onEditPlace && (
             <MapNodeAppearance

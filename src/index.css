@@ -2539,6 +2539,12 @@ button:active {
 
 .manual-effect__action-row.is-selected { border-color: var(--primary); background: var(--primary-light); }
 .manual-effect__action-row small { color: var(--text-muted); line-height: 1.5; }
+.manual-effect__map-target { display: grid; gap: var(--space-2); min-width: 0; }
+.manual-effect__map-target-actions { display: flex; align-items: stretch; gap: var(--space-2); flex-wrap: wrap; min-width: 0; }
+.manual-effect__map-target-actions select { flex: 1 1 18rem; min-width: 12rem; }
+.manual-effect__map-current { flex: 0 1 auto; min-height: 44px; max-width: 100%; padding: 8px 12px; border: 1px solid var(--primary); border-radius: var(--radius-sm); color: var(--primary); background: rgba(255, 255, 255, 0.6); font-weight: 700; text-align: left; overflow-wrap: anywhere; }
+.manual-effect__map-target > input { width: 100%; min-width: 0; }
+.manual-effect__target-field > small { display: block; }
 .manual-effect__preview { padding: var(--space-3); border-left: 3px solid var(--primary); background: rgba(255, 255, 255, 0.52); }
 .manual-effect__preview ul { margin: var(--space-2) 0 0; padding-left: 1.2rem; }
 .manual-effect__no-change { margin: 0; color: var(--text-muted); line-height: 1.65; }
@@ -8839,6 +8845,11 @@ button,
   color: #1c6da8 !important;
 }
 
+.paper-map__map-records {
+  color: #4f6841 !important;
+  font-weight: 700;
+}
+
 .paper-map__sheet-actions {
   display: flex;
   flex-wrap: wrap;
@@ -9293,12 +9304,48 @@ button,
 }
 
 .map-atelier__list,
-.map-atelier__edges {
+.map-atelier__edges,
+.map-atelier__records ul {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   gap: 0.3rem;
+}
+
+.map-atelier__records {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.55rem 0;
+  border-top: 1px dotted rgba(74, 54, 40, 0.24);
+  border-bottom: 1px dotted rgba(74, 54, 40, 0.24);
+}
+
+.map-atelier__records ul {
+  width: 100%;
+}
+
+.map-atelier__records li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.map-atelier__records li span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.map-atelier__records button {
+  flex: 0 0 auto;
+  min-height: 2rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid rgba(148, 54, 40, 0.4);
+  border-radius: 4px;
+  background: #f6e4dc;
+  color: #7a2e22;
+  font-size: 0.76rem;
 }
 
 .map-atelier__list button {
@@ -9384,6 +9431,21 @@ button,
   color: #4a3628;
   font-family: "Noto Sans KR", sans-serif;
   font-size: 0.55rem;
+  line-height: 1.15;
+  pointer-events: none;
+}
+
+.map-location-record {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  padding: 0.08rem 0.22rem;
+  border: 1px solid rgba(91, 116, 67, 0.62);
+  border-radius: 3px;
+  background: #eef1df;
+  color: #4f6841;
+  font-family: "Noto Sans KR", sans-serif;
+  font-size: 0.5rem;
   line-height: 1.15;
   pointer-events: none;
 }

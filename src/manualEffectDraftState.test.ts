@@ -109,6 +109,7 @@ describe('manual effect draft functional state (A)', () => {
     draft = patchManualEffectDraft({
       inputValues: { existing: 'kept' },
       actionTargets: { existing: 'kept' },
+      mapTargetIds: { existing: 'node-existing' },
       selectedActionIds: [firstAction]
     }, 110)(draft);
     draft = setManualEffectInput('new-input', 'new value', current => current.updatedAt + 1)(draft);
@@ -117,6 +118,7 @@ describe('manual effect draft functional state (A)', () => {
     draft = setManualEffectActionTarget(secondAction, 'second target', current => current.updatedAt + 1)(draft);
 
     expect(draft.inputValues).toMatchObject({ existing: 'kept', 'new-input': 'new value' });
+    expect(draft.mapTargetIds).toEqual({ existing: 'node-existing' });
     expect(draft.selectedActionIds).toEqual([firstAction, secondAction]);
     expect(draft.actionTargets).toEqual({ existing: 'kept', [firstAction]: 'first target', [secondAction]: 'second target' });
     expect(draft.updatedAt).toBe(114);

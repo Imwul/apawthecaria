@@ -1630,6 +1630,8 @@ interface GameState {
   clinics?: Clinic[];
   customMapLocations?: CustomMapLocation[];
   customMapEdges?: CustomMapEdge[];
+  /** Player-confirmed encounter notes pinned to an existing map node. */
+  mapEncounterRecords: MapEncounterRecord[];
   routeDraft: RouteDraft;
   guildServiceTravelRerolls?: number;
   forecastMoves?: number;
@@ -1837,6 +1839,7 @@ const INITIAL_STATE: GameState = {
   clinics: [],
   customMapLocations: [],
   customMapEdges: [],
+  mapEncounterRecords: [],
   routeDraft: { stops: [], edgeKinds: [] },
   guildServiceTravelRerolls: 0,
   forecastMoves: 0,
@@ -2111,6 +2114,40 @@ interface CustomMapLocation extends MapLocationNode {
   hidden?: boolean;
 }
 
+const normalizeMapLocationName = (name: string) => name.trim().toLowerCase().replace(/[^a-z0-9가-힣]+/gi, '_').replace(/^_+|_+$/g, '');
+
+interface MapEncounterRecord {
+  id: string;
+  locationId: string;
+  locationName: string;
+  label: string;
+  sourceEncounterId?: string;
+  sourcePage?: number;
+  createdAt: number;
+}
+
+const normalizeMapEncounterRecords = (value: unknown): MapEncounterRecord[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object')
+    .map((row, index): MapEncounterRecord | null => {
+      const locationId = typeof row.locationId === 'string' ? row.locationId.trim() : '';
+      const locationName = typeof row.locationName === 'string' ? row.locationName.trim() : '';
+      const label = typeof row.label === 'string' ? row.label.trim() : '';
+      if (!locationId || !locationName || !label) return null;
+      return {
+        id: typeof row.id === 'string' && row.id.trim() ? row.id : `map-record:${locationId}:${normalizeMapLocationName(label)}:${index}`,
+        locationId,
+        locationName,
+        label,
+        sourceEncounterId: typeof row.sourceEncounterId === 'string' ? row.sourceEncounterId : undefined,
+        sourcePage: Number.isFinite(Number(row.sourcePage)) ? Number(row.sourcePage) : undefined,
+        createdAt: Number.isFinite(Number(row.createdAt)) ? Number(row.createdAt) : 0
+      } satisfies MapEncounterRecord;
+    })
+    .filter((row): row is MapEncounterRecord => Boolean(row));
+};
+
 interface CustomMapEdge {
   id: string;
   from: string;
@@ -2301,8 +2338,6 @@ const MAP_GRAPH_NODES: Record<string, MapLocationNode> = (() => {
   MARKER_EDGES.forEach(edge => connect(edge.from, edge.to));
   return nodes;
 })();
-
-const normalizeMapLocationName = (name: string) => name.trim().toLowerCase().replace(/[^a-z0-9가-힣]+/gi, '_').replace(/^_+|_+$/g, '');
 
 const buildMapGraphNodes = (customLocations: CustomMapLocation[] = [], customEdges: CustomMapEdge[] = []): Record<string, MapLocationNode> => {
   const nodes: Record<string, MapLocationNode> = {};
@@ -2617,6 +2652,36 @@ const resolveCurrentMapLocationKey = (s: Pick<GameState, 'currentLocationName' |
     || (anchored.aliases || []).some(alias => normalizeMapLocationName(alias) === normalizedName)
   )) return s.currentMapLocationId;
   return findMapLocationKey(s.currentLocationName, s.customMapLocations || []) || normalizeMapLocationName(s.currentLocationName);
+};
+
+const manualMapLocationOptionsFor = (s: Pick<GameState, 'customMapLocations' | 'customMapEdges'>) => {
+  const nodes = buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || []);
+  return Object.entries(nodes).map(([id, node]) => ({ id, name: node.label, region: node.region, kind: node.kind }));
+};
+
+type ManualMapAction = ManualEffectDraft['actionTemplates'][number];
+
+const isImmediateMapRecordAction = (action: ManualMapAction): boolean => {
+  if (action.kind !== 'record-map-change') return false;
+  const text = `${action.label} ${action.sourceText}`;
+  if (/(?:remove|connect|path|route|4\s*paths?|obligation|nearest\s+settlement|제거|연결|경로|네\s*갈래|의무)/iu.test(text)) return false;
+  return /(?:mark|note|write|record|map|hive|cultivar|ruin|barrow|표시|기록|지도|벌집|재배)/iu.test(text);
+};
+
+const mapRecordTargetForAction = (
+  draft: ManualEffectDraft,
+  action: ManualMapAction,
+  nodes: Record<string, MapLocationNode>
+): { locationId: string; locationName: string } | null => {
+  const targetKey = action.targetInputId || action.id;
+  const raw = action.fixedTarget
+    || (action.targetInputId ? String(draft.inputValues[action.targetInputId] || '') : draft.actionTargets[action.id] || '');
+  const selectedId = draft.mapTargetIds?.[targetKey];
+  const locationId = selectedId && nodes[selectedId]
+    ? selectedId
+    : findGraphLocationKey(raw, nodes);
+  if (!locationId || !nodes[locationId]) return null;
+  return { locationId, locationName: nodes[locationId].label };
 };
 
 const resolveJourneyDestinationMapKey = (s: Pick<GameState, 'journey' | 'journeyDestination' | 'customMapLocations'>): string => {
@@ -4933,6 +4998,7 @@ const migrateState = (s: any): GameState => {
     currentMapLocationId: typeof s.currentMapLocationId === 'string' ? s.currentMapLocationId : undefined,
     customMapLocations: Array.isArray(s.customMapLocations) ? s.customMapLocations : [],
     customMapEdges: Array.isArray(s.customMapEdges) ? s.customMapEdges : [],
+    mapEncounterRecords: normalizeMapEncounterRecords(s.mapEncounterRecords),
     completedSeasons: Number.isFinite(Number(s.completedSeasons))
       ? Math.max(0, Number(s.completedSeasons))
       : INITIAL_STATE.completedSeasons,
@@ -5012,6 +5078,7 @@ const migrateState = (s: any): GameState => {
     clinics: s.clinics || [],
     customMapLocations: s.customMapLocations || [],
     customMapEdges: s.customMapEdges || [],
+    mapEncounterRecords: normalizeMapEncounterRecords(s.mapEncounterRecords),
     routeDraft: normalizeRouteDraft(s.routeDraft),
     guildServiceTravelRerolls: s.guildServiceTravelRerolls || 0,
     forecastMoves: s.forecastMoves || 0,
@@ -9410,6 +9477,14 @@ export default function App() {
               <ManualEffectPanel
               draft={state.pendingManualEffect}
               inventoryItems={state.bag.map(item => ({ id: item.id, name: formatReagentItemName(item.name, item.canonicalReagentId) }))}
+              mapLocations={manualMapLocationOptionsFor(state)}
+              currentLocation={(() => {
+                const currentId = resolveCurrentMapLocationKey(state);
+                const currentNode = buildMapGraphNodes(state.customMapLocations || [], state.customMapEdges || [])[currentId];
+                return currentNode
+                  ? { id: currentId, name: currentNode.label, region: currentNode.region, kind: currentNode.kind }
+                  : null;
+              })()}
               timers={(state.patients.find(patient => patient.id === state.pendingManualEffect?.context.patientId) || state.patients.find(patient => patient.id === state.activePatientId))?.timers.filter(timer => timer.status === 'active').map(timer => ({ id: timer.id, label: `${timer.ailmentInstanceId} · ${timer.current}/${timer.maximum}` })) || []}
               onChange={(updater: ManualEffectDraftUpdater) => updateState(s => {
                 if (!s.pendingManualEffect) return s;
@@ -9447,7 +9522,32 @@ export default function App() {
                   const outcome = commit.resolution.value;
                   const nextPatient = outcome.nextState.patient;
                   const queue = s.manualEffectQueue.filter(row => row.effectId !== draft.effectId);
-                  const pendingFollowUps = [...new Map([...s.pendingManualFollowUps, ...outcome.nextState.pendingFollowUps].map(row => [row.id, row])).values()];
+                  const mapNodes = buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || []);
+                  const selectedMapActions = draft.actionTemplates.filter(action =>
+                    draft.selectedActionIds.includes(action.id) && isImmediateMapRecordAction(action)
+                  );
+                  const directMapRecords = selectedMapActions.flatMap((action, index): MapEncounterRecord[] => {
+                    const target = mapRecordTargetForAction(draft, action, mapNodes);
+                    if (!target) return [];
+                    return [{
+                      id: `${transaction.id}:map:${action.id}:${index}`,
+                      locationId: target.locationId,
+                      locationName: target.locationName,
+                      label: localizeManualEffectValue(action.label) || '이 위치에 조우 기록',
+                      sourceEncounterId: draft.ownerId,
+                      sourcePage: draft.sourcePage,
+                      createdAt: transaction.at
+                    }];
+                  });
+                  const directMapDescriptions = new Set(selectedMapActions.map(action => {
+                    return action.fixedTarget
+                      || (action.targetInputId ? String(draft.inputValues[action.targetInputId] || '') : draft.actionTargets[action.id] || '')
+                      || action.sourceText;
+                  }));
+                  const pendingFollowUps = [...new Map([...s.pendingManualFollowUps, ...outcome.nextState.pendingFollowUps]
+                    .filter(row => !(row.transactionId === transaction.id && directMapDescriptions.has(row.description)))
+                    .map(row => [row.id, row])).values()];
+                  const existingMapRecordIds = new Set((s.mapEncounterRecords || []).map(record => record.id));
                   let next: GameState = {
                     ...applyCalendarAdvance(s, outcome.nextState.calendarDays, '직접 판정의 날짜 변화를 반영했습니다.'),
                     reputation: outcome.nextState.reputation,
@@ -9458,6 +9558,7 @@ export default function App() {
                       : s.patients,
                     manualConditions: outcome.nextState.conditions,
                     pendingManualFollowUps: pendingFollowUps,
+                    mapEncounterRecords: [...(s.mapEncounterRecords || []), ...directMapRecords.filter(record => !existingMapRecordIds.has(record.id))],
                     companionStates: outcome.nextState.companions || s.companionStates,
                     appliedTransactionIds: Array.from(new Set([...s.appliedTransactionIds, ...outcome.nextState.appliedTransactionIds])),
                     manualEffectQueue: queue,
@@ -23204,6 +23305,9 @@ function AtlasMapPanel({
   const selectedEdges = selectedId
     ? (state.customMapEdges || []).filter(edge => edge.from === selectedId || edge.to === selectedId)
     : [];
+  const selectedMapRecords = selectedId
+    ? (state.mapEncounterRecords || []).filter(record => record.locationId === selectedId)
+    : [];
   const connectionKindLabel = (kind?: string) =>
     kind === 'river' ? '물길 · 실선' : kind === 'waterway' ? '물길 · 빗금' : '육로';
   const persistStop = (stop: RouteStop) => {
@@ -23892,6 +23996,28 @@ function AtlasMapPanel({
                 y: selected.y
               })}
             />
+            {selectedMapRecords.length > 0 && (
+              <div className="map-atelier__records" aria-label="이 위치에 남긴 조우 기록">
+                <strong>이 위치의 조우 기록</strong>
+                <ul>
+                  {selectedMapRecords.map(record => (
+                    <li key={record.id}>
+                      <span>{record.label}{record.sourcePage ? ` · p.${record.sourcePage}` : ''}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!askWindowConfirm('이 지도 기록을 지울까요?')) return;
+                          updateState(s => ({
+                            ...s,
+                            mapEncounterRecords: (s.mapEncounterRecords || []).filter(row => row.id !== record.id)
+                          }));
+                        }}
+                      >지우기</button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="map-atelier__nudge" aria-label="자리 미세 이동">
               <span>자리</span>
               <button type="button" onClick={() => persistStop({ ...stopFromGraphNode(selectedId, selected), x: Math.max(1, selected.x - 0.4) })}>←</button>
@@ -24085,6 +24211,7 @@ const MapView = memo(function MapView({
     ? resolveJourneyDestinationMapKey(state)
     : null;
   const extraIds = new Set<string>([...highlightLocationIds, selectedLocationId, currentId, destinationId, ...routePlaceIds].filter((id): id is string => Boolean(id)));
+  (state.mapEncounterRecords || []).forEach(record => extraIds.add(record.locationId));
   (state.visitedLocations || []).forEach(name => {
     const id = findMapLocationKey(name, customMapLocations);
     if (id) extraIds.add(id);
@@ -24140,7 +24267,10 @@ const MapView = memo(function MapView({
         moveCost: preview?.cost ?? null,
         encounterKind: preview?.encounterKind,
         usesWaterway: preview?.usesWaterway,
-        willSoak: Boolean(preview?.usesWaterway && !soakProtected)
+        willSoak: Boolean(preview?.usesWaterway && !soakProtected),
+        mapRecordLabels: (state.mapEncounterRecords || [])
+          .filter(record => record.locationId === id)
+          .map(record => record.label)
       };
     });
   const clinicOverlays: MapClinicOverlay[] = (state.clinics || []).flatMap(clinic => {
