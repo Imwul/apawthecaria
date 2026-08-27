@@ -42,8 +42,10 @@ type RouteComposerProps = {
 };
 
 const reasonText = (reason: ReturnType<typeof evaluateRouteDraft>['reason'], speed: number, cost: number): string => {
-  if (reason === 'incomplete') return `지도나 위치 검색에서 이번 이동이 지날 ${speed}개의 경로를 순서대로 고르세요.`;
-  if (reason === 'legal') return `이동력 ${speed}을 모두 사용했습니다. 이 경로로 이동할 수 있습니다.`;
+  if (reason === 'incomplete') return `지도나 위치 검색에서 이번 이동이 지날 경로를 하나 이상, 이동력 ${speed} 이내로 순서대로 고르세요.`;
+  if (reason === 'legal') return cost === speed
+    ? `이동력 ${speed}을 모두 사용합니다. 이 경로로 이동할 수 있습니다.`
+    : `이동력 ${speed} 중 ${cost}만 사용합니다. 짧은 경로로 이동할 수 있습니다.`;
   if (reason === 'too-close') return `이동력 ${speed}을 모두 사용하려면 경로를 ${speed - cost}개 더 이으세요.`;
   if (reason === 'too-far') return `이동력보다 경로가 ${cost - speed}개 많습니다. 도착점을 앞당기거나 위치를 빼세요.`;
   return '호수·강 야생에서 멈추려면 나무껍질 배나 밀폐식 마차와 돛이 필요합니다. 방수 가방은 소지품이 젖는 것만 막습니다.';
@@ -52,7 +54,7 @@ const reasonText = (reason: ReturnType<typeof evaluateRouteDraft>['reason'], spe
 const blockedActionText = (reason: ReturnType<typeof evaluateRouteDraft>['reason']): string => {
   if (reason === 'too-far') return '이동력에 맞게 경로를 줄이세요';
   if (reason === 'loch-locked') return '호수·강 정차 장비가 필요합니다';
-  return '속도만큼 경로를 이으세요';
+  return '이동할 경로를 하나 이상 이으세요';
 };
 
 const stopKindLabel = (stop: RouteStop): string =>
@@ -111,7 +113,7 @@ export function RouteComposer({
     canStopInLoch,
     protectsFromSoaking,
     soakableItemIds: soakableItemNames,
-    mustUseFullSpeed: true
+    mustUseFullSpeed: false
   });
   const count = draft.stops.length;
   const travelReady = !readOnly && canTravel

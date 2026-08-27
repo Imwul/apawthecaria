@@ -204,6 +204,26 @@ describe('player-confirmed route distances', () => {
 });
 
 describe('waterway and carry rules', () => {
+  it('allows a player to stop on a shorter route when Speed is a maximum', () => {
+    let draft = draftFromOrigin(stop('origin'));
+    draft = appendRouteStop(draft, stop('nearby'));
+    draft = appendRouteStop(draft, stop('chosen-destination'));
+
+    expect(evaluateRouteDraft({
+      draft,
+      speed: 3,
+      carry: 8,
+      weight: 2,
+      canStopInLoch: true,
+      protectsFromSoaking: true,
+      mustUseFullSpeed: false
+    })).toMatchObject({
+      movementCost: 2,
+      effectiveSpeed: 3,
+      reason: 'legal'
+    });
+  });
+
   it('counts two waterways as one move when a pedal motor spans two', () => {
     expect(composedRouteCost(['waterway', 'waterway', 'path'], 2)).toEqual({
       cost: 2,

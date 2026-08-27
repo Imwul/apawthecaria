@@ -5349,15 +5349,16 @@ const checkJourneyGoalSatisfaction = (s: GameState): boolean => {
   return false;
 };
 
-const checkReagentGatherForGoal = (s: GameState, reagentName: string) => {
+const checkReagentGatherForGoal = (s: GameState, reagentName: string, gatheredRegion = s.currentRegion) => {
   let nextGoalCounter = s.journeyGoalCounter || 0;
   let nextChecklist = [...(s.journeyGoalChecklist || [])];
   if (s.journeyActive && isJourneyGoal(s.journeyGoalTitle, '영감 수집', '신선한 영감')) {
     const dbReag = findCanonicalReagent(reagentName);
     if (dbReag && dbReag.type === 'PLANT') {
       const validRegions = ['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain', 'Titan'];
-      if (validRegions.includes(s.currentRegion) && !nextChecklist.includes(s.currentRegion)) {
-        nextChecklist.push(s.currentRegion);
+      const forageRegion = gatheredRegion === 'Barrow' ? 'Titan' : gatheredRegion;
+      if (validRegions.includes(forageRegion) && !nextChecklist.includes(forageRegion)) {
+        nextChecklist.push(forageRegion);
       }
       nextGoalCounter = nextChecklist.length;
     }
@@ -9586,6 +9587,7 @@ export default function App() {
           <div className="phase4-modal phase4-modal--manual-effect" role="dialog" aria-modal="true" aria-label="직접 판정 기록">
             <Suspense fallback={<div className="manual-effect">판정 기록을 펼치는 중...</div>}>
               <ManualEffectPanel
+              key={state.pendingManualEffect.effectId}
               draft={state.pendingManualEffect}
               inventoryItems={state.bag.map(item => ({ id: item.id, name: formatReagentItemName(item.name, item.canonicalReagentId) }))}
               mapLocations={manualMapLocationOptionsFor(state)}
@@ -9607,15 +9609,15 @@ export default function App() {
                   manualEffectQueue: s.manualEffectQueue.map(row => row.effectId === draft.effectId ? draft : row)
                 };
               })}
-              onDefer={() => updateState(s => {
+              onDefer={recordText => updateState(s => {
                 if (!s.pendingManualEffect) return s;
-                const deferred = { ...s.pendingManualEffect, status: 'deferred' as const, updatedAt: Date.now() };
+                const deferred = { ...s.pendingManualEffect, ...(recordText || {}), status: 'deferred' as const, updatedAt: Date.now() };
                 const queue = s.manualEffectQueue.map(row => row.effectId === deferred.effectId ? deferred : row);
                 return { ...s, manualEffectQueue: queue, manualEffectDraft: deferred, pendingManualEffect: null };
               })}
-              onResolve={override => {
+              onResolve={(override, recordText) => {
                 const transaction = createClientTransaction('manual-effect');
-                const previewDraft = state.pendingManualEffect!;
+                const previewDraft = { ...state.pendingManualEffect!, ...(recordText || {}) };
                 const preview = resolveManualEffectAgainstGameState(state, previewDraft, transaction, override);
                 if (!preview.resolution.value) {
                   showAlert(preview.resolution.messages.join('\n'));
@@ -9627,7 +9629,7 @@ export default function App() {
                   const stillPending = s.manualEffectQueue.some(row => row.effectId === currentDraft.effectId && !row.transactionId);
                   const alreadyResolved = s.manualEffectRecords.some(record => record.effectId === currentDraft.effectId);
                   if (!stillPending || alreadyResolved) return s;
-                  const commit = resolveManualEffectAgainstGameState(s, currentDraft, transaction, override);
+                  const commit = resolveManualEffectAgainstGameState(s, { ...currentDraft, ...(recordText || {}) }, transaction, override);
                   if (!commit.resolution.value) return s;
                   const draft = commit.draft;
                   const outcome = commit.resolution.value;
@@ -9682,7 +9684,7 @@ export default function App() {
                       text: outcome.record.journalNote.trim() ? outcome.record.journalNote : outcome.record.resultSummary.trim(),
                       semantic: createManualResolutionSemantic({
                         resultSummary: outcome.record.resultSummary,
-                        journalNote: currentDraft.journalNote,
+                        journalNote: draft.journalNote,
                         overrideReason: override ? outcome.record.overrideReason : '',
                         sourcePage: draft.sourcePage,
                         sourceRuleIds: draft.ruleIds,
@@ -11463,8 +11465,8 @@ function ControlledPromptDialog({
                       {option.detail && <small>{option.detail}</small>}
                     </span>
                     <span className="controlled-prompt__search-context">
-                      {option.remedyTags && option.remedyTags.length > 0 && <span>{option.remedyTags.map(tag => <b key={tag}>{tag}</b>)}</span>}
-                      {option.tradeTags && option.tradeTags.length > 0 && <span>{option.tradeTags.map(tag => <b key={tag} className={tag.startsWith('FAIR ') ? 'is-fair' : 'is-foul'}>{tag}</b>)}</span>}
+                      {option.remedyTags && option.remedyTags.length > 0 && <span className="controlled-prompt__search-tag-group"><small>치료 약효</small><span>{option.remedyTags.map(tag => <b key={tag}>{tag}</b>)}</span></span>}
+                      {option.tradeTags && option.tradeTags.length > 0 && <span className="controlled-prompt__search-tag-group"><small>거래 가치 · FAIR/FOUL</small><span>{option.tradeTags.map(tag => <b key={tag} className={tag.startsWith('FAIR ') ? 'is-fair' : 'is-foul'}>{tag}</b>)}</span></span>}
                       {option.meta && <small>{option.meta}</small>}
                       {option.relevant && <em>{option.relevanceText || '현재 처방 태그 충족'}</em>}
                     </span>
@@ -14030,7 +14032,11 @@ function PlayView({
       canStopInLoch: hasLochStoppingGear(state),
       protectsFromSoaking: hasSafeWaterwayTravel(state),
       waterwaySpan: wagonCapabilities.waterwaySpan,
-      mustUseFullSpeed: !isHitchMove,
+      // The rulebook sets Speed as a maximum for a Move. A player may stop
+      // before using every available Path; only routes over effective Speed
+      // are invalid. Keep this explicit for both ordinary and hitch moves so
+      // the UI and transaction layer make the same choice.
+      mustUseFullSpeed: false,
       freePathLocationIds: (state.manualConditions || [])
         .filter(condition => condition.startsWith('free-path:'))
         .map(condition => condition.slice('free-path:'.length))
@@ -15359,13 +15365,27 @@ function PlayView({
     }
     const chosenPartId = await requestControlledPrompt({
       title: '여분 채집으로 얻을 부위를 고르세요',
-      message: `${formatReagentName(reagent)} · Potency 2 이하의 부위만 선택할 수 있습니다. 취소하면 타이머와 가방은 바뀌지 않습니다.`,
+      message: `${formatReagentName(reagent)} · Potency 2 이하의 부위만 선택할 수 있습니다. 각 행에서 치료 약효와 거래 가치를 확인하세요. 취소하면 타이머와 가방은 바뀌지 않습니다.`,
       kicker: '여분 채집',
       defaultValue: eligibleParts[0].id,
-      options: eligibleParts.map(part => ({
-        value: part.id,
-        label: `${localizePreparationName(part.name)} · ${localizePreparationMethod(part.method)} · 무게 ${formatWeight(part.weight)} · ${part.uses}회분`
-      }))
+      searchable: {
+        placeholder: '부위 이름이나 치료 태그 검색',
+        emptyMessage: '맞는 부위가 없습니다.'
+      },
+      options: eligibleParts.map(part => {
+        const { remedy, trade } = splitForagingTags(part.tags);
+        const remedyTags = remedy.map(tag => `${tag.tag} ${tag.value}`);
+        const tradeTags = trade.map(tag => `${tag.tag} ${tag.value}`);
+        return {
+          value: part.id,
+          label: localizePreparationName(part.name),
+          title: localizePreparationName(part.name),
+          detail: `${localizePreparationMethod(part.method)} · 무게 ${formatWeight(part.weight)} · ${part.uses}회분`,
+          remedyTags,
+          tradeTags,
+          searchText: `${part.name} ${part.method} ${remedyTags.join(' ')} ${tradeTags.join(' ')}`
+        };
+      })
     });
     if (chosenPartId === null) return;
     const preparation = eligibleParts.find(part => part.id === chosenPartId);
@@ -15380,8 +15400,9 @@ function PlayView({
       showAlert('지도에서 인접 지역을 찾을 수 없습니다.');
       return;
     }
+    const transactionId = createClientTransaction('scrounge:guaranteed').id;
     const result = resolveScrounge({
-      transactionId: createClientTransaction('scrounge:guaranteed').id,
+      transactionId,
       state: toLeaveRuntime(state, patient),
       action: cost === 4 ? 'guaranteed-adjacent' : 'guaranteed-current',
       region: toRuleRegion(region),
@@ -15392,7 +15413,35 @@ function PlayView({
       showAlert(result.messages.join('\n'));
       return;
     }
-    updateState((s: GameState) => applyLeaveRuntime(s, result.value!));
+    updateState((s: GameState) => {
+      const afterScrounge = applyLeaveRuntime(s, result.value!);
+      // Guaranteed Scrounging is still a real Forage acquisition. Keep the
+      // patient ledger and Journey goal evidence in step with ordinary Forage,
+      // using the selected current/adjacent Region rather than the apothecary's
+      // current Region for adjacent Scrounging.
+      const nextPatient = afterScrounge.patients.find(row => row.id === patient.id);
+      const withPatientLedger = nextPatient
+        ? {
+          ...afterScrounge,
+          patients: afterScrounge.patients.map(row => row.id === patient.id
+            ? { ...row, reagentsGathered: [...(row.reagentsGathered || []), reagent.id] }
+            : row)
+        }
+        : afterScrounge;
+      const goalProgress = checkReagentGatherForGoal(withPatientLedger, reagent.canonicalName, region);
+      return {
+        ...withPatientLedger,
+        journeyGoalCounter: goalProgress.nextGoalCounter,
+        journeyGoalChecklist: goalProgress.nextChecklist,
+        journey: recordCanonicalJourneyEvent(withPatientLedger, {
+          id: `${transactionId}:journey-forage`,
+          type: 'forage',
+          reagentId: reagent.id,
+          region: toRuleRegion(region),
+          locationId: resolveCurrentMapLocationKey(s)
+        })
+      };
+    });
     showAlert(`${formatReagentName(reagent)} — ${localizePreparationName(preparation.name)}을 획득했습니다.`);
   };
 
@@ -17066,7 +17115,7 @@ function PlayView({
         speed: activeTravelSpeed,
         canStopInLoch: hasLochStoppingGear(state),
         waterwaySpan: resolveWagonCapabilities(canonicalWagonFromState(state)).waterwaySpan,
-        mustUseFullSpeed: true
+        mustUseFullSpeed: false
       });
     }
     return [];
@@ -17925,7 +17974,7 @@ function PlayView({
                 <small>
                   {activeRouteMode === 'soar'
                     ? '출발지와 마지막 위치를 잇고 계절별 Soar 조우를 해결합니다.'
-                    : `속도 ${activeTravelSpeed}만큼 경로를 이은 뒤 도착지 조우를 해결합니다.`}
+                    : `이동력 ${activeTravelSpeed} 이내로 경로를 이은 뒤 도착지 조우를 해결합니다.`}
                 </small>
               </div>
               <select
@@ -24348,7 +24397,7 @@ const MapView = memo(function MapView({
       speed: previewTravelSpeed(state, weight),
       canStopInLoch: hasLochStoppingGear(state),
       waterwaySpan: resolveWagonCapabilities(canonicalWagonFromState(state)).waterwaySpan,
-      mustUseFullSpeed: true,
+      mustUseFullSpeed: false,
       freePathLocationIds: freePathLocationIdsFromState(state)
     })
     : {};

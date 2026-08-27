@@ -1941,6 +1941,26 @@ button:active {
   gap: 0.24rem;
 }
 
+.controlled-prompt__search-context > .controlled-prompt__search-tag-group {
+  display: grid;
+  gap: 0.16rem;
+}
+
+.controlled-prompt__search-tag-group > small {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+}
+
+.controlled-prompt__search-tag-group > span {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.24rem;
+}
+
 .controlled-prompt__search-context b {
   display: inline-flex;
   padding: 0.1rem 0.32rem;

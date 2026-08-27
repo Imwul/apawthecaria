@@ -53,6 +53,16 @@ const graph = (waterway = false): Record<string, TravelGraphNode> => ({
 });
 
 describe('travel and encounter execution', () => {
+  it('[TRAVEL-001] permits a Move to use fewer Paths than Speed when the player chooses a shorter route', () => {
+    const result = resolveTravel({
+      transactionId: 'travel-short-route', state: travelState(), graph: graph(), destinationId: 'middle',
+      destinationRegion: 'Bog', destinationType: 'Wilds', mode: 'move', card: 3,
+      season: 'Spring', canStopInLoch: false, route: ['start', 'middle'], mustUseFullSpeed: false
+    });
+    expect(result.status).not.toBe('invalid');
+    expect(result.value).toMatchObject({ pathCount: 1, movementCost: 1, effectiveSpeed: 2 });
+  });
+
   it('[MAP-002/MAP-003/TRAVEL-001/TRAVEL-002/TRAVEL-004/TRAVEL-006/TRAVEL-008/SAVE-002/UX-003] moves exactly Speed paths and produces one canonical encounter', () => {
     const result = resolveTravel({
       transactionId: 'travel-1', state: travelState(), graph: graph(), destinationId: 'end',

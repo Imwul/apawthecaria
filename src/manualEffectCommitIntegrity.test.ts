@@ -18,7 +18,7 @@ describe('manual effect commit integrity', () => {
   });
 
   it('uses captured state only for preview and resolves again against the latest functional state before mutation', () => {
-    const start = appSource.indexOf('onResolve={override => {');
+    const start = appSource.indexOf('onResolve={(override, recordText) => {');
     const end = appSource.indexOf('\n              }}', start) + '\n              }}'.length;
     const resolveSource = appSource.slice(start, end);
     const updaterStart = resolveSource.indexOf('updateState(s => {');
@@ -27,7 +27,7 @@ describe('manual effect commit integrity', () => {
     expect(resolveSource).toContain('resolveManualEffectAgainstGameState(state, previewDraft, transaction, override)');
     expect(resolveSource).toContain('if (!preview.resolution.value)');
     expect(updaterSource).toContain('const currentDraft = s.pendingManualEffect;');
-    expect(updaterSource).toContain('resolveManualEffectAgainstGameState(s, currentDraft, transaction, override)');
+    expect(updaterSource).toContain('resolveManualEffectAgainstGameState(s, { ...currentDraft, ...(recordText || {}) }, transaction, override)');
     expect(updaterSource).toContain('if (!commit.resolution.value) return s;');
     expect(updaterSource).toContain('const outcome = commit.resolution.value;');
     expect(updaterSource).not.toContain('preview.resolution.value!');
@@ -35,20 +35,20 @@ describe('manual effect commit integrity', () => {
   });
 
   it('does not relabel an automatic result-summary fallback as player-authored memory', () => {
-    const start = appSource.indexOf('onResolve={override => {');
+    const start = appSource.indexOf('onResolve={(override, recordText) => {');
     const end = appSource.indexOf('\n              }}', start);
     const resolveSource = appSource.slice(start, end);
 
     expect(resolveSource).toContain('text: outcome.record.journalNote.trim() ? outcome.record.journalNote : outcome.record.resultSummary.trim()');
-    expect(resolveSource).toContain('journalNote: currentDraft.journalNote,');
-    expect(resolveSource).not.toContain('journalNote: outcome.record.journalNote,');
+    expect(resolveSource).toContain('journalNote: draft.journalNote,');
+    expect(resolveSource).not.toContain('journalNote: currentDraft.journalNote,');
   });
 
   it('auto-opens only fresh manual drafts while leaving deferred drafts for explicit resume', () => {
     const enqueueStart = appSource.indexOf('const enqueueManualDrafts');
     const enqueueEnd = appSource.indexOf('\n\nconst appendEngineJournals', enqueueStart);
     const enqueueSource = appSource.slice(enqueueStart, enqueueEnd);
-    const resolveStart = appSource.indexOf('onResolve={override => {');
+    const resolveStart = appSource.indexOf('onResolve={(override, recordText) => {');
     const resolveEnd = appSource.indexOf('\n              }}', resolveStart);
     const resolveSource = appSource.slice(resolveStart, resolveEnd);
 

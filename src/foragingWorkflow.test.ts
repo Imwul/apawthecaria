@@ -98,9 +98,27 @@ describe('foraging workflow order', () => {
 
     expect(scroungeSource).not.toContain('prompt(');
     expect(scroungeSource).toContain("title: '여분 채집으로 얻을 부위를 고르세요'");
+    expect(scroungeSource).toContain('각 행에서 치료 약효와 거래 가치를 확인하세요.');
+    expect(scroungeSource).toContain('searchable: {');
+    expect(scroungeSource).toContain('const { remedy, trade } = splitForagingTags(part.tags);');
+    expect(scroungeSource).toContain('remedyTags,');
+    expect(scroungeSource).toContain('tradeTags,');
+    expect(appSource).toContain('controlled-prompt__search-tag-group');
+    expect(appSource).toContain('거래 가치 · FAIR/FOUL');
     expect(scroungeSource).toContain('if (chosenPartId === null) return;');
     expect(scroungeSource).toContain('eligibleParts.find(part => part.id === chosenPartId)');
     expect(scroungeSource.indexOf('if (chosenPartId === null) return;')).toBeLessThan(scroungeSource.indexOf('resolveScrounge({'));
+  });
+
+  it('records guaranteed Scrounging in the Journey goal using the selected Region', () => {
+    const scroungeStart = appSource.indexOf('const handleScroungeGainReagent');
+    const scroungeEnd = appSource.indexOf('\n  const handleFinishScrounging', scroungeStart);
+    const scroungeSource = appSource.slice(scroungeStart, scroungeEnd);
+    expect(scroungeSource).toContain("const transactionId = createClientTransaction('scrounge:guaranteed').id;");
+    expect(scroungeSource).toContain("type: 'forage'");
+    expect(scroungeSource).toContain('reagentId: reagent.id');
+    expect(scroungeSource).toContain('region: toRuleRegion(region)');
+    expect(scroungeSource).toContain('journey: recordCanonicalJourneyEvent');
   });
 
   it('uses the canonical Korean region name in every player-facing foraging hint', () => {

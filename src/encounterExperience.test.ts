@@ -187,7 +187,9 @@ describe('encounter player-experience guards', () => {
   });
 
   it('does not make the player enter the same manual result twice', () => {
-    expect(manualSource).toContain('draft.resultSummary.trim().length > 0;');
+    expect(manualSource).toContain('recordText.resultSummary.trim().length > 0;');
+    expect(manualSource).toContain('onBlur={commitRecordText}');
+    expect(manualSource).toContain('onResolve(false, recordTextRef.current)');
     expect(manualSource).toContain('비우면 판정 결과 요약을 그대로 기록합니다');
     expect(appSource).toContain(': { ...draft, journalNote: draft.resultSummary.trim() };');
   });
