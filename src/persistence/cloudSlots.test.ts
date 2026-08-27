@@ -310,7 +310,8 @@ describe('cloud save slots', () => {
     expect(appSource).toContain("setDoc(doc(db, 'saves', payloadDocumentId)");
     expect(appSource).toContain("getDoc(doc(db, 'saves', record.payloadDocumentId))");
     expect(appSource).toContain('[CAMPAIGN_SAVE_KEY]: deleteField()');
-    expect(appSource).toContain('[`${CLOUD_SLOTS_FIELD}.slot-${slot}`]: deleteField()');
+    expect(appSource).toContain('older documents used `"1"` as well as `"slot-1"`');
+    expect(appSource).toContain('...compactDocument');
     expect(appSource).toContain('cloudSlotPayloadDocumentBelongsToAccount');
     expect(appSource).toContain('readCloudAccountBinding() === uid');
     expect(appSource).toContain('로컬 저장 공간이 부족해 클라우드 저장으로 전환합니다');

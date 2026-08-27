@@ -1,7 +1,7 @@
 import { useState, useEffect, useEffectEvent, useLayoutEffect, useRef, useCallback, useMemo, memo, Fragment, lazy, Suspense, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { flushSync } from "react-dom";
 import { db, isFirebaseConfigured, auth, googleProvider, storage, googleSignInErrorMessage, shouldUseRedirectSignIn, firebaseProjectId } from "./firebase";
-import { deleteDoc, deleteField, doc, getDoc, runTransaction, setDoc } from "firebase/firestore";
+import { deleteDoc, deleteField, doc, getDoc, getDocFromServer, runTransaction, setDoc } from "firebase/firestore";
 import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, type User } from "firebase/auth";
 import { deleteObject, getBytes, getDownloadURL, ref as storageRef, uploadString } from "firebase/storage";
 import { GAME_DATA } from "./gameData";
@@ -20,7 +20,6 @@ import {
   type CloudSlotRecord,
   type CloudUploadSourceView,
   type CloudSlotView,
-  CLOUD_SLOTS_FIELD,
   CLOUD_DOCUMENT_SAFE_BYTES,
   CLOUD_PAYLOAD_SAFE_BYTES,
   assembleCloudSlotDocument,
@@ -840,14 +839,15 @@ const deleteCloudSlotRecord = async (uid: string, slot: CloudSlotId): Promise<Cl
     if (!removed) return current.views;
     const records = current.records.map((record, index) => index === slot - 1 ? null : record);
     const compactDocument = assembleCloudSlotDocument(records);
-    // Firestore's merge semantics recursively merge map fields. Writing the
-    // compact map alone therefore leaves a deleted `slot-N` key behind and it
-    // can reappear on the next refresh. Delete the nested key explicitly.
+    // Replace the complete save document instead of recursively merging its
+    // map. Firestore's merge semantics leave unknown/legacy map keys behind
+    // (older documents used `"1"` as well as `"slot-1"`), and those aliases
+    // would make a deleted slot reappear on the next refresh. The canonical
+    // compact document removes every alias in one atomic write.
     transaction.set(docRef, {
       ownerUid: uid,
-      [`${CLOUD_SLOTS_FIELD}.slot-${slot}`]: deleteField(),
-      [CAMPAIGN_SAVE_KEY]: deleteField()
-    }, { merge: true });
+      ...compactDocument
+    });
     return readCloudSlotsFromDocument(compactDocument, new Date().toISOString()).views;
   }), 30000);
   if (removed?.payloadDocumentId) {
@@ -7053,7 +7053,10 @@ export default function App() {
       if (auth?.currentUser?.uid === expectedUid) setCloudSlotViews(emptyCloudSlotViews());
       return readCloudSlotsFromDocument(null);
     }
-    const snap = await getDoc(docRef);
+    // Slot metadata must come from the server. A cached snapshot can still
+    // contain a deleted legacy key and would make the slot appear again after
+    // closing and reopening this dialog.
+    const snap = await withTimeout(getDocFromServer(docRef), 30000);
     const documentUpdatedAt = snap.exists()
       ? snapshotUpdatedAt(snap) || (expectedUid ? await fetchCloudDocumentUpdatedAt(expectedUid) : null)
       : null;
