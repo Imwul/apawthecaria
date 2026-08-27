@@ -12988,3 +12988,14 @@ details.rulebook-source-text > summary {
     width: 100%;
   }
 }
+
+/* The chapter side label was decorative only. It left a clipped-looking
+   divider/mark at the bottom edge on wide screens, so keep chapter openings
+   as one clean reading surface. */
+.chapter-opening::after {
+  display: none;
+}
+
+.chapter-opening__copy {
+  max-width: 100%;
+}
