@@ -46,6 +46,13 @@ export type CloudUploadSourceView = {
 
 const SLOT_IDS: CloudSlotId[] = [1, 2, 3];
 
+// A private browsing context can reject Storage synchronously. Keep the
+// binding/active-slot usable for the current tab in that case; on a later
+// reload the absence of a durable binding intentionally falls back to the
+// safe, manual-account-linking path.
+let memoryActiveCloudSlot: CloudSlotId = 1;
+let memoryCloudAccountBinding: string | null = null;
+
 export const cloudSlotMapKey = (slot: CloudSlotId) => `slot-${slot}`;
 
 export const cloudSaveDocumentId = (uid: string) => `uid_${uid.trim()}`;
@@ -113,26 +120,62 @@ export const emptyCloudSlotViews = (): CloudSlotView[] =>
   SLOT_IDS.map(slot => ({ slot, empty: true, name: null, uploadedAt: null, saveRevision: 0, payloadBytes: 0 }));
 
 export const readActiveCloudSlot = (storage: Pick<Storage, 'getItem'> = localStorage): CloudSlotId => {
-  const raw = Number(storage.getItem(ACTIVE_CLOUD_SLOT_KEY) || 1);
-  return isCloudSlotId(raw) ? raw : 1;
+  try {
+    const raw = Number(storage.getItem(ACTIVE_CLOUD_SLOT_KEY) || memoryActiveCloudSlot);
+    if (isCloudSlotId(raw)) {
+      memoryActiveCloudSlot = raw;
+      return raw;
+    }
+  } catch {
+    // Some private browsing contexts expose Storage but reject access.
+    return memoryActiveCloudSlot;
+  }
+  return memoryActiveCloudSlot;
 };
 
 export const writeActiveCloudSlot = (slot: CloudSlotId, storage: Pick<Storage, 'setItem'> = localStorage) => {
-  storage.setItem(ACTIVE_CLOUD_SLOT_KEY, String(slot));
+  try {
+    storage.setItem(ACTIVE_CLOUD_SLOT_KEY, String(slot));
+    memoryActiveCloudSlot = slot;
+    return true;
+  } catch {
+    memoryActiveCloudSlot = slot;
+    return false;
+  }
 };
 
 export const readCloudAccountBinding = (storage: Pick<Storage, 'getItem'> = localStorage): string | null => {
-  const uid = storage.getItem(CLOUD_ACCOUNT_BINDING_KEY)?.trim();
-  return uid || null;
+  try {
+    const value = storage.getItem(CLOUD_ACCOUNT_BINDING_KEY);
+    const uid = value?.trim();
+    memoryCloudAccountBinding = uid || null;
+    return uid || null;
+  } catch {
+    return memoryCloudAccountBinding;
+  }
 };
 
 export const writeCloudAccountBinding = (uid: string, storage: Pick<Storage, 'setItem'> = localStorage) => {
   const normalized = uid.trim();
-  if (normalized) storage.setItem(CLOUD_ACCOUNT_BINDING_KEY, normalized);
+  if (!normalized) return false;
+  try {
+    storage.setItem(CLOUD_ACCOUNT_BINDING_KEY, normalized);
+    memoryCloudAccountBinding = normalized;
+    return true;
+  } catch {
+    memoryCloudAccountBinding = normalized;
+    return false;
+  }
 };
 
 export const clearCloudAccountBinding = (storage: Pick<Storage, 'removeItem'> = localStorage) => {
-  storage.removeItem(CLOUD_ACCOUNT_BINDING_KEY);
+  try {
+    storage.removeItem(CLOUD_ACCOUNT_BINDING_KEY);
+    memoryCloudAccountBinding = null;
+  } catch {
+    // Best effort; an unavailable local store cannot retain the binding.
+    memoryCloudAccountBinding = null;
+  }
 };
 
 export const parseUploadedAt = (value: unknown): string | null => {
@@ -200,6 +243,26 @@ export const summarizeCloudUploadSource = (payload: string | null): CloudUploadS
     saveRevision: revisionFromPayload(payload),
     payloadBytes
   };
+};
+
+/**
+ * Select the freshest usable local snapshot when a form draft has just been
+ * flushed. The debounced localStorage copy can still be the previous unnamed
+ * snapshot for one render, so a named live snapshot must win over it.
+ */
+export const preferredCloudUploadPayload = (
+  livePayload: string | null,
+  storedPayload: string | null
+): string | null => {
+  const candidates = [livePayload, storedPayload].filter((payload): payload is string => Boolean(payload));
+  const named = candidates.filter(payload => Boolean(summarizeCloudUploadSource(payload).name));
+  const usable = named.length > 0 ? named : candidates;
+  return usable.reduce<string | null>((best, payload) => {
+    if (!best) return payload;
+    const bestRevision = summarizeCloudUploadSource(best).saveRevision;
+    const candidateRevision = summarizeCloudUploadSource(payload).saveRevision;
+    return candidateRevision > bestRevision ? payload : best;
+  }, null);
 };
 
 export const cloudSlotRecordFromPayload = (

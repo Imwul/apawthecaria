@@ -1,7 +1,7 @@
 import { useState, useEffect, useEffectEvent, useLayoutEffect, useRef, useCallback, useMemo, memo, Fragment, lazy, Suspense, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { flushSync } from "react-dom";
 import { db, isFirebaseConfigured, auth, googleProvider, storage, googleSignInErrorMessage, shouldUseRedirectSignIn, firebaseProjectId } from "./firebase";
-import { deleteDoc, deleteField, doc, getDoc, getDocFromServer, runTransaction, setDoc } from "firebase/firestore";
+import { deleteDoc, deleteField, doc, getDocFromServer, runTransaction, setDoc } from "firebase/firestore";
 import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, type User } from "firebase/auth";
 import { deleteObject, getBytes, getDownloadURL, ref as storageRef, uploadString } from "firebase/storage";
 import { GAME_DATA } from "./gameData";
@@ -38,6 +38,7 @@ import {
   formatCloudSlotUploadedAt,
   mergeCloudSlotRecord,
   parseUploadedAt,
+  preferredCloudUploadPayload,
   readActiveCloudSlot,
   readCloudAccountBinding,
   readCloudSlotsFromDocument,
@@ -113,6 +114,7 @@ import {
   type PendingTreatmentReward,
   type WorkflowDrafts
 } from "./workflowDrafts";
+import { preferDeviceSave, readDeviceSave, removeDeviceSave, writeDeviceSave } from './persistence/deviceSave';
 import {
   FAMILIAR_BENEFITS,
   createPreparedReagentItem,
@@ -581,17 +583,37 @@ let cloudSaveQueue: Promise<void> = Promise.resolve();
 let saveRequestSequence = 0;
 let saveFailureNotified = false;
 const SAVE_OUTBOX_KEY = 'apawthecaria_save_outbox';
-const readSaveOutbox = (): OfflineSaveEntry[] => {
-  try { return normalizeOfflineSaveEntries(JSON.parse(localStorage.getItem(SAVE_OUTBOX_KEY) || '[]')); } catch { return []; }
-};
-const writeSaveOutbox = (entries: OfflineSaveEntry[]) => {
+let memorySaveOutbox: OfflineSaveEntry[] = [];
+const safeLocalStorageGetItem = (key: string): string | null => {
   try {
-    localStorage.setItem(SAVE_OUTBOX_KEY, JSON.stringify(entries));
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+const safeLocalStorageSetItem = (key: string, value: string): boolean => {
+  try {
+    localStorage.setItem(key, value);
     return true;
-  } catch (error) {
-    console.error('클라우드 재시도 큐를 저장하지 못했습니다:', error);
+  } catch {
     return false;
   }
+};
+const readSaveOutbox = (): OfflineSaveEntry[] => {
+  const raw = safeLocalStorageGetItem(SAVE_OUTBOX_KEY);
+  if (raw === null) return memorySaveOutbox;
+  try {
+    memorySaveOutbox = normalizeOfflineSaveEntries(JSON.parse(raw || '[]'));
+    return memorySaveOutbox;
+  } catch {
+    return memorySaveOutbox;
+  }
+};
+const writeSaveOutbox = (entries: OfflineSaveEntry[]) => {
+  memorySaveOutbox = normalizeOfflineSaveEntries(entries);
+  const written = safeLocalStorageSetItem(SAVE_OUTBOX_KEY, JSON.stringify(memorySaveOutbox));
+  if (!written) console.warn('클라우드 재시도 큐를 저장하지 못했습니다. 현재 기록은 직접 클라우드 저장을 시도합니다.');
+  return written;
 };
 
 const userSaveDocRef = (expectedUid?: string) => {
@@ -719,7 +741,10 @@ const readCloudSlotPayload = async (record: CloudSlotRecord, uid: string): Promi
     if (!db || !cloudSlotPayloadDocumentBelongsToAccount(record.payloadDocumentId, uid)) {
       throw cloudSlotError('cloud-payload-corrupt');
     }
-    const snap = await withTimeout(getDoc(doc(db, 'saves', record.payloadDocumentId)), 30000);
+    // Payload documents are immutable, but a fresh server read keeps a second
+    // device from reopening a deleted or replaced payload from Firestore's
+    // offline cache.
+    const snap = await withTimeout(getDocFromServer(doc(db, 'saves', record.payloadDocumentId)), 30000);
     if (!snap.exists()) throw cloudSlotError('cloud-payload-corrupt');
     const data = snap.data() as Record<string, unknown>;
     if (data.ownerUid !== uid || typeof data.payload !== 'string') throw cloudSlotError('cloud-payload-corrupt');
@@ -916,7 +941,7 @@ const cloudMapConnectionIndexFromUnknown = (value: unknown, uid: string): CloudM
 
 const readCloudMapConnectionIndex = async (uid: string): Promise<CloudMapConnectionIndex> => {
   if (!db || auth?.currentUser?.uid !== uid) throw cloudSlotError('not-signed-in');
-  const snapshot = await withTimeout(getDoc(doc(db, 'saves', mapConnectionArchiveDocumentId(uid))), 30000);
+  const snapshot = await withTimeout(getDocFromServer(doc(db, 'saves', mapConnectionArchiveDocumentId(uid))), 30000);
   return snapshot.exists()
     ? cloudMapConnectionIndexFromUnknown(snapshot.data(), uid)
     : emptyCloudMapConnectionIndex();
@@ -925,7 +950,7 @@ const readCloudMapConnectionIndex = async (uid: string): Promise<CloudMapConnect
 const readCloudMapConnectionSnapshot = async (uid: string, snapshotId: string): Promise<MapConnectionSnapshot> => {
   if (!db || auth?.currentUser?.uid !== uid) throw cloudSlotError('not-signed-in');
   const snapshot = await withTimeout(
-    getDoc(doc(db, 'saves', mapConnectionSnapshotDocumentId(uid, snapshotId))),
+    getDocFromServer(doc(db, 'saves', mapConnectionSnapshotDocumentId(uid, snapshotId))),
     30000
   );
   if (!snapshot.exists()) throw cloudSlotError('cloud-payload-corrupt');
@@ -1012,12 +1037,12 @@ const isMapAdministrator = (uid: string | null | undefined) => Boolean(uid && MA
 
 const readCloudOfficialMapSnapshot = async (): Promise<OfficialMapSnapshot | null> => {
   if (!db) return null;
-  const pointer = await withTimeout(getDoc(doc(db, 'saves', OFFICIAL_MAP_POINTER_DOCUMENT_ID)), 30000);
+  const pointer = await withTimeout(getDocFromServer(doc(db, 'saves', OFFICIAL_MAP_POINTER_DOCUMENT_ID)), 30000);
   if (!pointer.exists()) return null;
   const pointerData = pointer.data() as Record<string, unknown>;
   if (typeof pointerData.snapshotId !== 'string') throw cloudSlotError('cloud-payload-corrupt');
   const payloadSnapshot = await withTimeout(
-    getDoc(doc(db, 'saves', officialMapSnapshotDocumentId(pointerData.snapshotId))),
+    getDocFromServer(doc(db, 'saves', officialMapSnapshotDocumentId(pointerData.snapshotId))),
     30000
   );
   if (!payloadSnapshot.exists()) throw cloudSlotError('cloud-payload-corrupt');
@@ -1135,15 +1160,19 @@ type SaveWriteResult = {
 const store = {
   set: async (key: string, value: any) => {
     let jsonString: string;
-    let localSaved = true;
+    let localSaved: boolean;
     try {
       jsonString = JSON.stringify(value);
       try {
         localStorage.setItem(key, jsonString);
+        localSaved = true;
+        void removeDeviceSave(key);
       } catch (error) {
-        // Keep going: a signed-in user may still have a healthy cloud slot.
-        localSaved = false;
-        console.warn('로컬 저장 공간이 부족해 클라우드 저장으로 전환합니다:', error);
+        // Safari private windows and exhausted localStorage quotas are both
+        // recoverable: keep a durable device copy in IndexedDB while the
+        // account-bound cloud path runs in parallel.
+        localSaved = await writeDeviceSave(key, jsonString);
+        if (!localSaved) console.warn('로컬 저장 공간이 부족해 기기 대체 저장에도 실패했습니다:', error);
       }
     } catch (e) {
       console.error('로컬 저장 에러:', e);
@@ -1173,6 +1202,12 @@ const store = {
       if (!writeSaveOutbox(queued)) {
         try {
           await writeCloudSaveDirectly(uid, slot, jsonString);
+          writeSaveOutbox(removeOfflineSavesThroughRevision(readSaveOutbox(), {
+            key,
+            ownerUid: uid,
+            slot,
+            revision
+          }));
           return { localSaved, pendingCloudSaves: 0, cloudStatus: 'synced' } satisfies SaveWriteResult;
         } catch (error) {
           console.error('로컬 재시도 큐를 저장하지 못해 클라우드 직접 저장도 실패했습니다:', error);
@@ -1194,16 +1229,22 @@ const store = {
   },
   load: async (key: string, fallback: any) => {
     let localValue: any = null;
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) localValue = JSON.parse(raw);
-    } catch {}
+    const localRaw = safeLocalStorageGetItem(key);
+    const deviceRaw = await readDeviceSave(key);
+    const preferredRaw = preferDeviceSave(localRaw, deviceRaw);
+    if (preferredRaw) {
+      try {
+        localValue = JSON.parse(preferredRaw);
+      } catch {
+        // Both storage copies are malformed; preserve the normal fallback.
+      }
+    }
     if (isFirebaseConfigured && db) {
       try {
         const currentUser = auth?.currentUser;
         if (currentUser && readCloudAccountBinding() === currentUser.uid) {
           const docRef = doc(db, 'saves', cloudSaveDocumentId(currentUser.uid));
-          const snap = await withTimeout(getDoc(docRef));
+          const snap = await withTimeout(getDocFromServer(docRef));
           if (snap.exists()) {
             const data = snap.data() as Record<string, unknown>;
             const slots = readCloudSlotsFromDocument(data, snapshotUpdatedAt(snap));
@@ -1217,7 +1258,7 @@ const store = {
             const cloudValue = JSON.parse(rawPayload);
             const resolved = resolveRevisionConflict(localValue, cloudValue);
             if (resolved.conflict) {
-              localStorage.setItem('apawthecaria_sync_status', 'same-revision-conflict-local-kept');
+              safeLocalStorageSetItem('apawthecaria_sync_status', 'same-revision-conflict-local-kept');
               console.warn('같은 저장 버전의 내용이 달라 로컬 기록을 보존했습니다.');
             }
             return resolved.state;
@@ -5073,8 +5114,11 @@ const migrateState = (s: any): GameState => {
 const migrateCampaignSave = (raw: unknown): { ok: true; state: GameState } | { ok: false } =>
   tryMigrateCampaignSave(raw, migrateState);
 
-const exportRawCampaignSave = () => {
-  const raw = localStorage.getItem(CAMPAIGN_SAVE_KEY);
+const exportRawCampaignSave = async () => {
+  const raw = preferDeviceSave(
+    safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY),
+    await readDeviceSave(CAMPAIGN_SAVE_KEY)
+  );
   if (!raw) {
     showAlert('내보낼 로컬 기록이 없습니다.');
     return;
@@ -5761,6 +5805,7 @@ export default function App() {
   const initialSetupRouted = useRef(false);
   const officialMapDefaultsLoaded = useRef(false);
   const cloudBootstrapSkipped = useRef(false);
+  const authBootstrapUserUidRef = useRef<string | null>(null);
   const authBootstrapGenerationRef = useRef(0);
   const cloudSlotOperationGenerationRef = useRef(0);
   const cloudSlotOperationInFlightRef = useRef(false);
@@ -5974,6 +6019,9 @@ export default function App() {
       setCloudSlotViews(emptyCloudSlotViews());
       const bootstrapStillCurrent = () => authBootstrapGenerationRef.current === bootstrapGeneration
         && auth.currentUser?.uid === u?.uid;
+      const nextUid = u?.uid || null;
+      if (authBootstrapUserUidRef.current !== nextUid) cloudBootstrapSkipped.current = false;
+      authBootstrapUserUidRef.current = nextUid;
       if (cloudBootstrapSkipped.current) {
         setUser(u);
         setCloudSyncStatus('local-only');
@@ -5995,7 +6043,10 @@ export default function App() {
         setCloudSyncStatus(pendingCount > 0 ? 'pending' : readCloudAccountBinding() === u.uid ? 'synced' : 'local-only');
         const userDocRef = userSaveDocRef(u.uid);
         if (!userDocRef) return;
-        const snap = await withCloudBootstrapTimeout(getDoc(userDocRef));
+        // Authentication bootstrap must bypass Firestore's offline cache. A
+        // cached slot map is exactly what makes a deleted slot appear again
+        // after a refresh or on a second device.
+        const snap = await withCloudBootstrapTimeout(getDocFromServer(userDocRef));
         if (cloudBootstrapSkipped.current || !bootstrapStillCurrent()) return;
         const cloudData = snap.exists() ? snap.data() as Record<string, unknown> : null;
         const documentUpdatedAt = snap.exists()
@@ -6011,7 +6062,8 @@ export default function App() {
           ? { ...cloudRecordMetadata, payload: await withCloudBootstrapTimeout(readCloudSlotPayload(cloudRecordMetadata, u.uid)) }
           : null;
         if (cloudBootstrapSkipped.current || !bootstrapStillCurrent()) return;
-        const localRaw = localStorage.getItem(CAMPAIGN_SAVE_KEY);
+        const localStorageRaw = safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY);
+        const localRaw = preferDeviceSave(localStorageRaw, await readDeviceSave(CAMPAIGN_SAVE_KEY));
         const localParsed = parseCampaignSaveRaw(localRaw);
         const localHasProgress = localParsed.ok && campaignSaveHasProgress(localParsed.value);
         const boundUid = readCloudAccountBinding();
@@ -6019,7 +6071,6 @@ export default function App() {
 
         if (cloudRecord && readSaveOutbox().some(entry => entry.ownerUid === u.uid && entry.slot === cloudRecord.slot)) {
           setCloudSyncStatus('pending');
-          showAlert(`슬롯 ${cloudRecord.slot}에 아직 올리지 못한 이 계정의 기록이 있어 오래된 클라우드본을 자동으로 열지 않았습니다. 연결이 안정되면 클라우드 기록을 다시 확인해 주세요.`);
           return;
         }
 
@@ -6028,7 +6079,7 @@ export default function App() {
           const parsed = parseCampaignSaveRaw(record.payload);
           const migrated = parsed.ok ? migrateCampaignSave(parsed.value) : { ok: false as const };
           if (!migrated.ok) {
-            showAlert('클라우드 기록을 읽지 못했습니다. 이 기기의 기록은 그대로 둡니다.');
+            setCloudSyncStatus('local-only');
             return false;
           }
           // Loading another slot is a campaign switch: preserve the old slot's
@@ -6037,7 +6088,12 @@ export default function App() {
           if (record.slot !== readActiveCloudSlot()) flushWorkflowDrafts();
           resetCampaignScopedUi();
           setState(migrated.state);
-          localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(migrated.state));
+          const localSnapshot = JSON.stringify(migrated.state);
+          if (safeLocalStorageSetItem(CAMPAIGN_SAVE_KEY, localSnapshot)) {
+            void removeDeviceSave(CAMPAIGN_SAVE_KEY);
+          } else {
+            void writeDeviceSave(CAMPAIGN_SAVE_KEY, localSnapshot);
+          }
           writeActiveCloudSlot(record.slot);
           setActiveCloudSlot(record.slot);
           writeCloudAccountBinding(u.uid);
@@ -6075,7 +6131,7 @@ export default function App() {
             );
             if (!bootstrapStillCurrent()) return;
             if (shouldLoad) loadCloudRecord(cloudRecord);
-            else showAlert('현재 기기 기록을 유지했습니다. 계정을 명시적으로 연결하기 전까지 자동 클라우드 업로드는 멈춰 있습니다.');
+            else setCloudSyncStatus('local-only');
             return;
           }
 
@@ -6108,7 +6164,6 @@ export default function App() {
         if (localRaw && localParsed.ok && campaignSaveHasNamedApothecary(localParsed.value)) {
           if (!accountMatches) {
             setCloudSyncStatus('local-only');
-            showAlert('이 Google 계정에는 클라우드 기록이 없습니다. 다른 사람의 로컬 기록이 자동으로 올라가지 않도록 업로드를 멈췄습니다. ‘클라우드 기록’에서 계정과 슬롯을 확인한 뒤 직접 올려 주세요.');
             return;
           }
           const slot = readActiveCloudSlot();
@@ -6125,17 +6180,14 @@ export default function App() {
           setCloudSyncStatus('synced');
         } else {
           setCloudSyncStatus('local-only');
-          showAlert('이 Google 계정에는 저장된 약제사가 없습니다. 현재 기기 기록은 자동 업로드하지 않았습니다. ‘클라우드 기록’에서 계정과 슬롯을 확인해 주세요.');
         }
       } catch (err) {
         if (!bootstrapStillCurrent()) return;
         console.error("Failed to check cloud save during login:", err);
-        if ((err as Error)?.message === CLOUD_BOOTSTRAP_TIMEOUT_MESSAGE) {
-          setCloudSyncStatus('local-only');
-          showAlert('클라우드 확인이 지연되어 기기 기록으로 먼저 열었습니다. 기록은 그대로이며, 연결이 안정되면 상단의 ‘Google 기록 동기화’에서 다시 확인할 수 있습니다.');
-        } else {
-          showAlert(cloudWriteErrorMessage(err as { code?: string; message?: string }));
-        }
+        // Login/bootstrap runs in the background. A delayed cloud request
+        // must not interrupt an unrelated turn with a modal; the explicit
+        // Cloud Records action reports the error when the player asks for it.
+        setCloudSyncStatus('local-only');
       } finally {
         if (bootstrapStillCurrent()) setCloudBootstrapComplete(true);
       }
@@ -6168,23 +6220,30 @@ export default function App() {
         setSaveLoadError(message);
         showAlert(`${message} 원본을 내보낸 뒤 다시 시도하세요.`);
       };
-      const raw = localStorage.getItem(CAMPAIGN_SAVE_KEY);
+      const localRaw = safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY);
+      const deviceRaw = await readDeviceSave(CAMPAIGN_SAVE_KEY);
+      const raw = preferDeviceSave(localRaw, deviceRaw);
       if (raw) {
         const parsed = parseCampaignSaveRaw(raw);
-        if (!parsed.ok) {
-          failLoad('저장 파일이 손상되어 열 수 없습니다. 기존 기록은 지우지 않았습니다.');
-          setLoading(false);
-          return;
-        }
-        const migrated = migrateCampaignSave(parsed.value);
+        const migrated = parsed.ok ? migrateCampaignSave(parsed.value) : { ok: false as const };
         if (!migrated.ok) {
-          failLoad('저장 데이터를 올리지 못했습니다. 기존 기록은 디스크에서 지우지 않았습니다.');
+          failLoad(parsed.ok
+            ? '저장 데이터를 올리지 못했습니다. 기존 기록은 디스크에서 지우지 않았습니다.'
+            : '저장 파일이 손상되어 열 수 없습니다. 기존 기록을 지우지 않았습니다.');
           setLoading(false);
           return;
         }
         setState(migrated.state);
         setSaveLoadError(null);
         setSaveStatus('saved');
+        if (raw === deviceRaw && raw !== localRaw) {
+          const promotedSnapshot = JSON.stringify(migrated.state);
+          if (safeLocalStorageSetItem(CAMPAIGN_SAVE_KEY, promotedSnapshot)) {
+            void removeDeviceSave(CAMPAIGN_SAVE_KEY);
+          }
+        } else {
+          void removeDeviceSave(CAMPAIGN_SAVE_KEY);
+        }
         if (campaignSaveHasProgress(migrated.state)) setCloudBootstrapComplete(true);
         setLoading(false);
         return;
@@ -6196,6 +6255,7 @@ export default function App() {
           setState(migrated.state);
           setSaveLoadError(null);
           setSaveStatus('saved');
+          void removeDeviceSave(CAMPAIGN_SAVE_KEY);
           if (campaignSaveHasProgress(migrated.state)) setCloudBootstrapComplete(true);
         } else {
           failLoad('저장 데이터를 올리지 못했습니다. 기존 기록은 디스크에서 지우지 않았습니다.');
@@ -7069,6 +7129,9 @@ export default function App() {
     if (cloudSlotBusy || cloudSlotOperationInFlightRef.current) return;
     const uid = auth?.currentUser?.uid;
     if (!uid) return;
+    // An auth bootstrap request may still be holding an older slot snapshot.
+    // Explicitly opening the cloud panel is a fresh read boundary.
+    authBootstrapGenerationRef.current += 1;
     // Character/journey forms keep their draft in component-local state for a
     // short debounce window. Flush that draft before taking the snapshot used
     // by the cloud dialog; otherwise a name entered moments ago can still be
@@ -7100,6 +7163,7 @@ export default function App() {
       showAlert('구글 계정에 먼저 로그인해 주세요.');
       return;
     }
+    authBootstrapGenerationRef.current += 1;
     const operationGeneration = ++cloudSlotOperationGenerationRef.current;
     const operationStillCurrent = () => cloudSlotOperationGenerationRef.current === operationGeneration
       && auth?.currentUser?.uid === uid;
@@ -7114,7 +7178,7 @@ export default function App() {
         showAlert(`슬롯 ${slot}은 비어 있습니다.`);
         return;
       }
-      const localStr = localStorage.getItem(CAMPAIGN_SAVE_KEY);
+      const localStr = safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY);
       if (!confirmManualSlotDownload({
         slot,
         localRaw: localStr,
@@ -7172,7 +7236,12 @@ export default function App() {
       }
       resetCampaignScopedUi();
       setState(migrated.state);
-      localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(migrated.state));
+      const localSnapshot = JSON.stringify(migrated.state);
+      if (safeLocalStorageSetItem(CAMPAIGN_SAVE_KEY, localSnapshot)) {
+        await removeDeviceSave(CAMPAIGN_SAVE_KEY);
+      } else {
+        await writeDeviceSave(CAMPAIGN_SAVE_KEY, localSnapshot);
+      }
       writeActiveCloudSlot(slot);
       setActiveCloudSlot(slot);
       writeCloudAccountBinding(uid);
@@ -7206,6 +7275,7 @@ export default function App() {
       showAlert('구글 계정에 먼저 로그인해 주세요.');
       return;
     }
+    authBootstrapGenerationRef.current += 1;
     const operationGeneration = ++cloudSlotOperationGenerationRef.current;
     const operationStillCurrent = () => cloudSlotOperationGenerationRef.current === operationGeneration
       && auth?.currentUser?.uid === uid;
@@ -7223,16 +7293,15 @@ export default function App() {
       // The React state is the source of truth while a form is being edited;
       // localStorage can still contain the previous debounced snapshot.
       const liveStatePayload = state ? JSON.stringify(state) : null;
-      const storedPayload = localStorage.getItem(CAMPAIGN_SAVE_KEY);
+      const storedPayload = safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY);
+      const devicePayload = await readDeviceSave(CAMPAIGN_SAVE_KEY);
       // Prefer the current React snapshot once the name is committed, but
       // retain a just-flushed character draft when React has not re-rendered
-      // yet (the draft still lives in localStorage in that brief window).
-      const liveStateParsed = liveStatePayload ? parseCampaignSaveRaw(liveStatePayload) : null;
-      const localStr = liveStatePayload && campaignSaveHasNamedApothecary(liveStateParsed?.ok
-        ? liveStateParsed.value
-        : null)
-        ? liveStatePayload
-        : storedPayload || liveStatePayload;
+      // yet (the draft may still be completing its IndexedDB fallback write).
+      const localStr = preferredCloudUploadPayload(
+        preferredCloudUploadPayload(liveStatePayload, storedPayload),
+        devicePayload
+      );
       const source = summarizeCloudUploadSource(localStr);
       if (!source.available || !localStr) {
         showAlert('이 기기에 올릴 기록이 없습니다.');
@@ -7305,6 +7374,7 @@ export default function App() {
     const currentView = cloudSlotViews.find(view => view.slot === slot);
     if (!currentView || currentView.empty) return;
     if (!askWindowConfirm(`슬롯 ${slot}의 ${currentView.name || '캠페인 기록'}을 클라우드에서 영구 삭제할까요? 이 작업은 되돌릴 수 없습니다.`)) return;
+    authBootstrapGenerationRef.current += 1;
     const operationGeneration = ++cloudSlotOperationGenerationRef.current;
     const operationStillCurrent = () => cloudSlotOperationGenerationRef.current === operationGeneration
       && auth?.currentUser?.uid === uid;
@@ -7330,12 +7400,13 @@ export default function App() {
         if (remainingSlot) {
           writeActiveCloudSlot(remainingSlot);
           setActiveCloudSlot(remainingSlot);
-        } else {
-          // No active cloud slot remains. Keep the local campaign, but do not
-          // silently recreate the deleted slot on the next local mutation.
-          clearCloudAccountBinding();
-          setCloudSyncStatus('local-only');
         }
+        // The local campaign still belongs to the slot that was just removed.
+        // Do not silently point its next autosave at another slot (or recreate
+        // the deleted record). An explicit upload must re-bind this device to
+        // the remaining slot after the player confirms the replacement.
+        clearCloudAccountBinding();
+        setCloudSyncStatus('local-only');
       }
       showAlert(`슬롯 ${slot}의 클라우드 기록을 삭제했습니다.`);
     } catch (error) {
@@ -7380,7 +7451,12 @@ export default function App() {
                 const fresh = syncWorldMemory(INITIAL_STATE);
                 resetCampaignScopedUi();
                 setState(fresh);
-                localStorage.setItem(CAMPAIGN_SAVE_KEY, JSON.stringify(fresh));
+                const localSnapshot = JSON.stringify(fresh);
+                if (safeLocalStorageSetItem(CAMPAIGN_SAVE_KEY, localSnapshot)) {
+                  void removeDeviceSave(CAMPAIGN_SAVE_KEY);
+                } else {
+                  void writeDeviceSave(CAMPAIGN_SAVE_KEY, localSnapshot);
+                }
                 setSaveLoadError(null);
               }}
               style={{ padding: '0.55rem 1rem', background: '#fff', color: '#8f2f28', border: '1px solid #c77972', borderRadius: '8px', cursor: 'pointer' }}
@@ -8807,13 +8883,8 @@ export default function App() {
   const isOnboarding = !state.bio.name.trim();
   const cloudAccountLinked = Boolean(user && readCloudAccountBinding() === user.uid);
   const liveCloudPayload = state ? JSON.stringify(state) : null;
-  const storedCloudPayload = localStorage.getItem(CAMPAIGN_SAVE_KEY);
-  const liveCloudParsed = liveCloudPayload ? parseCampaignSaveRaw(liveCloudPayload) : null;
-  const cloudPayload = liveCloudPayload && campaignSaveHasNamedApothecary(liveCloudParsed?.ok
-    ? liveCloudParsed.value
-    : null)
-    ? liveCloudPayload
-    : storedCloudPayload || liveCloudPayload;
+  const storedCloudPayload = safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY);
+  const cloudPayload = preferredCloudUploadPayload(liveCloudPayload, storedCloudPayload);
   const cloudUploadSource = summarizeCloudUploadSource(showCloudSlots ? cloudPayload : null);
   const saveStatusText = saveStatus === 'saving'
     ? '저장 중…'
@@ -8831,7 +8902,7 @@ export default function App() {
                 ? '기기에 저장됨 · 클라우드 연결 선택 필요'
                 : cloudSyncStatus === 'synced'
                   ? '기기·클라우드에 저장됨'
-                  : '기기에 저장됨 · 클라우드 연결됨'
+                  : '기기에 저장됨 · 클라우드 확인 필요'
             : '기기에 저장됨'
         : '자동 저장 준비됨';
 
@@ -23023,6 +23094,7 @@ function AtlasMapPanel({
   const [adminMode, setAdminMode] = useState(false);
   const [officialMapSnapshot, setOfficialMapSnapshot] = useState<OfficialMapSnapshot | null>(() => readOfficialMapCache());
   const [officialMapStatus, setOfficialMapStatus] = useState('공식 지도 버전을 확인하는 중입니다.');
+  const cloudMapUidRef = useRef<string | null>(null);
   const currentMapEdges = useMemo(() => state.customMapEdges || [], [state.customMapEdges]);
   const currentMapFingerprint = useMemo(() => mapConnectionFingerprint(currentMapEdges), [currentMapEdges]);
   const latestMapFingerprintRef = useRef(currentMapFingerprint);
@@ -23189,18 +23261,19 @@ function AtlasMapPanel({
         return;
       }
       const uid = auth?.currentUser?.uid;
-      if (!uid) {
-        setConnectionArchiveStatus(`이 기기에 연결 ${recorded.snapshot.edgeCount}개 보관됨 · 로그인하면 계정에도 보관됩니다.`);
+      if (!uid || readCloudAccountBinding() !== uid) {
+        setConnectionArchiveStatus(`이 기기에 연결 ${recorded.snapshot.edgeCount}개 보관됨 · 계정 연결 후 클라우드에 보관됩니다.`);
         return;
       }
       void writeCloudMapConnectionSnapshot(uid, recorded.snapshot).then(index => {
+        if (auth?.currentUser?.uid !== uid) return;
         setCloudConnectionIndex(index);
         if (latestMapFingerprintRef.current === recorded.snapshot.fingerprint) {
           setConnectionArchiveStatus(`이 기기와 내 계정에 연결 ${recorded.snapshot.edgeCount}개 보관됨`);
         }
       }).catch(error => {
         console.error('지도 연결 클라우드 스냅샷 저장 실패:', error);
-        if (latestMapFingerprintRef.current === recorded.snapshot.fingerprint) {
+        if (auth?.currentUser?.uid === uid && latestMapFingerprintRef.current === recorded.snapshot.fingerprint) {
           setConnectionArchiveStatus(`이 기기에는 보관됨 · ${cloudWriteErrorMessage(error as { code?: string; message?: string })}`);
         }
       });
@@ -23218,16 +23291,17 @@ function AtlasMapPanel({
     if (!auth) return;
     let cancelled = false;
     const unsubscribe = onAuthStateChanged(auth, user => {
+      cloudMapUidRef.current = user?.uid || null;
       if (!user) {
         if (!cancelled) setCloudConnectionIndex(emptyCloudMapConnectionIndex());
         return;
       }
       void readCloudMapConnectionIndex(user.uid).then(async index => {
-        if (cancelled) return;
+        if (cancelled || cloudMapUidRef.current !== user.uid) return;
         setCloudConnectionIndex(index);
         if (!index.publishedSnapshotId) return;
         const published = await readCloudMapConnectionSnapshot(user.uid, index.publishedSnapshotId);
-        if (cancelled) return;
+        if (cancelled || cloudMapUidRef.current !== user.uid) return;
         const imported = importMapConnectionSnapshot(readMapConnectionArchive(), published, true);
         writeMapConnectionArchive(imported);
         setConnectionArchive(imported);
@@ -23236,11 +23310,14 @@ function AtlasMapPanel({
           : { ...s, customMapEdges: published.edges });
       }).catch(error => {
         console.error('지도 연결 클라우드 보관함 읽기 실패:', error);
-        if (!cancelled) setConnectionArchiveStatus(`기기 보관함은 정상 · ${cloudWriteErrorMessage(error as { code?: string; message?: string })}`);
+        if (!cancelled && cloudMapUidRef.current === user.uid) {
+          setConnectionArchiveStatus(`기기 보관함은 정상 · ${cloudWriteErrorMessage(error as { code?: string; message?: string })}`);
+        }
       });
     });
     return () => {
       cancelled = true;
+      cloudMapUidRef.current = null;
       unsubscribe();
     };
   }, [updateState]);

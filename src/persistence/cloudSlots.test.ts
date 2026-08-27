@@ -23,6 +23,7 @@ import {
   cloudSlotRecordFromPayload,
   cloudSlotStoragePath,
   cloudSlotWriteFields,
+  clearCloudAccountBinding,
   confirmManualSlotDownload,
   confirmManualSlotUpload,
   emptyCloudSlotViews,
@@ -33,6 +34,7 @@ import {
   readActiveCloudSlot,
   readCloudAccountBinding,
   readCloudSlotsFromDocument,
+  preferredCloudUploadPayload,
   summarizeCloudUploadSource,
   writeCloudAccountBinding,
   writeActiveCloudSlot
@@ -263,6 +265,23 @@ describe('cloud save slots', () => {
     expect(cloudSlotRecordFromPayload(1, payload, '2026-08-16T13:00:00.000Z').name).toBe('Bramble');
   });
 
+  it('prefers the named live snapshot over a stale unnamed local snapshot', () => {
+    const live = JSON.stringify({
+      bio: { name: '' },
+      workflowDrafts: { character: { version: 1, name: 'Fresh name' } },
+      saveRevision: 8
+    });
+    const stale = JSON.stringify({ bio: { name: '' }, saveRevision: 7 });
+    expect(preferredCloudUploadPayload(live, stale)).toBe(live);
+    expect(summarizeCloudUploadSource(live)).toMatchObject({ name: 'Fresh name', canUpload: true });
+  });
+
+  it('keeps a newer named local snapshot when a live render is stale', () => {
+    const staleLive = JSON.stringify({ bio: { name: 'Old name' }, saveRevision: 7 });
+    const newerStored = JSON.stringify({ bio: { name: 'New name' }, saveRevision: 8 });
+    expect(preferredCloudUploadPayload(staleLive, newerStored)).toBe(newerStored);
+  });
+
   it('allows a sizable slot that would overflow when three campaign bodies share one document', () => {
     const payload = JSON.stringify({
       bio: { name: '대용량 약제사' },
@@ -293,6 +312,21 @@ describe('cloud save slots', () => {
     expect(formatCloudSlotUploadedAt(null)).toBe('시각 미상');
   });
 
+  it('keeps account and active-slot helpers safe when browser storage is unavailable', () => {
+    const blocked = {
+      getItem() { throw new Error('storage blocked'); },
+      setItem() { throw new Error('storage blocked'); },
+      removeItem() { throw new Error('storage blocked'); }
+    };
+    clearCloudAccountBinding(blocked);
+    writeActiveCloudSlot(1, blocked);
+    expect(readActiveCloudSlot(blocked)).toBe(1);
+    expect(readCloudAccountBinding(blocked)).toBeNull();
+    expect(writeActiveCloudSlot(2, blocked)).toBe(false);
+    expect(writeCloudAccountBinding('user-a', blocked)).toBe(false);
+    expect(() => clearCloudAccountBinding(blocked)).not.toThrow();
+  });
+
   it('exposes a three-slot cloud panel with manual download and upload', () => {
     expect(appSource).toContain('이 기기로 내려받기');
     expect(appSource).toContain('이 슬롯에 올리기');
@@ -308,13 +342,18 @@ describe('cloud save slots', () => {
     expect(appSource).toContain('이 작업은 되돌릴 수 없습니다.');
     expect(appSource).toContain('runTransaction');
     expect(appSource).toContain("setDoc(doc(db, 'saves', payloadDocumentId)");
-    expect(appSource).toContain("getDoc(doc(db, 'saves', record.payloadDocumentId))");
+    expect(appSource).toContain("getDocFromServer(doc(db, 'saves', record.payloadDocumentId))");
+    expect(appSource).toContain("getDocFromServer(doc(db, 'saves', mapConnectionArchiveDocumentId(uid)))");
+    expect(appSource).toContain("getDocFromServer(doc(db, 'saves', OFFICIAL_MAP_POINTER_DOCUMENT_ID))");
+    expect(appSource).toContain('cloudMapUidRef.current !== user.uid');
+    expect(appSource).toContain('auth?.currentUser?.uid !== uid');
+    expect(appSource).toContain('const devicePayload = await readDeviceSave(CAMPAIGN_SAVE_KEY);');
     expect(appSource).toContain('[CAMPAIGN_SAVE_KEY]: deleteField()');
     expect(appSource).toContain('older documents used `"1"` as well as `"slot-1"`');
     expect(appSource).toContain('...compactDocument');
     expect(appSource).toContain('cloudSlotPayloadDocumentBelongsToAccount');
     expect(appSource).toContain('readCloudAccountBinding() === uid');
-    expect(appSource).toContain('로컬 저장 공간이 부족해 클라우드 저장으로 전환합니다');
+    expect(appSource).toContain('writeDeviceSave(key, jsonString)');
     expect(appSource).toContain('writeCloudSaveDirectly(uid, slot, jsonString)');
     expect(appSource).toContain('클라우드에는 저장했습니다. 이 화면을 닫기 전');
     expect(appSource).toContain('window.confirm.call(window, message)');

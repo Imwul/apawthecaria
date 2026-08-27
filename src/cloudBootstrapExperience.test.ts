@@ -12,8 +12,9 @@ describe('cloud bootstrap experience', () => {
 
   it('bounds remote startup work and offers an explicit local fallback', () => {
     expect(appSource).toContain('const CLOUD_BOOTSTRAP_TIMEOUT_MS = 3000;');
-    expect(appSource).toContain('withCloudBootstrapTimeout(getDoc(userDocRef))');
+    expect(appSource).toContain('withCloudBootstrapTimeout(getDocFromServer(userDocRef))');
     expect(appSource).toContain('cloudBootstrapSkipped.current = true;');
     expect(appSource).toContain('기기 기록으로 먼저 열기');
+    expect(appSource).toContain('must not interrupt an unrelated turn with a modal');
   });
 });

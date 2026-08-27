@@ -13,7 +13,7 @@ describe('interrupted workflow lifecycle wiring', () => {
     expect(appSource.match(/window\.addEventListener\(WORKFLOW_DRAFT_FLUSH_EVENT/g)).toHaveLength(3);
     expect(appSource.match(/window\.addEventListener\(WORKFLOW_DRAFT_CONTROL_EVENT/g)).toHaveLength(3);
     expect(appSource).toContain('const flushWorkflowDrafts = () => window.dispatchEvent(new Event(WORKFLOW_DRAFT_FLUSH_EVENT))');
-    expect(appSource.match(/flushWorkflowDrafts\(\);/g)).toHaveLength(7);
+    expect(appSource.match(/flushWorkflowDrafts\(\);/g)).toHaveLength(8);
   });
 
   it('flushes the old campaign before cloud replacement, import, sign-out, or upload reads', () => {
@@ -21,7 +21,7 @@ describe('interrupted workflow lifecycle wiring', () => {
       ['const loadCloudRecord =', 'resetCampaignScopedUi();'],
       ['const handleSignOut =', 'await signOut(auth);'],
       ['const handleDownloadCloudSlot =', 'resetCampaignScopedUi();'],
-      ['const handleUploadCloudSlot =', 'localStorage.getItem(CAMPAIGN_SAVE_KEY)'],
+      ['const handleUploadCloudSlot =', 'safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY)'],
       ['onCampaignImported={(nextState: GameState) => {', 'resetCampaignScopedUi();']
     ] as const;
     for (const [startMarker, endMarker] of replacementBoundaries) {
@@ -66,6 +66,8 @@ describe('interrupted workflow lifecycle wiring', () => {
 
   it('invalidates stale async bootstrap work when the signed-in account changes', () => {
     expect(appSource).toContain('const authBootstrapGenerationRef = useRef(0);');
+    expect(appSource).toContain('const authBootstrapUserUidRef = useRef<string | null>(null);');
+    expect(appSource).toContain('if (authBootstrapUserUidRef.current !== nextUid) cloudBootstrapSkipped.current = false;');
     expect(appSource).toContain('const bootstrapGeneration = ++authBootstrapGenerationRef.current;');
     expect(appSource).toContain('auth.currentUser?.uid === u?.uid');
     expect(appSource).toContain('if (cloudBootstrapSkipped.current || !bootstrapStillCurrent()) return;');
