@@ -1,4 +1,5 @@
 import { mapConnectionFingerprint, normalizeArchivedMapEdges, type ArchivedMapEdge } from './mapConnectionArchive';
+import { MAP_TERRAINS, type MapTerrain } from './mapGlyphTypes';
 
 export interface OfficialMapLocation {
   id: string;
@@ -6,6 +7,7 @@ export interface OfficialMapLocation {
   x: number;
   y: number;
   region?: string;
+  terrainOptions?: MapTerrain[];
   kind?: string;
   aliases?: string[];
   neighbors: string[];
@@ -49,6 +51,12 @@ export const normalizeOfficialMapLocations = (value: unknown): OfficialMapLocati
         : []
     };
     if (typeof row.region === 'string' && row.region.trim()) location.region = row.region.trim();
+    if (Array.isArray(row.terrainOptions)) {
+      const terrainOptions = Array.from(new Set(
+        row.terrainOptions.filter((entry): entry is MapTerrain => typeof entry === 'string' && MAP_TERRAINS.includes(entry as MapTerrain))
+      ));
+      if (terrainOptions.length > 0) location.terrainOptions = terrainOptions;
+    }
     if (typeof row.kind === 'string' && row.kind.trim()) location.kind = row.kind.trim();
     if (Array.isArray(row.aliases)) {
       location.aliases = Array.from(new Set(row.aliases.filter((entry): entry is string => typeof entry === 'string' && Boolean(entry.trim())).map(entry => entry.trim())));
@@ -68,6 +76,7 @@ export const officialMapFingerprint = (locationsValue: unknown, edgesValue: unkn
     x: location.x,
     y: location.y,
     region: location.region || '',
+    terrainOptions: [...(location.terrainOptions || [])].sort(),
     kind: location.kind || '',
     aliases: [...(location.aliases || [])].sort(),
     hidden: Boolean(location.hidden)

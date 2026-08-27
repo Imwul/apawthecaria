@@ -67,4 +67,12 @@ describe('composite printed encounter overrides', () => {
       effect: expect.objectContaining({ type: 'customEffect', code: 'SAIN_DE_CLAWS_PRESENT_HUNT' })
     }));
   });
+
+  it('exposes Log Knocking as a single canonical reagent choice', () => {
+    const encounter = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-forest-6')!;
+    expect(encounter.sourcePage).toBe(161);
+    expect(encounter.choices.map(choice => choice.id)).toEqual(['choose-bug-reagent']);
+    expect(encounter.choices[0].label).toContain('Beetles, Maggots, Wasps');
+    expect(encounter.support).toBe('implemented');
+  });
 });

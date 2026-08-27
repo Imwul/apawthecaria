@@ -43,6 +43,15 @@ describe('patient identity experience', () => {
 });
 
 describe('local-care journey composition', () => {
+  it('closes a cured patient hold when the last Scrounging Timer is spent', () => {
+    expect(appSource).toContain('const canScrounge = runtime.patient.status === \'cured\' && remaining > 0;');
+    expect(appSource).toContain('const activePatientId = canScrounge');
+    expect(appSource).toContain('keepsCuredPatientOpen');
+    expect(appSource).toContain('if (!journeyUiContext.canMove) {\n      addActionHubItem({\n        id: \'clinic-open\'');
+    expect(appSource).toContain("if (journeyUiContext.canMove && !state.pursuedByBehemoth\n      && !state.activeAilment && !state.scroungingMode)");
+    expect(appSource).not.toContain("if (journeyUiContext.canMove && !state.pursuedByBehemoth\n      && !state.activePatientId && !state.activeAilment && !state.scroungingMode)");
+  });
+
   it('replaces the fixed map and route editor with a full-width progress summary while local help is required', () => {
     expect(appSource).toContain('const localCarePhase = journeyUiContext.active && (');
     expect(appSource).toContain("journeyUiContext.phase === 'manual-pending'");

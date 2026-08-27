@@ -8953,6 +8953,21 @@ button,
   gap: 0.35rem;
 }
 
+.map-node-appearance__terrain-group {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.45rem;
+  border: 1px solid rgba(91, 116, 67, 0.28);
+  background: rgba(238, 241, 223, 0.42);
+}
+
+.map-node-appearance__terrain-help {
+  margin: 0;
+  color: #5d6e57;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
 .map-node-appearance__choice,
 .map-node-appearance__swatch {
   display: grid;

@@ -76,4 +76,20 @@ describe('journey recovery reset', () => {
       currentMapLocationId: 'legacy-stop'
     });
   });
+
+  it('removes journey-owned and legacy bear markers while keeping older permanent barrow rumours', () => {
+    const reset = resetJourneyForPlanning({
+      journeyActive: true,
+      journey: { journeyId: 'journey-2', originId: 'odoak', startDate: 100 },
+      journeyOrigin: 'Odoak',
+      currentLocationName: 'Forest',
+      barrows: [
+        { id: 'journey-barrow', journeyId: 'journey-2', createdAt: 120 },
+        { id: 'legacy-barrow', createdAt: 80 },
+        { id: 'bear-barrow:forest' },
+        { id: 'barrow_1', createdAt: 120 }
+      ]
+    });
+    expect(reset.barrows).toEqual([{ id: 'legacy-barrow', createdAt: 80 }]);
+  });
 });

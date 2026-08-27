@@ -1,3 +1,5 @@
+import { MAP_TERRAINS, type MapTerrain } from './mapGlyphTypes';
+
 export type PlayerMarkerRecord = {
   id: string;
   label: string;
@@ -5,6 +7,7 @@ export type PlayerMarkerRecord = {
   y: number;
   kind?: string;
   region?: string;
+  terrainOptions?: MapTerrain[];
   updatedAt: number;
 };
 
@@ -16,7 +19,9 @@ const isRecord = (value: unknown): value is PlayerMarkerRecord => {
   return typeof row.id === 'string'
     && typeof row.label === 'string'
     && Number.isFinite(row.x)
-    && Number.isFinite(row.y);
+    && Number.isFinite(row.y)
+    && (!('terrainOptions' in row) || (Array.isArray(row.terrainOptions)
+      && row.terrainOptions.every(value => MAP_TERRAINS.includes(value as MapTerrain))));
 };
 
 export const loadPlayerMarkers = (): PlayerMarkerRecord[] => {
@@ -51,6 +56,9 @@ export const upsertPlayerMarkerRecords = (records: readonly PlayerMarkerRecord[]
     byId.set(record.id, {
       ...byId.get(record.id),
       ...record,
+      terrainOptions: record.terrainOptions?.length
+        ? [...new Set(record.terrainOptions.filter(value => MAP_TERRAINS.includes(value)))]
+        : undefined,
       updatedAt: Date.now()
     });
   });

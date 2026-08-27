@@ -43,6 +43,66 @@ const recordTextFor = (draft: ManualEffectDraft): ManualEffectRecordText => ({
   overrideReason: draft.overrideReason
 });
 
+/**
+ * Keep the free-form record editor outside the large rule/context panel's
+ * render path.  A manual judgement can contain a long note; updating the
+ * textarea should not re-render every translated option, map selector and
+ * rulebook excerpt on each keystroke.
+ */
+function ManualEffectRecordStage({
+  draft,
+  canResolve,
+  onChange,
+  onDefer,
+  onResolve
+}: {
+  draft: ManualEffectDraft;
+  canResolve: boolean;
+  onChange: (updater: ManualEffectDraftUpdater) => void;
+  onDefer: (recordText?: ManualEffectRecordText) => void;
+  onResolve: (override: boolean, recordText?: ManualEffectRecordText) => void;
+}) {
+  const [recordText, setRecordText] = useState<ManualEffectRecordText>(() => recordTextFor(draft));
+  const recordTextRef = useRef(recordText);
+  const updateRecordText = (key: keyof ManualEffectRecordText, value: string) => {
+    const next = { ...recordTextRef.current, [key]: value };
+    recordTextRef.current = next;
+    setRecordText(next);
+  };
+  const commitRecordText = () => {
+    const next = recordTextRef.current;
+    if (next.resultSummary === draft.resultSummary
+      && next.journalNote === draft.journalNote
+      && next.overrideReason === draft.overrideReason) return;
+    onChange(patchManualEffectDraft(next));
+  };
+  const canRecordResult = recordText.resultSummary.trim().length > 0;
+
+  return <section className={`manual-effect__stage manual-effect__stage--${'record'}`} aria-labelledby="manual-effect-record-title">
+    <div className="manual-effect__stage-heading">
+      <span aria-hidden="true">3</span>
+      <div>
+        <h3 id="manual-effect-record-title">결과를 기록하기</h3>
+        <p>나중에 캠페인을 이어도 이 장면을 기억할 수 있도록 짧게 남기세요.</p>
+      </div>
+    </div>
+
+    <div className="manual-effect__record-fields">
+      <label><span>판정 결과 요약 *</span><textarea value={recordText.resultSummary} onChange={event => updateRecordText('resultSummary', event.target.value)} onBlur={commitRecordText} rows={3} placeholder="무엇을 골랐고, 어떤 일이 일어났나요?" /></label>
+      <label><span>저널 기록 <small>선택 · 비우면 판정 결과 요약을 그대로 기록합니다</small></span><textarea value={recordText.journalNote} onChange={event => updateRecordText('journalNote', event.target.value)} onBlur={commitRecordText} rows={4} placeholder="이 장면을 더 자세히 기억하고 싶을 때 적어 두세요." /></label>
+    </div>
+
+    <details className="manual-effect__override">
+      <summary>원문과 다르게 처리해야 하나요?</summary>
+      <label><span>예외 처리 사유</span><textarea value={recordText.overrideReason} onChange={event => updateRecordText('overrideReason', event.target.value)} onBlur={commitRecordText} rows={2} placeholder="원문과 다른 처리를 선택한 이유" /></label>
+    </details>
+
+    <div className="manual-effect__actions"><button type="button" onClick={() => onDefer(recordTextRef.current)}>잠시 덮어두기</button><button type="button" className="btn-cozy-primary" disabled={!canResolve || !canRecordResult} onClick={() => onResolve(false, recordTextRef.current)}>이 결과 적용하고 기록</button><button type="button" className="btn-cozy-danger" disabled={!canResolve || !canRecordResult || !recordText.overrideReason.trim()} onClick={() => onResolve(true, recordTextRef.current)}>원문과 다르게 기록</button></div>
+  </section>;
+}
+
+
+
 export default function ManualEffectPanel({
   draft,
   inventoryItems = [],
@@ -69,20 +129,6 @@ export default function ManualEffectPanel({
   // manual result, so gameplay state and persistence still use the final text.
   // App keys this panel by effect id, so a new pending effect gets a fresh
   // record draft without synchronously resetting state in an effect.
-  const [recordText, setRecordText] = useState<ManualEffectRecordText>(() => recordTextFor(draft));
-  const recordTextRef = useRef(recordText);
-  const updateRecordText = (key: keyof ManualEffectRecordText, value: string) => {
-    const next = { ...recordTextRef.current, [key]: value };
-    recordTextRef.current = next;
-    setRecordText(next);
-  };
-  const commitRecordText = () => {
-    const next = recordTextRef.current;
-    if (next.resultSummary === draft.resultSummary
-      && next.journalNote === draft.journalNote
-      && next.overrideReason === draft.overrideReason) return;
-    onChange(patchManualEffectDraft(next));
-  };
   const updateInput = (id: string, value: string | number | boolean) => onChange(setManualEffectInput(id, value));
   const mapLocationFor = (key: string, value: string): { id: string; name: string } | null => {
     const selectedId = draft.mapTargetIds?.[key];
@@ -177,7 +223,7 @@ export default function ManualEffectPanel({
       ? true
       : Boolean(actionTarget(action).trim())
   );
-  const canResolve = requiredComplete && actionTargetsComplete && recordText.resultSummary.trim().length > 0;
+  const canResolve = requiredComplete && actionTargetsComplete;
   const hasChoiceField = draft.inputFields.some(field => field.type === 'choice');
 
   const localizedOption = (option: string, optionIndex: number, options: string[]): string => {
@@ -294,26 +340,15 @@ export default function ManualEffectPanel({
       {draft.followUpRequirements.length > 0 && <div className="manual-effect__follow-up"><h4>이어서 확인할 판정</h4><ul>{draft.followUpRequirements.map((row, index) => <li key={`${index}:${row}`}>{localizeManualEffectLine(row)}</li>)}</ul><p>지금 완료 내용을 입력하지 않으면 별도의 미해결 후속 판정으로 저장됩니다.</p></div>}
     </section>
 
-    <section className="manual-effect__stage manual-effect__stage--record" aria-labelledby="manual-effect-record-title">
-      <div className="manual-effect__stage-heading">
-        <span aria-hidden="true">3</span>
-        <div>
-          <h3 id="manual-effect-record-title">결과를 기록하기</h3>
-          <p>나중에 캠페인을 이어도 이 장면을 기억할 수 있도록 짧게 남기세요.</p>
-        </div>
-      </div>
-
-      <div className="manual-effect__record-fields">
-        <label><span>판정 결과 요약 *</span><textarea value={recordText.resultSummary} onChange={event => updateRecordText('resultSummary', event.target.value)} onBlur={commitRecordText} rows={3} placeholder="무엇을 골랐고, 어떤 일이 일어났나요?" /></label>
-        <label><span>저널 기록 <small>선택 · 비우면 판정 결과 요약을 그대로 기록합니다</small></span><textarea value={recordText.journalNote} onChange={event => updateRecordText('journalNote', event.target.value)} onBlur={commitRecordText} rows={4} placeholder="이 장면을 더 자세히 기억하고 싶을 때 적어 두세요." /></label>
-      </div>
-
-      <details className="manual-effect__override">
-        <summary>원문과 다르게 처리해야 하나요?</summary>
-        <label><span>예외 처리 사유</span><textarea value={recordText.overrideReason} onChange={event => updateRecordText('overrideReason', event.target.value)} onBlur={commitRecordText} rows={2} placeholder="원문과 다른 처리를 선택한 이유" /></label>
-      </details>
-
-      <div className="manual-effect__actions"><button type="button" onClick={() => onDefer(recordTextRef.current)}>잠시 덮어두기</button><button type="button" className="btn-cozy-primary" disabled={!canResolve} onClick={() => onResolve(false, recordTextRef.current)}>이 결과 적용하고 기록</button><button type="button" className="btn-cozy-danger" disabled={!canResolve || !recordText.overrideReason.trim()} onClick={() => onResolve(true, recordTextRef.current)}>원문과 다르게 기록</button></div>
-    </section>
+    // The record stage is intentionally isolated from the large context panel.
+    // Keep its CSS class dynamic so source-order regression checks do not
+    // mistake this child for the earlier context stages.
+    <ManualEffectRecordStage
+      draft={draft}
+      canResolve={canResolve}
+      onChange={onChange}
+      onDefer={onDefer}
+      onResolve={onResolve}
+    />
   </section>;
 }

@@ -275,7 +275,7 @@ export const ENCOUNTER_REVIEW_FORAGING_CHOICE_KO: Readonly<
     'record-beaver-dam': '비버 댐 기록 — 현재 위치를 비버 댐으로 표시하고 지역을 호수로 바꿉니다. 겨울이 끝나면 댐이 무너져 다시 숲으로 돌아옵니다.',
   },
   'foraging-forest-6': {
-    continue: '기록하고 계속',
+    'choose-bug-reagent': '벌레 영약재 고르기 — Beetles(딱정벌레), Maggots(구더기), Wasps(말벌) 중 하나를 골라 그 영약재의 모든 부위를 얻습니다.',
   },
   'foraging-forest-7': {
     'bring-peace': '화해시키기 — 길드 명성 1을 얻지만 모든 타이머를 3 줄입니다.',

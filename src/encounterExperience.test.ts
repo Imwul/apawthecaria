@@ -203,7 +203,10 @@ describe('encounter player-experience guards', () => {
     const why = manualSource.indexOf('왜 직접 고르나요?');
     const scene = manualSource.indexOf('장면을 읽고 고르기');
     const changes = manualSource.indexOf('바뀌는 값 확인하기');
-    const record = manualSource.indexOf('결과를 기록하기');
+    // The record stage is rendered by a small child component so its long
+    // textarea can stay local while typing.  Assert the parent render order,
+    // rather than matching the child's declaration earlier in the module.
+    const record = manualSource.indexOf('<ManualEffectRecordStage');
     expect(why).toBeGreaterThan(-1);
     expect(why).toBeLessThan(scene);
     expect(scene).toBeLessThan(changes);

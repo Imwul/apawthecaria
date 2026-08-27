@@ -112,9 +112,9 @@ describe('Release Candidate rulebook closure', () => {
 
     expect(PRINTED_EFFECT_REGISTRY).toHaveLength(358);
     expect(Object.values(classes).reduce((sum, count) => sum + count, 0)).toBe(358);
-    expect(classes).toMatchObject({ deterministic: 8, 'structured-choice': 21, narrative: 329, ambiguous: 0 });
-    expect(PRINTED_EFFECT_REGISTRY.filter(effect => effect.status === 'implemented')).toHaveLength(29);
-    expect(PRINTED_EFFECT_REGISTRY.filter(effect => effect.status === 'manual')).toHaveLength(329);
+    expect(classes).toMatchObject({ deterministic: 8, 'structured-choice': 22, narrative: 328, ambiguous: 0 });
+    expect(PRINTED_EFFECT_REGISTRY.filter(effect => effect.status === 'implemented')).toHaveLength(30);
+    expect(PRINTED_EFFECT_REGISTRY.filter(effect => effect.status === 'manual')).toHaveLength(328);
     expect(PRINTED_EFFECT_REGISTRY.every(effect => effect.sourcePage >= 6 && effect.sourcePage <= 213)).toBe(true);
     expect(PRINTED_EFFECT_REGISTRY.filter(effect => effect.status === 'manual').every(effect => effect.manualResolution?.reason.trim())).toBe(true);
   });

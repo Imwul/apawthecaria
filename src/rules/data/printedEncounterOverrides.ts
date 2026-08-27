@@ -441,6 +441,20 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     ],
     support: 'manual-only'
   },
+  'foraging-forest-6': {
+    // p.161: the encounter presents one clear decision—choose which insect
+    // reagent to take.  The app resolves the choice and adds every canonical
+    // preparation for that reagent after the normal Forage checkpoint.
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'choose-bug-reagent',
+        label: '벌레 영약재 고르기 — Beetles, Maggots, Wasps 중 하나를 골라 그 영약재의 모든 부위를 얻습니다.',
+        effects: []
+      }
+    ],
+    support: 'implemented'
+  },
   'foraging-bog-m-autumn': {
     mandatoryEffects: [],
     choices: [

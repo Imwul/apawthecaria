@@ -133,7 +133,10 @@ export const getJourneyUiContext = (state: JourneyUiState): JourneyUiContext => 
   if (state.scroungingMode) {
     return context('local-care', true, atDestination, 'scrounging', 'patient-clinic-panel', 'Moving On으로 떠날 준비를 마무리하세요.');
   }
-  if (state.activeAilment || state.activePatientId) {
+  // activePatientId is a legacy mirror and can outlive a cured/failed case.
+  // Only an active ailment is a real treatment blocker; the canonical
+  // patient projection clears the mirror when the last extra Timer is spent.
+  if (state.activeAilment) {
     return context('local-care', true, atDestination, 'active-patient', 'treatment-workspace', '현재 환자의 진료를 먼저 마무리하세요.');
   }
   if (state.needsLocalHelpBeforeMove) {

@@ -8,7 +8,7 @@ interface JourneyPatientRecord {
 export interface JourneyResettableState {
   journeyActive: boolean;
   journeyOrigin?: string;
-  journey?: { originId?: string } | null;
+  journey?: { originId?: string; journeyId?: string; startDate?: number } | null;
   currentLocationName?: string;
   currentMapLocationId?: string;
   currentLocationType?: string;
@@ -16,6 +16,9 @@ export interface JourneyResettableState {
   activePatientId?: string | null;
   patients?: JourneyPatientRecord[];
   routeDraft?: RouteDraft;
+  mapEncounterRecords?: Array<{ journeyId?: string; createdAt?: number }>;
+  /** Temporary landmark marks created while an active Journey was in progress. */
+  barrows?: Array<{ id?: string; journeyId?: string; createdAt?: number }>;
 }
 
 export interface JourneyResetOrigin {
@@ -38,6 +41,32 @@ export const resetJourneyForPlanning = <T extends JourneyResettableState>(state:
   const patients = Array.isArray(state.patients)
     ? state.patients.filter(patient => patient.id !== activePatientId && patient.status !== 'active')
     : state.patients;
+  const activeJourneyId = state.journey?.journeyId?.trim();
+  const journeyStartedAt = typeof state.journey?.startDate === 'number' && Number.isFinite(state.journey.startDate)
+    ? state.journey.startDate
+    : 0;
+  // Map annotations created by an abandoned Journey are part of that
+  // reversible workflow. Keep older/legacy annotations (which have no
+  // journey id and predate the Journey) intact.
+  const mapEncounterRecords = Array.isArray(state.mapEncounterRecords)
+    ? state.mapEncounterRecords.filter(record => {
+      if (activeJourneyId && record.journeyId === activeJourneyId) return false;
+      if (activeJourneyId && journeyStartedAt > 0 && typeof record.createdAt === 'number' && record.createdAt >= journeyStartedAt) return false;
+      return true;
+    })
+    : state.mapEncounterRecords;
+  // A bear/Behemoth marker can be created by a Foraging encounter.  It is a
+  // Journey annotation, not a permanent map edit, so discard only markers
+  // tied to this Journey (or the legacy bear marker shape).  Established
+  // Barrow rumours remain campaign data.
+  const barrows = Array.isArray(state.barrows)
+    ? state.barrows.filter(barrow => {
+      if (activeJourneyId && barrow.journeyId === activeJourneyId) return false;
+      if (activeJourneyId && journeyStartedAt > 0 && typeof barrow.createdAt === 'number' && barrow.createdAt >= journeyStartedAt) return false;
+      if (barrow.id?.startsWith('bear-barrow:')) return false;
+      return true;
+    })
+    : state.barrows;
   return {
     ...state,
     journeyActive: false,
@@ -65,6 +94,8 @@ export const resetJourneyForPlanning = <T extends JourneyResettableState>(state:
     calendarMaxDays: 12,
     calendarHistory: [],
     routeDraft: { stops: [], edgeKinds: [] },
+    mapEncounterRecords,
+    barrows,
     activeAilment: null,
     activeAilments: [],
     activePatientId: null,

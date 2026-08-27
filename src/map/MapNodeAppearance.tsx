@@ -5,12 +5,27 @@ import { MAP_GLYPH_KIND_LABELS, MAP_GLYPH_KINDS, MAP_TERRAIN_LABELS, MAP_TERRAIN
 type MapNodeAppearanceProps = {
   kind: MapGlyphKind;
   terrain: MapTerrain | null;
+  /**
+   * A few printed places (currently Glasswall) span more than one terrain.
+   * The singular `terrain` remains the primary colour used by the glyph;
+   * this list records the complete manual map annotation.
+   */
+  terrainOptions?: readonly MapTerrain[];
+  multipleTerrains?: boolean;
   name?: string;
-  onChange: (next: { kind: MapGlyphKind; terrain: MapTerrain | null; name?: string }) => void;
+  onChange: (next: { kind: MapGlyphKind; terrain: MapTerrain | null; terrainOptions?: MapTerrain[]; name?: string }) => void;
   heading?: string;
 };
 
-export function MapNodeAppearance({ kind, terrain, name = '', onChange, heading = '표시 형태' }: MapNodeAppearanceProps) {
+export function MapNodeAppearance({
+  kind,
+  terrain,
+  terrainOptions,
+  multipleTerrains = false,
+  name = '',
+  onChange,
+  heading = '표시 형태'
+}: MapNodeAppearanceProps) {
   const [addingName, setAddingName] = useState(Boolean(name.trim()));
   const [draftName, setDraftName] = useState(name);
   const [lastCommittedName, setLastCommittedName] = useState(name);
@@ -20,10 +35,17 @@ export function MapNodeAppearance({ kind, terrain, name = '', onChange, heading 
   }
   const showName = addingName || Boolean(name.trim());
   const showTerrain = glyphUsesTerrain(kind);
-  const emit = (next: { kind: MapGlyphKind; terrain: MapTerrain | null; name?: string }) => {
+  const selectedTerrains = new Set<MapTerrain>(
+    (multipleTerrains ? (terrainOptions?.length ? terrainOptions : terrain ? [terrain] : []) : terrain ? [terrain] : [])
+      .filter((value): value is MapTerrain => MAP_TERRAINS.includes(value))
+  );
+  const emit = (next: { kind: MapGlyphKind; terrain: MapTerrain | null; terrainOptions?: MapTerrain[]; name?: string }) => {
     onChange({
       ...next,
-      terrain: glyphUsesTerrain(next.kind) ? next.terrain : null
+      terrain: glyphUsesTerrain(next.kind) ? next.terrain : null,
+      terrainOptions: multipleTerrains
+        ? Array.from(new Set((next.terrainOptions || []).filter((value): value is MapTerrain => MAP_TERRAINS.includes(value))))
+        : undefined
     });
   };
   const commitName = (nextName = draftName) => {
@@ -49,19 +71,33 @@ export function MapNodeAppearance({ kind, terrain, name = '', onChange, heading 
         ))}
       </div>
       {showTerrain && (
-        <div className="map-node-appearance__row" role="group" aria-label="지형색">
+        <div className="map-node-appearance__terrain-group" role={multipleTerrains ? 'group' : undefined} aria-label={multipleTerrains ? '지형 여러 개 선택' : '지형색'}>
+          {multipleTerrains && <p className="map-node-appearance__terrain-help">이 위치는 여러 지형에 걸칩니다. 해당되는 지형을 모두 표시하세요.</p>}
+          <div className="map-node-appearance__row" role="group" aria-label="지형색">
           {MAP_TERRAINS.map(option => (
             <button
               key={option}
               type="button"
-              className={`map-node-appearance__swatch${terrain === option ? ' is-on' : ''}`}
-              aria-pressed={terrain === option}
-              onClick={() => emit({ kind, terrain: option, name: draftName })}
+              className={`map-node-appearance__swatch${selectedTerrains.has(option) ? ' is-on' : ''}`}
+              aria-pressed={selectedTerrains.has(option)}
+              onClick={() => {
+                if (!multipleTerrains) {
+                  emit({ kind, terrain: option, name: draftName });
+                  return;
+                }
+                const nextTerrains = new Set(selectedTerrains);
+                if (nextTerrains.has(option)) nextTerrains.delete(option);
+                else nextTerrains.add(option);
+                if (nextTerrains.size === 0) return;
+                const ordered = MAP_TERRAINS.filter(value => nextTerrains.has(value));
+                emit({ kind, terrain: terrain && nextTerrains.has(terrain) ? terrain : ordered[0], terrainOptions: ordered, name: draftName });
+              }}
             >
               <MapGlyph kind={kind} terrain={option} size={16} />
               <span>{MAP_TERRAIN_LABELS[option]}</span>
             </button>
           ))}
+          </div>
         </div>
       )}
       {showName ? (

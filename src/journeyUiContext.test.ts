@@ -76,6 +76,11 @@ describe('Journey UI context', () => {
     }))).toMatchObject({ phase: 'local-care', canMove: false, primaryActionId: 'active-patient' });
   });
 
+  it('does not treat an orphaned patient id as a treatment blocker', () => {
+    expect(getJourneyUiContext(active({ activePatientId: 'cured-patient' })))
+      .toMatchObject({ phase: 'route-ready', canMove: true, primaryActionId: 'travel-next' });
+  });
+
   it('uses printed names only as a legacy fallback when canonical ids are unavailable', () => {
     const mismatchedIds = getJourneyUiContext(active({
       currentMapLocationId: 'odoak-id',

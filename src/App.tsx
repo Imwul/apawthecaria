@@ -92,6 +92,7 @@ import {
   type ConfirmedRouteSummary,
   type RouteStop
 } from "./map/routeComposer";
+import { MAP_TERRAINS, type MapTerrain } from "./map/mapGlyphTypes";
 import {
   applyRacingBetsSnackSpeed,
   consumeRacingBetsSnackSpeed,
@@ -1382,6 +1383,9 @@ interface Barrow {
   locationName: string;
   locationId: string;
   removed: boolean;
+  /** Present for landmarks created during a Journey; used by Journey reset. */
+  journeyId?: string;
+  createdAt?: number;
 }
 
 type ActiveDelve = BarrowDelveState;
@@ -2102,6 +2106,8 @@ interface MapLocationNode {
   x: number;
   y: number;
   region?: MapRegion;
+  /** Printed places may span several terrain regions (Glasswall). */
+  terrainOptions?: MapTerrain[];
   kind?: MapLocationKind;
   aliases?: string[];
   neighbors: string[];
@@ -2123,6 +2129,8 @@ interface MapEncounterRecord {
   label: string;
   sourceEncounterId?: string;
   sourcePage?: number;
+  /** Journey that created this temporary map annotation, when known. */
+  journeyId?: string;
   createdAt: number;
 }
 
@@ -2142,6 +2150,7 @@ const normalizeMapEncounterRecords = (value: unknown): MapEncounterRecord[] => {
         label,
         sourceEncounterId: typeof row.sourceEncounterId === 'string' ? row.sourceEncounterId : undefined,
         sourcePage: Number.isFinite(Number(row.sourcePage)) ? Number(row.sourcePage) : undefined,
+        journeyId: typeof row.journeyId === 'string' && row.journeyId.trim() ? row.journeyId.trim() : undefined,
         createdAt: Number.isFinite(Number(row.createdAt)) ? Number(row.createdAt) : 0
       } satisfies MapEncounterRecord;
     })
@@ -2195,7 +2204,18 @@ const MAP_LOCATIONS: Record<string, MapLocationNode> = {
   bigpaw: { label: 'Bigpaw', x: 11, y: 83, neighbors: ['windtop', 'moatcourt'] },
   moatcourt: { label: 'Moatcourt', x: 20, y: 92, neighbors: ['bigpaw', 'glasswall'] },
   wavshade: { label: 'Waveshade', x: 18, y: 72, neighbors: ['glasswall', 'locsid'] },
-  glasswall: { label: 'Glasswall', x: 27, y: 69, aliases: ['글래스월'], neighbors: ['vessel', 'wavshade', 'moatcourt', 'locsid'] },
+  // Glasswall is the one printed city that may be treated as any of the five
+  // ordinary terrain regions. Keep Forest as its primary glyph colour for
+  // backwards compatibility, while retaining the complete manual annotation.
+  glasswall: {
+    label: 'Glasswall',
+    x: 27,
+    y: 69,
+    aliases: ['글래스월'],
+    region: 'Forest',
+    terrainOptions: [...MAP_TERRAINS],
+    neighbors: ['vessel', 'wavshade', 'moatcourt', 'locsid']
+  },
   vessel: { label: 'Vessel', x: 34, y: 71, aliases: ['베셀'], neighbors: ['glasswall', 'noonhill', 'sailors_fang'] },
   noonhill: { label: 'Noonhill', x: 37, y: 91, aliases: ['눈힐'], neighbors: ['vessel', 'bogbridge', 'moatcourt'] },
   bogbridge: { label: 'Bogbridge', x: 46, y: 92, neighbors: ['noonhill', 'summit', 'sweetgorse'] },
@@ -2363,7 +2383,8 @@ const buildMapGraphNodes = (customLocations: CustomMapLocation[] = [], customEdg
         x: record.x,
         y: record.y,
         kind,
-        region
+        region,
+        terrainOptions: record.terrainOptions?.length ? [...record.terrainOptions] : existing.terrainOptions
       };
       return;
     }
@@ -2373,6 +2394,7 @@ const buildMapGraphNodes = (customLocations: CustomMapLocation[] = [], customEdg
       y: record.y,
       kind,
       region,
+      terrainOptions: record.terrainOptions?.length ? [...record.terrainOptions] : undefined,
       neighbors: []
     };
   });
@@ -3256,34 +3278,57 @@ const projectActiveAilments = (s: GameState): ActiveAilment[] => {
 };
 
 const withCanonicalPatientView = (s: GameState): GameState => {
-  const activeAilments = projectActiveAilments(s);
-  const companions = s.rulesetId === 'original-1e-3p' && s.companionStates.length > 0
-    ? s.companionStates.map(row => {
-        const existing = s.companions.find(companion => companion.id === row.instanceId || companion.name === row.companionId);
+  // A cured case is kept open only for the optional Scrounging window. Older
+  // saves (and the pre-fix Scrounging adapter) could leave its patient id
+  // behind after the final extra Timer was spent, which made the journey look
+  // like it still required treatment. Canonicalize that mirror on every read
+  // while preserving an active patient and a real, non-empty Scrounging window.
+  const activePatient = s.activePatientId
+    ? s.patients.find(patient => patient.id === s.activePatientId) || null
+    : null;
+  const keepsCuredPatientOpen = Boolean(
+    s.scroungingMode
+    && s.scroungingTimer
+    && activePatient?.status === 'cured'
+  );
+  const hasActiveAilment = Boolean(activePatient?.ailments.some(ailment => ailment.status === 'active'));
+  const keepsActiveTreatmentOpen = activePatient?.status === 'active' && hasActiveAilment;
+  // Also clear orphaned ids and legacy "active" patients with no active
+  // ailment.  Both shapes used to leave the progress board in a phantom
+  // treatment step after the last extra Timer was spent.
+  const canonicalState = s.activePatientId
+    && !keepsActiveTreatmentOpen
+    && !keepsCuredPatientOpen
+    ? { ...s, activePatientId: null }
+    : s;
+  const activeAilments = projectActiveAilments(canonicalState);
+  const companions = canonicalState.rulesetId === 'original-1e-3p' && canonicalState.companionStates.length > 0
+    ? canonicalState.companionStates.map(row => {
+        const existing = canonicalState.companions.find(companion => companion.id === row.instanceId || companion.name === row.companionId);
         const definition = COMPANIONS_DB.find(companion => canonicalCompanionId(companion.id) === canonicalCompanionId(row.companionId));
         return existing || {
           id: row.instanceId,
           name: row.companionId,
           koreanName: definition?.name.split(' (')[0] || row.companionId,
-          adoptedLocation: s.currentLocationName,
+          adoptedLocation: canonicalState.currentLocationName,
           seasonsTravelled: row.seasonsTravelled
         };
       })
-    : s.companions;
-  const companionHive = s.rulesetId === 'original-1e-3p' && s.companionHiveStates.length > 0
-    ? s.companionHiveStates.map(row => {
-        const existing = s.companionHive.find(companion => companion.id === row.instanceId || companion.name === row.companionId);
+    : canonicalState.companions;
+  const companionHive = canonicalState.rulesetId === 'original-1e-3p' && canonicalState.companionHiveStates.length > 0
+    ? canonicalState.companionHiveStates.map(row => {
+        const existing = canonicalState.companionHive.find(companion => companion.id === row.instanceId || companion.name === row.companionId);
         const definition = COMPANIONS_DB.find(companion => canonicalCompanionId(companion.id) === canonicalCompanionId(row.companionId));
         return existing || {
           id: row.instanceId,
           name: row.companionId,
           koreanName: definition?.name.split(' (')[0] || row.companionId,
-          adoptedLocation: s.currentLocationName,
+          adoptedLocation: canonicalState.currentLocationName,
           seasonsTravelled: row.seasonsTravelled
         };
       })
-    : s.companionHive;
-  return { ...s, activeAilment: activeAilments[0] || null, activeAilments, companions, companionHive };
+    : canonicalState.companionHive;
+  return { ...canonicalState, activeAilment: activeAilments[0] || null, activeAilments, companions, companionHive };
 };
 
 const withoutLegacyPatientWrite = (s: GameState): GameState => s.rulesetId === 'original-1e-3p'
@@ -3382,7 +3427,16 @@ const toLeaveRuntime = (s: GameState, patient: PatientState): LeaveRuntimeState 
 const applyLeaveRuntime = (s: GameState, runtime: LeaveRuntimeState): GameState => {
   const remaining = runtime.patient.timers.length > 0 ? Math.min(...runtime.patient.timers.map(timer => timer.current)) : 0;
   const canScrounge = runtime.patient.status === 'cured' && remaining > 0;
-  return {
+  // A Scrounging transaction reuses the leave runtime while the cured patient
+  // is still being held open. Once the last extra Timer is spent, that
+  // temporary hold must close too; otherwise the old activePatientId keeps
+  // Journey UI in local-care and offers "new treatment" again on the next
+  // render. Keep the cured patient only while Moving On/Scrounging is still
+  // available.
+  const activePatientId = canScrounge
+    ? (runtime.activePatientId === undefined ? s.activePatientId : runtime.activePatientId)
+    : null;
+  const next = {
     ...s,
     bag: fromEngineInventory(runtime.inventory, s.bag),
     patients: replacePatient(s.patients, runtime.patient),
@@ -3391,12 +3445,19 @@ const applyLeaveRuntime = (s: GameState, runtime: LeaveRuntimeState): GameState 
     scroungingTimer: canScrounge ? remaining : 0,
     scroungingMode: canScrounge,
     pendingLeaveObligation: runtime.pendingObligation,
-    activePatientId: runtime.activePatientId === undefined ? s.activePatientId : runtime.activePatientId,
+    activePatientId,
     pendingForaging: s.pendingForaging,
     patientArchive: runtime.patientArchive || s.patientArchive,
     appliedTransactionIds: runtime.appliedTransactionIds,
     journals: appendEngineJournals(s.journals, runtime.journalEvents)
   };
+  // Leave closes the Patient transaction.  Project the legacy patient view
+  // from the canonical patient list immediately so a stale activeAilment
+  // cannot make the action hub ask for treatment again after Moving On.
+  const projected = withCanonicalPatientView(next);
+  return projected.activePatientId
+    ? projected
+    : { ...projected, activeAilment: null, activeAilments: [] };
 };
 
 const settleExpiredPatientAfterTimer = (
@@ -3591,7 +3652,8 @@ const stopFromGraphNode = (
 const upsertPlayerMapStop = (
   customLocations: CustomMapLocation[],
   stop: RouteStop,
-  existingNode?: MapLocationNode
+  existingNode?: MapLocationNode,
+  terrainOptions?: readonly MapTerrain[]
 ): CustomMapLocation[] => {
   const previous = customLocations.find(location => location.id === stop.id);
   const next: CustomMapLocation = {
@@ -3601,6 +3663,9 @@ const upsertPlayerMapStop = (
     x: Number.isFinite(stop.x) ? stop.x : previous?.x ?? existingNode?.x ?? 50,
     y: Number.isFinite(stop.y) ? stop.y : previous?.y ?? existingNode?.y ?? 50,
     region: (stop.terrain || previous?.region || existingNode?.region || 'Wilds') as MapRegion,
+    terrainOptions: terrainOptions?.length
+      ? Array.from(new Set(terrainOptions.filter(value => MAP_TERRAINS.includes(value))))
+      : previous?.terrainOptions || existingNode?.terrainOptions,
     kind: mapKindFromGlyph(stop.kind),
     aliases: Array.from(new Set([...(previous?.aliases || []), ...(existingNode?.aliases || []), previous?.label || '', existingNode?.label || '', stop.name].filter(Boolean))),
     neighbors: MAP_GRAPH_NODES[stop.id]
@@ -3616,13 +3681,16 @@ const upsertPlayerMapStop = (
 const isPlayerCreatedMapPlace = (id: string): boolean =>
   (id.startsWith('mark_') || id.startsWith('custom_')) && !REVIEWED_MAP_LOCATION_BY_ID.has(id);
 
-const playerRecordFromStop = (stop: RouteStop) => ({
+const playerRecordFromStop = (stop: RouteStop, terrainOptions?: readonly MapTerrain[]) => ({
   id: stop.id,
   label: stop.name,
   x: stop.x,
   y: stop.y,
   kind: mapKindFromGlyph(stop.kind),
   region: stop.terrain || undefined,
+  terrainOptions: terrainOptions?.length
+    ? Array.from(new Set(terrainOptions.filter(value => MAP_TERRAINS.includes(value))))
+    : undefined,
   updatedAt: Date.now()
 });
 
@@ -8673,6 +8741,9 @@ export default function App() {
     let bearName: string | null = null;
     let scurryDiscardId: string | null = null;
     let scurryResolutionNote = '';
+    let logKnockingReagent: (typeof REAGENTS)[number] | null = null;
+    let logKnockingRewards: EngineInventoryItem[] = [];
+    let logKnockingNote = '';
     if (encounter.id === 'foraging-forest-m-spring' && selectedChoiceId === 'mark-barrow') {
       bearName = await requestControlledPrompt({
         title: '곰에게 꼭 필요한 것 · 곰 이름',
@@ -8722,6 +8793,40 @@ export default function App() {
         scurryResolutionNote = '잃을 채집 포인트와 영약재가 없어 타이머 감소만 적용했다.';
       }
     }
+    if (encounter.id === 'foraging-forest-6' && selectedChoiceId === 'choose-bug-reagent') {
+      const bugReagents = ['reagent-beetles', 'reagent-maggots', 'reagent-wasps']
+        .map(id => REAGENT_BY_ID.get(id))
+        .filter((reagent): reagent is (typeof REAGENTS)[number] => Boolean(reagent));
+      const selectedReagentId = await requestControlledPrompt({
+        title: '썩은 통나무 · 벌레 영약재',
+        message: 'Beetles, Maggots, Wasps 중 하나를 고르세요. 고른 영약재의 모든 부위를 가방에 넣습니다.',
+        kicker: '채집 조우 p.161',
+        label: '영약재',
+        defaultValue: bugReagents[0]?.id || '',
+        options: bugReagents.map(reagent => ({
+          value: reagent.id,
+          label: `${formatReagentName(reagent)} · ${reagent.preparations.length}개 부위`
+        }))
+      });
+      if (selectedReagentId === null) return false;
+      logKnockingReagent = bugReagents.find(reagent => reagent.id === selectedReagentId) || null;
+      if (!logKnockingReagent) {
+        showAlert('선택한 벌레 영약재를 도감에서 찾지 못했습니다.');
+        return false;
+      }
+      logKnockingRewards = logKnockingReagent.preparations.map(preparation => ({
+        id: `${pending.transactionId}:log-knocking:${logKnockingReagent!.id}:${preparation.id}`,
+        name: `${logKnockingReagent!.displayName} (${preparation.name})`,
+        type: 'reagent' as const,
+        weight: preparation.weight,
+        quantity: 1,
+        canonicalReagentId: logKnockingReagent!.id,
+        preparationId: preparation.id,
+        usesRemaining: preparation.uses,
+        ruinedWhenSoaked: true
+      }));
+      logKnockingNote = `${formatReagentName(logKnockingReagent)}의 모든 부위를 가방에 넣었다.`;
+    }
     const encounterResult = resolveEncounter({
       transactionId: `${pending.transactionId}:encounter`,
       encounter,
@@ -8747,6 +8852,9 @@ export default function App() {
       return false;
     }
     let runtime = encounterResult.value.nextState;
+    if (logKnockingRewards.length > 0) {
+      runtime = { ...runtime, inventory: [...runtime.inventory, ...logKnockingRewards] };
+    }
     let encounterAilmentInstanceId: string | null = null;
     let encounterAilmentName: string | null = null;
     let encounterAilmentToolStates = canonicalToolsFromState(state);
@@ -8855,7 +8963,16 @@ export default function App() {
       manualEffectPending: Boolean(manualDraft)
     });
     patient = foragingCheckpoint.patient;
+    if (patient && logKnockingReagent) {
+      patient = {
+        ...patient,
+        reagentsGathered: Array.from(new Set([...(patient.reagentsGathered || []), logKnockingReagent.id]))
+      };
+    }
     updateState(s => {
+      const logKnockingGoal = logKnockingReagent
+        ? checkReagentGatherForGoal(s, logKnockingReagent.canonicalName)
+        : { nextGoalCounter: s.journeyGoalCounter, nextChecklist: s.journeyGoalChecklist };
       let next: GameState = {
         ...applyCalendarAdvance(s, runtime.calendarDays, '채집 조우의 지시를 달력에 표시했습니다.'),
         reputation: runtime.reputation,
@@ -8866,6 +8983,8 @@ export default function App() {
         toolStates: encounterAilmentInstanceId ? encounterAilmentToolStates : s.toolStates,
         appliedEncounterEffectIds: runtime.appliedEffectIds,
         pendingForaging: pendingForagingAfterEncounterCheckpoint(pending, foragingCheckpoint),
+        journeyGoalCounter: logKnockingGoal.nextGoalCounter,
+        journeyGoalChecklist: logKnockingGoal.nextChecklist,
         needsLocalHelpBeforeMove: encounterAilmentInstanceId ? true : s.needsLocalHelpBeforeMove,
         treatmentDraft: encounterAilmentInstanceId ? null : s.treatmentDraft,
         manualConditions: Array.from(new Set([
@@ -8876,6 +8995,7 @@ export default function App() {
           text: resolvedJournalNote.trim() ? resolvedJournalNote : [
             selectedForageOutcome,
             scurryResolutionNote,
+            logKnockingNote,
             encounterAilmentInstanceId ? `${encounterAilmentName} 환자를 즉시 맡았습니다. Guild Reputation/Trinket 보상은 없습니다.` : '',
             manualDraft ? '직접 판정을 이어갑니다.' : '채집 조우를 해결했습니다.'
           ].filter(Boolean).join('\n'),
@@ -8884,6 +9004,7 @@ export default function App() {
             outcome: [
               selectedForageOutcome || (manualDraft ? '직접 판정 이어짐' : '인쇄된 결과 적용'),
               scurryResolutionNote,
+              logKnockingNote,
               encounterAilmentInstanceId ? `${encounterAilmentName} 환자를 즉시 맡았습니다. Guild Reputation/Trinket 보상은 없습니다.` : '',
               manualDraft ? '직접 판정에서 남은 결과를 이어서 기록합니다.' : ''
             ].filter(Boolean).join('\n'),
@@ -8923,7 +9044,9 @@ export default function App() {
           distance: '현재 위치',
           locationName: s.currentLocationName,
           locationId,
-          removed: false
+          removed: false,
+          ...(s.journey?.journeyId ? { journeyId: s.journey.journeyId } : {}),
+          createdAt: Date.now()
         };
         next = {
           ...next,
@@ -9649,6 +9772,7 @@ export default function App() {
                       label: localizeManualEffectValue(action.label) || '이 위치에 조우 기록',
                       sourceEncounterId: draft.ownerId,
                       sourcePage: draft.sourcePage,
+                      journeyId: s.journey?.journeyId,
                       createdAt: transaction.at
                     }];
                   });
@@ -9916,6 +10040,10 @@ export default function App() {
                   placeholder="떠오른 장면이나 선택의 이유를 적으면 들녘의 일지에 내 기록으로 남습니다."
                   onInput={event => {
                     const hasJournalText = Boolean(event.currentTarget.value.trim());
+                    // Only the empty/non-empty transition affects whether a
+                    // required journal step is ready.  Avoid replacing the
+                    // whole encounter object for every typed character.
+                    if (hasJournalText === Boolean(activeTravelEncounter.hasJournalText)) return;
                     setActiveTravelEncounter((current: any) => current ? { ...current, hasJournalText } : current);
                   }}
                   onBlur={event => {
@@ -10660,6 +10788,7 @@ export default function App() {
                   placeholder="떠오른 장면이나 선택의 이유를 적으면 들녘의 일지에 함께 남습니다."
                   onInput={event => {
                     const hasJournalText = Boolean(event.currentTarget.value.trim());
+                    if (hasJournalText === Boolean(activeForageEncounter.hasJournalText)) return;
                     setActiveForageEncounter((current: any) => current ? { ...current, hasJournalText } : current);
                   }}
                   onBlur={event => {
@@ -12970,7 +13099,9 @@ function PlayView({
         distance: resolved.rumour!.distance,
         locationName: target.label,
         locationId: rumourLocName,
-        removed: false
+        removed: false,
+        ...(s.journey?.journeyId ? { journeyId: s.journey.journeyId } : {}),
+        createdAt: Date.now()
       });
 
       return {
@@ -17593,7 +17724,7 @@ function PlayView({
     }
 
     if (journeyUiContext.canMove && !state.pursuedByBehemoth
-      && !state.activePatientId && !state.activeAilment && !state.scroungingMode) {
+      && !state.activeAilment && !state.scroungingMode) {
       addActionHubItem({
         id: 'travel-next',
         label: '다음 위치로 이동',
@@ -17604,13 +17735,20 @@ function PlayView({
       });
     }
 
-    addActionHubItem({
-      id: 'clinic-open',
-      label: state.activeAilment ? '치료제 조제 확인' : '새 환자 진료',
-      detail: state.activeAilment ? '요구 태그와 선택 재료를 함께 검토합니다.' : '현재 위치에서 환자를 진단하거나 채집을 시작합니다.',
-      targetId: state.activeAilment ? 'treatment-workspace' : 'patient-clinic-panel',
-      tone: 'neutral'
-    });
+    // Once the current stop is clear, the next Move is the natural action.
+    // Do not keep a generic "new patient" tile beside it: that made a
+    // completed treatment look like another required treatment step. The
+    // clinic entry remains available whenever movement is blocked (including
+    // active treatment, pending local care, and arrival follow-up).
+    if (!journeyUiContext.canMove) {
+      addActionHubItem({
+        id: 'clinic-open',
+        label: state.activeAilment ? '치료제 조제 확인' : '새 환자 진료',
+        detail: state.activeAilment ? '요구 태그와 선택 재료를 함께 검토합니다.' : '현재 위치에서 환자를 진단하거나 채집을 시작합니다.',
+        targetId: state.activeAilment ? 'treatment-workspace' : 'patient-clinic-panel',
+        tone: 'neutral'
+      });
+    }
   }
 
   const handleActionHubItem = (item: ActionHubItem) => {
@@ -17887,6 +18025,7 @@ function PlayView({
             variant="companion"
             highlightLocationIds={playMapHighlightIds}
             selectedLocationId={playMapSelectedId}
+            destinationPlaceId={playMapMode === 'destination' ? playMapSelectedId : null}
             includeWilds
             routePlaceIds={routeDraft.stops.map(stop => stop.id)}
             onConfirmDestination={playMapMode === 'destination' ? handlePlayMapPick : undefined}
@@ -22148,6 +22287,114 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
   const [reagentSearchQuery, setReagentSearchQuery] = useState("");
   const [patienceOverride, setPatienceOverride] = useState(false);
   const [calendarOverride, setCalendarOverride] = useState(false);
+  const [manualReputationDelta, setManualReputationDelta] = useState('0');
+  const [manualTrinketDelta, setManualTrinketDelta] = useState('0');
+  const [manualBagItemId, setManualBagItemId] = useState('');
+  const [manualBagDelta, setManualBagDelta] = useState('1');
+  const [manualTimerId, setManualTimerId] = useState('');
+  const [manualTimerDelta, setManualTimerDelta] = useState('-1');
+
+  const manualBagItems = state.bag.filter(item => item.type !== 'tool');
+  const manualTimerRows = state.patients
+    .filter(patient => patient.id === state.activePatientId && (patient.status === 'active' || patient.status === 'cured'))
+    .flatMap(patient => patient.timers
+      .filter(timer => timer.status !== 'stopped')
+      .map(timer => ({
+        patient,
+        timer,
+        ailment: patient.ailments.find(ailment => ailment.id === timer.ailmentInstanceId)
+      }))
+      .filter(row => row.ailment?.status === 'active'));
+  const selectedManualBagItemId = manualBagItems.some(item => item.id === manualBagItemId)
+    ? manualBagItemId
+    : manualBagItems[0]?.id || '';
+  const selectedManualTimerId = manualTimerRows.some(row => row.timer.id === manualTimerId)
+    ? manualTimerId
+    : manualTimerRows[0]?.timer.id || '';
+
+  const appendManualAdjustmentJournal = (stateValue: GameState, title: string, text: string): GameState => ({
+    ...stateValue,
+    journals: [{
+      id: `manual-adjustment:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
+      title,
+      text,
+      timestamp: Date.now()
+    }, ...stateValue.journals]
+  });
+
+  const parseManualDelta = (raw: string): number | null => {
+    const value = Number(raw);
+    return Number.isFinite(value) && Number.isInteger(value) && value !== 0 ? value : null;
+  };
+
+  const handleManualReputationAdjustment = (event: React.FormEvent) => {
+    event.preventDefault();
+    const delta = parseManualDelta(manualReputationDelta);
+    if (delta === null) return;
+    updateState((current: GameState) => {
+      const before = current.reputation;
+      const after = Math.max(0, before + delta);
+      return appendManualAdjustmentJournal({ ...current, reputation: after }, 'Guild Reputation · 직접 기록', `Guild Reputation ${before} → ${after} (${delta > 0 ? '+' : ''}${delta}). 앱 밖 판정을 옮긴 수동 보정입니다.`);
+    });
+    setManualReputationDelta('0');
+  };
+
+  const handleManualTrinketAdjustment = (event: React.FormEvent) => {
+    event.preventDefault();
+    const delta = parseManualDelta(manualTrinketDelta);
+    if (delta === null) return;
+    updateState((current: GameState) => {
+      const before = current.trinkets.length;
+      const after = Math.max(0, before + delta);
+      return appendManualAdjustmentJournal({
+        ...current,
+        trinkets: resizeTrinkets(current.trinkets, after, '수동 판정 장신구')
+      }, '장신구 · 직접 기록', `장신구 ${before} → ${after} (${delta > 0 ? '+' : ''}${delta}). 앱 밖 판정을 옮긴 수동 보정입니다.`);
+    });
+    setManualTrinketDelta('0');
+  };
+
+  const handleManualBagAdjustment = (event: React.FormEvent) => {
+    event.preventDefault();
+    const delta = parseManualDelta(manualBagDelta);
+    if (delta === null || !selectedManualBagItemId) return;
+    updateState((current: GameState) => {
+      const item = current.bag.find(row => row.id === selectedManualBagItemId && row.type !== 'tool');
+      if (!item) return current;
+      const before = item.qty ?? 1;
+      const after = Math.max(0, before + delta);
+      const nextBag = after === 0
+        ? current.bag.filter(row => row.id !== item.id)
+        : current.bag.map(row => row.id === item.id ? { ...row, qty: after } : row);
+      const nextDraft = after === 0 && current.treatmentDraft?.status === 'draft'
+        ? reconcileTreatmentDraftAfterBagRemoval({ draft: current.treatmentDraft, removedItemId: item.id, remainingInventory: nextBag })
+        : current.treatmentDraft;
+      const next = { ...current, bag: nextBag, treatmentDraft: nextDraft };
+      return appendManualAdjustmentJournal(next, '배낭 수량 · 직접 기록', `${localizeInventoryItemName(item.name)} 수량 ${before} → ${after} (${delta > 0 ? '+' : ''}${delta}). 앱 밖 판정을 옮긴 수동 보정입니다.`);
+    });
+  };
+
+  const handleManualTimerAdjustment = (event: React.FormEvent) => {
+    event.preventDefault();
+    const delta = parseManualDelta(manualTimerDelta);
+    if (delta === null || !selectedManualTimerId) return;
+    updateState((current: GameState) => {
+      const patient = current.patients.find(row => row.id === current.activePatientId);
+      const timer = patient?.timers.find(row => row.id === selectedManualTimerId);
+      const ailment = patient?.ailments.find(row => row.id === timer?.ailmentInstanceId && row.status === 'active');
+      if (!patient || !timer || !ailment) return current;
+      const before = timer.current;
+      const after = Math.max(0, Math.min(timer.maximum, before + delta));
+      const nextPatients = current.patients.map(row => row.id !== patient.id ? row : {
+        ...row,
+        timers: row.timers.map(entry => entry.id === timer.id
+          ? { ...entry, current: after, status: after === 0 ? 'expired' as const : 'active' as const }
+          : entry)
+      });
+      const ailmentName = AILMENTS.find(row => row.id === ailment.ailmentId)?.displayName || ailment.legacyName || '질환';
+      return appendManualAdjustmentJournal({ ...current, patients: nextPatients }, '환자 Timer · 직접 기록', `${ailmentName} Timer ${before} → ${after}시간 (${delta > 0 ? '+' : ''}${delta}). 앱 밖 판정을 옮긴 수동 보정입니다.`);
+    });
+  };
 
   const handleSaveBio = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22865,6 +23112,53 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                   </div>
                 )}
               </div>
+
+              {/* Manual corrections for paper/off-app rulings.  These are
+                  deliberately explicit and journalled; they never replace
+                  the deterministic treatment, travel, or calendar engines. */}
+              <details open className="bio-manual-adjustments" style={{ borderTop: '1.5px dashed var(--border-cozy)', paddingTop: '0.8rem', marginTop: '0.8rem' }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 700, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)', fontSize: '1.05rem' }}>
+                  직접 판정 보정 <small style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>Timer · Guild Reputation · 배낭</small>
+                </summary>
+                <p style={{ margin: '0.45rem 0 0.75rem', fontSize: '0.78rem', lineHeight: 1.5, color: 'var(--text-muted)' }}>
+                  앱 밖에서 처리한 장면만 옮기세요. 각 변경은 저널에 남으며, 자동 규칙이나 이미 마감한 환자를 되돌리지 않습니다.
+                </p>
+                <div style={{ display: 'grid', gap: '0.55rem' }}>
+                  <form onSubmit={handleManualReputationAdjustment} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', gap: '0.4rem', alignItems: 'center' }}>
+                    <label htmlFor="manual-reputation-delta" style={{ fontSize: '0.8rem' }}>Guild Reputation <small>현재 {state.reputation}</small></label>
+                    <input id="manual-reputation-delta" type="number" step="1" value={manualReputationDelta} onChange={event => setManualReputationDelta(event.target.value)} aria-label="Guild Reputation 보정값" style={{ width: '5rem' }} />
+                    <button type="submit" className="btn-cozy-secondary">적용</button>
+                  </form>
+                  <form onSubmit={handleManualTrinketAdjustment} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', gap: '0.4rem', alignItems: 'center' }}>
+                    <label htmlFor="manual-trinket-delta" style={{ fontSize: '0.8rem' }}>장신구 <small>현재 {state.trinkets.length}개</small></label>
+                    <input id="manual-trinket-delta" type="number" step="1" value={manualTrinketDelta} onChange={event => setManualTrinketDelta(event.target.value)} aria-label="장신구 보정값" style={{ width: '5rem' }} />
+                    <button type="submit" className="btn-cozy-secondary">적용</button>
+                  </form>
+                  <form onSubmit={handleManualBagAdjustment} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 5rem auto', gap: '0.4rem', alignItems: 'center' }}>
+                    <label htmlFor="manual-bag-item" style={{ fontSize: '0.8rem' }}>배낭 수량</label>
+                    <select id="manual-bag-item" value={selectedManualBagItemId} onChange={event => setManualBagItemId(event.target.value)} aria-label="수량을 보정할 배낭 물품">
+                      {manualBagItems.length === 0 ? <option value="">조정할 물품 없음</option> : manualBagItems.map(item => <option key={item.id} value={item.id}>{localizeInventoryItemName(item.name)} · {item.qty ?? 1}</option>)}
+                    </select>
+                    <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                      <input type="number" step="1" value={manualBagDelta} onChange={event => setManualBagDelta(event.target.value)} aria-label="배낭 수량 보정값" style={{ width: '4.5rem' }} disabled={manualBagItems.length === 0} />
+                      <button type="submit" className="btn-cozy-secondary" disabled={manualBagItems.length === 0}>적용</button>
+                    </div>
+                  </form>
+                  <form onSubmit={handleManualTimerAdjustment} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 5rem auto', gap: '0.4rem', alignItems: 'center' }}>
+                    <label htmlFor="manual-timer-id" style={{ fontSize: '0.8rem' }}>환자 Timer</label>
+                    <select id="manual-timer-id" value={selectedManualTimerId} onChange={event => setManualTimerId(event.target.value)} aria-label="보정할 환자 Timer">
+                      {manualTimerRows.length === 0 ? <option value="">조정할 활성 Timer 없음</option> : manualTimerRows.map(row => {
+                        const ailmentName = AILMENTS.find(item => item.id === row.ailment?.ailmentId)?.displayName || row.ailment?.legacyName || '질환';
+                        return <option key={row.timer.id} value={row.timer.id}>{row.patient.name} · {ailmentName} · {row.timer.current}/{row.timer.maximum}시간</option>;
+                      })}
+                    </select>
+                    <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                      <input type="number" step="1" value={manualTimerDelta} onChange={event => setManualTimerDelta(event.target.value)} aria-label="환자 Timer 보정값" style={{ width: '4.5rem' }} disabled={manualTimerRows.length === 0} />
+                      <button type="submit" className="btn-cozy-secondary" disabled={manualTimerRows.length === 0}>적용</button>
+                    </div>
+                  </form>
+                </div>
+              </details>
             </div>
           </div>
 
@@ -23444,6 +23738,7 @@ function AtlasMapPanel({
         x: record.x,
         y: record.y,
         region: (record.region as MapRegion | undefined) || printed?.region,
+        terrainOptions: record.terrainOptions?.length ? [...record.terrainOptions] : printed?.terrainOptions,
         kind: (record.kind as MapLocationKind | undefined) || printed?.kind,
         aliases: printed?.aliases ? [...printed.aliases] : undefined,
         neighbors: printed?.neighbors ? [...printed.neighbors] : [],
@@ -23470,11 +23765,16 @@ function AtlasMapPanel({
     : [];
   const connectionKindLabel = (kind?: string) =>
     kind === 'river' ? '물길 · 실선' : kind === 'waterway' ? '물길 · 빗금' : '육로';
-  const persistStop = (stop: RouteStop) => {
-    upsertPlayerMarkerRecords([playerRecordFromStop(stop)]);
+  const persistStop = (stop: RouteStop, terrainOptions?: readonly MapTerrain[]) => {
+    upsertPlayerMarkerRecords([playerRecordFromStop(stop, terrainOptions)]);
     updateState(s => ({
       ...s,
-      customMapLocations: upsertPlayerMapStop(s.customMapLocations || [], stop, buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || [])[stop.id])
+      customMapLocations: upsertPlayerMapStop(
+        s.customMapLocations || [],
+        stop,
+        buildMapGraphNodes(s.customMapLocations || [], s.customMapEdges || [])[stop.id],
+        terrainOptions
+      )
     }));
   };
   const persistLink = useCallback((
@@ -23979,6 +24279,7 @@ function AtlasMapPanel({
             y: row.y,
             kind: row.kind,
             region: row.region,
+            terrainOptions: row.terrainOptions,
             updatedAt: Date.now()
           })));
           showAlert('접어둔 지도의 표시를 이 기록에 남겼습니다.');
@@ -24141,12 +24442,14 @@ function AtlasMapPanel({
           <div className="map-atelier__block">
             <strong>{kindLabel(selected.kind)} 표시</strong>
             <span>{isPlayerCreatedMapPlace(selectedId) ? '직접 남긴 표시' : '인쇄된 표시를 고치는 중'}</span>
-            <MapNodeAppearance
-              key={selectedId}
-              kind={glyphKindFromLocation({ kind: selected.kind, hasClinic: selected.kind === 'clinic' })}
-              terrain={terrainFromRegion(selected.region)}
-              name={selected.label}
-              onChange={next => persistStop({
+          <MapNodeAppearance
+            key={selectedId}
+            kind={glyphKindFromLocation({ kind: selected.kind, hasClinic: selected.kind === 'clinic' })}
+            terrain={terrainFromRegion(selected.region)}
+            terrainOptions={selected.terrainOptions}
+            multipleTerrains={selectedId === 'glasswall' || normalizeMapLocationName(selected.label) === 'glasswall'}
+            name={selected.label}
+            onChange={next => persistStop({
                 id: selectedId,
                 name: next.name ?? selected.label,
                 kind: next.kind,
@@ -24154,8 +24457,8 @@ function AtlasMapPanel({
                 hasClinic: next.kind === 'Clinic',
                 x: selected.x,
                 y: selected.y
-              })}
-            />
+              }, next.terrainOptions)}
+          />
             {selectedMapRecords.length > 0 && (
               <div className="map-atelier__records" aria-label="이 위치에 남긴 조우 기록">
                 <strong>이 위치의 조우 기록</strong>
@@ -24290,6 +24593,7 @@ const MapView = memo(function MapView({
   variant = 'full',
   highlightLocationIds = [],
   selectedLocationId = null,
+  destinationPlaceId: requestedDestinationPlaceId,
   includeWilds = false,
   routePlaceIds = [],
   onConfirmDestination,
@@ -24319,6 +24623,8 @@ const MapView = memo(function MapView({
   variant?: 'full' | 'companion';
   highlightLocationIds?: string[];
   selectedLocationId?: string | null;
+  /** Draft destination selected during journey preparation, before a journey is active. */
+  destinationPlaceId?: string | null;
   includeWilds?: boolean;
   routePlaceIds?: string[];
   onConfirmDestination?: (location: MapPickLocation) => void;
@@ -24367,9 +24673,11 @@ const MapView = memo(function MapView({
       : null,
     currentMapLocationId: currentId
   });
-  const destinationId = mapJourneyUiContext.active
-    ? resolveJourneyDestinationMapKey(state)
-    : null;
+  const destinationId = requestedDestinationPlaceId !== undefined
+    ? requestedDestinationPlaceId
+    : mapJourneyUiContext.active
+      ? resolveJourneyDestinationMapKey(state)
+      : null;
   const extraIds = new Set<string>([...highlightLocationIds, selectedLocationId, currentId, destinationId, ...routePlaceIds].filter((id): id is string => Boolean(id)));
   (state.mapEncounterRecords || []).forEach(record => extraIds.add(record.locationId));
   (state.visitedLocations || []).forEach(name => {

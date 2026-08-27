@@ -109,8 +109,8 @@ describe('v1.0.0 Golden Master regression contract', () => {
     expect(currentPrintedEffectSnapshot).toHaveLength(358);
     expect(new Set(currentPrintedEffectSnapshot.map(effect => effect.id)).size).toBe(358);
     expect(new Set(currentPrintedEffectSnapshot.map(effect => effect.ownerId)).size).toBe(358);
-    expect(currentPrintedEffectSnapshot.filter(effect => effect.status === 'implemented')).toHaveLength(29);
-    expect(currentPrintedEffectSnapshot.filter(effect => effect.status === 'manual')).toHaveLength(329);
+    expect(currentPrintedEffectSnapshot.filter(effect => effect.status === 'implemented')).toHaveLength(30);
+    expect(currentPrintedEffectSnapshot.filter(effect => effect.status === 'manual')).toHaveLength(328);
     expect(currentPrintedEffectSnapshot.every(effect => effect.sourcePage >= 6 && effect.sourcePage <= 213)).toBe(true);
     expect(currentPrintedEffectSnapshot.every(effect => effect.executor && effect.ruleIds.length > 0 && effect.triggers.length > 0)).toBe(true);
   });
