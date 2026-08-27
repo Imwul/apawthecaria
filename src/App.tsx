@@ -7156,6 +7156,53 @@ export default function App() {
     }
   };
 
+  const handleNameLocalCloudRecord = async () => {
+    if (cloudSlotBusy || cloudSlotOperationInFlightRef.current) return;
+    const localPayload = preferredCloudUploadPayload(
+      state ? JSON.stringify(state) : null,
+      safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY)
+    );
+    const source = summarizeCloudUploadSource(localPayload);
+    if (!source.available || source.name) return;
+
+    const nameInput = await requestControlledPrompt({
+      kicker: '클라우드 기록',
+      title: '이 기록에 이름 붙이기',
+      message: '이전 기록은 이름 없이 저장되어 있습니다. 약제사 이름만 정하면 현재 진행과 작성 중인 내용을 그대로 보존한 채 클라우드 슬롯에 올릴 수 있습니다.',
+      defaultValue: '',
+      label: '약제사 이름',
+      confirmLabel: '이름 저장',
+      cancelLabel: '취소'
+    });
+    const normalizedName = nameInput?.trim() || '';
+    if (!normalizedName) {
+      if (nameInput !== null) showAlert('약제사 이름을 입력해 주세요.');
+      return;
+    }
+
+    updateState(current => {
+      const existing = current.workflowDrafts.character;
+      const touched = Array.from(new Set<CharacterDraftField>([
+        ...(existing?.touched || []),
+        'name'
+      ]));
+      const character: CharacterCreationDraft = existing
+        ? { ...existing, updatedAt: Date.now(), touched, name: normalizedName }
+        : {
+            version: 1,
+            updatedAt: Date.now(),
+            touched,
+            name: normalizedName,
+            cards: {}
+          };
+      return {
+        ...current,
+        workflowDrafts: { ...current.workflowDrafts, character }
+      };
+    });
+    showAlert('약제사 이름을 저장했습니다. 이제 원하는 슬롯에 올릴 수 있습니다.');
+  };
+
   const handleDownloadCloudSlot = async (slot: CloudSlotId) => {
     if (cloudSlotBusy || cloudSlotOperationInFlightRef.current) return;
     const uid = auth?.currentUser?.uid;
@@ -10653,6 +10700,7 @@ export default function App() {
           accountLabel={user?.email || user?.displayName || '현재 Google 계정'}
           accountLinked={cloudAccountLinked}
           pendingSaveCount={pendingCloudSaveCount}
+          onNameLocalRecord={() => void handleNameLocalCloudRecord()}
           onDownload={slot => void handleDownloadCloudSlot(slot)}
           onUpload={slot => void handleUploadCloudSlot(slot)}
           onDelete={slot => void handleDeleteCloudSlot(slot)}
@@ -10799,6 +10847,7 @@ function CloudSlotsDialog({
   accountLabel,
   accountLinked,
   pendingSaveCount,
+  onNameLocalRecord,
   onDownload,
   onUpload,
   onDelete,
@@ -10811,6 +10860,7 @@ function CloudSlotsDialog({
   accountLabel: string;
   accountLinked: boolean;
   pendingSaveCount: number;
+  onNameLocalRecord: () => void;
   onDownload: (slot: CloudSlotId) => void;
   onUpload: (slot: CloudSlotId) => void;
   onDelete: (slot: CloudSlotId) => void;
@@ -10890,6 +10940,16 @@ function CloudSlotsDialog({
             <em>{localSource.name
               ? `슬롯 하나의 저장 한도(약 ${Math.floor(CLOUD_PAYLOAD_SAFE_BYTES / 1000)}KB)를 확인해 주세요.`
               : '약제사 이름을 입력해야 올릴 수 있습니다.'}</em>
+          )}
+          {localSource.available && !localSource.name && (
+            <button
+              type="button"
+              className="cloud-upload-source__name-action"
+              disabled={busy}
+              onClick={onNameLocalRecord}
+            >
+              이 기록에 이름 붙이기
+            </button>
           )}
         </div>
         {(operationText || pendingSaveCount > 0) && (
@@ -21146,6 +21206,19 @@ function CharacterCreationWizard({
   const persistedCharacterDraftRef = useRef(JSON.stringify(savedDraft ? { ...savedDraft, updatedAt: 0 } : null));
   const characterDraftPersistTimerRef = useRef<number | null>(null);
   const characterDraftPersistenceSuspendedRef = useRef(false);
+
+  // The cloud panel can name an older, unnamed character draft while this
+  // wizard remains mounted. Keep the visible name field in sync so its next
+  // debounced save cannot accidentally write the old blank value back.
+  useEffect(() => {
+    const externalName = String(savedDraft?.name || '').trim();
+    if (!externalName || draftRef.current.name.trim() || touchedFieldsRef.current.has('name')) return;
+    const next = { ...draftRef.current, name: externalName };
+    draftRef.current = next;
+    touchedFieldsRef.current.add('name');
+    setDraftState(next);
+    setHasCharacterDraftEdits(true);
+  }, [savedDraft?.name]);
 
   const fieldByLocalKey: Record<keyof CharacterWizardLocalDraft, CharacterDraftField> = {
     name: 'name',
