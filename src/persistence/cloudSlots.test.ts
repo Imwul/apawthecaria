@@ -341,6 +341,7 @@ describe('cloud save slots', () => {
     expect(appSource).toContain('handleNameLocalCloudRecord');
     expect(appSource).toContain('이 기록에 이름 붙이기');
     expect(appSource).toContain('workflowDrafts: { ...current.workflowDrafts, character }');
+    expect(appSource).toContain('cloud-slots-dialog-backdrop');
     expect(appSource).toContain('deleteCloudSlotRecord');
     expect(appSource).toContain('이 작업은 되돌릴 수 없습니다.');
     expect(appSource).toContain('runTransaction');

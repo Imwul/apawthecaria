@@ -1629,6 +1629,7 @@ button:active {
 }
 
 .controlled-prompt-backdrop { z-index: 1400; }
+.cloud-slots-dialog-backdrop { z-index: 1300; }
 .controlled-prompt {
   width: min(520px, 100%);
   display: grid;

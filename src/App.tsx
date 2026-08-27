@@ -10882,7 +10882,7 @@ function CloudSlotsDialog({
         : null;
   return (
     <div
-      className="phase4-modal-backdrop controlled-prompt-backdrop app-dialog-backdrop"
+      className="phase4-modal-backdrop controlled-prompt-backdrop app-dialog-backdrop cloud-slots-dialog-backdrop"
       role="presentation"
       onKeyDown={event => {
         if (busy && event.key === 'Tab') {
