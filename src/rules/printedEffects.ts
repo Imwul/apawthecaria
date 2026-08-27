@@ -196,7 +196,11 @@ const deriveActionTemplates = (ownerId: string, text: string): PrintedCanonicalA
     const trinketGain = clause.match(/(?:gain|earn)(?: an extra)?\s+(\d+|a|one)\s+Trinkets?/i);
     const trinketLoss = clause.match(/(?:lose|trade|pay|leave)\s+(\d+|a|one)\s+Trinkets?/i);
     const markDays = clause.match(/(?:mark|add)(?:ing)?\s+(\d+)\s+Days?/i);
-    const timerDecrease = clause.match(/decrease\s+(?:all\s+)?Timers?\s+by\s+(\d+)/i);
+    // The rulebook uses both “Decrease Timers” and “Reduce Timers” for the
+    // same mechanical instruction.  Keep both phrasings canonical so a
+    // manual encounter such as Voyage To The Blackwater exposes its timer
+    // change alongside the Reputation change instead of silently dropping it.
+    const timerDecrease = clause.match(/(?:decrease|reduce)\s+(?:all\s+)?Timers?\s+by\s+(\d+)/i);
     const timerIncrease = clause.match(/(?:increase|add)\s+(?:all\s+)?(?:your\s+)?(?:next\s+)?Timers?(?:\s+by)?\s+(\d+)/i)
       || clause.match(/add\s+(\d+)\s+to\s+(?:your\s+)?(?:next\s+)?Timer/i);
     const forageGain = clause.match(/gain\s+(\d+)\s+Foraging Points?/i);

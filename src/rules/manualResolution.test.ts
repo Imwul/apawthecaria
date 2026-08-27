@@ -186,6 +186,15 @@ describe('Step 2 manual resolution transaction', () => {
     expect(repeated.status).toBe('invalid');
   });
 
+  it('[FORAGE-006] keeps both Blackwater funeral changes available for manual recording', () => {
+    const effect = PRINTED_EFFECT_BY_OWNER.get('foraging-loch-8')!;
+    const draft = createManualEffectDraft(effect, 'encounter', { continuation: 'none' }, 100);
+    expect(draft.actionTemplates).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'modify-timer', amount: -1, targetType: 'timer' }),
+      expect.objectContaining({ kind: 'modify-reputation', amount: 1 })
+    ]));
+  });
+
   it('[CORE-002/SAVE-004] leaves the entire state untouched when an action target is invalid', () => {
     const sourceDraft = draftFor(candidate => candidate.actionTemplates.some(action => action.kind === 'remove-inventory'));
     const action = sourceDraft.actionTemplates.find(candidate => candidate.kind === 'remove-inventory')!;
