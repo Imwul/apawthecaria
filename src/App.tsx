@@ -7069,6 +7069,11 @@ export default function App() {
     if (cloudSlotBusy || cloudSlotOperationInFlightRef.current) return;
     const uid = auth?.currentUser?.uid;
     if (!uid) return;
+    // Character/journey forms keep their draft in component-local state for a
+    // short debounce window. Flush that draft before taking the snapshot used
+    // by the cloud dialog; otherwise a name entered moments ago can still be
+    // represented as the previous unnamed local save and leave upload disabled.
+    flushWorkflowDrafts();
     const operationGeneration = ++cloudSlotOperationGenerationRef.current;
     const operationStillCurrent = () => cloudSlotOperationGenerationRef.current === operationGeneration
       && auth?.currentUser?.uid === uid;
