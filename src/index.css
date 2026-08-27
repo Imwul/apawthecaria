@@ -11440,6 +11440,34 @@ details.rulebook-source-text > summary {
   color: #692823;
 }
 
+/* The first screen has no Journals tab yet. Keep backup recovery in the
+   same upper-right utility rail so a reset or fresh device can start from a
+   saved JSON without entering character setup first. */
+.journal-header__action--import {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.journal-header__action--import input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.journal-header__action--import:focus-within {
+  outline: 3px solid #2f6f7b;
+  outline-offset: -3px;
+}
+
+.journal-header__action--import:hover {
+  background: rgba(37, 33, 28, 0.08);
+}
+
 .save-state--saving {
   opacity: 0.72;
 }
@@ -11590,6 +11618,19 @@ details.rulebook-source-text > summary {
 
   .journal-app--onboarding .journal-header .journal-brand__title {
     font-size: 2.3rem !important;
+  }
+}
+
+@media (max-width: 800px) {
+  .journal-header__action--import {
+    width: auto;
+    min-width: 44px;
+    padding-inline: 0.55rem;
+    white-space: nowrap;
+  }
+
+  .journal-header__action--import > span {
+    display: inline !important;
   }
 }
 

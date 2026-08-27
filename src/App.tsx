@@ -6507,6 +6507,88 @@ export default function App() {
     });
   };
 
+  // Keep campaign import available before a character has been created. The
+  // journal tab import path normally goes through updateState; this startup
+  // path can also persist a migrated campaign directly if loading failed
+  // before a state object was available.
+  const applyImportedCampaignState = (candidate: GameState) => {
+    const imported = syncWorldMemory({
+      ...withoutLegacyPatientWrite(withCanonicalPatientView(candidate)),
+      schemaVersion: CURRENT_SCHEMA_VERSION
+    });
+
+    // An explicit file import is the player's choice. Do not let an in-flight
+    // cloud bootstrap replace it with a stale account snapshot afterwards.
+    if (auth) {
+      cloudBootstrapSkipped.current = true;
+      authBootstrapGenerationRef.current += 1;
+    }
+    resetCampaignScopedUi();
+    setSaveLoadError(null);
+    setLoading(false);
+    setCloudBootstrapComplete(true);
+
+    if (storedState) {
+      updateState(() => imported);
+    } else {
+      const requestId = ++saveRequestSequence;
+      setState(imported);
+      setSaveStatus('saving');
+      void store.set(CAMPAIGN_SAVE_KEY, imported).then(result => {
+        if (requestId !== saveRequestSequence) return;
+        setPendingCloudSaveCount(result.pendingCloudSaves);
+        setCloudSyncStatus(result.cloudStatus);
+        setLocalSaveUnavailable(!result.localSaved);
+        setSaveStatus(result.localSaved || result.cloudStatus === 'synced' ? 'saved' : 'error');
+      }).catch(error => {
+        console.error('가져온 기록 자동 저장 에러:', error);
+        if (requestId !== saveRequestSequence) return;
+        setLocalSaveUnavailable(false);
+        setSaveStatus('error');
+      });
+    }
+
+    // Navigate without changeActiveTab: that helper flushes in-progress form
+    // drafts, which would let the discarded character form race this import.
+    const targetTab: JournalTab = imported.bio.name.trim() ? 'play' : 'bio';
+    activeTabRef.current = targetTab;
+    window.history.replaceState(journalHistoryState(targetTab, window.history.state), '', journalHash(targetTab));
+    setActiveTab(targetTab);
+    setRulebookRequest(null);
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+    showAlert(imported.bio.name.trim()
+      ? `${imported.bio.name} 약제사 기록을 가져왔습니다.`
+      : '기록을 가져왔습니다. 약제사 설정을 이어서 작성해 주세요.');
+  };
+
+  const handleCampaignImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    // Allow selecting the same backup again after correcting a failed import.
+    event.target.value = '';
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result || ''));
+        if (!isRecognizableCampaignSave(parsed)) {
+          showAlert('유효한 Apawthecaria JSON 기록이 아닙니다. 현재 기록은 그대로 두었습니다.');
+          return;
+        }
+        const migrated = migrateCampaignSave(parsed);
+        if (!migrated.ok) {
+          showAlert('기록을 읽지 못했습니다. 현재 기록은 그대로 두었습니다.');
+          return;
+        }
+        applyImportedCampaignState(migrated.state);
+      } catch {
+        showAlert('JSON 기록을 읽는 중 오류가 발생했습니다. 파일이 손상되지 않았는지 확인해 주세요.');
+      }
+    };
+    reader.onerror = () => showAlert('JSON 기록을 읽지 못했습니다. 현재 기록은 그대로 두었습니다.');
+    reader.readAsText(file);
+  };
+
   useEffect(() => {
     if (!state || !hasStaleImmediateRemedyCheckpoint(state)) return;
     let cancelled = false;
@@ -7544,7 +7626,21 @@ export default function App() {
   if (loading || !cloudBootstrapComplete || !state) {
     if (saveLoadError) {
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '1rem', background: 'var(--bg-gradient)', color: 'var(--text-bright)', padding: '1.5rem', textAlign: 'center' }}>
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '1rem', background: 'var(--bg-gradient)', color: 'var(--text-bright)', padding: '1.5rem', textAlign: 'center' }}>
+          <label
+            className="journal-header__action journal-header__action--import"
+            title="JSON 백업 기록 가져오기"
+            aria-label="JSON 백업 기록 가져오기"
+            style={{ position: 'absolute', top: '1rem', right: '1rem' }}
+          >
+            <span>JSON 기록 가져오기</span>
+            <input
+              type="file"
+              accept=".json,application/json"
+              onChange={handleCampaignImportFile}
+              aria-label="JSON 백업 기록 파일 선택"
+            />
+          </label>
           <h2 style={{ letterSpacing: 0, color: 'var(--text-bright)', margin: 0 }}>저장 기록을 열 수 없습니다</h2>
           <p style={{ color: 'var(--text-muted)', maxWidth: '32rem', lineHeight: 1.55 }}>{saveLoadError}</p>
           <p style={{ color: 'var(--text-muted)', maxWidth: '32rem', lineHeight: 1.55 }}>
@@ -9031,6 +9127,21 @@ export default function App() {
         </button>
 
         <div className="journal-header__utilities">
+          {isOnboarding && (
+            <label
+              className="journal-header__action journal-header__action--import"
+              title="JSON 백업 기록 가져오기"
+              aria-label="JSON 백업 기록 가져오기"
+            >
+              <span>JSON 기록 가져오기</span>
+              <input
+                type="file"
+                accept=".json,application/json"
+                onChange={handleCampaignImportFile}
+                aria-label="JSON 백업 기록 파일 선택"
+              />
+            </label>
+          )}
           <button type="button" className="journal-header__action" onClick={() => openRulebookReference(currentRulebookRequest)} aria-label="현재 페이지의 룰북 맥락 열기" title="현재 페이지의 룰북 맥락">
             <span className="emoji-icon" aria-hidden="true">📚</span><span>룰북</span>
           </button>
