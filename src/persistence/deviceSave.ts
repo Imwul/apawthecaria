@@ -14,12 +14,33 @@ const DEVICE_STORAGE_TIMEOUT_MS = 1500;
 
 type StoredRecord = { key: string; value: string };
 
+export type DeviceSaveFailure = 'quota' | 'unavailable';
+
+/** Storage APIs report quota, privacy blocking, and disabled persistence with
+ * different browser-specific exception shapes. Keep quota messaging limited
+ * to errors that actually identify a capacity problem. */
+export const classifyDeviceSaveFailure = (error: unknown): DeviceSaveFailure => {
+  const row = error && typeof error === 'object'
+    ? error as { name?: unknown; code?: unknown; message?: unknown }
+    : {};
+  const name = String(row.name || '');
+  const code = Number(row.code);
+  const message = String(row.message || error || '');
+  return name === 'QuotaExceededError'
+    || name === 'NS_ERROR_DOM_QUOTA_REACHED'
+    || code === 22
+    || code === 1014
+    || /quota|storage\s+(?:is\s+)?full|exceed(?:ed|s)?\s+(?:the\s+)?(?:storage|quota)/i.test(message)
+    ? 'quota'
+    : 'unavailable';
+};
+
 let databasePromise: Promise<IDBDatabase | null> | null = null;
 
 const openDatabase = (): Promise<IDBDatabase | null> => {
   if (typeof indexedDB === 'undefined') return Promise.resolve(null);
   if (databasePromise) return databasePromise;
-  databasePromise = new Promise(resolve => {
+  const opening = new Promise<IDBDatabase | null>(resolve => {
     let settled = false;
     const timeoutId = setTimeout(() => {
       settled = true;
@@ -41,12 +62,29 @@ const openDatabase = (): Promise<IDBDatabase | null> => {
           request.result.createObjectStore(STORE_NAME, { keyPath: 'key' });
         }
       };
-      request.onsuccess = () => finish(request.result);
+      request.onsuccess = () => {
+        const database = request.result;
+        database.onclose = () => {
+          databasePromise = null;
+        };
+        database.onversionchange = () => {
+          database.close();
+          databasePromise = null;
+        };
+        finish(database);
+      };
       request.onerror = () => finish(null);
       request.onblocked = () => finish(null);
     } catch {
       finish(null);
     }
+  });
+  // A transient Safari privacy/locking failure must not poison persistence for
+  // the rest of the tab. Keep successful connections cached, but allow the
+  // next save to retry after a failed or timed-out open.
+  databasePromise = opening.then(database => {
+    if (!database) databasePromise = null;
+    return database;
   });
   return databasePromise;
 };

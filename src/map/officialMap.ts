@@ -138,6 +138,30 @@ export const normalizeOfficialMapSnapshot = (value: unknown): OfficialMapSnapsho
   });
 };
 
+export const normalizeReferencedOfficialMapSnapshot = (
+  value: unknown,
+  reference: { snapshotId: string; pointerFingerprint?: string; payloadFingerprint?: string }
+): OfficialMapSnapshot | null => {
+  const normalized = normalizeOfficialMapSnapshot(value);
+  if (!normalized || normalized.id !== reference.snapshotId) return null;
+  const row = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  const embeddedFingerprint = typeof row.fingerprint === 'string' ? row.fingerprint : '';
+  const pointerFingerprint = reference.pointerFingerprint || '';
+  const payloadFingerprint = reference.payloadFingerprint || '';
+  // Older published maps embedded the fingerprint produced before terrain
+  // options were included in normalization. The pointer and payload still
+  // need to agree with each other (or with the newly calculated digest).
+  const pointerMatches = !pointerFingerprint
+    || pointerFingerprint === normalized.fingerprint
+    || pointerFingerprint === embeddedFingerprint
+    || (pointerFingerprint === payloadFingerprint && Boolean(payloadFingerprint));
+  const payloadMatches = !payloadFingerprint
+    || payloadFingerprint === normalized.fingerprint
+    || payloadFingerprint === embeddedFingerprint
+    || payloadFingerprint === pointerFingerprint;
+  return pointerMatches && payloadMatches ? normalized : null;
+};
+
 export const readOfficialMapCache = (storage: Pick<Storage, 'getItem'> = localStorage): OfficialMapSnapshot | null => {
   try {
     const raw = storage.getItem(OFFICIAL_MAP_CACHE_KEY);

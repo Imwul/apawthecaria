@@ -1,4 +1,3 @@
-import { AILMENT_BY_ID } from './data/ailments';
 import type { RuleCard } from './cards';
 import { REAGENTS } from './data/reagents';
 import { TOOL_UPGRADES } from './data/upgrades';
@@ -6,6 +5,11 @@ import { resolveBadIdeaOutcomeEffect, type BadIdeaOutcomeChoice } from './ailmen
 import type { EngineInventoryItem, ProvidedTags, TreatmentTransactionState } from './gameplay';
 import { evaluateRequirement, type RequirementEvaluation } from './requirements';
 import type { PatientAilmentState, PatientState, TreatmentHistoryEntry } from './state';
+import {
+  getEncounterRemedyForPatientAilment,
+  getTreatmentAilmentDefinition,
+  isEncounterOnlyRemedyAilmentId
+} from './treatableAilments';
 import { resolveToolEffects, toolWeight, type CanonicalToolState } from './toolEngine';
 import type { AilmentSeverity, ReagentPreparation, RequirementExpression, RuleTag, StructuredRuleEffect } from './types';
 
@@ -17,6 +21,19 @@ const PREPARATION_BY_ID = new Map<string, { reagentId: string; preparation: Reag
 );
 
 const severityValue = (severity: AilmentSeverity): number => ({ lesser: 1, intermediate: 2, severe: 3, dire: 4 })[severity];
+
+const separateDoseMessage = (ailment: PatientAilmentState): string | null => {
+  const remedy = getEncounterRemedyForPatientAilment(
+    ailment.ailmentId,
+    ailment.specialState?.encounterRemedyId
+  );
+  if (!remedy?.requirementDoses?.length) return null;
+  const doseLabels = remedy.requirementDoses.map(dose => dose.requirement.kind === 'tag'
+    ? `${dose.requirement.tag} ${dose.requirement.threshold}`
+    : dose.id);
+  return `This Encounter Remedy requires ${remedy.requirementDoses.length} separately prepared doses (${doseLabels
+    .join(', ')}). The single-Remedy transaction cannot safely combine or consume them; resolve the listed doses separately.`;
+};
 
 export interface TreatmentAilmentTagOverride {
   ailmentId: string;
@@ -257,9 +274,9 @@ export const previewTreatmentSelection = ({
     return { ready: false, requiresCatalyse: false, catalyseTags: [], providedTags: {}, requirement: null, fair: 0, foul: 0, rawFoul: 0, missingToolIds: [], messages: ['Patient state is malformed.'] };
   }
   const ailment = patient.ailments.find(row => row.id === ailmentInstanceId && row.status === 'active');
-  const definition = ailment?.ailmentId ? AILMENT_BY_ID.get(ailment.ailmentId) : null;
+  const definition = getTreatmentAilmentDefinition(ailment?.ailmentId);
   if (!ailment || !definition) {
-    return { ready: false, requiresCatalyse: false, catalyseTags: [], providedTags: {}, requirement: null, fair: 0, foul: 0, rawFoul: 0, missingToolIds: [], messages: ['Active canonical Ailment instance not found.'] };
+    return { ready: false, requiresCatalyse: false, catalyseTags: [], providedTags: {}, requirement: null, fair: 0, foul: 0, rawFoul: 0, missingToolIds: [], messages: ['Active treatable Ailment or Encounter Remedy instance not found.'] };
   }
   const duplicateItemIds = selectedItemIds.length !== new Set(selectedItemIds).size;
   const selectedItems = selectedItemIds.flatMap(id => {
@@ -298,6 +315,7 @@ export const previewTreatmentSelection = ({
   const missingSpecial = specialRequirements
     .filter(row => (collected.tags[row.tag] || 0) < row.threshold)
     .map(row => `${row.tag} ${row.threshold}`);
+  const separateDoseRequirement = separateDoseMessage(ailment);
   const first = selected[0];
   const second = selected[1];
   const catalyseTags = first && second && tools.has('glass-alembic')
@@ -324,6 +342,7 @@ export const previewTreatmentSelection = ({
     ...missingToolIds.map(tool => `Required Tool is not selected: ${tool}`),
     ...requirement.missing,
     ...missingSpecial,
+    ...(separateDoseRequirement ? [separateDoseRequirement] : []),
     ...(purify && !purifyEligible ? ['PURIFY requires the last gathered Reagent to have been gathered in a Mountain Location.'] : []),
     ...collected.messages
   ];
@@ -332,6 +351,7 @@ export const previewTreatmentSelection = ({
   return {
     ready: selected.length > 0 && !duplicateItemIds && depletedItems.length === 0 && missingToolIds.length === 0
       && (requirement.satisfied || requiresCatalyse) && (missingSpecial.length === 0 || requiresCatalyse)
+      && !separateDoseRequirement
       && !(purify && !purifyEligible) && collected.messages.length === 0
       && !(definition.canonicalName === 'Bad Idea' && foul > 0),
     requiresCatalyse,
@@ -356,8 +376,9 @@ export const canTreatAilmentWithInventory = (
 ): boolean => {
   const ailment = patient.ailments.find(row => row.id === ailmentInstanceId && row.status === 'active');
   if (!ailment?.ailmentId) return false;
-  const definition = AILMENT_BY_ID.get(ailment.ailmentId);
+  const definition = getTreatmentAilmentDefinition(ailment.ailmentId);
   if (!definition) return false;
+  if (separateDoseMessage(ailment)) return false;
 
   const inventoryToolInstanceIds = new Set(inventory
     .filter(item => item.type === 'tool')
@@ -531,7 +552,9 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
       // Some encounter patients explicitly grant and cost no Reputation or
       // Trinkets (for example The Branded, p.162). That printed exception
       // applies to failure as well as successful treatment.
-      if (ailment.specialState?.rewardMode !== 'none') {
+      if (ailment.specialState?.rewardMode !== 'none'
+        && ailment.specialState?.encounterRemedy !== true
+        && !isEncounterOnlyRemedyAilmentId(ailment.ailmentId)) {
         reputationLoss += severityValue(ailment.severity);
       }
       patient = updateAilment(patient, ailment, treatment, 'failed');
@@ -577,9 +600,11 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
   }
 
   const ailment = input.state.patient.ailments.find(row => row.id === input.ailmentInstanceId && row.status === 'active');
-  if (!ailment || !ailment.ailmentId) return { status: 'invalid', value: null, messages: ['Active canonical Ailment instance not found.'] };
-  const definition = AILMENT_BY_ID.get(ailment.ailmentId);
-  if (!definition) return { status: 'invalid', value: null, messages: ['Canonical Ailment definition not found.'] };
+  if (!ailment || !ailment.ailmentId) return { status: 'invalid', value: null, messages: ['Active treatable Ailment or Encounter Remedy instance not found.'] };
+  const definition = getTreatmentAilmentDefinition(ailment.ailmentId);
+  if (!definition) return { status: 'invalid', value: null, messages: ['Treatable Ailment or Encounter Remedy definition not found.'] };
+  const unresolvedSeparateDoses = separateDoseMessage(ailment);
+  if (unresolvedSeparateDoses) return { status: 'manual', value: null, messages: [unresolvedSeparateDoses] };
   if (input.selectedItemIds.length !== new Set(input.selectedItemIds).size) {
     return { status: 'invalid', value: null, messages: ['The same Remedy ingredient cannot be selected more than once.'] };
   }
@@ -706,19 +731,24 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
     ? Math.max(0, collected.fair - effectiveFoul)
     : collected.fair - effectiveFoul;
   const baseReward = Math.max(0, severityValue(definition.severity) + Math.trunc(netFair / 2));
-  const rewardsSuppressed = specialState.rewardMode === 'none';
+  const rewardsSuppressed = specialState.rewardMode === 'none'
+    || specialState.encounterRemedy === true
+    || definition.encounterOnly;
   const gifting = Boolean(!rewardsSuppressed && input.gifting && baseReward > 0);
-  const trinketReward = rewardsSuppressed
-    ? 0
-    : gifting ? 0 : baseReward + Math.max(0, Math.floor(input.trinketRewardBonus || 0));
   const brandCareChange = definition.canonicalName === 'Brand Care' && specialState.brandCareChoice !== 'treat' ? -2 : 0;
   const stingshockChange = definition.canonicalName === 'Stingshock' && doseCount >= 2 ? 3 : 0;
   const cookedWakeChange = definition.canonicalName === 'Wake'
     && selected.some(row => row.preparation?.method.toUpperCase().includes('COOK')) ? 2 : 0;
-  const reputationChange = rewardsSuppressed
+  const printedReputationReward = rewardsSuppressed
     ? 0
     : severityValue(definition.severity) + (gifting ? 2 : 0)
       + brandCareChange + stingshockChange + cookedWakeChange;
+  const convertsReputationToTrinkets = specialState.rewardMode === 'reputation-as-trinkets';
+  const reputationChange = convertsReputationToTrinkets ? 0 : printedReputationReward;
+  const trinketReward = rewardsSuppressed
+    ? 0
+    : gifting ? 0 : baseReward + Math.max(0, Math.floor(input.trinketRewardBonus || 0))
+      + (convertsReputationToTrinkets ? Math.max(0, printedReputationReward) : 0);
   const treatment: TreatmentHistoryEntry = {
     id: `${input.transactionId}:treatment`,
     ailmentInstanceIds: [ailment.id],

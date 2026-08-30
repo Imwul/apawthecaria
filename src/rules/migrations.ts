@@ -18,6 +18,8 @@ import { readCalendarClocks } from '../calendarTime';
 import { getRuleCardValue } from './cards';
 import { migrateRulesetMetadata } from './rulesets';
 import { immediatelyTreatableAilmentIds } from './immediateRemedyEngine';
+import { normalizeEncounterConditions } from './encounterConditionRuntime';
+import { normalizeTravelEncounterWorldState } from './travelEncounterRuntime';
 import { CURRENT_SCHEMA_VERSION, type PatientState, type TreatmentDraft } from './state';
 import type { EngineInventoryItem } from './gameplay';
 import type { CanonicalToolState } from './toolEngine';
@@ -476,7 +478,9 @@ const migrateV6ToV7: SaveMigration = saved => {
         .map(row => normalizePendingManualFollowUp(row))
         .filter((row): row is NonNullable<typeof row> => Boolean(row))
       : [],
-    manualConditions: Array.isArray(saved.manualConditions) ? saved.manualConditions.map(String) : [],
+    manualConditions: normalizeEncounterConditions(
+      Array.isArray(saved.manualConditions) ? saved.manualConditions.map(String) : []
+    ),
     schemaVersion: 7
   };
 };
@@ -864,6 +868,23 @@ const normalizePendingForaging = (
     overrides: context.overrides,
     toolStates: context.toolStates
   });
+  const rawSpecialAcquisition = isSaveRecord(value.specialAcquisition)
+    ? value.specialAcquisition
+    : null;
+  const specialAcquisition = rawSpecialAcquisition?.kind === 'unbuckled-cache'
+    && typeof rawSpecialAcquisition.cacheId === 'string'
+    && Boolean(rawSpecialAcquisition.cacheId.trim())
+    && typeof rawSpecialAcquisition.label === 'string'
+    && Boolean(rawSpecialAcquisition.label.trim())
+    ? {
+      kind: 'unbuckled-cache' as const,
+      cacheId: rawSpecialAcquisition.cacheId,
+      label: rawSpecialAcquisition.label,
+      itemCount: Number.isFinite(Number(rawSpecialAcquisition.itemCount))
+        ? Math.max(1, Math.floor(Number(rawSpecialAcquisition.itemCount)))
+        : 1
+    }
+    : undefined;
   return {
     ...value,
     card,
@@ -874,6 +895,7 @@ const normalizePendingForaging = (
       ? canonicalReagentId(value.candidateSelectionReagentId)
       : undefined,
     selectedReagentId: canonicalReagentId(value.selectedReagentId),
+    specialAcquisition: phase === 'choose-reagent' ? undefined : specialAcquisition,
     locationRelation: value.locationRelation === 'adjacent' ? 'adjacent' : 'current',
     timerCostAfterEncounter: Number.isFinite(Number(value.timerCostAfterEncounter))
       ? Math.max(0, Number(value.timerCostAfterEncounter))
@@ -938,13 +960,15 @@ const normalizePendingBarter = (
     ? value.socialEncounter.id.trim()
     : '';
   const socialEncounter = SOCIAL_ENCOUNTERS.find(encounter => encounter.id === socialEncounterId) ?? null;
+  const socialStepSkipped = value.socialStepSkipped === true;
   const paymentRequired = normalizeNonNegativeInteger(value.paymentRequired);
   if (!barterId || !reagent || !preparation || reagent.type === 'TITAN' || !locationId || !locationType || calculatedBR === null) {
     return null;
   }
-  if ((status === 'manual-social' || status === 'awaiting-second-card') && (!firstCard || !socialEncounter)) return null;
+  if (status === 'manual-social' && (!firstCard || !socialEncounter)) return null;
+  if (status === 'awaiting-second-card' && !socialStepSkipped && (!firstCard || !socialEncounter)) return null;
   if (status === 'awaiting-payment') {
-    if (!firstCard || !secondCard || !socialEncounter || paymentRequired === null || paymentRequired <= 0) return null;
+    if ((!socialStepSkipped && (!firstCard || !socialEncounter)) || !secondCard || paymentRequired === null || paymentRequired <= 0) return null;
     const expectedPayment = Math.max(0, calculatedBR - getRuleCardValue(secondCard, 'barter'));
     if (paymentRequired !== expectedPayment) return null;
   }
@@ -960,6 +984,7 @@ const normalizePendingBarter = (
     firstCard,
     secondCard,
     socialEncounter,
+    socialStepSkipped,
     paymentRequired: status === 'awaiting-payment' ? paymentRequired : 0,
     appliedEffectIds: stringArray(value.appliedEffectIds),
     ...normalizeImmediateRemedyFields({
@@ -1045,7 +1070,9 @@ const normalizeCurrentSave = (saved: SaveRecord): SaveRecord => {
     condition.startsWith(`manual:${BEES_MANUAL_OWNER_ID}:`)
     && /queen bee companion acquired now/i.test(condition);
   const legacyQueenAcquired = manualConditions.some(isLegacyQueenCondition);
-  const canonicalManualConditions = manualConditions.filter(condition => !isLegacyQueenCondition(condition));
+  const canonicalManualConditions = normalizeEncounterConditions(
+    manualConditions.filter(condition => !isLegacyQueenCondition(condition))
+  );
   const companionStates = legacyQueenAcquired
     && !savedCompanionStates.some(row => isSaveRecord(row) && row.companionId === QUEEN_BEE_COMPANION_ID)
     ? acquireQueenBeeCompanion(savedCompanionStates, 'legacy-protect-queen')
@@ -1127,6 +1154,7 @@ const normalizeCurrentSave = (saved: SaveRecord): SaveRecord => {
     manualEffectRecords: Array.isArray(withMetadata.manualEffectRecords) ? withMetadata.manualEffectRecords : [],
     pendingManualFollowUps,
     manualConditions: canonicalManualConditions,
+    travelEncounterWorld: normalizeTravelEncounterWorldState(withMetadata.travelEncounterWorld),
     offlineOutbox: Array.isArray(withMetadata.offlineOutbox) ? withMetadata.offlineOutbox : [],
     downtimeCompleted: typeof withMetadata.downtimeCompleted === 'boolean' ? withMetadata.downtimeCompleted : false,
     downtimeRequired: typeof withMetadata.downtimeRequired === 'boolean' ? withMetadata.downtimeRequired : false,
@@ -1182,6 +1210,7 @@ export const migrateSavedRulesState = <T extends Record<string, unknown>>(saved:
     manualEffectRecords: unknown[];
     pendingManualFollowUps: unknown[];
     manualConditions: string[];
+    travelEncounterWorld: ReturnType<typeof normalizeTravelEncounterWorldState>;
     offlineOutbox: unknown[];
     downtimeCompleted: boolean;
     downtimeRequired: boolean;

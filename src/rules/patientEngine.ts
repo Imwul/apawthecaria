@@ -1,5 +1,9 @@
 import { getRuleCardValue, type RuleCard } from './cards';
 import { AILMENTS, AILMENT_MONARCH_RULES } from './data/ailments';
+import {
+  ENCOUNTER_REMEDY_BY_ID,
+  type EncounterRemedyOutcomeMetadata
+} from './data/encounterRemedies';
 import type { PatientAilmentState, PatientState, PatientTimerState } from './state';
 import type { AilmentDefinition, AilmentSeverity, CardSuit } from './types';
 
@@ -78,7 +82,10 @@ export interface EncounterPatientAilmentInput {
   patientName: string;
   species: string;
   context: string;
-  rewardMode?: 'none' | 'standard';
+  rewardMode?: 'none' | 'standard' | 'reputation-as-trinkets';
+  /** Encounter-specific consequence applied after the normal failed-Ailment
+   * handling. Kept as typed state so the journey layer can end the Season. */
+  failureOutcome?: 'taken-prisoner';
   deadline?: 'before-overstay';
   timerBonus?: number;
   lesserIntermediateTimerBonus?: number;
@@ -93,6 +100,36 @@ export interface EncounterPatientAilmentOutcome {
 export interface EncounterPatientAilmentResolution {
   status: 'resolved' | 'invalid';
   value: EncounterPatientAilmentOutcome | null;
+  messages: string[];
+}
+
+export interface FixedEncounterRemedySpecialState {
+  successOutcome?: EncounterRemedyOutcomeMetadata | null;
+  failureOutcome?: EncounterRemedyOutcomeMetadata | null;
+  [key: string]: unknown;
+}
+
+export interface FixedEncounterRemedyInput {
+  transactionId: string;
+  patient: PatientState | null;
+  remedyId: string;
+  encounterId: string;
+  choiceId?: string;
+  patientName: string;
+  species: string;
+  context: string;
+  timerBonus?: number;
+  specialState?: FixedEncounterRemedySpecialState;
+}
+
+export interface FixedEncounterRemedyOutcome extends EncounterPatientAilmentOutcome {
+  remedyId: string;
+  timerId: string | null;
+}
+
+export interface FixedEncounterRemedyResolution {
+  status: 'resolved' | 'invalid';
+  value: FixedEncounterRemedyOutcome | null;
   messages: string[];
 }
 
@@ -279,6 +316,7 @@ export const startEncounterPatientAilment = (
       encounterPatientSpecies: input.species,
       encounterContext: input.context,
       rewardMode: input.rewardMode || 'standard',
+      failureOutcome: input.failureOutcome || null,
       deadline: input.deadline || null
     },
     successResolved: false,
@@ -331,6 +369,137 @@ export const startEncounterPatientAilment = (
   return {
     status: 'resolved',
     value: { patient, ailmentInstanceId, ailmentId: definition.id },
+    messages: []
+  };
+};
+
+/**
+ * Starts an Encounter-only fixed Remedy without adding it to the normal
+ * Ailment card tables. A null printed Timer creates no PatientTimerState; it
+ * must not be represented as an already-expired Timer at 0.
+ */
+export const startFixedEncounterRemedy = (
+  input: FixedEncounterRemedyInput
+): FixedEncounterRemedyResolution => {
+  if (!input.transactionId.trim() || !input.encounterId.trim()) {
+    return { status: 'invalid', value: null, messages: ['Fixed Encounter Remedy requires stable transaction and encounter IDs.'] };
+  }
+  if (!input.patientName.trim() || !input.species.trim()) {
+    return { status: 'invalid', value: null, messages: ['Fixed Encounter Remedy requires a patient name and species.'] };
+  }
+  const definition = ENCOUNTER_REMEDY_BY_ID.get(input.remedyId);
+  if (!definition) {
+    return { status: 'invalid', value: null, messages: ['Unknown fixed Encounter Remedy.'] };
+  }
+  if (!definition.encounterIds.includes(input.encounterId)) {
+    return { status: 'invalid', value: null, messages: ['Fixed Encounter Remedy does not belong to this Encounter.'] };
+  }
+  if (input.choiceId && definition.choiceId && input.choiceId !== definition.choiceId) {
+    return { status: 'invalid', value: null, messages: ['Fixed Encounter Remedy does not belong to this Encounter choice.'] };
+  }
+
+  const patientId = input.patient?.id || `patient-${input.transactionId}`;
+  const ailmentInstanceId = `${patientId}:${input.encounterId}:${input.transactionId}:${definition.id}`;
+  const existing = input.patient?.ailments.find(row => row.id === ailmentInstanceId);
+  if (input.patient && existing) {
+    return {
+      status: 'resolved',
+      value: {
+        patient: input.patient,
+        ailmentInstanceId,
+        ailmentId: existing.ailmentId || definition.patientAilmentId,
+        remedyId: definition.id,
+        timerId: existing.timerIds[0] || null
+      },
+      messages: ['Fixed Encounter Remedy was already started.']
+    };
+  }
+
+  const timerId = definition.timerHours === null ? null : `${ailmentInstanceId}:timer`;
+  const maximum = definition.timerHours === null
+    ? null
+    : Math.max(0, definition.timerHours + (input.timerBonus || 0));
+  const specialState = input.specialState || {};
+  const ailment: PatientAilmentState = {
+    id: ailmentInstanceId,
+    ailmentId: definition.patientAilmentId,
+    legacyName: definition.displayName,
+    severity: definition.stateSeverity,
+    timerIds: timerId ? [timerId] : [],
+    conditionIds: [`${ailmentInstanceId}:encounter-context`],
+    treatmentHistoryIds: [],
+    status: 'active',
+    instance: 1,
+    repeatIndex: 1,
+    specialState: {
+      ...specialState,
+      sourceEncounterId: input.encounterId,
+      sourceEncounterChoiceId: input.choiceId || definition.choiceId || null,
+      encounterPatientName: input.patientName,
+      encounterPatientSpecies: input.species,
+      encounterContext: input.context,
+      encounterRemedyId: definition.id,
+      encounterRemedy: true,
+      canonicalAilmentId: definition.canonicalAilmentId,
+      severityIsStorageOnly: definition.canonicalAilmentId === null,
+      rewardMode: 'none',
+      deadline: definition.deadline || null,
+      timerKind: timerId ? 'fixed' : 'none',
+      requirement: definition.requirements,
+      requirementDoses: definition.requirementDoses || [],
+      successOutcome: specialState.successOutcome === undefined ? definition.success : specialState.successOutcome,
+      failureOutcome: specialState.failureOutcome === undefined ? definition.failure : specialState.failureOutcome
+    },
+    successResolved: false,
+    failureResolved: false,
+    consequenceResolved: false,
+    effectIds: []
+  };
+  const timer: PatientTimerState | null = timerId && maximum !== null
+    ? { id: timerId, ailmentInstanceId, current: maximum, maximum, status: 'active' }
+    : null;
+  const condition = {
+    id: `${ailmentInstanceId}:encounter-context`,
+    ailmentInstanceId,
+    code: `encounter-remedy:${definition.id}`,
+    description: input.context,
+    active: true
+  };
+  const journalEvent = {
+    id: `${input.transactionId}:diagnosis`,
+    type: 'diagnosis' as const,
+    text: `${input.patientName} (${input.species}) · ${definition.displayName} · ${input.context}`
+  };
+  const base: PatientState = input.patient || {
+    id: patientId,
+    name: input.patientName,
+    species: input.species,
+    foragingPoints: 0,
+    reagentsGathered: [],
+    status: 'active',
+    ailments: [],
+    timers: [],
+    conditions: [],
+    treatmentHistory: [],
+    journalEvents: []
+  };
+  const patient: PatientState = {
+    ...base,
+    status: 'active',
+    ailments: [ailment, ...base.ailments],
+    timers: timer ? [timer, ...base.timers] : base.timers,
+    conditions: [condition, ...base.conditions],
+    journalEvents: [journalEvent, ...base.journalEvents]
+  };
+  return {
+    status: 'resolved',
+    value: {
+      patient,
+      ailmentInstanceId,
+      ailmentId: definition.patientAilmentId,
+      remedyId: definition.id,
+      timerId
+    },
     messages: []
   };
 };

@@ -139,7 +139,10 @@ describe('high-risk printed follow-ups remain attached to their triggering actio
       choiceId: 'harsh-wind',
       state: baseState
     });
-    manualCode(result, 'CHILLED_TO_BONE_TIMER');
+    expect(result.status).toBe('resolved');
+    expect(result.value?.nextState.conditions).toContain(
+      'chilled-to-the-bone:mountain-forage-timer:3'
+    );
   });
 
   it('offers the Bear Lord Ailment once and nests both future Timer resolutions', () => {

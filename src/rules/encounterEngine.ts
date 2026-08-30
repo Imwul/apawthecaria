@@ -1,6 +1,6 @@
 import type { EncounterRuntimeState } from './gameplay';
 import type { EncounterChoice, EncounterDefinition, RuleEffect, StructuredRuleEffect } from './types';
-import { encounterChoiceRequiresJournal } from './data/encounterChoices';
+import { encounterForagingPointMultiplier, isNegativeEncounterCondition } from './encounterConditionRuntime';
 
 export interface EncounterExecutionInput {
   transactionId: string;
@@ -56,7 +56,12 @@ const applyEffect = (state: EncounterRuntimeState, effect: RuleEffect): Encounte
   if (effect.type === 'modifyReputation') return { ...state, reputation: Math.max(0, state.reputation + effect.amount) };
   if (effect.type === 'modifyTrinkets') return { ...state, trinkets: Math.max(0, state.trinkets + effect.amount) };
   if (effect.type === 'markDays') return { ...state, calendarDays: Math.max(0, state.calendarDays + effect.amount) };
-  if (effect.type === 'modifyForagingPoints') return { ...state, foragingPoints: Math.max(0, state.foragingPoints + effect.amount) };
+  if (effect.type === 'modifyForagingPoints') {
+    const amount = effect.amount > 0
+      ? Math.floor(effect.amount * encounterForagingPointMultiplier(state.conditions, state.patient?.id))
+      : effect.amount;
+    return { ...state, foragingPoints: Math.max(0, state.foragingPoints + amount) };
+  }
   if (effect.type === 'addItem') {
     return {
       ...state,
@@ -118,7 +123,7 @@ const isNegativeEffect = (effect: RuleEffect): boolean => {
   return effect.type === 'removeItem'
     || effect.type === 'blockMovement'
     || effect.type === 'requireLocalHelp'
-    || effect.type === 'addCondition';
+    || (effect.type === 'addCondition' && isNegativeEncounterCondition(effect.conditionId));
 };
 
 export const executeEncounter = (input: EncounterExecutionInput): EncounterExecutionResolution => {
@@ -132,11 +137,6 @@ export const executeEncounter = (input: EncounterExecutionInput): EncounterExecu
     const availability = encounterChoiceAvailability(choice, input.state);
     if (!availability.available) return { status: 'invalid', value: null, messages: availability.reasons };
   }
-  if (choice && encounterChoiceRequiresJournal(input.encounter, choice.id)
-    && !input.journalNote?.trim() && !input.journalAcknowledged) {
-    return { status: 'invalid', value: null, messages: ['Acknowledge the printed journaling prompt before resolving.'] };
-  }
-
   // A voluntary payment cannot silently succeed by clamping a negative
   // balance to zero. Forced losses still discard as much as the player has.
   const voluntaryTrinketCost = choice && /(?:\b(?:pay|trade|spend|give|buy|leave|swap)\b[^.]{0,80}\btrinkets?\b|장신구[^.]{0,50}(?:주고|남기고|바꾸고|엮고|지불|구매|거래)|(?:주고|남기고|바꾸고|엮고|지불|구매|거래)[^.]{0,50}장신구)/i.test(choice.label)

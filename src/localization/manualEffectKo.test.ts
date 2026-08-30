@@ -29,13 +29,46 @@ const displayedManualStrings = (effect: (typeof PRINTED_EFFECT_REGISTRY)[number]
   ].filter(Boolean);
 };
 
+const untranslatedRenderedManualStrings = (effect: (typeof PRINTED_EFFECT_REGISTRY)[number]): string[] => {
+  const resolutions = [effect.manualResolution, ...Object.values(effect.manualResolutionByTrigger)].filter(Boolean);
+  const encounter = effect.ownerType === 'encounter'
+    ? ENCOUNTERS.find(row => row.id === effect.ownerId)
+    : undefined;
+  const choiceTranslation = (text: string) => {
+    const choice = encounter?.choices.find(row => row.label === text);
+    return localizeManualEffectOption(text, encounter?.id, choice?.id);
+  };
+  const rows: Array<[string, string]> = [
+    [effect.printedText, localizeManualEffectText(effect.ownerName, effect.printedText)],
+    ...Object.values(effect.triggerText).map(text => [text, localizeManualEffectText(effect.ownerName, text)] as [string, string]),
+    ...resolutions.flatMap(resolution => [
+      [resolution!.decision, localizeManualEffectValue(resolution!.decision)] as [string, string],
+      ...resolution!.choices.map(text => [text, choiceTranslation(text)] as [string, string]),
+      ...resolution!.mandatoryConditions.map(text => [text, localizeManualEffectLine(text)] as [string, string]),
+      ...resolution!.inputFields.flatMap(field => [
+        [field.label, localizeManualEffectValue(field.label)] as [string, string],
+        ...(field.helpText ? [[field.helpText, localizeManualEffectValue(field.helpText)] as [string, string]] : []),
+        ...(field.options || []).map(text => [text, choiceTranslation(text)] as [string, string])
+      ]),
+      ...resolution!.actionTemplates.flatMap(action => [
+        [action.label, localizeManualEffectValue(action.label)] as [string, string],
+        [action.sourceText, localizeManualEffectLine(action.sourceText)] as [string, string]
+      ]),
+      ...resolution!.followUpRequirements.map(text => [text, localizeManualEffectLine(text)] as [string, string])
+    ])
+  ];
+  return rows
+    .filter(([source]) => /[A-Za-z]{2}/.test(source) && !/[가-힣]/.test(source))
+    .filter(([source, rendered]) => source === rendered)
+    .map(([source]) => source);
+};
+
 describe('printed effect Korean reading layer', () => {
   it('covers every English printed effect and manual-resolution line', () => {
     const untranslatedCanonicalLabels = ['Hot Toddy', 'Junior', 'Senior'];
-    const uncovered = PRINTED_EFFECT_REGISTRY.flatMap(effect => displayedManualStrings(effect))
-      .filter(text => /[A-Za-z]{2}/.test(text) && !/[가-힣]/.test(text))
-      .filter(text => localizeManualEffectValue(text) === text)
-      .filter(text => !untranslatedCanonicalLabels.includes(text));
+    const uncovered = PRINTED_EFFECT_REGISTRY.flatMap(untranslatedRenderedManualStrings)
+      .filter(text => !untranslatedCanonicalLabels.includes(text))
+      .filter(text => !/^Guild Reputation [+-]\d+$/.test(text));
     expect(uncovered).toEqual([]);
   });
 

@@ -45,7 +45,8 @@ describe('patient identity experience', () => {
 describe('local-care journey composition', () => {
   it('closes a cured patient hold when the last Scrounging Timer is spent', () => {
     expect(appSource).toContain('const canScrounge = runtime.patient.status === \'cured\' && remaining > 0;');
-    expect(appSource).toContain('const activePatientId = canScrounge');
+    expect(appSource).toContain('const keepsActiveTreatmentOpen = patientHasActiveAilments(runtime.patient);');
+    expect(appSource).toContain('const activePatientId = keepsActiveTreatmentOpen');
     expect(appSource).toContain('keepsCuredPatientOpen');
     expect(appSource).toContain('if (!journeyUiContext.canMove) {\n      addActionHubItem({\n        id: \'clinic-open\'');
     expect(appSource).toContain("if (journeyUiContext.canMove && !state.pursuedByBehemoth\n      && !state.activeAilment && !state.scroungingMode)");
@@ -88,8 +89,16 @@ describe('treatment tool layout', () => {
   it('does not turn a mixed failed/treated case into a cure or Scrounging phase', () => {
     expect(appSource).toContain("const allAilmentsCured = outcome.allAilmentsResolved && nextPatient.status === 'cured';");
     expect(appSource).toContain("treatmentResult: allAilmentsCured ? 'success' : outcome.allAilmentsResolved ? 'failure' : 'pending'");
-    expect(appSource).toContain('curedAilmentInThisWilds: allAilmentsCured');
-    expect(appSource).toContain('scroungingMode: allAilmentsCured && remainingTime > 0');
+    expect(appSource).toContain("curedAilmentInThisWilds: !isFixedEncounterRemedy && allAilmentsCured");
+    expect(appSource).toContain("scroungingMode: !isFixedEncounterRemedy && allAilmentsCured && remainingTime > 0");
     expect(appSource).toContain('if (!outcome.allAilmentsResolved || (allAilmentsCured && remainingTime > 0)) return withArchive;');
+  });
+
+  it('settles Fire and Iron global Timer expiries before returning to the previous Patient', () => {
+    expect(appSource).toContain('applyGlobalActiveTimerCost({');
+    expect(appSource).toContain("transactionId: `${fixedSuccessTransactionId}:active-timer-cost`");
+    expect(appSource).toContain('for (const expiredPatientId of globalTimerCost.expiredPatientIds)');
+    expect(appSource).toContain('`${fixedSuccessTransactionId}:timer-expiry:${expiredPatientId}`');
+    expect(appSource).toContain("state.appliedTransactionIds.includes(`${transactionId}:failure`)");
   });
 });

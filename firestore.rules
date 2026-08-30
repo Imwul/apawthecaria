@@ -15,16 +15,38 @@ service cloud.firestore {
         || documentId.matches('map_official_snapshot_.*');
     }
 
-    function isOwnSaveDocument(documentId) {
+    function isOwnPrimarySaveDocument(documentId) {
+      return signedIn() && documentId == 'uid_' + request.auth.uid;
+    }
+
+    function isOwnChildSaveDocument(documentId) {
+      return signedIn()
+        && documentId.matches('uid_' + request.auth.uid + '_.*');
+    }
+
+    function canReadExistingOwnSave(documentId) {
       return signedIn() && (
-        documentId == 'uid_' + request.auth.uid
-        || documentId.matches('uid_' + request.auth.uid + '_.*')
+        (
+          isOwnPrimarySaveDocument(documentId)
+          && (
+            !exists(/databases/$(database)/documents/saves/$(documentId))
+            || !('ownerUid' in resource.data)
+            || resource.data.ownerUid == request.auth.uid
+          )
+        )
+        || (
+          isOwnChildSaveDocument(documentId)
+          && (
+            !exists(/databases/$(database)/documents/saves/$(documentId))
+            || resource.data.ownerUid == request.auth.uid
+          )
+        )
       );
     }
 
     match /saves/{documentId} {
       // The published map is shared read-only reference data for every player.
-      allow read: if isOfficialMapDocument(documentId) || isOwnSaveDocument(documentId);
+      allow read: if isOfficialMapDocument(documentId) || canReadExistingOwnSave(documentId);
 
       // Only the designated cartographer can move the official pointer or add
       // immutable official-map payloads. Account saves remain UID-scoped.
@@ -33,7 +55,7 @@ service cloud.firestore {
           && isMapAdmin()
           && request.resource.data.ownerUid == request.auth.uid
       ) || (
-        isOwnSaveDocument(documentId)
+        isOwnPrimarySaveDocument(documentId)
           && request.resource.data.ownerUid == request.auth.uid
       );
 
@@ -42,11 +64,55 @@ service cloud.firestore {
           && isMapAdmin()
           && request.resource.data.ownerUid == request.auth.uid
       ) || (
-        isOwnSaveDocument(documentId)
+        ((isOwnPrimarySaveDocument(documentId)
+          && (
+            !('ownerUid' in resource.data)
+            || resource.data.ownerUid == request.auth.uid
+          ))
+          || (
+            isOwnChildSaveDocument(documentId)
+            && resource.data.ownerUid == request.auth.uid
+          ))
           && request.resource.data.ownerUid == request.auth.uid
       );
 
-      allow delete: if isOwnSaveDocument(documentId);
+      allow delete: if (
+          isOwnPrimarySaveDocument(documentId)
+          && (
+            !('ownerUid' in resource.data)
+            || resource.data.ownerUid == request.auth.uid
+          )
+        )
+        || (
+          isOwnChildSaveDocument(documentId)
+          && resource.data.ownerUid == request.auth.uid
+        );
+    }
+
+    // New account-owned payloads and map snapshots live below the exact UID
+    // account path. Unlike the legacy flat `uid_<uid>_*` naming convention,
+    // this cannot collide when one custom UID is a prefix of another.
+    match /saves/{accountDocumentId}/{accountCollection}/{childDocumentId} {
+      function isOwnAccountCollection() {
+        return signedIn()
+          && accountDocumentId == 'uid_' + request.auth.uid
+          && (accountCollection == 'payloads' || accountCollection == 'maps');
+      }
+
+      // A missing nested manifest must be readable as "not found" so the
+      // client can fall back to pre-chunk flat payloads. The exact parent
+      // document already binds this collection to the authenticated UID.
+      allow read: if isOwnAccountCollection();
+
+      allow delete: if isOwnAccountCollection()
+        && resource.data.ownerUid == request.auth.uid;
+
+      allow create: if isOwnAccountCollection()
+        && request.resource.data.ownerUid == request.auth.uid;
+
+      allow update: if isOwnAccountCollection()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid;
     }
   }
 }

@@ -131,7 +131,11 @@ describe('printed conditional and follow-up hierarchy', () => {
     ];
     for (const [encounterId, choiceId, code] of cases) {
       const row = encounter(encounterId);
-      expect(row.choices.map(choice => choice.id)).toEqual([choiceId]);
+      expect(row.choices.map(choice => choice.id)).toEqual(
+        encounterId === 'foraging-meadow-j-summer'
+          ? [choiceId, 'leave-the-bee']
+          : [choiceId]
+      );
       expectManualCode(encounterId, choiceId, code);
     }
   });
@@ -222,7 +226,7 @@ describe('printed conditional and follow-up hierarchy', () => {
     const inspection = encounter('social-meadow-settlement-♥');
     expect(inspection.sourcePage).toBe(204);
     expect(inspection.choices.map(choice => choice.id)).toEqual(['inspect-bags']);
-    expect(encounterChoiceRequiresJournal(inspection, 'inspect-bags')).toBe(true);
+    expect(encounterChoiceRequiresJournal(inspection, 'inspect-bags')).toBe(false);
     expectManualCode(inspection.id, 'inspect-bags', 'INSPECTION_MUSHROOM_BRANCH');
     const localizedInspection = SOCIAL_ENCOUNTER_REVIEW_CHOICE_KO[inspection.id]['inspect-bags'];
     expect(localizedInspection).toContain('없다면');

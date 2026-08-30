@@ -8,20 +8,28 @@ import {
   ACTIVE_CLOUD_SLOT_KEY,
   CLOUD_ACCOUNT_BINDING_KEY,
   CLOUD_DOCUMENT_SAFE_BYTES,
+  CLOUD_PAYLOAD_CHUNK_SAFE_BYTES,
   CLOUD_PAYLOAD_SAFE_BYTES,
   CLOUD_SLOT_COUNT,
+  CLOUD_SLOT_TOMBSTONES_FIELD,
   CLOUD_SLOTS_FIELD,
+  assembleCloudAccountDocument,
   assembleCloudSlotDocument,
   assembleNewCloudSlotDocument,
   cloudPayloadByteLength,
   cloudPayloadFingerprint,
   cloudSaveDocumentId,
+  cloudSlotDeletionTombstone,
+  cloudSlotHasSameRevisionConflict,
   cloudSlotPayloadDocumentBelongsToAccount,
+  cloudSlotPayloadChunkDocumentId,
   cloudSlotPayloadDocumentId,
+  cloudSlotPayloadDocumentPrefix,
   cloudSlotPathBelongsToAccount,
   cloudSlotMapKey,
   cloudSlotRecordFromPayload,
   cloudSlotStoragePath,
+  cloudSlotTombstoneBlocksWrite,
   cloudSlotWriteFields,
   clearCloudAccountBinding,
   confirmManualSlotDownload,
@@ -30,12 +38,16 @@ import {
   estimateCloudSlotDocumentBytes,
   formatCloudPayloadBytes,
   formatCloudSlotUploadedAt,
+  manualSlotDownloadConfirmationMessage,
+  manualSlotUploadConfirmationMessage,
   mergeCloudSlotRecord,
+  mergeCloudSlotTombstone,
   readActiveCloudSlot,
   readCloudAccountBinding,
   readCloudSlotsFromDocument,
   preferredCloudUploadPayload,
   summarizeCloudUploadSource,
+  splitCloudPayload,
   writeCloudAccountBinding,
   writeActiveCloudSlot
 } from './cloudSlots';
@@ -46,6 +58,46 @@ const namedSave = (name: string, revision: number) =>
   JSON.stringify({ bio: { name }, journals: [{ id: '1' }], saveRevision: revision });
 
 describe('cloud save slots', () => {
+  it('splits a multi-megabyte UTF-8 campaign into safe lossless child documents', () => {
+    const payload = JSON.stringify({
+      bio: { name: '긴 기록' },
+      saveRevision: 3905,
+      journal: '한밤의 숲길 🐾 '.repeat(230_000)
+    });
+    expect(cloudPayloadByteLength(payload)).toBeGreaterThan(3_000_000);
+    expect(cloudPayloadByteLength(payload)).toBeLessThan(CLOUD_PAYLOAD_SAFE_BYTES);
+    expect(summarizeCloudUploadSource(payload)).toMatchObject({ available: true, canUpload: true, name: '긴 기록' });
+
+    const chunks = splitCloudPayload(payload);
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.every(chunk => cloudPayloadByteLength(chunk) <= CLOUD_PAYLOAD_CHUNK_SAFE_BYTES)).toBe(true);
+    expect(chunks.join('')).toBe(payload);
+    expect(cloudPayloadFingerprint(chunks.join(''))).toBe(cloudPayloadFingerprint(payload));
+  });
+
+  it('uses account-owned deterministic ids for every payload chunk', () => {
+    const record = cloudSlotRecordFromPayload(2, namedSave('큰 기록', 44), '2026-08-28T01:00:00.000Z');
+    const manifestId = cloudSlotPayloadDocumentId('user-a', record, 'nonce');
+    const first = cloudSlotPayloadChunkDocumentId(manifestId, 0);
+    const second = cloudSlotPayloadChunkDocumentId(manifestId, 1);
+
+    expect(first).toBe(`${manifestId}_chunk_0`);
+    expect(second).toBe(`${manifestId}_chunk_1`);
+    expect(cloudSlotPayloadDocumentBelongsToAccount(first, 'user-a')).toBe(true);
+    expect(cloudSlotPayloadDocumentBelongsToAccount(first, 'user-b')).toBe(false);
+  });
+
+  it('does not confuse an account whose UID extends another account payload prefix', () => {
+    const shortAccount = 'fox';
+    const prefixedAccount = 'fox_slot_archive';
+    const otherRecord = cloudSlotRecordFromPayload(1, namedSave('다른 계정', 9), '2026-08-28T01:00:00.000Z');
+    const otherManifest = cloudSlotPayloadDocumentId(prefixedAccount, otherRecord, 'nonce');
+
+    expect(otherManifest.startsWith(cloudSlotPayloadDocumentPrefix(shortAccount))).toBe(true);
+    expect(cloudSlotPayloadDocumentBelongsToAccount(otherManifest, shortAccount)).toBe(false);
+    expect(cloudSlotPayloadDocumentBelongsToAccount(otherManifest, prefixedAccount)).toBe(true);
+  });
+
   it('keeps exactly three slots and treats the legacy cloud field as slot 1', () => {
     expect(CLOUD_SLOT_COUNT).toBe(3);
     expect(emptyCloudSlotViews()).toHaveLength(3);
@@ -83,6 +135,97 @@ describe('cloud save slots', () => {
     });
     expect(result.migratedFromLegacy).toBe(false);
     expect(result.records[0]?.name).toBe('커스타드');
+  });
+
+  it('keeps a deleted slot empty when a delayed legacy or device write is still present', () => {
+    const staleRecord = cloudSlotRecordFromPayload(1, namedSave('삭제 전 기록', 12), '2026-08-20T12:00:00.000Z');
+    const tombstone = cloudSlotDeletionTombstone(staleRecord, '2026-08-21T12:00:00.000Z');
+    const document = {
+      [CAMPAIGN_SAVE_KEY]: staleRecord.payload,
+      [CLOUD_SLOTS_FIELD]: { [cloudSlotMapKey(1)]: staleRecord },
+      [CLOUD_SLOT_TOMBSTONES_FIELD]: { [cloudSlotMapKey(1)]: tombstone }
+    };
+
+    const parsed = readCloudSlotsFromDocument(document);
+    expect(parsed.records[0]).toBeNull();
+    expect(parsed.views[0]).toMatchObject({ slot: 1, empty: true });
+    expect(parsed.migratedFromLegacy).toBe(false);
+    expect(parsed.tombstones[0]).toEqual(tombstone);
+  });
+
+  it('preserves other deletion markers and clears only the explicitly restored slot', () => {
+    const first = cloudSlotRecordFromPayload(1, namedSave('첫째', 4), '2026-08-20T12:00:00.000Z');
+    const second = cloudSlotRecordFromPayload(2, namedSave('둘째', 8), '2026-08-20T13:00:00.000Z');
+    const tombstones = mergeCloudSlotTombstone(
+      mergeCloudSlotTombstone([], 1, cloudSlotDeletionTombstone(first)),
+      2,
+      cloudSlotDeletionTombstone(second)
+    );
+    const restored = mergeCloudSlotTombstone(tombstones, 1, null);
+    const document = assembleCloudSlotDocument([first, null, null], restored);
+    const parsed = readCloudSlotsFromDocument(document);
+
+    expect(parsed.records[0]?.name).toBe('첫째');
+    expect(parsed.tombstones[0]).toBeNull();
+    expect(parsed.tombstones[1]?.saveRevision).toBe(8);
+    expect((document[CLOUD_SLOT_TOMBSTONES_FIELD] as Record<string, unknown>)[cloudSlotMapKey(1)]).toBeUndefined();
+    expect((document[CLOUD_SLOT_TOMBSTONES_FIELD] as Record<string, unknown>)[cloudSlotMapKey(2)]).toBeDefined();
+  });
+
+  it('round-trips create, delete, stale reread, and deliberate recreation of one slot', () => {
+    const created = cloudSlotRecordFromPayload(2, namedSave('첫 기록', 3), '2026-08-20T12:00:00.000Z');
+    const createdDocument = assembleCloudAccountDocument(null, 'user-a', [null, created, null]);
+    const afterCreate = readCloudSlotsFromDocument(createdDocument);
+    expect(afterCreate.records[1]).toMatchObject({ name: '첫 기록', saveRevision: 3 });
+
+    const tombstone = cloudSlotDeletionTombstone(created, '2026-08-21T12:00:00.000Z');
+    const deletedDocument = assembleCloudAccountDocument(createdDocument, 'user-a', [null, null, null], [null, tombstone, null]);
+    expect(readCloudSlotsFromDocument(deletedDocument).records[1]).toBeNull();
+
+    const staleReplica = {
+      ...deletedDocument,
+      [CLOUD_SLOTS_FIELD]: {
+        ...(deletedDocument[CLOUD_SLOTS_FIELD] as Record<string, unknown>),
+        [cloudSlotMapKey(2)]: created
+      }
+    };
+    expect(readCloudSlotsFromDocument(staleReplica).records[1]).toBeNull();
+
+    const recreated = cloudSlotRecordFromPayload(2, namedSave('새 기록', 4), '2026-08-22T12:00:00.000Z');
+    const recreatedDocument = assembleCloudAccountDocument(
+      staleReplica,
+      'user-a',
+      [null, recreated, null],
+      mergeCloudSlotTombstone(readCloudSlotsFromDocument(staleReplica).tombstones, 2, null)
+    );
+    expect(readCloudSlotsFromDocument(recreatedDocument)).toMatchObject({
+      records: [null, expect.objectContaining({ name: '새 기록', saveRevision: 4 }), null],
+      tombstones: [null, null, null]
+    });
+  });
+
+  it('blocks delayed automatic writes after deletion but permits a deliberate slot upload', () => {
+    const record = cloudSlotRecordFromPayload(3, namedSave('지운 기록', 21), '2026-08-20T12:00:00.000Z');
+    const tombstone = cloudSlotDeletionTombstone(record);
+    expect(cloudSlotTombstoneBlocksWrite(tombstone, false)).toBe(true);
+    expect(cloudSlotTombstoneBlocksWrite(tombstone, true)).toBe(false);
+    expect(cloudSlotTombstoneBlocksWrite(null, false)).toBe(false);
+  });
+
+  it('canonically replaces managed slot maps while preserving unrelated account metadata', () => {
+    const restored = cloudSlotRecordFromPayload(1, namedSave('복구', 15), '2026-08-22T12:00:00.000Z');
+    const document = assembleCloudAccountDocument({
+      ownerUid: 'wrong',
+      unrelatedPreference: 'keep',
+      [CAMPAIGN_SAVE_KEY]: namedSave('legacy', 1),
+      [CLOUD_SLOTS_FIELD]: { 1: { payload: namedSave('stale', 2) } },
+      [CLOUD_SLOT_TOMBSTONES_FIELD]: { [cloudSlotMapKey(1)]: cloudSlotDeletionTombstone(restored) }
+    }, 'user-a', [{ ...restored, payload: '', payloadDocumentId: 'payload-id' }, null, null]);
+
+    expect(document).toMatchObject({ ownerUid: 'user-a', unrelatedPreference: 'keep' });
+    expect(document[CAMPAIGN_SAVE_KEY]).toBeUndefined();
+    expect(document[CLOUD_SLOT_TOMBSTONES_FIELD]).toBeUndefined();
+    expect(Object.keys(document[CLOUD_SLOTS_FIELD] as object)).toEqual([cloudSlotMapKey(1)]);
   });
 
   it('writes slot 1 back onto the legacy field and keeps other slots when composing a document', () => {
@@ -183,6 +326,23 @@ describe('cloud save slots', () => {
       cloudName: null,
       confirm
     })).toBe(false);
+
+    expect(manualSlotDownloadConfirmationMessage({
+      slot: 1,
+      localRaw: namedSave('로컬', 2),
+      cloudName: '커스타드'
+    })).toContain('이 기기 기록을 덮어쓸까요?');
+    expect(manualSlotDownloadConfirmationMessage({
+      slot: 1,
+      localRaw: null,
+      cloudName: '커스타드'
+    })).toBeNull();
+    expect(manualSlotUploadConfirmationMessage({
+      slot: 3,
+      localRaw: namedSave('로컬', 3),
+      occupied: false,
+      cloudName: null
+    })).toBeNull();
   });
 
   it('warns when an upload changes accounts or replaces a newer cloud revision', () => {
@@ -211,6 +371,49 @@ describe('cloud save slots', () => {
     })).toBe(true);
     expect(confirm).toHaveBeenCalledWith(expect.stringContaining('클라우드 기록(저장 버전 8)'));
     expect(confirm).toHaveBeenCalledWith(expect.stringContaining('마지막 업로드'));
+  });
+
+  it('detects divergent same-revision campaign bodies before another device can overwrite them', () => {
+    const local = namedSave('로컬 분기', 12);
+    const cloudPayload = namedSave('클라우드 분기', 12);
+    const cloud = cloudSlotRecordFromPayload(1, cloudPayload, '2026-08-22T12:00:00.000Z');
+
+    expect(cloudSlotHasSameRevisionConflict(local, cloud)).toBe(true);
+    expect(cloudSlotHasSameRevisionConflict(cloudPayload, cloud)).toBe(false);
+    expect(cloudSlotHasSameRevisionConflict(namedSave('더 최신 로컬', 13), cloud)).toBe(false);
+    expect(cloudSlotHasSameRevisionConflict('{broken', cloud)).toBe(false);
+    expect(cloudSlotHasSameRevisionConflict(local, null)).toBe(false);
+  });
+
+  it('integrates divergence and destructive cloud choices with the in-app dialog', () => {
+    const bootstrapStart = appSource.indexOf('// Listen to Auth State');
+    const bootstrapEnd = appSource.indexOf('// Load initial state', bootstrapStart);
+    const bootstrapSource = appSource.slice(bootstrapStart, bootstrapEnd);
+    expect(bootstrapSource).toContain('cloudSlotHasSameRevisionConflict(localRaw, cloudRecord)');
+    expect(bootstrapSource).toContain("title: '같은 버전의 서로 다른 기록이 있습니다'");
+    expect(bootstrapSource).toContain("defaultValue: 'load-cloud'");
+    expect(bootstrapSource).toContain('clearCloudAccountBinding();');
+    expect(bootstrapSource).not.toContain('askWindowConfirm(');
+
+    const deleteStart = appSource.indexOf('const handleDeleteCloudSlot');
+    const deleteEnd = appSource.indexOf('const handleReset', deleteStart);
+    const deleteSource = appSource.slice(deleteStart, deleteEnd);
+    expect(deleteSource).toContain('await requestControlledPrompt({');
+    expect(deleteSource).toContain("tone: 'destructive'");
+    expect(deleteSource).toContain("confirmLabel: '영구 삭제'");
+    expect(deleteSource).not.toContain('askWindowConfirm(');
+
+    const downloadStart = appSource.indexOf('const handleDownloadCloudSlot');
+    const uploadStart = appSource.indexOf('const handleUploadCloudSlot', downloadStart);
+    const deleteHandlerStart = appSource.indexOf('const handleDeleteCloudSlot', uploadStart);
+    expect(appSource.slice(downloadStart, uploadStart)).toContain('manualSlotDownloadConfirmationMessage');
+    expect(appSource.slice(downloadStart, uploadStart)).not.toContain('confirmManualSlotDownload');
+    expect(appSource.slice(uploadStart, deleteHandlerStart)).toContain('manualSlotUploadConfirmationMessage');
+    expect(appSource.slice(uploadStart, deleteHandlerStart)).not.toContain('confirmManualSlotUpload');
+  });
+
+  it('allows a legacy single-field slot to be replaced or removed after confirmation', () => {
+    expect(appSource).toContain('const sameUploadTime = current.migratedFromLegacy');
   });
 
   it('binds local automatic sync to one account and creates distinct Firestore document ids', () => {
@@ -245,7 +448,8 @@ describe('cloud save slots', () => {
     ));
     expect(estimateCloudSlotDocumentBytes(records)).toBeGreaterThan(source.payloadBytes);
     expect(CLOUD_DOCUMENT_SAFE_BYTES).toBeLessThan(1_000_000);
-    expect(CLOUD_PAYLOAD_SAFE_BYTES).toBeLessThan(CLOUD_DOCUMENT_SAFE_BYTES);
+    expect(CLOUD_PAYLOAD_CHUNK_SAFE_BYTES).toBeLessThan(CLOUD_DOCUMENT_SAFE_BYTES);
+    expect(CLOUD_PAYLOAD_SAFE_BYTES).toBeGreaterThan(CLOUD_DOCUMENT_SAFE_BYTES);
     expect(cloudPayloadFingerprint('동일')).toBe(cloudPayloadFingerprint('동일'));
     expect(cloudPayloadFingerprint('동일')).not.toBe(cloudPayloadFingerprint('다름'));
   });
@@ -265,6 +469,24 @@ describe('cloud save slots', () => {
     expect(cloudSlotRecordFromPayload(1, payload, '2026-08-16T13:00:00.000Z').name).toBe('Bramble');
   });
 
+  it('keeps a progressed legacy nameless save downloadable until the player names it', () => {
+    const nameless = JSON.stringify({ bio: { name: '' }, journals: [{ id: 'legacy-memory' }], saveRevision: 19 });
+    const legacy = readCloudSlotsFromDocument({ [CAMPAIGN_SAVE_KEY]: nameless }, '2026-08-16T13:00:00.000Z');
+
+    expect(legacy.migratedFromLegacy).toBe(true);
+    expect(legacy.views[0]).toMatchObject({ empty: false, name: null, saveRevision: 19 });
+    expect(confirmManualSlotDownload({ slot: 1, localRaw: null, cloudName: null })).toBe(true);
+    expect(summarizeCloudUploadSource(nameless)).toMatchObject({ available: true, canUpload: false, name: null });
+
+    const namedDraft = JSON.stringify({
+      bio: { name: '' },
+      journals: [{ id: 'legacy-memory' }],
+      workflowDrafts: { character: { version: 1, name: '되찾은 이름' } },
+      saveRevision: 20
+    });
+    expect(summarizeCloudUploadSource(namedDraft)).toMatchObject({ canUpload: true, name: '되찾은 이름' });
+  });
+
   it('prefers the named live snapshot over a stale unnamed local snapshot', () => {
     const live = JSON.stringify({
       bio: { name: '' },
@@ -280,6 +502,17 @@ describe('cloud save slots', () => {
     const staleLive = JSON.stringify({ bio: { name: 'Old name' }, saveRevision: 7 });
     const newerStored = JSON.stringify({ bio: { name: 'New name' }, saveRevision: 8 });
     expect(preferredCloudUploadPayload(staleLive, newerStored)).toBe(newerStored);
+  });
+
+  it('never rolls a newer unnamed recovery snapshot back to an older named save', () => {
+    const olderNamed = JSON.stringify({ bio: { name: 'Old name' }, saveRevision: 7 });
+    const newerRecovery = JSON.stringify({ bio: { name: '' }, journals: [{ id: 'new' }], saveRevision: 8 });
+
+    expect(preferredCloudUploadPayload(olderNamed, newerRecovery)).toBe(newerRecovery);
+    expect(summarizeCloudUploadSource(preferredCloudUploadPayload(olderNamed, newerRecovery))).toMatchObject({
+      canUpload: false,
+      saveRevision: 8
+    });
   });
 
   it('allows a sizable slot that would overflow when three campaign bodies share one document', () => {
@@ -345,21 +578,27 @@ describe('cloud save slots', () => {
     expect(appSource).toContain('deleteCloudSlotRecord');
     expect(appSource).toContain('이 작업은 되돌릴 수 없습니다.');
     expect(appSource).toContain('runTransaction');
-    expect(appSource).toContain("setDoc(doc(db, 'saves', payloadDocumentId)");
-    expect(appSource).toContain("getDocFromServer(doc(db, 'saves', record.payloadDocumentId))");
-    expect(appSource).toContain("getDocFromServer(doc(db, 'saves', mapConnectionArchiveDocumentId(uid)))");
+    expect(appSource).toContain('userPayloadDocRef(uid, payloadDocumentId)');
+    expect(appSource).toContain('getDocFromServer(nestedManifestRef)');
+    expect(appSource).toContain('userMapDocRef(uid, mapConnectionArchiveDocumentId(uid))');
     expect(appSource).toContain("getDocFromServer(doc(db, 'saves', OFFICIAL_MAP_POINTER_DOCUMENT_ID))");
     expect(appSource).toContain('cloudMapUidRef.current !== user.uid');
     expect(appSource).toContain('auth?.currentUser?.uid !== uid');
     expect(appSource).toContain('const devicePayload = await readDeviceSave(CAMPAIGN_SAVE_KEY);');
-    expect(appSource).toContain('[CAMPAIGN_SAVE_KEY]: deleteField()');
+    expect(appSource).toContain('assembleCloudAccountDocument(currentData, uid, records, tombstones)');
+    expect(appSource).toContain("throw cloudSlotError('cloud-slot-deleted')");
     expect(appSource).toContain('older documents used `"1"` as well as `"slot-1"`');
-    expect(appSource).toContain('...compactDocument');
+    expect(appSource).toContain('transaction.set(docRef, compactDocument)');
     expect(appSource).toContain('cloudSlotPayloadDocumentBelongsToAccount');
+    expect(appSource).toContain("payloadFormat: 'utf8-chunks-v1'");
+    expect(appSource).toContain('const batch = writeBatch(db);');
+    expect(appSource).toContain('chunks.join(\'\')');
+    expect(appSource).toContain("cloudSaveDocumentId(uid), 'payloads', payloadDocumentId");
+    expect(appSource).toContain("cloudSaveDocumentId(uid), 'maps', mapDocumentId");
     expect(appSource).toContain('readCloudAccountBinding() === uid');
     expect(appSource).toContain('writeDeviceSave(key, jsonString)');
     expect(appSource).toContain('writeCloudSaveDirectly(uid, slot, jsonString)');
-    expect(appSource).toContain('클라우드에는 저장했습니다. 이 화면을 닫기 전');
+    expect(appSource).toContain('브라우저가 이 사이트의 기기 저장을 거부했지만, 클라우드에는 저장했습니다.');
     expect(appSource).toContain('window.confirm.call(window, message)');
     expect(readFileSync(fileURLToPath(new URL('./cloudSlots.ts', import.meta.url)), 'utf8')).toContain('window.confirm.call(window, message)');
   });

@@ -1,4 +1,5 @@
 import { createPatientArchiveRecord, upsertPatientArchive } from './archiveEngine';
+import { resolveTimer } from './engine';
 import type { TreatmentTransactionState } from './gameplay';
 import { resolveLeave, type LeaveRuntimeState } from './leaveEngine';
 import type { PatientAilmentState, PatientState } from './state';
@@ -24,6 +25,71 @@ export interface ExpiredPatientRecoveryResolution {
   value: ExpiredPatientRecoveryOutcome | null;
   messages: string[];
 }
+
+export interface GlobalActiveTimerCostOutcome {
+  patients: PatientState[];
+  expiredPatientIds: string[];
+  appliedTransactionIds: string[];
+  applied: boolean;
+}
+
+/**
+ * Applies a printed cost to every active Patient Timer as one idempotent
+ * transaction. Encounter Remedies such as Fire and Iron (p.175) affect the
+ * previously active Patient as well as the temporary encounter case, so this
+ * cannot safely be expressed as a mutation of only the currently displayed
+ * Patient.
+ *
+ * Consequences are deliberately not resolved here. The caller receives the
+ * exact Patient ids with newly expired Ailments and can run the canonical
+ * failure/Archive transition for each one.
+ */
+export const applyGlobalActiveTimerCost = ({
+  transactionId,
+  patients,
+  appliedTransactionIds,
+  hours
+}: {
+  transactionId: string;
+  patients: readonly PatientState[];
+  appliedTransactionIds: readonly string[];
+  hours: number;
+}): GlobalActiveTimerCostOutcome => {
+  if (!transactionId
+    || !Number.isInteger(hours)
+    || hours <= 0
+    || appliedTransactionIds.includes(transactionId)) {
+    return {
+      patients: [...patients],
+      expiredPatientIds: [],
+      appliedTransactionIds: [...appliedTransactionIds],
+      applied: false
+    };
+  }
+
+  const expiredPatientIds: string[] = [];
+  const nextPatients = patients.map(patient => {
+    const activeBefore = new Set(patient.ailments
+      .filter(ailment => ailment.status === 'active')
+      .map(ailment => ailment.id));
+    if (activeBefore.size === 0 || !patient.timers.some(timer => timer.status === 'active')) return patient;
+    const after = resolveTimer({ patient, hours }).value || patient;
+    if (after.ailments.some(ailment => activeBefore.has(ailment.id) && ailment.status === 'failed')) {
+      expiredPatientIds.push(patient.id);
+    }
+    return after;
+  });
+
+  return {
+    patients: nextPatients,
+    expiredPatientIds,
+    appliedTransactionIds: [...appliedTransactionIds, transactionId],
+    applied: true
+  };
+};
+
+export const patientHasActiveAilments = (patient: PatientState): boolean =>
+  patient.status === 'active' && patient.ailments.some(ailment => ailment.status === 'active');
 
 const hasExpiredTimer = (patient: PatientState, ailment: PatientAilmentState): boolean =>
   ailment.timerIds.some(timerId => {

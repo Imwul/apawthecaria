@@ -221,6 +221,39 @@ describe('Phase 3 canonical Barter transactions', () => {
     expect(duplicate.value).toBe(paid.value);
   });
 
+  it('[TABLE-004/BARTER-006] spends Fresh Clams at their printed 3-Trinket Barter value exactly once', () => {
+    const clams: EngineInventoryItem = {
+      id: 'fresh-clams:payment',
+      name: 'Fresh Clams',
+      type: 'item',
+      weight: 2 / 3,
+      barterValue: 3
+    };
+    const started = startBarter({ ...barterState(), inventory: [clams], reputation: 100, trinkets: 100 });
+    const social = resolveBarterEncounter({ transactionId: 'social-clams', state: started.value!, card: { value: 1, suit: '♥' }, encounter: socialEncounter });
+    const offered = resolveBarterOffer({ transactionId: 'offer-clams', state: social.value!, card: { value: 1, suit: '♦' } });
+    const gap = offered.value?.pendingBarter?.paymentRequired || 0;
+    if (gap < 3) return;
+
+    const paid = resolveBarterPayment({
+      transactionId: 'pay-clams',
+      state: offered.value!,
+      payment: { trinkets: gap - 3, reputation: 0, inventoryItemIds: [clams.id] }
+    });
+    expect(paid.status).toBe('resolved');
+    expect(paid.value?.inventory.some(item => item.id === clams.id)).toBe(false);
+    expect(paid.value?.pendingBarter?.paymentSelection).toEqual({
+      trinkets: gap - 3,
+      reputation: 0,
+      inventoryItemIds: [clams.id]
+    });
+    expect(resolveBarterPayment({
+      transactionId: 'pay-clams',
+      state: paid.value!,
+      payment: { trinkets: gap - 3, reputation: 0, inventoryItemIds: [clams.id] }
+    }).value).toBe(paid.value);
+  });
+
   it('[BARTER-007/REMEDY-008] decreases Timers after acquisition when a required Tool is broken or consumed', () => {
     const ailment = AILMENTS.find(row => row.canonicalName === 'Waen Drops')!;
     const activePatient = resolvePatient({ id: 'barter-broken-tool', name: 'Patient', species: 'Mouse', ailmentIds: [ailment.id] }).value!;

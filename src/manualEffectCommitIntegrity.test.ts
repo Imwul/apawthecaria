@@ -53,10 +53,22 @@ describe('manual effect commit integrity', () => {
     const resolveSource = appSource.slice(resolveStart, resolveEnd);
 
     expect(enqueueSource).toContain('open ? selectAutoOpenManualDraft(queue) : null');
+    expect(enqueueSource).toContain('actionableManualEffectDrafts(state.manualEffectQueue)');
+    expect(enqueueSource).toContain('manualEffectDraftNeedsPlayerResolution(state.pendingManualEffect)');
     expect(enqueueSource).not.toContain('open ? queue[0]');
     expect(resolveSource).toContain('pendingManualEffect: selectAutoOpenManualDraft(queue)');
     expect(resolveSource).not.toContain('pendingManualEffect: queue[0]');
     expect(appSource).toContain('pendingManualEffect: s.manualEffectQueue[0] || null');
+  });
+
+  it('drops already-selected narrative-only Encounter drafts during save migration', () => {
+    const migrationStart = appSource.indexOf('const migrateState');
+    const migrationEnd = appSource.indexOf('\n\nconst migrateCampaignSave', migrationStart);
+    const migrationSource = appSource.slice(migrationStart, migrationEnd);
+
+    expect(migrationSource).toContain('const refreshedManualEffectQueue = actionableManualEffectDrafts(');
+    expect(migrationSource).toContain('manualEffectDraftNeedsPlayerResolution(refreshedPendingManualEffect)');
+    expect(migrationSource).toContain('manualEffectQueue: refreshedManualEffectQueue');
   });
 
   it('projects Bags and pending follow-ups from the state supplied at resolution time', () => {

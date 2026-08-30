@@ -30,10 +30,10 @@ describe('fully reviewed social encounter Korean copy', () => {
   });
 
   it('covers every actual social choice and no generated continue action', () => {
-    // The current canonical data has 89 printed/player choices. The other 18
+    // The current canonical data has 92 printed/player choices. The other 18
     // rows use the shared generated "기록하고 계속" action and need no override.
-    expect(canonicalChoices).toHaveLength(89);
-    expect(reviewedChoices).toHaveLength(89);
+    expect(canonicalChoices).toHaveLength(92);
+    expect(reviewedChoices).toHaveLength(92);
     expect(sortedKeys(reviewedChoices)).toEqual(sortedKeys(canonicalChoices));
     expect(reviewedChoices.some(choice => choice.choiceId === 'continue')).toBe(false);
   });

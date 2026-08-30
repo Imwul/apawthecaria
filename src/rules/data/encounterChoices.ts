@@ -127,25 +127,12 @@ export const parseMechanicalEffects = (body: string): StructuredRuleEffect[] => 
 
 export const leftoverNeeded = leftoverMechanical;
 
-/**
- * The printed instruction to journal is a required part of resolving the
- * selected branch, not optional flavour text. Future replacement rules and
- * instructions that physically alter a paper Journal page are deliberately
- * excluded: neither asks for a journal entry during the current resolution.
- */
+/** p.7 makes journaling optional. Keep the source metadata on each choice for
+ * reference, but never turn a prose prompt into a transaction prerequisite. */
 export const encounterChoiceRequiresJournal = (
-  encounter: Pick<EncounterDefinition, 'choices'> | null | undefined,
-  choiceId?: string
-): boolean => {
-  const choice = encounter?.choices.find(candidate => candidate.id === choiceId);
-  if (choice?.requiresJournal) return true;
-  const label = choice?.label || '';
-  return sourceClauses(label).some(clause => {
-    if (!/\bJournal (?:about|your)\b/i.test(clause)) return false;
-    if (/\b(?:in the future|if you draw this event again|replace negative outcomes)\b/i.test(clause)) return false;
-    return true;
-  });
-};
+  _encounter: Pick<EncounterDefinition, 'choices'> | null | undefined,
+  _choiceId?: string
+): boolean => false;
 
 export const splitEncounterChoices = (prompt: string): { description: string; choices: EncounterChoice[] } => {
   const matches = [...prompt.matchAll(CHOICE_SPLIT)];

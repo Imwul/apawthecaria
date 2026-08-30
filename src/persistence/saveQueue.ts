@@ -17,6 +17,9 @@ export interface OfflineSaveEntry {
   lastError: string | null;
 }
 
+export const offlineSaveRequiresManualResolution = (lastError: string | null | undefined) =>
+  lastError === 'cloud-slot-deleted' || lastError === 'cloud-slot-newer';
+
 export const normalizeOfflineSaveEntries = (value: unknown): OfflineSaveEntry[] => {
   if (!Array.isArray(value)) return [];
   return value.flatMap((entry): OfflineSaveEntry[] => {
@@ -93,6 +96,12 @@ export const flushOfflineSaves = async (outbox: OfflineSaveEntry[], write: (entr
     }
   }
   const canonicalOutbox = [...newestByKey.values()].sort((left, right) => left.queuedAt - right.queuedAt);
+  const canonicalIds = new Set(canonicalOutbox.map(entry => entry.id));
+  // Coalesced rows are obsolete regardless of whether the newest write
+  // succeeds.  Keeping them in the persisted outbox makes the next flush try
+  // an older revision after the canonical row has already been reconciled,
+  // which can falsely look like a cloud conflict and detach the active slot.
+  completed.push(...outbox.filter(entry => !canonicalIds.has(entry.id)).map(entry => entry.id));
   for (const entry of canonicalOutbox) {
     try {
       await write(entry);

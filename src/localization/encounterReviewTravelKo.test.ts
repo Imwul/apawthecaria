@@ -45,7 +45,7 @@ describe('ENCOUNTER_REVIEW_TRAVEL_CONTEXT_KO', () => {
 
 describe('ENCOUNTER_REVIEW_TRAVEL_CHOICE_KO', () => {
   it('reviews every canonical non-continue choice without stale ids', () => {
-    expect(canonicalChoiceIds).toHaveLength(120);
+    expect(canonicalChoiceIds).toHaveLength(124);
     expect(reviewedChoiceIds).toEqual(canonicalChoiceIds);
   });
 

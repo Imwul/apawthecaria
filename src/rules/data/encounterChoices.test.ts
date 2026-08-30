@@ -239,10 +239,10 @@ describe('printed encounter choice execution', () => {
       transactionId: 'freshly-grilled-invited', encounter: freshlyGrilled,
       choiceId: 'recognised-by-the-guild', state: { ...baseState, reputation: 15 }
     });
-    expect(invited.status).toBe('manual');
-    expect(invited.value?.unresolvedEffects).toContainEqual(expect.objectContaining({
-      effect: expect.objectContaining({ type: 'customEffect', code: 'FRESHLY_GRILLED_NEXT_TIMER' })
-    }));
+    expect(invited.status).toBe('resolved');
+    expect(invited.value?.nextState.conditions).toContain(
+      'freshly-grilled:next-ailment-timer:+2'
+    );
     expect(executeEncounter({
       transactionId: 'freshly-grilled-pass', encounter: freshlyGrilled,
       choiceId: 'unknown-to-the-guild', state: { ...baseState, reputation: 14 }
@@ -286,6 +286,18 @@ describe('printed encounter choice execution', () => {
     expect(duty.value?.nextState.reputation).toBe(11);
   });
 
+  it('models Pi-rats Parley as the full Patient-card workflow with typed pirate rewards and failure', () => {
+    const pirates = TRAVEL_ENCOUNTERS.find(row => row.id === 'travel-loch-j-summer')!;
+    expect(pirates.sourcePage).toBe(84);
+    expect(pirates.choices.find(choice => choice.id === 'parley')?.followUp).toEqual({
+      type: 'start-patient-cards',
+      timing: 'immediate',
+      rewardMode: 'reputation-as-trinkets',
+      failureOutcome: 'taken-prisoner',
+      patientKind: 'local-pirate'
+    });
+  });
+
   it('carries canonical help for a Branded beast into the later Fangs a’Hungering Kindness branch', () => {
     const rightThing = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-bog-j-winter')!;
     const fangs = FORAGING_ENCOUNTERS.find(row => row.id === 'foraging-forest-m-winter')!;
@@ -296,7 +308,7 @@ describe('printed encounter choice execution', () => {
 
     expect(rightThing.sourcePage).toBe(159);
     expect(rightThing.choices.map(choice => choice.id)).toEqual(['help', 'turn-away']);
-    expect(encounterChoiceRequiresJournal(rightThing, 'help')).toBe(true);
+    expect(encounterChoiceRequiresJournal(rightThing, 'help')).toBe(false);
     expect(encounterChoiceRequiresJournal(rightThing, 'turn-away')).toBe(false);
     expect(fangs.sourcePage).toBe(165);
     expect(fangs.choices.map(choice => choice.id)).toEqual(['flee', 'kindness']);
@@ -332,7 +344,7 @@ describe('printed encounter choice execution', () => {
 
     expect(executeEncounter({
       transactionId: 'right-thing-help-without-journal', encounter: rightThing, choiceId: 'help', state: baseState
-    }).status).toBe('invalid');
+    }).status).toBe('resolved');
   });
 
   it('does not silently extend the p.180 Upstanding PURIFY lesson to Trusted', () => {
@@ -649,8 +661,42 @@ describe('printed encounter choice execution', () => {
     });
 
     const hailstorm = ENCOUNTERS.find(row => row.id === 'travel-soar-m-winter')!;
-    expect(hailstorm.mandatoryEffects.every(effect => effect.support === 'manual-only')).toBe(true);
-    expect(hailstorm.mandatoryEffects.some(effect => effect.effect.type === 'modifyTimer')).toBe(false);
+    expect(hailstorm.mandatoryEffects).toContainEqual(expect.objectContaining({
+      support: 'implemented',
+      effect: expect.objectContaining({ type: 'addCondition', conditionId: 'hailstorm:next-ailment-timer:-2' })
+    }));
+  });
+
+  it('keeps the corrected fixed Encounter costs and rewards in structured effects', () => {
+    const givingBack = ENCOUNTERS.find(row => row.id === 'travel-bog-9-10-spring')!
+      .choices.find(choice => choice.id === 'giving-back')!;
+    expect(givingBack.effects).toEqual([
+      { support: 'implemented', effect: { type: 'markDays', amount: 1 } },
+      { support: 'implemented', effect: { type: 'modifyTrinkets', amount: 1 } }
+    ]);
+
+    const viaFerratta = ENCOUNTERS.find(row => row.id === 'travel-forest-m-summer')!
+      .choices.find(choice => choice.id === 'via-ferratta')!;
+    expect(viaFerratta.effects).toEqual([
+      { support: 'implemented', effect: { type: 'markDays', amount: -1 } }
+    ]);
+
+    const wildChef = ENCOUNTERS.find(row => row.id === 'foraging-meadow-7')!;
+    expect(wildChef.choices.find(choice => choice.id === 'follow-your-stomach')?.effects)
+      .toContainEqual({ support: 'implemented', effect: { type: 'modifyForagingPoints', amount: -2 } });
+
+    const mudlarking = ENCOUNTERS.find(row => row.id === 'foraging-loch-m-summer')!
+      .choices.find(choice => choice.id === 'take-part')!;
+    expect(mudlarking.effects).toEqual(expect.arrayContaining([
+      { support: 'implemented', effect: { type: 'modifyTimer', amount: -1, target: 'all' } },
+      { support: 'implemented', effect: { type: 'modifyTrinkets', amount: 1 } }
+    ]));
+
+    const iceFishing = ENCOUNTERS.find(row => row.id === 'foraging-loch-10-winter')!;
+    expect(iceFishing.choices.find(choice => choice.id === 'go-fish')?.effects).toEqual(expect.arrayContaining([
+      { support: 'implemented', effect: { type: 'modifyTimer', amount: -1, target: 'all' } },
+      expect.objectContaining({ support: 'manual-only' })
+    ]));
   });
 
   it('does not allow a voluntary trinket payment when the balance is empty', () => {
@@ -730,23 +776,63 @@ describe('printed encounter choice execution', () => {
     }).status).toBe('resolved');
   });
 
-  it('requires acknowledgement only for a current printed journaling prompt', () => {
+  it('keeps all journaling prompts optional under the core p.7 rule', () => {
     const highway = ENCOUNTERS.find(row => row.id === 'travel-meadow-9-10-spring')!;
-    expect(encounterChoiceRequiresJournal(highway, 'pay-with-your-life')).toBe(true);
+    expect(encounterChoiceRequiresJournal(highway, 'pay-with-your-life')).toBe(false);
     const blank = executeEncounter({
       transactionId: 'highway-journal', encounter: highway, choiceId: 'pay-with-your-life',
       state: { reputation: 5, trinkets: 0, calendarDays: 0, foragingPoints: 0, inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: [] }
     });
-    expect(blank.status).toBe('invalid');
-    const acknowledged = executeEncounter({
-      transactionId: 'highway-journal', encounter: highway, choiceId: 'pay-with-your-life', journalAcknowledged: true,
-      state: { reputation: 5, trinkets: 0, calendarDays: 0, foragingPoints: 0, inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: [] }
-    });
-    expect(acknowledged.value?.nextState.calendarDays).toBe(1);
+    expect(blank.status).toBe('resolved');
+    expect(blank.value?.nextState.calendarDays).toBe(1);
 
     const paperPage = ENCOUNTERS.find(row => row.id === 'travel-loch-j-spring')!;
     expect(encounterChoiceRequiresJournal(paperPage, 'refuse')).toBe(false);
     const future = ENCOUNTERS.find(row => row.id === 'foraging-meadow-10-winter')!;
     expect(encounterChoiceRequiresJournal(future, 'hot-toddy')).toBe(false);
+  });
+
+  it('keeps the p.79 Slip Up cost as a choice while always preserving the new Path follow-up', () => {
+    const slipUp = TRAVEL_ENCOUNTERS.find(row => row.id === 'travel-forest-j-autumn')!;
+    expect(slipUp.choices.map(choice => choice.id)).toEqual(['mark-a-day', 'lose-bag-item']);
+    const baseState = {
+      reputation: 5, trinkets: 0, calendarDays: 0, foragingPoints: 0,
+      inventory: [], patient: null, movementBlocked: false, conditions: [], appliedEffectIds: []
+    };
+    const waited = executeEncounter({
+      transactionId: 'slip-up:wait', encounter: slipUp, choiceId: 'mark-a-day', state: baseState
+    });
+    expect(waited.status).toBe('manual');
+    expect(waited.value?.nextState.calendarDays).toBe(1);
+    expect(waited.value?.unresolvedEffects).toContainEqual(expect.objectContaining({
+      effect: expect.objectContaining({ type: 'customEffect', code: 'SLIP_UP_SHORTCUT' })
+    }));
+
+    const lostItem = executeEncounter({
+      transactionId: 'slip-up:item', encounter: slipUp, choiceId: 'lose-bag-item', state: baseState
+    });
+    expect(lostItem.status).toBe('manual');
+    expect(lostItem.value?.nextState.calendarDays).toBe(0);
+    expect(lostItem.value?.unresolvedEffects).toHaveLength(2);
+  });
+
+  it('does not retain a duplicate legacy printed-text effect after a complete choice override', () => {
+    const fullyOverridden = [
+      'travel-forest-m-winter',
+      'travel-loch-j-summer',
+      'travel-meadow-9-10-autumn',
+      'travel-mountain-j-winter',
+      'travel-mountain-m-summer',
+      'travel-soar-m-spring',
+      'travel-soar-m-summer',
+      'foraging-bog-3',
+      'foraging-loch-m-winter',
+      'foraging-titan-6'
+    ];
+    for (const ownerId of fullyOverridden) {
+      const encounter = ENCOUNTERS.find(row => row.id === ownerId)!;
+      expect(encounter.mandatoryEffects, ownerId).toEqual([]);
+      expect(encounter.choices.length, ownerId).toBeGreaterThan(0);
+    }
   });
 });

@@ -7,7 +7,7 @@ import {
   publishMapConnectionSnapshot,
   recordMapConnectionSnapshot
 } from './mapConnectionArchive';
-import { createOfficialMapSnapshot, normalizeOfficialMapSnapshot } from './officialMap';
+import { createOfficialMapSnapshot, normalizeOfficialMapSnapshot, normalizeReferencedOfficialMapSnapshot } from './officialMap';
 
 const edge = (from: string, to: string, kind: 'path' | 'river' | 'waterway' = 'path') => ({
   id: `${from}-${to}`,
@@ -73,5 +73,38 @@ describe('official map snapshot', () => {
     expect(restored?.locations[0]).toMatchObject({ id: 'odoak', x: 51.25, y: 42.5 });
     expect(restored?.edges[0].kind).toBe('waterway');
     expect(restored?.fingerprint).toBe(snapshot.fingerprint);
+  });
+
+  it('accepts a legacy embedded fingerprint when the cloud pointer and payload still agree', () => {
+    const snapshot = createOfficialMapSnapshot({
+      revision: 1,
+      createdAt: 100,
+      publishedBy: 'admin',
+      locations: [{ id: 'odoak', label: 'Odoak', x: 51, y: 42, neighbors: [], terrainOptions: ['Forest'] }],
+      edges: [edge('odoak', 'wild-1')]
+    });
+    const legacy = { ...snapshot, fingerprint: 'fnv1a-legacy' };
+
+    expect(normalizeReferencedOfficialMapSnapshot(legacy, {
+      snapshotId: snapshot.id,
+      pointerFingerprint: 'fnv1a-legacy',
+      payloadFingerprint: 'fnv1a-legacy'
+    })?.id).toBe(snapshot.id);
+  });
+
+  it('rejects an official map whose cloud reference does not match either fingerprint', () => {
+    const snapshot = createOfficialMapSnapshot({
+      revision: 1,
+      createdAt: 100,
+      publishedBy: 'admin',
+      locations: [{ id: 'odoak', label: 'Odoak', x: 51, y: 42, neighbors: [] }],
+      edges: []
+    });
+
+    expect(normalizeReferencedOfficialMapSnapshot(snapshot, {
+      snapshotId: snapshot.id,
+      pointerFingerprint: 'fnv1a-wrong-pointer',
+      payloadFingerprint: 'fnv1a-wrong-payload'
+    })).toBeNull();
   });
 });

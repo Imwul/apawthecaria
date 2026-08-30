@@ -491,6 +491,7 @@ export const ENCOUNTER_REVIEW_FORAGING_CHOICE_KO: Readonly<
   },
   'foraging-meadow-j-summer': {
     'help-the-bee': '벌 돕기 — Honey나 다른 FAIR 속성 영약재가 있다면 벌을 간호해 Honey Bee Companion을 얻습니다. 둘 다 없다면 모든 타이머를 4 줄이고 안전한 곳까지 옮긴 뒤 같은 길동무를 얻습니다. 보유 상태에 맞는 결과 하나만 적용합니다.',
+    'leave-the-bee': '벌을 두고 가기 — 벌을 돕지 않고 채집을 계속합니다.',
   },
   'foraging-meadow-j-autumn': {
     'run-hide': '달아나 숨기 — 몸을 숨긴 곳에서 ‘까마귀 허수아비’를 피해 숨어 있는 다른 야수를 만납니다. 바깥의 무서운 존재에 관해 어떤 전설을 들려주나요? 모든 타이머를 1 줄입니다. 다음에 이 사건을 만나면 ‘정체를 알고 지나가기’를 선택할 수 있습니다.',
@@ -561,6 +562,7 @@ export const ENCOUNTER_REVIEW_FORAGING_CHOICE_KO: Readonly<
   },
   'foraging-mountain-10-summer': {
     'snack-time': '간식 시간 — 영약재 부위 하나를 건네고 기운을 되찾아 채집 타이머를 1 늘립니다.',
+    'skip-snack': '채집 계속하기 — 영약재를 건네지 않고 채집을 계속합니다.',
   },
   'foraging-mountain-10-autumn': {
     'stay-low': '몸 낮추기 — 이슬에 젖은 수풀에 숨습니다. 늑대에게 들키지 않고 모든 타이머를 2 줄입니다.',

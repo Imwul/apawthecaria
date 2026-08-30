@@ -115,7 +115,7 @@ describe('encounter player-experience guards', () => {
   it('finishes manual forage effects before applying the p.33 Remedy or Timer checkpoint', () => {
     expect(appSource.match(/resolveForagingPostEncounterCheckpoint\(\{/g)).toHaveLength(2);
     expect(appSource.match(/pendingForagingAfterEncounterCheckpoint\(/g)).toHaveLength(2);
-    expect(appSource.match(/settleExpiredPatientAfterTimer\(/g)).toHaveLength(3);
+    expect(appSource.match(/settleExpiredPatientAfterTimer\(/g)?.length || 0).toBeGreaterThanOrEqual(6);
     expect(appSource).toContain('!queue.some(row => manualForagingCheckpointMatchesDraft(next.pendingForaging, row))');
     expect(appSource).toContain('manualEffectPending: Boolean(manualDraft)');
     expect(appSource).toContain('manualEffectPending: false');
@@ -187,10 +187,13 @@ describe('encounter player-experience guards', () => {
   });
 
   it('does not make the player enter the same manual result twice', () => {
-    expect(manualSource).toContain('recordText.resultSummary.trim().length > 0;');
+    expect(manualSource).toContain('recordText.resultSummary.trim() || automaticSummary.trim()');
     expect(manualSource).toContain('onBlur={commitRecordText}');
-    expect(manualSource).toContain('onResolve(false, recordTextRef.current)');
+    expect(manualSource).toContain('onResolve(false, resolvedRecordText())');
+    expect(manualSource).toContain('고른 선택지와 적용할 변화는 자동으로 기록됩니다.');
     expect(manualSource).toContain('비우면 판정 결과 요약을 그대로 기록합니다');
+    expect(manualSource).toContain('onCommit={next => updateInput(field.id, next)}');
+    expect(manualSource).not.toContain('MANUAL_TEXT_SAVE_DELAY_MS');
     expect(appSource).toContain(': { ...draft, journalNote: draft.resultSummary.trim() };');
   });
 

@@ -50,7 +50,7 @@ describe('human-reviewed Korean foraging encounters', () => {
       ))
       .sort();
 
-    expect(canonicalChoiceKeys).toHaveLength(224);
+    expect(canonicalChoiceKeys).toHaveLength(226);
     expect(reviewedChoiceKeys).toEqual(canonicalChoiceKeys);
   });
 

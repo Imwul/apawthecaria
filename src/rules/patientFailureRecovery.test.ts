@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeLegacyArchiveRecord } from './archiveEngine';
 import type { LeaveRuntimeState } from './leaveEngine';
-import { resolveExpiredPatientAfterTimer } from './patientFailureRecovery';
+import {
+  applyGlobalActiveTimerCost,
+  patientHasActiveAilments,
+  resolveExpiredPatientAfterTimer
+} from './patientFailureRecovery';
 import type { PatientAilmentState, PatientState, PatientTimerState } from './state';
 
 const ailment = (
@@ -73,6 +77,90 @@ const runtime = (patientState: PatientState, reputation = 12): LeaveRuntimeState
 });
 
 describe('expired Patient transaction recovery', () => {
+  it('applies a global printed Timer cost once and reports every newly expired Patient', () => {
+    const firstAilment = ailment('first', 'active');
+    const secondAilment = ailment('second', 'active');
+    const stableAilment = ailment('stable', 'active');
+    const firstPatient = patient(
+      [firstAilment, secondAilment],
+      [timer(firstAilment.id, 2, 'active'), timer(secondAilment.id, 5, 'active')]
+    );
+    const secondPatient: PatientState = {
+      ...patient([stableAilment], [timer(stableAilment.id, 4, 'active')]),
+      id: 'patient-second'
+    };
+
+    const first = applyGlobalActiveTimerCost({
+      transactionId: 'fire-and-iron:timer-cost',
+      patients: [firstPatient, secondPatient],
+      appliedTransactionIds: [],
+      hours: 2
+    });
+
+    expect(first.applied).toBe(true);
+    expect(first.expiredPatientIds).toEqual(['patient-existing']);
+    expect(first.patients[0].timers.map(row => row.current)).toEqual([0, 3]);
+    expect(first.patients[0].ailments.map(row => row.status)).toEqual(['failed', 'active']);
+    expect(first.patients[1].timers.map(row => row.current)).toEqual([2]);
+    expect(first.appliedTransactionIds).toContain('fire-and-iron:timer-cost');
+
+    const replay = applyGlobalActiveTimerCost({
+      transactionId: 'fire-and-iron:timer-cost',
+      patients: first.patients,
+      appliedTransactionIds: first.appliedTransactionIds,
+      hours: 2
+    });
+    expect(replay.applied).toBe(false);
+    expect(replay.expiredPatientIds).toEqual([]);
+    expect(replay.patients).toEqual(first.patients);
+  });
+
+  it('settles a Fire and Iron expiry consequence exactly once after the global Timer cost', () => {
+    const expiring = ailment('fire-expiry', 'active');
+    const cost = applyGlobalActiveTimerCost({
+      transactionId: 'fire-and-iron:active-timer-cost',
+      patients: [patient([expiring], [timer(expiring.id, 2, 'active')])],
+      appliedTransactionIds: [],
+      hours: 2
+    });
+    const afterCost = cost.patients[0];
+
+    const first = resolveExpiredPatientAfterTimer({
+      transactionId: 'fire-and-iron:timer-expiry:patient-existing',
+      state: {
+        ...runtime(afterCost),
+        appliedTransactionIds: cost.appliedTransactionIds
+      }
+    });
+    expect(first.value?.nextState.reputation).toBe(11);
+    expect(first.value?.nextState.patientArchive?.[0].penalty.reputation).toBe(1);
+    expect(first.value?.nextState.appliedTransactionIds).toEqual(expect.arrayContaining([
+      'fire-and-iron:active-timer-cost',
+      'fire-and-iron:timer-expiry:patient-existing:failure',
+      'fire-and-iron:timer-expiry:patient-existing:leave'
+    ]));
+
+    const replay = resolveExpiredPatientAfterTimer({
+      transactionId: 'fire-and-iron:timer-expiry:patient-existing',
+      state: first.value!.nextState
+    });
+    expect(replay.value?.nextState.reputation).toBe(11);
+    expect(replay.value?.nextState.patientArchive?.[0].penalty.reputation).toBe(1);
+  });
+
+  it('keeps a Patient active while any other Ailment still needs treatment', () => {
+    const failed = ailment('expired', 'failed');
+    const active = ailment('still-active', 'active');
+    expect(patientHasActiveAilments(patient(
+      [failed, active],
+      [timer(failed.id, 0, 'expired'), timer(active.id, 3, 'active')]
+    ))).toBe(true);
+    expect(patientHasActiveAilments({
+      ...patient([failed], [timer(failed.id, 0, 'expired')]),
+      status: 'failed'
+    })).toBe(false);
+  });
+
   it('closes a recoverable failed/expired intermediate state instead of leaving an invisible movement blocker', () => {
     const failed = ailment('ordinary', 'failed');
     const result = resolveExpiredPatientAfterTimer({

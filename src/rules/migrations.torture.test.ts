@@ -565,6 +565,79 @@ describe('save migration torture matrix', () => {
     expect(twice).toEqual(once);
   });
 
+  it('normalizes legacy deferred Encounter condition codes once without losing unrelated state', () => {
+    const source = richSaveAt(CURRENT_SCHEMA_VERSION);
+    const once = migrateSavedRulesState(clone({
+      ...source,
+      manualConditions: [
+        'typical-summer:next-move-speed-halved',
+        'roadtreat:next-forage-two-path-adjacent',
+        'chilled-to-the-bone:mountain-forage-timer:3',
+        'manual:travel-forest-j-summer:FRESHLY_GRILLED_NEXT_TIMER',
+        'manual:unknown:keep-this-condition'
+      ]
+    }));
+    const twice = migrateSavedRulesState(clone(once));
+
+    expect(once.manualConditions).toEqual([
+      'manual:travel-forest-9-10-summer:typical-summer:next-move-speed-halved',
+      'manual:travel-meadow-3-4:roadtreat:next-forage-two-path-adjacent',
+      'manual:foraging-mountain-10-winter:chilled-to-the-bone:mountain-forage-timer:3',
+      'manual:travel-forest-j-summer:freshly-grilled:next-ailment-timer:+2',
+      'manual:unknown:keep-this-condition'
+    ]);
+    expect(twice).toEqual(once);
+  });
+
+  it('round-trips travel encounter world changes and a committed Unbuckled recovery checkpoint', () => {
+    const source = richSaveAt(CURRENT_SCHEMA_VERSION);
+    const once = migrateSavedRulesState(clone({
+      ...source,
+      travelEncounterWorld: {
+        locationBlocks: [{
+          id: 'murk:loch', kind: 'vicious-murk', locationId: 'loch', activeSeason: 'Summer'
+        }, {
+          id: 'bad-murk', kind: 'vicious-murk', locationId: '', activeSeason: 'Monsoon'
+        }],
+        unbuckledCaches: [{
+          id: 'cache:one', kind: 'unbuckled-cache', sourceEncounterId: 'travel-soar-5-6',
+          locationId: 'origin', rarity: 10, status: 'available',
+          items: [{ id: 'dropped-herb', name: 'Dandelions', type: 'reagent', quantity: 1, weight: 1 / 3 }]
+        }],
+        deferredConversions: [{
+          id: 'electrician:ruin', kind: 'electrician-settlement', locationId: 'destination',
+          activeSeason: 'Summer', newLocationType: 'Settlement'
+        }]
+      },
+      pendingForaging: {
+        ...source.pendingForaging,
+        phase: 'encounter',
+        selectedReagentId: undefined,
+        specialAcquisition: {
+          kind: 'unbuckled-cache', cacheId: 'cache:one',
+          label: '떨어진 짐 1개 회수 · Dandelions', itemCount: 1
+        }
+      }
+    }));
+    const twice = migrateSavedRulesState(JSON.parse(JSON.stringify(once)));
+
+    expect(once.travelEncounterWorld).toEqual({
+      locationBlocks: [expect.objectContaining({
+        id: 'murk:loch', blocksMovementThrough: true, blocksForaging: true
+      })],
+      unbuckledCaches: [expect.objectContaining({ id: 'cache:one', status: 'available', rarity: 10 })],
+      deferredConversions: [expect.objectContaining({ id: 'electrician:ruin', newLocationType: 'Settlement' })]
+    });
+    expect(once.pendingForaging).toMatchObject({
+      phase: 'encounter',
+      specialAcquisition: {
+        kind: 'unbuckled-cache', cacheId: 'cache:one',
+        label: '떨어진 짐 1개 회수 · Dandelions', itemCount: 1
+      }
+    });
+    expect(twice).toEqual(once);
+  });
+
   it('rejects a future schema instead of silently reinterpreting it as current', () => {
     expect(() => migrateSavedRulesState({ schemaVersion: CURRENT_SCHEMA_VERSION + 1, patients: [] }))
       .toThrow(/newer than supported/);

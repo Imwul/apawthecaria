@@ -8,10 +8,15 @@ import { normalizeSaveRevision } from './revision';
 
 export const CLOUD_SLOT_COUNT = 3;
 export const CLOUD_SLOTS_FIELD = 'apawthecaria_cloud_slots';
+export const CLOUD_SLOT_TOMBSTONES_FIELD = 'apawthecaria_cloud_slot_tombstones';
 export const ACTIVE_CLOUD_SLOT_KEY = 'apawthecaria_active_cloud_slot';
 export const CLOUD_ACCOUNT_BINDING_KEY = 'apawthecaria_cloud_account_uid';
 export const CLOUD_DOCUMENT_SAFE_BYTES = 950_000;
-export const CLOUD_PAYLOAD_SAFE_BYTES = 900_000;
+/** Firestore documents have a 1 MiB hard limit. Payloads are therefore split
+ * into comfortably smaller child documents and committed with one manifest.
+ * Keep the total below Firestore's 10 MiB atomic write request ceiling. */
+export const CLOUD_PAYLOAD_CHUNK_SAFE_BYTES = 700_000;
+export const CLOUD_PAYLOAD_SAFE_BYTES = 8_000_000;
 
 export type CloudSlotId = 1 | 2 | 3;
 
@@ -34,6 +39,12 @@ export type CloudSlotView = {
   uploadedAt: string | null;
   saveRevision: number;
   payloadBytes: number;
+};
+
+export type CloudSlotTombstone = {
+  slot: CloudSlotId;
+  deletedAt: string;
+  saveRevision: number;
 };
 
 export type CloudUploadSourceView = {
@@ -93,7 +104,47 @@ export const cloudSlotPayloadDocumentId = (
 ) => `${cloudSlotPayloadDocumentPrefix(uid)}${record.slot}_${record.saveRevision}_${record.payloadFingerprint || cloudPayloadFingerprint(record.payload)}_${nonce}`;
 
 export const cloudSlotPayloadDocumentBelongsToAccount = (documentId: string, uid: string) =>
-  Boolean(documentId) && documentId.startsWith(cloudSlotPayloadDocumentPrefix(uid));
+  (() => {
+    if (!documentId) return false;
+    const prefix = cloudSlotPayloadDocumentPrefix(uid);
+    if (!documentId.startsWith(prefix)) return false;
+    // Do not accept another UID merely because it begins with this UID plus
+    // `_slot_` (for example `fox` and `fox_slot_archive`).  Every payload id
+    // produced by this app has a structured suffix; chunks retain that same
+    // suffix before their `_chunk_N` trailer. Firestore ownerUid checks remain
+    // the final authority for historical flat documents.
+    return /^[123]_\d+_fnv1a-[0-9a-f]{8}-\d+_.+/.test(documentId.slice(prefix.length));
+  })();
+
+export const cloudSlotPayloadChunkDocumentId = (payloadDocumentId: string, index: number) =>
+  `${payloadDocumentId}_chunk_${Math.max(0, Math.floor(index))}`;
+
+/** Split at UTF-8 character boundaries so concatenating downloaded chunks is
+ * byte-for-byte equivalent to the original JSON payload. */
+export const splitCloudPayload = (
+  payload: string,
+  maxChunkBytes = CLOUD_PAYLOAD_CHUNK_SAFE_BYTES
+): string[] => {
+  if (!payload) return [];
+  if (!Number.isFinite(maxChunkBytes) || maxChunkBytes < 4) {
+    throw new Error('cloud-payload-invalid-chunk-size');
+  }
+  const encoded = new TextEncoder().encode(payload);
+  if (encoded.byteLength <= maxChunkBytes) return [payload];
+  const decoder = new TextDecoder('utf-8', { fatal: true });
+  const chunks: string[] = [];
+  let offset = 0;
+  while (offset < encoded.byteLength) {
+    let end = Math.min(encoded.byteLength, offset + Math.floor(maxChunkBytes));
+    // A continuation byte belongs to the code point beginning before `end`.
+    // Leave that whole code point for the next child document.
+    while (end < encoded.byteLength && end > offset && (encoded[end] & 0xc0) === 0x80) end -= 1;
+    if (end <= offset) throw new Error('cloud-payload-invalid-chunk-size');
+    chunks.push(decoder.decode(encoded.subarray(offset, end)));
+    offset = end;
+  }
+  return chunks;
+};
 
 export const formatCloudPayloadBytes = (bytes: number) => `${Math.max(0, Math.ceil(bytes / 1024)).toLocaleString('ko-KR')}KB`;
 
@@ -114,6 +165,12 @@ const slotRecordFields = (record: CloudSlotRecord) => ({
   uploadedAt: record.uploadedAt,
   name: record.name,
   saveRevision: record.saveRevision
+});
+
+const slotTombstoneFields = (tombstone: CloudSlotTombstone) => ({
+  slot: tombstone.slot,
+  deletedAt: tombstone.deletedAt,
+  saveRevision: tombstone.saveRevision
 });
 
 export const emptyCloudSlotViews = (): CloudSlotView[] =>
@@ -255,13 +312,18 @@ export const preferredCloudUploadPayload = (
   storedPayload: string | null
 ): string | null => {
   const candidates = [livePayload, storedPayload].filter((payload): payload is string => Boolean(payload));
-  const named = candidates.filter(payload => Boolean(summarizeCloudUploadSource(payload).name));
-  const usable = named.length > 0 ? named : candidates;
-  return usable.reduce<string | null>((best, payload) => {
+  return candidates.reduce<string | null>((best, payload) => {
     if (!best) return payload;
-    const bestRevision = summarizeCloudUploadSource(best).saveRevision;
-    const candidateRevision = summarizeCloudUploadSource(payload).saveRevision;
-    return candidateRevision > bestRevision ? payload : best;
+    const bestSummary = summarizeCloudUploadSource(best);
+    const candidateSummary = summarizeCloudUploadSource(payload);
+    if (candidateSummary.saveRevision !== bestSummary.saveRevision) {
+      return candidateSummary.saveRevision > bestSummary.saveRevision ? payload : best;
+    }
+    // A just-committed character name can exist in React before the debounced
+    // storage copy catches up. Prefer that named copy only when doing so does
+    // not roll the campaign back to an older revision.
+    if (candidateSummary.name && !bestSummary.name) return payload;
+    return best;
   }, null);
 };
 
@@ -278,6 +340,23 @@ export const cloudSlotRecordFromPayload = (
   payloadBytes: cloudPayloadByteLength(payload),
   payloadFingerprint: cloudPayloadFingerprint(payload)
 });
+
+/**
+ * Detects the one cross-device divergence that revision ordering alone cannot
+ * resolve: two different campaign bodies carrying the same save revision.
+ * The caller must stop automatic sync and ask the player which copy to keep.
+ */
+export const cloudSlotHasSameRevisionConflict = (
+  localPayload: string | null,
+  cloudRecord: Pick<CloudSlotRecord, 'payload' | 'saveRevision' | 'payloadFingerprint'> | null | undefined
+): boolean => {
+  if (!localPayload || !cloudRecord) return false;
+  const local = summarizeCloudUploadSource(localPayload);
+  if (!local.available || local.saveRevision !== normalizeSaveRevision(cloudRecord.saveRevision)) return false;
+  const cloudFingerprint = cloudRecord.payloadFingerprint
+    || (cloudRecord.payload ? cloudPayloadFingerprint(cloudRecord.payload) : '');
+  return Boolean(cloudFingerprint) && cloudPayloadFingerprint(localPayload) !== cloudFingerprint;
+};
 
 const recordFromUnknown = (slot: CloudSlotId, value: unknown, fallbackUploadedAt: string | null): CloudSlotRecord | null => {
   if (!value || typeof value !== 'object') return null;
@@ -316,14 +395,39 @@ const recordFromUnknown = (slot: CloudSlotId, value: unknown, fallbackUploadedAt
   };
 };
 
+const tombstoneFromUnknown = (slot: CloudSlotId, value: unknown): CloudSlotTombstone | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const row = value as { deletedAt?: unknown; saveRevision?: unknown };
+  const deletedAt = parseUploadedAt(row.deletedAt);
+  if (!deletedAt) return null;
+  return {
+    slot,
+    deletedAt,
+    saveRevision: normalizeSaveRevision(row.saveRevision)
+  };
+};
+
 export const readCloudSlotsFromDocument = (
   data: Record<string, unknown> | null | undefined,
   documentUpdatedAt: string | null = null
 ): {
   records: Array<CloudSlotRecord | null>;
+  tombstones: Array<CloudSlotTombstone | null>;
   views: CloudSlotView[];
   migratedFromLegacy: boolean;
 } => {
+  const tombstonesField = data?.[CLOUD_SLOT_TOMBSTONES_FIELD];
+  const tombstones: Array<CloudSlotTombstone | null> = [null, null, null];
+  if (tombstonesField && typeof tombstonesField === 'object') {
+    const map = tombstonesField as Record<string, unknown>;
+    for (const slot of SLOT_IDS) {
+      tombstones[slot - 1] = tombstoneFromUnknown(
+        slot,
+        map[cloudSlotMapKey(slot)] ?? map[String(slot)] ?? map[slot]
+      );
+    }
+  }
+
   const slotsField = data?.[CLOUD_SLOTS_FIELD];
   const records: Array<CloudSlotRecord | null> = [null, null, null];
   if (slotsField && typeof slotsField === 'object') {
@@ -334,11 +438,16 @@ export const readCloudSlotsFromDocument = (
         map[cloudSlotMapKey(slot)] ?? map[String(slot)] ?? map[slot],
         documentUpdatedAt
       );
+      // A deletion marker is authoritative until the player explicitly
+      // uploads into this slot again. This keeps a delayed autosave from an
+      // older tab or another device from making a deleted slot reappear.
+      if (tombstones[slot - 1]) records[slot - 1] = null;
     }
   }
 
   const legacyRaw = data?.[CAMPAIGN_SAVE_KEY];
-  const migratedFromLegacy = !records[0] && typeof legacyRaw === 'string' && legacyRaw.length > 0;
+  const migratedFromLegacy = !records[0] && !tombstones[0]
+    && typeof legacyRaw === 'string' && legacyRaw.length > 0;
   if (migratedFromLegacy) {
     records[0] = cloudSlotRecordFromPayload(1, legacyRaw, documentUpdatedAt || new Date().toISOString());
   }
@@ -356,7 +465,7 @@ export const readCloudSlotsFromDocument = (
       : { slot: SLOT_IDS[index], empty: true, name: null, uploadedAt: null, saveRevision: 0, payloadBytes: 0 }
   ));
 
-  return { records, views, migratedFromLegacy };
+  return { records, tombstones, views, migratedFromLegacy };
 };
 
 export const cloudSlotWriteFields = (record: CloudSlotRecord): Record<string, unknown> => {
@@ -368,17 +477,24 @@ export const cloudSlotWriteFields = (record: CloudSlotRecord): Record<string, un
 };
 
 export const assembleCloudSlotDocument = (
-  records: Array<CloudSlotRecord | null | undefined>
+  records: Array<CloudSlotRecord | null | undefined>,
+  tombstones: Array<CloudSlotTombstone | null | undefined> = []
 ): Record<string, unknown> => {
   const slots: Record<string, ReturnType<typeof slotRecordFields>> = {};
+  const deletedSlots: Record<string, ReturnType<typeof slotTombstoneFields>> = {};
   for (const record of records) {
     if (!record) continue;
     slots[cloudSlotMapKey(record.slot)] = slotRecordFields(record);
   }
+  for (const tombstone of tombstones) {
+    if (!tombstone) continue;
+    deletedSlots[cloudSlotMapKey(tombstone.slot)] = slotTombstoneFields(tombstone);
+  }
   const first = records[0] || null;
   return {
     ...(first && !first.storagePath && !first.payloadDocumentId ? { [CAMPAIGN_SAVE_KEY]: first.payload } : {}),
-    [CLOUD_SLOTS_FIELD]: slots
+    [CLOUD_SLOTS_FIELD]: slots,
+    ...(Object.keys(deletedSlots).length > 0 ? { [CLOUD_SLOT_TOMBSTONES_FIELD]: deletedSlots } : {})
   };
 };
 
@@ -386,6 +502,30 @@ export const assembleNewCloudSlotDocument = (record: CloudSlotRecord): Record<st
   const records: Array<CloudSlotRecord | null> = [null, null, null];
   records[record.slot - 1] = record;
   return assembleCloudSlotDocument(records);
+};
+
+/**
+ * Replace the cloud-slot portion of an account document while retaining
+ * unrelated account metadata. A full replacement of the managed maps is
+ * important: Firestore's recursive merge would otherwise retain old numeric
+ * aliases and deletion markers that are intentionally being cleared.
+ */
+export const assembleCloudAccountDocument = (
+  currentData: Record<string, unknown> | null | undefined,
+  ownerUid: string,
+  records: Array<CloudSlotRecord | null | undefined>,
+  tombstones: Array<CloudSlotTombstone | null | undefined> = []
+): Record<string, unknown> => {
+  const preserved = { ...(currentData || {}) };
+  delete preserved[CAMPAIGN_SAVE_KEY];
+  delete preserved[CLOUD_SLOTS_FIELD];
+  delete preserved[CLOUD_SLOT_TOMBSTONES_FIELD];
+  delete preserved.ownerUid;
+  return {
+    ...preserved,
+    ownerUid,
+    ...assembleCloudSlotDocument(records, tombstones)
+  };
 };
 
 export const mergeCloudSlotRecord = (
@@ -400,10 +540,51 @@ export const mergeCloudSlotRecord = (
   return next;
 };
 
+export const mergeCloudSlotTombstone = (
+  tombstones: Array<CloudSlotTombstone | null | undefined>,
+  slot: CloudSlotId,
+  tombstone: CloudSlotTombstone | null
+): Array<CloudSlotTombstone | null> => {
+  const next: Array<CloudSlotTombstone | null> = [null, null, null];
+  tombstones.forEach((row, index) => {
+    if (row) next[index] = row;
+  });
+  next[slot - 1] = tombstone;
+  return next;
+};
+
+export const cloudSlotDeletionTombstone = (
+  record: CloudSlotRecord,
+  deletedAt = new Date().toISOString()
+): CloudSlotTombstone => ({
+  slot: record.slot,
+  deletedAt: parseUploadedAt(deletedAt) || new Date().toISOString(),
+  saveRevision: normalizeSaveRevision(record.saveRevision)
+});
+
+export const cloudSlotTombstoneBlocksWrite = (
+  tombstone: CloudSlotTombstone | null | undefined,
+  manualUpload: boolean
+) => Boolean(tombstone) && !manualUpload;
+
 export const estimateCloudSlotDocumentBytes = (records: Array<CloudSlotRecord | null | undefined>): number =>
   cloudPayloadByteLength(JSON.stringify(assembleCloudSlotDocument(records)));
 
 const askBoundWindowConfirm = (message: string) => window.confirm.call(window, message);
+
+export const manualSlotDownloadConfirmationMessage = (input: {
+  slot: CloudSlotId;
+  localRaw: string | null;
+  cloudName: string | null;
+}): string | null => {
+  const parsed = parseCampaignSaveRaw(input.localRaw);
+  const localHasProgress = parsed.ok && campaignSaveHasProgress(parsed.value);
+  if (!localHasProgress) return null;
+  const name = input.cloudName?.trim();
+  return name
+    ? `클라우드 슬롯 ${input.slot}의 ${name} 기록으로 이 기기 기록을 덮어쓸까요? 지금 기기의 로컬 진행은 사라집니다.`
+    : `클라우드 슬롯 ${input.slot} 기록으로 이 기기 기록을 덮어쓸까요? 지금 기기의 로컬 진행은 사라집니다.`;
+};
 
 export const confirmManualSlotDownload = (input: {
   slot: CloudSlotId;
@@ -411,19 +592,12 @@ export const confirmManualSlotDownload = (input: {
   cloudName: string | null;
   confirm?: (message: string) => boolean;
 }): boolean => {
-  const parsed = parseCampaignSaveRaw(input.localRaw);
-  const localHasProgress = parsed.ok && campaignSaveHasProgress(parsed.value);
-  if (!localHasProgress) return true;
-  const name = input.cloudName?.trim();
-  const ask = input.confirm ?? askBoundWindowConfirm;
-  return ask(
-    name
-      ? `클라우드 슬롯 ${input.slot}의 ${name} 기록으로 이 기기 기록을 덮어쓸까요? 지금 기기의 로컬 진행은 사라집니다.`
-      : `클라우드 슬롯 ${input.slot} 기록으로 이 기기 기록을 덮어쓸까요? 지금 기기의 로컬 진행은 사라집니다.`
-  );
+  const message = manualSlotDownloadConfirmationMessage(input);
+  if (!message) return true;
+  return (input.confirm ?? askBoundWindowConfirm)(message);
 };
 
-export const confirmManualSlotUpload = (input: {
+type ManualSlotUploadConfirmationInput = {
   slot: CloudSlotId;
   localRaw: string;
   occupied: boolean;
@@ -432,15 +606,15 @@ export const confirmManualSlotUpload = (input: {
   cloudUploadedAt?: string | null;
   accountLabel?: string | null;
   accountChanged?: boolean;
-  confirm?: (message: string) => boolean;
-}): boolean => {
-  const parsed = parseCampaignSaveRaw(input.localRaw);
-  if (!parsed.ok || !campaignSaveHasNamedApothecary(parsed.value)) return false;
-  if (!input.occupied && !input.accountChanged) return true;
+};
+
+export const manualSlotUploadConfirmationMessage = (
+  input: ManualSlotUploadConfirmationInput
+): string | null => {
+  if (!input.occupied && !input.accountChanged) return null;
   const localName = nameFromPayload(input.localRaw) || '로컬';
   const localRevision = revisionFromPayload(input.localRaw);
   const cloudName = input.cloudName?.trim();
-  const ask = input.confirm ?? askBoundWindowConfirm;
   const accountNotice = input.accountChanged
     ? `현재 기기 기록은 다른 Google 계정과 연결되어 있습니다. ${input.accountLabel || '지금 로그인한 계정'}에 새로 연결합니다.\n\n`
     : '';
@@ -455,5 +629,15 @@ export const confirmManualSlotUpload = (input: {
       ? `슬롯 ${input.slot}에 이미 ${cloudName} 기록이 있습니다. 지금 이 기기의 ${localName} 기록으로 덮어쓸까요?`
       : `슬롯 ${input.slot}에 이미 기록이 있습니다. 지금 이 기기의 ${localName} 기록으로 덮어쓸까요?`
     : `빈 슬롯 ${input.slot}에 이 기기의 ${localName} 기록을 올릴까요?`;
-  return ask(`${accountNotice}${action}${uploadedAtNotice}${newerCloudNotice}`);
+  return `${accountNotice}${action}${uploadedAtNotice}${newerCloudNotice}`;
+};
+
+export const confirmManualSlotUpload = (input: ManualSlotUploadConfirmationInput & {
+  confirm?: (message: string) => boolean;
+}): boolean => {
+  const parsed = parseCampaignSaveRaw(input.localRaw);
+  if (!parsed.ok || !campaignSaveHasNamedApothecary(parsed.value)) return false;
+  const message = manualSlotUploadConfirmationMessage(input);
+  if (!message) return true;
+  return (input.confirm ?? askBoundWindowConfirm)(message);
 };

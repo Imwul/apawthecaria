@@ -54,8 +54,8 @@ const completeRequiredInputs = (draft: ManualEffectDraft): ManualEffectDraft => 
 describe('Step 2 printed-effect registry coverage', () => {
   it('[CORE-002/TRAVEL-009/FORAGE-006/TABLE-004/AILMENT-003] has one reachable row for every canonical owner', () => {
     expect(PRINTED_EFFECT_REGISTRY).toHaveLength(358);
-    expect(PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'implemented')).toHaveLength(30);
-    expect(PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'manual')).toHaveLength(328);
+    expect(PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'implemented')).toHaveLength(46);
+    expect(PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'manual')).toHaveLength(312);
     expect(new Set(PRINTED_EFFECT_REGISTRY.map(row => `${row.ownerType}:${row.ownerId}`)).size).toBe(358);
     expect(PRINTED_EFFECT_REGISTRY.filter(row => row.ownerType === 'encounter' && ENCOUNTERS.find(owner => owner.id === row.ownerId)?.encounterType === 'travel')).toHaveLength(103);
     expect(PRINTED_EFFECT_REGISTRY.filter(row => row.ownerType === 'encounter' && ENCOUNTERS.find(owner => owner.id === row.ownerId)?.encounterType === 'foraging')).toHaveLength(144);
@@ -91,6 +91,19 @@ describe('Step 2 printed-effect registry coverage', () => {
           expect(draft.inputFields.some(field => field.id === 'map-target'), effect.ownerId).toBe(false);
         }
       }
+    }
+  });
+
+  it('[CORE-002 p.7] keeps prose inputs optional and preserves every printed encounter branch', () => {
+    for (const effect of PRINTED_EFFECT_REGISTRY.filter(row => row.manualResolution)) {
+      expect(effect.manualResolution!.inputFields
+        .filter(field => field.type === 'free-text')
+        .every(field => field.required === false), effect.ownerId).toBe(true);
+      if (effect.ownerType !== 'encounter') continue;
+      const encounter = ENCOUNTERS.find(row => row.id === effect.ownerId)!;
+      expect(effect.optionalChoices.map(choice => choice.id), effect.ownerId).toEqual(
+        encounter.choices.filter(choice => choice.id !== 'continue').map(choice => choice.id)
+      );
     }
   });
 
@@ -158,9 +171,14 @@ describe('Step 2 manual resolution transaction', () => {
   };
 
   it('[CORE-002/UX-001] rejects resolution without required effect-specific input', () => {
-    const draft = draftFor(candidate => candidate.inputFields.some(field => field.required));
+    const draft = scopeManualEffectDraftForEncounterChoice(createManualEffectDraft(
+      PRINTED_EFFECT_BY_OWNER.get('travel-meadow-7-8')!,
+      'encounter',
+      { encounterTransactionId: 'source-transaction', encounterChoiceId: 'deliver-the-parcel', continuation: 'travel' },
+      100
+    ));
     const result = resolveManualEffectTransaction({
-      draft: { ...draft, resultSummary: '결과', journalNote: '기록' },
+      draft: { ...draft, inputValues: {} },
       transactionId: 'manual-required',
       state: manualState(),
       resolvedAt: 200
@@ -183,6 +201,55 @@ describe('Step 2 manual resolution transaction', () => {
     expect(before.reputation).toBe(6);
 
     const repeated = resolveManualEffectTransaction({ draft, transactionId: 'manual-atomic', state: result.value!.nextState, resolvedAt: 201 });
+    expect(repeated.status).toBe('invalid');
+  });
+
+  it('[CORE-002 p.7] resolves without prose fields and stores a canonical system summary', () => {
+    const sourceDraft = createManualEffectDraft(
+      PRINTED_EFFECT_BY_OWNER.get('social-forest-spring-♣')!,
+      'encounter',
+      { encounterTransactionId: 'optional-journal', continuation: 'none' },
+      100
+    );
+    const result = resolveManualEffectTransaction({
+      draft: sourceDraft,
+      transactionId: 'optional-journal:resolve',
+      state: manualState(),
+      resolvedAt: 200
+    });
+    expect(result.status).toBe('resolved');
+    expect(result.value?.record.resultSummary).toContain('추가 상태 변화 없음');
+    expect(result.value?.record.journalNote).toBe('');
+    expect(result.value?.draft.resultSummary).toBe(result.value?.record.resultSummary);
+  });
+
+  it('[FORAGE-006/SAVE-004] applies the printed Startle reset to zero exactly once', () => {
+    const sourceDraft = createManualEffectDraft(
+      PRINTED_EFFECT_BY_OWNER.get('foraging-loch-9-autumn')!,
+      'encounter',
+      { encounterTransactionId: 'startle', encounterChoiceId: 'startle', continuation: 'foraging' },
+      100
+    );
+    const draft = scopeManualEffectDraftForEncounterChoice(sourceDraft);
+    expect(draft.actionTemplates).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'set-foraging-points', amount: 0, required: true }),
+      expect.objectContaining({ kind: 'record-condition', required: true })
+    ]));
+    const result = resolveManualEffectTransaction({
+      draft,
+      transactionId: 'startle:resolve',
+      state: { ...manualState(), foragingPoints: 7 },
+      resolvedAt: 200
+    });
+    expect(result.status).toBe('resolved');
+    expect(result.value?.nextState.foragingPoints).toBe(0);
+    expect(result.value?.nextState.conditions.join(' ')).toMatch(/second Forage does not decrease your Timers/i);
+    const repeated = resolveManualEffectTransaction({
+      draft,
+      transactionId: 'startle:resolve',
+      state: result.value!.nextState,
+      resolvedAt: 201
+    });
     expect(repeated.status).toBe('invalid');
   });
 

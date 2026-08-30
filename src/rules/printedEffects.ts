@@ -10,6 +10,7 @@ export type PrintedCanonicalActionKind =
   | 'modify-trinkets'
   | 'modify-days'
   | 'modify-foraging-points'
+  | 'set-foraging-points'
   | 'modify-timer'
   | 'gain-inventory'
   | 'remove-inventory'
@@ -176,66 +177,194 @@ const sourceClauses = (text: string): string[] => compactText(text)
   .map(row => row.trim())
   .filter(Boolean);
 
-const deriveActionTemplates = (ownerId: string, text: string): PrintedCanonicalActionTemplate[] => {
+const cleanPrintedInventoryTarget = (value: string): string => value
+  .trim()
+  .replace(/^[‘’“”'"`]+/, '')
+  .replace(/[‘’“”'"`]+(?=\s*(?:\(|$))/g, '')
+  .trim();
+
+export const deriveActionTemplates = (ownerId: string, text: string): PrintedCanonicalActionTemplate[] => {
   const actions: PrintedCanonicalActionTemplate[] = [];
   const push = (
     kind: PrintedCanonicalActionKind,
     label: string,
     sourceText: string,
     amount?: number,
-    targetType?: PrintedCanonicalActionTemplate['targetType']
+    targetType?: PrintedCanonicalActionTemplate['targetType'],
+    fixedTarget?: string
   ) => {
     const signature = `${kind}:${amount ?? ''}:${label}`;
     if (actions.some(action => `${action.kind}:${action.amount ?? ''}:${action.label}` === signature)) return;
-    actions.push({ id: `${ownerId}:action:${actions.length + 1}`, kind, label, amount, targetType, sourceText });
+    actions.push({
+      id: `${ownerId}:action:${actions.length + 1}`,
+      kind,
+      label,
+      amount,
+      targetType,
+      ...(fixedTarget ? { fixedTarget } : {}),
+      sourceText
+    });
   };
 
   sourceClauses(text).forEach(clause => {
-    const reputationGain = clause.match(/(?:gain|earn)(?: an extra)?\s+(\d+)\s+Reputation/i);
-    const reputationLoss = clause.match(/lose\s+(\d+)\s+Reputation/i);
+    const reputationGain = clause.match(/(?:(?:gain|earn)(?: an extra)?\s+(\d+)\s+(?:Guild\s+)?Reputation|increase\s+(?:Guild\s+)?Reputation\s+by\s+(\d+))/i);
+    const reputationLoss = clause.match(/(?:lose\s+(\d+)\s+(?:Guild\s+)?Reputation|decrease\s+(?:Guild\s+)?Reputation\s+by\s+(\d+))/i);
     const trinketGain = clause.match(/(?:gain|earn)(?: an extra)?\s+(\d+|a|one)\s+Trinkets?/i);
     const trinketLoss = clause.match(/(?:lose|trade|pay|leave)\s+(\d+|a|one)\s+Trinkets?/i);
-    const markDays = clause.match(/(?:mark|add)(?:ing)?\s+(\d+)\s+Days?/i);
+    const markDays = clause.match(/(?:mark|add)(?:ing)?\s+(\d+|a|one)\s+Days?/i);
     // The rulebook uses both “Decrease Timers” and “Reduce Timers” for the
     // same mechanical instruction.  Keep both phrasings canonical so a
     // manual encounter such as Voyage To The Blackwater exposes its timer
     // change alongside the Reputation change instead of silently dropping it.
-    const timerDecrease = clause.match(/(?:decrease|reduce)\s+(?:all\s+)?Timers?\s+by\s+(\d+)/i);
-    const timerIncrease = clause.match(/(?:increase|add)\s+(?:all\s+)?(?:your\s+)?(?:next\s+)?Timers?(?:\s+by)?\s+(\d+)/i)
+    const timerDecrease = clause.match(/(?:decrease|reduce)\s+(?:(?:all\s+remaining|all|the|your|any(?:\s+(?:active|current))?)\s+)*(?:(?:Ailment|Foraging|patient)\s+)?Timers?\s+by\s+(?:an\s+additional\s+)?(\d+)/i);
+    const timerIncrease = clause.match(/(?:increase|add)\s+(?:(?:all|the|your|any(?:\s+(?:active|current))?)\s+)*(?:next\s+)?(?:(?:Ailment|Foraging|patient)\s+)?Timers?(?:\s+by)?\s+(\d+)/i)
       || clause.match(/add\s+(\d+)\s+to\s+(?:your\s+)?(?:next\s+)?Timer/i);
     const forageGain = clause.match(/gain\s+(\d+)\s+Foraging Points?/i);
     const forageLoss = clause.match(/lose\s+(\d+)\s+Foraging Points?/i);
-    if (reputationGain) push('modify-reputation', `명성 +${reputationGain[1]}`, clause, Number(reputationGain[1]));
-    if (reputationLoss) push('modify-reputation', `명성 -${reputationLoss[1]}`, clause, -Number(reputationLoss[1]));
-    if (trinketGain) push('modify-trinkets', `장신구 +${trinketGain[1]}`, clause, trinketGain[1].match(/\d/) ? Number(trinketGain[1]) : 1);
-    if (trinketLoss) push('modify-trinkets', `장신구 -${trinketLoss[1]}`, clause, -(trinketLoss[1].match(/\d/) ? Number(trinketLoss[1]) : 1));
-    if (markDays) push('modify-days', `일정 +${markDays[1]}일`, clause, Number(markDays[1]));
-    if (timerDecrease) push('modify-timer', `타이머 -${timerDecrease[1]}`, clause, -Number(timerDecrease[1]), 'timer');
-    if (timerIncrease && !/\b(?:next|future|following)\b/i.test(clause)) {
-      push('modify-timer', `타이머 +${timerIncrease[1]}`, clause, Number(timerIncrease[1]), 'timer');
+    const forageSet = clause.match(/(?:decrease|reduce|set)\s+(?:your\s+)?Foraging Points?\s+(?:to|at)\s+(\d+)/i);
+    const koreanReputationGain = clause.match(/(?:Guild Reputation|길드\s*명성|명성)(?:을|를)?\s*(?:\+\s*)?(\d+)(?:만큼)?(?:을|를)?\s*(?:얻|올리|증가|적용)/i)
+      || clause.match(/(?:Guild Reputation|길드\s*명성|명성)\s*\+(\d+)/i);
+    const koreanReputationLoss = clause.match(/(?:Guild Reputation|길드\s*명성|명성)(?:을|를)?\s*(\d+)(?:만큼)?(?:을|를)?\s*(?:잃|낮추|감소)/i)
+      || clause.match(/(?:Guild Reputation|길드\s*명성|명성)\s*-(\d+)/i);
+    const koreanTrinketGain = clause.match(/장신구(?:를|가|는)?\s*(\d+)개?(?:를|가)?\s*(?:얻|받|추가)/i)
+      || clause.match(/장신구\s*\+(\d+)/i);
+    const koreanTrinketLoss = clause.match(/장신구(?:를|가|는)?\s*(\d+)개?(?:를|가)?\s*(?:잃|지불|주|건네|제공|소비)/i)
+      || clause.match(/장신구\s*-(\d+)/i);
+    const koreanMarkDays = clause.match(/(?:달력(?:에|의)?\s*)?(\d+)일(?:을|간)?\s*(?:표시|더|추가|보냄|보내|지남|지난)/i)
+      || clause.match(/달력\s*\+(\d+)일/i);
+    const koreanTimerDecrease = clause.match(/(?:모든\s*)?(?:환자\s*)?(?:활성\s*)?타이머(?:를|가)?\s*(\d+)(?:만큼)?\s*(?:줄|낮추|감소)/i)
+      || clause.match(/타이머\s*-(\d+)/i);
+    const koreanTimerIncrease = clause.match(/(?:모든\s*)?(?:환자\s*)?(?:활성\s*)?타이머(?:를|가)?\s*(\d+)(?:만큼)?\s*(?:늘(?:리|립)|올리|증가|더)/i)
+      || clause.match(/타이머\s*\+(\d+)/i);
+    const koreanForageGain = clause.match(/채집\s*포인트(?:를|가)?\s*(\d+)(?:을|를)?(?:만큼)?\s*(?:얻|올리|증가|추가)/i)
+      || clause.match(/채집\s*포인트\s*\+(\d+)/i);
+    const koreanForageLoss = clause.match(/채집\s*포인트(?:를|가)?\s*(\d+)(?:을|를)?(?:만큼)?\s*(?:잃|낮추|감소)/i)
+      || clause.match(/채집\s*포인트\s*-(\d+)/i);
+    const reputationGainAmount = reputationGain?.[1] || reputationGain?.[2] || koreanReputationGain?.[1];
+    const reputationLossAmount = reputationLoss?.[1] || reputationLoss?.[2] || koreanReputationLoss?.[1];
+    if (reputationGainAmount) push('modify-reputation', `Guild Reputation +${reputationGainAmount}`, clause, Number(reputationGainAmount));
+    if (reputationLossAmount) push('modify-reputation', `Guild Reputation -${reputationLossAmount}`, clause, -Number(reputationLossAmount));
+    const trinketGainAmount = trinketGain?.[1] || koreanTrinketGain?.[1];
+    const trinketLossAmount = trinketLoss?.[1] || koreanTrinketLoss?.[1];
+    const markedDaysAmount = markDays?.[1] || koreanMarkDays?.[1];
+    const timerDecreaseAmount = timerDecrease?.[1] || koreanTimerDecrease?.[1];
+    const timerIncreaseAmount = timerIncrease?.[1] || timerIncrease?.[2] || koreanTimerIncrease?.[1];
+    const forageGainAmount = forageGain?.[1] || koreanForageGain?.[1];
+    const forageLossAmount = forageLoss?.[1] || koreanForageLoss?.[1];
+    const trinketGainNumber = trinketGainAmount ? (trinketGainAmount.match(/\d/) ? Number(trinketGainAmount) : 1) : 0;
+    const trinketLossNumber = trinketLossAmount ? (trinketLossAmount.match(/\d/) ? Number(trinketLossAmount) : 1) : 0;
+    if (trinketGainAmount) push('modify-trinkets', `장신구 +${trinketGainNumber}`, clause, trinketGainNumber);
+    if (trinketLossAmount) push('modify-trinkets', `장신구 -${trinketLossNumber}`, clause, -trinketLossNumber);
+    if (!trinketGainAmount
+      && /\b(?:(?:gain|earn|receive)\s+(?:an?\s+)?(?:[A-Za-z'-]+\s+){0,3}|(?:gifts?|gives?)\s+you\s+(?:an?\s+)?)Trinket\b/i.test(clause)) {
+      push('modify-trinkets', '장신구 +1', clause, 1);
     }
-    if (forageGain) push('modify-foraging-points', `채집 포인트 +${forageGain[1]}`, clause, Number(forageGain[1]));
-    if (forageLoss) push('modify-foraging-points', `채집 포인트 -${forageLoss[1]}`, clause, -Number(forageLoss[1]));
+    if (markedDaysAmount) {
+      const markedDaysNumber = /\d/.test(markedDaysAmount) ? Number(markedDaysAmount) : 1;
+      push('modify-days', `일정 +${markedDaysNumber}일`, clause, markedDaysNumber);
+    }
+    if (timerDecreaseAmount) push('modify-timer', `타이머 -${timerDecreaseAmount}`, clause, -Number(timerDecreaseAmount), 'timer');
+    if (timerIncreaseAmount && !/\b(?:next|future|following)\b/i.test(clause) && !/다음(?:에|\s)/.test(clause)) {
+      push('modify-timer', `타이머 +${timerIncreaseAmount}`, clause, Number(timerIncreaseAmount), 'timer');
+    }
+    if (forageGainAmount) push('modify-foraging-points', `채집 포인트 +${forageGainAmount}`, clause, Number(forageGainAmount));
+    if (forageLossAmount) push('modify-foraging-points', `채집 포인트 -${forageLossAmount}`, clause, -Number(forageLossAmount));
+    if (forageSet) push('set-foraging-points', `채집 포인트 = ${forageSet[1]}`, clause, Number(forageSet[1]));
+    if (/\b(?:lose|discard)\s+all\s+(?:your\s+)?Foraging Points?\b/i.test(clause)
+      || /채집\s*포인트(?:를|가)?\s*(?:모두|전부)\s*(?:잃|버리|제거)/i.test(clause)) {
+      push('set-foraging-points', '채집 포인트 = 0', clause, 0);
+    }
+    if (/장신구로\s*취급.{0,30}트로피\s*1개.{0,20}(?:얻|획득)/i.test(clause)) {
+      push('modify-trinkets', '장신구 +1', clause, 1);
+    }
     const directBagItem = clause.match(/\badd\s+(?:an?\s+)?['“”"]?([^.;]{1,60}?)['“”"]?\s+to\s+(?:your\s+)?Bags?\b/i);
     if (directBagItem) {
-      push('gain-inventory', `가방에 ${directBagItem[1].trim()} 추가`, clause, undefined, 'free-text');
-    } else if (/(?:gain|collect|add).{0,50}\b(?:Reagent|Plant|Insect|Tool|Item|Trinket|Sketch|Gossip|Fruit)\b/i.test(clause)) {
-      push('gain-inventory', '원문이 지정한 물품 획득', clause, undefined, 'free-text');
+      const target = cleanPrintedInventoryTarget(directBagItem[1]);
+      const isPronoun = /^(?:it|them|one)$/i.test(target);
+      push('gain-inventory', `가방에 ${isPronoun ? '원문의 물품' : target} 추가`, clause, undefined, isPronoun ? 'free-text' : undefined, isPronoun ? undefined : target);
+    } else {
+      const quotedGain = clause.match(/\b(?:gain|receive|take|buy)\s+['‘’“”"]([^'‘’“”"]{1,60})['‘’“”"]/i);
+      if (quotedGain) {
+        const target = cleanPrintedInventoryTarget(quotedGain[1]);
+        push('gain-inventory', `${target} 획득`, clause, undefined, undefined, target);
+      } else if (/\b(?:gain|collect|take|receive|find|buy|trade\s+for)\s+(?:(?:up to as many as you can carry of|an?|one|any|some|your choice of|the)\s+)?(?:[A-Za-z'-]+\s+){0,5}(?:Reagent|Plant|Insect|Tool|Item|Sketch|Gossip|Fruit|Companion|Thingamabob|Codex|Pearl|Ore|Oil|Kite|Object|Bits|Treats?)\b/i.test(clause)
+        || /\bGain\s+[^.;]{1,120}\bReagent Parts?\b/i.test(clause)
+        || /\b(?:invent|trade for)\s+(?:an?\s+)?(?:Trinket|Reagent Part|Tool)/i.test(clause)) {
+        push('gain-inventory', '원문이 지정한 물품 획득', clause, undefined, 'free-text');
+      } else {
+        const parenthesizedTool = clause.match(/\btrade\s+for\s+(?:some\s+)?([^.;()]{1,60}?)\s*\(\s*Tools?\b/i);
+        if (parenthesizedTool) {
+          const target = cleanPrintedInventoryTarget(parenthesizedTool[1]);
+          push('gain-inventory', `${target} 획득`, clause, undefined, undefined, target);
+        } else if (/(?:Reagent|Plant|Insect|Tool|Item|Sketch|Gossip|Fruit|Companion|Thingamabob|Codex|Pearl|Ore|Oil|Kite|Object|Bits|Treats?|영약재|재료|도구|물품|아이템|길동무|장치|기록서|진주|광석|기름|연|소묘|열매|벌레|Behemoth Bits).{0,90}(?:가방에\s*(?:넣|기록|추가)|획득|얻|받|가져|고릅)/i.test(clause)) {
+          push('gain-inventory', '원문이 지정한 물품 획득', clause, undefined, 'free-text');
+        }
+      }
     }
-    if (/(?:lose|discard|drop|abandon|leave behind).{0,50}\b(?:Reagent|Tool|Item|Bags?|Weight)\b/i.test(clause)) {
+    if (/(?:lose|discard|drop|abandon|leave behind|swap).{0,70}\b(?:Reagent|Part|Tool|Item|Bags?|Weight)\b/i.test(clause)) {
+      push('remove-inventory', '적격 가방 물품 제거', clause, undefined, 'inventory-item');
+    } else if (/(?:Reagent|Part|Tool|Item|Bag|Scrapings|영약재|재료|도구|물품|아이템|가방).{0,100}(?:discard|remove|hand over|give up|consume|버리|버려|버립|제거|건네|제공|소비|사용|잃)/i.test(clause)) {
       push('remove-inventory', '적격 가방 물품 제거', clause, undefined, 'inventory-item');
     }
-    if (/(?:connect|draw|remove|mark|add).{0,40}\b(?:Path|Location|Settlement|City|Barrow|map)\b/i.test(clause)) {
+    if (/(?:connect|draw|remove|mark|add|make a note).{0,60}\b(?:Path|Location|Settlement|City|Barrow|map)\b|(?:지도|위치).{0,50}(?:표시|기록|추가|제거|연결)/i.test(clause)) {
       push('record-map-change', '지도 변경 기록', clause, undefined, 'location');
     }
-    if (/(?:move yourself|move to|travel along an additional|halve your speed|double your speed|speed is halved)/i.test(clause)) {
+    if (/(?:move yourself|move to|move along|move one path|closest shore|travel along an additional|extra Waterways?|end (?:your )?Soar|Flightpath|halve your speed|double your speed|speed is halved)|(?:이동|비행|여정|경로).{0,60}(?:종료|움직|이동|끝|회전)/i.test(clause)) {
       push('record-movement', '이동 상태 변경 기록', clause, undefined, 'location');
     }
-    if (/(?:until|next Move|next Timer|next time|in the future|permanently|when you return|following Season)/i.test(clause)) {
-      push('record-condition', '지속 조건 기록', clause, undefined, 'free-text');
+    if (/(?:until|next Move|next Timer|next Ailment|next time|in the future|permanently|when you return|following Season|start (?:a |the )?(?:new |next )?Ailment|develops? (?:the |an? )?.{0,40}Ailment|must cure|create a Remedy|set a .{0,30}Timer|cannot (?:Move|Forage)|Rarity.{0,60}(?:is|to|by)|skip (?:Bartering )?Step|gain half|twice as many Foraging Points|do(?:es)? not (?:Mark a Day|gain (?:any )?(?:bonus )?Foraging Points|decrease (?:your )?Timers?)|no Foraging Points|counts? as a Settlement|ignore the negative effects|Companion|off-limits|unavailable for the remainder|reclaim (?:these )?Items)|(?:다음(?:에\s*시작하는)?\s*(?:Move|Move On|이동|질환|타이머|계절)|질환.{0,40}시작|타이머\s*\d+인|치료제.{0,30}만(?:들|듭)|환자.{0,40}(?:생성|시작)|길동무.{0,40}(?:기록|획득)|채집\s*포인트.{0,40}(?:받지|얻지|두\s*배|절반)|(?:Barter|영약재\s*거래).{0,40}(?:단계|건너)|희귀도.{0,30}(?:올리|높이)|선물.{0,60}(?:찾|돌려주)|이\s*위치.{0,60}(?:이동|채집).{0,20}(?:못|않)|사용\s*불가|지역에서\s*다시\s*채집하지)/i.test(clause)) {
+      push('record-condition', '지속 조건 기록', clause, undefined, undefined, clause);
     }
   });
   return actions;
+};
+
+/**
+ * Builds only the still-manual state changes for the encounter branch that
+ * was actually selected. Implemented effects have already been committed by
+ * executeEncounter, so deriving from the custom remainder prevents the
+ * confirmation UI from offering the same Timer/resource change twice.
+ */
+export const deriveEncounterBranchActionTemplates = (
+  ownerId: string,
+  choiceId?: string
+): PrintedCanonicalActionTemplate[] => {
+  const encounter = ENCOUNTERS.find(row => row.id === ownerId);
+  if (!encounter) return [];
+  const choice = choiceId
+    ? encounter.choices.find(row => row.id === choiceId)
+    : undefined;
+  const manualText = [
+    ...encounter.mandatoryEffects.flatMap(structured => structured.support !== 'implemented'
+      && structured.effect.type === 'customEffect'
+      ? [structured.effect.description]
+      : []),
+    ...(choice?.effects || []).flatMap(structured => structured.support !== 'implemented'
+      && structured.effect.type === 'customEffect'
+      ? [structured.effect.description]
+      : [])
+  ].join(' ');
+  const alreadyApplied = new Map<string, number>();
+  const rememberApplied = (structured: (typeof encounter.mandatoryEffects)[number]) => {
+    if (structured.support !== 'implemented') return;
+    const effect = structured.effect;
+    const signature = effect.type === 'modifyReputation' ? `modify-reputation:${effect.amount}`
+      : effect.type === 'modifyTrinkets' ? `modify-trinkets:${effect.amount}`
+        : effect.type === 'markDays' ? `modify-days:${effect.amount}`
+          : effect.type === 'modifyForagingPoints' ? `modify-foraging-points:${effect.amount}`
+            : effect.type === 'modifyTimer' ? `modify-timer:${effect.amount}`
+              : null;
+    if (signature) alreadyApplied.set(signature, (alreadyApplied.get(signature) || 0) + 1);
+  };
+  encounter.mandatoryEffects.forEach(rememberApplied);
+  (choice?.effects || []).forEach(rememberApplied);
+  return deriveActionTemplates(`${ownerId}:branch:${choiceId || 'mandatory'}`, manualText).filter(action => {
+    const signature = `${action.kind}:${action.amount ?? ''}`;
+    const duplicates = alreadyApplied.get(signature) || 0;
+    if (duplicates <= 0) return true;
+    alreadyApplied.set(signature, duplicates - 1);
+    return false;
+  });
 };
 
 const deriveManualResolution = (input: {
@@ -244,10 +373,11 @@ const deriveManualResolution = (input: {
   text: string;
   prerequisites: string[];
   explicitChoices: string[];
+  actionText?: string;
 }): PrintedManualResolution => {
   const text = compactText(input.text);
   const choices = extractPrintedChoices(text, input.explicitChoices);
-  const actionTemplates = deriveActionTemplates(input.ownerId, text);
+  const actionTemplates = deriveActionTemplates(input.ownerId, input.actionText || text);
   const clauses = sourceClauses(text);
   const conditionalClauses = clauses.filter(clause => /\b(?:if|when|unless|cannot|must|only|at least|before|after)\b/i.test(clause));
   const followUpRequirements = unique(clauses.filter(clause =>
@@ -256,11 +386,11 @@ const deriveManualResolution = (input: {
   const inputFields: PrintedResolutionInput[] = [];
   if (choices.length > 0) inputFields.push({ id: 'printed-choice', type: 'choice', label: '적용한 원문 분기 또는 선택', required: false, options: choices });
   if (/\bdraw (?:another |two |one |a )?cards?\b/i.test(text)) inputFields.push({ id: 'follow-up-card', type: 'card-reference', label: '뽑은 후속 카드와 결과', required: false, helpText: '실제로 뽑은 문양과 값을 기록하세요.' });
-  if (/\b(?:if|when|unless|may|can|choose whether)\b/i.test(text)) inputFields.push({ id: 'condition-check', type: 'condition', label: '어떤 원문 조건과 분기가 적용되었는지 확인', required: true });
-  if (/\?/u.test(text)) inputFields.push({ id: 'narrative-outcome', type: 'free-text', label: '원문이 묻는 서사적 결과', required: true });
+  if (/\b(?:if|when|unless|may|can|choose whether)\b/i.test(text)) inputFields.push({ id: 'condition-check', type: 'condition', label: '어떤 원문 조건과 분기가 적용되었는지 확인', required: false });
+  if (/\?/u.test(text)) inputFields.push({ id: 'narrative-outcome', type: 'free-text', label: '원문이 묻는 서사적 결과', required: false });
   if (/\b(?:any number|as many|how many)\b/i.test(text)) inputFields.push({ id: 'quantity', type: 'number', label: '원문이 플레이어에게 정하도록 한 수량', required: false });
   if (followUpRequirements.length > 0) inputFields.push({ id: 'follow-up-result', type: 'follow-up-reference', label: '후속 판정 또는 지속 효과 기록', required: false });
-  if (inputFields.length === 0) inputFields.push({ id: 'outcome-detail', type: 'free-text', label: '원문 지시를 해결한 구체적인 결과', required: true });
+  if (inputFields.length === 0) inputFields.push({ id: 'outcome-detail', type: 'free-text', label: '원문 지시를 해결한 구체적인 결과', required: false });
 
   const decision = choices.length > 0
     ? `“${input.ownerName}”에서 적용할 원문 분기를 고르고 그 결과를 기록하세요.`
@@ -317,6 +447,9 @@ const joinEffects = (effects: (typeof AILMENTS)[number]['successEffects']): stri
 const encounterDefaults: PrintedEffectDefinition[] = ENCOUNTERS.map(encounter => {
   const prerequisites = [encounter.season ? `Season: ${encounter.season}` : 'Any Season', `Region: ${encounter.region}`];
   const ownerName = encounterOwnerName(encounter.title);
+  const explicitChoices = encounter.choices
+    .filter(choice => choice.id !== 'continue')
+    .map(choice => choice.label);
   return {
     id: `printed:${encounter.id}`,
     ownerType: 'encounter',
@@ -332,9 +465,9 @@ const encounterDefaults: PrintedEffectDefinition[] = ENCOUNTERS.map(encounter =>
     triggerText: { encounter: compactText(encounter.prompt) },
     prerequisites,
     mandatoryEffects: [],
-    optionalChoices: (encounter.support === 'implemented' || encounter.choices.some(choice => /[가-힣]/.test(choice.label)))
-      ? encounter.choices.filter(choice => choice.id !== 'continue').map(choice => ({ id: choice.id, label: choice.label, effects: [] }))
-      : [],
+    optionalChoices: encounter.choices
+      .filter(choice => choice.id !== 'continue')
+      .map(choice => ({ id: choice.id, label: choice.label, effects: [] })),
     resourceChanges: [], timerChanges: [], inventoryChanges: [], movementChanges: [], mapChanges: [], reputationChanges: [],
     followUpState: null,
     journalPrompt: encounter.prompt,
@@ -343,7 +476,7 @@ const encounterDefaults: PrintedEffectDefinition[] = ENCOUNTERS.map(encounter =>
       ownerName,
       text: encounter.prompt,
       prerequisites,
-      explicitChoices: encounter.choices.filter(choice => choice.id !== 'continue').map(choice => choice.label)
+      explicitChoices
     }),
     manualResolutionByTrigger: {},
     ruleIds: [encounter.encounterType === 'travel' ? 'TRAVEL-009' : encounter.encounterType === 'foraging' ? 'FORAGE-006' : 'TABLE-004', 'CORE-002'],

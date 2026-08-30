@@ -10,6 +10,8 @@ export interface EngineInventoryItem {
   type: 'tool' | 'reagent' | 'trinket' | 'item';
   weight: number;
   quantity?: number;
+  /** Fixed printed value used by Barter even when it differs from the item's weight. */
+  barterValue?: number;
   canonicalToolId?: string;
   canonicalReagentId?: string;
   preparationId?: string;
@@ -65,6 +67,12 @@ export interface PendingEncounterState {
   secondaryCardChoiceId?: string;
   ignoreNegativeEncounterEffects?: boolean;
   encounterProtection?: 'negative' | 'all';
+  /** Exact map context of the Move that produced this Encounter. Needed by
+   * printed effects that backtrack, end a Flightpath early, or cache goods. */
+  originLocationId?: string;
+  moveDestinationId?: string;
+  moveRouteLocationIds?: string[];
+  movementMode?: 'move' | 'soar';
 }
 
 export interface PendingForagingState {
@@ -85,6 +93,14 @@ export interface PendingForagingState {
   candidateSelectionReagentId?: string;
   /** Reagent whose gather or miss result has already been committed. */
   selectedReagentId?: string;
+  /** A non-Reagent acquisition that used this Foraging draw.  Kept explicit
+   * so reload cannot reopen the Reagent picker and allow a second reward. */
+  specialAcquisition?: {
+    kind: 'unbuckled-cache';
+    cacheId: string;
+    label: string;
+    itemCount: number;
+  };
   timerCostAfterEncounter: number;
   encounterId: string | null;
   selectedChoiceId?: string;

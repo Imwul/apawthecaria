@@ -47,9 +47,12 @@ describe('Racing Bets A Snack next-Move speed', () => {
   });
 
   it('wires the same helper into route preview, Move resolution, and successful-Move consumption', () => {
-    expect(appSource).toContain('return applyRacingBetsSnackSpeed(speed, s.manualConditions || [], mode);');
-    expect(appSource).toContain('baseSpeed: applyRacingBetsSnackSpeed(');
-    expect(appSource).toContain('consumeTravelConditions(s.manualConditions || [], destinationId, originId, movementMode)');
+    expect(appSource).toContain('speed = applyRacingBetsSnackSpeed(speed, s.manualConditions || [], mode);');
+    expect(appSource).toContain('return applyEncounterMoveSpeed(speed, s.manualConditions || []);');
+    expect(appSource).toContain('baseSpeed: applyEncounterMoveSpeed(');
+    expect(appSource).toContain('applyRacingBetsSnackSpeed(');
+    expect(appSource).toContain('const consumeTravelConditions = (');
+    expect(appSource).toContain('let nextConditions = consumeTravelConditions(');
     expect(appSource).toContain('if (weight > getMaxCarry(s)) return 1;');
   });
 

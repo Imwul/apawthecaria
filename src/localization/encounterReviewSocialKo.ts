@@ -80,6 +80,10 @@ export const SOCIAL_ENCOUNTER_REVIEW_CONTEXT_KO: Record<string, string> = {
 };
 
 export const SOCIAL_ENCOUNTER_REVIEW_CHOICE_KO: Record<string, Record<string, string>> = {
+  'social-bog-spring-♠': {
+    'wonderful-bugs': '멋진 곤충 이야기 — 벌집지기가 실잠자리에게 묘기를 가르치는 모습을 지켜보고, 실잠자리가 얼마나 멋진 곤충인지 들은 뒤 계속합니다.',
+    hatchling: '실잠자리 입양 — Damselfly(실잠자리)를 입양하거나 정중히 사양합니다. 입양한다면 Butterfly(나비) 또는 Cricket(귀뚜라미) 기능 가운데 하나를 고릅니다.'
+  },
   'social-bog-settlement-♦': {
     'time-capsule': '타임캡슐 — 가까운 야수가 이탄을 자르다 찾아낸 물건을 친구에게 보여 줍니다. 무엇을 찾았고 얼마나 오래된 물건인가요? 발견한 야수는 어떤 기분이며, 누가 처음 묻었는지 아나요?',
     'guild-offering': '길드의 봉헌물 — 한 길드원이 티탄 비단실로 묶은 밀랍 천 보따리를 갓 판 구덩이의 검은 진흙에 넣습니다. 미래 세대를 위해 당신도 무언가 기부하라고 권합니다. 이 풍습을 어떻게 생각하나요? 가방에서 함께 묻을 것이 있나요?'
@@ -182,7 +186,8 @@ export const SOCIAL_ENCOUNTER_REVIEW_CHOICE_KO: Record<string, Record<string, st
     'a-clammy-deal': '진주 거래 — 진주를 바라보자 수달이 눈을 마주칩니다. “이 장신구의 가치를 아는 야수 같군요. 거래할래요?” 장신구 3개 또는 Big Fish(큰 물고기), Small Fish(작은 물고기), Beehive(벌집), Blackcurrant, Cucumber(오이), Strawberries(딸기), Roses(장미), Wild Garlic(산마늘) 가운데 하나의 부위와 Pearl(진주)를 바꿀 수 있습니다.'
   },
   'social-loch-autumn-♣': {
-    'working-for-a-snack': '간식값 하기 — “조개를 깰 힘은 있지만 등에 난 종기에는 손이 안 닿아. 종기를 터뜨려 주면 싱싱한 조개를 줄게!” 잠시 도와 모든 활성 타이머를 1 줄이고 Fresh Clams(싱싱한 민물조개, 무게 2/3)을 가방에 넣습니다. 물물교환할 때 장신구 3개와 같은 가치이며, 다음에 달력에 1일을 표시하면 상합니다.'
+    'working-for-a-snack': '간식값 하기 — “조개를 깰 힘은 있지만 등에 난 종기에는 손이 안 닿아. 종기를 터뜨려 주면 싱싱한 조개를 줄게!” 잠시 도와 모든 활성 타이머를 1 줄이고 Fresh Clams(싱싱한 민물조개, 무게 2/3)을 가방에 넣습니다. 물물교환할 때 장신구 3개와 같은 가치이며, 다음에 달력에 1일을 표시하면 상합니다.',
+    'keep-moving': '계속 이동하기 — 일을 돕지 않고 이동을 계속합니다.'
   },
   'social-loch-winter-♠': {
     'join-in': '함께 부르기 — 부교 아래로 내려가 인사합니다. 실타래를 들어 주는 동안 야수들이 노래 하나를 가르쳐 줍니다. 노랫말 속에는 어떤 깊은 뜻이 담겨 있나요?',

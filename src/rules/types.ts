@@ -161,6 +161,14 @@ export interface EncounterChoice {
     rewardMode: 'none' | 'standard';
     deadline?: 'before-overstay';
     patientKind?: 'exiled-beast' | 'local-beast';
+  } | {
+    /** p.84 Parley starts the full Helping a Local Beast card workflow; the
+     * encounter itself does not prescribe a Severity or a fixed Remedy. */
+    type: 'start-patient-cards';
+    timing: 'immediate';
+    rewardMode: 'reputation-as-trinkets';
+    failureOutcome: 'taken-prisoner';
+    patientKind: 'local-pirate';
   };
 }
 

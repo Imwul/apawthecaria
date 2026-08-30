@@ -1,8 +1,14 @@
 import type { EncounterDefinition } from '../types';
+import { ENCOUNTER_CONDITION_CODES } from '../encounterConditionRuntime';
 
 const manual = (code: string, description: string): EncounterDefinition['mandatoryEffects'][number] => ({
   support: 'manual-only',
   effect: { type: 'customEffect', code, description }
+});
+
+const condition = (conditionId: string, _description?: string): EncounterDefinition['mandatoryEffects'][number] => ({
+  support: 'implemented',
+  effect: { type: 'addCondition', conditionId }
 });
 
 const HELPED_EXILED_OR_BRANDED_BEAST = 'helped-exiled-or-branded-beast';
@@ -38,6 +44,58 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     ],
     support: 'manual-only'
   },
+  // p.76: Silver Lining grants an actual Leech Reagent. A canonical Part is
+  // chosen because Bags store Reagents at preparation/Part granularity.
+  'travel-bog-9-10-summer': {
+    mandatoryEffects: [],
+    choices: [{
+      // Keep the legacy stable id so an interrupted pre-fix Encounter can be
+      // resumed; only the label/effect semantics were incomplete.
+      id: 'continue',
+      label: 'Silver Lining — 거머리를 떼어 내 보관하고 Leech 영약재 부위 하나를 얻습니다.',
+      effects: [manual(
+        'THAT_SUCKS_LEECH',
+        'Leech의 canonical 부위와 조제법 중 하나를 골라 가방에 넣습니다.'
+      )]
+    }],
+    support: 'manual-only'
+  },
+  // p.75: Giving Back always costs the Day and grants the patient's Trinket.
+  // The legacy choice parser only captured the first sentence's Day change.
+  'travel-bog-9-10-spring': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'helping-paw',
+        label: 'Helping Paw — 다음 채집에서 매 차례 채집 포인트를 두 배로 얻습니다.',
+        effects: [manual('FRIEND_IN_MISTS_HELP', '다음 채집이 끝날 때까지 매 차례 얻는 채집 포인트를 두 배로 적용합니다.')]
+      },
+      {
+        id: 'giving-back',
+        label: 'Giving Back — 동료의 채집을 도와 달력에 1일을 표시하고 환자에게서 장신구 1개를 받습니다.',
+        effects: [
+          { support: 'implemented', effect: { type: 'markDays', amount: 1 } },
+          { support: 'implemented', effect: { type: 'modifyTrinkets', amount: 1 } }
+        ]
+      }
+    ],
+    support: 'manual-only'
+  },
+  // p.75: the Day is applied by the Encounter engine. The Pot and temporary
+  // Carry increase still need an explicit typed remainder so neither is lost
+  // behind the prose-only fallback.
+  'travel-bog-j-spring': {
+    mandatoryEffects: [],
+    choices: [{
+      id: 'join-in-the-class',
+      label: 'Join in the class — 달력에 1일을 표시하고 Handmade Pot을 얻습니다. 이번 여정이 끝날 때까지 Carry +1.',
+      effects: [
+        { support: 'implemented', effect: { type: 'markDays', amount: 1 } },
+        manual('HANDMADE_POT_AND_CARRY', 'Handmade Pot을 가방에 넣고 이번 여정이 끝날 때까지 Carry +1을 기록합니다.')
+      ]
+    }],
+    support: 'manual-only'
+  },
   'travel-loch-j-spring': {
     mandatoryEffects: [],
     choices: [
@@ -52,6 +110,64 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
         effects: [manual('NEED_FOR_SPEED_RACE', '물새를 위해 카드 2장, 자신을 위해 카드 1장을 뽑고 가장 높은 카드로 승패를 정합니다. 이기면 장신구 1개를, 지면 Guild Reputation 1을 얻습니다.')]
       }
     ],
+    support: 'manual-only'
+  },
+  // p.78: Gossip is one weightless Guild Note gained now. Its later Barter
+  // exchange is already handled by the canonical Barter transaction.
+  'travel-forest-5-6': {
+    mandatoryEffects: [],
+    choices: [{
+      id: 'eavesdrop',
+      label: 'Eavesdrop — Juicy Gossip(무게 없음)을 가방에 넣습니다. 물물교환 때 이를 원하는 영약재와 바꾸면 Guild Reputation 1을 잃습니다.',
+      effects: [manual(
+        'HOT_TEA_GOSSIP',
+        'Juicy Gossip을 Guild Note로 정확히 하나 기록합니다. 교환과 Guild Reputation 감소는 실제 물물교환 때 적용합니다.'
+      )]
+    }],
+    support: 'manual-only'
+  },
+  // p.81: Hurry Forwards is a card result. Diamonds depend on the actual
+  // carried Weight; a chase requires discarding at least 3 total Weight.
+  'travel-forest-j-winter': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'backtrack',
+        label: 'Backtrack — 우회하며 달력에 1일을 표시합니다.',
+        effects: [{ support: 'implemented', effect: { type: 'markDays', amount: 1 } }]
+      },
+      {
+        id: 'hurry-forwards',
+        label: 'Hurry Forwards — 카드를 뽑습니다. ♥ 또는 Carry 4 이하의 ♦면 무사히 지나갑니다. ♣/♠ 또는 Carry 4 초과의 ♦면 추격당해 가방에서 최소 3 Weight를 버립니다.',
+        effects: [manual(
+          'PILEDRIVER_HURRY',
+          '실제 문양과 현재 가방 무게로 안전/추격 결과를 정합니다. 추격이면 버릴 물품 수를 정하고 각 물품을 골라 합계 최소 3 Weight를 버립니다.'
+        )]
+      }
+    ],
+    support: 'manual-only'
+  },
+  // p.82: the higher/lower card comparison has mutually exclusive inventory
+  // outcomes. Keep the actual draw as the player's result, then commit exactly
+  // one typed branch.
+  'travel-loch-5-6': {
+    mandatoryEffects: [],
+    choices: [{
+      id: 'grabby-paws',
+      label: 'Grabby Paws — 자신과 물고기 카드를 한 장씩 뽑아 비교합니다. 더 높으면 Big Fish의 모든 부위를 얻고, 더 낮으면 가방 물품 하나를 잃습니다.',
+      effects: [manual('GRABBY_PAWS_RESULT', '카드 비교 결과에 따라 Big Fish의 모든 부위를 얻거나 가방 물품 하나를 버립니다.')]
+    }],
+    support: 'manual-only'
+  },
+  // p.83: Push and Pull is one card result, not a choice between moving
+  // forward and backward. Persist the suit result as a typed movement task.
+  'travel-loch-7-8': {
+    mandatoryEffects: [],
+    choices: [{
+      id: 'continue',
+      label: 'Push and Pull — 카드 1장을 뽑습니다. ♥/♦면 2경로를 더 이동하고, ♣/♠면 1경로 뒤로 이동합니다.',
+      effects: [manual('PUSH_AND_PULL_RESULT', '뽑은 문양에 따라 추가 2경로 또는 뒤로 1경로를 이동 상태에 기록합니다.')]
+    }],
     support: 'manual-only'
   },
   // p.85: Spill The Beans and Keep Quiet are the present decisions.
@@ -181,6 +297,20 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     ],
     support: 'manual-only'
   },
+  // p.178: choose the Earth Reagent before drawing, then compare the card
+  // with that Reagent's unmodified Base Rarity.
+  'foraging-mountain-3': {
+    mandatoryEffects: [],
+    choices: [{
+      id: 'luck',
+      label: 'Luck — Earth 영약재를 먼저 고르고 카드를 뽑습니다. 카드 값이 Base Rarity 이상이면 고른 부위를 가방에 넣습니다.',
+      effects: [manual(
+        'PLEASANT_SURPRISE_EARTH',
+        'canonical Earth 영약재 부위를 먼저 선택한 뒤 카드 값을 입력합니다. Base Rarity 이상일 때만 그 부위를 얻습니다.'
+      )]
+    }],
+    support: 'manual-only'
+  },
   // p.159: falling into the freezing bog always costs time. Warm Up is the
   // instruction itself, not an optional branch.
   'foraging-bog-10-winter': {
@@ -232,7 +362,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
       {
         id: 'run',
         label: 'Run! — Draw one card for yourself and one for the midges. Higher: lose 1 Foraging Point. Lower: lose 3 Foraging Points.',
-        effects: [manual('MIDGES_AUTUMN_RUN', '자신과 등에 떼를 위해 카드 1장씩 뽑습니다. 자신의 카드가 더 높으면 채집 포인트 1을, 더 낮으면 채집 포인트 3을 잃습니다.')]
+        effects: [manual('MIDGES_AUTUMN_RUN', '자신과 등에 떼를 위해 카드 1장씩 뽑습니다. 자신의 카드가 더 높으면 채집 포인트 1을 잃습니다. 더 낮으면 채집 포인트 3을 잃습니다.')]
       }
     ],
     support: 'manual-only'
@@ -291,6 +421,16 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     ],
     support: 'manual-only'
   },
+  'foraging-forest-m-autumn': {
+    mandatoryEffects: [condition(ENCOUNTER_CONDITION_CODES.musty)],
+    choices: [{ id: 'continue', label: '버섯 냄새를 따라 채집 계속', effects: [] }],
+    support: 'implemented'
+  },
+  'foraging-mountain-m-spring': {
+    mandatoryEffects: [condition(ENCOUNTER_CONDITION_CODES.rayTracing)],
+    choices: [{ id: 'lit-up', label: 'Lit Up — 다음 Move On 전까지 Forage할 때마다 Foraging Point 1을 얻습니다.', effects: [] }],
+    support: 'implemented'
+  },
   // p.183: Harsh Wind starts a special three-step cold Timer automatically.
   // Warm Up is the consequence at zero, not an action offered immediately.
   'foraging-mountain-10-winter': {
@@ -299,13 +439,13 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
       {
         id: 'harsh-wind',
         label: 'Harsh Wind — Start a special Timer at 3. Decrease it after each Mountain Forage until it reaches 0 or you Move On; at 0, resolve Warm Up and decrease all patient Timers by 3.',
-        effects: [manual(
-          'CHILLED_TO_BONE_TIMER',
+        effects: [condition(
+          `${ENCOUNTER_CONDITION_CODES.chilledToBone}:3`,
           '별도의 추위 타이머를 3으로 둡니다. 다음 Move On 전까지 산맥 위치에서 채집할 때마다 이 타이머를 1 줄입니다. 0이 되면 불을 피우고 땔감과 피난처를 찾느라 모든 환자 타이머를 3 줄입니다. 0이 되기 전에 Move On하면 이 추위 타이머를 끝냅니다.'
         )]
       }
     ],
-    support: 'manual-only'
+    support: 'implemented'
   },
   // p.184: Look Around establishes an optional replacement for later J/M
   // forage draws. Opening the door and choosing its use only happen after a
@@ -367,7 +507,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
       {
         id: 'flee-and-resolve',
         label: 'Flee — Draw one card for yourself and one for the Not-Cat. Higher: escape. Lower: draw another card and add it to your first. If your total is still lower, draw one more card and decrease all Timers by that value while trapped.',
-        effects: [manual('NOT_CAT_FLEE', '자신과 ‘고양이 아닌 것’을 위해 카드 1장씩 뽑습니다. 자신의 카드가 더 높으면 탈출합니다. 더 낮으면 카드 1장을 더 뽑아 처음 값에 더합니다. 합계가 여전히 상대보다 낮다면 다시 카드 1장을 뽑고, 갇혀 지낸 시간만큼 모든 타이머를 그 카드 값만큼 줄입니다.')]
+        effects: [manual('NOT_CAT_FLEE', '자신과 ‘고양이 아닌 것’을 위해 카드 1장씩 뽑습니다. 자신의 카드가 더 높으면 탈출합니다. 더 낮으면 카드 1장을 더 뽑아 처음 값에 더합니다. 합계가 여전히 상대보다 낮다면 다시 카드 1장을 뽑고, 모든 타이머를 마지막 카드의 값만큼 줄입니다. A=1, J=11, Q/K=12로 처리합니다.')]
       }
     ],
     support: 'manual-only'
@@ -421,6 +561,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     support: 'manual-only'
   },
   'foraging-bog-3': {
+    mandatoryEffects: [],
     choices: [
       { id: 'communal', label: 'Communal — 장신구 1개를 남기고, 이후 이 지역을 지날 때 경로 1개를 무료로 이동합니다.', requirements: { minTrinkets: 1 }, effects: [
         { support: 'implemented', effect: { type: 'modifyTrinkets', amount: -1 } },
@@ -429,6 +570,18 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
       { id: 'humble', label: 'Humble — 장신구를 남기지 않고 그대로 건넙니다.', effects: [] }
     ],
     support: 'implemented'
+  },
+  // p.160: both halves of the swap are one atomic choice. The selected Bag
+  // Part must be removed only if the chosen canonical Forest Part can also be
+  // granted.
+  'foraging-forest-3': {
+    mandatoryEffects: [],
+    choices: [{
+      id: 'collections-development-policy',
+      label: 'Collections Development Policy — 내 영약재 부위 하나를 숲에서 발견 가능한 원하는 영약재 부위 하나와 맞바꿉니다.',
+      effects: [manual('COLLECTOR_REAGENT_SWAP', '가방에서 내놓을 영약재 부위와 숲에서 발견 가능한 받을 영약재 부위를 각각 선택해 한 번에 교환합니다.')]
+    }],
+    support: 'manual-only'
   },
   'foraging-forest-5': {
     mandatoryEffects: [],
@@ -592,6 +745,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     support: 'implemented'
   },
   'travel-forest-m-winter': {
+    mandatoryEffects: [],
     choices: [
       {
         id: 'roadside-tea',
@@ -622,13 +776,123 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
         id: 'recognised-by-the-guild',
         label: '초대받기 — Guild Reputation이 15 이상이면 약제사로 알아보고 바비큐에 초대합니다. 다음에 시작하는 질환의 타이머에 2를 더합니다.',
         requirements: { minGuildReputation: 15 },
-        effects: [manual('FRESHLY_GRILLED_NEXT_TIMER', '다음에 시작하는 질환의 모든 타이머에 2를 더합니다.')]
+        effects: [condition(ENCOUNTER_CONDITION_CODES.freshlyGrilled)]
       },
       {
         id: 'unknown-to-the-guild',
         label: '지나가기 — Guild Reputation이 15 미만이면 야수들이 정중히 고개만 끄덕이고, 아무 효과 없이 계속 이동합니다.',
         requirements: { maxGuildReputation: 14 },
         effects: []
+      }
+    ],
+    support: 'implemented'
+  },
+  'travel-forest-9-10-autumn': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'friendly-natter',
+        label: 'Friendly Natter — Griph가 앞길의 이야기를 해 주는 동안 달력에 1일을 표시합니다.',
+        effects: [{ support: 'implemented', effect: { type: 'markDays', amount: 1 } }]
+      },
+      {
+        id: 'friend-for-the-road',
+        label: 'Friend for the Road — 다음 Forest 이동에 Griph가 동행하여 Beast/Behemoth 조우의 부정적 효과를 무시합니다.',
+        effects: [condition(ENCOUNTER_CONDITION_CODES.wayfriend)]
+      }
+    ],
+    support: 'implemented'
+  },
+  'travel-loch-j-winter': {
+    mandatoryEffects: [],
+    choices: [{
+      id: 'cold-paws',
+      label: 'Cold Paws — 다음 Ailment를 Foraging Points 0으로 시작하고, 그 Ailment 동안 통상의 절반(내림)만 얻습니다.',
+      effects: [condition(ENCOUNTER_CONDITION_CODES.frostbitten)]
+    }],
+    support: 'implemented'
+  },
+  'travel-loch-m-winter': {
+    mandatoryEffects: [],
+    choices: [{
+      id: 'warmth',
+      label: 'Warmth — 다음 Ailment를 Foraging Points 4로 시작합니다.',
+      effects: [condition(ENCOUNTER_CONDITION_CODES.hospitality)]
+    }],
+    support: 'implemented'
+  },
+  'travel-meadow-3-4': {
+    mandatoryEffects: [],
+    choices: [{
+      id: 'sugar-rush',
+      label: 'Sugar Rush — 다음 Forage에서 2 Paths 이내의 Location을 Adjacent로 취급합니다.',
+      effects: [condition(ENCOUNTER_CONDITION_CODES.roadtreat)]
+    }],
+    support: 'implemented'
+  },
+  'travel-meadow-9-10-summer': {
+    mandatoryEffects: [condition(ENCOUNTER_CONDITION_CODES.rootingAround)],
+    choices: [{ id: 'continue', label: '안전한 인접 위치에서만 채집하며 계속', effects: [] }],
+    support: 'implemented'
+  },
+  'travel-mountain-j-summer': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'march',
+        label: 'March — 다음 Ailment의 Timer를 3 줄입니다.',
+        effects: [condition(ENCOUNTER_CONDITION_CODES.parched)]
+      },
+      {
+        id: 'replenish',
+        label: 'Replenish — 물을 찾는 데 시간을 쓰고 달력에 1일을 표시합니다.',
+        effects: [{ support: 'implemented', effect: { type: 'markDays', amount: 1 } }]
+      }
+    ],
+    support: 'implemented'
+  },
+  'travel-mountain-m-winter': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'dig-through',
+        label: 'Dig Through — 따뜻한 피난처를 마련하느라 달력에 1일을 표시합니다.',
+        effects: [{ support: 'implemented', effect: { type: 'markDays', amount: 1 } }]
+      },
+      {
+        id: 'frigid-gusts',
+        label: 'Frigid Gusts — 날거나 Soar할 수 있다면 다음 Ailment Timer를 2 줄입니다.',
+        effects: [condition(ENCOUNTER_CONDITION_CODES.frigidGusts)]
+      }
+    ],
+    support: 'implemented'
+  },
+  'travel-titan-5-6': {
+    mandatoryEffects: [],
+    choices: [{
+      id: 'well-fed',
+      label: 'Well Fed — 다음 Ailment Timer에 2를 더합니다.',
+      effects: [condition(ENCOUNTER_CONDITION_CODES.canIt)]
+    }],
+    support: 'implemented'
+  },
+  // p.79: recovering for a Day and losing a Bag item are alternatives. The
+  // shortcut Path is recorded whichever cost the player chooses.
+  'travel-forest-j-autumn': {
+    mandatoryEffects: [manual(
+      'SLIP_UP_SHORTCUT',
+      'Connect this Location to another nearby Location with a Path.'
+    )],
+    choices: [
+      {
+        id: 'mark-a-day',
+        label: '시간을 들여 회복하기 — 달력에 1일을 표시합니다.',
+        effects: [{ support: 'implemented', effect: { type: 'markDays', amount: 1 } }]
+      },
+      {
+        id: 'lose-bag-item',
+        label: '물품을 잃고 계속하기 — 가방에서 Reagent 또는 Tool 하나를 버립니다.',
+        effects: [manual('SLIP_UP_LOST_ITEM', '가방에서 Reagent 또는 Tool 하나를 골라 버립니다.')]
       }
     ],
     support: 'manual-only'
@@ -733,12 +997,32 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     ],
     support: 'manual-only'
   },
+  // p.79: a normal Move has already marked its Day before this Encounter is
+  // resolved. Via Ferratta removes that just-marked Day; adding one here was
+  // the exact opposite of the printed instruction.
+  'travel-forest-m-summer': {
+    mandatoryEffects: [],
+    choices: [{
+      id: 'via-ferratta',
+      label: 'Via Ferratta — 나무 위 코스로 지름길을 택해 이번 이동 끝에 표시한 1일을 되돌립니다.',
+      effects: [{ support: 'implemented', effect: { type: 'markDays', amount: -1 } }]
+    }],
+    support: 'implemented'
+  },
   'travel-loch-j-summer': {
+    mandatoryEffects: [],
     choices: [
       {
         id: 'parley',
         label: 'Parley — 해적 환자를 돕습니다. 이 질환으로 얻을 명성은 장신구로 받고, 치료에 실패하면 포로가 됩니다.',
-        effects: [manual('PIRATE_PATIENT', '현지 환자 대신 해적 환자를 생성하고, 명성 보상을 장신구로 바꾸며 실패 시 포로 결과를 적용합니다.')]
+        effects: [manual('PIRATE_PATIENT', 'Helping a Local Beast 카드 절차로 해적 환자를 생성합니다. 치료 성공 시 이 질환의 Guild Reputation 보상을 같은 수의 Trinkets로 바꾸고, 치료 실패 시 Taken Prisoner를 적용합니다.')],
+        followUp: {
+          type: 'start-patient-cards',
+          timing: 'immediate',
+          rewardMode: 'reputation-as-trinkets',
+          failureOutcome: 'taken-prisoner',
+          patientKind: 'local-pirate'
+        }
       },
       {
         id: 'ship-to-ship-combat',
@@ -765,6 +1049,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     support: 'manual-only'
   },
   'travel-meadow-9-10-autumn': {
+    mandatoryEffects: [],
     choices: [
       { id: 'find-shelter', label: 'Find Shelter — 비를 피하며 달력에 1일을 표시합니다.', effects: [{ support: 'implemented', effect: { type: 'markDays', amount: 1 } }] },
       { id: 'push-on', label: 'Push On — 수생 생물이 아니라면 TEMPERATURE 1 치료제를 만듭니다. 실패하면 달력에 3일을 표시합니다.', effects: [manual('DELUGE_PUSH_ON', '수생 여부와 치료 성공을 판정하고, 실패한 경우에만 달력 +3일을 적용합니다.')] }
@@ -772,6 +1057,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     support: 'manual-only'
   },
   'travel-mountain-j-winter': {
+    mandatoryEffects: [],
     choices: [
       { id: 'sled', label: 'Sled — 인접한 비산악 지역으로 이동하고 달력에 1일을 표시합니다.', effects: [
         { support: 'implemented', effect: { type: 'markDays', amount: 1 } },
@@ -786,6 +1072,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     support: 'manual-only'
   },
   'travel-mountain-m-summer': {
+    mandatoryEffects: [],
     choices: [
       { id: 'fetch-the-oil', label: 'Fetch The Oil — 장신구 1개를 얻고 달력에 1일을 표시합니다.', effects: [
         { support: 'implemented', effect: { type: 'modifyTrinkets', amount: 1 } },
@@ -798,9 +1085,20 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
   'travel-mountain-9-10-winter': {
     title: 'Dastards Ahead',
     prompt: 'Warn the nearest Settlement before 2 Days pass to foil the bandits and gain 4 Reputation, or leave the future change unresolved.',
-    mandatoryEffects: [manual('SETTLEMENT_WARNING_DEADLINE', 'Create a 2-Day map obligation tied to the nearest Settlement.')],
-    choices: [],
-    support: 'manual-only'
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'warning',
+        label: 'Warning — 2일을 표시하기 전에 가장 가까운 Settlement에 도착하면 Guild Reputation 4를 얻습니다.',
+        effects: [condition(ENCOUNTER_CONDITION_CODES.dastardsWarning)]
+      },
+      {
+        id: 'on-their-own',
+        label: 'On Their Own — 경고하러 가지 않습니다. 나중에 그 Settlement에 들렀을 때 도적들이 남긴 변화를 기록하세요.',
+        effects: []
+      }
+    ],
+    support: 'implemented'
   },
   'travel-soar-9-10-summer': {
     title: 'Talons',
@@ -831,6 +1129,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     support: 'implemented'
   },
   'travel-soar-m-spring': {
+    mandatoryEffects: [],
     choices: [
       { id: 'spiral-intervene', label: '선회 착륙 · 개입하기 — 비행 경로 근처 지역에 착륙해 무작위 여행자의 조우를 대신 정상 해결합니다.', effects: [manual('HIGH_ABOVE_INTERVENE', '비행 경로 근처 지역을 고르고 이동한 뒤 그 지역의 여행 조우를 무작위 여행자 대신 해결합니다.')] },
       { id: 'spiral-mind-business', label: '선회 착륙 · 관여하지 않기 — 비행 경로 근처 지역에 착륙해 관여하지 않고 비행을 끝냅니다.', effects: [manual('HIGH_ABOVE_LAND', '비행 경로 근처 지역을 골라 그곳에서 비행을 끝냅니다.')] },
@@ -839,6 +1138,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     support: 'manual-only'
   },
   'travel-soar-m-summer': {
+    mandatoryEffects: [],
     choices: [
       { id: 'spiral-intervene', label: '선회 착륙 · 개입하기 — 비행 경로 근처 지역에 착륙해 무작위 여행자의 조우를 대신 정상 해결합니다.', effects: [manual('HIGH_ABOVE_INTERVENE', '비행 경로 근처 지역을 고르고 이동한 뒤 그 지역의 여행 조우를 무작위 여행자 대신 해결합니다.')] },
       { id: 'spiral-mind-business', label: '선회 착륙 · 관여하지 않기 — 비행 경로 근처 지역에 착륙해 관여하지 않고 비행을 끝냅니다.', effects: [manual('HIGH_ABOVE_LAND', '비행 경로 근처 지역을 골라 그곳에서 비행을 끝냅니다.')] },
@@ -850,7 +1150,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     title: 'Hailstorm',
     prompt: 'End at the chosen Destination, become Soaked unless protected by a Waxed Satchel, and reduce the next Timer by 2.',
     mandatoryEffects: [
-      manual('HAILSTORM_NEXT_TIMER', '다음에 시작하는 질환 타이머를 2 줄입니다.'),
+      condition(ENCOUNTER_CONDITION_CODES.hailstorm),
       manual('HAILSTORM_SOAK', 'Waxed Satchel가 없으면 물에 젖는 시약과 물품을 버린다.')
     ],
     choices: [],
@@ -885,7 +1185,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
           { support: 'implemented', effect: { type: 'modifyTimer', amount: -1, target: 'all' } },
           manual(
             'THIEF_GIVE_CHASE_DRAW',
-            '카드 1장을 뽑습니다. ♥ 또는 ♦이면 도둑을 따라잡아 물건을 되찾고, 도둑의 사과나 변명을 이야기합니다. 공식 원문에 그대로 인쇄된 “♣ 또는 ♣”이면 뿌리와 부엽토 사이에서 도둑을 놓칩니다. 그때 카드 값만큼 가방의 물품 목록을 세어 마지막으로 센 물품 하나를 버립니다. 누락된 무늬를 임의로 보충하지 않습니다.'
+            '카드 1장을 뽑습니다. ♥ 또는 ♦이면 도둑을 따라잡아 물건을 되찾고, 도둑의 사과나 변명을 이야기합니다. 공식 원문에 그대로 인쇄된 “♣ 또는 ♣”이면 뿌리와 부엽토 사이에서 도둑을 놓칩니다. “♣ 또는 ♣”이면 카드 값만큼 가방의 물품 목록을 세어 마지막으로 센 물품 하나를 버립니다. 누락된 무늬를 임의로 보충하지 않습니다.'
           )
         ]
       },
@@ -929,7 +1229,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
         label: 'Tadpediatrician — Draw one card. Hearts or Diamonds: healthy. Clubs or Spades: create [TEMPERATURE 2], [INFECTION 1] before your highest Timer ends; curing them grants 2 Guild Reputation and 2 Trinkets.',
         effects: [manual(
           'SMALL_AILMENT_TADPOLE_DRAW',
-          '카드 1장을 뽑습니다. ♥ 또는 ♦이면 올챙이들은 건강하며 추가 효과가 없습니다. ♣ 또는 ♠이면 가장 높은 환자 타이머가 끝나기 전에 [TEMPERATURE 2]와 [INFECTION 1] 치료제를 만듭니다. 이 아픈 올챙이들을 실제로 치료했을 때만 Guild Reputation 2와 장신구 2개를 얻습니다.'
+          '카드 1장을 뽑습니다. ♥ 또는 ♦이면 올챙이들은 건강하며 추가 효과가 없습니다. ♣ 또는 ♠이면 가장 높은 환자 타이머가 끝나기 전에 [TEMPERATURE 2]와 [INFECTION 1] 치료제를 만듭니다. 아픈 올챙이를 나중에 실제로 치료하는 데 성공하면 Guild Reputation 2와 장신구 2개를 얻습니다. 조우 즉시에는 이 보상을 지급하지 않습니다.'
         )]
       }
     ],
@@ -940,6 +1240,66 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     prompt: 'You and your Familiar watch the falling snow and share a quiet moment.',
     mandatoryEffects: [],
     choices: [],
+    support: 'implemented'
+  },
+  // p.173: the two Foraging Points are paid before the nested Social
+  // Encounter. Keep the later food acquisition/spoilage as the manual
+  // continuation, but never omit the immediate cost.
+  'foraging-meadow-7': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'follow-your-stomach',
+        label: 'Follow Your Stomach — 채집 포인트 2를 잃고 계절에 맞는 초원 사교 조우를 해결한 뒤 Delicious Food를 얻습니다.',
+        effects: [
+          { support: 'implemented', effect: { type: 'modifyForagingPoints', amount: -2 } },
+          manual('WILD_CHEF_SOCIAL_FOOD', '현재 계절의 Meadow Social Encounter를 해결합니다. 완료하면 Delicious Food(FAIR 4)를 가방에 넣습니다. This food remains fresh until 3 Days have passed; 조우 즉시에 날짜를 늘리지 말고 3 Days 뒤 상하는 지속 조건을 기록합니다.')
+        ]
+      },
+      {
+        id: 'follow-your-heart',
+        label: 'Follow Your Heart — 허기에 정신이 팔려 채집 포인트 1을 잃습니다.',
+        effects: [{ support: 'implemented', effect: { type: 'modifyForagingPoints', amount: -1 } }]
+      }
+    ],
+    support: 'manual-only'
+  },
+  // p.171: both fishing options always spend one Timer. Go Fish then grants
+  // every Small Fish Part; Fish Some More grants exactly the suit result.
+  'foraging-loch-10-winter': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'go-fish',
+        label: 'Go Fish — 모든 타이머를 1 줄이고 Small Fish의 모든 부위를 얻습니다.',
+        effects: [
+          { support: 'implemented', effect: { type: 'modifyTimer', amount: -1, target: 'all' } },
+          manual('ICE_FISHING_SMALL_FISH', 'Add "All Parts of a Small Fish" to your Bags.')
+        ]
+      },
+      {
+        id: 'fish-some-more',
+        label: 'Fish Some More — 모든 타이머를 1 줄이고 카드를 뽑아 무늬에 맞는 결과만 적용합니다.',
+        effects: [
+          { support: 'implemented', effect: { type: 'modifyTimer', amount: -1, target: 'all' } },
+          manual('ICE_FISHING_CARD_RESULT', '카드를 뽑습니다. ♥ 또는 ♦이면 Add "All Parts of a Small Fish" to your Bags. ♣이면 Add "All Parts of a Big Fish" to your Bags. ♠이면 아무것도 얻지 못합니다.')
+        ]
+      }
+    ],
+    support: 'manual-only'
+  },
+  // p.169: choosing one of the three invented finds is flavour; the carried
+  // resource is one Trinket and the Timer decrease is deterministic.
+  'foraging-loch-m-summer': {
+    mandatoryEffects: [],
+    choices: [{
+      id: 'take-part',
+      label: 'Take Part — 물에 떠밀려 다니다 부서진 장신구 3개를 떠올리고 하나를 골라 간직합니다. 모든 타이머를 1 줄이고 장신구 1개를 얻습니다.',
+      effects: [
+        { support: 'implemented', effect: { type: 'modifyTimer', amount: -1, target: 'all' } },
+        { support: 'implemented', effect: { type: 'modifyTrinkets', amount: 1 } }
+      ]
+    }],
     support: 'implemented'
   },
   'foraging-loch-10-summer': {
@@ -963,6 +1323,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     support: 'manual-only'
   },
   'foraging-loch-m-winter': {
+    mandatoryEffects: [],
     choices: [
       { id: 'trade', label: 'Trade — 영약재를 거래하되 거래 절차의 2단계를 건너뜁니다.', effects: [manual('LODGE_TRADE', '영약재 거래에서 2단계를 건너뜁니다.')] },
       { id: 'visit', label: 'Visit — 타이머를 1 줄이고, 다음 Move 전까지 이 위치에서 조우를 마칠 때마다 채집 포인트 2를 얻습니다.', effects: [
@@ -988,7 +1349,8 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
           'BEE_KIND_SUPPLY_BRANCH',
           'Honey 또는 다른 FAIR Reagent를 가지고 있는지 확인합니다. 있다면 그것으로 벌을 간호해 Honey Bee Companion을 얻습니다. 둘 다 없다면 모든 타이머를 4 줄이고 벌을 안전한 곳까지 옮긴 뒤 Honey Bee Companion을 얻습니다. 두 결과 중 보유 상태에 맞는 하나만 적용합니다.'
         )]
-      }
+      },
+      { id: 'leave-the-bee', label: '벌을 두고 가기 — 돕지 않고 채집을 계속합니다.', effects: [] }
     ],
     support: 'manual-only'
   },
@@ -1257,7 +1619,19 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     ],
     support: 'manual-only'
   },
+  // p.180 offers one cost or the other. The generic parser previously marked
+  // both as implemented and executeEncounter therefore charged both.
+  'foraging-mountain-9-spring': {
+    mandatoryEffects: [],
+    choices: [{
+      id: 'swept-away',
+      label: 'Swept Away — 채집 포인트 3을 잃거나 모든 타이머를 2 줄입니다.',
+      effects: [manual('COURSING_RIVER_CHOOSE_COST', '거센 물살의 대가로 채집 포인트 3을 잃기 또는 모든 타이머를 2 줄이기 중 하나만 고릅니다.')]
+    }],
+    support: 'manual-only'
+  },
   'foraging-titan-6': {
+    mandatoryEffects: [],
     choices: [
       { id: 'light', label: 'Light — Titan Thingamabob을 장치에 넣고, 다음 Move 전까지 이 위치에서 조우를 마칠 때마다 채집 포인트 3을 얻습니다.', effects: [manual('TITAN_POWER_LIGHT', 'Titan Thingamabob을 장치에 넣고 위치 한정 채집 포인트 보너스를 기록합니다.')] },
       { id: 'cameras', label: 'Cameras — Titan Thingamabob을 장치에 넣고, 다음 Move 전까지 조우 카드 1장을 한 번 다시 뽑을 수 있습니다.', effects: [manual('TITAN_POWER_CAMERAS', 'Titan Thingamabob을 장치에 넣고 1회 재추첨 상태를 기록합니다.')] },
@@ -1345,6 +1719,78 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     ],
     support: 'implemented'
   },
+  'social-bog-winter-♠': {
+    mandatoryEffects: [],
+    choices: [{
+      id: 'curiosity',
+      label: 'Curiosity — 먹을 수 있는 영약재 부위 1개를 왜가리에게 먹이고, 다음 환자의 질환을 시작할 때 채집 포인트 5를 얻습니다.',
+      effects: [manual(
+        'MARSH_WADER_FEED',
+        '플레이어가 먹을 수 있다고 판단한 canonical 영약재 부위 1개를 가방에서 제거하고, 다음 Ailment 시작 시 채집 포인트 5를 추가하는 후속 효과를 기록합니다.'
+      )]
+    }],
+    support: 'manual-only'
+  },
+  // p.192: Hatchling is the only branch with a mechanical result.  Whether
+  // the adopted Damselfly uses Butterfly or Cricket rules is a player choice
+  // made by the runtime, not prose that should block the barter flow.
+  'social-bog-spring-♠': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'wonderful-bugs',
+        label: 'Wonderful Bugs — 벌집지기의 열정과 실잠자리에 관한 이야기를 듣고 계속합니다.',
+        effects: []
+      },
+      {
+        id: 'hatchling',
+        label: 'Hatchling — 원한다면 Damselfly 동료를 입양하고 Butterfly 또는 Cricket과 같은 기능을 고릅니다.',
+        effects: [manual(
+          'DAMSELFLY_COMPANION',
+          'Damselfly를 입양할지 고르고, 입양한다면 Butterfly 또는 Cricket 기능 중 하나를 선택합니다. 동료 칸이 가득 찼다면 놓아줄 동료를 선택합니다.'
+        )]
+      }
+    ],
+    support: 'manual-only'
+  },
+  'social-loch-newdam-♥': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'beaver-builders',
+        label: 'Beaver Builders — 조선소에서 만들고 있는 배와 목수들의 일을 기록합니다.',
+        effects: []
+      },
+      {
+        id: 'canteen',
+        label: 'Canteen — 든든한 식사로 다음 Move가 끝날 때까지 Carry 2를 얻습니다.',
+        effects: [condition(ENCOUNTER_CONDITION_CODES.boatmakers)]
+      }
+    ],
+    support: 'implemented'
+  },
+  'social-mountain-autumn-♣': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'go-panning',
+        label: 'Go Panning — 현재 타이머를 1 줄이고 카드를 뽑습니다. ♥이면 Silver Shards를 가방에 넣습니다.',
+        effects: [manual(
+          'PANNING_CARD_RESULT',
+          '현재 타이머를 1 줄인 뒤 카드를 뽑습니다. ♥이면 Silver Shards를 얻고, 다른 문양은 추가 획득이 없습니다.'
+        )]
+      },
+      {
+        id: 'a-refreshing-dip',
+        label: 'A Refreshing Dip — 현재 타이머를 1 줄이고, 환자 치료 중이면 채집 포인트 2를 얻으며 여행 중이면 다음 Move의 Speed가 2 늘어납니다.',
+        effects: [manual(
+          'PANNING_REFRESHING_DIP',
+          '현재 타이머를 1 줄입니다. Ailment를 해결 중이면 채집 포인트 2를 즉시 얻고, 여행 중이면 다음 Move에만 Speed +2를 기록합니다.'
+        )]
+      }
+    ],
+    support: 'manual-only'
+  },
   'social-bog-settlement-♦': {
     mandatoryEffects: [],
     choices: [
@@ -1405,6 +1851,22 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     ],
     support: 'manual-only'
   },
+  'social-loch-spring-♣': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'depthdivers',
+        label: 'Depthdivers — 강바닥과 호수 밑을 수색하는 길드가 무엇을 발견했는지 떠올립니다.',
+        effects: []
+      },
+      {
+        id: 'a-clammy-deal',
+        label: 'A Clammy Deal — 장신구 3개 또는 지정된 여덟 영약재 중 한 부위를 내고 Pearl을 받습니다.',
+        effects: [manual('CLAMMY_DEAL', '장신구 3개 또는 Big Fish, Small Fish, Beehive, Blackcurrant, Cucumber, Strawberries, Roses, Wild Garlic의 부위 하나를 지불하고 Pearl을 가방에 넣습니다.')]
+      }
+    ],
+    support: 'manual-only'
+  },
   'social-loch-newdam-♦': {
     mandatoryEffects: [],
     choices: [
@@ -1458,6 +1920,113 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
         { support: 'implemented', effect: { type: 'addCondition', conditionId: 'next-move-speed-double' } }
       ] },
       { id: 'wharf-rats', label: 'Wharf Rats — 부두 끝에서 놀이 중인 어린 쥐들과 규칙이 달라진 게임을 이야기합니다.', effects: [] }
+    ],
+    support: 'manual-only'
+  },
+  // p.156: the PLANT Part is spent now; the alternative follow branch draws
+  // and acquires later. Neither is an unstructured narrative-only result.
+  'foraging-bog-j-spring': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'befriend-it',
+        label: 'Befriend It — PLANT Reagent Part 1개를 사용하고 Butterfly Companion을 얻습니다.',
+        effects: [manual('BUTTERFLY_PLANT_TRADE', '가방의 PLANT 영약재 부위 하나를 제거하고 Butterfly Companion을 얻습니다.')]
+      },
+      {
+        id: 'follow-it',
+        label: 'Follow It — 카드를 뽑고, 그 값 이하 Base Rarity의 Plant Reagent Part 하나를 얻습니다.',
+        effects: [manual('BUTTERFLY_FOLLOW_DRAW', '뽑은 카드 값 이하 Base Rarity인 Plant 영약재 부위 하나를 고릅니다.')]
+      }
+    ],
+    support: 'manual-only'
+  },
+  // p.166: the player chooses how the combined five-point loss is divided.
+  'foraging-loch-a': {
+    mandatoryEffects: [],
+    choices: [{
+      id: 'deep-water',
+      label: 'Deep Water — 모든 타이머 감소와 채집 포인트 감소를 합쳐 정확히 5가 되도록 나눕니다.',
+      effects: [manual('DEEP_WATER_SPLIT', '모든 타이머 감소량과 채집 포인트 감소량의 합계를 5로 정합니다.')]
+    }],
+    support: 'manual-only'
+  },
+  // p.167: Funeral Rites consumes the exact ELSEWHERE Part and pays 1 plus
+  // that Tag's printed Potency in Guild Reputation.
+  'foraging-loch-8': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'offer-condolences',
+        label: 'Offer Condolences — 모든 타이머를 1 줄이고 Guild Reputation 1을 얻습니다.',
+        effects: [
+          { support: 'implemented', effect: { type: 'modifyTimer', amount: -1, target: 'all' } },
+          { support: 'implemented', effect: { type: 'modifyReputation', amount: 1 } }
+        ]
+      },
+      { id: 'give-them-space', label: 'Give Them Space — 아무 상태 변화 없이 조용히 돌아갑니다.', effects: [] },
+      {
+        id: 'funeral-rites',
+        label: 'Funeral Rites — ELSEWHERE 영약재 부위 하나를 건네고 Guild Reputation을 1 + ELSEWHERE Potency만큼 얻습니다.',
+        effects: [manual('FUNERAL_RITES_ELSEWHERE', 'ELSEWHERE Tag가 있는 부위 하나를 제거하고 1 + 해당 ELSEWHERE Potency만큼 Guild Reputation을 얻습니다.')]
+      }
+    ],
+    support: 'manual-only'
+  },
+  // p.181: one carried Reagent Part is the exact price for +1 on the current
+  // Foraging Timer. The Timer target remains explicit when several are active.
+  'foraging-mountain-10-summer': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'snack-time',
+        label: 'Snack Time — 영약재 부위 하나를 건네고 현재 채집 타이머를 1 늘립니다.',
+        effects: [manual('SNACK_TIME_REAGENT', '가방의 영약재 부위 하나를 제거하고 현재 채집 중인 질환 타이머를 1 늘립니다.')]
+      },
+      { id: 'skip-snack', label: 'Keep Foraging — 영약재를 건네지 않고 채집을 계속합니다.', effects: [] }
+    ],
+    support: 'manual-only'
+  },
+  // p.198: Projects Wide contains an optional fixed-price purchase, not a
+  // prose-only scene and not a cost that should be charged on decline.
+  'social-loch-settlement-♦': {
+    mandatoryEffects: [],
+    choices: [
+      { id: 'projects-big', label: 'Projects Big — 큰 고리버들 작업의 용도와 구조를 떠올립니다.', effects: [] },
+      { id: 'projects-small', label: 'Projects Small — 염색한 갈대와 버드나무로 무엇을 만드는지 떠올립니다.', effects: [] },
+      {
+        id: 'projects-wide',
+        label: 'Projects Wide — 원한다면 장신구 5개로 Bark Coracle을 구입합니다.',
+        effects: [manual('WICKERWEAVER_CORACLE_PURCHASE', '구매하면 장신구 5개를 내고 canonical Bark Coracle 도구를 얻습니다.')]
+      }
+    ],
+    support: 'manual-only'
+  },
+  // p.203: "when you next Mark a Day" is a future spoil trigger; it must not
+  // be parsed as an immediate +1 Day.
+  'social-loch-autumn-♣': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'working-for-a-snack',
+        label: 'Working for a Snack — 모든 타이머를 1 줄이고 Fresh Clams(무게 2/3)를 얻습니다. Barter 가치 3이며 다음 Mark Day에 상합니다.',
+        effects: [manual('FRESH_CLAMS_UNTIL_MARK_DAY', '모든 타이머 -1, Fresh Clams 획득, 다음 Mark Day에 해당 Fresh Clams 제거를 하나의 판정으로 기록합니다.')]
+      },
+      { id: 'keep-moving', label: 'Keep Moving — 일을 돕지 않고 계속 이동합니다.', effects: [] }
+    ],
+    support: 'manual-only'
+  },
+  // p.209: buying the ugly blanket is optional, but its function is exactly
+  // the canonical Knitted Blanket function.
+  'social-mountain-spoolkeep-♥': {
+    mandatoryEffects: [],
+    choices: [
+      { id: 'stress-relief', label: 'Stress Relief — 아마 섬유를 두드리며 쌓인 감정을 풉니다.', effects: [] },
+      {
+        id: 'offcuts',
+        label: 'Offcuts — 원한다면 장신구 5개로 Lumpy Blanket을 구입합니다. Knitted Blanket과 같은 기능입니다.',
+        effects: [manual('LUMPY_BLANKET_PURCHASE', '구매하면 장신구 5개를 내고 Knitted Blanket과 같은 기능의 Lumpy Blanket을 얻습니다.')]
+      }
     ],
     support: 'manual-only'
   },

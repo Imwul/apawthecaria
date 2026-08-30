@@ -37,6 +37,8 @@ export interface BarterModifier {
 export interface BarterPaymentSelection {
   trinkets: number;
   reputation: number;
+  /** Printed objects that explicitly count as Trinkets while Bartering. */
+  inventoryItemIds?: string[];
 }
 
 export interface PendingBarterState {
@@ -66,6 +68,8 @@ export interface PendingBarterState {
     ruleIds: string[];
     sourcePage: number;
   };
+  /** Lodge of Wonders p.171: the one special Barter omitted Wander the Streets. */
+  socialStepSkipped?: boolean;
   /** Rulebook p.35: successful Barter made an immediate Remedy possible. */
   awaitingImmediateRemedy?: boolean;
   immediateRemedyPatientId?: string;
@@ -331,6 +335,35 @@ export const resolveBarterEncounter = (input: {
   };
 };
 
+/** p.171 Lodge of Wonders: skip Bartering step 2 and proceed to its second card. */
+export const resolveBarterSkipSocialEncounter = (input: {
+  transactionId: string;
+  state: BarterRuntimeState;
+}): BarterResolution => {
+  const pending = input.state.pendingBarter;
+  if (!input.transactionId || input.state.appliedTransactionIds.includes(input.transactionId)) {
+    return { status: 'invalid', value: null, messages: ['Lodge Barter skip transaction is missing or already applied.'] };
+  }
+  if (!pending || pending.status !== 'awaiting-social') {
+    return { status: 'invalid', value: null, messages: ['Only a newly started Barter can skip Wander the Streets.'] };
+  }
+  return {
+    status: 'resolved',
+    value: {
+      ...input.state,
+      pendingBarter: {
+        ...pending,
+        socialEncounter: null,
+        firstCard: null,
+        status: 'awaiting-second-card',
+        socialStepSkipped: true
+      },
+      appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId]
+    },
+    messages: []
+  };
+};
+
 const decrementAllActiveTimers = (patient: PatientState): PatientState => {
   const timers = patient.timers.map(timer => {
     if (timer.status !== 'active') return timer;
@@ -368,7 +401,13 @@ const finalizeSuccessfulBarter = (
       sourceTransactionId: pending.barterId
     }
   };
-  const inventory = [...state.inventory, acquired];
+  const paymentItemIds = new Set(payment.inventoryItemIds || []);
+  const inventoryAfterPayment = state.inventory.flatMap(item => {
+    if (!paymentItemIds.has(item.id)) return [item];
+    const quantity = Math.max(1, item.quantity || 1);
+    return quantity > 1 ? [{ ...item, quantity: quantity - 1 }] : [];
+  });
+  const inventory = [...inventoryAfterPayment, acquired];
   const treatableAilmentIds = immediatelyTreatableAilmentIds(
     state.patient,
     inventory,
@@ -397,7 +436,7 @@ const finalizeSuccessfulBarter = (
       type: 'encounter',
       authorship: 'system',
       title: `Barter: ${reagent.canonicalName}`,
-      text: `BR ${pending.calculatedBR}; paid ${payment.trinkets} Trinkets and ${payment.reputation} Reputation.`
+      text: `BR ${pending.calculatedBR}; paid ${payment.trinkets} Trinkets, ${payment.reputation} Reputation${paymentItemIds.size > 0 ? `, and ${paymentItemIds.size} printed Barter item(s)` : ''}.`
     }],
     appliedTransactionIds: [...state.appliedTransactionIds, transactionId]
   };
@@ -493,15 +532,24 @@ export const resolveBarterPayment = (input: {
   }
   const trinkets = Math.max(0, Math.floor(input.payment.trinkets));
   const reputation = Math.max(0, Math.floor(input.payment.reputation));
+  const inventoryItemIds = [...new Set(input.payment.inventoryItemIds || [])];
+  if (inventoryItemIds.length !== (input.payment.inventoryItemIds || []).length) {
+    return { status: 'invalid', value: null, messages: ['A Barter payment item cannot be spent twice.'] };
+  }
+  const paymentItems = inventoryItemIds.map(id => input.state.inventory.find(item => item.id === id));
+  if (paymentItems.some(item => !item || !Number.isFinite(item.barterValue) || (item.barterValue || 0) <= 0)) {
+    return { status: 'invalid', value: null, messages: ['Choose only carried items with a printed Barter value.'] };
+  }
+  const inventoryValue = paymentItems.reduce((sum, item) => sum + Math.max(0, Math.floor(item?.barterValue || 0)), 0);
   if (trinkets > input.state.trinkets || reputation > input.state.reputation) {
     return { status: 'invalid', value: null, messages: ['Payment exceeds available Trinkets or Reputation.'] };
   }
-  if (trinkets + reputation !== pending.paymentRequired) {
+  if (trinkets + reputation + inventoryValue !== pending.paymentRequired) {
     return { status: 'invalid', value: null, messages: [`Payment must exactly cover the ${pending.paymentRequired}-point gap.`] };
   }
   return {
     status: 'resolved',
-    value: finalizeSuccessfulBarter(input.state, pending, input.transactionId, { trinkets, reputation }),
+    value: finalizeSuccessfulBarter(input.state, pending, input.transactionId, { trinkets, reputation, inventoryItemIds }),
     messages: []
   };
 };

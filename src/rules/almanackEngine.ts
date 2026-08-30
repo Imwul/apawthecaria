@@ -1,6 +1,16 @@
 import { getRuleCardValue, type RuleCard } from './cards';
 import type { EngineInventoryItem } from './gameplay';
 import type { CompanionState } from './data/mobility';
+import { ENCOUNTERS } from './data/encounters';
+import { REAGENTS } from './data/reagents';
+import { TOOL_BY_ID } from './data/tools';
+import { isForagingPreparationAvailableInSeason } from './foragingEngine';
+import {
+  ENCOUNTER_CONDITION_CODES,
+  FRESH_CLAMS_BARTER_VALUE,
+  encounterForagingPointMultiplier,
+  isStackableEncounterCondition
+} from './encounterConditionRuntime';
 import {
   isPrintedResolutionInputSatisfied,
   type PrintedCanonicalActionTemplate,
@@ -9,11 +19,106 @@ import {
   type PrintedTrigger
 } from './printedEffects';
 import type { PatientState } from './state';
+import type { Season } from './types';
 
 const OBJECTS = ['Implement or Gadget', 'Container', 'Accessory', 'Clothing or Equipment', 'Book', 'Toy / Animal / Entertainment', 'Instrument', 'Tchotchke', 'Pilgrimage Memento', 'Local Souvenir', 'Food / Delicacy', 'Seedling / Potted Plant'] as const;
 const MATERIALS = ['Titanesque', 'Hardwood', 'Bone', 'Iron', 'Silver', 'Repurposed', 'Copper', 'Flint', 'Grasses / Plant Fibres', 'Pretty Stone', 'Glass', 'Softwood'] as const;
 const ORIGINS = ['Unwanted Gift', 'Tattered & sentimental', 'Inherited from family', 'Discovered by roadside', 'Handmade by owner', 'Part of a collection', 'Traded from faraway', 'Survived spring cleaning', 'Imported from the west coast', 'Permanently borrowed', 'Too big or small for the original owner', 'A friend’s (they went Elsewhere)'] as const;
 const uniqueRows = <T,>(rows: T[]): T[] => [...new Set(rows)];
+
+const CLAMMY_REAGENTS = new Set([
+  'Big Fish', 'Small Fish', 'Beehive', 'Blackcurrant',
+  'Cucumber', 'Strawberries', 'Roses', 'Wild Garlic'
+]);
+const QUICK_CURE_TAGS = new Set(['INFECTION', 'BURN', 'PAIN']);
+const TITAN_THINGAMABOB_TOOL_ID = 'titan-thingamabob';
+const MANUAL_SEASONS: readonly Season[] = ['Spring', 'Summer', 'Autumn', 'Winter'];
+const MANUAL_CARD_VALUE_OPTIONS = [
+  'A · 1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J · 11', 'Q/K (M) · 12'
+] as const;
+
+const canonicalPartOption = (reagentId: string, preparationId: string): string | null => {
+  const reagent = REAGENTS.find(row => row.id === reagentId);
+  const preparation = reagent?.preparations.find(row => row.id === preparationId);
+  return reagent && preparation
+    ? `${reagent.canonicalName} · ${preparation.name} · ${preparation.method}`
+    : null;
+};
+
+const canonicalPartFromOption = (option: string) => {
+  for (const reagent of REAGENTS) {
+    for (const preparation of reagent.preparations) {
+      if (canonicalPartOption(reagent.id, preparation.id) === option) return { reagent, preparation };
+    }
+  }
+  return null;
+};
+
+const canonicalReagentItem = (
+  transactionId: string,
+  actionId: string,
+  reagent: (typeof REAGENTS)[number],
+  preparation: (typeof REAGENTS)[number]['preparations'][number]
+): EngineInventoryItem => ({
+  id: `${transactionId}:inventory:${actionId}:${preparation.id}`,
+  name: `${reagent.canonicalName} (${preparation.name})`,
+  type: 'reagent',
+  weight: preparation.weight,
+  quantity: 1,
+  canonicalReagentId: reagent.id,
+  preparationId: preparation.id,
+  usesRemaining: preparation.uses,
+  ruinedWhenSoaked: true
+});
+
+const preparationForInventoryItem = (item: EngineInventoryItem) => {
+  if (item.type !== 'reagent' || !item.canonicalReagentId || !item.preparationId) return null;
+  const reagent = REAGENTS.find(row => row.id === item.canonicalReagentId);
+  const preparation = reagent?.preparations.find(row => row.id === item.preparationId);
+  return reagent && preparation ? { reagent, preparation } : null;
+};
+
+const inventoryTagPotency = (item: EngineInventoryItem, tag: string): number => {
+  const part = preparationForInventoryItem(item);
+  return part?.preparation.tags
+    .filter(candidate => candidate.tag === tag)
+    .reduce((total, candidate) => total + candidate.value, 0) || 0;
+};
+
+const isHoneyOrFairReagent = (item: EngineInventoryItem): boolean => {
+  const part = preparationForInventoryItem(item);
+  return Boolean(part && (part.preparation.name === 'Honey' || inventoryTagPotency(item, 'FAIR') > 0));
+};
+
+const acquireEncounterCompanion = (
+  companions: CompanionState[],
+  transactionId: string,
+  companionId: 'butterfly' | 'honeybee'
+): CompanionState[] => companions.some(row => row.instanceId === `${transactionId}:companion:${companionId}`)
+  ? companions
+  : [...companions, {
+      instanceId: `${transactionId}:companion:${companionId}`,
+      companionId,
+      pathsTravelled: 0,
+      seasonsTravelled: 0,
+      usedThisJourney: false,
+      pendingForage: null,
+      pendingForageDraws: 0
+    }];
+
+const isTitanThingamabob = (item: EngineInventoryItem): boolean =>
+  item.canonicalToolId === TITAN_THINGAMABOB_TOOL_ID
+  || /^Titan Thingamabob$/i.test(item.name.trim());
+
+const allPartsReagentForAction = (action: PrintedCanonicalActionTemplate) => {
+  const text = `${action.fixedTarget || ''} ${action.label} ${action.sourceText}`;
+  const canonicalName = /Small Fish/i.test(text) && /all (?:canonical )?Parts/i.test(text)
+    ? 'Small Fish'
+    : /Big Fish/i.test(text) && /all (?:canonical )?Parts/i.test(text)
+      ? 'Big Fish'
+      : null;
+  return canonicalName ? REAGENTS.find(row => row.canonicalName === canonicalName) || null : null;
+};
 
 export const BEES_MANUAL_OWNER_ID = 'social-meadow-spring-♣';
 export const BETTING_MANUAL_OWNER_ID = 'social-forest-summer-♣';
@@ -124,6 +229,9 @@ export interface ManualEffectContext {
   patientId?: string;
   ailmentInstanceId?: string;
   locationId?: string;
+  /** Current campaign season for Encounter rewards constrained to
+   * "in-season" Reagents. Legacy drafts without it request the season once. */
+  season?: Season;
   continuation?: 'barter-social' | 'foraging' | 'travel' | 'ailment-close' | 'none';
 }
 
@@ -607,9 +715,37 @@ export const resolveManualFollowUpTransaction = (input: {
 
 export const resolveManualEffect = (draft: ManualEffectDraft, transactionId: string, override = false): ManualEffectDraft => {
   if (!transactionId || draft.transactionId) throw new Error('Manual effect transaction is missing or already applied.');
-  if (!draft.resultSummary.trim() || !draft.journalNote.trim()) throw new Error('Result summary and journal note are required.');
   if (override && !draft.overrideReason.trim()) throw new Error('Override reason is required.');
-  return { ...draft, transactionId, status: override ? 'overridden' : 'resolved', updatedAt: Date.now() };
+  return {
+    ...draft,
+    resultSummary: draft.resultSummary.trim() || manualEffectSystemSummary(draft),
+    transactionId,
+    status: override ? 'overridden' : 'resolved',
+    updatedAt: Date.now()
+  };
+};
+
+const manualEffectSystemSummary = (draft: ManualEffectDraft): string => {
+  const encounterChoiceId = typeof draft.context.encounterChoiceId === 'string'
+    ? draft.context.encounterChoiceId
+    : '';
+  const encounterChoice = encounterChoiceId
+    ? ENCOUNTERS.find(encounter => encounter.id === draft.ownerId)
+      ?.choices.find(choice => choice.id === encounterChoiceId)?.label
+    : '';
+  const printedChoice = typeof draft.inputValues['printed-choice'] === 'string'
+    ? draft.inputValues['printed-choice'].trim()
+    : '';
+  const branch = printedChoice || encounterChoice || encounterChoiceId;
+  const selectedIds = new Set(draft.selectedActionIds);
+  const actions = draft.actionTemplates
+    .filter(action => selectedIds.has(action.id))
+    .map(action => action.label);
+  const parts = [
+    branch ? `선택: ${branch}` : '',
+    actions.length > 0 ? `적용: ${actions.join(', ')}` : '추가 상태 변화 없음'
+  ].filter(Boolean);
+  return parts.join(' · ');
 };
 
 const printedInventoryWeight = (target: string, sourceText: string): number => {
@@ -628,6 +764,7 @@ const printedInventoryWeight = (target: string, sourceText: string): number => {
 
 const printedInventoryName = (target: string): string => target
   .replace(/\s*\(\s*Weight\s+(?:\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)?|[⅓⅔])\s*\)\s*/ig, ' ')
+  .replace(/\s*\(\s*No Weight\s*\)\s*/ig, ' ')
   .trim()
   .replace(/^['‘’“”"]+|['‘’“”"]+$/g, '')
   .trim();
@@ -657,11 +794,13 @@ export const resolveManualEffectTransaction = (input: {
   if (!input.transactionId || input.state.appliedTransactionIds.includes(input.transactionId) || input.draft.transactionId) {
     return { status: 'invalid', value: null, messages: ['Manual effect transaction is missing or already applied.'] };
   }
-  if (!input.draft.resultSummary.trim() || !input.draft.journalNote.trim()) {
-    return { status: 'invalid', value: null, messages: ['Result summary and journal note are required.'] };
-  }
   const missingFields = input.draft.inputFields
-    .filter(field => field.required && !isPrintedResolutionInputSatisfied(field, input.draft.inputValues[field.id]))
+    // Rulebook p.7 treats journal/narrative writing as optional. A legacy
+    // draft may still mark prose as required, but only mechanical inputs can
+    // block the transaction.
+    .filter(field => field.required
+      && field.type !== 'free-text'
+      && !isPrintedResolutionInputSatisfied(field, input.draft.inputValues[field.id]))
     .map(field => field.label);
   if (missingFields.length > 0) return { status: 'invalid', value: null, messages: missingFields.map(label => `Required resolution input: ${label}`) };
   const expectedPrintedChoice = expectedPrintedChoiceForContext(input.draft);
@@ -737,7 +876,8 @@ export const resolveManualEffectTransaction = (input: {
     return input.draft.actionTargets[action.id] || '';
   };
   const missingActionTargets = (selectedActions as PrintedCanonicalActionTemplate[]).filter(action =>
-    (action.targetType === 'inventory-item' || action.targetType === 'location' || action.targetType === 'free-text')
+    (action.targetType === 'inventory-item' || action.targetType === 'timer'
+      || action.targetType === 'location' || action.targetType === 'free-text')
     && !actionTarget(action).trim()
   );
   if (missingActionTargets.length > 0) {
@@ -747,6 +887,320 @@ export const resolveManualEffectTransaction = (input: {
       messages: missingActionTargets.map(action => `Choose the required target for: ${action.label}`)
     };
   }
+  const selectedCanonicalActions = selectedActions as PrintedCanonicalActionTemplate[];
+  const collectorSwap = input.draft.ownerId === 'foraging-forest-3'
+    && input.draft.context.encounterChoiceId === 'collections-development-policy';
+  const clammyDeal = input.draft.ownerId === 'social-loch-spring-♣'
+    && input.draft.context.encounterChoiceId === 'a-clammy-deal';
+  const quickCure = input.draft.ownerId === 'social-forest-odoak-♥'
+    && input.draft.context.encounterChoiceId === 'a-quick-cure';
+  const titanPower = input.draft.ownerId === 'foraging-titan-6'
+    && ['light', 'cameras', 'action'].includes(input.draft.context.encounterChoiceId || '');
+  const collectorPart = collectorSwap
+    ? canonicalPartFromOption(String(input.draft.inputValues['collector-forest-part'] || ''))
+    : null;
+  if (collectorSwap && (!collectorPart || collectorPart.reagent.regionAvailability.Forest === 'Unavailable')) {
+    return { status: 'invalid', value: null, messages: ['Choose a canonical Reagent Part that can be found in the Forest.'] };
+  }
+  if (collectorSwap) {
+    const offeredAction = selectedCanonicalActions.find(action => action.id.endsWith(':give-reagent-part'));
+    const offered = offeredAction ? input.state.inventory.find(item => item.id === actionTarget(offeredAction)) : null;
+    if (!offered || offered.type !== 'reagent' || !preparationForInventoryItem(offered)) {
+      return { status: 'invalid', value: null, messages: ['The Collector only accepts one canonical Reagent Part from the Bags.'] };
+    }
+  }
+  if (clammyDeal) {
+    const payment = String(input.draft.inputValues['clammy-payment'] || '');
+    if (payment === '장신구 3개 지불' && input.state.trinkets < 3) {
+      return { status: 'invalid', value: null, messages: ['A Clammy Deal requires 3 Trinkets for this payment choice.'] };
+    }
+    if (payment === '지정된 영약재 부위 하나 제공') {
+      const paymentAction = selectedCanonicalActions.find(action => action.id.endsWith(':give-listed-reagent-part'));
+      const item = paymentAction ? input.state.inventory.find(row => row.id === actionTarget(paymentAction)) : null;
+      const part = item ? preparationForInventoryItem(item) : null;
+      if (!part || !CLAMMY_REAGENTS.has(part.reagent.canonicalName)) {
+        return {
+          status: 'invalid',
+          value: null,
+          messages: ['Choose a Part from Big Fish, Small Fish, Beehive, Blackcurrant, Cucumber, Strawberries, Roses, or Wild Garlic.']
+        };
+      }
+    }
+  }
+  let quickCurePotency = 0;
+  if (quickCure) {
+    const count = Number(input.draft.inputValues['quick-cure-part-count']);
+    const removalActions = selectedCanonicalActions.filter(action => /:quick-cure-part-\d+$/.test(action.id));
+    if (!Number.isInteger(count) || count < 1 || count > 50 || removalActions.length !== count) {
+      return { status: 'invalid', value: null, messages: ['Choose between 1 and 50 Reagent Parts for A Quick Cure.'] };
+    }
+    const requestedCounts = new Map<string, number>();
+    for (const action of removalActions) {
+      const itemId = actionTarget(action);
+      requestedCounts.set(itemId, (requestedCounts.get(itemId) || 0) + 1);
+      const item = input.state.inventory.find(row => row.id === itemId);
+      const part = item ? preparationForInventoryItem(item) : null;
+      const potency = part?.preparation.tags
+        .filter(tag => QUICK_CURE_TAGS.has(tag.tag))
+        .reduce((total, tag) => total + tag.value, 0) || 0;
+      if (!part || potency < 1) {
+        return { status: 'invalid', value: null, messages: ['A Quick Cure only accepts Reagent Parts providing INFECTION, BURN, or PAIN.'] };
+      }
+      quickCurePotency += potency;
+    }
+    for (const [itemId, requested] of requestedCounts) {
+      const available = Math.max(1, input.state.inventory.find(item => item.id === itemId)?.quantity || 1);
+      if (requested > available) {
+        return { status: 'invalid', value: null, messages: ['A Quick Cure cannot trade more copies of a Part than are in the Bags.'] };
+      }
+    }
+  }
+  const titanThingamabob = titanPower
+    ? input.state.inventory.find(isTitanThingamabob) || null
+    : null;
+  if (titanPower) {
+    const consumeActions = selectedCanonicalActions.filter(action => action.id.includes(':lock-and-key:')
+      && action.id.endsWith(':thingamabob')
+      && action.kind === 'remove-inventory');
+    if (!titanThingamabob || consumeActions.length !== 1) {
+      return { status: 'invalid', value: null, messages: ['Lock and Key requires one carried Titan Thingamabob.'] };
+    }
+  }
+  const titanPart = titanPower && input.draft.context.encounterChoiceId === 'action'
+    ? canonicalPartFromOption(String(input.draft.inputValues['lock-and-key-titan-part'] || ''))
+    : null;
+  if (titanPower && input.draft.context.encounterChoiceId === 'action'
+    && (!titanPart || titanPart.reagent.type !== 'TITAN')) {
+    return { status: 'invalid', value: null, messages: ['Choose one canonical Titan Reagent Part for Lock and Key.'] };
+  }
+  const isBranch = (ownerId: string, choiceId: string): boolean => input.draft.ownerId === ownerId
+    && input.draft.context.encounterChoiceId === choiceId;
+  const butterflyBefriend = isBranch('foraging-bog-j-spring', 'befriend-it');
+  const butterflyFollow = isBranch('foraging-bog-j-spring', 'follow-it');
+  const deepWater = isBranch('foraging-loch-a', 'deep-water');
+  const funeralRites = isBranch('foraging-loch-8', 'funeral-rites');
+  const snackTime = isBranch('foraging-mountain-10-summer', 'snack-time');
+  const helpBee = isBranch('foraging-meadow-j-summer', 'help-the-bee');
+  const workingForSnack = isBranch('social-loch-autumn-♣', 'working-for-a-snack');
+  const fixedPurchase = isBranch('social-loch-settlement-♦', 'projects-wide')
+    || isBranch('social-mountain-spoolkeep-♥', 'offcuts');
+  const branchBeaten = isBranch('travel-bog-5-6', 'draw-and-pass-the-branches');
+  const thatSucks = isBranch('travel-bog-9-10-summer', 'continue');
+  const hotTea = isBranch('travel-forest-5-6', 'eavesdrop');
+  const piledriver = isBranch('travel-forest-j-winter', 'hurry-forwards');
+  const ancientSalvage = isBranch('foraging-bog-2', 'dig');
+  const pleasantSurprise = isBranch('foraging-mountain-3', 'luck');
+  const marshWader = isBranch('social-bog-winter-♠', 'curiosity');
+
+  if (branchBeaten) {
+    const result = String(input.draft.inputValues['branch-beaten-card-result'] || '');
+    const seasonValue = input.draft.context.season
+      || String(input.draft.inputValues['branch-beaten-season'] || '');
+    const season = MANUAL_SEASONS.includes(seasonValue as Season) ? seasonValue as Season : null;
+    const selected = selectedCanonicalActions;
+    if (result === '4 이하 · 달력 +1일') {
+      if (selected.length !== 1 || selected[0].kind !== 'modify-days'
+        || selected[0].amount !== 1 || !selected[0].id.endsWith(':branch-beaten:day')) {
+        return { status: 'invalid', value: null, messages: ['Branch-Beaten below 5 must apply exactly one marked Day.'] };
+      }
+    } else if (result === '5–9 · 변화 없이 계속') {
+      if (selected.length !== 0) {
+        return { status: 'invalid', value: null, messages: ['Branch-Beaten 5–9 has no additional state change.'] };
+      }
+    } else if (result === '10 이상 · 제철 Bog 영약재 부위 획득') {
+      const part = canonicalPartFromOption(String(input.draft.inputValues['branch-beaten-bog-part'] || ''));
+      const action = selected[0];
+      if (!season || !part
+        || part.reagent.regionAvailability.Bog === 'Unavailable'
+        || part.reagent.seasonAvailability[season] === 'Unavailable'
+        || !isForagingPreparationAvailableInSeason(part.preparation, season)
+        || selected.length !== 1
+        || action.kind !== 'gain-inventory'
+        || !action.id.endsWith(':branch-beaten:reagent')
+        || actionTarget(action) !== canonicalPartOption(part.reagent.id, part.preparation.id)) {
+        return { status: 'invalid', value: null, messages: ['Choose one canonical in-season Bog Reagent Part for Branch-Beaten.'] };
+      }
+    } else {
+      return { status: 'invalid', value: null, messages: ['Choose the actual Branch-Beaten card range.'] };
+    }
+  }
+
+  if (thatSucks) {
+    const part = canonicalPartFromOption(String(input.draft.inputValues['that-sucks-leech-part'] || ''));
+    const action = selectedCanonicalActions[0];
+    if (!part || part.reagent.canonicalName !== 'Leech'
+      || selectedCanonicalActions.length !== 1
+      || action.kind !== 'gain-inventory'
+      || !action.id.endsWith(':that-sucks:leech')
+      || actionTarget(action) !== canonicalPartOption(part.reagent.id, part.preparation.id)) {
+      return { status: 'invalid', value: null, messages: ['Silver Lining must add exactly one canonical Leech Reagent Part.'] };
+    }
+  }
+
+  if (hotTea) {
+    const action = selectedCanonicalActions[0];
+    if (selectedCanonicalActions.length !== 1
+      || action.kind !== 'gain-inventory'
+      || !action.id.endsWith(':hot-tea:gossip')
+      || actionTarget(action) !== 'Juicy Gossip (No Weight)') {
+      return { status: 'invalid', value: null, messages: ['Eavesdrop must add exactly one weightless Juicy Gossip Guild Note.'] };
+    }
+  }
+
+  if (piledriver) {
+    const result = String(input.draft.inputValues['piledriver-card-result'] || '');
+    const carriedWeight = input.state.inventory.reduce((total, item) => (
+      total + Math.max(0, Number(item.weight) || 0) * Math.max(1, item.quantity || 1)
+    ), 0);
+    const safe = result === '♥ · 무사히 통과'
+      || result === '♦ · Carry 4 이하 · 무사히 통과';
+    const chased = result === '♦ · Carry 4 초과 · 추격'
+      || result === '♣ / ♠ · 추격';
+    if ((!safe && !chased)
+      || (result === '♦ · Carry 4 이하 · 무사히 통과' && carriedWeight > 4)
+      || (result === '♦ · Carry 4 초과 · 추격' && carriedWeight <= 4)) {
+      return { status: 'invalid', value: null, messages: ['Piledriver Diamond result must match the Bags\' current total Weight.'] };
+    }
+    if (safe && selectedCanonicalActions.length !== 0) {
+      return { status: 'invalid', value: null, messages: ['A safe Piledriver result does not discard any Bag items.'] };
+    }
+    if (chased) {
+      const count = Number(input.draft.inputValues['piledriver-discard-count']);
+      const removals = selectedCanonicalActions.filter(action => action.kind === 'remove-inventory'
+        && /:piledriver:discard-\d+$/.test(action.id));
+      if (!Number.isInteger(count) || count < 1 || count > 50
+        || removals.length !== count || selectedCanonicalActions.length !== count) {
+        return { status: 'invalid', value: null, messages: ['Choose between 1 and 50 Bag items for the Piledriver chase.'] };
+      }
+      const requestedCounts = new Map<string, number>();
+      let discardedWeight = 0;
+      for (const action of removals) {
+        const itemId = actionTarget(action);
+        const item = input.state.inventory.find(row => row.id === itemId);
+        if (!item) {
+          return { status: 'invalid', value: null, messages: ['Every Piledriver discard must be an item currently in the Bags.'] };
+        }
+        requestedCounts.set(itemId, (requestedCounts.get(itemId) || 0) + 1);
+        discardedWeight += Math.max(0, Number(item.weight) || 0);
+      }
+      for (const [itemId, requested] of requestedCounts) {
+        const available = Math.max(1, input.state.inventory.find(item => item.id === itemId)?.quantity || 1);
+        if (requested > available) {
+          return { status: 'invalid', value: null, messages: ['Piledriver cannot discard more copies than are currently in the Bags.'] };
+        }
+      }
+      if (discardedWeight + Number.EPSILON < 3) {
+        return { status: 'invalid', value: null, messages: ['Piledriver requires discarding at least 3 total Weight.'] };
+      }
+    }
+  }
+
+  if (ancientSalvage) {
+    const result = String(input.draft.inputValues['ancient-salvage-card-result'] || '');
+    const success = result === '10 이상 · Titan Thingamabob 획득';
+    const failure = result === '9 이하 · 획득 없음';
+    const action = selectedCanonicalActions[0];
+    if ((!success && !failure)
+      || (failure && selectedCanonicalActions.length !== 0)
+      || (success && (selectedCanonicalActions.length !== 1
+        || action.kind !== 'gain-inventory'
+        || !action.id.endsWith(':ancient-salvage:thingamabob')
+        || !/^Titan Thingamabob\b/.test(actionTarget(action))))) {
+      return { status: 'invalid', value: null, messages: ['Ancient Salvage must match the actual below-10 or 10-or-more card result.'] };
+    }
+  }
+
+  if (pleasantSurprise) {
+    const part = canonicalPartFromOption(String(input.draft.inputValues['pleasant-surprise-earth-part'] || ''));
+    const cardOption = String(input.draft.inputValues['pleasant-surprise-card-value'] || '');
+    const cardValue = MANUAL_CARD_VALUE_OPTIONS.indexOf(cardOption as typeof MANUAL_CARD_VALUE_OPTIONS[number]) + 1;
+    if (!part || part.reagent.type !== 'EARTH' || cardValue < 1) {
+      return { status: 'invalid', value: null, messages: ['Choose a canonical Earth Reagent Part, then the actual card value.'] };
+    }
+    const succeeds = cardValue >= part.reagent.baseRarity;
+    const action = selectedCanonicalActions[0];
+    if ((!succeeds && selectedCanonicalActions.length !== 0)
+      || (succeeds && (selectedCanonicalActions.length !== 1
+        || action.kind !== 'gain-inventory'
+        || !action.id.endsWith(':pleasant-surprise:earth')
+        || actionTarget(action) !== canonicalPartOption(part.reagent.id, part.preparation.id)))) {
+      return { status: 'invalid', value: null, messages: ['Pleasant Surprise must compare the card with the chosen Earth Reagent\'s Base Rarity.'] };
+    }
+  }
+
+  const selectedRemoval = (suffix: string): EngineInventoryItem | null => {
+    const action = selectedCanonicalActions.find(candidate => candidate.kind === 'remove-inventory' && candidate.id.endsWith(suffix));
+    return action ? input.state.inventory.find(item => item.id === actionTarget(action)) || null : null;
+  };
+
+  const marshWaderFood = marshWader ? selectedRemoval(':marsh-wader:food') : null;
+  // "Edible" is a narrative judgement in the printed rule. The transaction
+  // can still guarantee that the chosen payment is one carried canonical
+  // Reagent Part, while leaving the food judgement with the player.
+  if (marshWader && (!marshWaderFood || !preparationForInventoryItem(marshWaderFood))) {
+    return { status: 'invalid', value: null, messages: ['Marsh Wader requires one carried canonical Reagent Part chosen as edible.'] };
+  }
+
+  const butterflyPayment = butterflyBefriend ? selectedRemoval(':butterfly:plant-payment') : null;
+  if (butterflyBefriend && (!butterflyPayment || preparationForInventoryItem(butterflyPayment)?.reagent.type !== 'PLANT')) {
+    return { status: 'invalid', value: null, messages: ['Fluttering Fancy requires one PLANT Reagent Part.'] };
+  }
+  const butterflyCardValue = butterflyFollow ? Number(input.draft.inputValues['butterfly-card-value']) : 0;
+  const butterflyPart = butterflyFollow
+    ? canonicalPartFromOption(String(input.draft.inputValues['butterfly-plant-part'] || ''))
+    : null;
+  if (butterflyFollow && (!Number.isInteger(butterflyCardValue) || butterflyCardValue < 1 || butterflyCardValue > 12
+    || !butterflyPart || butterflyPart.reagent.type !== 'PLANT'
+    || butterflyPart.reagent.baseRarity > butterflyCardValue)) {
+    return { status: 'invalid', value: null, messages: ['Choose a canonical Plant Reagent Part within the drawn Base Rarity.'] };
+  }
+
+  if (deepWater) {
+    const timerLoss = Number(input.draft.inputValues['deep-water-timer-loss']);
+    const actionLoss = selectedCanonicalActions.reduce((total, action) => (
+      action.kind === 'modify-timer' || action.kind === 'modify-foraging-points'
+        ? total + Math.abs(action.amount || 0)
+        : total
+    ), 0);
+    if (!Number.isInteger(timerLoss) || timerLoss < 0 || timerLoss > 5 || actionLoss !== 5) {
+      return { status: 'invalid', value: null, messages: ['Deep Water must divide exactly 5 between all Timers and Foraging Points.'] };
+    }
+  }
+
+  const funeralPayment = funeralRites ? selectedRemoval(':funeral-rites:elsewhere-part') : null;
+  const funeralPotency = funeralPayment ? inventoryTagPotency(funeralPayment, 'ELSEWHERE') : 0;
+  if (funeralRites && funeralPotency < 1) {
+    return { status: 'invalid', value: null, messages: ['Funeral Rites requires one Reagent Part with ELSEWHERE.'] };
+  }
+
+  const snackPayment = snackTime ? selectedRemoval(':snack-time:reagent') : null;
+  if (snackTime && (!snackPayment || !preparationForInventoryItem(snackPayment))) {
+    return { status: 'invalid', value: null, messages: ['Snack Time requires one carried canonical Reagent Part.'] };
+  }
+
+  const beeSupply = helpBee ? selectedRemoval(':bee-kind:supply') : null;
+  const beeRescue = helpBee && selectedCanonicalActions.some(action => action.id.endsWith(':bee-kind:rescue-timers'));
+  if (helpBee && beeSupply && !isHoneyOrFairReagent(beeSupply)) {
+    return { status: 'invalid', value: null, messages: ['Help the Bee requires Honey or a FAIR Reagent Part for Sweet.'] };
+  }
+  if (beeRescue && input.state.inventory.some(isHoneyOrFairReagent)) {
+    return { status: 'invalid', value: null, messages: ['Rescue is only available when no Honey or FAIR Reagent Part is carried.'] };
+  }
+  if (fixedPurchase && selectedCanonicalActions.some(action => action.id.endsWith(':purchase:cost'))
+    && input.state.trinkets < 5) {
+    return { status: 'invalid', value: null, messages: ['This purchase requires 5 Trinkets.'] };
+  }
+
+  const companionId = butterflyBefriend ? 'butterfly' as const : helpBee ? 'honeybee' as const : null;
+  if (companionId) {
+    const companions = input.state.companions || [];
+    const instanceId = `${input.transactionId}:companion:${companionId}`;
+    if (!companions.some(row => row.instanceId === instanceId)
+      && typeof input.state.companionCapacity === 'number'
+      && companions.length >= input.state.companionCapacity) {
+      return { status: 'invalid', value: null, messages: [`No travelling Companion slot is available for the ${companionId === 'honeybee' ? 'Honeybee' : 'Butterfly'}.`] };
+    }
+  }
   let nextState: ManualResolutionRuntimeState = {
     ...input.state,
     inventory: [...input.state.inventory],
@@ -755,16 +1209,35 @@ export const resolveManualEffectTransaction = (input: {
     appliedTransactionIds: [...input.state.appliedTransactionIds],
     companions: [...(input.state.companions || [])]
   };
+  const freshClamsAction = workingForSnack
+    ? selectedCanonicalActions.find(action => action.id.endsWith(':working-snack:clams'))
+    : undefined;
+  const freshClamsItemId = freshClamsAction
+    ? `${input.transactionId}:inventory:${freshClamsAction.id}`
+    : '';
 
-  for (const action of selectedActions as PrintedCanonicalActionTemplate[]) {
-    if (action.kind === 'modify-reputation') nextState.reputation = Math.max(0, nextState.reputation + (action.amount || 0));
+  for (const action of selectedCanonicalActions) {
+    if (action.kind === 'modify-reputation') {
+      const amount = funeralRites && action.id.endsWith(':funeral-rites:reputation')
+        ? 1 + funeralPotency
+        : action.amount || 0;
+      nextState.reputation = Math.max(0, nextState.reputation + amount);
+    }
     if (action.kind === 'modify-trinkets') nextState.trinkets = Math.max(0, nextState.trinkets + (action.amount || 0));
     if (action.kind === 'modify-days') nextState.calendarDays = Math.max(0, nextState.calendarDays + (action.amount || 0));
-    if (action.kind === 'modify-foraging-points') nextState.foragingPoints = Math.max(0, nextState.foragingPoints + (action.amount || 0));
+    if (action.kind === 'modify-foraging-points') {
+      const rawAmount = action.amount || 0;
+      const amount = rawAmount > 0
+        ? Math.floor(rawAmount * encounterForagingPointMultiplier(nextState.conditions, nextState.patient?.id))
+        : rawAmount;
+      nextState.foragingPoints = Math.max(0, nextState.foragingPoints + amount);
+    }
+    if (action.kind === 'set-foraging-points') nextState.foragingPoints = Math.max(0, action.amount || 0);
     if (action.kind === 'modify-timer') {
       if (!nextState.patient) return { status: 'invalid', value: null, messages: ['This Timer action requires the affected Patient to remain available.'] };
       const targetId = actionTarget(action);
-      const eligible = nextState.patient.timers.filter(timer => timer.status === 'active' && (!targetId || timer.id === targetId));
+      const eligible = nextState.patient.timers.filter(timer => timer.status === 'active'
+        && (!targetId || timer.id === targetId || timer.ailmentInstanceId === targetId));
       if (eligible.length === 0) return { status: 'invalid', value: null, messages: ['Choose an active Timer for the printed Timer change.'] };
       const eligibleIds = new Set(eligible.map(timer => timer.id));
       nextState.patient = {
@@ -777,34 +1250,138 @@ export const resolveManualEffectTransaction = (input: {
       };
     }
     if (action.kind === 'remove-inventory') {
-      const targetId = actionTarget(action);
+      const targetId = titanPower && action.id.includes(':lock-and-key:') && action.id.endsWith(':thingamabob')
+        ? titanThingamabob?.id || ''
+        : actionTarget(action);
       if (!targetId || !nextState.inventory.some(item => item.id === targetId)) {
         return { status: 'invalid', value: null, messages: ['Choose an eligible Inventory item to remove.'] };
       }
-      nextState.inventory = nextState.inventory.filter(item => item.id !== targetId);
+      let removed = false;
+      nextState.inventory = nextState.inventory.flatMap(item => {
+        if (removed || item.id !== targetId) return [item];
+        removed = true;
+        const quantity = Math.max(1, item.quantity || 1);
+        return quantity > 1 ? [{ ...item, quantity: quantity - 1 }] : [];
+      });
     }
     if (action.kind === 'gain-inventory') {
+      if (butterflyFollow && action.id.endsWith(':butterfly:plant-reward') && butterflyPart) {
+        nextState.inventory.push(canonicalReagentItem(
+          input.transactionId,
+          action.id,
+          butterflyPart.reagent,
+          butterflyPart.preparation
+        ));
+        continue;
+      }
+      if (titanPower && action.id.endsWith(':lock-and-key:action:reagent') && titanPart) {
+        nextState.inventory.push(canonicalReagentItem(
+          input.transactionId,
+          action.id,
+          titanPart.reagent,
+          titanPart.preparation
+        ));
+        continue;
+      }
+      if (collectorSwap && action.id.endsWith(':receive-forest-part') && collectorPart) {
+        nextState.inventory.push(canonicalReagentItem(
+          input.transactionId,
+          action.id,
+          collectorPart.reagent,
+          collectorPart.preparation
+        ));
+        continue;
+      }
+      const allPartsReagent = allPartsReagentForAction(action);
+      if (allPartsReagent) {
+        nextState.inventory.push(...allPartsReagent.preparations.map(preparation => canonicalReagentItem(
+          input.transactionId,
+          action.id,
+          allPartsReagent,
+          preparation
+        )));
+        continue;
+      }
       const rawItemName = actionTarget(action).trim();
+      const canonicalPart = canonicalPartFromOption(rawItemName);
+      if (canonicalPart) {
+        nextState.inventory.push(canonicalReagentItem(
+          input.transactionId,
+          action.id,
+          canonicalPart.reagent,
+          canonicalPart.preparation
+        ));
+        continue;
+      }
       const itemName = rawItemName ? printedInventoryName(rawItemName) : '';
       if (!itemName) return { status: 'invalid', value: null, messages: ['Name the printed Inventory item to gain.'] };
-      nextState.inventory.push({
+      if (/^Titan Thingamabob$/i.test(itemName)) {
+        const tool = TOOL_BY_ID.get(TITAN_THINGAMABOB_TOOL_ID);
+        if (!tool) return { status: 'invalid', value: null, messages: ['Titan Thingamabob canonical Tool data is unavailable.'] };
+        nextState.inventory.push({
+          id: `${input.transactionId}:inventory:${action.id}`,
+          name: tool.canonicalName,
+          type: 'tool',
+          weight: tool.weight,
+          quantity: 1,
+          canonicalToolId: tool.id
+        });
+        continue;
+      }
+      const gainedItem: EngineInventoryItem = {
         id: `${input.transactionId}:inventory:${action.id}`,
         name: itemName,
         type: 'item',
         weight: printedInventoryWeight(rawItemName!, action.sourceText),
         quantity: 1,
         ruinedWhenSoaked: /ruined if soaked/i.test(`${rawItemName} ${action.sourceText}`)
-      });
+      };
+      if (/^Juicy Gossip$/i.test(itemName)) {
+        gainedItem.weight = 0;
+        gainedItem.guildNote = { kind: 'gossip' };
+      }
+      if (workingForSnack && action.id.endsWith(':working-snack:clams')) {
+        gainedItem.barterValue = FRESH_CLAMS_BARTER_VALUE;
+      }
+      if (fixedPurchase && action.id.endsWith(':purchase:item')) {
+        if (isBranch('social-loch-settlement-♦', 'projects-wide')) {
+          gainedItem.type = 'tool';
+          gainedItem.weight = 1;
+          gainedItem.canonicalToolId = 'bark-coracle';
+        } else {
+          gainedItem.weight = 1;
+          gainedItem.craftedItemId = 'knitted-blanket';
+        }
+      }
+      nextState.inventory.push(gainedItem);
     }
     if (action.kind === 'record-condition') {
       const description = actionTarget(action) || action.sourceText;
       const isQueenAcquisitionRecord = input.draft.ownerId === BEES_MANUAL_OWNER_ID
         && input.draft.context.encounterChoiceId === 'protect-the-queen'
         && /queen bee companion acquired now/i.test(description);
-      if (!isQueenAcquisitionRecord) {
-        nextState.conditions = [...new Set([...nextState.conditions, `manual:${input.draft.ownerId}:${description}`])];
+      const isCompanionAcquisitionRecord = /^gain-companion:(?:butterfly|honeybee)$/.test(description);
+      if (!isQueenAcquisitionRecord && !isCompanionAcquisitionRecord) {
+        const storedCondition = workingForSnack
+          && description === ENCOUNTER_CONDITION_CODES.freshClamsSpoil
+          && freshClamsItemId
+          ? `manual:${input.draft.ownerId}:${description}:${freshClamsItemId}`
+          : `manual:${input.draft.ownerId}:${description}`;
+        nextState.conditions = isStackableEncounterCondition(storedCondition)
+          ? [...nextState.conditions, storedCondition]
+          : [...new Set([...nextState.conditions, storedCondition])];
       }
     }
+  }
+
+  if (quickCurePotency > 0) nextState.trinkets += quickCurePotency;
+
+  if (companionId) {
+    nextState.companions = acquireEncounterCompanion(
+      nextState.companions || [],
+      input.transactionId,
+      companionId
+    );
   }
 
   const isQueenProtect = input.draft.ownerId === BEES_MANUAL_OWNER_ID
@@ -901,6 +1478,7 @@ export const resolveManualEffectTransaction = (input: {
   const resolvedAt = input.resolvedAt || Date.now();
   const draft = {
     ...input.draft,
+    resultSummary: input.draft.resultSummary.trim() || manualEffectSystemSummary(input.draft),
     transactionId: input.transactionId,
     status: input.override ? 'overridden' as const : 'resolved' as const,
     updatedAt: resolvedAt

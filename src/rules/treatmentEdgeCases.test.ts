@@ -146,6 +146,64 @@ describe('Treatment and Patient edge-case transactions', () => {
     expect(failure.value?.nextState.reputation).toBe(5);
   });
 
+  it('stores the pirate Patient consequence and converts only its earned Reputation into Trinkets', () => {
+    const fixture = waenFixture();
+    const started = startEncounterPatientAilment({
+      transactionId: 'pirate-parley',
+      patient: null,
+      ailmentCard: { value: 1, suit: '♥' },
+      severity: fixture.ailment.severity,
+      encounterId: 'travel-loch-j-summer',
+      patientName: '해적 환자',
+      species: '야수',
+      context: 'Parley · Helping a Local Pirate',
+      rewardMode: 'reputation-as-trinkets',
+      failureOutcome: 'taken-prisoner'
+    });
+    expect(started.status).toBe('resolved');
+    expect(started.value?.patient.ailments[0].specialState).toMatchObject({
+      rewardMode: 'reputation-as-trinkets',
+      failureOutcome: 'taken-prisoner',
+      sourceEncounterId: 'travel-loch-j-summer'
+    });
+
+    const standard = resolveTreatment({
+      mode: 'treat',
+      transactionId: 'pirate-standard-control',
+      state: treatmentState(fixture.patient, [...fixture.ingredients, ...fixture.tools]),
+      ailmentInstanceId: fixture.patient.ailments[0].id,
+      selectedItemIds: fixture.ingredients.map(item => item.id),
+      selectedToolIds: fixture.tools.map(item => item.id),
+      journalText: ''
+    });
+    const piratePatient: PatientState = {
+      ...fixture.patient,
+      ailments: fixture.patient.ailments.map(ailment => ({
+        ...ailment,
+        specialState: {
+          ...ailment.specialState,
+          rewardMode: 'reputation-as-trinkets',
+          failureOutcome: 'taken-prisoner'
+        }
+      }))
+    };
+    const pirate = resolveTreatment({
+      mode: 'treat',
+      transactionId: 'pirate-converted-reward',
+      state: treatmentState(piratePatient, [...fixture.ingredients, ...fixture.tools]),
+      ailmentInstanceId: piratePatient.ailments[0].id,
+      selectedItemIds: fixture.ingredients.map(item => item.id),
+      selectedToolIds: fixture.tools.map(item => item.id),
+      journalText: ''
+    });
+    expect(standard.status).toBe('resolved');
+    expect(pirate.status).toBe('resolved');
+    expect(pirate.value?.reputationChange).toBe(0);
+    expect(pirate.value?.trinketReward).toBe(
+      (standard.value?.trinketReward || 0) + (standard.value?.reputationChange || 0)
+    );
+  });
+
   it('does not restore a waived Reputation penalty when leaving with a no-reward encounter Ailment unresolved', () => {
     const lesser = AILMENTS.find(row => row.severity === 'lesser')!;
     const severe = AILMENTS.find(row => row.severity === 'severe')!;

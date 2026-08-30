@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { enqueueOfflineSave, flushOfflineSaves, normalizeOfflineSaveEntries, reconcileOfflineSaveFlush, removeOfflineSavesThroughRevision, resolveRevisionConflict } from './saveQueue';
+import { enqueueOfflineSave, flushOfflineSaves, normalizeOfflineSaveEntries, offlineSaveRequiresManualResolution, reconcileOfflineSaveFlush, removeOfflineSavesThroughRevision, resolveRevisionConflict } from './saveQueue';
 
 const queued = (input: { id: string; payload: string; revision: number; queuedAt: number; ownerUid?: string; slot?: 1 | 2 | 3 }) => ({
   ...input,
@@ -38,16 +38,30 @@ describe('Phase 5 local-first persistence', () => {
     ], async entry => { written.push(entry.payload); });
 
     expect(written).toEqual(['v9']);
-    expect(result).toEqual({ remaining: [], completed: ['newer'] });
+    expect(result).toEqual({ remaining: [], completed: ['legacy-stale', 'newer'] });
   });
 
   it('keeps only the latest payload when the same revision was queued twice', async () => {
     const written: string[] = [];
-    await flushOfflineSaves([
+    const result = await flushOfflineSaves([
       { ...queued({ id: 'first', payload: 'old-payload', revision: 5, queuedAt: 1 }), attempts: 0, lastError: null },
       { ...queued({ id: 'second', payload: 'new-payload', revision: 5, queuedAt: 2 }), attempts: 0, lastError: null }
     ], async entry => { written.push(entry.payload); });
     expect(written).toEqual(['new-payload']);
+    expect(result).toEqual({ remaining: [], completed: ['first', 'second'] });
+  });
+
+  it('removes superseded rows while retaining only the newest failed write for retry', async () => {
+    const rows = [
+      { ...queued({ id: 'old', payload: 'v4', revision: 4, queuedAt: 1 }), attempts: 0, lastError: null },
+      { ...queued({ id: 'latest', payload: 'v5', revision: 5, queuedAt: 2 }), attempts: 0, lastError: null }
+    ];
+    const flushed = await flushOfflineSaves(rows, async () => { throw new Error('offline'); });
+    expect(flushed.completed).toEqual(['old']);
+    expect(flushed.remaining).toEqual([
+      expect.objectContaining({ id: 'latest', payload: 'v5', attempts: 1, lastError: 'offline' })
+    ]);
+    expect(reconcileOfflineSaveFlush(rows, flushed).map(entry => entry.id)).toEqual(['latest']);
   });
 
   it('recovers a partially malformed persisted outbox without throwing', () => {
@@ -97,5 +111,12 @@ describe('Phase 5 local-first persistence', () => {
   it('[OFFLINE-003] chooses the higher revision without a false conflict', () => {
     expect(resolveRevisionConflict({ saveRevision: 5 }, { saveRevision: 4 }).source).toBe('local');
     expect(resolveRevisionConflict({ saveRevision: 4 }, { saveRevision: 5 }).source).toBe('cloud');
+  });
+
+  it('stops retrying deletions and revision conflicts that require an explicit player choice', () => {
+    expect(offlineSaveRequiresManualResolution('cloud-slot-deleted')).toBe(true);
+    expect(offlineSaveRequiresManualResolution('cloud-slot-newer')).toBe(true);
+    expect(offlineSaveRequiresManualResolution('network-request-failed')).toBe(false);
+    expect(offlineSaveRequiresManualResolution(null)).toBe(false);
   });
 });

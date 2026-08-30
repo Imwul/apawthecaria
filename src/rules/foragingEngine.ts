@@ -35,6 +35,9 @@ export interface ForagingEngineInput {
   spendForagingPoints?: boolean;
   rarityModifiers?: number;
   typeRarityModifiers?: Partial<Record<ReagentDefinition['type'], number>>;
+  reagentRarityModifiers?: Partial<Record<string, number>>;
+  /** Multiplies the usual FP gain after Tool bonuses, then rounds down. */
+  foragingPointGainMultiplier?: number;
   alwaysAvailableReagentIds?: string[];
   skipEncounter?: boolean;
   reagentTypeFilter?: ReagentDefinition['type'];
@@ -76,7 +79,13 @@ export interface ForagingEngineResolution {
 }
 
 const applyForagingPointTool = (input: ForagingEngineInput, baseGain: number) => {
-  if (baseGain <= 0 || !input.state.tools?.length) return { gain: baseGain, tools: input.state.tools };
+  if (baseGain <= 0) return { gain: baseGain, tools: input.state.tools };
+  const multiplier = Number.isFinite(input.foragingPointGainMultiplier)
+    ? Math.max(0, input.foragingPointGainMultiplier!)
+    : 1;
+  if (!input.state.tools?.length) {
+    return { gain: Math.floor(baseGain * multiplier), tools: input.state.tools };
+  }
   const resolved = resolveToolEffects({
     transactionId: `${input.transactionId}:tool:foraging-points`,
     phase: 'foraging',
@@ -84,7 +93,10 @@ const applyForagingPointTool = (input: ForagingEngineInput, baseGain: number) =>
     tools: input.state.tools,
     rulesetId: 'original-1e-3p'
   });
-  return { gain: baseGain + resolved.foragingPoints, tools: resolved.tools };
+  return {
+    gain: Math.floor((baseGain + resolved.foragingPoints) * multiplier),
+    tools: resolved.tools
+  };
 };
 
 const increaseTimers = (patient: PatientState, timerIds: ReadonlySet<string>, amount: number): PatientState => ({
@@ -260,7 +272,9 @@ const candidateFor = (
         input.forageRegion,
         input.state.season,
         input.state.toolIds,
-        (input.rarityModifiers || 0) + (input.typeRarityModifiers?.[reagent.type] || 0),
+        (input.rarityModifiers || 0)
+          + (input.typeRarityModifiers?.[reagent.type] || 0)
+          + (input.reagentRarityModifiers?.[reagent.id] || 0),
         true
       )?.finalRarity ?? null
     : calculateCanonicalForageRarity(
@@ -268,7 +282,9 @@ const candidateFor = (
         input.forageRegion,
         input.state.season,
         input.state.toolIds,
-        (input.rarityModifiers || 0) + (input.typeRarityModifiers?.[reagent.type] || 0)
+        (input.rarityModifiers || 0)
+          + (input.typeRarityModifiers?.[reagent.type] || 0)
+          + (input.reagentRarityModifiers?.[reagent.id] || 0)
       );
   if (rarity === null) return null;
   return {

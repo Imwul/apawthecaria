@@ -316,6 +316,54 @@ const exactTranslations: Record<string, string> = {
   ,'Play it Safe — You give them your satchel. Discard everything in your Bags, and lose all your Trinkets': '안전하게 물러나기 — 가방을 내줍니다. 가방의 모든 물품을 버리고 장신구를 모두 잃습니다.'
   ,'Scrap — You try to fight them off. Draw a card for you and two cards for them. The highest single card wins. You can draw a second card if you have a Crossbow and Bolt': '맞서 싸우기 — 자신을 위해 카드 1장, 상대를 위해 카드 2장을 뽑습니다. 단일 카드 중 가장 높은 값을 뽑은 쪽이 이깁니다. 석궁과 볼트가 있다면 카드를 한 장 더 뽑을 수 있습니다.'
   ,'Fight the wind — End your Soar at your chosen destination, but Mark 1 Day for the time lost fighting the elements': '바람에 맞서기 — 고른 목적지에서 활공을 끝내지만, 거센 날씨와 싸우느라 잃은 시간만큼 달력에 1일을 표시합니다.'
+  ,'Gain twice as many Foraging Points per turn.': '각 차례마다 채집 포인트를 두 배로 얻습니다.'
+  ,'You can reclaim these Items by returning to this Location on another Move.': '다른 이동 때 이 위치로 돌아오면 남겨 둔 물품을 다시 찾을 수 있습니다.'
+  ,'Increase Guild Reputation by 1 80': 'Guild Reputation 1을 얻습니다.'
+  ,'You can choose to travel along up to 2 extra Waterways as part of this Move.': '이번 이동에서 수로를 최대 2구간 더 지나갈 수 있습니다.'
+  ,'Gain a Wasp Companion.': 'Wasp(말벌) Companion을 얻습니다.'
+  ,'Move along 1 path, or stay where you are.': '1경로를 이동하거나 현재 위치에 머물러도 됩니다.'
+  ,'Bargain - You can trade for some Fairwind Spices (Tools, page 62) from these birds.': '흥정하기 — 이 새들과 거래해 Fairwind Spices(페어윈드 향신료) 도구를 얻을 수 있습니다.'
+  ,'Visit - This Location temporarily counts as a Settlement.': '방문하기 — 이 위치는 잠시 정착지로 취급합니다.'
+  ,'Follow the Winds - Rotate you Flightpath 45° left or right.': '바람을 따르기 — 비행 경로를 왼쪽이나 오른쪽으로 45도 돌립니다.'
+  ,'Do not Mark a Day for this Move.': '이번 이동에서는 달력에 날짜를 표시하지 않습니다.'
+  ,'End your Soar at a Location up to halfway along your Flightpath.': '비행 경로의 절반 이내에 있는 위치에서 활공을 끝냅니다.'
+  ,'End your Soar at a Location roughly halfway along your Flightpath.': '비행 경로의 대략 중간 지점에서 활공을 끝냅니다.'
+  ,'End your Soar halfway along your flight path.': '비행 경로의 중간 지점에서 활공을 끝냅니다.'
+  ,'End your Soar at your chosen destination.': '선택한 목적지에서 활공을 끝냅니다.'
+  ,"Griph's Services as a trader are unavailable for the remainder of your Journey.": '이번 여정이 끝날 때까지 Griph(그리프)와 거래할 수 없습니다.'
+  ,'You need to create a remedy for [WOUND 3] [INFECTION 2] [PAIN 2], with a Timer of 12.': '[WOUND 3] [INFECTION 2] [PAIN 2]를 해결하는 치료제를 만들어야 하며, 타이머는 12입니다.'
+  ,"Spiral down to see what's going on - Choose a Location that is near your Flightpath.": '선회하며 내려가 살펴보기 — 비행 경로 가까이의 위치를 하나 고릅니다.'
+  ,'What A Wind Up - Gain a Cranky Contraption Companion': '성질 고약한 기계장치 — Cranky Contraption Companion을 얻습니다.'
+  ,'Hostile Environment - Mark a Day on your Calendar as you find a clever way to get in without hurting yourself.': '위험한 환경 — 다치지 않고 들어갈 기발한 방법을 찾으며 달력에 1일을 표시합니다.'
+  ,'Otherwise, you will have to Mark a Day as you find another way to get in or deal with the sound.': '그렇지 못하면 다른 진입로를 찾거나 그 소리를 견디는 동안 달력에 1일을 표시합니다.'
+  ,"As their companions rattle through the tune, they bet you can't make up a new verse.": '동료들이 달그락거리는 소리로 박자를 맞추며, 그들은 당신이 새 노랫말을 만들지 못할 거라고 내기합니다.'
+  ,'Skip Step 2 of Bartering.': '이 물물교환에서 2단계를 건너뜁니다.'
+  ,'During this Barter, skip step 2.': '이 물물교환을 하는 동안 2단계를 건너뜁니다.'
+  ,'Befriend It - Use a PLANT Reagent to gain a Butterfly Companion.': '친구가 되기 — PLANT 영약재 부위 하나를 사용하고 Butterfly Companion을 얻습니다.'
+  ,'Decrease your Ailment Timer by 1.': '현재 질환 타이머를 1 줄입니다.'
+  ,'Decrease your Timers by 1.': '모든 타이머를 1 줄입니다.'
+  ,'Keep to Yourself - Decrease Guild Reputation by 1.': '혼자 조용히 지내기 — Guild Reputation 1을 잃습니다.'
+  ,"The desired Reagent Part's Rarity is decreased by 2.": '찾고 있는 영약재 부위의 희귀도를 2 낮춥니다.'
+  ,'The More the Merrier - Gain a Companion': '다다익선 — Companion 하나를 얻습니다.'
+  ,'Patience - Decrease the Timers by 3.': '인내하기 — 모든 타이머를 3 줄입니다.'
+  ,'Startle - Decrease your Foraging Points to 0 and Forage again in an adjacent non-Loch Location.': '놀라게 하기 — 채집 포인트를 0으로 만들고 인접한 호수 이외 위치에서 다시 채집합니다.'
+  ,'This second Forage does not decrease your Timers.': '이 두 번째 채집은 타이머를 줄이지 않습니다.'
+  ,'Bring it to any Settlement to gain 2 Guild Reputation.': '아무 정착지에나 가져가면 Guild Reputation 2를 얻습니다.'
+  ,'Trampled - Increase the Rarity of all Plant Reagents you Forage for here by 2.': '밟힘 — 이곳에서 채집하는 모든 Plant 영약재의 희귀도를 2 높입니다.'
+  ,'Gain up to as many as you can Carry of a single Meadow Reagent Part that is in Season during Spring and has Rarity 6 or lower.': '봄에 철이며 희귀도 6 이하인 초원 영약재 부위 하나를 골라 Carry가 허용하는 만큼 얻습니다.'
+  ,'Fog Turned - You do not gain Foraging Points this Encounter.': '안개에 길을 잃기 — 이번 조우에서는 채집 포인트를 얻지 못합니다.'
+  ,"How does it feel to take bits from someone's work?": '다른 누군가가 만든 것의 조각을 떼어 내는 기분은 어떤가요?'
+  ,'Invent a Trinket or Reagent Part with the [ELSEWHERE] Tag to find on the cairn.': '돌무덤 위에서 발견할 [ELSEWHERE] 태그의 장신구 또는 영약재 부위를 하나 만듭니다.'
+  ,'Sniff and listen - You do not gain any bonus Foraging Points from Tools during this Forage.': '냄새 맡고 귀 기울이기 — 이번 채집에서는 도구의 추가 채집 포인트를 얻지 못합니다.'
+  ,'Snack Time - Give away one of your Reagents to Increase the Foraging Timer by 1 thanks to your renewed vigour.': '간식 시간 — 영약재 부위 하나를 건네주고 기운을 회복해 채집 타이머를 1 늘립니다.'
+  ,'You may ignore the negative effects of an event in this Location.': '이 위치에서 발생한 사건의 부정적인 효과를 무시할 수 있습니다.'
+  ,"Depending on how you've described this Titan Ruin you can either: Gain a Titan Codex; you can trade the Knowers for 20 Trinkets at the end of this Journey.": '이 티탄 유적을 묘사한 방식에 따라 Titan Codex(티탄 기록서)를 얻을 수 있습니다. 여정 끝에 Knowers와 장신구 20개로 교환할 수 있습니다.'
+  ,'Poisoned - Make a remedy that solves [Poison 2], or lose all Foraging Points.': '중독 — [POISON 2]를 해결하는 치료제를 만들거나 채집 포인트를 모두 잃습니다.'
+  ,'Gain either a Cranky Contraption Companion, a Titan Thingamabob, or a Titan Reagent of value 8 or lower.': 'Cranky Contraption Companion, Titan Thingamabob, 또는 희귀도 8 이하의 Titan 영약재 중 하나를 얻습니다.'
+  ,"Gain 'Iris Oil', (Weight 1/3).": 'Iris Oil(붓꽃 기름, 무게 1/3)을 얻습니다.'
+  ,"You can buy a 'Foreign Reagent' for 2 Trinkets (Weight 2/3) It provides [TAG 2].": '장신구 2개로 Foreign Reagent(외지 영약재, 무게 2/3)를 살 수 있습니다. 이 영약재는 [TAG 2]를 제공합니다.'
+  ,'How\'s about we trade?" This friendly otter will swap their newly found Pearl for 3 Trinkets, or a Part from any of the following Reagents; Big Fish, Small Fish, Beehive, Blackcurrant, Cucumber, Strawberries, Roses, Wild Garlic': '“거래할래요?” 친절한 수달은 방금 찾은 Pearl(진주)을 장신구 3개, 또는 Big Fish·Small Fish·Beehive·Blackcurrant·Cucumber·Strawberries·Roses·Wild Garlic 중 영약재 부위 하나와 바꾸어 줍니다.'
+  ,'Reduce any current Timers by 1.': '현재 타이머 하나를 골라 1 줄입니다.'
 };
 
 const optionTranslations: Record<string, string> = {
@@ -690,7 +738,10 @@ const getGeneratedEncounterOptionMap = (): Map<string, string> => {
 const translatedManualEffectValue = (text: string): string | undefined => {
   const compact = text.trim();
   const normalized = normalizeTranslationKey(compact);
-  const translated = exactTranslations[compact] || exactTranslations[normalized] || generatedTranslationMap[hashTranslationKey(compact)];
+  const translated = reviewedEncounterChoiceMap.get(normalized)
+    || exactTranslations[compact]
+    || exactTranslations[normalized]
+    || generatedTranslationMap[hashTranslationKey(compact)];
   return translated ? normalizeCanonicalGuildReputationTerms(polishGenericRuleTerms(translated)) : undefined;
 };
 

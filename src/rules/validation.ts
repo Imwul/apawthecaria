@@ -242,8 +242,8 @@ export const validateCanonicalData = (): ValidationReport => {
     ['Seasons', SEASONS.length, 4],
     ['Tags', TAG_DEFINITIONS.length, 22],
     ['Printed Effects', PRINTED_EFFECT_REGISTRY.length, ENCOUNTERS.length + AILMENTS.length]
-    ,['Implemented Printed Effects', PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'implemented').length, 30]
-    ,['Manual Printed Effects', PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'manual').length, 328]
+    ,['Implemented Printed Effects', PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'implemented').length, 46]
+    ,['Manual Printed Effects', PRINTED_EFFECT_REGISTRY.filter(row => row.status === 'manual').length, 312]
     ,['Barrow Delves', BARROW_DELVES.length, 8]
     ,['Guild Services', GUILD_SERVICES.length, 17]
     ,['Tool Upgrades', TOOL_UPGRADES.length, 7]
