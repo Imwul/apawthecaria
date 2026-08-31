@@ -13364,3 +13364,380 @@ details.rulebook-source-text > summary {
 .chapter-opening__copy {
   max-width: 100%;
 }
+
+/* =================================================================
+   VISUAL POLISH PASS
+   Keep the existing field-journal system, but make the next decision,
+   case notes, encounters, and specimen records easier to scan. These
+   rules are intentionally presentation-only and narrowly scoped.
+   ================================================================= */
+
+/* A quieter masthead leaves more of the working page in the first view. */
+.journal-app:not(.journal-app--onboarding) .journal-header {
+  min-height: 128px;
+  padding: 2rem 2.25rem 1rem;
+}
+
+.journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title {
+  font-size: clamp(3rem, 5vw, 4.25rem) !important;
+  line-height: 0.92;
+}
+
+.journal-app:not(.journal-app--onboarding) .grid-dashboard {
+  padding-top: 1.15rem;
+}
+
+/* Bring the current scene and its action controls forward without moving them. */
+.today-overview {
+  margin-bottom: 1.75rem;
+}
+
+.today-focus .today-scene__copy {
+  justify-content: center;
+  padding: 1.75rem 2rem;
+}
+
+.today-focus .today-scene__copy > p {
+  margin-top: 0;
+}
+
+.today-focus .today-scene__copy h2 {
+  margin-block: 0.35rem 0.85rem;
+}
+
+.today-focus .today-scene__actions {
+  margin-top: 0.65rem;
+}
+
+.today-focus .campaign-continuity {
+  gap: 0.65rem;
+  padding: 0.85rem 0.95rem;
+}
+
+.today-focus .campaign-continuity__facts > div {
+  padding: 0.45rem 0.6rem;
+}
+
+.today-focus .campaign-continuity__goal,
+.today-focus .campaign-continuity__clock-note {
+  padding: 0.52rem 0.62rem;
+}
+
+.today-focus .campaign-continuity__guidance {
+  padding-top: 0.5rem;
+}
+
+.today-story--resume > article {
+  min-height: 136px;
+  padding: 1rem 1.1rem 1.1rem;
+}
+
+.today-story--resume > article::before {
+  margin-bottom: 0.42rem;
+}
+
+/* Restore the action tones that the editorial surface deliberately softened. */
+.action-hub {
+  gap: 0.9rem;
+  padding-block: 1.45rem 1.75rem;
+}
+
+.action-hub__header h2 {
+  font-size: 1.32rem;
+  line-height: 1.25;
+}
+
+.action-step,
+.action-step--primary,
+.action-step--warning,
+.action-step--done {
+  min-height: 104px;
+}
+
+.action-step--warning {
+  background: color-mix(in srgb, var(--editorial-yellow) 46%, var(--editorial-paper));
+  box-shadow: inset 4px 0 0 var(--warning);
+}
+
+.action-step--primary {
+  background: color-mix(in srgb, var(--editorial-green) 46%, var(--editorial-paper));
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.action-step--done {
+  background: color-mix(in srgb, var(--editorial-mint) 34%, var(--editorial-paper));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--success) 68%, transparent);
+}
+
+.action-step--warning .action-step__index {
+  border-color: var(--warning);
+  background: var(--warning);
+  color: #fff;
+}
+
+.action-step--primary .action-step__index {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+.action-step--warning .action-step__body strong,
+.action-step--primary .action-step__body strong {
+  font-size: 0.98rem;
+}
+
+/* Patient care reads as a case sheet, with the presentation separated from
+   the working remedy area by one restrained rule and a pale clinical surface. */
+.main-content-panel #patient-clinic-panel {
+  padding: clamp(1rem, 2vw, 1.5rem) !important;
+  border: 1px solid rgba(91, 74, 57, 0.34) !important;
+  border-top: 3px double rgba(91, 74, 57, 0.62) !important;
+  background: rgba(255, 253, 246, 0.62) !important;
+}
+
+#patient-clinic-panel > h3 {
+  gap: 0.65rem 1rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid rgba(91, 74, 57, 0.26);
+  font-size: clamp(1.08rem, 2vw, 1.3rem) !important;
+  line-height: 1.35;
+}
+
+#patient-clinic-panel .grid-patient-stats {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border-left: 3px solid color-mix(in srgb, var(--berry) 60%, transparent);
+  background: color-mix(in srgb, var(--editorial-pink) 22%, transparent);
+}
+
+#patient-clinic-panel .grid-patient-stats p {
+  max-width: 70ch;
+  line-height: 1.72 !important;
+}
+
+#patient-clinic-panel .patient-workflow__treatment {
+  padding: 1rem 1rem 1.2rem;
+  background: rgba(255, 253, 246, 0.72);
+}
+
+#patient-clinic-panel div[style*='font-size: 0.78rem'],
+#patient-clinic-panel span[style*='font-size: 0.78rem'] {
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+}
+
+/* Encounter prose is a field entry inside one scrolling sheet. */
+.encounter-dialog__stage,
+.encounter-journal-note {
+  width: min(100%, 72ch);
+  margin-inline: auto;
+}
+
+.encounter-dialog__prompt {
+  max-height: none;
+  overflow: visible;
+  line-height: 1.75;
+}
+
+.encounter-choice-list {
+  gap: 0.68rem;
+}
+
+.encounter-choice-button {
+  padding: 0.8rem 0.9rem;
+}
+
+.encounter-resolution__summary,
+.encounter-resolution__journal,
+.controlled-prompt.app-dialog .app-dialog__message {
+  max-width: 72ch;
+  line-height: 1.68;
+}
+
+/* Keep tool rows practical while giving gathered material a specimen-entry
+   identity. No extra cards or texture are introduced. */
+.bio-workbench > div:first-child > div:has(> .inventory-ledger-scroll) {
+  padding-block: 0.75rem;
+  border-top: 1px solid rgba(79, 109, 88, 0.24);
+}
+
+.bio-workbench > div:first-child > div:has(> .inventory-ledger-scroll)
+  + div:has(> .inventory-ledger-scroll) {
+  margin-top: 0.25rem;
+  padding: 0.85rem 0.75rem;
+  border-left: 3px solid color-mix(in srgb, var(--primary) 62%, transparent);
+  background: color-mix(in srgb, var(--editorial-green) 22%, transparent);
+}
+
+.forage-discovery-surface__intro {
+  max-width: 72ch;
+  line-height: 1.65;
+}
+
+.forage-candidate {
+  padding-block: 0.68rem;
+}
+
+.herbarium-entry__marks span {
+  font-size: 0.76rem;
+}
+
+/* At ordinary laptop widths the secondary header tools stay available as
+   labeled controls for assistive technology, while their icons leave the
+   centered journal title a clear reading lane. */
+@media (max-width: 1500px) {
+  .journal-app:not(.journal-app--onboarding) .journal-header__action span:not(.emoji-icon),
+  .journal-app:not(.journal-app--onboarding) .journal-header__icon-button span:not(.emoji-icon),
+  .journal-app:not(.journal-app--onboarding) .save-state {
+    display: none;
+  }
+
+  .journal-app:not(.journal-app--onboarding) .journal-header__action .emoji-icon,
+  .journal-app:not(.journal-app--onboarding) .journal-header__icon-button .emoji-icon {
+    display: inline-block !important;
+  }
+
+  .journal-app:not(.journal-app--onboarding) .journal-header__action,
+  .journal-app:not(.journal-app--onboarding) .journal-header__icon-button {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+  }
+}
+
+@media (min-width: 1081px) {
+  .today-focus .campaign-continuity {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .today-focus .campaign-continuity__heading {
+    grid-column: 1 / -1;
+  }
+
+  .today-focus .campaign-continuity:has(> .campaign-continuity__clock-note)
+    .campaign-continuity__clock-note {
+    grid-column: 1;
+  }
+
+  .today-focus .campaign-continuity:has(> .campaign-continuity__clock-note)
+    .campaign-continuity__guidance {
+    grid-column: 2;
+    padding-top: 0.52rem;
+    border-top: 0;
+  }
+}
+
+/* Mobile retains the same hierarchy while preserving touch targets and a
+   single scroll surface for long dialogs. */
+@media (max-width: 800px) {
+  .journal-app:not(.journal-app--onboarding) .journal-header {
+    min-height: 154px;
+    padding: 3rem 0.85rem 0.75rem !important;
+  }
+
+  .journal-app:not(.journal-app--onboarding) .grid-dashboard {
+    padding-top: 0.75rem;
+  }
+
+  .today-focus .today-scene {
+    min-height: 300px;
+  }
+
+  .today-focus .today-scene__copy {
+    padding: 1.25rem;
+  }
+
+  .today-focus .today-scene__copy h2 {
+    font-size: clamp(2.1rem, 10vw, 2.7rem);
+  }
+
+  .today-story--resume > article {
+    min-height: 0;
+  }
+
+  .main-content-panel #patient-clinic-panel {
+    padding: 1rem !important;
+    background: rgba(255, 253, 246, 0.5) !important;
+  }
+
+  #patient-clinic-panel > h3 {
+    align-items: flex-start !important;
+    flex-direction: column;
+  }
+
+  .character-continuity__footer {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .character-continuity__footer > div {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .character-continuity__footer p,
+  .character-continuity__footer > div > strong {
+    overflow-wrap: anywhere;
+  }
+
+  .phase4-modal.controlled-prompt.app-dialog {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .journal-app:not(.journal-app--onboarding) button,
+  .journal-app:not(.journal-app--onboarding) [role='button'],
+  .app-dialog :is(button, input, select, textarea),
+  .encounter-dialog :is(button, input, select, textarea) {
+    min-height: 44px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title {
+    font-size: clamp(2rem, 9.4vw, 2.35rem) !important;
+    letter-spacing: -0.015em;
+    white-space: nowrap;
+  }
+
+  .journal-app:not(.journal-app--onboarding) .journal-brand__title span {
+    display: inline;
+  }
+
+  .today-focus .campaign-continuity__facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .today-focus .campaign-continuity__facts > div {
+    border-right: 1px dashed rgba(77, 70, 56, 0.2);
+  }
+
+  .today-focus .campaign-continuity__facts > div:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .today-focus .campaign-continuity__facts > div:nth-child(-n + 2) {
+    border-bottom: 1px dashed rgba(77, 70, 56, 0.2);
+  }
+
+  .encounter-dialog__stage,
+  .encounter-journal-note {
+    width: 100%;
+  }
+
+  .bio-workbench > div:first-child > div:has(> .inventory-ledger-scroll)
+    + div:has(> .inventory-ledger-scroll) {
+    padding-inline: 0.55rem;
+  }
+}
+
+@media (max-width: 340px) {
+  .today-focus .campaign-continuity__facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .today-focus .campaign-continuity__facts > div {
+    border-right: 0;
+  }
+}
