@@ -9,6 +9,13 @@ const manualSource = readFileSync(fileURLToPath(new URL('./components/ManualEffe
 const rulebookContextSource = readFileSync(fileURLToPath(new URL('./components/RulebookSourceContext.tsx', import.meta.url)), 'utf8');
 
 describe('encounter player-experience guards', () => {
+  it('uses scene summaries in travel, barter/social, and forage journals instead of generic button labels', () => {
+    expect(appSource.match(/encounterOutcomeSummary\(/g)).toHaveLength(3);
+    expect(appSource).toContain('const selectedSocialOutcome = encounterOutcomeSummary(');
+    expect(appSource).toMatch(/const selectedOutcome = selectedTravelChoice\s*\? encounterOutcomeSummary\(/);
+    expect(appSource).toMatch(/const selectedForageOutcome = selectedEncounterChoice\s*\? encounterOutcomeSummary\(/);
+  });
+
   it('waits for account bootstrap before opening an editable campaign', () => {
     expect(appSource).toContain('const [cloudBootstrapComplete, setCloudBootstrapComplete]');
     expect(appSource).toContain('if (loading || !cloudBootstrapComplete || !state)');

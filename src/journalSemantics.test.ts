@@ -4,6 +4,7 @@ import {
   createEncounterSemantic,
   createManualResolutionSemantic,
   createPlayerMemorySemantic,
+  encounterOutcomeSummary,
   isActivityJournalEntry,
   isLongJournalMemory,
   journalEntriesNewestFirst,
@@ -17,6 +18,8 @@ import {
   type TimedJournalEntryLike
 } from './journalSemantics';
 import { formatManualEffectJournalEntry } from './manualEffectJournal';
+import { ENCOUNTERS } from './rules/data/encounters';
+import { localizeManualEffectOption } from './localization/manualEffectKo';
 
 const timedEntry = (
   id: string,
@@ -26,6 +29,52 @@ const timedEntry = (
 ): TimedJournalEntryLike => ({ id, title, text, timestamp });
 
 describe('Journal semantic boundaries', () => {
+  it('records the scene instead of a generic navigation label without inventing player prose', () => {
+    const semantic = createEncounterSemantic({
+      note: '',
+      outcome: '기록하고 계속\n추가로 바뀐 수치 없이 장면을 기록했습니다.',
+      sourceTitle: '버릇없는 새',
+      sourcePrompt: 'What are the birds saying?'
+    });
+    expect(semantic.category).toBe('gameplay-event');
+    expect(semantic.memory).toBeUndefined();
+    expect(semantic.outcome).toBe('「버릇없는 새」 장면을 기록했습니다.\n추가로 바뀐 수치 없이 장면을 기록했습니다.');
+    expect(semantic.source?.prompt).toBe('What are the birds saying?');
+  });
+
+  it('replaces generated continue labels across every encounter family', () => {
+    const genericEncounters = ENCOUNTERS.filter(encounter =>
+      encounter.choices.some(choice => choice.label === '기록하고 계속'));
+    expect(new Set(genericEncounters.map(encounter => encounter.encounterType))).toEqual(new Set(['travel', 'foraging', 'social']));
+    for (const encounter of genericEncounters) {
+      for (const choice of encounter.choices.filter(row => row.label === '기록하고 계속')) {
+        const localized = localizeManualEffectOption(choice.label, encounter.id, choice.id);
+        const outcome = encounterOutcomeSummary(localized, encounter.title);
+        expect(outcome, encounter.id).not.toBe('기록하고 계속');
+        expect(outcome, encounter.id).toContain(encounter.title);
+      }
+    }
+  });
+
+  it('preserves meaningful choices, consequences, and player memories that resemble button labels', () => {
+    const choice = '그냥 지나가기 — 길드 명성 1을 잃습니다.';
+    expect(encounterOutcomeSummary(choice, '홍수')).toBe(choice);
+    const semantic = createEncounterSemantic({ note: '기록하고 계속', outcome: choice, sourceTitle: '홍수' });
+    expect(semantic.memory).toBe('기록하고 계속');
+    expect(semantic.outcome).toBe(choice);
+  });
+
+  it('repairs the display of old application-owned outcomes without changing stored notes', () => {
+    const entry: JournalEntryLike = {
+      title: '사회 조우: 버릇없는 새',
+      text: '기록하고 계속',
+      semantic: { version: 1, category: 'gameplay-event', origin: 'encounter', outcome: '기록하고 계속' }
+    };
+    expect(presentJournalEntry(entry).outcome).toBe('「버릇없는 새」 장면을 기록했습니다.');
+    expect(entry.semantic?.outcome).toBe('기록하고 계속');
+    expect(presentJournalEntry({ ...entry, semantic: { ...entry.semantic!, origin: 'player', memory: '기록하고 계속' } }).memory).toBe('기록하고 계속');
+  });
+
   it('keeps a short Encounter note primary and separates outcome, context, and provenance', () => {
     const note = '검사관이 말없이 길을 열어 주었다.';
     const entry = {

@@ -424,12 +424,22 @@ export const createEncounterSemantic = ({
     category: hasMemory ? 'player-memory' : 'gameplay-event',
     origin: 'encounter',
     memory: hasMemory ? note : undefined,
-    outcome: outcome || undefined,
+    outcome: encounterOutcomeSummary(outcome, sourceTitle) || undefined,
     context: location || season ? { location, season } : undefined,
     source: sourcePage || sourceTitle || sourcePrompt || sourceChoices?.length
       ? { page: sourcePage, title: sourceTitle, prompt: sourcePrompt, choices: sourceChoices }
       : undefined
   };
+};
+
+/** Only application-owned outcome text is eligible; never rewrite player memory. */
+export const encounterOutcomeSummary = (outcome: string, sourceTitle?: string): string => {
+  const [firstLine, ...details] = outcome.split('\n');
+  // These are navigation labels, not a choice made inside the fiction. Keep
+  // meaningful choices (including “그냥 지나가기”) and all result details.
+  if (!/^(?:기록하고 계속|기록하고 계속하기|계속|계속하기|확인|완료|Record and continue|Continue)$/i.test(firstLine.trim())) return outcome;
+  const title = sourceTitle?.trim();
+  return [title ? `「${title}」 장면을 기록했습니다.` : '조우 장면을 기록했습니다.', ...details].join('\n');
 };
 
 export const createManualResolutionSemantic = ({
@@ -648,7 +658,9 @@ export const presentJournalEntry = (entry: JournalEntryLike): JournalPresentatio
       category: semantic.category,
       origin: semantic.origin,
       memory: semantic.memory || '',
-      outcome: semantic.outcome || '',
+      outcome: semantic.origin === 'encounter'
+        ? encounterOutcomeSummary(semantic.outcome || '', semantic.source?.title || entry.title.replace(ENCOUNTER_TITLE, ''))
+        : semantic.outcome || '',
       context: semantic.context || {},
       source: semantic.source || {},
       ...(semantic.audit ? { audit: semantic.audit } : {})

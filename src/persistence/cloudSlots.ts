@@ -4,7 +4,7 @@ import {
   campaignSaveHasProgress,
   parseCampaignSaveRaw
 } from './campaignSave';
-import { normalizeSaveRevision } from './revision';
+import { nextCampaignSaveRevision, normalizeSaveRevision } from './revision';
 
 export const CLOUD_SLOT_COUNT = 3;
 export const CLOUD_SLOTS_FIELD = 'apawthecaria_cloud_slots';
@@ -229,10 +229,25 @@ export const clearCloudAccountBinding = (storage: Pick<Storage, 'removeItem'> = 
   try {
     storage.removeItem(CLOUD_ACCOUNT_BINDING_KEY);
     memoryCloudAccountBinding = null;
+    return true;
   } catch {
-    // Best effort; an unavailable local store cannot retain the binding.
+    // Reads may still expose the old binding even when writes are rejected.
     memoryCloudAccountBinding = null;
+    return false;
   }
+};
+
+/** The caller must durably detach before replacing the local campaign. A
+ * failed metadata write leaves the downloaded record unbound, including after
+ * reload; never connect a new campaign to an old persisted slot. */
+export const bindDownloadedCloudCampaign = (
+  uid: string,
+  slot: CloudSlotId,
+  storage: Pick<Storage, 'setItem' | 'removeItem'> = localStorage
+) => {
+  if (writeActiveCloudSlot(slot, storage) && writeCloudAccountBinding(uid, storage)) return true;
+  clearCloudAccountBinding(storage);
+  return false;
 };
 
 export const parseUploadedAt = (value: unknown): string | null => {
@@ -341,9 +356,98 @@ export const cloudSlotRecordFromPayload = (
   payloadFingerprint: cloudPayloadFingerprint(payload)
 });
 
+type PayloadIdentity = { saveRevision: number; payloadFingerprint: string };
+type HydrationRepairBase = PayloadIdentity & { kind: string; ancestors?: PayloadIdentity[] };
+const hydratedSourceIdentity = new WeakMap<object, PayloadIdentity>();
+const HYDRATION_ANCESTOR_LIMIT = 16;
+
+const repairBaseFromSave = (value: unknown): HydrationRepairBase | null => {
+  const candidate = value && typeof value === 'object'
+    ? (value as { hydrationRepairBase?: unknown }).hydrationRepairBase
+    : null;
+  if (!candidate || typeof candidate !== 'object') return null;
+  const base = candidate as HydrationRepairBase;
+  if (!['state-recovery-v1', 'timer-expiry-v1'].includes(base.kind)
+    || typeof base.payloadFingerprint !== 'string'
+    || !/^fnv1a-[0-9a-f]{8}-\d+$/.test(base.payloadFingerprint)) return null;
+  return {
+    ...base,
+    saveRevision: normalizeSaveRevision(base.saveRevision),
+    ancestors: Array.isArray(base.ancestors)
+      ? base.ancestors.filter(row => row && typeof row.payloadFingerprint === 'string'
+        && /^fnv1a-[0-9a-f]{8}-\d+$/.test(row.payloadFingerprint))
+        .map(row => ({ saveRevision: normalizeSaveRevision(row.saveRevision), payloadFingerprint: row.payloadFingerprint }))
+        .slice(-HYDRATION_ANCESTOR_LIMIT)
+      : []
+  };
+};
+
+const payloadIdentity = (payload: string): PayloadIdentity => ({
+  saveRevision: revisionFromPayload(payload),
+  payloadFingerprint: cloudPayloadFingerprint(payload)
+});
+
+/** Keep exact recent parents, not merely a shared repair origin. Two devices
+ * can repair the same save and then make different choices. Older unproven
+ * branches require a player decision instead of growing an unbounded ledger. */
+export const recordCampaignHydrationAncestry = <T extends { saveRevision: number }>(previous: T, next: T): T => {
+  const previousBase = repairBaseFromSave(previous);
+  const base = repairBaseFromSave(next) || previousBase;
+  if (!base) return next;
+  const sameBase = previousBase?.saveRevision === base.saveRevision
+    && previousBase?.payloadFingerprint === base.payloadFingerprint;
+  const candidates = sameBase
+    ? [...(previousBase?.ancestors || []), ...(base.ancestors || []),
+        hydratedSourceIdentity.get(previous), payloadIdentity(JSON.stringify(previous))]
+    : base.ancestors || [];
+  const unique = new Map<string, PayloadIdentity>();
+  for (const row of candidates) {
+    if (!row || row.saveRevision < base.saveRevision || row.saveRevision >= next.saveRevision) continue;
+    unique.set(`${row.saveRevision}:${row.payloadFingerprint}`, row);
+  }
+  const ancestors = [...unique.values()].sort((a, b) => a.saveRevision - b.saveRevision).slice(-HYDRATION_ANCESTOR_LIMIT);
+  return { ...next, hydrationRepairBase: { ...base, ancestors } };
+};
+
+/** A repair is a real state transition, unlike harmless schema hydration.
+ * Retain its source identity so incrementing the revision cannot conceal an
+ * already divergent copy on another device. Ordinary schema normalization is
+ * not a repair; callers must pass explicit evidence for earlier repair stages. */
+export const finalizeCampaignHydrationRepair = <T extends { saveRevision: number }>(
+  sourcePayload: string,
+  hydrated: T,
+  repaired: T,
+  earlierRepairApplied = false
+): { state: T; repaired: boolean } => {
+  const source = parseCampaignSaveRaw(sourcePayload);
+  const previousBase = source.ok ? repairBaseFromSave(source.value) : null;
+  const sourceIdentity = payloadIdentity(sourcePayload);
+  const result = repaired === hydrated && !earlierRepairApplied
+    ? { state: hydrated, repaired: false }
+    : {
+      state: {
+        ...repaired,
+        saveRevision: nextCampaignSaveRevision(hydrated.saveRevision, repaired.saveRevision),
+        hydrationRepairBase: previousBase ? {
+          ...previousBase,
+          ancestors: [...(previousBase.ancestors || []), sourceIdentity].slice(-HYDRATION_ANCESTOR_LIMIT)
+        } : {
+          kind: 'state-recovery-v1',
+          ...sourceIdentity
+        }
+      },
+      repaired: true
+    };
+  // Only an in-memory identity is needed: don't persist a normalized copy at
+  // the same revision merely to remember which exact cloud payload it came from.
+  hydratedSourceIdentity.set(result.state, sourceIdentity);
+  return result;
+};
+
 /**
- * Detects the one cross-device divergence that revision ordering alone cannot
- * resolve: two different campaign bodies carrying the same save revision.
+ * Detects cross-device divergence that revision ordering alone cannot resolve:
+ * different bodies with the same revision, including the source revision of
+ * a locally repaired campaign that has not yet reached this cloud slot.
  * The caller must stop automatic sync and ask the player which copy to keep.
  */
 export const cloudSlotHasSameRevisionConflict = (
@@ -352,10 +456,18 @@ export const cloudSlotHasSameRevisionConflict = (
 ): boolean => {
   if (!localPayload || !cloudRecord) return false;
   const local = summarizeCloudUploadSource(localPayload);
-  if (!local.available || local.saveRevision !== normalizeSaveRevision(cloudRecord.saveRevision)) return false;
+  if (!local.available) return false;
+  const cloudRevision = normalizeSaveRevision(cloudRecord.saveRevision);
   const cloudFingerprint = cloudRecord.payloadFingerprint
     || (cloudRecord.payload ? cloudPayloadFingerprint(cloudRecord.payload) : '');
-  return Boolean(cloudFingerprint) && cloudPayloadFingerprint(localPayload) !== cloudFingerprint;
+  if (!cloudFingerprint) return false;
+  if (local.saveRevision === cloudRevision) return cloudPayloadFingerprint(localPayload) !== cloudFingerprint;
+  const parsed = parseCampaignSaveRaw(localPayload);
+  const base = parsed.ok ? repairBaseFromSave(parsed.value) : null;
+  if (!base || cloudRevision < base.saveRevision || cloudRevision >= local.saveRevision) return false;
+  const knownParent = [base, ...(base.ancestors || [])].some(parent =>
+    parent.saveRevision === cloudRevision && parent.payloadFingerprint === cloudFingerprint);
+  return !knownParent;
 };
 
 const recordFromUnknown = (slot: CloudSlotId, value: unknown, fallbackUploadedAt: string | null): CloudSlotRecord | null => {

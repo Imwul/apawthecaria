@@ -9,6 +9,18 @@ const routeComposerSource = readFileSync(fileURLToPath(new URL('./components/Rou
 const cssSource = readFileSync(fileURLToPath(new URL('./index.css', import.meta.url)), 'utf8');
 
 describe('mobile layout regression guards', () => {
+  it('never hides save feedback and wraps long cloud/error states outside the title lane', () => {
+    const rules = [...cssSource.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+    const hiddenSaveRules = rules.filter(([, selector, declarations]) =>
+      selector.includes('.save-state') && /display\s*:\s*none\b/.test(declarations));
+    expect(hiddenSaveRules).toEqual([]);
+    expect(cssSource).toMatch(/\.journal-header \.journal-header__utilities\s*\{[^}]*position:\s*static;[^}]*flex-wrap:\s*wrap;/);
+    expect(cssSource).toMatch(/\.journal-header \.save-state\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
+    expect(cssSource).toMatch(/\.journal-header \.save-state\s*\{[^}]*flex-basis:\s*100%;/);
+    expect(appSource).toContain("saveStatus === 'error' || localSaveUnavailable ? 'error' : saveStatus");
+    expect(appSource).toContain("role={saveStatus === 'error' || localSaveUnavailable ? 'alert' : 'status'}");
+  });
+
   it('allows multi-option ailment requirements to wrap inside the document gutter', () => {
     expect(appSource).toContain('className="tag-choice-group"');
     expect(appSource).toContain('className="ailment-card__outcomes"');

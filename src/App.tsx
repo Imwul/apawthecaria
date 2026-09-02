@@ -36,7 +36,9 @@ import {
   cloudSlotRecordFromPayload,
   cloudSlotTombstoneBlocksWrite,
   clearCloudAccountBinding,
+  bindDownloadedCloudCampaign,
   emptyCloudSlotViews,
+  finalizeCampaignHydrationRepair,
   formatCloudPayloadBytes,
   formatCloudSlotUploadedAt,
   manualSlotDownloadConfirmationMessage,
@@ -48,6 +50,7 @@ import {
   readActiveCloudSlot,
   readCloudAccountBinding,
   readCloudSlotsFromDocument,
+  recordCampaignHydrationAncestry,
   splitCloudPayload,
   summarizeCloudUploadSource,
   writeCloudAccountBinding,
@@ -108,6 +111,7 @@ import {
 import { RouteComposer } from "./components/RouteComposer";
 import { MapNodeAppearance } from "./map/MapNodeAppearance";
 import { clearCharacterJournalSource, isCharacterJournalId, mergeCharacterJournals } from "./characterJournals";
+import { CHARACTER_CREATION_CHOICES, getCharacterCreationIssues, getRestorableCharacterDraftFields, isCharacterChoiceConfirmed, type CharacterChoiceField } from './characterCreation';
 import {
   EMPTY_WORKFLOW_DRAFTS,
   normalizePendingTreatmentReward,
@@ -122,7 +126,7 @@ import {
   type PendingTreatmentReward,
   type WorkflowDrafts
 } from "./workflowDrafts";
-import { classifyDeviceSaveFailure, preferDeviceSave, readDeviceSave, removeDeviceSave, writeDeviceSave, type DeviceSaveFailure } from './persistence/deviceSave';
+import { classifyDeviceSaveFailure, persistDeviceSaveReplacement, preferDeviceSave, readDeviceSave, removeDeviceSave, writeDeviceSave, type DeviceSaveFailure } from './persistence/deviceSave';
 import {
   FAMILIAR_BENEFITS,
   createPreparedReagentItem,
@@ -527,8 +531,11 @@ import {
 } from './foragingRecovery';
 import {
   applyGlobalActiveTimerCost,
+  currentTimerRecoveryPatientIds,
   patientHasActiveAilments,
-  resolveExpiredPatientAfterTimer
+  patientTimerArchiveContext,
+  resolveExpiredPatientAfterTimer,
+  unsettledExpiredAilmentIds
 } from './rules/patientFailureRecovery';
 import { enqueueOfflineSave, flushOfflineSaves, normalizeOfflineSaveEntries, offlineSaveRequiresManualResolution, reconcileOfflineSaveFlush, removeOfflineSavesThroughRevision, resolveRevisionConflict, type OfflineSaveEntry } from './persistence/saveQueue';
 import type { RulebookReferenceRequest } from './rulebook/types';
@@ -545,12 +552,14 @@ import {
 } from './journeyUiContext';
 import { applyCalendarAdvance, readCalendarClocks } from './calendarTime';
 import { resetJourneyForPlanning } from './journeyRecovery';
+import { reconcileAbandonedJourneyAnnotations, setBarrowAnnotationRemoved, visibleMapEncounterRecords, type JourneyResetStamp } from './journeyAnnotationRecovery';
 import {
   appendPlayerFacingEngineJournals,
   createEncounterSemantic,
   createGameplayEventSemantic,
   createManualResolutionSemantic,
   createPlayerMemorySemantic,
+  encounterOutcomeSummary,
   isActivityJournalEntry,
   isLongJournalMemory,
   journalEntriesNewestFirst,
@@ -797,7 +806,7 @@ const cloudWriteErrorMessage = (error: { code?: string; message?: string } | nul
     return '확인하는 동안 다른 기기에서 이 슬롯이 변경되었습니다. 최신 슬롯을 다시 확인한 뒤 올려 주세요.';
   }
   if (code === 'cloud-slot-newer' || message === 'cloud-slot-newer') {
-    return '다른 기기의 더 최신 기록이 있어 자동 업로드하지 않았습니다. 클라우드 기록을 열어 두 기록을 확인해 주세요.';
+    return '다른 기기에서 이어간 기록과 충돌하여 자동 업로드하지 않았습니다. 클라우드 기록을 열어 두 기록을 확인해 주세요.';
   }
   if (code === 'cloud-slot-deleted' || message === 'cloud-slot-deleted') {
     return '이 슬롯은 다른 기기에서 삭제되었습니다. 자동 저장 연결을 멈췄습니다. 다시 사용하려면 클라우드 기록을 열어 원하는 슬롯에 직접 올려 주세요.';
@@ -1041,7 +1050,8 @@ const writeCloudSlotRecord = async (
         const currentFingerprint = currentRecord.payloadFingerprint
           || (currentRecord.payload ? cloudPayloadFingerprint(currentRecord.payload) : '');
         const incomingFingerprint = storedRecord.payloadFingerprint || '';
-        if (currentRecord.saveRevision > record.saveRevision
+        if (cloudSlotHasSameRevisionConflict(record.payload, currentRecord)
+          || currentRecord.saveRevision > record.saveRevision
           || (currentRecord.saveRevision === record.saveRevision && currentFingerprint !== incomingFingerprint)) {
           throw cloudSlotError('cloud-slot-newer');
         }
@@ -1922,6 +1932,7 @@ interface GameState {
 
   // New features
   barrows?: Barrow[];
+  journeyResetHistory?: JourneyResetStamp[];
   activeDelve?: ActiveDelve | null;
   pursuedByBehemoth?: PursuedByBehemoth | null;
   nextMoveSpeedOverride: number | null;
@@ -4124,12 +4135,12 @@ const toLeaveRuntime = (s: GameState, patient: PatientState): LeaveRuntimeState 
     appliedTransactionIds: s.appliedTransactionIds,
     activePatientId: s.activePatientId,
     patientArchive: s.patientArchive,
-    archiveContext: {
+    archiveContext: patientTimerArchiveContext(patient.id, s.patientArchive, {
       location: s.currentLocationName,
       encounteredAt: s.journey?.startDate || Date.now(),
       resolvedAt: Date.now(),
       sourceJourneyId: s.journey?.journeyId || null
-    }
+    })
   };
 };
 
@@ -4182,6 +4193,9 @@ const settleExpiredPatientAfterTimer = (
   // object replace the already archived/penalized canonical Patient.
   if (state.appliedTransactionIds.includes(`${transactionId}:failure`)
     || state.appliedTransactionIds.includes(`${transactionId}:leave`)) return state;
+  if (unsettledExpiredAilmentIds(patient).length === 0) {
+    return { ...state, patients: replacePatient(state.patients, patient) };
+  }
   const recovered = resolveExpiredPatientAfterTimer({
     transactionId,
     state: toLeaveRuntime(state, patient),
@@ -4254,6 +4268,74 @@ const settleExpiredPatientAfterTimer = (
   );
 };
 
+/** Finish current-workflow expiries, including a Patient hidden by a newly
+ * started encounter case. Historical archive mirrors must never replay a
+ * penalty or mutate today's local-care gate or Knights quest on hydration. */
+const reconcileUnsettledPatientTimers = (state: GameState, transactionPrefix: string): GameState => {
+  let next = state;
+  const patientIds = currentTimerRecoveryPatientIds({
+    patients: state.patients,
+    patientArchive: state.patientArchive,
+    workflowPatientIds: [
+      state.activePatientId,
+      state.pendingForaging?.immediateRemedyPatientId,
+      state.pendingBarter && !['completed', 'abandoned'].includes(state.pendingBarter.status)
+        ? state.pendingBarter.patientId : null,
+      state.pendingManualEffect?.context.patientId,
+      state.pendingTreatmentReward?.patientId
+    ],
+    currentJourneyId: state.journey?.journeyId || null,
+    currentLocationName: state.currentLocationName
+  });
+  for (const patientId of patientIds) {
+    const patient = next.patients.find(row => row.id === patientId);
+    if (!patient) continue;
+    const expiredIds = unsettledExpiredAilmentIds(patient);
+    if (expiredIds.length === 0) continue;
+    const currentPatientId = next.activePatientId;
+    const currentNeedsLocalHelp = next.needsLocalHelpBeforeMove;
+    const currentTreatmentDraft = next.treatmentDraft;
+    const previousPatientId = patient.ailments
+      .map(ailment => ailment.specialState?.previousActivePatientId)
+      .find((id): id is string => typeof id === 'string');
+    const restoreId = currentPatientId && currentPatientId !== patient.id
+      ? currentPatientId
+      : previousPatientId;
+    const beforeJourneyId = next.journey?.journeyId;
+    next = settleExpiredPatientAfterTimer(
+      next,
+      patient,
+      `${transactionPrefix}:${patient.id}:${expiredIds.sort().join(',')}`
+    );
+    const settled = next.patients.find(row => row.id === patient.id);
+    const restorePatient = restoreId && next.patients.find(row => row.id === restoreId && patientHasActiveAilments(row));
+    if (restorePatient && (!settled || !patientHasActiveAilments(settled) || restoreId === currentPatientId)
+      && next.journey?.journeyId === beforeJourneyId) {
+      next = {
+        ...next,
+        activePatientId: restorePatient.id,
+        needsLocalHelpBeforeMove: restoreId === currentPatientId ? currentNeedsLocalHelp : true,
+        treatmentDraft: restoreId === currentPatientId ? currentTreatmentDraft : null
+      };
+    }
+    if (settled && !patientHasActiveAilments(settled) && next.pendingBarter?.patientId === settled.id
+      && !['completed', 'abandoned'].includes(next.pendingBarter.status)) {
+      next = {
+        ...next,
+        pendingBarter: {
+          ...next.pendingBarter,
+          status: 'abandoned',
+          manualResolution: undefined,
+          awaitingImmediateRemedy: false,
+          immediateRemedyPatientId: undefined,
+          immediateRemedyAilmentIds: undefined
+        }
+      };
+    }
+  }
+  return next;
+};
+
 /** Keep the p.33/p.35 deferred Timer and its Remedy gate in one atomic state
  * transition. Any Bag/Tool mutation passes through updateState, so a Remedy
  * that ceases to be possible cannot strand the campaign behind a stale gate. */
@@ -4285,7 +4367,7 @@ const reconcileGameImmediateRemedyCheckpoints = (state: GameState): GameState =>
       patients: result.patient ? replacePatient(next.patients, result.patient) : next.patients
     };
     if (result.timerApplied && result.patient) {
-      next = settleExpiredPatientAfterTimer(next, result.patient, transactionId);
+      next = reconcileUnsettledPatientTimers(next, transactionId);
     }
   };
 
@@ -5815,9 +5897,12 @@ const patientCreationContextFor = (value: GameState): PatientCreationDraft['cont
   diagnosisKey: patientDiagnosisContextKeyFor(value)
 });
 
-const migrateState = (s: any): GameState => {
+const migrateState = (s: any, onAnnotationRepair?: () => void): GameState => {
   if (!s) return INITIAL_STATE;
   s = migrateLegacyTerminology(migrateSavedRulesState(s)) as any;
+  const beforeAnnotationRepair = s;
+  s = reconcileAbandonedJourneyAnnotations(s);
+  if (s !== beforeAnnotationRepair) onAnnotationRepair?.();
   const migratedCurrentLocationName = typeof s.currentLocationName === 'string' && s.currentLocationName.trim()
     ? localizeLocationName(s.currentLocationName)
     : '';
@@ -6090,8 +6175,29 @@ const migrateState = (s: any): GameState => {
   });
 };
 
-const migrateCampaignSave = (raw: unknown): { ok: true; state: GameState } | { ok: false } =>
-  tryMigrateCampaignSave(raw, migrateState);
+const migrateCampaignSave = (
+  raw: unknown,
+  sourcePayload = JSON.stringify(raw)
+): { ok: true; state: GameState; repaired: boolean } | { ok: false } => {
+  let annotationsRepaired = false;
+  const migrated = tryMigrateCampaignSave(raw, value => migrateState(value, () => { annotationsRepaired = true; }));
+  if (!migrated.ok) return { ok: false };
+  const repaired = reconcileUnsettledPatientTimers(migrated.state, 'recovered-timer-expiry');
+  return { ok: true, ...finalizeCampaignHydrationRepair(sourcePayload, migrated.state, repaired, annotationsRepaired) };
+};
+
+const persistHydratedCampaignLocally = async (state: GameState, replacingCampaign = false, stillCurrent?: () => boolean) => {
+  const snapshot = JSON.stringify(state);
+  if (replacingCampaign) return persistDeviceSaveReplacement(CAMPAIGN_SAVE_KEY, snapshot, { stillCurrent });
+  try {
+    localStorage.setItem(CAMPAIGN_SAVE_KEY, snapshot);
+    void removeDeviceSave(CAMPAIGN_SAVE_KEY);
+    return { localSaved: true, localFailure: null };
+  } catch (error) {
+    const localSaved = await writeDeviceSave(CAMPAIGN_SAVE_KEY, snapshot);
+    return { localSaved, localFailure: localSaved ? null : classifyDeviceSaveFailure(error) };
+  }
+};
 
 const exportRawCampaignSave = async () => {
   const raw = preferDeviceSave(
@@ -7078,10 +7184,10 @@ export default function App() {
           return;
         }
 
-        const loadCloudRecord = (record: CloudSlotRecord) => {
+        const loadCloudRecord = async (record: CloudSlotRecord) => {
           if (cloudBootstrapSkipped.current || !bootstrapStillCurrent()) return false;
           const parsed = parseCampaignSaveRaw(record.payload);
-          const migrated = parsed.ok ? migrateCampaignSave(parsed.value) : { ok: false as const };
+          const migrated = parsed.ok ? migrateCampaignSave(parsed.value, record.payload) : { ok: false as const };
           if (!migrated.ok) {
             setCloudSyncStatus('local-only');
             return false;
@@ -7090,18 +7196,27 @@ export default function App() {
           // draft first. Reloading the same slot is an intentional overwrite and
           // must not race an automatic upload of the state being replaced.
           if (record.slot !== readActiveCloudSlot()) flushWorkflowDrafts();
+          if (!clearCloudAccountBinding()) {
+            setCloudSyncStatus('local-only');
+            showAlert('기기의 클라우드 연결 정보를 안전하게 변경할 수 없어 내려받기를 중단했습니다. 현재 기록은 그대로입니다. 브라우저의 사이트 데이터 저장 권한을 확인해 주세요.');
+            return false;
+          }
+          const localSave = await persistHydratedCampaignLocally(migrated.state, true, () => !cloudBootstrapSkipped.current && bootstrapStillCurrent());
+          if (cloudBootstrapSkipped.current || !bootstrapStillCurrent()) return false;
+          if (!localSave.localSaved) {
+            setSaveStatus('error');
+            setLocalSaveFailure(localSave.localFailure);
+            setCloudSyncStatus('local-only');
+            showAlert('클라우드 기록을 기기에 안전하게 저장하지 못해 내려받기를 중단했습니다. 현재 기록은 보존했고 자동 동기화 연결은 해제했습니다. 기기 저장 권한과 사이트 데이터 한도를 확인한 뒤 다시 내려받아 주세요.');
+            return false;
+          }
+          const bindingSaved = bindDownloadedCloudCampaign(u.uid, record.slot);
           resetCampaignScopedUi();
           setState(migrated.state);
-          const localSnapshot = JSON.stringify(migrated.state);
-          if (safeLocalStorageSetItem(CAMPAIGN_SAVE_KEY, localSnapshot)) {
-            void removeDeviceSave(CAMPAIGN_SAVE_KEY);
-          } else {
-            void writeDeviceSave(CAMPAIGN_SAVE_KEY, localSnapshot);
-          }
-          writeActiveCloudSlot(record.slot);
-          setActiveCloudSlot(record.slot);
-          writeCloudAccountBinding(u.uid);
-          setCloudSyncStatus('synced');
+          setSaveStatus(localSave.localSaved ? 'saved' : 'error');
+          setLocalSaveFailure(localSave.localFailure);
+          setActiveCloudSlot(bindingSaved ? record.slot : readActiveCloudSlot());
+          setCloudSyncStatus(!bindingSaved || migrated.repaired ? 'local-only' : 'synced');
           const cleaned = removeOfflineSavesThroughRevision(readSaveOutbox(), {
             key: CAMPAIGN_SAVE_KEY,
             ownerUid: u.uid,
@@ -7111,13 +7226,15 @@ export default function App() {
           writeSaveOutbox(cleaned);
           setPendingCloudSaveCount(pendingCloudSaveCountForUser(u.uid, cleaned));
           const name = migrated.state.bio?.name?.trim() || record.name;
-          showAlert(name ? `${name} 약제사 기록을 불러왔습니다.` : '클라우드 기록을 불러왔습니다.');
+          showAlert(!bindingSaved
+            ? '기록은 기기에 저장했지만 클라우드 연결 정보를 저장하지 못해 자동 동기화를 해제했습니다. 사이트 데이터 저장 권한을 확인한 뒤 원하는 슬롯에 다시 연결해 주세요.'
+            : name ? `${name} 약제사 기록을 불러왔습니다.` : '클라우드 기록을 불러왔습니다.');
           return true;
         };
 
         if (cloudRecord) {
           if (!localHasProgress) {
-            loadCloudRecord(cloudRecord);
+            await loadCloudRecord(cloudRecord);
             return;
           }
           if (!accountMatches && localRaw === cloudRecord.payload) {
@@ -7145,7 +7262,7 @@ export default function App() {
             });
             if (!bootstrapStillCurrent()) return;
             if (choice === 'load-cloud') {
-              loadCloudRecord(cloudRecord);
+              await loadCloudRecord(cloudRecord);
             } else {
               clearCloudAccountBinding();
               setCloudSyncStatus('local-only');
@@ -7163,10 +7280,13 @@ export default function App() {
             // Keep both copies untouched until the player chooses one.
             clearCloudAccountBinding();
             setCloudSyncStatus('local-only');
+            const conflictHasSameRevision = localRevision === cloudRecord.saveRevision;
             const choice = await requestControlledPrompt({
               kicker: '클라우드 기록',
-              title: '같은 버전의 서로 다른 기록이 있습니다',
-              message: `이 기기와 클라우드 슬롯 ${cloudRecord.slot}의 저장 버전은 ${localRevision}로 같지만 내용이 다릅니다. 클라우드 기록을 내려받으면 현재 기기 기록을 덮어씁니다. 기기 기록을 유지하면 자동 동기화하지 않으며, 나중에 ‘클라우드 기록’에서 직접 올릴 수 있습니다.`,
+              title: conflictHasSameRevision ? '같은 버전의 서로 다른 기록이 있습니다' : '다른 기기에서 이어간 기록이 있습니다',
+              message: `${conflictHasSameRevision
+                ? `이 기기와 클라우드 슬롯 ${cloudRecord.slot}의 저장 버전은 ${localRevision}로 같지만 내용이 다릅니다.`
+                : `이 기기 기록은 자동 복구 후 저장 버전 ${localRevision}이 되었지만, 클라우드 슬롯 ${cloudRecord.slot}의 버전 ${cloudRecord.saveRevision}은 이 기록에서 이어진 진행인지 확인할 수 없습니다.`} 클라우드 기록을 내려받으면 현재 기기 기록을 덮어씁니다. 기기 기록을 유지하면 자동 동기화하지 않으며, 나중에 ‘클라우드 기록’에서 직접 올릴 수 있습니다.`,
               defaultValue: 'load-cloud',
               hideField: true,
               cancelLabel: '이 기기 기록 유지',
@@ -7174,7 +7294,7 @@ export default function App() {
             });
             if (!bootstrapStillCurrent()) return;
             if (choice === 'load-cloud') {
-              loadCloudRecord(cloudRecord);
+              await loadCloudRecord(cloudRecord);
             } else {
               clearCloudAccountBinding();
               setCloudSyncStatus('local-only');
@@ -7209,7 +7329,7 @@ export default function App() {
             });
             if (!bootstrapStillCurrent()) return;
             if (choice === 'load-cloud') {
-              loadCloudRecord(cloudRecord);
+              await loadCloudRecord(cloudRecord);
             } else {
               clearCloudAccountBinding();
               setCloudSyncStatus('local-only');
@@ -7289,7 +7409,7 @@ export default function App() {
       const raw = preferDeviceSave(localRaw, deviceRaw);
       if (raw) {
         const parsed = parseCampaignSaveRaw(raw);
-        const migrated = parsed.ok ? migrateCampaignSave(parsed.value) : { ok: false as const };
+        const migrated = parsed.ok ? migrateCampaignSave(parsed.value, raw) : { ok: false as const };
         if (!migrated.ok) {
           failLoad(parsed.ok
             ? '저장 데이터를 올리지 못했습니다. 기존 기록은 디스크에서 지우지 않았습니다.'
@@ -7297,15 +7417,18 @@ export default function App() {
           setLoading(false);
           return;
         }
+        let repairSave: Awaited<ReturnType<typeof persistHydratedCampaignLocally>> | null = null;
+        if (migrated.repaired) repairSave = await persistHydratedCampaignLocally(migrated.state);
         setState(migrated.state);
         setSaveLoadError(null);
-        setSaveStatus('saved');
-        if (raw === deviceRaw && raw !== localRaw) {
+        setSaveStatus(repairSave && !repairSave.localSaved ? 'error' : 'saved');
+        setLocalSaveFailure(repairSave?.localFailure || null);
+        if (!migrated.repaired && raw === deviceRaw && raw !== localRaw) {
           const promotedSnapshot = JSON.stringify(migrated.state);
           if (safeLocalStorageSetItem(CAMPAIGN_SAVE_KEY, promotedSnapshot)) {
             void removeDeviceSave(CAMPAIGN_SAVE_KEY);
           }
-        } else {
+        } else if (!migrated.repaired) {
           void removeDeviceSave(CAMPAIGN_SAVE_KEY);
         }
         if (campaignSaveHasProgress(migrated.state)) setCloudBootstrapComplete(true);
@@ -7316,10 +7439,12 @@ export default function App() {
       if (loaded) {
         const migrated = migrateCampaignSave(loaded);
         if (migrated.ok) {
+          const repairSave = migrated.repaired ? await persistHydratedCampaignLocally(migrated.state) : null;
           setState(migrated.state);
           setSaveLoadError(null);
-          setSaveStatus('saved');
-          void removeDeviceSave(CAMPAIGN_SAVE_KEY);
+          setSaveStatus(repairSave && !repairSave.localSaved ? 'error' : 'saved');
+          setLocalSaveFailure(repairSave?.localFailure || null);
+          if (!migrated.repaired) void removeDeviceSave(CAMPAIGN_SAVE_KEY);
           if (campaignSaveHasProgress(migrated.state)) setCloudBootstrapComplete(true);
         } else {
           failLoad('저장 데이터를 올리지 못했습니다. 기존 기록은 디스크에서 지우지 않았습니다.');
@@ -7471,6 +7596,7 @@ export default function App() {
         saveRevision: nextCampaignSaveRevision(prev.saveRevision, next.saveRevision)
       };
       next = syncWorldMemory(next);
+      next = recordCampaignHydrationAncestry(prev, next);
 
       void store.set(CAMPAIGN_SAVE_KEY, next).then(result => {
         if (requestId !== saveRequestSequence) return;
@@ -7815,10 +7941,10 @@ export default function App() {
       }
       if (selectedChoiceId) {
         const selectedSocialChoice = encounter.choices.find(choice => choice.id === selectedChoiceId);
-        const selectedSocialOutcome = selectedSocialChoice
-          ? localizeManualEffectOption(selectedSocialChoice.label, encounter.id, selectedSocialChoice.id)
-          : '사교 조우를 해결했습니다.';
         const socialEncounterTitle = localizeEncounterTitle(encounter.title, encounter.id);
+        const selectedSocialOutcome = encounterOutcomeSummary(selectedSocialChoice
+          ? localizeManualEffectOption(selectedSocialChoice.label, encounter.id, selectedSocialChoice.id)
+          : '사교 조우를 해결했습니다.', socialEncounterTitle);
         if (encounterChoiceRequiresJournal(encounter, selectedChoiceId)) {
           const note = await requestControlledPrompt({
             title: `${encounter.title} · 일지 기록`,
@@ -7875,7 +8001,7 @@ export default function App() {
           patient: socialP1Patch.nextState.patient
         };
         const leftover = executed.value.unresolvedEffects.length > 0 && !socialP1Patch;
-        updateState(s => {
+        const applyResolvedSocialEncounter = (s: GameState): GameState => {
           const runtimeState = resolvedSocialState;
           const patients = runtimeState.patient
             ? s.patients.map(row => row.id === runtimeState.patient!.id
@@ -7930,30 +8056,23 @@ export default function App() {
               : null;
             next = enqueueManualDrafts(next, [draft]);
           }
-          return next;
-        });
+          return reconcileUnsettledPatientTimers(next, `${pending.barterId}:social-timer`);
+        };
+        const resolvedGameState = applyResolvedSocialEncounter(state);
+        updateState(applyResolvedSocialEncounter);
         if (leftover) {
           showAlert('인쇄된 사교 효과를 적용했습니다. 남은 서술 판정을 마친 뒤 두 번째 카드를 뽑을 수 있습니다.');
           return;
         }
-        let resolvedGameState: GameState = {
-          ...state,
-          reputation: resolvedSocialState.reputation,
-          trinkets: Array.from({ length: resolvedSocialState.trinkets }, (_, index) => state.trinkets[index] || '사교 조우 장신구'),
-          calendarDays: resolvedSocialState.calendarDays,
-          bag: fromEngineInventory(resolvedSocialState.inventory, state.bag),
-          patients: resolvedSocialState.patient
-            ? state.patients.map(row => row.id === resolvedSocialState.patient!.id
-              ? { ...resolvedSocialState.patient!, foragingPoints: resolvedSocialState.foragingPoints }
-              : row)
-            : state.patients,
-          appliedEncounterEffectIds: resolvedSocialState.appliedEffectIds,
-          manualConditions: remapEncounterConditions(resolvedSocialState.conditions, state)
-        };
-        if (socialP1Patch) resolvedGameState = applyEncounterP1TransactionState(resolvedGameState, socialP1Patch.nextState);
-        runtime = toBarterRuntime(resolvedGameState, resolvedSocialState.patient
-          ? { ...resolvedSocialState.patient, foragingPoints: resolvedSocialState.foragingPoints }
-          : patient);
+        const resolvedPatient = resolvedGameState.patients.find(row => row.id === patient.id) || patient;
+        if (!patientHasActiveAilments(resolvedPatient)) {
+          showAlert('사교 조우 중 환자 타이머가 만료되어 실패 결과를 정산하고 물꼬 거래를 마감했습니다. 남은 장면을 확인한 뒤 다음 행동으로 이어가세요.');
+          return;
+        }
+        // The next Barter transaction must inherit the settled Patient,
+        // penalties and transaction ids, not overwrite them with the earlier
+        // encounter snapshot.
+        runtime = toBarterRuntime(resolvedGameState, resolvedPatient);
       } else {
         const savedDraft = state.manualEffectQueue.find(draft => draft.context.barterId === pending.barterId);
         const draft = savedDraft || createPrintedManualDraft(pending.socialEncounter.id, 'encounter', {
@@ -8499,27 +8618,41 @@ export default function App() {
       const payload = await readCloudSlotPayload(record, uid);
       if (!operationStillCurrent()) return;
       const parsed = parseCampaignSaveRaw(payload);
-      const migrated = parsed.ok ? migrateCampaignSave(parsed.value) : { ok: false as const };
+      const migrated = parsed.ok ? migrateCampaignSave(parsed.value, payload) : { ok: false as const };
       if (!migrated.ok) {
         showAlert('클라우드 기록을 읽지 못했습니다. 로컬 기록은 그대로 둡니다.');
         return;
       }
+      // Detach durably before changing the campaign: a readable stale slot
+      // must never receive the downloaded record if metadata writes fail.
+      if (!clearCloudAccountBinding()) {
+        setCloudSyncStatus('local-only');
+        showAlert('기기의 클라우드 연결 정보를 안전하게 변경할 수 없어 내려받기를 중단했습니다. 현재 기록은 그대로입니다. 브라우저의 사이트 데이터 저장 권한을 확인해 주세요.');
+        return;
+      }
+      const localSave = await persistHydratedCampaignLocally(migrated.state, true, operationStillCurrent);
+      if (!operationStillCurrent()) return;
+      if (!localSave.localSaved) {
+        setSaveStatus('error');
+        setLocalSaveFailure(localSave.localFailure);
+        setCloudSyncStatus('local-only');
+        showAlert('클라우드 기록을 기기에 안전하게 저장하지 못해 캠페인 전환을 중단했습니다. 현재 기록은 보존했고 자동 동기화 연결은 해제했습니다. 기기 저장 권한과 사이트 데이터 한도를 확인한 뒤 다시 내려받아 주세요.');
+        return;
+      }
+      // No await may separate the slot binding from exposing its campaign.
+      // Otherwise a mounted draft/map effect can save the new record into the
+      // previous slot while IndexedDB is still completing the local restore.
+      const bindingSaved = bindDownloadedCloudCampaign(uid, slot);
       if (resumeSuspendedWorkflowDrafts) {
         controlWorkflowDrafts('discard');
         resumeSuspendedWorkflowDrafts = false;
       }
       resetCampaignScopedUi();
       setState(migrated.state);
-      const localSnapshot = JSON.stringify(migrated.state);
-      if (safeLocalStorageSetItem(CAMPAIGN_SAVE_KEY, localSnapshot)) {
-        await removeDeviceSave(CAMPAIGN_SAVE_KEY);
-      } else {
-        await writeDeviceSave(CAMPAIGN_SAVE_KEY, localSnapshot);
-      }
-      writeActiveCloudSlot(slot);
-      setActiveCloudSlot(slot);
-      writeCloudAccountBinding(uid);
-      setCloudSyncStatus('synced');
+      setActiveCloudSlot(bindingSaved ? slot : readActiveCloudSlot());
+      setSaveStatus(localSave.localSaved ? 'saved' : 'error');
+      setLocalSaveFailure(localSave.localFailure);
+      setCloudSyncStatus(!bindingSaved || migrated.repaired ? 'local-only' : 'synced');
       const cleaned = removeOfflineSavesThroughRevision(readSaveOutbox(), {
         key: CAMPAIGN_SAVE_KEY,
         ownerUid: uid,
@@ -8529,7 +8662,9 @@ export default function App() {
       writeSaveOutbox(cleaned);
       setPendingCloudSaveCount(pendingCloudSaveCountForUser(uid, cleaned));
       const name = migrated.state.bio?.name?.trim() || record.name;
-      showAlert(name ? `슬롯 ${slot}에서 ${name} 약제사 기록을 내려받았습니다.` : `슬롯 ${slot} 기록을 내려받았습니다.`);
+      showAlert(!bindingSaved
+        ? '기록은 기기에 저장했지만 클라우드 연결 정보를 저장하지 못해 자동 동기화를 해제했습니다. 사이트 데이터 저장 권한을 확인한 뒤 원하는 슬롯에 다시 연결해 주세요.'
+        : name ? `슬롯 ${slot}에서 ${name} 약제사 기록을 내려받았습니다.` : `슬롯 ${slot} 기록을 내려받았습니다.`);
     } catch (error) {
       if (!operationStillCurrent()) return;
       console.error('Failed to download cloud slot:', error);
@@ -11025,10 +11160,13 @@ export default function App() {
       : '추가로 바뀐 수치 없이 장면을 기록했습니다.';
     const selectedTravelChoice = encounter.choices
       .find(choice => choice.id === defaultEncounterChoiceId(encounter, selectedChoiceId));
-    const selectedOutcome = selectedTravelChoice
-      ? localizeManualEffectOption(selectedTravelChoice.label, encounter.id, selectedTravelChoice.id).split(/\s+[—-]\s+/)[0]
-      : undefined;
     const encounterDisplayTitle = localizeEncounterTitle(printedEffect?.ownerName || encounter.title, encounter.id);
+    const selectedOutcome = selectedTravelChoice
+      ? encounterOutcomeSummary(
+        localizeManualEffectOption(selectedTravelChoice.label, encounter.id, selectedTravelChoice.id).split(/\s+[—-]\s+/)[0],
+        encounterDisplayTitle
+      )
+      : undefined;
     updateState(s => {
       let patients = runtime.patient
         ? replacePatient(s.patients, { ...runtime.patient, foragingPoints: runtime.foragingPoints })
@@ -11215,6 +11353,7 @@ export default function App() {
         `${pending.transactionId}:fixed-remedy-immediate-failure`,
         fixedImmediateRemedyFailure
       );
+      next = reconcileUnsettledPatientTimers(next, `${pending.transactionId}:encounter-timer`);
       next = enqueueManualDrafts(
         manualDraft || travelP0Patch?.forceSeasonRest
           ? next
@@ -11239,6 +11378,8 @@ export default function App() {
           ? '강제 휴식이 끝나 새 계절이 시작되었습니다. 다음 여정을 준비하세요.'
         : fixedRemedyPatient && fixedRemedyDecision
           ? `${fixedRemedyDecision.remedy.displayName} 치료 기록을 열었습니다. 환자 치료로 이어가세요.`
+        : runtime.patient && unsettledExpiredAilmentIds(runtime.patient).length > 0
+          ? '타이머가 만료된 질환의 실패 결과를 정산했습니다. 남은 질환이나 후속 장면을 확인한 뒤 계속하세요.'
         : encounter.encounterType === 'social'
           ? '정착지 화면에서 현지 의무와 다음 행동을 확인하세요.'
           : runtime.movementBlocked
@@ -11707,10 +11848,13 @@ export default function App() {
       };
     }
     const printedEffect = PRINTED_EFFECT_BY_OWNER.get(encounter.id || pending.encounterId || '');
-    const selectedForageOutcome = selectedEncounterChoice
-      ? localizeManualEffectOption(selectedEncounterChoice.label, encounter.id, selectedEncounterChoice.id)
-      : undefined;
     const encounterDisplayTitle = localizeEncounterTitle(printedEffect?.ownerName || encounter.title, encounter.id);
+    const selectedForageOutcome = selectedEncounterChoice
+      ? encounterOutcomeSummary(
+        localizeManualEffectOption(selectedEncounterChoice.label, encounter.id, selectedEncounterChoice.id),
+        encounterDisplayTitle
+      )
+      : undefined;
     const unresolvedBeyondStructuredFollowUp = encounterResult.value.unresolvedEffects.filter(effect =>
       !(encounterPatientFollowUp
         && effect.effect.type === 'customEffect'
@@ -12048,9 +12192,7 @@ export default function App() {
         const attempt = resolveBarrowForageAttempt(`barrow:attempt:${pending.transactionId}`, toBarrowRuntime(next));
         if (attempt.value) next = applyBarrowRuntime(next, attempt.value);
       }
-      if (patient && !manualDraft) {
-        next = settleExpiredPatientAfterTimer(next, patient, `${pending.transactionId}:post-foraging-timer`);
-      }
+      next = reconcileUnsettledPatientTimers(next, `${pending.transactionId}:post-foraging-timer`);
       return enqueueManualDrafts(next, [manualDraft]);
     });
     foragingUndoCheckpointRef.current = null;
@@ -12304,7 +12446,7 @@ export default function App() {
               )}
             </>
           )}
-          <span className={`save-state save-state--${saveStatus}`} role={saveStatus === 'error' || localSaveUnavailable ? 'alert' : 'status'} aria-live="polite" title={saveStatus === 'error' || localSaveUnavailable ? (localSaveFailure === 'quota' ? '사이트 데이터 한도나 비공개 탐색 제한을 확인하고 기록을 내보내 주세요.' : '브라우저의 사이트 저장 권한을 확인하고 기록을 내보내 주세요.') : undefined}>
+          <span className={`save-state save-state--${saveStatus === 'error' || localSaveUnavailable ? 'error' : saveStatus}`} role={saveStatus === 'error' || localSaveUnavailable ? 'alert' : 'status'} aria-live="polite" title={saveStatus === 'error' || localSaveUnavailable ? (localSaveFailure === 'quota' ? '사이트 데이터 한도나 비공개 탐색 제한을 확인하고 기록을 내보내 주세요.' : '브라우저의 사이트 저장 권한을 확인하고 기록을 내보내 주세요.') : undefined}>
             {saveStatusText}
           </span>
         </div>
@@ -12664,6 +12806,7 @@ export default function App() {
                     key={`atlas-${campaignUiEpoch}`}
                     state={state}
                     updateState={updateState}
+                    requestControlledPrompt={requestControlledPrompt}
                     onOpenReference={openRulebookReference}
                   />
                 )}
@@ -12898,6 +13041,7 @@ export default function App() {
                     if (completed.value) next = applyServiceRuntime(next, completed.value.nextState);
                   }
 
+                  next = reconcileUnsettledPatientTimers(next, `${transaction.id}:manual-encounter-timer`);
                   if (draft.context.continuation === 'barter-social' && next.pendingBarter?.status === 'manual-social' && next.pendingBarter.socialEncounter && next.pendingBarter.firstCard) {
                     const barterPatient = next.patients.find(row => row.id === next.pendingBarter?.patientId);
                     if (barterPatient) {
@@ -12935,13 +13079,7 @@ export default function App() {
                         : next.patients,
                       pendingForaging: pendingForagingAfterEncounterCheckpoint(foragePending, foragingCheckpoint)
                     };
-                    if (patientAfterTime) {
-                      next = settleExpiredPatientAfterTimer(
-                        next,
-                        patientAfterTime,
-                        `${foragePending.transactionId}:post-foraging-timer`
-                      );
-                    }
+                    next = reconcileUnsettledPatientTimers(next, `${foragePending.transactionId}:post-foraging-timer`);
                   }
                   if (draft.context.continuation === 'travel') next = applyArrivalInstrumentEffects(next, draft.context.encounterTransactionId || transaction.id);
                   return next;
@@ -16976,7 +17114,7 @@ function PlayView({
       if (!state.journeyActive) return;
       const choice = await requestControlledPrompt({
         title: '이번 여정만 처음부터 다시 준비할까요?',
-        message: '현재 여정의 목적지·목표·경과일·경로와 진행 중인 환자·조우·채집 판정을 정리하고, 이번 여정의 출발 위치로 돌아갑니다. 약제사, 가방, Guild Reputation, 지도 수정, 환자 기록장, 과거 일지와 캠페인 누적 일수는 그대로 둡니다.',
+        message: '현재 여정의 목적지·목표·경과일·경로와 진행 중인 환자·조우·채집 판정, 이 여정에서 남긴 고분·조우 지도 표식을 정리하고 출발 위치로 돌아갑니다. 약제사, 가방, Guild Reputation, 직접 수정한 지도 경로, 환자 기록장, 과거 일지와 캠페인 누적 일수는 그대로 둡니다.',
         defaultValue: 'keep',
         kicker: '여정 복구',
         label: '선택',
@@ -17012,7 +17150,7 @@ function PlayView({
       };
       const timestamp = Date.now();
       updateState((current: GameState) => {
-        const reset = resetJourneyForPlanning(current, resetOrigin);
+        const reset = resetJourneyForPlanning(current, resetOrigin, timestamp);
         return {
           ...reset,
           workflowDrafts: { ...reset.workflowDrafts, journey: null },
@@ -19630,18 +19768,23 @@ function PlayView({
     updateState((s: GameState) => {
       const nextScroungingTimer = s.scroungingTimer ? Math.max(0, s.scroungingTimer - project.hours) : s.scroungingTimer;
       const patient = getActivePatient(s);
-      const nextPatient = patient && !s.scroungingTimer
-        ? resolveTimer({ patient, hours: project.hours }).value
+      const nextPatient = patient
+        ? s.scroungingMode
+          ? { ...patient, timers: patient.timers.map(timer => ({ ...timer, current: Math.max(0, timer.current - project.hours) })) }
+          : resolveTimer({ patient, hours: project.hours }).value
         : null;
-      return {
+      const next: GameState = {
         ...s,
         scroungingTimer: nextScroungingTimer,
+        scroungingMode: s.scroungingMode && Boolean(nextScroungingTimer && nextScroungingTimer > 0),
+        activePatientId: s.scroungingMode && !nextScroungingTimer ? null : s.activePatientId,
         patients: nextPatient ? replacePatient(s.patients, nextPatient) : s.patients,
         bag: fromEngineInventory(result.value!.inventory, s.bag),
         toolStates: result.value!.tools,
         appliedTransactionIds: result.value!.appliedTransactionIds,
         journals: appendEngineJournals(s.journals, result.value!.journalEvents)
       };
+      return reconcileUnsettledPatientTimers(next, `${transaction.id}:knitting-timer`);
     });
   };
 
@@ -24308,6 +24451,11 @@ function PlayView({
               <button onClick={handleStartDelve} style={{ padding: '0.7rem 1rem', background: '#876442', color: '#fff', fontWeight: 'bold' }}>
                 도전 카드 펼치기
               </button>
+              <details style={{ marginTop: '0.8rem', color: 'var(--text-muted)' }}>
+                <summary>이전 여정에서 잘못 남은 표식인가요?</summary>
+                <p>고분 표식만 정리합니다. 보상·날짜·지도 경로와 과거 일지는 바꾸지 않습니다.</p>
+                <BarrowAnnotationControl barrow={currentBarrow} updateState={updateState} requestControlledPrompt={requestControlledPrompt} />
+              </details>
             </div>
           )}
 
@@ -25730,18 +25878,38 @@ const WizardFieldCard = ({ title, children }: { title: string; children: React.R
   </div>
 );
 
-const WizardChoiceSelect = ({ value, onChange, items, labelKey = 'name' }: { value: string; onChange: (item: any) => void; items: any[]; labelKey?: string }) => (
+const WizardChoiceSelect = ({ value, onChange, items, labelKey = 'name', label }: { value: string; onChange: (item: any) => void; items: any[]; labelKey?: string; label: string }) => (
   <select
     className="wizard-choice-select"
+    aria-label={label}
     value={value}
-    onChange={e => onChange(items.find(item => item[labelKey] === e.target.value) || items[0])}
+    onChange={e => {
+      const selected = items.find(item => item[labelKey] === e.target.value);
+      if (selected) onChange(selected);
+    }}
   >
+    <option value="" disabled>— 직접 선택하세요 —</option>
     {items.map(item => (
       <option key={`${item.card || item.suit}_${item[labelKey]}`} value={item[labelKey]}>
         {item.card || item.suit} - {localizeCharacterChoiceLabel(String(item[labelKey]))}
       </option>
     ))}
   </select>
+);
+
+const WizardAnimalChoices = ({ examples, onPick }: { examples: string; onPick: (value: string) => void }) => (
+  <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+    {examplesToOptions(examples).map(option => (
+      <button
+        key={option}
+        type="button"
+        onClick={() => onPick(option)}
+        style={{ padding: '0.25rem 0.55rem', border: '1px solid var(--glass-border)', borderRadius: '999px', background: '#fffdf8', color: 'var(--text-muted)', fontSize: '0.8rem' }}
+      >
+        {option}
+      </button>
+    ))}
+  </div>
 );
 
 // =================================================================
@@ -25764,12 +25932,28 @@ function CharacterCreationWizard({
   const initialBenefit = bioChoices.familiars.find((f: any) => state.bio.familiarBenefit.includes(f.name)) || bioChoices.familiars[1];
   const initialRelationship = bioChoices.relationships.find((r: any) => state.bio.familiarRelation.includes(r.name)) || bioChoices.relationships[1];
   const savedDraft = !state.bio.name.trim() ? state.workflowDrafts.character : null;
-  const savedTouched = new Set(savedDraft?.touched || []);
+  const choiceCatalog: Record<CharacterChoiceField, readonly { name: string }[]> = {
+    descriptorName: bioChoices.descriptors,
+    travelName: bioChoices.travelStyles,
+    originName: bioChoices.origins,
+    familiarDescriptorName: bioChoices.descriptors,
+    familiarBenefitName: bioChoices.familiars,
+    relationshipName: bioChoices.relationships
+  };
+  // A malformed/restored choice must not turn its display fallback into a decision.
+  const savedTouched = new Set(getRestorableCharacterDraftFields(savedDraft, choiceCatalog));
   const savedText = (field: CharacterDraftField, fallback: string) => savedTouched.has(field)
     ? String(savedDraft?.[field] || '')
     : fallback;
-  const savedChoice = (field: CharacterDraftField, items: any[], fallback: any) => {
-    if (!savedTouched.has(field)) return fallback;
+  const savedChoice = (field: CharacterChoiceField, items: any[], fallback: any) => {
+    if (!savedTouched.has(field)) {
+      const key = CHARACTER_CREATION_CHOICES.find(choice => choice.field === field)!.card;
+      const card = savedDraft?.cards[key];
+      if (card) return field === 'travelName' || field === 'originName'
+        ? findBySuit(items, card.suit)
+        : findByCard(items, cardRuleValue(card as PlayingCard));
+      return fallback;
+    }
     const name = String(savedDraft?.[field] || '');
     return items.find(item => item.name === name) || fallback;
   };
@@ -25805,7 +25989,8 @@ function CharacterCreationWizard({
   const [draft, setDraftState] = useState<CharacterWizardLocalDraft>(createInitialLocalDraft);
   const [wizardCards, setWizardCardsState] = useState<Record<string, PlayingCard | null>>(() => ({ ...(savedDraft?.cards || {}) }));
   const [hasCharacterDraftEdits, setHasCharacterDraftEdits] = useState(Boolean(savedDraft));
-  const touchedFieldsRef = useRef<Set<CharacterDraftField>>(new Set(savedDraft?.touched || []));
+  const [touchedFields, setTouchedFields] = useState<Set<CharacterDraftField>>(savedTouched);
+  const touchedFieldsRef = useRef<Set<CharacterDraftField>>(savedTouched);
   const draftRef = useRef(draft);
   const wizardCardsRef = useRef(wizardCards);
   const persistedCharacterDraftRef = useRef(JSON.stringify(savedDraft ? { ...savedDraft, updatedAt: 0 } : null));
@@ -25820,7 +26005,8 @@ function CharacterCreationWizard({
     if (!externalName || draftRef.current.name.trim() || touchedFieldsRef.current.has('name')) return;
     const next = { ...draftRef.current, name: externalName };
     draftRef.current = next;
-    touchedFieldsRef.current.add('name');
+    touchedFieldsRef.current = new Set([...touchedFieldsRef.current, 'name']);
+    setTouchedFields(touchedFieldsRef.current);
     setDraftState(next);
     setHasCharacterDraftEdits(true);
   }, [savedDraft?.name]);
@@ -25848,18 +26034,20 @@ function CharacterCreationWizard({
     : String(value ?? '');
   const setDraft: Dispatch<SetStateAction<CharacterWizardLocalDraft>> = updater => {
     setHasCharacterDraftEdits(true);
-    setDraftState(current => {
-      const next = typeof updater === 'function'
-        ? (updater as (value: CharacterWizardLocalDraft) => CharacterWizardLocalDraft)(current)
-        : updater;
-      (Object.keys(fieldByLocalKey) as Array<keyof CharacterWizardLocalDraft>).forEach(key => {
-        if (comparableLocalValue(current[key]) !== comparableLocalValue(next[key])) {
-          touchedFieldsRef.current.add(fieldByLocalKey[key]);
-        }
-      });
-      draftRef.current = next;
-      return next;
+    const current = draftRef.current;
+    const next = typeof updater === 'function'
+      ? (updater as (value: CharacterWizardLocalDraft) => CharacterWizardLocalDraft)(current)
+      : updater;
+    const nextTouched = new Set(touchedFieldsRef.current);
+    (Object.keys(fieldByLocalKey) as Array<keyof CharacterWizardLocalDraft>).forEach(key => {
+      if (comparableLocalValue(current[key]) !== comparableLocalValue(next[key])) {
+        nextTouched.add(fieldByLocalKey[key]);
+      }
     });
+    touchedFieldsRef.current = nextTouched;
+    draftRef.current = next;
+    setTouchedFields(nextTouched);
+    setDraftState(next);
   };
   const setWizardCards: Dispatch<SetStateAction<Record<string, PlayingCard | null>>> = updater => {
     setHasCharacterDraftEdits(true);
@@ -25872,31 +26060,48 @@ function CharacterCreationWizard({
     });
   };
 
+  const selectCharacterChoice = (key: 'descriptor' | 'travel' | 'origin' | 'familiarDescriptor' | 'familiarBenefit' | 'relationship', item: any) => {
+    const field = fieldByLocalKey[key] as CharacterChoiceField;
+    const cardKey = CHARACTER_CREATION_CHOICES.find(choice => choice.field === field)!.card;
+    // Selecting the preview's default still counts as an explicit choice.
+    touchedFieldsRef.current = new Set([...touchedFieldsRef.current, field]);
+    setWizardCards(cards => ({ ...cards, [cardKey]: null }));
+    setDraft(current => ({ ...current, [key]: item }));
+  };
+
+  const characterValues = (current: CharacterWizardLocalDraft): Record<CharacterDraftField, string> => ({
+    name: current.name,
+    descriptorName: current.descriptor.name,
+    animal: current.animal,
+    travelName: current.travel.name,
+    originName: current.origin.name,
+    originJournal: current.originJournal,
+    mementoNote: current.mementoNote,
+    familiarName: current.familiarName,
+    familiarDescriptorName: current.familiarDescriptor.name,
+    familiarAnimal: current.familiarAnimal,
+    familiarBenefitName: current.familiarBenefit.name,
+    relationshipName: current.relationship.name,
+    familiarJournal: current.familiarJournal,
+    relationshipJournal: current.relationshipJournal,
+    resourcefulReagent: current.resourcefulReagent,
+    ingenuitiveTool: current.ingenuitiveTool
+  });
+  const choiceEvidence = {
+    existingCharacter: Boolean(state.bio.name.trim()),
+    touched: touchedFields,
+    cards: wizardCards
+  };
+  const choiceConfirmed = (field: CharacterChoiceField) => isCharacterChoiceConfirmed(field, choiceEvidence);
+  const characterIssues = getCharacterCreationIssues(characterValues(draft), choiceEvidence);
+
   const serializeCharacterDraft = (): CharacterCreationDraft | null => {
     const touched = Array.from(touchedFieldsRef.current);
     const cards = Object.fromEntries(Object.entries(wizardCardsRef.current).flatMap(([key, card]) => card
       ? [[key, card]]
       : [])) as CharacterCreationDraft['cards'];
     if (touched.length === 0 && Object.keys(cards).length === 0) return null;
-    const current = draftRef.current;
-    const values: Record<CharacterDraftField, string> = {
-      name: current.name,
-      descriptorName: current.descriptor.name,
-      animal: current.animal,
-      travelName: current.travel.name,
-      originName: current.origin.name,
-      originJournal: current.originJournal,
-      mementoNote: current.mementoNote,
-      familiarName: current.familiarName,
-      familiarDescriptorName: current.familiarDescriptor.name,
-      familiarAnimal: current.familiarAnimal,
-      familiarBenefitName: current.familiarBenefit.name,
-      relationshipName: current.relationship.name,
-      familiarJournal: current.familiarJournal,
-      relationshipJournal: current.relationshipJournal,
-      resourcefulReagent: current.resourcefulReagent,
-      ingenuitiveTool: current.ingenuitiveTool
-    };
+    const values = characterValues(draftRef.current);
     return {
       version: 1,
       updatedAt: Date.now(),
@@ -26019,19 +26224,14 @@ function CharacterCreationWizard({
     });
   };
 
-  const saveCharacter = () => {
-    const missingFields = [
-      !draft.name.trim() ? '약제사 이름' : null,
-      !draft.animal.trim() ? '약제사 실제 동물/외형' : null,
-      !draft.familiarName.trim() ? '길동무 이름' : null,
-      !draft.familiarAnimal.trim() ? '길동무 실제 동물/외형' : null
-    ].filter((field): field is string => Boolean(field));
+  const saveCharacter = (timestamp: number) => {
+    const missingFields = getCharacterCreationIssues(characterValues(draft), choiceEvidence);
     if (missingFields.length > 0) {
-      showAlert(`시트를 저장하려면 다음 항목을 채워 주세요: ${missingFields.join(', ')}`);
+      setStep(missingFields[0].step);
+      showAlert(`시트를 저장하려면 다음 항목을 입력하거나 직접 선택해 주세요: ${missingFields.map(issue => issue.label).join(', ')}`);
       return;
     }
 
-    const timestamp = Date.now();
     const matchedBenefit = FAMILIAR_BENEFITS.find(f => f.card === draft.familiarBenefit.card);
     const canFlyFromTravel = draft.travel.speed === 5 && draft.travel.carry === 2;
 
@@ -26079,21 +26279,6 @@ function CharacterCreationWizard({
     onComplete?.();
   };
 
-  const animalChips = (examples: string, onPick: (value: string) => void) => (
-    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-      {examplesToOptions(examples).map(option => (
-        <button
-          key={option}
-          type="button"
-          onClick={() => onPick(option)}
-          style={{ padding: '0.25rem 0.55rem', border: '1px solid var(--glass-border)', borderRadius: '999px', background: '#fffdf8', color: 'var(--text-muted)', fontSize: '0.8rem' }}
-        >
-          {option}
-        </button>
-      ))}
-    </div>
-  );
-
   if (!open) {
     return (
       <div style={{ border: '1.5px dashed var(--border-cozy)', borderRadius: '10px', padding: '0.8rem 1rem', background: '#fff', display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', marginBottom: '1.2rem' }}>
@@ -26110,7 +26295,8 @@ function CharacterCreationWizard({
 
   const abandonCharacterDraft = () => {
     if (!askWindowConfirm('아직 저장하지 않은 캐릭터 작성 내용을 지우고 처음부터 다시 시작할까요?')) return;
-    touchedFieldsRef.current.clear();
+    touchedFieldsRef.current = new Set();
+    setTouchedFields(new Set());
     wizardCardsRef.current = {};
     setWizardCardsState({});
     const initial: CharacterWizardLocalDraft = {
@@ -26152,6 +26338,7 @@ function CharacterCreationWizard({
         <div>
           <h3 style={{ margin: 0, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)', fontSize: '1.35rem' }}>룰북 따라 캐릭터 만들기</h3>
           <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.86rem', color: 'var(--text-muted)' }}>p.10–16의 표를 따라 카드를 뽑거나 직접 골라 시트를 완성합니다.</p>
+          <p style={{ margin: '0.25rem 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>필수 선택 {CHARACTER_CREATION_CHOICES.filter(choice => choiceConfirmed(choice.field)).length}/6 · 이야기와 기념품 메모는 나중에 써도 됩니다.</p>
         </div>
         {state.bio.name.trim() ? (
           <button type="button" onClick={() => setOpen(false)} style={{ padding: '0.35rem 0.65rem', background: '#eee', color: '#555', borderRadius: '6px' }}>접기</button>
@@ -26165,6 +26352,7 @@ function CharacterCreationWizard({
           <button
             key={label}
             type="button"
+            aria-current={step === idx ? 'step' : undefined}
             onClick={() => setStep(idx)}
             style={{
               padding: '0.35rem 0.55rem',
@@ -26193,18 +26381,18 @@ function CharacterCreationWizard({
               onCard={card => applyDescriptorCard('self', 'self', card)}
             />
             <div style={{ color: 'var(--text-bright)', fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
-              {wizardCards.self ? (
-                <>뽑은 카드가 말하길, 당신은 <strong style={{ color: 'var(--primary)' }}>{localizeCharacterDescriptor(draft.descriptor.name)}</strong> 약제사입니다.<br /><span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.descriptor.examples} 중에서 골라보세요.</span></>
+              {choiceConfirmed('descriptorName') ? (
+                <>선택한 약제사의 유형은 <strong style={{ color: 'var(--primary)' }}>{localizeCharacterDescriptor(draft.descriptor.name)}</strong>입니다.<br /><span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.descriptor.examples} 중에서 골라보세요.</span></>
               ) : (
-                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 종족이 정해집니다.</span>
+                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑거나 아래에서 동물 유형을 직접 선택하세요.</span>
               )}
             </div>
-            {animalChips(draft.descriptor.examples, value => setDraft(d => ({ ...d, animal: value })))}
+            <WizardAnimalChoices examples={draft.descriptor.examples} onPick={value => setDraft(d => ({ ...d, animal: value }))} />
             <input value={draft.animal} onChange={e => setDraft(d => ({ ...d, animal: e.target.value }))} placeholder="실제 동물 또는 외형을 적어주세요" />
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
               <div style={{ marginTop: '0.4rem' }}>
-                <WizardChoiceSelect value={draft.descriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, descriptor: item }))} />
+                <WizardChoiceSelect label="약제사 동물 유형 직접 선택" value={choiceConfirmed('descriptorName') ? draft.descriptor.name : ''} items={bioChoices.descriptors as any[]} onChange={item => selectCharacterChoice('descriptor', item)} />
               </div>
             </details>
           </div>
@@ -26222,7 +26410,7 @@ function CharacterCreationWizard({
               onCard={applyTravelCard}
             />
             <div style={{ padding: '0.8rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
-              {wizardCards.travel ? (
+              {choiceConfirmed('travelName') ? (
                 <>
                   <strong style={{ color: 'var(--primary)' }}>{localizeTravelStyle(draft.travel.name)}</strong> 방식으로 여행합니다.<br />
                   <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>
@@ -26231,13 +26419,13 @@ function CharacterCreationWizard({
                   <span style={{ color: 'var(--text-dim)', fontSize: '0.82rem', fontStyle: 'italic' }}>{draft.travel.desc}</span>
                 </>
               ) : (
-                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 이동 방식이 정해집니다.</span>
+                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑거나 아래에서 이동 방식을 직접 선택하세요.</span>
               )}
             </div>
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
               <div style={{ marginTop: '0.4rem' }}>
-                <WizardChoiceSelect value={draft.travel.name} items={bioChoices.travelStyles as any[]} onChange={item => setDraft(d => ({ ...d, travel: item }))} />
+                <WizardChoiceSelect label="이동 방식 직접 선택" value={choiceConfirmed('travelName') ? draft.travel.name : ''} items={bioChoices.travelStyles as any[]} onChange={item => selectCharacterChoice('travel', item)} />
               </div>
             </details>
           </div>
@@ -26255,20 +26443,20 @@ function CharacterCreationWizard({
               onCard={applyOriginCard}
             />
             <div style={{ fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
-              {wizardCards.origin ? (
+              {choiceConfirmed('originName') ? (
                 <>
                   <strong style={{ color: 'var(--primary)' }}>{draft.origin.name}</strong><br />
                   <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.origin.desc}</span>
                 </>
               ) : (
-                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 출발 계기가 정해집니다.</span>
+                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑거나 아래에서 출발 계기를 직접 선택하세요.</span>
               )}
             </div>
-            <textarea value={draft.originJournal} onChange={e => setDraft(d => ({ ...d, originJournal: e.target.value }))} rows={4} placeholder="그 계기가 약제사의 길로 어떻게 이어졌는지 짧게 기록하세요." />
+            <textarea value={draft.originJournal} onChange={e => setDraft(d => ({ ...d, originJournal: e.target.value }))} rows={4} placeholder="선택 메모 · 그 계기가 약제사의 길로 어떻게 이어졌나요?" />
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
               <div style={{ marginTop: '0.4rem' }}>
-                <WizardChoiceSelect value={draft.origin.name} items={bioChoices.origins as any[]} onChange={item => setDraft(d => ({ ...d, origin: item }))} />
+                <WizardChoiceSelect label="출발 계기 직접 선택" value={choiceConfirmed('originName') ? draft.origin.name : ''} items={bioChoices.origins as any[]} onChange={item => selectCharacterChoice('origin', item)} />
               </div>
             </details>
           </div>
@@ -26287,7 +26475,7 @@ function CharacterCreationWizard({
               value={draft.mementoNote}
               onChange={e => setDraft(d => ({ ...d, mementoNote: e.target.value }))}
               rows={4}
-              placeholder="첫 여정에 들고 가는 기념품이 무엇이고, 왜 소중한지 기록하세요."
+              placeholder="선택 메모 · 첫 여정에 들고 가는 기념품은 무엇이고, 왜 소중한가요?"
             />
           </div>
         </WizardFieldCard>
@@ -26306,19 +26494,19 @@ function CharacterCreationWizard({
               onCard={card => applyDescriptorCard('familiar', 'familiar', card)}
             />
             <div style={{ color: 'var(--text-bright)', fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
-              {wizardCards.familiar ? (
+              {choiceConfirmed('familiarDescriptorName') ? (
                 <>당신의 길동무는 <strong style={{ color: 'var(--primary)' }}>{localizeCharacterDescriptor(draft.familiarDescriptor.name)}</strong> 유형입니다.<br /><span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.familiarDescriptor.examples} 중에서 골라보세요.</span></>
               ) : (
-                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 길동무의 종족이 정해집니다.</span>
+                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑거나 아래에서 길동무의 동물 유형을 직접 선택하세요.</span>
               )}
             </div>
-            {animalChips(draft.familiarDescriptor.examples, value => setDraft(d => ({ ...d, familiarAnimal: value })))}
+            <WizardAnimalChoices examples={draft.familiarDescriptor.examples} onPick={value => setDraft(d => ({ ...d, familiarAnimal: value }))} />
             <input value={draft.familiarAnimal} onChange={e => setDraft(d => ({ ...d, familiarAnimal: e.target.value }))} placeholder="길동무의 실제 동물 또는 외형" />
-            <textarea value={draft.familiarJournal} onChange={e => setDraft(d => ({ ...d, familiarJournal: e.target.value }))} rows={3} placeholder="처음 어떻게 만났는지 기록하세요." />
+            <textarea value={draft.familiarJournal} onChange={e => setDraft(d => ({ ...d, familiarJournal: e.target.value }))} rows={3} placeholder="선택 메모 · 길동무와 처음 어떻게 만났나요?" />
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
               <div style={{ marginTop: '0.4rem' }}>
-                <WizardChoiceSelect value={draft.familiarDescriptor.name} items={bioChoices.descriptors as any[]} onChange={item => setDraft(d => ({ ...d, familiarDescriptor: item }))} />
+                <WizardChoiceSelect label="길동무 동물 유형 직접 선택" value={choiceConfirmed('familiarDescriptorName') ? draft.familiarDescriptor.name : ''} items={bioChoices.descriptors as any[]} onChange={item => selectCharacterChoice('familiarDescriptor', item)} />
               </div>
             </details>
           </div>
@@ -26338,13 +26526,13 @@ function CharacterCreationWizard({
                 onCard={applyBenefitCard}
               />
               <div style={{ padding: '0.8rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
-                {wizardCards.familiarBenefit ? (
+                {choiceConfirmed('familiarBenefitName') ? (
                   <>
                     길동무의 특기: <strong style={{ color: 'var(--primary)' }}>{draft.familiarBenefit.name}</strong><br />
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.familiarBenefit.desc}</span>
                   </>
                 ) : (
-                  <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 길동무의 도움이 정해집니다.</span>
+                  <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑거나 아래에서 길동무의 도움을 직접 선택하세요.</span>
                 )}
               </div>
 
@@ -26388,7 +26576,7 @@ function CharacterCreationWizard({
               <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
                 <div style={{ marginTop: '0.4rem' }}>
-                  <WizardChoiceSelect value={draft.familiarBenefit.name} items={bioChoices.familiars as any[]} onChange={item => setDraft(d => ({ ...d, familiarBenefit: item }))} />
+                  <WizardChoiceSelect label="길동무 도움 직접 선택" value={choiceConfirmed('familiarBenefitName') ? draft.familiarBenefit.name : ''} items={bioChoices.familiars as any[]} onChange={item => selectCharacterChoice('familiarBenefit', item)} />
                 </div>
               </details>
             </div>
@@ -26407,20 +26595,20 @@ function CharacterCreationWizard({
               onCard={applyRelationshipCard}
             />
             <div style={{ fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
-              {wizardCards.relationship ? (
+              {choiceConfirmed('relationshipName') ? (
                 <>
                   둘의 관계: <strong style={{ color: 'var(--primary)' }}>{draft.relationship.name}</strong><br />
                   <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.relationship.desc}</span>
                 </>
               ) : (
-                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑으면 관계가 정해집니다.</span>
+                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑거나 아래에서 관계를 직접 선택하세요.</span>
               )}
             </div>
-            <textarea value={draft.relationshipJournal} onChange={e => setDraft(d => ({ ...d, relationshipJournal: e.target.value }))} rows={4} placeholder="둘의 관계를 보여주는 짧은 장면이나 기억을 기록하세요." />
+            <textarea value={draft.relationshipJournal} onChange={e => setDraft(d => ({ ...d, relationshipJournal: e.target.value }))} rows={4} placeholder="선택 메모 · 둘의 관계를 보여주는 짧은 장면이나 기억을 남겨보세요." />
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
               <div style={{ marginTop: '0.4rem' }}>
-                <WizardChoiceSelect value={draft.relationship.name} items={bioChoices.relationships as any[]} onChange={item => setDraft(d => ({ ...d, relationship: item }))} />
+                <WizardChoiceSelect label="관계 직접 선택" value={choiceConfirmed('relationshipName') ? draft.relationship.name : ''} items={bioChoices.relationships as any[]} onChange={item => selectCharacterChoice('relationship', item)} />
               </div>
             </details>
           </div>
@@ -26433,19 +26621,29 @@ function CharacterCreationWizard({
           <WizardFieldCard title="시트를 확정할까요?">
             <div style={{ display: 'grid', gap: '0.7rem', fontSize: '0.92rem', lineHeight: 1.6 }}>
               <div className="prose-summary">
-                <strong>{localizeCharacterDescriptor(draft.descriptor.name)}</strong> 약제사 <strong>{draft.name || '(이름 미정)'}</strong>.<br />
-                {draft.animal && <>{draft.animal}의 모습으로, </>}<strong>{localizeTravelStyle(draft.travel.name)}</strong> 방식으로 여행합니다.<br />
-                <span className="dim">하루 {draft.travel.speed}경로 이동, 짐 {draft.travel.carry}칸. 출발 동기: {draft.origin.name}.</span>
+                <strong>{choiceConfirmed('descriptorName') ? localizeCharacterDescriptor(draft.descriptor.name) : '(동물 유형 미선택)'}</strong> 약제사 <strong>{draft.name || '(이름 미정)'}</strong>.<br />
+                {draft.animal && <>{draft.animal}의 모습으로, </>}이동 방식: <strong>{choiceConfirmed('travelName') ? localizeTravelStyle(draft.travel.name) : '미선택'}</strong>.<br />
+                <span className="dim">{choiceConfirmed('travelName') && <>하루 {draft.travel.speed}경로 이동, 짐 {draft.travel.carry}칸. </>}출발 동기: {choiceConfirmed('originName') ? draft.origin.name : '미선택'}.</span>
               </div>
               <div className="prose-summary" style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '0.6rem' }}>
                 길동무 <strong>{draft.familiarName || '(이름 미정)'}</strong>{draft.familiarAnimal && `, ${draft.familiarAnimal}`}.<br />
-                특기: <strong>{draft.familiarBenefit.name}</strong>
+                유형: {choiceConfirmed('familiarDescriptorName') ? localizeCharacterDescriptor(draft.familiarDescriptor.name) : '미선택'}.<br />
+                특기: <strong>{choiceConfirmed('familiarBenefitName') ? draft.familiarBenefit.name : '미선택'}</strong>
                 {matchedBenefit?.mechanic === 'resourceful' && draft.resourcefulReagent && ` (지정 약재: ${draft.resourcefulReagent})`}
                 {matchedBenefit?.mechanic === 'ingenuitive' && draft.ingenuitiveTool && ` (지정 도구: ${draft.ingenuitiveTool})`}
                 .<br />
-                관계: {draft.relationship.name}.
+                관계: {choiceConfirmed('relationshipName') ? draft.relationship.name : '미선택'}.
               </div>
-              <button type="button" onClick={saveCharacter} style={{ marginTop: '0.5rem', padding: '0.75rem 1rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '1rem' }}>
+              {characterIssues.length > 0 && (
+                <div className="prose-summary" role="status">
+                  <strong>아직 정하지 않은 항목이 있습니다.</strong>
+                  <p style={{ margin: '0.35rem 0' }}>항목을 눌러 돌아가세요. 표의 선택은 카드 뽑기나 직접 선택 중 원하는 방식으로 정하면 됩니다.</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    {characterIssues.map(issue => <button key={issue.field} type="button" onClick={() => setStep(issue.step)}>{issue.label}</button>)}
+                  </div>
+                </div>
+              )}
+              <button type="button" onClick={() => saveCharacter(Date.now())} disabled={characterIssues.length > 0} style={{ marginTop: '0.5rem', padding: '0.75rem 1rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '1rem' }}>
                 ✨ 약제사 시트에 저장
               </button>
             </div>
@@ -26727,9 +26925,10 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
           ? { ...entry, status: 'failed' as const, failureResolved: true }
           : entry)
       };
+      const timerState = { ...current, patients: replacePatient(current.patients, nextPatient) };
       const adjustedState = after === 0
-        ? settleExpiredPatientAfterTimer(current, nextPatient, transaction.id)
-        : { ...current, patients: replacePatient(current.patients, nextPatient) };
+        ? reconcileUnsettledPatientTimers(timerState, transaction.id)
+        : timerState;
       const ailmentName = getTreatmentAilmentDefinition(ailment.ailmentId)?.displayName || ailment.legacyName || '질환';
       return appendManualAdjustmentJournal(adjustedState, '환자 Timer · 직접 기록', `${ailmentName} Timer ${before} → ${after}시간 (${effectiveDelta > 0 ? '+' : ''}${effectiveDelta}). 앱 밖 판정을 옮긴 수동 보정입니다.`, transaction);
     });
@@ -28109,13 +28308,34 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
 // =================================================================
 // 9. MAP VIEW COMPONENT (Cartographer’s Margins Pass)
 // =================================================================
+function BarrowAnnotationControl({ barrow, updateState, requestControlledPrompt }: {
+  barrow: Barrow;
+  updateState: (recipe: (state: GameState) => GameState) => void;
+  requestControlledPrompt: (request: ControlledPromptRequest) => Promise<string | null>;
+}) {
+  return <button type="button" onClick={() => void (async () => {
+    const removed = !barrow.removed;
+    const action = removed ? '지우기' : '복원';
+    const choice = await requestControlledPrompt({
+      title: `「${barrow.name}」 고분 표식을 ${removed ? '지울까요' : '복원할까요'}?`,
+      message: '이 고분의 지도 표식과 진행판 표시만 변경합니다. 날짜·보상·가방·과거 일지는 그대로 두며, 지도 탭에서 표식을 다시 복원할 수 있습니다.',
+      kicker: '지도 기록 보정',
+      label: '처리 방법', defaultValue: 'keep',
+      options: [{ value: 'keep', label: '그대로 두기' }, { value: 'apply', label: `이 고분 표식 ${action}` }]
+    });
+    if (choice === 'apply') updateState(current => setBarrowAnnotationRemoved(current, barrow.id, removed));
+  })()}>{barrow.removed ? '이 고분 표식 복원' : '이 고분 표식 지우기'}</button>;
+}
+
 function AtlasMapPanel({
   state,
   updateState,
+  requestControlledPrompt,
   onOpenReference
 }: {
   state: GameState;
   updateState: (recipe: (s: GameState) => GameState) => void;
+  requestControlledPrompt: (request: ControlledPromptRequest) => Promise<string | null>;
   onOpenReference: (request: RulebookReferenceRequest) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -28168,7 +28388,7 @@ function AtlasMapPanel({
     ? (state.customMapEdges || []).filter(edge => edge.from === selectedId || edge.to === selectedId)
     : [];
   const selectedMapRecords = selectedId
-    ? (state.mapEncounterRecords || []).filter(record => record.locationId === selectedId)
+    ? visibleMapEncounterRecords(state.mapEncounterRecords, state.barrows).filter(record => record.locationId === selectedId)
     : [];
   const connectionKindLabel = (kind?: string) =>
     kind === 'river' ? '물길 · 실선' : kind === 'waterway' ? '물길 · 빗금' : '육로';
@@ -28888,6 +29108,19 @@ function AtlasMapPanel({
                 </ul>
               </div>
             )}
+            {(state.barrows || []).some(barrow => barrow.locationId === selectedId
+              || (!barrow.locationId && barrow.locationName === selected.label)) && (
+              <div className="map-atelier__records" aria-label="이 위치의 고분 표식">
+                <strong>이 위치의 고분 표식</strong>
+                <ul>{(state.barrows || []).filter(barrow => barrow.locationId === selectedId
+                  || (!barrow.locationId && barrow.locationName === selected.label)).map(barrow => (
+                  <li key={barrow.id}>
+                    <span>{barrow.name}{barrow.removed ? ' · 지워진 표식' : ''}</span>
+                    <BarrowAnnotationControl barrow={barrow} updateState={updateState} requestControlledPrompt={requestControlledPrompt} />
+                  </li>
+                ))}</ul>
+              </div>
+            )}
             <div className="map-atelier__nudge" aria-label="자리 미세 이동">
               <span>자리</span>
               <button type="button" onClick={() => persistStop({ ...stopFromGraphNode(selectedId, selected), x: Math.max(1, selected.x - 0.4) })}>←</button>
@@ -29086,7 +29319,8 @@ const MapView = memo(function MapView({
       ? resolveJourneyDestinationMapKey(state)
       : null;
   const extraIds = new Set<string>([...highlightLocationIds, selectedLocationId, currentId, destinationId, ...routePlaceIds].filter((id): id is string => Boolean(id)));
-  (state.mapEncounterRecords || []).forEach(record => extraIds.add(record.locationId));
+  const visibleMapRecords = visibleMapEncounterRecords(state.mapEncounterRecords, state.barrows);
+  visibleMapRecords.forEach(record => extraIds.add(record.locationId));
   (state.visitedLocations || []).forEach(name => {
     const id = findMapLocationKey(name, customMapLocations);
     if (id) extraIds.add(id);
@@ -29143,7 +29377,7 @@ const MapView = memo(function MapView({
         encounterKind: preview?.encounterKind,
         usesWaterway: preview?.usesWaterway,
         willSoak: Boolean(preview?.usesWaterway && !soakProtected),
-        mapRecordLabels: (state.mapEncounterRecords || [])
+        mapRecordLabels: visibleMapRecords
           .filter(record => record.locationId === id)
           .map(record => record.label)
       };

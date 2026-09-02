@@ -1,4 +1,4 @@
-import { createPatientArchiveRecord, upsertPatientArchive } from './archiveEngine';
+import { createPatientArchiveRecord, upsertPatientArchive, type CanonicalPatientArchiveRecord } from './archiveEngine';
 import { resolveTimer } from './engine';
 import type { TreatmentTransactionState } from './gameplay';
 import { resolveLeave, type LeaveRuntimeState } from './leaveEngine';
@@ -97,6 +97,64 @@ const hasExpiredTimer = (patient: PatientState, ailment: PatientAilmentState): b
     return Boolean(timer && (timer.status === 'expired' || timer.current === 0));
   });
 
+export const unsettledExpiredAilmentIds = (patient: PatientState): string[] =>
+  patient.ailments
+    .filter(ailment => ailment.status !== 'treated'
+      && !ailment.consequenceResolved
+      && hasExpiredTimer(patient, ailment))
+    .map(ailment => ailment.id);
+
+/** An old unfinished marker is not authority to replay historical failures
+ * against today's Reputation, local-care gate or quest. Recover only patients
+ * owned by the current workflow, including the suspended parent of a fixed
+ * encounter Remedy. A terminal Archive is historical even if its old Patient
+ * mirror still says active or lacks consequenceResolved. */
+export const currentTimerRecoveryPatientIds = (input: {
+  patients: readonly PatientState[];
+  patientArchive: readonly CanonicalPatientArchiveRecord[];
+  workflowPatientIds: readonly (string | null | undefined)[];
+  currentJourneyId: string | null;
+  currentLocationName: string;
+}): string[] => {
+  const patientById = new Map(input.patients.map(patient => [patient.id, patient]));
+  const queue = input.workflowPatientIds.filter((id): id is string => Boolean(id));
+  const visited = new Set<string>();
+  const eligible: string[] = [];
+  for (let index = 0; index < queue.length; index += 1) {
+    const id = queue[index];
+    if (visited.has(id)) continue;
+    visited.add(id);
+    const patient = patientById.get(id);
+    if (!patient || patient.status === 'cured' || patient.status === 'departed') continue;
+    const archive = input.patientArchive.find(row => row.caseId === id || row.patientId === id);
+    if (archive && ((['treated', 'failed', 'abandoned'].includes(archive.status) && archive.treatmentResult !== 'pending')
+      || (archive.sourceJourneyId && archive.sourceJourneyId !== input.currentJourneyId)
+      || (!archive.sourceJourneyId && archive.location && archive.location !== input.currentLocationName))) continue;
+    eligible.push(id);
+    patient.ailments.forEach(ailment => {
+      const parentId = ailment.specialState?.previousActivePatientId;
+      if (typeof parentId === 'string' && parentId) queue.push(parentId);
+    });
+  }
+  return eligible;
+};
+
+export const patientTimerArchiveContext = (
+  patientId: string,
+  patientArchive: readonly CanonicalPatientArchiveRecord[],
+  fallback: NonNullable<LeaveRuntimeState['archiveContext']>
+): NonNullable<LeaveRuntimeState['archiveContext']> => {
+  const archive = patientArchive.find(row => row.caseId === patientId || row.patientId === patientId);
+  return archive
+    ? {
+      ...fallback,
+      location: archive.location || fallback.location,
+      encounteredAt: archive.encounteredAt,
+      sourceJourneyId: archive.sourceJourneyId
+    }
+    : fallback;
+};
+
 /**
  * Completes the existing canonical failure transaction after a Timer mutation.
  *
@@ -114,11 +172,7 @@ export const resolveExpiredPatientAfterTimer = (
     return { status: 'invalid', value: null, messages: ['Timer failure recovery requires a transaction ID.'] };
   }
 
-  const expiredAilmentInstanceIds = input.state.patient.ailments
-    .filter(ailment => ailment.status !== 'treated'
-      && !ailment.consequenceResolved
-      && hasExpiredTimer(input.state.patient, ailment))
-    .map(ailment => ailment.id);
+  const expiredAilmentInstanceIds = unsettledExpiredAilmentIds(input.state.patient);
 
   if (expiredAilmentInstanceIds.length === 0) {
     return {
@@ -211,9 +265,13 @@ export const resolveExpiredPatientAfterTimer = (
   }
 
   const leaveTransactionId = `${input.transactionId}:leave`;
+  // A Timer can expire inside the Scrounging/Encounter obligation itself.
+  // Close the failed case now without either skipping that scene or letting
+  // its movement gate discard the already-computed failure transaction.
+  const pendingObligation = nextState.pendingObligation;
   const leave = resolveLeave({
     transactionId: leaveTransactionId,
-    state: nextState,
+    state: { ...nextState, pendingObligation: null },
     status: 'failed',
     journalNote: '환자 타이머가 만료되어 인쇄된 실패 결과를 적용하고 환자 기록을 마감했습니다.',
     journalAuthorship: 'system'
@@ -224,7 +282,9 @@ export const resolveExpiredPatientAfterTimer = (
   return {
     status: 'manual',
     value: {
-      nextState: leave.value,
+      nextState: pendingObligation && !pendingObligation.resolved
+        ? { ...leave.value, pendingObligation }
+        : leave.value,
       expiredAilmentInstanceIds,
       failureTransactionId,
       leaveTransactionId,

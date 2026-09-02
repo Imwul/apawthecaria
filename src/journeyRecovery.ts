@@ -1,4 +1,5 @@
 import type { RouteDraft } from './map/routeComposer';
+import { journeyAnnotationStartedAt, reconcileAbandonedJourneyAnnotations, type JourneyResetStamp } from './journeyAnnotationRecovery';
 
 interface JourneyPatientRecord {
   id: string;
@@ -19,6 +20,9 @@ export interface JourneyResettableState {
   mapEncounterRecords?: Array<{ journeyId?: string; createdAt?: number }>;
   /** Temporary landmark marks created while an active Journey was in progress. */
   barrows?: Array<{ id?: string; journeyId?: string; createdAt?: number }>;
+  journeyResetHistory?: JourneyResetStamp[];
+  journals?: Array<{ id: string; timestamp?: number }>;
+  workflowDrafts?: { character?: unknown; patient?: unknown; journey?: unknown };
 }
 
 export interface JourneyResetOrigin {
@@ -34,7 +38,7 @@ export interface JourneyResetOrigin {
  * campaign time survive. The current position returns to the Journey's saved
  * Origin; a legacy save without an Origin keeps its current position.
  */
-export const resetJourneyForPlanning = <T extends JourneyResettableState>(state: T, resolvedOrigin?: JourneyResetOrigin): T => {
+export const resetJourneyForPlanning = <T extends JourneyResettableState>(state: T, resolvedOrigin?: JourneyResetOrigin, resetAt = Date.now()): T => {
   const activePatientId = state.activePatientId || null;
   const originName = resolvedOrigin?.name?.trim() || state.journeyOrigin?.trim() || state.currentLocationName;
   const originId = resolvedOrigin?.id?.trim() || state.journey?.originId?.trim();
@@ -42,32 +46,11 @@ export const resetJourneyForPlanning = <T extends JourneyResettableState>(state:
     ? state.patients.filter(patient => patient.id !== activePatientId && patient.status !== 'active')
     : state.patients;
   const activeJourneyId = state.journey?.journeyId?.trim();
-  const journeyStartedAt = typeof state.journey?.startDate === 'number' && Number.isFinite(state.journey.startDate)
-    ? state.journey.startDate
-    : 0;
-  // Map annotations created by an abandoned Journey are part of that
-  // reversible workflow. Keep older/legacy annotations (which have no
-  // journey id and predate the Journey) intact.
-  const mapEncounterRecords = Array.isArray(state.mapEncounterRecords)
-    ? state.mapEncounterRecords.filter(record => {
-      if (activeJourneyId && record.journeyId === activeJourneyId) return false;
-      if (activeJourneyId && journeyStartedAt > 0 && typeof record.createdAt === 'number' && record.createdAt >= journeyStartedAt) return false;
-      return true;
-    })
-    : state.mapEncounterRecords;
-  // A bear/Behemoth marker can be created by a Foraging encounter.  It is a
-  // Journey annotation, not a permanent map edit, so discard only markers
-  // tied to this Journey (or the legacy bear marker shape).  Established
-  // Barrow rumours remain campaign data.
-  const barrows = Array.isArray(state.barrows)
-    ? state.barrows.filter(barrow => {
-      if (activeJourneyId && barrow.journeyId === activeJourneyId) return false;
-      if (activeJourneyId && journeyStartedAt > 0 && typeof barrow.createdAt === 'number' && barrow.createdAt >= journeyStartedAt) return false;
-      if (barrow.id?.startsWith('bear-barrow:')) return false;
-      return true;
-    })
-    : state.barrows;
-  return {
+  const journeyStartedAt = journeyAnnotationStartedAt(state);
+  // The shared repair below also understands timestamp-based legacy ids.
+  // Explicit ownership takes precedence over dates, preserving landmarks
+  // that belong to a different, completed Journey.
+  return reconcileAbandonedJourneyAnnotations({
     ...state,
     journeyActive: false,
     ...(originName ? { currentLocationName: originName } : {}),
@@ -89,18 +72,23 @@ export const resetJourneyForPlanning = <T extends JourneyResettableState>(state:
     journeyGoalCounter: 0,
     journeyGoalChecklist: [],
     journey: null,
+    journeyResetHistory: [...(Array.isArray(state.journeyResetHistory) ? state.journeyResetHistory : []), {
+      journeyId: activeJourneyId,
+      startedAt: journeyStartedAt,
+      resetAt
+    }],
     pendingEnding: null,
     calendarDays: 0,
     calendarMaxDays: 12,
     calendarHistory: [],
     routeDraft: { stops: [], edgeKinds: [] },
-    mapEncounterRecords,
-    barrows,
     activeAilment: null,
     activeAilments: [],
     activePatientId: null,
     patients,
     treatmentDraft: null,
+    pendingTreatmentReward: null,
+    ...(state.workflowDrafts ? { workflowDrafts: { ...state.workflowDrafts, patient: null, journey: null } } : {}),
     pendingEncounter: null,
     pendingForaging: null,
     pendingBarter: null,
@@ -136,5 +124,5 @@ export const resetJourneyForPlanning = <T extends JourneyResettableState>(state:
     missiveSettlements: [],
     downtimeRequired: false,
     downtimeCompleted: false
-  } as T;
+  } as T);
 };

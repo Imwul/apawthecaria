@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 // @ts-expect-error Vitest runs this source audit in Node; the app build intentionally exposes browser types only.
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
-import { classifyDeviceSaveFailure, preferDeviceSave, readDeviceSave, removeDeviceSave, writeDeviceSave } from './deviceSave';
+import { classifyDeviceSaveFailure, persistDeviceSaveReplacement, preferDeviceSave, readDeviceSave, removeDeviceSave, writeDeviceSave } from './deviceSave';
 
 const appSource = readFileSync(fileURLToPath(new URL('../App.tsx', import.meta.url)), 'utf8');
 
@@ -21,6 +21,74 @@ describe('device save fallback', () => {
     expect(preferDeviceSave('{broken', fallback)).toBe(fallback);
     expect(preferDeviceSave(local, JSON.stringify({ bio: { name: 'Stale' }, saveRevision: 2 }))).toBe(local);
     expect(preferDeviceSave('{broken', null)).toBe('{broken');
+  });
+
+  it('cancels a lower-revision cloud replacement when primary writes fail, without putting B in the fallback', async () => {
+    const campaignA = JSON.stringify({ bio: { name: 'A' }, saveRevision: 100 });
+    const campaignB = JSON.stringify({ bio: { name: 'B' }, saveRevision: 10 });
+    let fallback: string | null = null;
+    const storage = { getItem: () => campaignA, setItem: () => { throw new DOMException('full', 'QuotaExceededError'); } };
+    const removeFallback = vi.fn(async () => { fallback = null; return true; });
+    expect(await persistDeviceSaveReplacement('campaign', campaignB, {
+      storage, readFallback: async () => fallback, removeFallback
+    })).toEqual({ localSaved: false, localFailure: 'quota' });
+    expect(removeFallback).not.toHaveBeenCalled();
+    expect(preferDeviceSave(storage.getItem(), fallback)).toBe(campaignA);
+    expect(fallback).toBeNull();
+  });
+
+  it('preserves the newest old fallback when primary writes or fallback cleanup prevent a switch', async () => {
+    for (const failAt of ['promotion', 'cleanup', 'replacement']) {
+      let primary = JSON.stringify({ bio: { name: 'A' }, saveRevision: 100 });
+      let fallback: string | null = JSON.stringify({ bio: { name: 'A' }, saveRevision: 101 });
+      const latestA = fallback;
+      const campaignB = JSON.stringify({ bio: { name: 'B' }, saveRevision: 10 });
+      const storage = {
+        getItem: () => primary,
+        setItem: (_key: string, value: string) => {
+          if (failAt === 'promotion' || (failAt === 'replacement' && value === campaignB)) throw new DOMException('full', 'QuotaExceededError');
+          primary = value;
+        }
+      };
+      const result = await persistDeviceSaveReplacement('campaign', campaignB, {
+        storage, readFallback: async () => fallback,
+        removeFallback: async () => { if (failAt === 'cleanup') return false; fallback = null; return true; }
+      });
+      expect(result.localSaved).toBe(false);
+      expect(preferDeviceSave(primary, fallback)).toBe(latestA);
+    }
+  });
+
+  it('restores selected B after reload even when the old fallback A had a larger revision', async () => {
+    let primary = JSON.stringify({ bio: { name: 'A' }, saveRevision: 100 });
+    let fallback: string | null = JSON.stringify({ bio: { name: 'A' }, saveRevision: 101 });
+    const campaignB = JSON.stringify({ bio: { name: 'B' }, saveRevision: 10 });
+    const storage = { getItem: () => primary, setItem: (_key: string, value: string) => { primary = value; } };
+    expect(await persistDeviceSaveReplacement('campaign', campaignB, {
+      storage, readFallback: async () => fallback,
+      removeFallback: async () => { fallback = null; return true; }
+    })).toEqual({ localSaved: true, localFailure: null });
+    expect(preferDeviceSave(primary, fallback)).toBe(campaignB);
+    expect(fallback).toBeNull();
+  });
+
+  it('never persists a stale-account replacement after either asynchronous storage barrier', async () => {
+    for (const staleDuring of ['read', 'cleanup']) {
+      const campaignA = JSON.stringify({ bio: { name: 'A' }, saveRevision: 100 });
+      const campaignB = JSON.stringify({ bio: { name: 'B' }, saveRevision: 10 });
+      let primary = campaignA;
+      let current = true;
+      const setItem = vi.fn((_key: string, value: string) => { primary = value; });
+      const result = await persistDeviceSaveReplacement('campaign', campaignB, {
+        storage: { getItem: () => primary, setItem },
+        readFallback: async () => { if (staleDuring === 'read') current = false; return campaignA; },
+        removeFallback: async () => { if (staleDuring === 'cleanup') current = false; return true; },
+        stillCurrent: () => current
+      });
+      expect(result.localSaved).toBe(false);
+      expect(setItem).not.toHaveBeenCalledWith('campaign', campaignB);
+      expect(primary).toBe(campaignA);
+    }
   });
 
   it('retries IndexedDB after a transient open failure instead of disabling fallback for the tab', async () => {

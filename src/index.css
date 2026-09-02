@@ -5737,8 +5737,7 @@ body {
   }
 
   .journal-header__action span,
-  .journal-header__icon-button span,
-  .save-state {
+  .journal-header__icon-button span {
     display: none;
   }
 
@@ -13234,8 +13233,7 @@ details.rulebook-source-text > summary {
 
 @media (max-width: 800px) {
   .journal-header__action span,
-  .journal-header__icon-button span,
-  .save-state {
+  .journal-header__icon-button span {
     display: none;
   }
 
@@ -13586,9 +13584,44 @@ details.rulebook-source-text > summary {
    labeled controls for assistive technology, while their icons leave the
    centered journal title a clear reading lane. */
 @media (max-width: 1500px) {
+  /* Save feedback must stay visible. A real tool row also prevents long
+     cloud/error messages from covering the centered title. */
+  .journal-app .journal-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    padding-top: 0.65rem !important;
+  }
+
+  .journal-header .journal-header__utilities {
+    position: static;
+    order: -1;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.55rem;
+  }
+
+  .journal-header__utilities > div {
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    padding-inline: 0 !important;
+  }
+
+  .journal-header .save-state {
+    display: inline-flex;
+    min-height: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.45;
+    text-align: right;
+  }
+
   .journal-app:not(.journal-app--onboarding) .journal-header__action span:not(.emoji-icon),
-  .journal-app:not(.journal-app--onboarding) .journal-header__icon-button span:not(.emoji-icon),
-  .journal-app:not(.journal-app--onboarding) .save-state {
+  .journal-app:not(.journal-app--onboarding) .journal-header__icon-button span:not(.emoji-icon) {
     display: none;
   }
 
@@ -13633,7 +13666,13 @@ details.rulebook-source-text > summary {
 @media (max-width: 800px) {
   .journal-app:not(.journal-app--onboarding) .journal-header {
     min-height: 154px;
-    padding: 3rem 0.85rem 0.75rem !important;
+    padding: 0.65rem 0.85rem 0.75rem !important;
+  }
+
+  .journal-header .save-state {
+    flex-basis: 100%;
+    justify-content: flex-end;
+    padding: 0.15rem 0;
   }
 
   .journal-app:not(.journal-app--onboarding) .grid-dashboard {

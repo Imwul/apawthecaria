@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeLegacyArchiveRecord } from './archiveEngine';
+import { createPatientArchiveRecord, normalizeLegacyArchiveRecord } from './archiveEngine';
 import type { LeaveRuntimeState } from './leaveEngine';
 import {
   applyGlobalActiveTimerCost,
+  currentTimerRecoveryPatientIds,
   patientHasActiveAilments,
-  resolveExpiredPatientAfterTimer
+  patientTimerArchiveContext,
+  resolveExpiredPatientAfterTimer,
+  unsettledExpiredAilmentIds
 } from './patientFailureRecovery';
 import type { PatientAilmentState, PatientState, PatientTimerState } from './state';
 
@@ -77,6 +80,108 @@ const runtime = (patientState: PatientState, reputation = 12): LeaveRuntimeState
 });
 
 describe('expired Patient transaction recovery', () => {
+  it('does not replay unreferenced or previous-journey historical Timer failures on reload', () => {
+    const expired = ailment('historical', 'failed');
+    const historical = { ...patient([expired], [timer(expired.id, 0, 'expired')]), id: 'patient-historical' };
+    const current = { ...patient([expired], [timer(expired.id, 0, 'expired')]), id: 'patient-current' };
+    const archive = createPatientArchiveRecord({
+      caseId: historical.id, patient: historical, location: 'Odoak', encounteredAt: 1,
+      sourceJourneyId: 'journey-old', treatmentResult: 'pending'
+    });
+    expect(currentTimerRecoveryPatientIds({
+      patients: [historical, current], patientArchive: [archive],
+      workflowPatientIds: [current.id, historical.id], currentJourneyId: 'journey-current', currentLocationName: 'Newdam'
+    })).toEqual([current.id]);
+    expect(currentTimerRecoveryPatientIds({
+      patients: [historical, current], patientArchive: [],
+      workflowPatientIds: [current.id], currentJourneyId: 'journey-current', currentLocationName: 'Newdam'
+    })).toEqual([current.id]);
+  });
+
+  it('excludes terminal Archive mirrors and unscoped records from a different location', () => {
+    const expired = ailment('old', 'failed');
+    const historical = patient([expired], [timer(expired.id, 0, 'expired')]);
+    for (const archive of [
+      createPatientArchiveRecord({ caseId: historical.id, patient: historical, location: 'Newdam', encounteredAt: 1, sourceJourneyId: 'journey-current', treatmentResult: 'failure' }),
+      createPatientArchiveRecord({ caseId: historical.id, patient: historical, location: 'Odoak', encounteredAt: 1, sourceJourneyId: null, treatmentResult: 'pending' })
+    ]) {
+      expect(currentTimerRecoveryPatientIds({
+        patients: [historical], patientArchive: [archive], workflowPatientIds: [historical.id],
+        currentJourneyId: 'journey-current', currentLocationName: 'Newdam'
+      })).toEqual([]);
+    }
+  });
+
+  it('recovers the suspended parent of a current fixed case but not unrelated patients', () => {
+    const expired = ailment('expired', 'failed');
+    const parent = patient([expired], [timer(expired.id, 0, 'expired')]);
+    const fixed = {
+      ...patient([ailment('fixed', 'failed', { previousActivePatientId: parent.id })], [timer('fixed', 0, 'expired')]),
+      id: 'patient-fixed', status: 'failed' as const
+    };
+    const historical = { ...parent, id: 'unreferenced-patient' };
+    const pendingArchive = createPatientArchiveRecord({
+      caseId: fixed.id, patient: fixed, location: 'Newdam', encounteredAt: 1,
+      sourceJourneyId: 'journey-current', treatmentResult: 'pending'
+    });
+    expect(currentTimerRecoveryPatientIds({
+      patients: [historical, parent, fixed], patientArchive: [pendingArchive], workflowPatientIds: [fixed.id],
+      currentJourneyId: 'journey-current', currentLocationName: 'Newdam'
+    })).toEqual([fixed.id, parent.id]);
+  });
+
+  it('preserves the original Archive location, reception time and journey while recording expiry', () => {
+    const expired = ailment('archive-context', 'failed');
+    const originalPatient = patient([expired], [timer(expired.id, 0, 'expired')]);
+    const archive = createPatientArchiveRecord({
+      caseId: originalPatient.id, patient: originalPatient, location: 'Odoak', encounteredAt: 1,
+      sourceJourneyId: 'journey-original', treatmentResult: 'pending'
+    });
+    const context = patientTimerArchiveContext(originalPatient.id, [archive], {
+      location: 'Newdam', encounteredAt: 30, resolvedAt: 40, sourceJourneyId: 'journey-current'
+    });
+    expect(context).toEqual({ location: 'Odoak', encounteredAt: 1, resolvedAt: 40, sourceJourneyId: 'journey-original' });
+    const result = resolveExpiredPatientAfterTimer({
+      transactionId: 'preserve-archive',
+      state: { ...runtime(originalPatient), patientArchive: [archive], archiveContext: context }
+    });
+    expect(result.value?.nextState.patientArchive?.[0]).toMatchObject({
+      location: 'Odoak', encounteredAt: 1, sourceJourneyId: 'journey-original', treatmentResult: 'failure'
+    });
+    expect(patientTimerArchiveContext(originalPatient.id, [{ ...archive, sourceJourneyId: null }], {
+      location: 'Newdam', encounteredAt: 30, resolvedAt: 40, sourceJourneyId: 'journey-current'
+    }).sourceJourneyId).toBeNull();
+  });
+
+  it('distinguishes a staged Timer failure from a treated or already settled Ailment', () => {
+    const failed = ailment('unsettled', 'failed');
+    const treated = ailment('treated', 'treated');
+    const settled = { ...ailment('settled', 'failed'), consequenceResolved: true };
+    expect(unsettledExpiredAilmentIds(patient(
+      [failed, treated, settled],
+      [timer(failed.id, 0, 'expired'), timer(treated.id, 0, 'expired'), timer(settled.id, 0, 'expired')]
+    ))).toEqual(['unsettled']);
+  });
+
+  it('settles failure while preserving a pending Encounter or Delve obligation', () => {
+    const failed = ailment('pending-encounter', 'failed');
+    const pendingObligation = {
+      transactionId: 'scrounge:encounter', kind: 'foraging-encounter' as const,
+      region: 'Forest' as const, source: 'forage-current' as const, resolved: false
+    };
+    const result = resolveExpiredPatientAfterTimer({
+      transactionId: 'pending-encounter:timer',
+      state: { ...runtime(patient([failed], [timer(failed.id, 0, 'expired')])), pendingObligation }
+    });
+    expect(result.value?.closed).toBe(true);
+    expect(result.value?.nextState).toMatchObject({ reputation: 11, activePatientId: null, pendingObligation });
+    expect(result.value?.nextState.patient.ailments[0].consequenceResolved).toBe(true);
+    expect(result.value?.nextState.patientArchive?.[0].status).toBe('failed');
+    const replay = resolveExpiredPatientAfterTimer({ transactionId: 'pending-encounter:timer', state: result.value!.nextState });
+    expect(replay.value?.nextState.reputation).toBe(11);
+    expect(replay.value?.nextState.pendingObligation).toEqual(pendingObligation);
+  });
+
   it('applies a global printed Timer cost once and reports every newly expired Patient', () => {
     const firstAilment = ailment('first', 'active');
     const secondAilment = ailment('second', 'active');

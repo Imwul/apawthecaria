@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { CAMPAIGN_SAVE_KEY } from './campaignSave';
+import { reconcileAbandonedJourneyAnnotations } from '../journeyAnnotationRecovery';
 import {
   ACTIVE_CLOUD_SLOT_KEY,
   CLOUD_ACCOUNT_BINDING_KEY,
@@ -21,6 +22,7 @@ import {
   cloudSaveDocumentId,
   cloudSlotDeletionTombstone,
   cloudSlotHasSameRevisionConflict,
+  finalizeCampaignHydrationRepair,
   cloudSlotPayloadDocumentBelongsToAccount,
   cloudSlotPayloadChunkDocumentId,
   cloudSlotPayloadDocumentId,
@@ -32,6 +34,7 @@ import {
   cloudSlotTombstoneBlocksWrite,
   cloudSlotWriteFields,
   clearCloudAccountBinding,
+  bindDownloadedCloudCampaign,
   confirmManualSlotDownload,
   confirmManualSlotUpload,
   emptyCloudSlotViews,
@@ -45,6 +48,7 @@ import {
   readActiveCloudSlot,
   readCloudAccountBinding,
   readCloudSlotsFromDocument,
+  recordCampaignHydrationAncestry,
   preferredCloudUploadPayload,
   summarizeCloudUploadSource,
   splitCloudPayload,
@@ -58,6 +62,159 @@ const namedSave = (name: string, revision: number) =>
   JSON.stringify({ bio: { name }, journals: [{ id: '1' }], saveRevision: revision });
 
 describe('cloud save slots', () => {
+  it('persists a Timer hydration repair as one newer revision, not a divergent same-version download', () => {
+    const original = { bio: { name: 'Moss' }, saveRevision: 12, needsLocalHelpBeforeMove: true };
+    const payload = JSON.stringify(original);
+    const fixed = { ...original, needsLocalHelpBeforeMove: false };
+    const result = finalizeCampaignHydrationRepair(payload, original, fixed);
+    expect(result.repaired).toBe(true);
+    expect(result.state.saveRevision).toBe(13);
+    expect(cloudSlotHasSameRevisionConflict(JSON.stringify(result.state), cloudSlotRecordFromPayload(1, payload, '2026-09-03T00:00:00Z'))).toBe(false);
+    const reload = JSON.parse(JSON.stringify(result.state));
+    expect(finalizeCampaignHydrationRepair(JSON.stringify(reload), reload, reload)).toEqual({ state: reload, repaired: false });
+    expect(finalizeCampaignHydrationRepair(payload, original, original).state).toBe(original);
+  });
+
+  it('does not let a repair revision hide a pre-existing same-version cloud conflict', () => {
+    const original = { bio: { name: 'Moss' }, saveRevision: 12, needsLocalHelpBeforeMove: true };
+    const localPayload = JSON.stringify(original);
+    const differentCloud = cloudSlotRecordFromPayload(1, namedSave('Another campaign', 12), '2026-09-03T00:00:00Z');
+    const result = finalizeCampaignHydrationRepair(localPayload, original, { ...original, needsLocalHelpBeforeMove: false });
+    expect(cloudSlotHasSameRevisionConflict(JSON.stringify(result.state), differentCloud)).toBe(true);
+    expect(cloudSlotHasSameRevisionConflict(JSON.stringify(result.state), cloudSlotRecordFromPayload(1, JSON.stringify(result.state), '2026-09-03T00:00:00Z'))).toBe(false);
+  });
+
+  it('enforces repair ancestry in autosaves and durably records a repaired initial local save', () => {
+    expect(appSource.includes('cloudSlotHasSameRevisionConflict(record.payload, currentRecord)')).toBe(true);
+    expect(appSource.includes('finalizeCampaignHydrationRepair(sourcePayload, migrated.state, repaired, annotationsRepaired)')).toBe(true);
+    expect(appSource.includes('if (s !== beforeAnnotationRepair) onAnnotationRepair?.();')).toBe(true);
+    const loadStart = appSource.indexOf('// Load initial state');
+    const loadEnd = appSource.indexOf('useEffect(() =>', loadStart + 40);
+    const loadSource = appSource.slice(loadStart, loadEnd > loadStart ? loadEnd : undefined);
+    expect(loadSource).toContain('if (migrated.repaired)');
+    expect(loadSource).toContain('await persistHydratedCampaignLocally(migrated.state)');
+    const cloudLoad = appSource.slice(appSource.indexOf('const loadCloudRecord ='), appSource.indexOf('\n        if (cloudRecord) {', appSource.indexOf('const loadCloudRecord =')));
+    expect(cloudLoad.includes('const localSave = await persistHydratedCampaignLocally(migrated.state, true, () => !cloudBootstrapSkipped.current && bootstrapStillCurrent());')).toBe(true);
+    expect(cloudLoad.includes("setSaveStatus(localSave.localSaved ? 'saved' : 'error')")).toBe(true);
+    const manualDownload = appSource.slice(appSource.indexOf('const handleDownloadCloudSlot'), appSource.indexOf('const handleUploadCloudSlot'));
+    expect(manualDownload.includes('await persistHydratedCampaignLocally(migrated.state, true, operationStillCurrent);\n      if (!operationStillCurrent()) return;')).toBe(true);
+  });
+
+  it('versions real abandoned-journey annotation cleanup once, but not unrelated normalization', () => {
+    const original = {
+      bio: { name: 'Moss' }, saveRevision: 20,
+      journeyResetHistory: [{ journeyId: 'old-trip', startedAt: 100, resetAt: 300 }],
+      barrows: [{ id: 'old-barrow', journeyId: 'old-trip', createdAt: 200 }],
+      mapEncounterRecords: [{ id: 'old-map-note', journeyId: 'old-trip', createdAt: 200 }]
+    };
+    const cleaned = reconcileAbandonedJourneyAnnotations(original);
+    const hydrated = { ...cleaned, schemaVersion: 99, timerSettled: false };
+    const result = finalizeCampaignHydrationRepair(JSON.stringify(original), hydrated, hydrated, cleaned !== original);
+    expect(result.state).toMatchObject({ saveRevision: 21, barrows: [], mapEncounterRecords: [] });
+    const cloudOriginal = cloudSlotRecordFromPayload(1, JSON.stringify(original), '2026-09-03T00:00:00Z');
+    expect(cloudSlotHasSameRevisionConflict(JSON.stringify(result.state), cloudOriginal)).toBe(false);
+    const reloaded = JSON.parse(JSON.stringify(result.state));
+    const reloadedCleaned = reconcileAbandonedJourneyAnnotations(reloaded);
+    const rehydrated = { ...reloadedCleaned, schemaVersion: 100 };
+    expect(finalizeCampaignHydrationRepair(JSON.stringify(reloaded), rehydrated, rehydrated, reloaded !== reloadedCleaned))
+      .toEqual({ state: rehydrated, repaired: false });
+    expect(finalizeCampaignHydrationRepair(JSON.stringify(original), hydrated, { ...hydrated, timerSettled: true }, true).state.saveRevision).toBe(21);
+  });
+
+  it('blocks a newer remote branch even after repair and another local action advanced beyond it', () => {
+    const original = { bio: { name: 'Moss' }, saveRevision: 10, reputation: 5 };
+    const repaired = finalizeCampaignHydrationRepair(JSON.stringify(original), original, { ...original, reputation: 4 }).state;
+    const local12 = recordCampaignHydrationAncestry(repaired, { ...repaired, saveRevision: 12, reputation: 7 });
+    const remote11 = cloudSlotRecordFromPayload(1, JSON.stringify({ ...original, saveRevision: 11, reputation: 9 }), '2026-09-03T00:00:00Z');
+    expect(cloudSlotHasSameRevisionConflict(JSON.stringify(local12), remote11)).toBe(true);
+    // A shared repair origin is not proof that the remote choice is an ancestor.
+    const otherRepaired11 = cloudSlotRecordFromPayload(1, JSON.stringify({ ...repaired, reputation: 9 }), '2026-09-03T00:00:00Z');
+    expect(cloudSlotHasSameRevisionConflict(JSON.stringify(local12), otherRepaired11)).toBe(true);
+    expect(cloudSlotHasSameRevisionConflict(JSON.stringify(local12), cloudSlotRecordFromPayload(1, JSON.stringify(repaired), '2026-09-03T00:00:00Z'))).toBe(false);
+    const repairedAgain = finalizeCampaignHydrationRepair(JSON.stringify(local12), local12, { ...local12, reputation: 6 }).state;
+    expect(cloudSlotHasSameRevisionConflict(JSON.stringify(repairedAgain), remote11)).toBe(true);
+    expect(cloudSlotHasSameRevisionConflict(JSON.stringify(repairedAgain), otherRepaired11)).toBe(true);
+  });
+
+  it('allows exact own autosave parents across reloads while bounding lineage size', () => {
+    const original = { bio: { name: 'Moss' }, saveRevision: 10, reputation: 5 };
+    let local = finalizeCampaignHydrationRepair(JSON.stringify(original), original, { ...original, reputation: 4 }).state;
+    for (let index = 0; index < 40; index += 1) {
+      const previousPayload = JSON.stringify(local);
+      const rehydrated = { ...JSON.parse(previousPayload), normalized: true };
+      const restored = finalizeCampaignHydrationRepair(previousPayload, rehydrated, rehydrated).state;
+      local = recordCampaignHydrationAncestry(restored, { ...restored, saveRevision: restored.saveRevision + 1 });
+      expect(cloudSlotHasSameRevisionConflict(JSON.stringify(local), cloudSlotRecordFromPayload(1, previousPayload, '2026-09-03T00:00:00Z'))).toBe(false);
+      expect(JSON.parse(JSON.stringify(local)).hydrationRepairBase.ancestors.length).toBeLessThanOrEqual(16);
+    }
+  });
+
+  it('exposes a downloaded campaign only after persistence and its slot/account binding', () => {
+    const source = appSource.slice(appSource.indexOf('const handleDownloadCloudSlot'), appSource.indexOf('const handleUploadCloudSlot'));
+    const persisted = source.indexOf('await persistHydratedCampaignLocally(migrated.state, true,');
+    const guarded = source.indexOf('if (!operationStillCurrent()) return;', persisted);
+    const bound = source.indexOf('bindDownloadedCloudCampaign(uid, slot)', guarded);
+    const revealed = source.indexOf('setState(migrated.state);');
+    const failedPersistenceGuard = source.indexOf('if (!localSave.localSaved)', guarded);
+    expect(persisted).toBeGreaterThan(-1);
+    expect(failedPersistenceGuard).toBeGreaterThan(guarded);
+    expect(source.slice(failedPersistenceGuard, bound).includes('return;')).toBe(true);
+    expect(bound).toBeGreaterThan(guarded);
+    expect(revealed).toBeGreaterThan(bound);
+    expect(source.slice(bound, revealed).includes('await ')).toBe(false);
+    expect(appSource.includes('next = recordCampaignHydrationAncestry(prev, next);')).toBe(true);
+    const bootstrapLoad = appSource.slice(appSource.indexOf('const loadCloudRecord ='), appSource.indexOf('\n        if (cloudRecord) {', appSource.indexOf('const loadCloudRecord =')));
+    const bootstrapFailureGuard = bootstrapLoad.indexOf('if (!localSave.localSaved)');
+    expect(bootstrapFailureGuard).toBeGreaterThan(-1);
+    expect(bootstrapLoad.slice(bootstrapFailureGuard, bootstrapLoad.indexOf('setState(migrated.state)')).includes('return false;')).toBe(true);
+    for (const entry of [source, bootstrapLoad]) {
+      const detached = entry.indexOf('if (!clearCloudAccountBinding())');
+      const replacement = entry.indexOf('await persistHydratedCampaignLocally(migrated.state, true,');
+      expect(detached).toBeGreaterThan(-1);
+      expect(replacement).toBeGreaterThan(detached);
+      expect(entry.slice(detached, replacement)).toMatch(/return(?: false)?;/);
+    }
+  });
+
+  it('leaves downloaded campaigns unbound across reload when slot or account metadata writes fail', () => {
+    for (const failingKey of [ACTIVE_CLOUD_SLOT_KEY, CLOUD_ACCOUNT_BINDING_KEY]) {
+      const values: Record<string, string> = { [ACTIVE_CLOUD_SLOT_KEY]: '1', [CLOUD_ACCOUNT_BINDING_KEY]: 'user-a' };
+      const storage = {
+        getItem: (key: string) => values[key] ?? null,
+        setItem: (key: string, value: string) => {
+          if (key === failingKey) throw new DOMException('blocked', 'QuotaExceededError');
+          values[key] = value;
+        },
+        removeItem: (key: string) => { delete values[key]; }
+      };
+      expect(clearCloudAccountBinding(storage)).toBe(true);
+      expect(bindDownloadedCloudCampaign('user-a', 2, storage)).toBe(false);
+      expect(readCloudAccountBinding(storage)).toBeNull();
+      // A new session reads the durable keys, not this module's memory cache.
+      expect(storage.getItem(CLOUD_ACCOUNT_BINDING_KEY)).toBeNull();
+      expect(storage.getItem(ACTIVE_CLOUD_SLOT_KEY)).toBe(failingKey === ACTIVE_CLOUD_SLOT_KEY ? '1' : '2');
+    }
+  });
+
+  it('requires durable detach before replacement and binds the selected slot only on complete success', () => {
+    const values: Record<string, string> = { [ACTIVE_CLOUD_SLOT_KEY]: '1', [CLOUD_ACCOUNT_BINDING_KEY]: 'user-a' };
+    const storage = {
+      getItem: (key: string) => values[key] ?? null,
+      setItem: (key: string, value: string) => { values[key] = value; },
+      removeItem: (key: string) => { delete values[key]; }
+    };
+    const blocked = { removeItem: () => { throw new DOMException('blocked', 'SecurityError'); } };
+    expect(clearCloudAccountBinding(blocked)).toBe(false);
+    expect(storage.getItem(CLOUD_ACCOUNT_BINDING_KEY)).toBe('user-a');
+    expect(clearCloudAccountBinding(storage)).toBe(true);
+    expect(bindDownloadedCloudCampaign('user-a', 2, storage)).toBe(true);
+    expect(readActiveCloudSlot(storage)).toBe(2);
+    expect(readCloudAccountBinding(storage)).toBe('user-a');
+    // Keep the unrelated active-slot formatting fixture independent.
+    writeActiveCloudSlot(1, storage);
+    clearCloudAccountBinding(storage);
+  });
+
   it('splits a multi-megabyte UTF-8 campaign into safe lossless child documents', () => {
     const payload = JSON.stringify({
       bio: { name: '긴 기록' },
@@ -390,7 +547,7 @@ describe('cloud save slots', () => {
     const bootstrapEnd = appSource.indexOf('// Load initial state', bootstrapStart);
     const bootstrapSource = appSource.slice(bootstrapStart, bootstrapEnd);
     expect(bootstrapSource).toContain('cloudSlotHasSameRevisionConflict(localRaw, cloudRecord)');
-    expect(bootstrapSource).toContain("title: '같은 버전의 서로 다른 기록이 있습니다'");
+    expect(bootstrapSource).toContain("title: conflictHasSameRevision ? '같은 버전의 서로 다른 기록이 있습니다'");
     expect(bootstrapSource).toContain("defaultValue: 'load-cloud'");
     expect(bootstrapSource).toContain('clearCloudAccountBinding();');
     expect(bootstrapSource).not.toContain('askWindowConfirm(');

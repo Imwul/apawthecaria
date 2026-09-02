@@ -77,7 +77,7 @@ describe('journey recovery reset', () => {
     });
   });
 
-  it('removes journey-owned and legacy bear markers while keeping older permanent barrow rumours', () => {
+  it('removes journey-owned markers while keeping older or unscoped barrow rumours', () => {
     const reset = resetJourneyForPlanning({
       journeyActive: true,
       journey: { journeyId: 'journey-2', originId: 'odoak', startDate: 100 },
@@ -90,6 +90,25 @@ describe('journey recovery reset', () => {
         { id: 'barrow_1', createdAt: 120 }
       ]
     });
-    expect(reset.barrows).toEqual([{ id: 'legacy-barrow', createdAt: 80 }]);
+    expect(reset.barrows).toEqual([{ id: 'legacy-barrow', createdAt: 80 }, { id: 'bear-barrow:forest' }]);
+  });
+
+  it('clears uncommitted patient/reward workflows and legacy dated annotations together', () => {
+    const reset = resetJourneyForPlanning({
+      journeyActive: true,
+      journey: { journeyId: 'journey:100:legacy', originId: 'odoak' },
+      barrows: [{ id: 'barrow_50' }, { id: 'barrow_150' }],
+      mapEncounterRecords: [{ createdAt: 150 }],
+      pendingTreatmentReward: { patientId: 'abandoned-patient' },
+      workflowDrafts: { character: { name: 'Moss' }, patient: { name: 'Patient' }, journey: { goal: 'Old' } }
+    }, undefined, 200);
+    expect(reset).toMatchObject({
+      barrows: [{ id: 'barrow_50' }],
+      mapEncounterRecords: [],
+      pendingTreatmentReward: null,
+      workflowDrafts: { character: { name: 'Moss' }, patient: null, journey: null },
+      journeyResetHistory: [{ journeyId: 'journey:100:legacy', startedAt: 100, resetAt: 200 }]
+    });
+    expect(resetJourneyForPlanning(JSON.parse(JSON.stringify(reset)), undefined, 250).barrows).toEqual(reset.barrows);
   });
 });

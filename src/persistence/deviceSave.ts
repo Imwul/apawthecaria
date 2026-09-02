@@ -196,3 +196,39 @@ export const preferDeviceSave = (localRaw: string | null, fallbackRaw: string | 
   if (fallbackRevision > localRevision) return fallbackRaw;
   return localRaw;
 };
+
+/** A deliberate cloud-slot replacement can have a lower revision than the
+ * campaign being left. Do not fall back to a second store whose stale primary
+ * copy could win on reload. Preserve the old latest snapshot before clearing
+ * its fallback, and require the replacement itself to reach the primary store.
+ * Ordinary autosaves continue using IndexedDB when localStorage is blocked. */
+export const persistDeviceSaveReplacement = async (
+  key: string,
+  snapshot: string,
+  dependencies: {
+    storage?: Pick<Storage, 'getItem' | 'setItem'>;
+    readFallback?: typeof readDeviceSave;
+    removeFallback?: typeof removeDeviceSave;
+    stillCurrent?: () => boolean;
+  } = {}
+): Promise<{ localSaved: boolean; localFailure: DeviceSaveFailure | null }> => {
+  const storage = dependencies.storage ?? localStorage;
+  try {
+    const fallbackRaw = await (dependencies.readFallback ?? readDeviceSave)(key);
+    if (dependencies.stillCurrent?.() === false) return { localSaved: false, localFailure: null };
+    const localRaw = storage.getItem(key);
+    if (fallbackRaw !== null) {
+      // If promotion fails, neither durable copy of the old campaign changes.
+      const current = preferDeviceSave(localRaw, fallbackRaw);
+      if (current !== null) storage.setItem(key, current);
+      if (!await (dependencies.removeFallback ?? removeDeviceSave)(key)) {
+        return { localSaved: false, localFailure: 'unavailable' };
+      }
+    }
+    if (dependencies.stillCurrent?.() === false) return { localSaved: false, localFailure: null };
+    storage.setItem(key, snapshot);
+    return { localSaved: true, localFailure: null };
+  } catch (error) {
+    return { localSaved: false, localFailure: classifyDeviceSaveFailure(error) };
+  }
+};
