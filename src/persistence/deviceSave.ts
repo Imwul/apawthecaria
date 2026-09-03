@@ -13,6 +13,36 @@ const STORE_NAME = 'records';
 const DEVICE_STORAGE_TIMEOUT_MS = 1500;
 
 type StoredRecord = { key: string; value: string };
+type DeviceSaveStorage = Pick<Storage, 'getItem' | 'setItem'>;
+const DEVICE_SAVE_POINTER_FORMAT = 'apawthecaria-device-save-pointer-v1';
+const DEVICE_SAVE_POINTER_PREFIX = 'apawthecaria-device-save-pointer-';
+const UNAVAILABLE_DEVICE_SAVE = '__apawthecaria_unavailable_device_save_pointer__';
+type DeviceSavePointer = { format: string; snapshotKey?: unknown };
+
+const parseDeviceSavePointer = (raw: string | null): DeviceSavePointer | null => {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && typeof parsed.format === 'string'
+      && parsed.format.startsWith(DEVICE_SAVE_POINTER_PREFIX) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+export const isDeviceSavePointer = (raw: string | null): boolean => Boolean(parseDeviceSavePointer(raw));
+export const isUnavailableDeviceSave = (raw: string | null): boolean => raw === UNAVAILABLE_DEVICE_SAVE;
+
+const readPrimary = (key: string, storage?: Pick<Storage, 'getItem'>): { ok: true; raw: string | null } | { ok: false } => {
+  try {
+    const target = storage ?? (typeof localStorage === 'undefined' ? null : localStorage);
+    return { ok: true, raw: target?.getItem(key) ?? null };
+  } catch {
+    return { ok: false };
+  }
+};
+
+const snapshotKeyPrefix = (key: string) => `${key}::snapshot::`;
 
 export type DeviceSaveFailure = 'quota' | 'unavailable';
 
@@ -89,16 +119,18 @@ const openDatabase = (): Promise<IDBDatabase | null> => {
   return databasePromise;
 };
 
-export const readDeviceSave = async (key: string): Promise<string | null> => {
+type DeviceRecordRead = { status: 'found'; value: string } | { status: 'absent' | 'unavailable' };
+
+const readDeviceRecordResult = async (key: string): Promise<DeviceRecordRead> => {
   const database = await openDatabase();
-  if (!database) return null;
+  if (!database) return { status: 'unavailable' };
   return new Promise(resolve => {
     let settled = false;
     const timeoutId = setTimeout(() => {
       settled = true;
-      resolve(null);
+      resolve({ status: 'unavailable' });
     }, DEVICE_STORAGE_TIMEOUT_MS);
-    const finish = (value: string | null) => {
+    const finish = (value: DeviceRecordRead) => {
       if (settled) return;
       settled = true;
       clearTimeout(timeoutId);
@@ -110,21 +142,28 @@ export const readDeviceSave = async (key: string): Promise<string | null> => {
         .get(key);
       request.onsuccess = () => {
         const value = (request.result as StoredRecord | undefined)?.value;
-        finish(typeof value === 'string' ? value : null);
+        finish(typeof value === 'string' ? { status: 'found', value } : { status: 'absent' });
       };
-      request.onerror = () => finish(null);
+      request.onerror = () => finish({ status: 'unavailable' });
     } catch {
-      finish(null);
+      finish({ status: 'unavailable' });
     }
   });
 };
 
-export const writeDeviceSave = async (key: string, value: string, stillCurrent?: () => boolean): Promise<boolean> => {
+const readDeviceRecord = async (key: string): Promise<string | null> => {
+  const result = await readDeviceRecordResult(key);
+  return result.status === 'found' ? result.value : null;
+};
+
+const writeDeviceRecord = async (key: string, value: string, stillCurrent?: () => boolean, immutable = false): Promise<boolean> => {
   const database = await openDatabase();
   if (!database || stillCurrent?.() === false) return false;
   return new Promise(resolve => {
     let settled = false;
+    let transaction: IDBTransaction | null = null;
     const timeoutId = setTimeout(() => {
+      try { transaction?.abort(); } catch { /* Already completed or aborted. */ }
       settled = true;
       resolve(false);
     }, DEVICE_STORAGE_TIMEOUT_MS);
@@ -135,8 +174,10 @@ export const writeDeviceSave = async (key: string, value: string, stillCurrent?:
       resolve(value);
     };
     try {
-      const transaction = database.transaction(STORE_NAME, 'readwrite');
-      transaction.objectStore(STORE_NAME).put({ key, value } satisfies StoredRecord);
+      transaction = database.transaction(STORE_NAME, 'readwrite');
+      const record = { key, value } satisfies StoredRecord;
+      if (immutable) transaction.objectStore(STORE_NAME).add(record);
+      else transaction.objectStore(STORE_NAME).put(record);
       transaction.oncomplete = () => finish(true);
       transaction.onerror = () => finish(false);
       transaction.onabort = () => finish(false);
@@ -146,12 +187,14 @@ export const writeDeviceSave = async (key: string, value: string, stillCurrent?:
   });
 };
 
-export const removeDeviceSave = async (key: string, stillCurrent?: () => boolean): Promise<boolean> => {
+const removeDeviceRecord = async (key: string, stillCurrent?: () => boolean): Promise<boolean> => {
   const database = await openDatabase();
   if (!database || stillCurrent?.() === false) return false;
   return new Promise(resolve => {
     let settled = false;
+    let transaction: IDBTransaction | null = null;
     const timeoutId = setTimeout(() => {
+      try { transaction?.abort(); } catch { /* Already completed or aborted. */ }
       settled = true;
       resolve(false);
     }, DEVICE_STORAGE_TIMEOUT_MS);
@@ -162,7 +205,7 @@ export const removeDeviceSave = async (key: string, stillCurrent?: () => boolean
       resolve(value);
     };
     try {
-      const transaction = database.transaction(STORE_NAME, 'readwrite');
+      transaction = database.transaction(STORE_NAME, 'readwrite');
       transaction.objectStore(STORE_NAME).delete(key);
       transaction.oncomplete = () => finish(true);
       transaction.onerror = () => finish(false);
@@ -173,6 +216,110 @@ export const removeDeviceSave = async (key: string, stillCurrent?: () => boolean
   });
 };
 
+/** Resolve an authoritative tiny primary pointer, never the legacy fallback
+ * that it superseded. Missing/unavailable targets deliberately fail parsing. */
+export const readDeviceSave = async (
+  key: string,
+  storage?: Pick<Storage, 'getItem'>,
+  expectedPrimaryRaw?: string | null
+): Promise<string | null> => {
+  const primary = readPrimary(key, storage);
+  if (!primary.ok || (expectedPrimaryRaw !== undefined && primary.raw !== expectedPrimaryRaw)) return UNAVAILABLE_DEVICE_SAVE;
+  const pointer = parseDeviceSavePointer(primary.raw);
+  if (!pointer) {
+    const result = await readDeviceRecordResult(key);
+    const latest = readPrimary(key, storage);
+    if (!latest.ok || latest.raw !== primary.raw || result.status === 'unavailable') return UNAVAILABLE_DEVICE_SAVE;
+    return result.status === 'found' ? result.value : null;
+  }
+  if (pointer.format !== DEVICE_SAVE_POINTER_FORMAT
+    || typeof pointer.snapshotKey !== 'string'
+    || !pointer.snapshotKey.startsWith(snapshotKeyPrefix(key))) return UNAVAILABLE_DEVICE_SAVE;
+  const payload = await readDeviceRecord(pointer.snapshotKey);
+  const latest = readPrimary(key, storage);
+  if (!latest.ok || latest.raw !== primary.raw || payload === null) return UNAVAILABLE_DEVICE_SAVE;
+  return payload;
+};
+
+type StageSnapshot = (key: string, value: string, stillCurrent?: () => boolean) => Promise<boolean>;
+
+const commitPointerSnapshot = async (
+  key: string,
+  snapshot: string,
+  storage: DeviceSaveStorage,
+  expectedPrimaryRaw: string | null,
+  stillCurrent?: () => boolean,
+  stageSnapshot: StageSnapshot = (recordKey, value, current) => writeDeviceRecord(recordKey, value, current, true),
+  makeSnapshotId: () => string = () => globalThis.crypto?.randomUUID?.()
+    || `${Date.now()}-${Math.random().toString(36).slice(2)}`
+): Promise<{ localSaved: boolean; localFailure: DeviceSaveFailure | null }> => {
+  const snapshotKey = `${snapshotKeyPrefix(key)}${makeSnapshotId()}`;
+  const removeUnreferenced = (recordKey: string) => {
+    void removeDeviceRecord(recordKey, () => {
+      const current = readPrimary(key, storage);
+      return current.ok && parseDeviceSavePointer(current.raw)?.snapshotKey !== recordKey;
+    });
+  };
+  if (stillCurrent?.() === false) return { localSaved: false, localFailure: null };
+  if (!await stageSnapshot(snapshotKey, snapshot, stillCurrent)) {
+    return { localSaved: false, localFailure: stillCurrent?.() === false ? null : 'unavailable' };
+  }
+  try {
+    // The staged record is immutable and not authoritative until this small
+    // primary write succeeds. A denied pointer leaves both old stores intact.
+    if (stillCurrent?.() === false || storage.getItem(key) !== expectedPrimaryRaw) {
+      removeUnreferenced(snapshotKey);
+      return { localSaved: false, localFailure: null };
+    }
+    storage.setItem(key, JSON.stringify({ format: DEVICE_SAVE_POINTER_FORMAT, snapshotKey }));
+    const oldPointer = parseDeviceSavePointer(expectedPrimaryRaw);
+    if (oldPointer?.format === DEVICE_SAVE_POINTER_FORMAT && typeof oldPointer.snapshotKey === 'string'
+      && oldPointer.snapshotKey.startsWith(snapshotKeyPrefix(key))) {
+      // Cleanup is conditional and never part of the commit. Readers of the
+      // previous pointer detect its changed primary key and fail closed.
+      removeUnreferenced(oldPointer.snapshotKey);
+    }
+    return { localSaved: true, localFailure: null };
+  } catch (error) {
+    removeUnreferenced(snapshotKey);
+    return { localSaved: false, localFailure: classifyDeviceSaveFailure(error) };
+  }
+};
+
+export const writeDeviceSave = async (
+  key: string,
+  value: string,
+  stillCurrent?: () => boolean,
+  storage?: DeviceSaveStorage
+): Promise<boolean> => {
+  const primary = readPrimary(key, storage);
+  if (!primary.ok || stillCurrent?.() === false) return false;
+  if (!isDeviceSavePointer(primary.raw)) return writeDeviceRecord(key, value, stillCurrent);
+  const pointer = parseDeviceSavePointer(primary.raw)!;
+  if (pointer.format !== DEVICE_SAVE_POINTER_FORMAT || typeof pointer.snapshotKey !== 'string'
+    || !pointer.snapshotKey.startsWith(snapshotKeyPrefix(key))) return false;
+  try {
+    const target = storage ?? localStorage;
+    return (await commitPointerSnapshot(key, value, target, primary.raw, stillCurrent)).localSaved;
+  } catch {
+    return false;
+  }
+};
+
+/** Normal primary-save cleanup must not delete an authoritative generation. */
+export const removeDeviceSave = async (
+  key: string,
+  stillCurrent?: () => boolean,
+  storage?: Pick<Storage, 'getItem'>
+): Promise<boolean> => {
+  const mayRemove = () => {
+    const primary = readPrimary(key, storage);
+    return primary.ok && !isDeviceSavePointer(primary.raw) && stillCurrent?.() !== false;
+  };
+  if (!mayRemove()) return false;
+  return removeDeviceRecord(key, mayRemove);
+};
+
 /**
  * Pick the newest usable JSON snapshot when localStorage and the durable
  * fallback both exist. The fallback is written only after a localStorage
@@ -180,6 +327,8 @@ export const removeDeviceSave = async (key: string, stillCurrent?: () => boolean
  * Invalid JSON never wins over a parseable snapshot.
  */
 export const preferDeviceSave = (localRaw: string | null, fallbackRaw: string | null): string | null => {
+  if (isDeviceSavePointer(localRaw)) return fallbackRaw ?? UNAVAILABLE_DEVICE_SAVE;
+  if (isUnavailableDeviceSave(fallbackRaw)) return UNAVAILABLE_DEVICE_SAVE;
   const revisionOf = (raw: string | null): number => {
     if (!raw) return -1;
     try {
@@ -197,11 +346,9 @@ export const preferDeviceSave = (localRaw: string | null, fallbackRaw: string | 
   return localRaw;
 };
 
-/** A deliberate cloud-slot replacement can have a lower revision than the
- * campaign being left. Do not fall back to a second store whose stale primary
- * copy could win on reload. Preserve the old latest snapshot before clearing
- * its fallback, and require the replacement itself to reach the primary store.
- * Ordinary autosaves continue using IndexedDB when localStorage is blocked. */
+/** A small primary pointer can commit a lower-revision replacement even when
+ * the full JSON exceeds localStorage's quota. No older fallback is promoted or
+ * removed first. Total primary-write denial still fails safely. */
 export const persistDeviceSaveReplacement = async (
   key: string,
   snapshot: string,
@@ -210,24 +357,38 @@ export const persistDeviceSaveReplacement = async (
     readFallback?: typeof readDeviceSave;
     removeFallback?: typeof removeDeviceSave;
     stillCurrent?: () => boolean;
+    stageSnapshot?: StageSnapshot;
+    makeSnapshotId?: () => string;
   } = {}
 ): Promise<{ localSaved: boolean; localFailure: DeviceSaveFailure | null }> => {
-  const storage = dependencies.storage ?? localStorage;
   try {
-    const fallbackRaw = await (dependencies.readFallback ?? readDeviceSave)(key);
-    if (dependencies.stillCurrent?.() === false) return { localSaved: false, localFailure: null };
-    const localRaw = storage.getItem(key);
-    if (fallbackRaw !== null) {
-      // If promotion fails, neither durable copy of the old campaign changes.
-      const current = preferDeviceSave(localRaw, fallbackRaw);
-      if (current !== null) storage.setItem(key, current);
-      if (!await (dependencies.removeFallback ?? removeDeviceSave)(key)) {
-        return { localSaved: false, localFailure: 'unavailable' };
+    const storage = dependencies.storage ?? localStorage;
+    const initialPrimary = storage.getItem(key);
+    let fallbackRaw: string | null;
+    if (dependencies.readFallback) {
+      fallbackRaw = await dependencies.readFallback(key);
+    } else if (isDeviceSavePointer(initialPrimary)) {
+      fallbackRaw = await readDeviceSave(key, storage, initialPrimary);
+    } else {
+      const fallback = await readDeviceRecordResult(key);
+      fallbackRaw = fallback.status === 'found' ? fallback.value
+        : fallback.status === 'absent' ? null : UNAVAILABLE_DEVICE_SAVE;
+    }
+    if (dependencies.stillCurrent?.() === false || storage.getItem(key) !== initialPrimary) {
+      return { localSaved: false, localFailure: null };
+    }
+    // With no older fallback, replacing the primary JSON is already atomic.
+    // Otherwise commit a pointer so crash/reload cannot prefer that old copy.
+    if (fallbackRaw === null && !isDeviceSavePointer(initialPrimary)) {
+      try {
+        storage.setItem(key, snapshot);
+        return { localSaved: true, localFailure: null };
+      } catch {
+        // The tiny pointer can still fit when the full JSON cannot.
       }
     }
-    if (dependencies.stillCurrent?.() === false) return { localSaved: false, localFailure: null };
-    storage.setItem(key, snapshot);
-    return { localSaved: true, localFailure: null };
+    return commitPointerSnapshot(key, snapshot, storage, initialPrimary, dependencies.stillCurrent,
+      dependencies.stageSnapshot, dependencies.makeSnapshotId);
   } catch (error) {
     return { localSaved: false, localFailure: classifyDeviceSaveFailure(error) };
   }

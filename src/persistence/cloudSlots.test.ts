@@ -741,7 +741,7 @@ describe('cloud save slots', () => {
     expect(appSource).toContain("getDocFromServer(doc(db, 'saves', OFFICIAL_MAP_POINTER_DOCUMENT_ID))");
     expect(appSource).toContain('cloudMapUidRef.current !== user.uid');
     expect(appSource).toContain('auth?.currentUser?.uid !== uid');
-    expect(appSource).toContain('const devicePayload = await readDeviceSave(CAMPAIGN_SAVE_KEY);');
+    expect(appSource.includes('const devicePayload = await readDeviceSave(CAMPAIGN_SAVE_KEY, undefined, storedPayload);')).toBe(true);
     expect(appSource).toContain('assembleCloudAccountDocument(currentData, uid, records, tombstones)');
     expect(appSource).toContain("throw cloudSlotError('cloud-slot-deleted')");
     expect(appSource).toContain('older documents used `"1"` as well as `"slot-1"`');

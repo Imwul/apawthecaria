@@ -129,7 +129,7 @@ import {
   type PendingTreatmentReward,
   type WorkflowDrafts
 } from "./workflowDrafts";
-import { classifyDeviceSaveFailure, persistDeviceSaveReplacement, preferDeviceSave, readDeviceSave, removeDeviceSave as removePersistedDeviceSave, writeDeviceSave as writePersistedDeviceSave, type DeviceSaveFailure } from './persistence/deviceSave';
+import { classifyDeviceSaveFailure, isDeviceSavePointer, isUnavailableDeviceSave, persistDeviceSaveReplacement, preferDeviceSave, readDeviceSave, removeDeviceSave as removePersistedDeviceSave, writeDeviceSave as writePersistedDeviceSave, type DeviceSaveFailure } from './persistence/deviceSave';
 import {
   FAMILIAR_BENEFITS,
   createPreparedReagentItem,
@@ -748,9 +748,27 @@ const clearCloudAccountBinding = () => ensureCurrentCampaignWrite()
   && campaignWriteOwnership.write(() => clearPersistedCloudAccountBinding());
 const bindDownloadedCloudCampaign = (uid: string, slot: CloudSlotId) => ensureCurrentCampaignWrite()
   && campaignWriteOwnership.write(() => bindPersistedDownloadedCloudCampaign(uid, slot));
+const guardedDeviceSaveStorage = {
+  getItem: (key: string) => localStorage.getItem(key),
+  setItem: (key: string, value: string) => campaignWriteOwnership.write(() => localStorage.setItem(key, value))
+};
+let deviceSaveReplacementGeneration = 0;
+let deviceSaveWriteQueue: Promise<boolean> = Promise.resolve(true);
 const writeDeviceSave = (key: string, value: string) => {
-  const stillOwned = campaignWriteOwnership.checkpoint();
-  return writePersistedDeviceSave(key, value, () => ensureCurrentCampaignWrite() && stillOwned());
+  const generation = deviceSaveReplacementGeneration;
+  const owner = readCloudAccountBinding();
+  const slot = readActiveCloudSlot();
+  deviceSaveWriteQueue = deviceSaveWriteQueue.catch(() => false).then(() => {
+    const stillCurrent = () => generation === deviceSaveReplacementGeneration
+      && ensureCurrentCampaignWrite()
+      && readCloudAccountBinding() === owner && readActiveCloudSlot() === slot;
+    if (!stillCurrent()) return false;
+    // Capture after earlier writes in THIS tab commit their new pointer, not
+    // while queued. Otherwise a fast second edit would look like a stale tab.
+    const stillOwned = campaignWriteOwnership.checkpoint();
+    return writePersistedDeviceSave(key, value, () => stillCurrent() && stillOwned(), guardedDeviceSaveStorage);
+  });
+  return deviceSaveWriteQueue;
 };
 const removeDeviceSave = (key: string) => {
   const stillOwned = campaignWriteOwnership.checkpoint();
@@ -760,6 +778,10 @@ const safeLocalStorageSetItem = (key: string, value: string): boolean => {
   try {
     if (key === CAMPAIGN_SAVE_KEY) {
       if (!ensureCurrentCampaignWrite()) return false;
+      // A quota-safe pointer is a committed campaign identity. Keep it until
+      // the next IndexedDB snapshot can replace it atomically; promoting just
+      // its payload could expose an older, higher-revision legacy fallback.
+      if (isDeviceSavePointer(localStorage.getItem(key))) return false;
       campaignWriteOwnership.write(() => localStorage.setItem(key, value));
     } else {
       localStorage.setItem(key, value);
@@ -1504,18 +1526,23 @@ const store = {
     let localFailure: DeviceSaveFailure | null = null;
     try {
       jsonString = JSON.stringify(value);
-      try {
-        campaignWriteOwnership.write(() => localStorage.setItem(key, jsonString));
-        localSaved = true;
-        void removeDeviceSave(key);
-      } catch (error) {
-        // Safari private windows and exhausted localStorage quotas are both
-        // recoverable: keep a durable device copy in IndexedDB while the
-        // account-bound cloud path runs in parallel.
+      if (isDeviceSavePointer(safeLocalStorageGetItem(key))) {
         localSaved = await writeDeviceSave(key, jsonString);
-        if (!localSaved) {
-          localFailure = classifyDeviceSaveFailure(error);
-          console.warn('브라우저 기기 저장과 대체 저장에 모두 실패했습니다:', error);
+        if (!localSaved) localFailure = 'unavailable';
+      } else {
+        try {
+          campaignWriteOwnership.write(() => localStorage.setItem(key, jsonString));
+          localSaved = true;
+          void removeDeviceSave(key);
+        } catch (error) {
+          // Safari private windows and exhausted localStorage quotas are both
+          // recoverable: keep a durable device copy in IndexedDB while the
+          // account-bound cloud path runs in parallel.
+          localSaved = await writeDeviceSave(key, jsonString);
+          if (!localSaved) {
+            localFailure = classifyDeviceSaveFailure(error);
+            console.warn('브라우저 기기 저장과 대체 저장에 모두 실패했습니다:', error);
+          }
         }
       }
     } catch (e) {
@@ -1581,7 +1608,8 @@ const store = {
   load: async (key: string, fallback: any) => {
     let localValue: any = null;
     const localRaw = safeLocalStorageGetItem(key);
-    const deviceRaw = await readDeviceSave(key);
+    const deviceRaw = await readDeviceSave(key, undefined, localRaw);
+    if (isUnavailableDeviceSave(deviceRaw)) throw new Error('device-save-unavailable');
     const preferredRaw = preferDeviceSave(localRaw, deviceRaw);
     if (preferredRaw) {
       try {
@@ -6237,14 +6265,22 @@ const migrateCampaignSave = (
 const persistHydratedCampaignLocally = async (state: GameState, replacingCampaign = false, stillCurrent?: () => boolean) => {
   if (!ensureCurrentCampaignWrite()) return { localSaved: false, localFailure: null };
   const snapshot = JSON.stringify(state);
-  if (replacingCampaign) return persistDeviceSaveReplacement(CAMPAIGN_SAVE_KEY, snapshot, {
-    stillCurrent: () => ensureCurrentCampaignWrite() && stillCurrent?.() !== false,
-    storage: {
-      getItem: key => localStorage.getItem(key),
-      setItem: (key, value) => campaignWriteOwnership.write(() => localStorage.setItem(key, value))
-    },
-    removeFallback: removeDeviceSave
-  });
+  if (replacingCampaign) {
+    const generation = ++deviceSaveReplacementGeneration;
+    await deviceSaveWriteQueue.catch(() => false);
+    const replacementStillCurrent = () => generation === deviceSaveReplacementGeneration
+      && ensureCurrentCampaignWrite() && stillCurrent?.() !== false;
+    if (!replacementStillCurrent()) return { localSaved: false, localFailure: null };
+    return persistDeviceSaveReplacement(CAMPAIGN_SAVE_KEY, snapshot, {
+      stillCurrent: replacementStillCurrent,
+      storage: guardedDeviceSaveStorage,
+      removeFallback: removeDeviceSave
+    });
+  }
+  if (isDeviceSavePointer(safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY))) {
+    const localSaved = await writeDeviceSave(CAMPAIGN_SAVE_KEY, snapshot);
+    return { localSaved, localFailure: localSaved ? null : 'unavailable' as const };
+  }
   try {
     campaignWriteOwnership.write(() => localStorage.setItem(CAMPAIGN_SAVE_KEY, snapshot));
     void removeDeviceSave(CAMPAIGN_SAVE_KEY);
@@ -6256,10 +6292,15 @@ const persistHydratedCampaignLocally = async (state: GameState, replacingCampaig
 };
 
 const exportRawCampaignSave = async () => {
+  const localRaw = safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY);
   const raw = preferDeviceSave(
-    safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY),
-    await readDeviceSave(CAMPAIGN_SAVE_KEY)
+    localRaw,
+    await readDeviceSave(CAMPAIGN_SAVE_KEY, undefined, localRaw)
   );
+  if (isUnavailableDeviceSave(raw) || isDeviceSavePointer(raw)) {
+    showAlert('대체 저장소의 기록을 읽지 못해 내보내기를 중단했습니다. 원본은 지우지 않았습니다. 이 페이지를 다시 열어 재시도해 주세요.');
+    return;
+  }
   if (!raw) {
     showAlert('내보낼 로컬 기록이 없습니다.');
     return;
@@ -7249,7 +7290,11 @@ export default function App() {
           : null;
         if (cloudBootstrapSkipped.current || !bootstrapStillCurrent()) return;
         const localStorageRaw = safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY);
-        const localRaw = preferDeviceSave(localStorageRaw, await readDeviceSave(CAMPAIGN_SAVE_KEY));
+        const localRaw = preferDeviceSave(localStorageRaw, await readDeviceSave(CAMPAIGN_SAVE_KEY, undefined, localStorageRaw));
+        if (isUnavailableDeviceSave(localRaw)) {
+          setCloudSyncStatus('local-only');
+          return;
+        }
         const localParsed = parseCampaignSaveRaw(localRaw);
         const localHasProgress = localParsed.ok && campaignSaveHasProgress(localParsed.value);
         const boundUid = readCloudAccountBinding();
@@ -7487,8 +7532,13 @@ export default function App() {
         showAlert(`${message} 원본을 내보낸 뒤 다시 시도하세요.`);
       };
       const localRaw = safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY);
-      const deviceRaw = await readDeviceSave(CAMPAIGN_SAVE_KEY);
+      const deviceRaw = await readDeviceSave(CAMPAIGN_SAVE_KEY, undefined, localRaw);
       const raw = preferDeviceSave(localRaw, deviceRaw);
+      if (isUnavailableDeviceSave(raw)) {
+        failLoad('대체 저장소를 열지 못했습니다. 기존 기록은 지우지 않았으니 이 페이지를 다시 열어 재시도해 주세요.');
+        setLoading(false);
+        return;
+      }
       if (raw) {
         const parsed = parseCampaignSaveRaw(raw);
         const migrated = parsed.ok ? migrateCampaignSave(parsed.value, raw) : { ok: false as const };
@@ -7505,7 +7555,11 @@ export default function App() {
         setSaveLoadError(null);
         setSaveStatus(repairSave && !repairSave.localSaved ? 'error' : 'saved');
         setLocalSaveFailure(repairSave?.localFailure || null);
-        if (!migrated.repaired && raw === deviceRaw && raw !== localRaw) {
+        if (!migrated.repaired && isDeviceSavePointer(localRaw)) {
+          // The tiny primary pointer intentionally wins over legacy records,
+          // even when this slot has a lower revision than the previous one.
+          // It is not an ordinary fallback waiting to be promoted or removed.
+        } else if (!migrated.repaired && raw === deviceRaw && raw !== localRaw) {
           const promotedSnapshot = JSON.stringify(migrated.state);
           if (safeLocalStorageSetItem(CAMPAIGN_SAVE_KEY, promotedSnapshot)) {
             void removeDeviceSave(CAMPAIGN_SAVE_KEY);
@@ -7517,7 +7571,14 @@ export default function App() {
         setLoading(false);
         return;
       }
-      const loaded = await store.load(CAMPAIGN_SAVE_KEY, null);
+      let loaded;
+      try {
+        loaded = await store.load(CAMPAIGN_SAVE_KEY, null);
+      } catch {
+        failLoad('기기 저장소를 열지 못했습니다. 기존 기록은 지우지 않았으니 이 페이지를 다시 열어 재시도해 주세요.');
+        setLoading(false);
+        return;
+      }
       if (loaded) {
         const migrated = migrateCampaignSave(loaded);
         if (migrated.ok) {
@@ -8659,10 +8720,12 @@ export default function App() {
         showAlert(`슬롯 ${slot}은 비어 있습니다.`);
         return;
       }
-      const localStr = preferDeviceSave(
-        safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY),
-        await readDeviceSave(CAMPAIGN_SAVE_KEY)
-      );
+      const localRaw = safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY);
+      const localStr = preferDeviceSave(localRaw, await readDeviceSave(CAMPAIGN_SAVE_KEY, undefined, localRaw));
+      if (isUnavailableDeviceSave(localStr)) {
+        showAlert('현재 기기 기록을 안전하게 읽지 못해 캠페인 전환을 멈췄습니다. 기존 기록은 그대로 두었습니다. 페이지를 다시 열어 재시도해 주세요.');
+        return;
+      }
       const downloadConfirmationMessage = manualSlotDownloadConfirmationMessage({
         slot,
         localRaw: localStr,
@@ -8809,7 +8872,7 @@ export default function App() {
       // localStorage can still contain the previous debounced snapshot.
       const liveStatePayload = state ? JSON.stringify(state) : null;
       const storedPayload = safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY);
-      const devicePayload = await readDeviceSave(CAMPAIGN_SAVE_KEY);
+      const devicePayload = await readDeviceSave(CAMPAIGN_SAVE_KEY, undefined, storedPayload);
       // Prefer the current React snapshot once the name is committed, but
       // retain a just-flushed character draft when React has not re-rendered
       // yet (the draft may still be completing its IndexedDB fallback write).
@@ -9020,18 +9083,25 @@ export default function App() {
             </button>
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 if (!ensureCurrentCampaignWrite()) return;
                 if (!askWindowConfirm('기존 기록을 지우고 새 약제사로 시작할까요? 먼저 원본을 내보내세요.')) return;
                 const fresh = syncWorldMemory(INITIAL_STATE);
+                if (!clearCloudAccountBinding()) {
+                  showAlert('기기 저장소에 접근할 수 없어 새 기록을 시작하지 않았습니다. 기존 기록은 그대로 두었습니다.');
+                  return;
+                }
+                const saved = await persistHydratedCampaignLocally(fresh, true);
+                if (!ensureCurrentCampaignWrite()) return;
+                if (!saved.localSaved) {
+                  showAlert('새 기록을 기기에 저장하지 못했습니다. 기존 기록을 보존했으니 저장 공간과 사이트 데이터 접근을 확인해 주세요.');
+                  return;
+                }
                 resetCampaignScopedUi();
                 setState(fresh);
-                const localSnapshot = JSON.stringify(fresh);
-                if (safeLocalStorageSetItem(CAMPAIGN_SAVE_KEY, localSnapshot)) {
-                  void removeDeviceSave(CAMPAIGN_SAVE_KEY);
-                } else {
-                  void writeDeviceSave(CAMPAIGN_SAVE_KEY, localSnapshot);
-                }
+                setSaveStatus('saved');
+                setLocalSaveFailure(null);
+                setCloudSyncStatus('local-only');
                 setSaveLoadError(null);
               }}
               style={{ padding: '0.55rem 1rem', background: '#fff', color: '#8f2f28', border: '1px solid #c77972', borderRadius: '8px', cursor: 'pointer' }}
