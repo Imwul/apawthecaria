@@ -119,9 +119,9 @@ export const readDeviceSave = async (key: string): Promise<string | null> => {
   });
 };
 
-export const writeDeviceSave = async (key: string, value: string): Promise<boolean> => {
+export const writeDeviceSave = async (key: string, value: string, stillCurrent?: () => boolean): Promise<boolean> => {
   const database = await openDatabase();
-  if (!database) return false;
+  if (!database || stillCurrent?.() === false) return false;
   return new Promise(resolve => {
     let settled = false;
     const timeoutId = setTimeout(() => {
@@ -146,9 +146,9 @@ export const writeDeviceSave = async (key: string, value: string): Promise<boole
   });
 };
 
-export const removeDeviceSave = async (key: string): Promise<boolean> => {
+export const removeDeviceSave = async (key: string, stillCurrent?: () => boolean): Promise<boolean> => {
   const database = await openDatabase();
-  if (!database) return false;
+  if (!database || stillCurrent?.() === false) return false;
   return new Promise(resolve => {
     let settled = false;
     const timeoutId = setTimeout(() => {

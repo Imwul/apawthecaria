@@ -15,6 +15,7 @@ import {
   tryMigrateCampaignSave
 } from "./persistence/campaignSave";
 import { nextCampaignSaveRevision, normalizeSaveRevision } from "./persistence/revision";
+import { createCampaignWriteOwnership } from "./persistence/campaignWriteOwnership";
 import {
   type CloudSlotId,
   type CloudSlotRecord,
@@ -23,6 +24,8 @@ import {
   CLOUD_DOCUMENT_SAFE_BYTES,
   CLOUD_PAYLOAD_CHUNK_SAFE_BYTES,
   CLOUD_PAYLOAD_SAFE_BYTES,
+  ACTIVE_CLOUD_SLOT_KEY,
+  CLOUD_ACCOUNT_BINDING_KEY,
   assembleCloudAccountDocument,
   cloudPayloadByteLength,
   cloudPayloadFingerprint,
@@ -35,8 +38,8 @@ import {
   cloudSlotPathBelongsToAccount,
   cloudSlotRecordFromPayload,
   cloudSlotTombstoneBlocksWrite,
-  clearCloudAccountBinding,
-  bindDownloadedCloudCampaign,
+  clearCloudAccountBinding as clearPersistedCloudAccountBinding,
+  bindDownloadedCloudCampaign as bindPersistedDownloadedCloudCampaign,
   emptyCloudSlotViews,
   finalizeCampaignHydrationRepair,
   formatCloudPayloadBytes,
@@ -53,8 +56,8 @@ import {
   recordCampaignHydrationAncestry,
   splitCloudPayload,
   summarizeCloudUploadSource,
-  writeCloudAccountBinding,
-  writeActiveCloudSlot
+  writeCloudAccountBinding as writePersistedCloudAccountBinding,
+  writeActiveCloudSlot as writePersistedActiveCloudSlot
 } from "./persistence/cloudSlots";
 import { MARKER_BY_ID, MARKER_EDGES, markerEdgeKind } from "./map/markerGraph";
 import {
@@ -126,7 +129,7 @@ import {
   type PendingTreatmentReward,
   type WorkflowDrafts
 } from "./workflowDrafts";
-import { classifyDeviceSaveFailure, persistDeviceSaveReplacement, preferDeviceSave, readDeviceSave, removeDeviceSave, writeDeviceSave, type DeviceSaveFailure } from './persistence/deviceSave';
+import { classifyDeviceSaveFailure, persistDeviceSaveReplacement, preferDeviceSave, readDeviceSave, removeDeviceSave as removePersistedDeviceSave, writeDeviceSave as writePersistedDeviceSave, type DeviceSaveFailure } from './persistence/deviceSave';
 import {
   FAMILIAR_BENEFITS,
   createPreparedReagentItem,
@@ -722,9 +725,45 @@ const safeLocalStorageGetItem = (key: string): string | null => {
     return null;
   }
 };
+const CAMPAIGN_WRITE_CONTEXT_KEYS = [CAMPAIGN_SAVE_KEY, ACTIVE_CLOUD_SLOT_KEY, CLOUD_ACCOUNT_BINDING_KEY];
+const CAMPAIGN_WRITE_BLOCKED_EVENT = 'apawthecaria:stale-campaign-tab';
+const STALE_CAMPAIGN_TAB_MESSAGE = '다른 탭에서 기록 또는 자동 저장 슬롯이 바뀌어 이 탭의 저장을 중단했습니다. 작성 중인 내용을 먼저 복사한 뒤 이 탭을 새로고침해 주세요. 이 탭의 변경은 기기·클라우드에 저장되지 않습니다.';
+const campaignWriteOwnership = createCampaignWriteOwnership(() =>
+  CAMPAIGN_WRITE_CONTEXT_KEYS.map(safeLocalStorageGetItem));
+let staleCampaignTabNotified = false;
+const ensureCurrentCampaignWrite = () => {
+  if (campaignWriteOwnership.isCurrent()) return true;
+  if (!staleCampaignTabNotified) {
+    staleCampaignTabNotified = true;
+    window.dispatchEvent(new Event(CAMPAIGN_WRITE_BLOCKED_EVENT));
+    showAlert(STALE_CAMPAIGN_TAB_MESSAGE);
+  }
+  return false;
+};
+const writeActiveCloudSlot = (slot: CloudSlotId) => ensureCurrentCampaignWrite()
+  && campaignWriteOwnership.write(() => writePersistedActiveCloudSlot(slot));
+const writeCloudAccountBinding = (uid: string) => ensureCurrentCampaignWrite()
+  && campaignWriteOwnership.write(() => writePersistedCloudAccountBinding(uid));
+const clearCloudAccountBinding = () => ensureCurrentCampaignWrite()
+  && campaignWriteOwnership.write(() => clearPersistedCloudAccountBinding());
+const bindDownloadedCloudCampaign = (uid: string, slot: CloudSlotId) => ensureCurrentCampaignWrite()
+  && campaignWriteOwnership.write(() => bindPersistedDownloadedCloudCampaign(uid, slot));
+const writeDeviceSave = (key: string, value: string) => {
+  const stillOwned = campaignWriteOwnership.checkpoint();
+  return writePersistedDeviceSave(key, value, () => ensureCurrentCampaignWrite() && stillOwned());
+};
+const removeDeviceSave = (key: string) => {
+  const stillOwned = campaignWriteOwnership.checkpoint();
+  return removePersistedDeviceSave(key, () => ensureCurrentCampaignWrite() && stillOwned());
+};
 const safeLocalStorageSetItem = (key: string, value: string): boolean => {
   try {
-    localStorage.setItem(key, value);
+    if (key === CAMPAIGN_SAVE_KEY) {
+      if (!ensureCurrentCampaignWrite()) return false;
+      campaignWriteOwnership.write(() => localStorage.setItem(key, value));
+    } else {
+      localStorage.setItem(key, value);
+    }
     return true;
   } catch {
     return false;
@@ -1456,13 +1495,17 @@ type SaveWriteResult = {
 
 const store = {
   set: async (key: string, value: any) => {
+    const blockedSave = { localSaved: false, localFailure: null, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
+    if (!ensureCurrentCampaignWrite()) return blockedSave;
+    const saveOwnerUid = readCloudAccountBinding();
+    const saveOwnerSlot = readActiveCloudSlot();
     let jsonString: string;
     let localSaved: boolean;
     let localFailure: DeviceSaveFailure | null = null;
     try {
       jsonString = JSON.stringify(value);
       try {
-        localStorage.setItem(key, jsonString);
+        campaignWriteOwnership.write(() => localStorage.setItem(key, jsonString));
         localSaved = true;
         void removeDeviceSave(key);
       } catch (error) {
@@ -1479,6 +1522,11 @@ const store = {
       console.error('로컬 저장 에러:', e);
       return { localSaved: false, localFailure: 'unavailable', pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
     }
+    // IndexedDB fallback may have yielded while another tab changed campaign.
+    // Never route that older in-memory save through the new shared binding.
+    if (!ensureCurrentCampaignWrite()
+      || readCloudAccountBinding() !== saveOwnerUid
+      || readActiveCloudSlot() !== saveOwnerSlot) return blockedSave;
     if (summarizeCloudUploadSource(jsonString).payloadBytes >= CLOUD_PAYLOAD_SAFE_BYTES) {
       console.warn('캠페인 파일이 클라우드 저장 한도를 넘어 로컬에만 저장했습니다.');
       return { localSaved, localFailure, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
@@ -6187,10 +6235,18 @@ const migrateCampaignSave = (
 };
 
 const persistHydratedCampaignLocally = async (state: GameState, replacingCampaign = false, stillCurrent?: () => boolean) => {
+  if (!ensureCurrentCampaignWrite()) return { localSaved: false, localFailure: null };
   const snapshot = JSON.stringify(state);
-  if (replacingCampaign) return persistDeviceSaveReplacement(CAMPAIGN_SAVE_KEY, snapshot, { stillCurrent });
+  if (replacingCampaign) return persistDeviceSaveReplacement(CAMPAIGN_SAVE_KEY, snapshot, {
+    stillCurrent: () => ensureCurrentCampaignWrite() && stillCurrent?.() !== false,
+    storage: {
+      getItem: key => localStorage.getItem(key),
+      setItem: (key, value) => campaignWriteOwnership.write(() => localStorage.setItem(key, value))
+    },
+    removeFallback: removeDeviceSave
+  });
   try {
-    localStorage.setItem(CAMPAIGN_SAVE_KEY, snapshot);
+    campaignWriteOwnership.write(() => localStorage.setItem(CAMPAIGN_SAVE_KEY, snapshot));
     void removeDeviceSave(CAMPAIGN_SAVE_KEY);
     return { localSaved: true, localFailure: null };
   } catch (error) {
@@ -6901,6 +6957,7 @@ export default function App() {
   const [rulebookRequest, setRulebookRequest] = useState<RulebookReferenceRequest | null>(null);
   const [saveLoadError, setSaveLoadError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'ready' | 'saving' | 'saved' | 'error'>('ready');
+  const [campaignWriteBlocked, setCampaignWriteBlocked] = useState(() => !campaignWriteOwnership.isCurrent());
   const [localSaveFailure, setLocalSaveFailure] = useState<DeviceSaveFailure | null>(null);
   const localSaveUnavailable = localSaveFailure !== null;
   const initialSetupRouted = useRef(false);
@@ -6932,6 +6989,30 @@ export default function App() {
 
     window.addEventListener(APP_NOTICE_EVENT, handleNotice);
     return () => window.removeEventListener(APP_NOTICE_EVENT, handleNotice);
+  }, []);
+
+  useEffect(() => {
+    const handleBlocked = () => {
+      setCampaignWriteBlocked(true);
+      setCloudSyncStatus('local-only');
+      setLocalSaveFailure(null);
+      setSaveStatus('error');
+      authBootstrapGenerationRef.current += 1;
+      cloudSlotOperationGenerationRef.current += 1;
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.storageArea !== localStorage
+        || (event.key !== null && !CAMPAIGN_WRITE_CONTEXT_KEYS.includes(event.key))) return;
+      if (event.key !== null && event.oldValue === event.newValue) return;
+      campaignWriteOwnership.invalidate();
+      ensureCurrentCampaignWrite();
+    };
+    window.addEventListener(CAMPAIGN_WRITE_BLOCKED_EVENT, handleBlocked);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener(CAMPAIGN_WRITE_BLOCKED_EVENT, handleBlocked);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   useEffect(() => {
@@ -7119,7 +7200,8 @@ export default function App() {
       setShowCloudSlots(false);
       setCloudSlotViews(emptyCloudSlotViews());
       const bootstrapStillCurrent = () => authBootstrapGenerationRef.current === bootstrapGeneration
-        && auth.currentUser?.uid === u?.uid;
+        && auth.currentUser?.uid === u?.uid
+        && ensureCurrentCampaignWrite();
       const nextUid = u?.uid || null;
       if (authBootstrapUserUidRef.current !== nextUid) cloudBootstrapSkipped.current = false;
       authBootstrapUserUidRef.current = nextUid;
@@ -7584,10 +7666,11 @@ export default function App() {
 
   // Auto-save wrapper
   const updateState = (updater: (prev: GameState) => GameState) => {
+    if (!ensureCurrentCampaignWrite()) return;
     const requestId = ++saveRequestSequence;
     setSaveStatus('saving');
     setState(prev => {
-      if (!prev) return prev;
+      if (!prev || !ensureCurrentCampaignWrite()) return prev;
       let next = updater(withCanonicalPatientView(prev));
       next = reconcileGameImmediateRemedyCheckpoints(next);
       next = {
@@ -7600,6 +7683,10 @@ export default function App() {
 
       void store.set(CAMPAIGN_SAVE_KEY, next).then(result => {
         if (requestId !== saveRequestSequence) return;
+        if (!ensureCurrentCampaignWrite()) {
+          setLocalSaveFailure(null);
+          return;
+        }
         setPendingCloudSaveCount(result.pendingCloudSaves);
         setCloudSyncStatus(result.cloudStatus);
         setLocalSaveFailure(result.localSaved ? null : result.localFailure || 'unavailable');
@@ -7630,6 +7717,10 @@ export default function App() {
       }).catch(error => {
         console.error('자동 저장 에러:', error);
         if (requestId !== saveRequestSequence) return;
+        if (!ensureCurrentCampaignWrite()) {
+          setLocalSaveFailure(null);
+          return;
+        }
         setLocalSaveFailure('unavailable');
         setSaveStatus('error');
         if (!saveFailureNotified) {
@@ -7646,6 +7737,7 @@ export default function App() {
   // path can also persist a migrated campaign directly if loading failed
   // before a state object was available.
   const applyImportedCampaignState = (candidate: GameState) => {
+    if (!ensureCurrentCampaignWrite()) return;
     const imported = syncWorldMemory({
       ...withoutLegacyPatientWrite(withCanonicalPatientView(candidate)),
       schemaVersion: CURRENT_SCHEMA_VERSION
@@ -7670,6 +7762,10 @@ export default function App() {
       setSaveStatus('saving');
       void store.set(CAMPAIGN_SAVE_KEY, imported).then(result => {
         if (requestId !== saveRequestSequence) return;
+        if (!ensureCurrentCampaignWrite()) {
+          setLocalSaveFailure(null);
+          return;
+        }
         setPendingCloudSaveCount(result.pendingCloudSaves);
         setCloudSyncStatus(result.cloudStatus);
         setLocalSaveFailure(result.localSaved ? null : result.localFailure || 'unavailable');
@@ -7677,6 +7773,10 @@ export default function App() {
       }).catch(error => {
         console.error('가져온 기록 자동 저장 에러:', error);
         if (requestId !== saveRequestSequence) return;
+        if (!ensureCurrentCampaignWrite()) {
+          setLocalSaveFailure(null);
+          return;
+        }
         setLocalSaveFailure('unavailable');
         setSaveStatus('error');
       });
@@ -8380,6 +8480,7 @@ export default function App() {
   };
 
   const handleSignIn = async () => {
+    if (!ensureCurrentCampaignWrite()) return;
     if (!auth || !googleProvider) return;
     try {
       if (shouldUseRedirectSignIn()) {
@@ -8403,6 +8504,7 @@ export default function App() {
   };
 
   const handleSignOut = async () => {
+    if (!ensureCurrentCampaignWrite()) return;
     if (!auth || cloudSlotBusy || cloudSlotOperationInFlightRef.current) return;
     if (askWindowConfirm("로그아웃 하시겠습니까?")) {
       try {
@@ -8455,6 +8557,7 @@ export default function App() {
   };
 
   const openCloudSlots = async () => {
+    if (!ensureCurrentCampaignWrite()) return;
     if (cloudSlotBusy || cloudSlotOperationInFlightRef.current) return;
     const uid = auth?.currentUser?.uid;
     if (!uid) return;
@@ -8468,7 +8571,7 @@ export default function App() {
     flushWorkflowDrafts();
     const operationGeneration = ++cloudSlotOperationGenerationRef.current;
     const operationStillCurrent = () => cloudSlotOperationGenerationRef.current === operationGeneration
-      && auth?.currentUser?.uid === uid;
+      && ensureCurrentCampaignWrite() && auth?.currentUser?.uid === uid;
     cloudSlotOperationInFlightRef.current = true;
     setShowCloudSlots(true);
     setCloudSlotOperation({ kind: 'loading' });
@@ -8486,6 +8589,7 @@ export default function App() {
   };
 
   const handleNameLocalCloudRecord = async () => {
+    if (!ensureCurrentCampaignWrite()) return;
     if (cloudSlotBusy || cloudSlotOperationInFlightRef.current) return;
     const localPayload = preferredCloudUploadPayload(
       state ? JSON.stringify(state) : null,
@@ -8533,6 +8637,7 @@ export default function App() {
   };
 
   const handleDownloadCloudSlot = async (slot: CloudSlotId) => {
+    if (!ensureCurrentCampaignWrite()) return;
     if (cloudSlotBusy || cloudSlotOperationInFlightRef.current) return;
     const uid = auth?.currentUser?.uid;
     if (!uid || !userSaveDocRef(uid)) {
@@ -8542,7 +8647,7 @@ export default function App() {
     authBootstrapGenerationRef.current += 1;
     const operationGeneration = ++cloudSlotOperationGenerationRef.current;
     const operationStillCurrent = () => cloudSlotOperationGenerationRef.current === operationGeneration
-      && auth?.currentUser?.uid === uid;
+      && ensureCurrentCampaignWrite() && auth?.currentUser?.uid === uid;
     cloudSlotOperationInFlightRef.current = true;
     setCloudSlotOperation({ kind: 'downloading', slot });
     let resumeSuspendedWorkflowDrafts = false;
@@ -8677,6 +8782,7 @@ export default function App() {
   };
 
   const handleUploadCloudSlot = async (slot: CloudSlotId) => {
+    if (!ensureCurrentCampaignWrite()) return;
     if (cloudSlotBusy || cloudSlotOperationInFlightRef.current) return;
     const currentUser = auth?.currentUser;
     const uid = currentUser?.uid;
@@ -8687,7 +8793,7 @@ export default function App() {
     authBootstrapGenerationRef.current += 1;
     const operationGeneration = ++cloudSlotOperationGenerationRef.current;
     const operationStillCurrent = () => cloudSlotOperationGenerationRef.current === operationGeneration
-      && auth?.currentUser?.uid === uid;
+      && ensureCurrentCampaignWrite() && auth?.currentUser?.uid === uid;
     cloudSlotOperationInFlightRef.current = true;
     setCloudSlotOperation({ kind: 'uploading', slot });
     try {
@@ -8790,6 +8896,7 @@ export default function App() {
   };
 
   const handleDeleteCloudSlot = async (slot: CloudSlotId) => {
+    if (!ensureCurrentCampaignWrite()) return;
     if (cloudSlotBusy || cloudSlotOperationInFlightRef.current) return;
     const uid = auth?.currentUser?.uid;
     if (!uid || !userSaveDocRef(uid)) {
@@ -8813,7 +8920,7 @@ export default function App() {
     authBootstrapGenerationRef.current += 1;
     const operationGeneration = ++cloudSlotOperationGenerationRef.current;
     const operationStillCurrent = () => cloudSlotOperationGenerationRef.current === operationGeneration
-      && auth?.currentUser?.uid === uid;
+      && ensureCurrentCampaignWrite() && auth?.currentUser?.uid === uid;
     cloudSlotOperationInFlightRef.current = true;
     setCloudSlotOperation({ kind: 'deleting', slot });
     try {
@@ -8860,6 +8967,7 @@ export default function App() {
   };
 
   const handleReset = () => {
+    if (!ensureCurrentCampaignWrite()) return;
     if (askWindowConfirm("⚠️ 경고: 정말 모든 진행상황과 연대기를 초기화하고 새로운 약제사로 시작하시겠습니까? (저널 일지 기록도 함께 삭제됩니다.)")) {
       changeActiveTab('bio');
       resetCampaignScopedUi();
@@ -8913,6 +9021,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
+                if (!ensureCurrentCampaignWrite()) return;
                 if (!askWindowConfirm('기존 기록을 지우고 새 약제사로 시작할까요? 먼저 원본을 내보내세요.')) return;
                 const fresh = syncWorldMemory(INITIAL_STATE);
                 resetCampaignScopedUi();
@@ -12359,7 +12468,9 @@ export default function App() {
     ? preferredCloudUploadPayload(JSON.stringify(state), safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY))
     : null;
   const cloudUploadSource = summarizeCloudUploadSource(cloudPayload);
-  const saveStatusText = saveStatus === 'saving'
+  const saveStatusText = campaignWriteBlocked
+    ? '다른 탭에서 변경됨'
+    : saveStatus === 'saving'
     ? '저장 중…'
     : saveStatus === 'error'
       ? '저장 실패'
@@ -12382,9 +12493,17 @@ export default function App() {
                   : '기기에 저장됨 · 클라우드 확인 필요'
             : '기기에 저장됨'
         : '자동 저장 준비됨';
+  const saveStatusTitle = campaignWriteBlocked
+    ? STALE_CAMPAIGN_TAB_MESSAGE
+    : saveStatus === 'error' || localSaveUnavailable
+      ? localSaveFailure === 'quota'
+        ? '사이트 데이터 한도나 비공개 탐색 제한을 확인하고 기록을 내보내 주세요.'
+        : '브라우저의 사이트 저장 권한을 확인하고 기록을 내보내 주세요.'
+      : undefined;
 
   return (
     <div className={`journal-app journal-app--${activeTab} ${isOnboarding ? 'journal-app--onboarding' : ''}`}>
+      {campaignWriteBlocked && <p role="alert" className="cloud-slots__warning">{STALE_CAMPAIGN_TAB_MESSAGE}</p>}
       {/* Header Banner */}
       <header className="journal-header">
         <button type="button" className="journal-brand" onClick={() => changeActiveTab('play')} disabled={isOnboarding} aria-label={isOnboarding ? 'Apawthecaria 새 기록 설정' : '오늘의 여행 첫 페이지로 돌아가기'}>
@@ -12446,7 +12565,7 @@ export default function App() {
               )}
             </>
           )}
-          <span className={`save-state save-state--${saveStatus === 'error' || localSaveUnavailable ? 'error' : saveStatus}`} role={saveStatus === 'error' || localSaveUnavailable ? 'alert' : 'status'} aria-live="polite" title={saveStatus === 'error' || localSaveUnavailable ? (localSaveFailure === 'quota' ? '사이트 데이터 한도나 비공개 탐색 제한을 확인하고 기록을 내보내 주세요.' : '브라우저의 사이트 저장 권한을 확인하고 기록을 내보내 주세요.') : undefined}>
+          <span className={`save-state save-state--${saveStatus === 'error' || localSaveUnavailable ? 'error' : saveStatus}`} role={saveStatus === 'error' || localSaveUnavailable ? 'alert' : 'status'} aria-live="polite" title={saveStatusTitle}>
             {saveStatusText}
           </span>
         </div>

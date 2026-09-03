@@ -8,6 +8,39 @@ import { classifyDeviceSaveFailure, persistDeviceSaveReplacement, preferDeviceSa
 const appSource = readFileSync(fileURLToPath(new URL('../App.tsx', import.meta.url)), 'utf8');
 
 describe('device save fallback', () => {
+  it('does not start fallback writes or cleanup after ownership changes while opening IndexedDB', async () => {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, 'indexedDB');
+    const transaction = vi.fn();
+    Object.defineProperty(globalThis, 'indexedDB', {
+      configurable: true,
+      value: {
+        open: () => {
+          const request = {
+            result: { transaction, close: vi.fn(), onclose: null, onversionchange: null },
+            onsuccess: null as (() => void) | null
+          };
+          queueMicrotask(() => request.onsuccess?.());
+          return request;
+        }
+      }
+    });
+    try {
+      vi.resetModules();
+      const guarded = await import('./deviceSave');
+      let current = true;
+      const write = guarded.writeDeviceSave('campaign', 'stale', () => current);
+      const cleanup = guarded.removeDeviceSave('campaign', () => current);
+      current = false;
+      expect(await write).toBe(false);
+      expect(await cleanup).toBe(false);
+      expect(transaction).not.toHaveBeenCalled();
+    } finally {
+      if (previous) Object.defineProperty(globalThis, 'indexedDB', previous);
+      else Reflect.deleteProperty(globalThis, 'indexedDB');
+      vi.resetModules();
+    }
+  });
+
   it('fails closed when IndexedDB is unavailable instead of throwing', async () => {
     await expect(readDeviceSave('campaign')).resolves.toBeNull();
     await expect(writeDeviceSave('campaign', '{}')).resolves.toBe(false);

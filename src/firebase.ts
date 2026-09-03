@@ -1,7 +1,8 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
+import { firestoreTransportSettings } from './persistence/firestoreTransport';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCBiEh_2YmbU9W_isONi2FugkTzDIYJ0mE",
@@ -18,7 +19,7 @@ export const isFirebaseConfigured = !!firebaseConfig.apiKey && !!firebaseConfig.
 export const firebaseProjectId = firebaseConfig.projectId;
 
 const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
-export const db = app ? getFirestore(app) : null;
+export const db = app ? initializeFirestore(app, firestoreTransportSettings()) : null;
 export const auth = app ? getAuth(app) : null;
 export const storage = app ? getStorage(app) : null;
 export const googleProvider = new GoogleAuthProvider();
