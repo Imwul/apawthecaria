@@ -5,6 +5,10 @@ import { doc, getDocFromServer, runTransaction, setDoc, writeBatch } from "fireb
 import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, type User } from "firebase/auth";
 import { deleteObject, getBytes, getDownloadURL, ref as storageRef, uploadString } from "firebase/storage";
 import { GAME_DATA } from "./gameData";
+import { ailmentDisplayRecord } from './ailmentPresentation';
+import { guildThreatTargets, removeGuildThreat } from './serviceThreats';
+import { localizeCanonicalToolName } from './localization/gameplayKo';
+import { formatRuleTag } from './localization/tagReadingKo';
 import {
   CAMPAIGN_SAVE_KEY,
   campaignSaveHasNamedApothecary,
@@ -144,7 +148,6 @@ import parsedPrepsList from "../parsed_preps_list.json";
 import {
   CURRENT_SCHEMA_VERSION,
   AILMENTS,
-  LEGACY_EMPTY_AILMENT_OUTCOME,
   ALMANACK_TOOLS,
   TOOLS,
   BARROW_DELVE_BY_ID,
@@ -281,10 +284,12 @@ import {
   drawSuitableFurnishings,
   warnOthersInsideJob,
   completeGuildServiceDelivery,
+  collectGuildRetrievalsAtLocation,
   consumeGuildServiceMissive,
   consumeGuildServiceMove,
   consumeGuildServiceTravelReroll,
   resolveGuildService,
+  beginPickOfTheDeep,
   resolveGuildServiceJourneyEnd,
   resolveGuildServiceJourneyStart,
   resolveBraveTravelEffect,
@@ -502,6 +507,7 @@ import {
 import {
   formatReagentItemName,
   formatReagentName,
+  formatReagentPartChoice,
   gatheredReagentSummary,
   groupReagentPartNames,
   reagentInventorySearchText,
@@ -3538,7 +3544,8 @@ const toServiceRuntime = (s: GameState): ServiceRuntimeState => ({
   weatherProtectionActive: s.forecastActiveAtLocation || false,
   travelEncounterRerolls: s.guildServiceTravelRerolls || 0,
   missiveSettlementIds: s.missiveSettlements || [],
-  removedThreatIds: [],
+  removedThreatIds: ((s.serviceMapMutations || []) as ServiceMapMutation[]).filter(row => row.kind === 'remove-threat').flatMap(row => row.nodeIds),
+  availableThreatIds: guildThreatTargets(s).map(row => row.id),
   appliedTransactionIds: s.appliedTransactionIds,
   journalEvents: []
 });
@@ -5851,7 +5858,7 @@ const renderSingleTagBadge = (tagContent: string) => {
         whiteSpace: 'nowrap'
       }}
     >
-      {finalTagText}
+      {formatRuleTag(translated)}{tagNum ? ` ${tagNum}` : ''}
     </span>
   );
 };
@@ -5863,6 +5870,15 @@ const parseAndRenderTags = (tagsStr: string) => {
     .replace(/([a-zA-Z가-힣]+)\s+(\d+)\s*(?:&|및|and)\s*(\d+)/g, '$1 $2 and $1 $3')
     .replace(/\s+/g, ' ')
     .trim();
+
+  // Canonical recipes retain their parentheses and alternatives. Tokenize only
+  // the badges, never split an entire alternative recipe into one fake tag.
+  if (/[()+]/.test(prepared)) return <div className="tag-badge-list">
+    {prepared.split(/(\b[A-Z]+\s+\d+\b)/g).filter(Boolean).map((part, index) =>
+      <Fragment key={index}>{/^[A-Z]+\s+\d+$/.test(part)
+        ? renderSingleTagBadge(part)
+        : <span>{part}</span>}</Fragment>)}
+  </div>;
 
   // Split by commas, '및', 'and', or '&'
   const parts = prepared.split(/,|\s+및\s+|\s+and\s+|&/gi).map(p => p.trim()).filter(Boolean);
@@ -6334,6 +6350,7 @@ const localizeAppAvailabilityLabel = (value: string | undefined): string => ({
   Rare: '희귀',
   Unavailable: '없음',
   'Meadows Settlements': '초원 정착지',
+  'Mountain Settlements / Any City': '산맥 정착지 또는 모든 도시',
   'Mountain Settlements': '산맥 정착지',
   'Bog Settlement': '늪지 정착지',
   'Forest Settlement': '숲 정착지',
@@ -6362,30 +6379,6 @@ const reagentDisplayRecord = (row: (typeof REAGENTS)[number]) => ({
     return `${part.name} [${part.method}]${tags ? ` ${tags}` : ''}`;
   }).join('\n') || '조제법 미기록'
 });
-
-const ailmentDisplayRecord = (row: (typeof AILMENTS)[number]) => {
-  const legacy = GAME_DATA.ailments.find(ailment =>
-    ailment.rawName === row.canonicalName
-    || ailment.name === row.displayName
-    || ailment.name.toLowerCase().includes(row.canonicalName.toLowerCase())
-  );
-  const effectText = (effects: (typeof row.successEffects)) =>
-    effects
-      .map(item => item.effect.type === 'customEffect' ? item.effect.description : '')
-      .filter(Boolean)
-      .join('\n');
-  const printedOutcome = legacy?.outcome === LEGACY_EMPTY_AILMENT_OUTCOME ? '' : legacy?.outcome || '';
-  return {
-    name: row.displayName,
-    rawName: row.canonicalName,
-    severity: row.severity,
-    timer: row.timer,
-    tags: legacy?.tags || '',
-    description: legacy?.description || '',
-    outcome: printedOutcome || effectText(row.successEffects),
-    consequence: legacy?.consequence || effectText(row.failureEffects)
-  };
-};
 
 const isJourneyGoal = (title: string | undefined, ...names: string[]) => names.includes(title || '');
 
@@ -6860,8 +6853,8 @@ const GUILD_SERVICES_DB = [
   { id: 'rug_wonders', name: '놀라운 양탄자 (Rug of Wonders)', cost: 1, places: 'Any Settlement or City', desc: '여정당 1회, 기본 희귀도 9 이하 영약재 부위 1개를 구입합니다.' },
   { id: 'news_trail', name: '길 위의 소식 (News From The Trail)', cost: 2, places: 'Any Settlement or City', desc: '목적지에 도착할 때까지 이동 조우를 한 번 2장 중 선택합니다.' },
   { id: 'smithing', name: '철공 개조 (Smithing)', cost: 3, places: 'Mountain Settlements / Any City', desc: '산악 정착지 또는 어느 도시에서든 기본 도구 하나를 룰북 66쪽의 호환 업그레이드로 교체합니다.' },
-  { id: 'forecast', name: '날씨 예보 (Forecast)', cost: 1, places: 'Bog Settlement', desc: '다음 3번 이동 동안 날씨 태그 채집 조우의 부정적 효과를 무시합니다.' },
-  { id: 'shortcut', name: '숨은 지름길 (Shortcut)', cost: 2, places: 'Forest Settlement', desc: '안전한 숲길로 근처 위치까지 즉시 이동하고 지도 경로를 남깁니다.' },
+  { id: 'forecast', name: '날씨 예보 (Forecast)', cost: 1, places: 'Bog Settlement', desc: '장신구 1개 또는 2개를 지불합니다. 다음 3번 이동 동안 날씨 태그 채집 조우의 부정적 효과를 무시합니다.' },
+  { id: 'shortcut', name: '숨은 지름길 (Shortcut)', cost: 2, places: 'Forest Settlement', desc: '근처 위치로 즉시 이동합니다. 연결 경로는 없어도 되며, 지도에 영구 경로를 만드는 효과는 아닙니다.' },
   { id: 'hitch_ride', name: '농부 마차 얻어타기 (Hitch a Ride)', cost: 2, places: 'Meadow Settlement', desc: '초원 위치까지 최대 5경로 이동하고 이동 조우를 생략합니다.' },
   { id: 'catch_day_small', name: '오늘의 작은 물고기 (Catch of the Day)', cost: 1, places: 'Loch Settlement', desc: '작은 물고기 부위 1개를 얻습니다.' },
   { id: 'catch_day_big', name: '오늘의 큰 물고기 (Catch of the Day)', cost: 2, places: 'Loch Settlement', desc: '큰 물고기 부위 1개를 얻습니다.' },
@@ -6872,7 +6865,7 @@ const GUILD_SERVICES_DB = [
   { id: 'survey_paths', name: '경로 측량 (Survey Paths)', cost: 10, places: 'Any City', desc: '지도에 새 경로를 추가합니다.' },
   { id: 'pick_deep', name: '깊은 곳의 수확 (Pick of the Deep)', cost: 2, places: 'Vessel', desc: '카드를 뽑아 값 이하의 티탄 영약재 1개를 얻습니다.' },
   { id: 'scare_tactics', name: '위협 제거 (Scare Tactics)', cost: 8, places: 'Odoak', desc: '지도 위 거대 야수/고분 효과 하나를 제거합니다.' },
-  { id: 'retrieval', name: '회수 의뢰 (Retrieval)', cost: 5, places: 'Vessel', desc: '비-티탄 영약재나 잃어버린 물건 회수 의뢰를 기록하고 가방에 표시합니다.' },
+  { id: 'retrieval', name: '회수 의뢰 (Retrieval)', cost: 5, places: 'Vessel', desc: '티탄 이외의 영약재 부위 또는 분실물을 고릅니다. 5경로 이상 떨어진 정착지에 맡겨 두고, 그곳에 도착하면 가방으로 받습니다.' },
   { id: 'send_missive', name: '전령 보내기 (Send a Missive)', cost: 3, places: 'Noonhill', desc: '정착지 최대 3곳을 지정해 도착 시 질병을 직접 선택할 수 있게 기록합니다.' }
 ];
 
@@ -12577,7 +12570,7 @@ export default function App() {
       {campaignWriteBlocked && <p role="alert" className="cloud-slots__warning">{STALE_CAMPAIGN_TAB_MESSAGE}</p>}
       {/* Header Banner */}
       <header className="journal-header">
-        <img className="woodland-frontispiece" src={`${import.meta.env.BASE_URL}art/woodland-bear-and-owl.webp`} alt="" width="2048" height="768" fetchPriority="high" />
+        <img className="woodland-frontispiece" src={`${import.meta.env.BASE_URL}art/woodland-pen-edition.webp`} alt="" width="2048" height="768" fetchPriority="high" />
         <button type="button" className="journal-brand" onClick={() => changeActiveTab('play')} disabled={isOnboarding} aria-label={isOnboarding ? 'Apawthecaria 새 기록 설정' : '오늘의 여행 첫 페이지로 돌아가기'}>
           <span className="journal-brand__eyebrow">브리슬리 숲 · 여행하는 약제사의 수첩</span>
           <h1 className="journal-brand__title"><span>APAW</span><span>THECARIA</span></h1>
@@ -15214,6 +15207,7 @@ function ControlledPromptDialog({
             )}
           </div>
         ) : request.options ? (
+          <>
           <select
             id="controlled-prompt-input"
             value={value}
@@ -15224,6 +15218,12 @@ function ControlledPromptDialog({
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
+          {request.options.find(option => option.value === value && option.label.length > 40) && (
+            <p className="controlled-prompt__selected-detail" aria-live="polite">
+              {request.options.find(option => option.value === value)?.label}
+            </p>
+          )}
+          </>
         ) : request.inputMode === 'multiline' ? (
           <textarea
             id="controlled-prompt-input"
@@ -16953,20 +16953,29 @@ function PlayView({
       const indexes = [...new Set(raw.split(',').map(value => parseInt(value.trim(), 10) - 1).filter(index => index >= 0 && index < rows.length))].slice(0, maximum);
       return indexes.map(index => rows[index].id);
     };
-    const note = await requestControlledPrompt({
-      title: `${definition.name} 이용 기록`,
-      message: `${definition.name} 이용 기록을 남겨주세요:`,
-      defaultValue: `${definition.name} 서비스를 이용했다.`
+    let serviceState = state;
+    let paidDeep = (state.pendingServices as ServiceRuntimeState['pendingServices']).find(row => row.serviceId === serviceId && row.status === 'pending-choice' && row.paidDrawCard);
+    const enteredNote = paidDeep?.journalNote ?? await requestControlledPrompt({
+      title: `${service.name} 이용 기록`,
+      message: `${service.name} 이용 메모 (선택). 비워도 진행할 수 있습니다.`,
+      defaultValue: `${service.name} 서비스를 이용했다.`
     });
-    if (!note?.trim()) return;
+    if (enteredNote === null) return;
+    const note = enteredNote.trim() ? enteredNote : `${service.name} 서비스를 이용했다.`;
     const targetIds: string[] = [];
     let selectedItemIds: string[] = [];
     let selectedReagentId: string | undefined;
     let selectedPreparationId: string | undefined;
+    let requestedItem: EngineInventoryItem | undefined;
+    let forecastPayment: 1 | 2 | undefined;
     let card: PlayingCard | undefined;
     const nodes = Object.values(graph).map(node => ({ id: node.id, label: `${node.name} · ${localizeRegionLabel(node.region)} · ${locationTypeLabel(node.locationType)}` }));
 
-    if (serviceId === 'send-package') {
+    if (serviceId === 'forecast') {
+      const payment = await chooseOne('원문 p.59의 비용은 장신구 1개 또는 2개입니다. 어느 쪽도 보호 효과는 다음 3번 이동으로 같습니다.', [{ id: '1', label: '장신구 1개 지불' }, { id: '2', label: '장신구 2개 지불' }]);
+      if (!payment) return;
+      forecastPayment = payment === '2' ? 2 : 1;
+    } else if (serviceId === 'send-package') {
       const chosen = await chooseMany('보낼 실제 가방 물품을 선택하세요. 최대 총 무게 5.', state.bag.map(item => ({ id: item.id, label: `${localizeInventoryItemName(item.name)} · ${formatWeight(item.weight * (item.qty || 1))}` })), state.bag.length);
       if (!chosen?.length) return;
       selectedItemIds = chosen;
@@ -17022,40 +17031,69 @@ function PlayView({
       const chosen = await chooseOne('경로 5개 이상 떨어진 정착지를 선택하세요.', nodes.filter(row => graph[row.id].locationType === 'Settlement' && (shortestPathDistance(graph, currentLocationId, row.id) || 0) >= 5));
       if (!chosen) return;
       targetIds.push(chosen);
-      const reagentId = await chooseOne('회수할 티탄 이외의 영약재를 선택하세요.', REAGENTS.filter(row => row.type !== 'TITAN').map(row => ({ id: row.id, label: `${row.displayName} · 기본 희귀도 ${row.baseRarity}` })));
-      const reagent = reagentId ? REAGENT_BY_ID.get(reagentId) : null;
-      if (!reagent) return;
-      const preparationId = await chooseOne('회수할 부위와 조제법을 선택하세요.', reagent.preparations.map(row => ({ id: row.id, label: `${localizePreparationName(row.name)} · ${localizePreparationMethod(row.method)} · 무게 ${formatWeight(row.weight)}` })));
-      if (!preparationId) return;
-      selectedReagentId = reagent.id;
-      selectedPreparationId = preparationId;
+      const kind = await chooseOne('무엇을 되찾아 올까요?', [{ id: 'reagent', label: '티탄 이외의 영약재 부위' }, { id: 'tool', label: '잃어버린 도구' }, { id: 'item', label: '그 밖의 분실물' }]);
+      if (!kind) return;
+      if (kind === 'tool') {
+        const chosenTool = await chooseOne('실제로 잃어버린 도구를 고르세요. 도착한 뒤 가방으로 돌아옵니다.', TOOLS.filter(row => !['teeth', 'paws', 'basic-tools-replacement'].includes(row.id)).map(row => ({ id: row.id, label: `${localizeCanonicalToolName(row.canonicalName)} · 무게 ${formatWeight(row.weight)}` })));
+        const tool = TOOLS.find(row => row.id === chosenTool);
+        if (!tool) return;
+        requestedItem = { id: `${transaction.id}:item`, type: 'tool', name: tool.canonicalName, canonicalToolId: tool.id, weight: tool.weight, quantity: 1 };
+      } else if (kind === 'item') {
+        const name = await requestControlledPrompt({ title: '분실물 회수', message: '실제로 잃어버린 물건의 이름을 적어 주세요.', defaultValue: '' });
+        if (!name?.trim()) return;
+        const rawWeight = await requestControlledPrompt({ title: '분실물 무게', message: '잃어버리기 전 무게를 숫자로 적어 주세요. 예: 1, 0.333', defaultValue: '1' });
+        if (rawWeight === null) return;
+        const weight = Number(rawWeight);
+        if (!rawWeight.trim() || !Number.isFinite(weight) || weight < 0) { showAlert('무게는 0 이상의 숫자로 적어 주세요.'); return; }
+        requestedItem = { id: `${transaction.id}:item`, type: 'item', name: name.trim(), weight, quantity: 1 };
+      } else {
+        const reagentId = await chooseOne('회수할 티탄 이외의 영약재를 선택하세요.', REAGENTS.filter(row => row.type !== 'TITAN').map(row => ({ id: row.id, label: `${formatReagentName(row)} · 기본 희귀도 ${row.baseRarity}` })));
+        const reagent = reagentId ? REAGENT_BY_ID.get(reagentId) : null;
+        if (!reagent) return;
+        const preparationId = await chooseOne('회수할 부위와 조제법을 선택하세요.', reagent.preparations.map(row => ({ id: row.id, label: `${formatReagentPartChoice(row)} · 무게 ${formatWeight(row.weight)}` })));
+        if (!preparationId) return;
+        selectedReagentId = reagent.id;
+        selectedPreparationId = preparationId;
+      }
     } else if (serviceId === 'send-a-missive') {
       const chosen = await chooseMany('서신을 보낼 정착지를 최대 세 곳 선택하세요.', nodes.filter(row => graph[row.id].locationType === 'Settlement'), 3);
       if (!chosen?.length) return;
       targetIds.push(...chosen);
     } else if (serviceId === 'scare-tactics') {
-      const chosen = await chooseOne('제거할 지도상의 고분을 선택하세요.', (state.barrows || []).filter(row => !row.removed).map(row => ({ id: row.id, label: `${row.name} · ${row.locationName}` })));
+      const threats = guildThreatTargets(state);
+      if (!threats.length) { showAlert('지도에 제거할 거수 위협이나 고분이 없습니다.'); return; }
+      const chosen = await chooseOne('제거할 거수 관련 지도 효과 또는 고분을 하나 고르세요.', threats);
       if (!chosen) return;
       targetIds.push(chosen);
     }
 
     if (['rug-of-wonders', 'catch-of-the-day', 'take-clippings', 'pick-of-the-deep'].includes(serviceId)) {
-      if (serviceId === 'pick-of-the-deep') card = drawPlayingCard();
+      if (serviceId === 'pick-of-the-deep') {
+        if (!paidDeep) {
+          const start = beginPickOfTheDeep({ transactionId: `${transaction.id}:draw`, state: toServiceRuntime(state), card: drawPlayingCard(), journalNote: note });
+          if (!start.value) { showAlert(start.messages.join('\n')); return; }
+          serviceState = applyServiceRuntime(state, start.value.nextState);
+          updateState(s => applyServiceRuntime(s, start.value!.nextState));
+          paidDeep = start.value.pendingService || undefined;
+          if (!paidDeep) { showAlert(start.messages.join('\n')); return; }
+        }
+        card = paidDeep.paidDrawCard as PlayingCard;
+      }
       const limit = card ? getRuleCardValue(card, 'table') : 12;
       const candidates = REAGENTS.filter(row => serviceId === 'rug-of-wonders' ? row.baseRarity <= 9 : serviceId === 'take-clippings' ? row.type === 'PLANT' : serviceId === 'pick-of-the-deep' ? row.type === 'TITAN' && row.baseRarity <= limit : row.canonicalName === (service.id === 'catch_day_big' ? 'Big Fish' : 'Small Fish'));
       if (serviceId !== 'pick-of-the-deep' || candidates.length > 0) {
-        const chosen = await chooseOne('획득할 정식 영약재를 선택하세요.', candidates.map(row => ({ id: row.id, label: `${row.displayName} · 기본 희귀도 ${row.baseRarity}` })));
+        const chosen = await chooseOne(serviceId === 'pick-of-the-deep' ? `잠수 비용 지불 완료 · 카드 ${limit}. 취소해도 이 결과가 저장됩니다. 받을 영약재를 고르세요.` : '획득할 정식 영약재를 선택하세요.', candidates.map(row => ({ id: row.id, label: `${formatReagentName(row)} · 기본 희귀도 ${row.baseRarity}` })));
         const reagent = chosen ? REAGENT_BY_ID.get(chosen) : null;
         if (!reagent) return;
-        const preparationId = await chooseOne('획득할 부위와 조제법을 선택하세요.', reagent.preparations.map(row => ({ id: row.id, label: `${localizePreparationName(row.name)} · ${localizePreparationMethod(row.method)} · 무게 ${formatWeight(row.weight)}` })));
+        const preparationId = await chooseOne('획득할 부위와 조제법을 선택하세요.', reagent.preparations.map(row => ({ id: row.id, label: `${formatReagentPartChoice(row)} · 무게 ${formatWeight(row.weight)}` })));
         if (!preparationId) return;
         selectedReagentId = reagent.id;
         selectedPreparationId = preparationId;
       }
     }
 
-    const runtime = toServiceRuntime(state);
-    const result = resolveGuildService({ transactionId: transaction.id, state: runtime, serviceId, targetIds, selectedItemIds, selectedReagentId, selectedPreparationId, option: service.id === 'catch_day_big' ? 'big' : 'small', card, journalNote: note });
+    const runtime = toServiceRuntime(serviceState);
+    const result = resolveGuildService({ transactionId: transaction.id, state: runtime, serviceId, targetIds, selectedItemIds, selectedReagentId, selectedPreparationId, requestedItem, forecastPayment, option: service.id === 'catch_day_big' ? 'big' : 'small', card, journalNote: note });
     if (!result.value) {
       showAlert(result.messages.join('\n'));
       return;
@@ -17103,13 +17141,12 @@ function PlayView({
         griphUsedThisJourney: outcome.nextState.usedJourneyServiceIds.includes('rug-of-wonders'),
         customMapLocations,
         customMapEdges,
-        barrows: serviceId === 'scare-tactics' ? (s.barrows || []).filter(row => !targetIds.includes(row.id)) : s.barrows,
         pendingManualEffect: pendingDraft,
         manualEffectDraft: pendingDraft,
         appliedTransactionIds: outcome.nextState.appliedTransactionIds,
         journals: [{
           id: `${transaction.id}:journal`,
-          title: `길드 서비스: ${outcome.service.name}`,
+          title: `길드 서비스: ${service.name}`,
           text: [note, ...outcome.messages].join('\n'),
           semantic: {
             ...createPlayerMemorySemantic(note),
@@ -17123,7 +17160,7 @@ function PlayView({
           timestamp: transaction.at
         }, ...s.journals]
       };
-      return enqueueManualDrafts(next, [pendingDraft]);
+      return enqueueManualDrafts(serviceId === 'scare-tactics' ? removeGuildThreat(next, targetIds[0]) : next, [pendingDraft]);
     });
   };
 
@@ -18199,15 +18236,7 @@ function PlayView({
         pathCount: outcome.pathCount
       });
       if (consumed.value) next = applyServiceRuntime(next, consumed.value.nextState);
-      const retrieval = (next.pendingServices as ServiceRuntimeState['pendingServices']).find(service =>
-        service.serviceId === 'retrieval' && service.status === 'pending-delivery' && service.targetIds[0] === destinationId
-      );
-      if (retrieval) {
-        const delivered = completeGuildServiceDelivery({
-          transactionId: `${transactionId}:retrieval`, state: toServiceRuntime(next), serviceTransactionId: retrieval.transactionId
-        });
-        if (delivered.value) next = applyServiceRuntime(next, delivered.value.nextState);
-      }
+      next = applyServiceRuntime(next, collectGuildRetrievalsAtLocation(toServiceRuntime(next), `${transactionId}:retrieval`));
       // A printed Parcel delivery is a delayed consequence of the Encounter,
       // not a generic manual note. Resolve it only when this completed Move
       // reaches the exact address the player recorded, and keep the
@@ -19721,12 +19750,12 @@ function PlayView({
     if (!patient || !reagent) return;
     const eligibleParts = reagent.preparations.filter(part => Math.max(0, ...part.tags.filter(tag => !['FAIR', 'FOUL'].includes(tag.tag)).map(tag => tag.value)) <= 2);
     if (eligibleParts.length === 0) {
-      showAlert('이 영약재에는 여분 채집으로 얻을 수 있는 Potency 2 이하 부위가 없습니다.');
+      showAlert('이 영약재에는 여분 채집으로 얻을 수 있는 약효 강도 2 이하 부위가 없습니다.');
       return;
     }
     const chosenPartId = await requestControlledPrompt({
       title: '여분 채집으로 얻을 부위를 고르세요',
-      message: `${formatReagentName(reagent)} · Potency 2 이하의 부위만 선택할 수 있습니다. 각 행에서 치료 약효와 거래 가치를 확인하세요. 취소하면 타이머와 가방은 바뀌지 않습니다.`,
+      message: `${formatReagentName(reagent)} · 약효 강도 2 이하의 부위만 선택할 수 있습니다. 각 행에서 치료 약효와 거래 가치를 확인하세요. 취소하면 타이머와 가방은 바뀌지 않습니다.`,
       kicker: '여분 채집',
       defaultValue: eligibleParts[0].id,
       searchable: {
@@ -20802,8 +20831,8 @@ function PlayView({
       ? ailment.specialState.previousActivePatientId
       : null;
     const previousMovementBlocked = ailment.specialState?.previousMovementBlocked === true;
-    const treatmentManualDraft = !isFixedEncounterRemedy && ailment.ailmentId
-      ? createPrintedManualDraft(ailment.ailmentId, 'treatment-success', {
+    const treatmentManualDraft = !isFixedEncounterRemedy && ailment.ailmentId && outcome.printedEffectTrigger !== null
+      ? createPrintedManualDraft(ailment.ailmentId, outcome.printedEffectTrigger || 'treatment-success', {
         encounterTransactionId: transactionId,
         patientId: nextPatient.id,
         ailmentInstanceId: ailment.id,
@@ -23708,23 +23737,25 @@ function PlayView({
 	                    const griphAvailable = service.id !== 'rug_wonders'
 	                      || isGriphTraderAvailable(toEncounterP1TransactionState(state), state.journey?.journeyId || '');
 	                    const isUsed = service.id === 'rug_wonders' && (!!state.griphUsedThisJourney || !griphAvailable);
-                    const disabled = !isAvailable || isUsed || state.trinkets.length < service.cost;
+                    const paidSelection = service.id === 'pick_deep' && (state.pendingServices as ServiceRuntimeState['pendingServices']).some(row => row.serviceId === 'pick-of-the-deep' && row.status === 'pending-choice' && row.paidDrawCard);
+                    const disabled = !isAvailable || isUsed || (!paidSelection && state.trinkets.length < service.cost);
                     return (
-                      <div key={service.id} style={{ border: '1px solid #e5dec9', borderRadius: '8px', padding: '0.75rem', background: isAvailable ? '#fff' : '#f9f6f0', opacity: isAvailable ? 1 : 0.62 }}>
+                      <div key={service.id} className="guild-service-entry" style={{ border: '1px solid #e5dec9', borderRadius: '8px', padding: '0.75rem', background: isAvailable ? '#fff' : '#f9f6f0', opacity: isAvailable ? 1 : 0.62 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', fontWeight: 'bold', fontSize: '0.84rem', color: 'var(--primary)' }}>
                           <span>{service.name}</span>
-                          <span style={{ color: 'var(--secondary)', whiteSpace: 'nowrap' }}>🪙 {service.cost}</span>
+                          <span style={{ color: 'var(--secondary)', whiteSpace: 'nowrap' }}>🪙 {service.id === 'forecast' ? '1 / 2' : service.cost}</span>
                         </div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{localizeAppAvailabilityLabel(service.places)}</div>
                         <p style={{ fontSize: '0.74rem', color: '#666', margin: '0.35rem 0 0.55rem 0', lineHeight: 1.35, minHeight: '40px' }}>{service.desc}</p>
                         <button
                           type="button"
                           onClick={() => handleHireGuildService(service)}
+                          aria-label={`${service.name} ${paidSelection ? '부위 선택 이어가기' : '고용 또는 이용'}`}
                           className="btn-cozy-secondary"
                           style={{ width: '100%', padding: '0.35rem', fontSize: '0.76rem' }}
                           disabled={disabled}
                         >
-	                          {service.id === 'rug_wonders' && !griphAvailable ? '이번 여정 거래 불가' : isUsed ? '여정 중 이미 이용' : !isAvailable ? '현재 위치 불가' : state.trinkets.length < service.cost ? '장신구 부족' : '고용/이용'}
+	                          {service.id === 'rug_wonders' && !griphAvailable ? '이번 여정 거래 불가' : isUsed ? '여정 중 이미 이용' : !isAvailable ? '현재 위치 불가' : paidSelection ? '지불 완료 · 부위 선택 이어가기' : state.trinkets.length < service.cost ? '장신구 부족' : '고용/이용'}
                         </button>
                       </div>
                     );
@@ -23844,7 +23875,7 @@ function PlayView({
               <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)', padding: '1rem' }}>
                 <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🚚 마차 개조 및 확장</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
-                  <strong>모든 도시</strong>에서 마차 기본 유닛을 주문(장신구 15개)하거나 기존 마차를 업그레이드(장신구 소모)합니다.
+                  <strong>모든 도시</strong>에서 휴식기 활동으로 마차를 주문하거나 기존 마차를 확장합니다. 기본 마차는 p.43의 장신구 20개를 적용합니다. p.68의 15개 표기와 다른 원문 가격 중 앱이 채택한 기준입니다.
                 </p>
 
                 {state.currentLocationType !== 'City' && !bypassShopRules ? (
@@ -24078,7 +24109,7 @@ function PlayView({
                           <option value="">— 출발지가 아닌 목적지를 고르세요 —</option>
                           {journeyDestinationChoices.map(choice => (
                             <option key={choice.id} value={choice.id}>
-                              {choice.name} · {choice.region} · {localizeLocationTypeLabel(choice.locationType)} · {choice.routeSummary ? `${choice.routeSummary.distance}경로` : '연결 미확정'}
+                              {choice.name} · {localizeRegionLabel(choice.region)} · {localizeLocationTypeLabel(choice.locationType)} · {choice.routeSummary ? `${choice.routeSummary.distance}경로` : '연결 미확정'}
                             </option>
                           ))}
                         </select>
@@ -27664,7 +27695,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                                     {inBando && <span style={{ color: '#16a34a', fontSize: '0.7rem', marginLeft: '0.3rem', fontWeight: 'bold', background: '#dcfce7', padding: '0.05rem 0.3rem', borderRadius: '4px' }}>🎽 반도리어</span>}
                                     {preparation && (
                                       <small className="inventory-ledger__detail">
-                                        {localizePreparationName(preparation.name)} · {localizePreparationMethod(preparation.method)} · {preparation.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 없음'} · 남은 사용 {item.usesRemaining ?? preparation.uses}회
+                                        {localizePreparationName(preparation.name)} · {localizePreparationMethod(preparation.method)} · {preparation.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ') || '약효 없음'} · 남은 사용 {item.usesRemaining ?? preparation.uses}회
                                       </small>
                                     )}
                                     {(sourceText || breakdown) && (
@@ -27677,7 +27708,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                                         Craftpaws와 교환
                                       </button>
                                     )}
-                                    {relevantTags.length > 0 && <small className="inventory-ledger__context">현재 환자에 맞음 · {relevantTags.map(tag => `${tag.tag} ${tag.value}`).join(' · ')}</small>}
+                                    {relevantTags.length > 0 && <small className="inventory-ledger__context">현재 환자에 맞음 · {relevantTags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ')}</small>}
                                   </td>
                                   <td style={{ padding: '0.4rem 0.5rem' }}>
                                     {inBando ? (
@@ -27921,7 +27952,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                     >
                       {(selectedManualReagent?.preparations || []).map(part => (
                         <option key={part.id} value={part.id}>
-                          {localizePreparationName(part.name)} · {localizePreparationMethod(part.method)} · {part.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '치료 태그 없음'}
+                          {formatReagentPartChoice(part)}
                         </option>
                       ))}
                     </select>
@@ -27930,7 +27961,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                   <form onSubmit={handleManualToolAddition} className="bio-manual-adjustment-row bio-manual-adjustment-row--wide">
                     <label htmlFor="manual-tool-id" style={{ fontSize: '0.8rem' }}>정식 도구 획득</label>
                     <select id="manual-tool-id" value={selectedManualTool?.id || ''} onChange={event => setManualToolId(event.target.value)} aria-label="직접 획득한 정식 도구">
-                      {manualToolOptions.map(tool => <option key={tool.id} value={tool.id}>{tool.canonicalName} · 무게 {formatWeight(tool.weight)}</option>)}
+                      {manualToolOptions.map(tool => <option key={tool.id} value={tool.id}>{localizeCanonicalToolName(tool.canonicalName)} · 무게 {formatWeight(tool.weight)}</option>)}
                     </select>
                     <button type="submit" className="btn-cozy-secondary" disabled={!selectedManualTool}>추가</button>
                   </form>
@@ -28279,7 +28310,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
     const inCurrentSeason = reagent.seasonAvailability[state.currentSeason] !== 'Unavailable';
     return { reagent, display, matchingParts, owned, inCurrentRegion, inCurrentSeason };
   }).filter(row => {
-    const searchText = [row.reagent.displayName, row.reagent.canonicalName, row.reagent.description, ...row.reagent.preparations.flatMap(part => [part.name, part.method, ...part.tags.map(tag => `${tag.tag} ${tag.value}`)])].join(' ');
+    const searchText = [formatReagentName(row.reagent), row.reagent.displayName, row.reagent.canonicalName, row.reagent.description, ...row.reagent.preparations.flatMap(part => [localizePreparationName(part.name), localizePreparationMethod(part.method), ...part.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`)])].join(' ');
     if (search && !fuzzyReferenceTextMatch(searchText, search)) return false;
     if (filter && !row.reagent.preparations.some(part => part.tags.some(tag => tag.tag.toLowerCase() === filter.toLowerCase()))) return false;
     if (typeFilter && row.reagent.type !== typeFilter) return false;
@@ -28328,10 +28359,10 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
 
       <div className="herbarium-controls">
         <label><span>이름·부위·약효 검색</span><input type="search" placeholder="예: Marigold, 꽃잎, PAIN 2" value={search} onChange={event => setSearch(event.target.value)} /></label>
-        <label><span>분류</span><select value={typeFilter} onChange={event => setTypeFilter(event.target.value)}><option value="">모든 분류</option><option value="PLANT">풀과 나무</option><option value="ANIMAL">야수의 흔적</option><option value="INSECT">곤충과 벌레</option><option value="EARTH">흙과 돌</option><option value="TITAN">거수의 조각</option></select></label>
+        <label><span>분류</span><select value={typeFilter} onChange={event => setTypeFilter(event.target.value)}><option value="">모든 분류</option><option value="PLANT">풀과 나무</option><option value="ANIMAL">야수의 흔적</option><option value="INSECT">곤충과 벌레</option><option value="EARTH">흙과 돌</option><option value="TITAN">티탄 유물</option></select></label>
         <label><span>지역</span><select value={regionFilter} onChange={event => setViewState(current => ({ ...current, regionFilter: event.target.value, expandedId: null }))}><option value="">모든 지역</option>{['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain', 'Titan'].map(region => <option key={region} value={region}>{localizeRegionLabel(region)}</option>)}</select></label>
         <label><span>계절</span><select value={seasonFilter} onChange={event => setViewState(current => ({ ...current, seasonFilter: event.target.value, expandedId: null }))}><option value="">모든 계절</option>{['Spring', 'Summer', 'Autumn', 'Winter'].map(season => <option key={season} value={season}>{localizeSeasonLabel(season)}</option>)}</select></label>
-        <label><span>약효</span><select value={filter} onChange={event => setFilter(event.target.value)}><option value="">모든 약효</option>{RULE_TAGS.map(tag => <option key={tag} value={tag}>{tag}</option>)}</select></label>
+        <label><span>약효</span><select value={filter} onChange={event => setFilter(event.target.value)}><option value="">모든 약효</option>{RULE_TAGS.map(tag => <option key={tag} value={tag}>{formatRuleTag(tag)}</option>)}</select></label>
       </div>
 
       <div className="herbarium-result-summary"><span aria-live="polite">관찰 기록 {rows.length}개 · 지금 {visibleRows.length}개 펼침</span>{(search || filter || typeFilter || regionFilter || seasonFilter || patientOnly) && <button type="button" onClick={clearFilters}>전체 도감 보기</button>}</div>
@@ -28347,7 +28378,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
             </button>
             {expanded && <div className="herbarium-entry__detail">
               <div className="herbarium-entry__relations"><strong>어디서·언제</strong><div>{Object.entries(reagent.regionAvailability).filter(([, availability]) => availability !== 'Unavailable').map(([region, availability]) => <button type="button" key={region} onClick={() => setViewState(current => ({ ...current, regionFilter: region, expandedId: null }))}>{localizeRegionLabel(region)} · {localizeAppAvailabilityLabel(availability)}</button>)}{Object.entries(reagent.seasonAvailability).filter(([, availability]) => availability !== 'Unavailable').map(([season, availability]) => <button type="button" key={season} onClick={() => setViewState(current => ({ ...current, seasonFilter: season, expandedId: null }))}>{localizeSeasonLabel(season)} · {localizeAppAvailabilityLabel(availability)}</button>)}</div></div>
-              <div className="herbarium-parts"><strong>부위와 조제</strong>{reagent.preparations.map(part => { const relevant = treatmentRelevantPreparationTags(part.tags, activeRequirements); return <div key={part.id} className={relevant.length ? 'is-patient-relevant' : ''}><div><strong>{localizePreparationName(part.name)}</strong><span>{localizePreparationMethod(part.method)}</span></div><p>{part.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음'} · 무게 {formatWeight(part.weight)} · {part.uses}회분</p>{part.requiredTools.filter(tool => tool !== 'none').length > 0 && <small>필요 도구: {part.requiredTools.filter(tool => tool !== 'none').map(tool => localizeInventoryItemName(TOOL_BY_ID.get(tool)?.canonicalName || tool)).join(', ')}</small>}{relevant.length > 0 && <em>현재 환자에게 {relevant.map(tag => `${tag.tag} ${tag.value}`).join(' · ')} 기여</em>}</div>; })}</div>
+              <div className="herbarium-parts"><strong>부위와 조제</strong>{reagent.preparations.map(part => { const relevant = treatmentRelevantPreparationTags(part.tags, activeRequirements); return <div key={part.id} className={relevant.length ? 'is-patient-relevant' : ''}><div><strong>{localizePreparationName(part.name)}</strong><span>{localizePreparationMethod(part.method)}</span></div><p>{part.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ') || '약효 태그 없음'} · 무게 {formatWeight(part.weight)} · {part.uses}회분</p>{part.requiredTools.filter(tool => tool !== 'none').length > 0 && <small>필요 도구: {part.requiredTools.filter(tool => tool !== 'none').map(tool => localizeInventoryItemName(TOOL_BY_ID.get(tool)?.canonicalName || tool)).join(', ')}</small>}{relevant.length > 0 && <em>현재 환자에게 {relevant.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ')} 기여</em>}</div>; })}</div>
               <div className="herbarium-entry__actions"><button type="button" onClick={() => onOpenReference({ entryId: `ingredient:${reagent.id}`, title: `${formatReagentName(reagent)} 관련 기록` })}>원문·관련 기록 보기</button>{state.journeyActive && state.rulesetId === 'sandbox' && <button type="button" onClick={() => { const parts = splitReagentPreparations(display.preps); const chosenPart = window.prompt(`가방에 넣을 ${formatReagentName(reagent)} 부위를 선택하세요:\n${parts.map((part, index) => `${index + 1}. ${part.trim()}`).join('\n')}`); if (!chosenPart) return; const partText = parts[Math.max(0, (parseInt(chosenPart) || 1) - 1)] || parts[0]; updateState((current: GameState) => ({ ...current, bag: [...current.bag, createPreparedReagentItem(display, partText, 'user_reag')] })); showAlert(`${formatReagentName(reagent)}을 수동으로 배낭에 추가했습니다.`); }}>배낭에 수동 획득 추가</button>}</div>
             </div>}
           </article>;
@@ -28388,7 +28419,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
       </p>
 
       {/* Search and Filters */}
-      <div style={{ display: 'flex', gap: '0.5rem', margin: '1rem 0' }}>
+      <div className="ailment-search" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', margin: '1rem 0' }}>
         <input
           type="text"
           placeholder="기록장에서 병색 찾아보기..."
@@ -28396,27 +28427,9 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
           onChange={e => setSearch(e.target.value)}
           style={{ flex: 1 }}
         />
-        <select value={filter} onChange={e => setFilter(e.target.value)}>
+        <select aria-label="질환 약효 필터" value={filter} onChange={e => setFilter(e.target.value)}>
           <option value="">약효별로 대조하기</option>
-          <option value="pain">통증</option>
-          <option value="wound">상처</option>
-          <option value="infection">감염</option>
-          <option value="parasite">기생충</option>
-          <option value="senses">감각</option>
-          <option value="sleep">수면</option>
-          <option value="breath">호흡</option>
-          <option value="burn">화상</option>
-          <option value="fur">털</option>
-          <option value="feather">깃털</option>
-          <option value="hide">가죽</option>
-          <option value="scale">비늘</option>
-          <option value="poison">독</option>
-          <option value="stomach">위장</option>
-          <option value="temperature">체온</option>
-          <option value="joy">기쁨</option>
-          <option value="mood">기분</option>
-          <option value="instinct">본능</option>
-          <option value="elsewhere">저편</option>
+          {RULE_TAGS.map(tag => <option key={tag} value={tag.toLowerCase()}>{formatRuleTag(tag)}</option>)}
         </select>
       </div>
 
@@ -28428,9 +28441,10 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
               <h4 className="ailment-card__header" style={{ margin: 0, color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1.1rem', fontWeight: 'bold' }}>
                 <span>{cleanedName}</span>
                 <span style={{ fontSize: '0.85rem', background: 'var(--primary-light)', padding: '0.2rem 0.5rem', borderRadius: '10px', color: 'var(--primary)', fontWeight: 'bold' }}>
-                  등급: {localizeSeverityLabel(a.severity)} | 시간: {a.timer}시간
+                  등급: {localizeSeverityLabel(a.severity)} | 타이머: {a.timer}
                 </span>
               </h4>
+              {a.sourceNote && <p className="ailment-source-note">{a.sourceNote}</p>}
               <div className="ailment-card__requirements" style={{ marginTop: '0.4rem', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <strong>💊 요구 약효 태그:</strong> {parseAndRenderTags(a.tags)}
               </div>

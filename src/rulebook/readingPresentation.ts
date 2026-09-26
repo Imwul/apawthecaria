@@ -6,6 +6,9 @@ import { RULEBOOK_REFERENCE_ENTRIES, searchReferenceEntries } from './referenceR
 import { readerGuideForPage } from './readerGuide';
 import { CATALOGUE_READING_KO } from './catalogueReadingKo';
 import { GUILD_SERVICE_BY_ID, type GuildServiceId } from '../rules/data/services';
+import { REAGENT_BY_ID } from '../rules/data/reagents';
+import { formatReagentName } from '../foragingInventoryPresentation';
+import { formatRuleTag } from '../localization/tagReadingKo';
 import type { RulebookReferenceEntry, RulebookReferenceKind } from './types';
 
 const terms: Record<string, string> = {
@@ -69,10 +72,15 @@ export const readableReference = (entry: RulebookReferenceEntry): RulebookRefere
       .replace(/\b(Bog|Forest|Loch|Meadow|Mountain|Soar|Titan)\b/g, localizeRegionLabel);
     summary = `${title} 원문 표입니다. 아래 한국어 안내와 연결 항목을 함께 확인하세요.`;
   } else if (entry.kind === 'tool') title = localizeCanonicalToolName(entry.title);
-  else if (entry.kind === 'ingredient') title = localizeInventoryItemName(entry.title);
+  else if (entry.kind === 'ingredient') {
+    const reagent = REAGENT_BY_ID.get(entry.ownerId || '');
+    title = reagent ? formatReagentName(reagent) : localizeInventoryItemName(entry.title);
+  }
   else if (entry.kind === 'remedy') {
-    title = entry.title.split(' · ').map((part, index) => index === 0 ? localizeInventoryItemName(part) : index === 1 ? localizePreparationName(part) : localizePreparationMethod(part)).join(' · ');
-    summary = `약효: ${entry.details.find(row => row.label === 'Potency')?.value || '특수 조건 확인'}`;
+    const reagent = REAGENT_BY_ID.get(entry.relatedIds.find(id => id.startsWith('ingredient:'))?.slice('ingredient:'.length) || '');
+    title = entry.title.split(' · ').map((part, index) => index === 0 ? reagent ? formatReagentName(reagent) : localizeInventoryItemName(part) : index === 1 ? localizePreparationName(part) : localizePreparationMethod(part)).join(' · ');
+    const potency = entry.details.find(row => row.label === 'Potency')?.value;
+    summary = `약효: ${potency?.replace(/\b[A-Z]+\b/g, formatRuleTag) || '특수 조건 확인'}`;
   } else if (entry.kind === 'ailment') {
     title = localizeAilmentPresentationText(entry.title);
     summary = localizeAilmentPresentationText(entry.summary).replace(/Timer/g, '남은 시간');
@@ -82,6 +90,9 @@ export const readableReference = (entry: RulebookReferenceEntry): RulebookRefere
   if (catalogue) { title = catalogue.title; summary = catalogue.summary; }
   const result = { ...entry, title, summary, details: entry.details.filter(row => !technicalLabels.has(row.label)).map(row => {
     let value = localizeManualEffectValue(row.value);
+    if (entry.kind === 'ailment' && !['Timer', 'Severity', 'Canonical name'].includes(row.label)) {
+      value = value.split('\n').map(localizeAilmentPresentationText).join('\n');
+    }
     if (catalogue && ['Effect', 'Challenge'].includes(row.label)) value = catalogue.summary;
     if (catalogue?.unlock && row.label === 'Unlock') value = catalogue.unlock;
     if (row.label === 'Unlock / Location') {

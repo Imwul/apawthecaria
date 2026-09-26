@@ -109,6 +109,8 @@ export interface TreatmentEngineOutcome {
   giftingApplied: boolean;
   consumedItemIds: string[];
   manualEffects: StructuredRuleEffect[];
+  /** Some cures still cause the printed Consequence (The Runs, p.113). */
+  printedEffectTrigger?: 'treatment-success' | 'treatment-failure' | null;
   badIdeaOutcomeApplied: boolean;
   allAilmentsResolved: boolean;
 }
@@ -727,7 +729,10 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
   if (unconfirmedManual.length > 0) return { status: 'manual', value: null, messages: unconfirmedManual };
 
   const consumed = consumeItems(input.state.inventory, input.selectedItemIds, doseCount);
-  const netFair = definition.canonicalName === 'Wormridden'
+  const isTheRuns = definition.canonicalName === 'The Runs';
+  const netFair = isTheRuns && effectiveFoul >= 2
+    ? collected.fair + effectiveFoul
+    : definition.canonicalName === 'Wormridden'
     ? Math.max(0, collected.fair - effectiveFoul)
     : collected.fair - effectiveFoul;
   const baseReward = Math.max(0, severityValue(definition.severity) + Math.trunc(netFair / 2));
@@ -777,7 +782,12 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
     }],
     appliedTransactionIds: [...badIdeaAppliedTransactionIds, input.transactionId]
   };
-  const manualEffects = [...definition.successEffects, ...definition.specialRules]
+  const printedEffectTrigger = isTheRuns
+    ? effectiveFoul <= 1 ? 'treatment-failure' as const : null
+    : undefined;
+  const manualEffects = (isTheRuns
+    ? printedEffectTrigger ? definition.failureEffects : []
+    : [...definition.successEffects, ...definition.specialRules])
     .filter(effect => effect.support !== 'implemented')
     .filter(() => definition.canonicalName !== 'Bad Idea');
   return {
@@ -795,6 +805,7 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
       giftingApplied: gifting,
       consumedItemIds: consumed.consumedIds,
       manualEffects,
+      printedEffectTrigger,
       badIdeaOutcomeApplied: badIdeaQualifies,
       allAilmentsResolved: patient.ailments.every(row => row.status !== 'active')
     },

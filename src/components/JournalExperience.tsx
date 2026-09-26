@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { FieldIcon } from './FieldIcon';
 import { localizeJourneyGoalText, localizeLocationName, localizeRegionLabel, localizeSeasonLabel } from '../localization/gameplayKo';
 import { referenceForJournalTab } from '../rulebook/context';
 import type { RulebookReferenceRequest } from '../rulebook/types';
@@ -46,7 +47,7 @@ export function JournalNavigation({ activeTab, onChange }: { activeTab: JournalT
             onClick={() => onChange(item.id)}
           >
             <span className="journal-tab__index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
-            <span className="journal-tab__emoji emoji-icon" aria-hidden="true">{item.emoji}</span>
+            <FieldIcon kind={item.id} />
             <span>{item.label}</span>
           </button>
         );
@@ -139,7 +140,7 @@ export function ChapterOpening({
     <header className={`chapter-opening chapter-opening--${tab}`} aria-labelledby={`chapter-title-${tab}`}>
       <span className="chapter-opening__folio" aria-hidden="true">들녘 기록 / {String(NAVIGATION.findIndex(item => item.id === tab) + 1).padStart(2, '0')}</span>
       <div className="chapter-opening__copy">
-        <p className="chapter-opening__kicker">{chapter.kicker}</p>
+        <p className="chapter-opening__kicker"><FieldIcon kind={tab} />{chapter.kicker}</p>
         <h2 id={`chapter-title-${tab}`}>{chapter.title}</h2>
         <p className="chapter-opening__body">{chapter.body}</p>
         <ul className="chapter-opening__notes" aria-label="현재 기록 요약">

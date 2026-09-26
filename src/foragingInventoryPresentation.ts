@@ -1,16 +1,20 @@
 import { formatPreparationName, localizeInventoryItemName, localizePreparationMethod } from './localization/gameplayKo';
+import { formatRuleTag } from './localization/tagReadingKo';
 import { REAGENT_BY_ID, REAGENTS } from './rules/data/reagents';
-import type { ReagentDefinition, RuleTag, TagValue } from './rules/types';
+import type { ReagentDefinition, ReagentPreparation, RuleTag, TagValue } from './rules/types';
 
-// Only use established Korean common names here. Loanword transliterations are
-// intentionally omitted: the rulebook's English name remains the stable label.
+// Display labels only: canonical English names and IDs remain unchanged.
 const EXACT_KOREAN_REAGENT_NAMES: Readonly<Record<string, string>> = {
-  'Animal Sheddings': '동물 허물',
+  'Animal Sheddings': '동물의 부산물',
   Beech: '너도밤나무',
   Beehive: '벌집',
+  'Behemoth Bits': '거수의 부산물',
+  'Birch Polypore': '자작나무버섯',
+  Blackcurrant: '블랙커런트',
+  Blackthorn: '슬로나무',
   Beetles: '딱정벌레',
   'Big Fish': '큰 물고기',
-  'Bird Leavings': '새 배설물',
+  'Bird Leavings': '새가 남긴 흔적',
   Brambles: '가시덤불',
   Burdock: '우엉',
   Butterfly: '나비',
@@ -21,6 +25,32 @@ const EXACT_KOREAN_REAGENT_NAMES: Readonly<Record<string, string>> = {
   Clay: '점토',
   'Coarse Grit': '굵은 모래',
   Cucumbers: '오이',
+  'Concocted Calm': '조제된 평정약',
+  'Crab Apples': '야생 사과',
+  'False Deathcap': '광대버섯아재비',
+  'Field Blewit': '초원 자주방망이버섯',
+  Firegizzards: '불꽃 주머니',
+  'Garden Mint': '정원 박하',
+  'Glass Silk': '유리 섬유',
+  Hidelendings: '인조 가죽 밴드',
+  Hoarhound: '호어하운드',
+  'Horse Chestnuts': '마로니에 열매',
+  Ironslug: '철 민달팽이',
+  Lavender: '라벤더',
+  Marshmallow: '마시멜로 풀',
+  'Meadow Waxcap': '초원 왁스캡',
+  'Miracle Loaf': '기적의 빵',
+  'Musk Scrapings': '사향 긁어낸 것',
+  Nightshade: '나이트셰이드',
+  'Orange Peel Fungus': '오렌지껍질버섯',
+  'Pox-Be-Gones': '역병 퇴치제',
+  Redsap: '붉은 수액',
+  Sourchits: '사워칫',
+  Titansorrel: '티탄 괭이밥',
+  Waychalk: '길 표시 분필',
+  Whiskerburner: '수염 태우개',
+  Woundwort: '운드워트',
+  'Yellow Wort': '옐로 워트',
   Dandelions: '민들레',
   'Doused Bonfires': '꺼진 모닥불',
   'Fine Sand': '고운 모래',
@@ -131,6 +161,9 @@ export const formatReagentName = (reagent: ReagentDefinition): string => {
   const korean = EXACT_KOREAN_REAGENT_NAMES[reagent.canonicalName];
   return korean ? `${reagent.canonicalName} (${korean})` : reagent.canonicalName;
 };
+
+export const formatReagentPartChoice = (part: ReagentPreparation): string =>
+  `${formatPreparationName(part.name)} · ${localizePreparationMethod(part.method)} · ${part.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' / ') || '약효 없음'} · ${part.uses}회분`;
 
 export const formatReagentItemName = (value: string, canonicalReagentId?: string | null): string => {
   const parsed = parsedReagentItem(value, canonicalReagentId);

@@ -18,6 +18,12 @@
   --text-dim: #6e7362;
   --accent-red: #974e4e;
   --accent-orange: #996627;
+  --editorial-ink: #2c3d30;
+  --editorial-paper: #f7f4e7;
+  --editorial-green: #dce7c4;
+  --editorial-mint: #e8eedc;
+  --editorial-pink: #eedbd6;
+  --editorial-yellow: #ece7bf;
 }
 
 body { background: var(--bg-gradient); color: var(--text-bright); }
@@ -34,7 +40,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  min-height: clamp(300px, 27vw, 430px);
+  min-height: clamp(280px, 24vw, 360px);
   padding: 0 0 1.5rem;
   background: #f4efdc;
   border: 0;
@@ -102,19 +108,23 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .journal-app .journal-tab--active { background: #e1e8ca; border-color: #789160; box-shadow: 0 2px 0 #65744f25; color: #24442e; }
 .journal-tab__index { color: #768266; }
 .journal-app .journal-tab__emoji { font-size: 1rem; }
+.field-icon { display: inline-block; flex: 0 0 auto; vertical-align: middle; color: inherit; }
+.journal-tab .field-icon { width: 24px; height: 24px; }
+.journal-app .chapter-opening__kicker { display: flex; align-items: center; gap: .6rem; }
+.chapter-opening__kicker .field-icon { width: 30px; height: 30px; }
 
 .journal-app .main-content-panel { background: transparent; }
 .journal-app .glass-panel { border-color: #76836566; box-shadow: 0 2px 4px #3a452908; }
 .journal-app .chapter-opening {
   min-height: 0;
-  padding: 2rem 2.25rem;
+  padding: 1.5rem 2rem;
   background: #e9eddc;
   border: 1px solid #86917680;
   border-radius: 8px 15px 7px 12px;
   margin-bottom: 1.75rem;
 }
 .journal-app .chapter-opening__copy { max-width: 76ch; }
-.journal-app .chapter-opening h2 { font-size: clamp(1.8rem, 2.8vw, 3rem); line-height: 1.35; color: #35563d; }
+.journal-app .chapter-opening h2 { font-size: clamp(1.8rem, 2.3vw, 2.4rem); line-height: 1.35; color: #35563d; }
 .journal-app .chapter-opening__body { max-width: 68ch; line-height: 1.85; margin-block: .85rem 1rem; }
 .journal-app .chapter-opening__notes { gap: .6rem 1.2rem; }
 .journal-app .chapter-opening--ailments { background: #f4e8df; border-color: #bd9c8666; }
@@ -133,6 +143,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .journal-app .today-focus .today-scene__mark { display: none; }
 .journal-app .today-scene__actions > button:first-child { background: #365b43; color: #fffdf5; border-color: #365b43; }
 .journal-app .today-scene__actions > button:first-child:hover { background: #264832; }
+.journal-app .today-story .today-patient { background: #f2e5da !important; }
+.journal-app .today-story .today-herbs { background: #e7edda !important; }
+.journal-app .today-story .today-bag { background: #eee8d2 !important; }
+.journal-app .today-story .today-journal { background: #f1ede2 !important; }
 .journal-app .action-hub { background: #fffdf6; border: 1px solid #8e9d7680; border-radius: 9px; overflow: hidden; }
 .journal-app .action-hub__header { padding: 1.2rem 1.4rem; background: #f3f1e3; }
 .journal-app .action-step { min-height: 104px; padding: 1.15rem 1.4rem; border-color: #a8af9566; }
@@ -140,6 +154,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .journal-app .action-step--warning { background: #f4e8c9; }
 .journal-app #patient-clinic-panel { background: #fffcf6; border-color: #b49b8377; border-top: 3px double #a88266; border-radius: 8px; }
 .journal-app .grid-patient-stats { background: #f4eade; border-color: #b49b8366; }
+.journal-app .ailment-card { background: #fffaf1 !important; border-top: 3px double #b49b83; }
+.journal-app .ailment-source-note { color: var(--text-muted); font-size: .85rem; line-height: 1.7; max-width: 72ch; }
+.journal-app .ailment-search :is(input, select) { min-width: 0; max-width: 100%; }
 .journal-app #treatment-workspace { background: #f5f5e8; border-color: #9ca98580; }
 .journal-app .forage-discovery-surface__intro { background: #eaf1df; border-color: #7d946d70; }
 .journal-app .forage-candidate { background: #fffdf4; border-color: #9ba98666; padding-block: 1rem; }
@@ -170,6 +187,48 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .rulebook-source-error { padding: 1rem; color: #88463e; }
 .reference-choices { display: grid; gap: .8rem; padding-left: 1.3rem; line-height: 1.8; }
 
+/* Ink edges and flat washes carry the frontispiece into the working pages.
+   No texture behind text, no transformed text layers or decorative overlays. */
+.journal-app .herbarium-index { border: 0; display: grid; gap: .8rem; }
+.journal-app .herbarium-entry {
+  background: #fffdf3;
+  border: 1px solid #8d9e7870;
+  border-left: 3px solid #809463;
+  border-radius: 3px 9px 5px 7px;
+}
+.journal-app .herbarium-entry.is-expanded { background: #f0f3df; border-color: #809463; }
+.journal-app .herbarium-entry__summary { padding: 1.1rem; gap: .9rem; }
+.journal-app .herbarium-entry__summary h3 { line-height: 1.5; color: #34523a; }
+.journal-app .herbarium-entry__summary p { line-height: 1.8; max-width: 68ch; font-size: .92rem; }
+.journal-app .herbarium-entry__folio { color: #60744f; padding: .3rem 0; border-top: 2px solid #9aac80; }
+.journal-app .herbarium-parts > div { border-top-style: solid; border-color: #a2b48d70; padding-block: .85rem; }
+.journal-app .herbarium-parts :is(p, small, em) { font-size: .85rem; line-height: 1.75; }
+.journal-app .herbarium-context { background: #eaf0d980; border-color: #82976c70; }
+.journal-app .herbarium-controls { padding-block: 1.2rem; gap: .8rem; }
+.journal-app .inventory-ledger-scroll thead tr { background: #e8ead4 !important; color: #38533a !important; }
+.journal-app .inventory-ledger-scroll td { padding-block: .8rem !important; }
+.journal-app .inventory-ledger-scroll tbody tr:nth-child(even) td { background: #879b6810; }
+.journal-app .journal-entry { border-color: #b7a08570; background: #fffaf0; border-radius: 5px 9px 4px 8px; }
+.journal-app .journal-entry__header { border-bottom: 1px solid #b7a08560; padding-bottom: .8rem; }
+.journal-app .journal-entry__memory p { max-width: 72ch; line-height: 1.9; }
+.journal-app .journal-entry__outcome { background: #eee9db; border-color: #b7a08560; }
+.journal-app .almanack-entry { border-left: 3px solid #869870; border-radius: 3px 7px 5px 4px; }
+.journal-app .almanack-entry p { line-height: 1.8; }
+.journal-app :is(input, select, textarea), .app-dialog :is(input, select, textarea) {
+  border-color: #879176;
+  background-color: #fffdf6;
+}
+.journal-app :is(button, input, select, textarea) { border-radius: 3px; }
+.encounter-dialog__masthead h2 { color: #345d3c; line-height: 1.45; }
+.encounter-dialog__masthead { border-bottom: 3px double #8b9b70; }
+.encounter-dialog-actions { border-top: 1px solid #8b9b7066; padding-top: 1rem; }
+.encounter-dialog :is(p, li) { overflow-wrap: anywhere; }
+.journal-app .guild-service-entry { border-color: #9ba984 !important; border-radius: 4px 9px 4px 7px !important; padding: 1rem !important; }
+.journal-app .guild-service-entry > div { font-size: .9rem !important; line-height: 1.6; }
+.journal-app .guild-service-entry p { font-size: .9rem !important; line-height: 1.8 !important; color: #526047 !important; min-height: 0 !important; }
+.journal-app .guild-service-entry button { min-height: 44px; font-size: .9rem !important; }
+.controlled-prompt__selected-detail { margin: .65rem 0 0; padding: .75rem; background: #edf1dd; border-left: 2px solid #809463; line-height: 1.8; overflow-wrap: anywhere; }
+
 @media (max-width: 800px) {
   .journal-app.journal-app .journal-header { min-height: 350px; }
   .journal-app .journal-header__utilities { padding: .35rem .6rem; gap: .4rem; flex-wrap: wrap; }
@@ -185,6 +244,16 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   .journal-app .today-scene__copy, .journal-app .action-step { padding: 1.2rem; }
   .reader-guide { padding: 1rem; }
   .encounter-choice-button { padding: .9rem; }
-  .journal-app input, .journal-app select, .journal-app textarea, .encounter-dialog textarea { font-size: max(16px, 1em); }
+  .journal-app :is(input, select, textarea),
+  .journal-app:not(.journal-app--onboarding) .main-content-panel :is(input, select, textarea),
+  .encounter-dialog :is(input, select, textarea),
+  .app-dialog :is(input, select, textarea) { font-size: max(16px, 1em) !important; }
+  .journal-app textarea, .encounter-dialog textarea, .app-dialog textarea { line-height: 1.8 !important; }
+  .journal-app .herbarium-entry__summary { padding: .9rem .75rem; gap: .55rem; }
+  .journal-app .herbarium-entry__summary p { font-size: .9rem; }
+  .journal-app .herbarium-entry__detail { padding: .6rem .8rem 1rem; }
+  .journal-app .herbarium-entry__relations button { min-height: 44px; font-size: .85rem; }
+  .journal-app .herbarium-parts :is(p, small, em) { font-size: .9rem; }
+  .journal-app .ailment-search :is(input, select) { flex-basis: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { .journal-app * { scroll-behavior: auto; } }

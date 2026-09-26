@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ENCOUNTERS } from '../rules/data/encounters';
+import { REAGENTS } from '../rules/data/reagents';
 import { RULEBOOK_REFERENCE_BY_ID, RULEBOOK_REFERENCE_ENTRIES } from './referenceRegistry';
 import { readableReference, referenceChoices, searchReadableReferences } from './readingPresentation';
 import { READER_GUIDES, readerGuideForPage } from './readerGuide';
@@ -45,6 +46,20 @@ describe('Korean in-app rulebook reading', () => {
     expect(searchReadableReferences('채집').some(row => row.kind === 'procedure')).toBe(true);
     expect(searchReadableReferences('Wingbreak').some(row => row.kind === 'ailment')).toBe(true);
     expect(searchReadableReferences('p.171').every(row => row.sourcePage <= 171 && (row.endPage || row.sourcePage) >= 171)).toBe(true);
+    expect(searchReadableReferences('라벤더').some(row => row.ownerId === 'reagent-lavender')).toBe(true);
+  });
+  it('shares bilingual names and tag meanings between the herbarium and reference reader', () => {
+    for (const reagent of REAGENTS) {
+      const title = readableReference(RULEBOOK_REFERENCE_BY_ID.get(`ingredient:${reagent.id}`)!).title;
+      expect(title).toContain(reagent.canonicalName);
+      expect(title).toMatch(/[가-힣]/);
+      for (const part of reagent.preparations) {
+        const reading = readableReference(RULEBOOK_REFERENCE_BY_ID.get(`remedy:${part.id}`)!);
+        expect(reading.title).toContain(reagent.canonicalName);
+        expect(reading.title).toMatch(/[가-힣]/);
+        for (const tag of part.tags) expect(reading.summary).toContain(`${tag.tag} · `);
+      }
+    }
   });
   it('covers every service, clinic, wagon, companion, upgrade and barrow with authored Korean guidance', () => {
     const entries = RULEBOOK_REFERENCE_ENTRIES.filter(row => ['service', 'clinic', 'wagon', 'companion', 'barrow'].includes(row.kind) || (row.kind === 'tool' && row.sourcePage === 66));

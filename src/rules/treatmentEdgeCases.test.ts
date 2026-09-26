@@ -45,6 +45,34 @@ const treatmentState = (patient: PatientState, inventory: EngineInventoryItem[])
 });
 
 describe('Treatment and Patient edge-case transactions', () => {
+  it.each([0, 1, 2, 3])('The Runs uses the printed FOUL %i branch without failing a cured patient', foul => {
+    const patient = resolvePatient({ id: `runs-${foul}`, name: 'Puddle drinker', species: 'Vole', ailmentIds: ['ailment-the-runs'] }).value!;
+    const parts = REAGENTS.flatMap(reagent => reagent.preparations.map(part => ({ reagent, part })));
+    const selected = ['STOMACH', 'POISON', 'PARASITE'].map(tag => parts.find(({ part }) =>
+      part.tags.some(row => row.tag === tag && row.value >= 1) && !part.tags.some(row => row.tag === 'FOUL'))!);
+    if (foul) selected.push(parts.find(({ part }) => part.tags.some(row => row.tag === 'FOUL' && row.value === foul))!);
+    const inventory: EngineInventoryItem[] = selected.map(({ reagent, part }, index) => ({
+      id: `runs-part-${index}`, name: reagent.canonicalName, type: 'reagent', weight: part.weight,
+      canonicalReagentId: reagent.id, preparationId: part.id, usesRemaining: part.uses, quantity: 1
+    }));
+    const tools: EngineInventoryItem[] = [...new Set(selected.flatMap(({ part }) => part.requiredTools).filter(id => id !== 'none'))]
+      .map(id => ({ id: `runs-tool-${id}`, name: id, type: 'tool', weight: 0, canonicalToolId: id }));
+    const result = resolveTreatment({
+      mode: 'treat', transactionId: `runs-cure-${foul}`, state: treatmentState(patient, [...inventory, ...tools]),
+      ailmentInstanceId: patient.ailments[0].id, selectedItemIds: inventory.map(row => row.id), selectedToolIds: tools.map(row => row.id), journalText: ''
+    });
+    expect(result.value, result.messages.join(' ')).not.toBeNull();
+    const outcome = result.value!;
+    expect(outcome.foul).toBe(foul);
+    expect(outcome.nextState.patient.status).toBe('cured');
+    expect(outcome.reputationChange).toBe(1);
+    expect(outcome.trinketReward).toBe(Math.max(0, 1 + Math.trunc((outcome.fair + (foul >= 2 ? foul : -foul)) / 2)));
+    expect(outcome.printedEffectTrigger).toBe(foul <= 1 ? 'treatment-failure' : null);
+    expect(outcome.manualEffects.length).toBe(foul <= 1 ? 1 : 0);
+    if (foul <= 1) expect(outcome.manualEffects[0].effect).toMatchObject({ description: expect.stringContaining('Woeful Waters') });
+    expect(outcome.nextState.appliedTransactionIds).toContain(`runs-cure-${foul}`);
+  });
+
   it('starts a fixed-Severity encounter patient in front of the concurrent case without freezing existing Timers', () => {
     const fixture = waenFixture();
     const lesserRows = AILMENTS.filter(row => row.severity === 'lesser');

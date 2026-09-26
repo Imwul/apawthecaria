@@ -183,7 +183,7 @@ describe('Phase 4 Services', () => {
     expect(restoreSeasonalServiceMutations(flooded, 'Spring').graph.n2.region).toBe('Forest');
     const vessel = { ...base, currentLocationName: 'Vessel' };
     expect(resolveGuildService({ transactionId: 'near', state: vessel, serviceId: 'retrieval', targetIds: ['n1'], journalNote: 'Fetch.' }).status).toBe('invalid');
-    expect(resolveGuildService({ transactionId: 'far', state: vessel, serviceId: 'retrieval', targetIds: ['n6'], journalNote: 'Fetch.' }).status).toBe('manual');
+    expect(resolveGuildService({ transactionId: 'far', state: vessel, serviceId: 'retrieval', targetIds: ['n6'], requestedItem: { id: 'lost', name: 'Left-behind notebook', type: 'item', weight: 1 }, journalNote: 'Fetch.' }).status).toBe('manual');
   });
 });
 

@@ -1,6 +1,7 @@
 import { getRuleCardValue, type RuleCard } from './cards';
 import { GUILD_SERVICE_BY_ID, type GuildServiceDefinition, type GuildServiceId } from './data/services';
 import { REAGENTS, REAGENT_BY_ID } from './data/reagents';
+import { TOOLS } from './data/tools';
 import type { EngineInventoryItem, EngineJournalEvent, TravelGraphNode } from './gameplay';
 import type { Region, Season } from './types';
 
@@ -23,6 +24,8 @@ export interface PendingGuildService {
   itemIds: string[];
   selectedReagentId?: string;
   selectedPreparationId?: string;
+  requestedItem?: EngineInventoryItem;
+  paidDrawCard?: RuleCard;
   journalNote: string;
   createdAtDay: number;
   sourcePage: number;
@@ -53,6 +56,7 @@ export interface ServiceRuntimeState {
   travelEncounterRerolls: number;
   missiveSettlementIds: string[];
   removedThreatIds: string[];
+  availableThreatIds?: string[];
   appliedTransactionIds: string[];
   journalEvents: EngineJournalEvent[];
 }
@@ -66,7 +70,9 @@ export interface GuildServiceInput {
   selectedReagentId?: string;
   selectedPreparationId?: string;
   selectedToolId?: string;
+  requestedItem?: EngineInventoryItem;
   option?: 'small' | 'big';
+  forecastPayment?: 1 | 2;
   card?: RuleCard;
   journalNote: string;
 }
@@ -150,6 +156,7 @@ const appendPath = (graph: Record<string, TravelGraphNode>, a: string, b: string
 const serviceCost = (definition: GuildServiceDefinition, input: GuildServiceInput) => {
   if (!Array.isArray(definition.cost)) return definition.cost;
   if (definition.id === 'catch-of-the-day') return input.option === 'big' ? 2 : 1;
+  if (definition.id === 'forecast') return input.forecastPayment === 2 ? 2 : 1;
   return definition.cost[0];
 };
 
@@ -177,10 +184,45 @@ const pending = (input: GuildServiceInput, definition: GuildServiceDefinition, s
   itemIds: [...(input.selectedItemIds || [])],
   selectedReagentId: input.selectedReagentId,
   selectedPreparationId: input.selectedPreparationId,
+  requestedItem: input.requestedItem ? structuredClone(input.requestedItem) : undefined,
   journalNote: input.journalNote,
   createdAtDay: input.state.calendarDays,
   sourcePage: definition.sourcePage
 });
+
+/** Pay and persist before exposing a card. Closing the picker never redraws it. */
+export const beginPickOfTheDeep = (input: { transactionId: string; state: ServiceRuntimeState; card: RuleCard; journalNote: string }): GuildServiceResolution => {
+  const definition = GUILD_SERVICE_BY_ID.get('pick-of-the-deep')!;
+  if (!input.transactionId || input.state.appliedTransactionIds.includes(input.transactionId)
+    || input.state.pendingServices.some(row => row.serviceId === definition.id && row.status === 'pending-choice')) {
+    return { status: 'invalid', value: null, messages: ['이미 지불한 잠수 결과가 있습니다. 남은 부위 선택을 먼저 마쳐 주세요.'] };
+  }
+  const atError = locationError(definition, input.state);
+  if (atError) return { status: 'invalid', value: null, messages: [atError] };
+  if (input.state.trinkets < 2) return { status: 'invalid', value: null, messages: ['잠수 비용 장신구 2개가 필요합니다.'] };
+  const value = getRuleCardValue(input.card, 'table');
+  if (!REAGENTS.some(row => row.type === 'TITAN' && row.baseRarity <= value)) {
+    return resolveGuildService({ ...input, serviceId: definition.id, journalNote: input.journalNote || '잠수꾼에게 수확을 의뢰했다.' });
+  }
+  const pendingService: PendingGuildService = {
+    ...pending({ ...input, serviceId: definition.id }, definition, 'pending-choice'),
+    paidDrawCard: structuredClone(input.card)
+  };
+  const nextState = {
+    ...input.state, trinkets: input.state.trinkets - 2,
+    pendingServices: [...input.state.pendingServices, pendingService],
+    appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
+    journalEvents: [...input.state.journalEvents, { id: `${input.transactionId}:journal`, type: 'downtime' as const, title: '깊은 곳의 수확 · 선택 대기', text: `장신구 2개 지불. 카드 값 ${value} 이하의 티탄 부위를 고릅니다.`, authorship: 'system' as const }]
+  };
+  return { status: 'manual', value: { transactionId: input.transactionId, service: definition, nextState, pendingService, messages: [] }, messages: [] };
+};
+
+const validRetrievalItem = (item: EngineInventoryItem | undefined): boolean => Boolean(item
+  && item.name.trim() && ['item', 'tool'].includes(item.type)
+  && !item.canonicalReagentId && !item.customReagent
+  && Number.isFinite(item.weight) && item.weight >= 0
+  && (item.quantity === undefined || (Number.isInteger(item.quantity) && item.quantity > 0))
+  && (item.type !== 'tool' || TOOLS.some(tool => tool.id === item.canonicalToolId && tool.weight === item.weight && !['teeth', 'paws', 'basic-tools-replacement'].includes(tool.id))));
 
 export const resolveGuildService = (input: GuildServiceInput): GuildServiceResolution => {
   const definition = GUILD_SERVICE_BY_ID.get(input.serviceId);
@@ -191,7 +233,10 @@ export const resolveGuildService = (input: GuildServiceInput): GuildServiceResol
   const atError = locationError(definition, input.state);
   if (atError) return { status: 'invalid', value: null, messages: [atError] };
   if (!input.journalNote.trim()) return { status: 'invalid', value: null, messages: ['Guild Services require a journal note.'] };
-  const cost = serviceCost(definition, input);
+  const paidDraw = definition.id === 'pick-of-the-deep'
+    ? input.state.pendingServices.find(row => row.serviceId === definition.id && row.status === 'pending-choice' && row.paidDrawCard)
+    : undefined;
+  const cost = paidDraw ? 0 : serviceCost(definition, input);
   if (input.state.trinkets < cost) return { status: 'invalid', value: null, messages: [`${definition.name} costs ${cost} Trinkets.`] };
   if (definition.duration === 'once-per-journey' && input.state.usedJourneyServiceIds.includes(definition.id)) {
     return { status: 'invalid', value: null, messages: ['This once-per-Journey Service has already been used.'] };
@@ -218,8 +263,15 @@ export const resolveGuildService = (input: GuildServiceInput): GuildServiceResol
     if (input.selectedReagentId && REAGENT_BY_ID.get(input.selectedReagentId)?.type === 'TITAN') {
       return { status: 'invalid', value: null, messages: ['Retrieval cannot request a Titan Reagent.'] };
     }
+    if (input.requestedItem && (!validRetrievalItem(input.requestedItem) || input.selectedReagentId)) {
+      return { status: 'invalid', value: null, messages: ['분실물의 이름·무게·종류를 확인해 주세요. 영약재는 부위 선택으로 의뢰합니다.'] };
+    }
+    if (!input.requestedItem && !makeInventoryItem(input)) {
+      return { status: 'invalid', value: null, messages: ['회수할 영약재 부위 또는 분실물을 먼저 정해 주세요.'] };
+    }
     pendingService = pending(input, definition, 'pending-delivery');
     next = { ...next, pendingServices: [...next.pendingServices, pendingService] };
+    messages.push(`${next.graph[target].name}에 회수 의뢰를 맡겼습니다. 그 정착지에 도착하면 ${input.requestedItem?.name || makeInventoryItem(input)!.name}을(를) 받습니다. 지금 가방에 추가되지는 않습니다.`);
   } else if (definition.id === 'send-package') {
     const selected = next.inventory.filter(item => (input.selectedItemIds || []).includes(item.id));
     const weight = selected.reduce((sum, item) => sum + item.weight * Math.max(1, item.quantity || 1), 0);
@@ -280,6 +332,9 @@ export const resolveGuildService = (input: GuildServiceInput): GuildServiceResol
   } else if (definition.id === 'scare-tactics') {
     const target = input.targetIds?.[0];
     if (!target) return { status: 'invalid', value: null, messages: ['Scare Tactics requires one Behemoth-related map target.'] };
+    if (next.removedThreatIds.includes(target) || (next.availableThreatIds && !next.availableThreatIds.includes(target))) {
+      return { status: 'invalid', value: null, messages: ['이미 제거했거나 현재 지도에 없는 거수 위협입니다.'] };
+    }
     const mutation: ServiceMapMutation = { id: `${input.transactionId}:map`, serviceId: definition.id, kind: 'remove-threat', nodeIds: [target], active: true, transactionId: input.transactionId };
     next = { ...next, removedThreatIds: [...new Set([...next.removedThreatIds, target])], mapMutations: [...next.mapMutations, mutation] };
   } else if (['hitch-a-ride', 'taxi-service', 'smithing'].includes(definition.id)) {
@@ -287,7 +342,8 @@ export const resolveGuildService = (input: GuildServiceInput): GuildServiceResol
     next = { ...next, pendingServices: [...next.pendingServices, pendingService] };
   } else {
     const item = makeInventoryItem(input);
-    const deepValue = definition.id === 'pick-of-the-deep' && input.card ? getRuleCardValue(input.card, 'table') : null;
+    const deepCard = paidDraw?.paidDrawCard || input.card;
+    const deepValue = definition.id === 'pick-of-the-deep' && deepCard ? getRuleCardValue(deepCard, 'table') : null;
     const emptyDeepDraw = deepValue !== null && !REAGENTS.some(row => row.type === 'TITAN' && row.baseRarity <= deepValue);
     if (['rug-of-wonders', 'catch-of-the-day', 'take-clippings', 'pick-of-the-deep'].includes(definition.id)) {
       // p.61: a low draw still pays the diver; nothing usable is recovered.
@@ -308,6 +364,8 @@ export const resolveGuildService = (input: GuildServiceInput): GuildServiceResol
       }
     }
   }
+
+  if (paidDraw) next = { ...next, pendingServices: next.pendingServices.map(row => row.transactionId === paidDraw.transactionId ? { ...row, status: 'completed' } : row) };
 
   if (definition.duration === 'once-per-journey') next = { ...next, usedJourneyServiceIds: [...next.usedJourneyServiceIds, definition.id] };
   const event: EngineJournalEvent = { id: `${input.transactionId}:journal`, type: 'downtime', title: definition.name, text: [input.journalNote, ...messages].join('\n'), authorship: 'player', playerMemory: input.journalNote };
@@ -471,7 +529,9 @@ export const completeGuildServiceDelivery = (input: {
     if (input.state.currentLocationId !== delivery.targetIds[0]) {
       return { status: 'invalid', value: null, messages: ['Retrieval is collected only at the recorded Settlement.'] };
     }
-    const item = makeInventoryItem({
+    const item = delivery.requestedItem && validRetrievalItem(delivery.requestedItem)
+      ? { ...structuredClone(delivery.requestedItem), id: `${delivery.transactionId}:item` }
+      : makeInventoryItem({
       transactionId: delivery.transactionId,
       state: input.state,
       serviceId: delivery.serviceId,
@@ -501,6 +561,21 @@ export const completeGuildServiceDelivery = (input: {
     journalEvents: [...input.state.journalEvents, event]
   };
   return { status: 'resolved', value: { transactionId: input.transactionId, service: definition, nextState, pendingService: null, messages: [] }, messages: [] };
+};
+
+/** Collect every commission at this stop, including after a save/reload. */
+export const collectGuildRetrievalsAtLocation = (state: ServiceRuntimeState, transactionId: string): ServiceRuntimeState => {
+  let next = state;
+  for (const delivery of state.pendingServices.filter(row => row.serviceId === 'retrieval'
+    && row.status === 'pending-delivery' && row.targetIds[0] === state.currentLocationId)) {
+    const result = completeGuildServiceDelivery({
+      transactionId: `${transactionId}:${delivery.transactionId}`,
+      state: next,
+      serviceTransactionId: delivery.transactionId
+    });
+    if (result.value) next = result.value.nextState;
+  }
+  return next;
 };
 
 export const restoreSeasonalServiceMutations = (state: ServiceRuntimeState, season: Season): ServiceRuntimeState => {
