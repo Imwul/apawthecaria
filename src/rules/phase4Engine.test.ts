@@ -105,6 +105,62 @@ describe('Phase 4 Barrow state machines', () => {
 });
 
 describe('Phase 4 Services', () => {
+  it('p.58 permits Titan parts on the Rug of Wonders within rarity 9, once per Journey', () => {
+    const reagent = REAGENTS.find(row => row.type === 'TITAN' && row.baseRarity <= 9)!;
+    const input = { transactionId: 'rug:titan', state: serviceState(), serviceId: 'rug-of-wonders' as const, selectedReagentId: reagent.id, selectedPreparationId: reagent.preparations[0].id, journalNote: '귀한 물건을 골랐다.' };
+    const result = resolveGuildService(input);
+    expect(result.value?.nextState.inventory[0].canonicalReagentId).toBe(reagent.id);
+    expect(result.value?.nextState.trinkets).toBe(99);
+    expect(resolveGuildService({ ...input, transactionId: 'rug:repeat', state: result.value!.nextState }).status).toBe('invalid');
+    const rare = REAGENTS.find(row => row.baseRarity > 9)!;
+    expect(resolveGuildService({ ...input, selectedReagentId: rare.id, selectedPreparationId: rare.preparations[0].id }).status).toBe('invalid');
+  });
+
+  it('p.59 permits Smithing in any City, but only Mountain Settlements', () => {
+    const input = { transactionId: 'smith', state: serviceState(), serviceId: 'smithing' as const, journalNote: '도구 개조를 의뢰했다.' };
+    expect(resolveGuildService(input).value?.nextState.trinkets).toBe(97);
+    expect(resolveGuildService({ ...input, state: { ...input.state, currentLocationType: 'Settlement' } }).status).toBe('invalid');
+    expect(resolveGuildService({ ...input, state: { ...input.state, currentLocationType: 'Settlement', currentRegion: 'Mountain' } }).status).toBe('manual');
+  });
+
+  it('p.59 rejects a Big Fish at the Small Fish price without changing inventory or payment', () => {
+    const big = REAGENTS.find(row => row.canonicalName === 'Big Fish')!;
+    const state = { ...serviceState(), currentLocationType: 'Settlement' as const, currentRegion: 'Loch' as const };
+    const before = structuredClone(state);
+    const input = { transactionId: 'fish', state, serviceId: 'catch-of-the-day' as const, selectedReagentId: big.id, selectedPreparationId: big.preparations[0].id, journalNote: '물고기를 샀다.' };
+    expect(resolveGuildService({ ...input, option: 'small' }).status).toBe('invalid');
+    expect(state).toEqual(before);
+    expect(resolveGuildService({ ...input, option: 'big' }).value?.nextState.trinkets).toBe(98);
+  });
+
+  it('p.60 requires two distinct bridge banks and converts both directions', () => {
+    const state = serviceState();
+    state.currentLocationName = 'Spoolkeep';
+    state.graph.n1.edges = [{ to: 'n0', kind: 'waterway' }, { to: 'n2', kind: 'waterway' }];
+    const input = { transactionId: 'bridge', state, serviceId: 'build-a-bridge' as const, journalNote: '다리를 놓았다.' };
+    expect(resolveGuildService({ ...input, targetIds: ['n1', 'n0', 'n0'] }).status).toBe('invalid');
+    const result = resolveGuildService({ ...input, targetIds: ['n1', 'n0', 'n2'] }).value!.nextState;
+    expect(result.trinkets).toBe(92);
+    expect(result.graph.n1.edges).toEqual([{ to: 'n0', kind: 'path' }, { to: 'n2', kind: 'path' }]);
+    expect(result.graph.n2.edges).toContainEqual({ to: 'n1', kind: 'path' });
+    expect(state.graph.n1.edges[0].kind).toBe('waterway');
+  });
+
+  it('p.61 charges an empty Pick of the Deep once and persists the failed draw outcome', () => {
+    const input = { transactionId: 'deep:low', state: { ...serviceState(), currentLocationName: 'Vessel' }, serviceId: 'pick-of-the-deep' as const, card: { value: 1, suit: '♥' as const }, journalNote: '잠수꾼을 기다렸다.' };
+    const result = resolveGuildService(input);
+    expect(result.status).toBe('resolved');
+    expect(result.value?.nextState).toMatchObject({ trinkets: 98, inventory: [] });
+    expect(result.messages.join(' ')).toContain('건지지 못했습니다');
+    expect(result.value?.nextState.journalEvents.at(-1)?.text).toContain('건지지 못했습니다');
+    const reloaded = JSON.parse(JSON.stringify(result.value!.nextState));
+    expect(resolveGuildService({ ...input, state: reloaded }).status).toBe('invalid');
+    expect(resolveGuildService({ ...input, card: undefined }).status).toBe('invalid');
+    expect(resolveGuildService({ ...input, card: { value: 13, suit: '♥' } }).status).toBe('invalid');
+    const titan = REAGENTS.find(row => row.type === 'TITAN')!;
+    expect(resolveGuildService({ ...input, card: { value: 13, suit: '♥' }, selectedReagentId: titan.id, selectedPreparationId: titan.preparations[0].id }).value?.nextState.inventory[0].canonicalReagentId).toBe(titan.id);
+  });
+
   it('preserves the exact Guild Service journal note', () => {
     const note = '  구름 가장자리를 읽었다.\n비 냄새가 났다.  ';
     const state = { ...serviceState(), currentLocationId: 'n2', currentLocationName: 'Bogstead', currentLocationType: 'Settlement' as const, currentRegion: 'Bog' as const };

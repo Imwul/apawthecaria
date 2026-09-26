@@ -213,6 +213,8 @@ const exactEngineMessages: Record<string, string> = {
   "Payment exceeds available Trinkets or Reputation.": "지불액이 보유한 장신구 또는 길드 명성을 초과합니다.",
   "Pending Guild delivery was not found.": "대기 중인 길드 배달을 찾지 못했습니다.",
   "Pick of the Deep requires a Titan Reagent no rarer than the drawn card.": "깊은 곳의 수확에는 뽑은 카드보다 희귀하지 않은 티탄 영약재가 필요합니다.",
+  "Rug of Wonders is limited to Reagents with Base Rarity 9 or lower.": "놀라운 양탄자에서는 기본 희귀도 9 이하의 영약재를 고릅니다. 티탄 영약재도 가능합니다.",
+  "Catch of the Day must match the selected fish size and price.": "오늘의 물고기는 선택한 크기와 가격에 맞는 부위를 골라야 합니다.",
   "Pilfer Unnoticed is not active.": "Pilfer Unnoticed가 진행 중이 아닙니다.",
   "Pilfer Unnoticed": "들키지 않고 훔치기",
   "Pilfer Unnoticed: Escaped": "들키지 않고 훔치기: 탈출",

@@ -1,6 +1,6 @@
 import { getRuleCardValue, type RuleCard } from './cards';
 import { GUILD_SERVICE_BY_ID, type GuildServiceDefinition, type GuildServiceId } from './data/services';
-import { REAGENT_BY_ID } from './data/reagents';
+import { REAGENTS, REAGENT_BY_ID } from './data/reagents';
 import type { EngineInventoryItem, EngineJournalEvent, TravelGraphNode } from './gameplay';
 import type { Region, Season } from './types';
 
@@ -99,6 +99,7 @@ const locationError = (definition: GuildServiceDefinition, state: ServiceRuntime
   if (requirement.kind === 'any-settlement-or-city') return isSettlement(state.currentLocationType) ? null : 'This Service requires a Settlement or City.';
   if (requirement.kind === 'any-city') return state.currentLocationType === 'City' ? null : 'This Service requires a City.';
   if (requirement.kind === 'region-settlement') {
+    if (requirement.orAnyCity && state.currentLocationType === 'City') return null;
     return state.currentLocationType === 'Settlement' && state.currentRegion === requirement.region
       ? null
       : `This Service requires a ${requirement.region} Settlement.`;
@@ -258,7 +259,7 @@ export const resolveGuildService = (input: GuildServiceInput): GuildServiceResol
     }
   } else if (definition.id === 'build-a-bridge') {
     const [loch, a, b] = input.targetIds || [];
-    const valid = next.graph[loch]?.region === 'Loch'
+    const valid = a !== b && Boolean(next.graph[a] && next.graph[b]) && next.graph[loch]?.region === 'Loch'
       && next.graph[a]?.region !== 'Loch'
       && next.graph[b]?.region !== 'Loch'
       && next.graph[loch].edges.some(edge => edge.to === a && edge.kind === 'waterway')
@@ -286,21 +287,30 @@ export const resolveGuildService = (input: GuildServiceInput): GuildServiceResol
     next = { ...next, pendingServices: [...next.pendingServices, pendingService] };
   } else {
     const item = makeInventoryItem(input);
+    const deepValue = definition.id === 'pick-of-the-deep' && input.card ? getRuleCardValue(input.card, 'table') : null;
+    const emptyDeepDraw = deepValue !== null && !REAGENTS.some(row => row.type === 'TITAN' && row.baseRarity <= deepValue);
     if (['rug-of-wonders', 'catch-of-the-day', 'take-clippings', 'pick-of-the-deep'].includes(definition.id)) {
-      if (!item) return { status: 'invalid', value: null, messages: ['Select a canonical Reagent and Preparation.'] };
-      const reagent = REAGENT_BY_ID.get(item.canonicalReagentId!);
-      if (definition.id === 'rug-of-wonders' && (reagent!.baseRarity > 9 || reagent!.type === 'TITAN')) return { status: 'invalid', value: null, messages: ['Rug of Wonders is limited to non-Titan Reagents with Base Rarity 9 or lower.'] };
-      if (definition.id === 'take-clippings' && reagent!.type !== 'PLANT') return { status: 'invalid', value: null, messages: ['Take Clippings requires a Plant Reagent.'] };
-      if (definition.id === 'pick-of-the-deep') {
-        const value = input.card ? getRuleCardValue(input.card, 'table') : null;
-        if (value === null || reagent!.type !== 'TITAN' || reagent!.baseRarity > value) return { status: 'invalid', value: null, messages: ['Pick of the Deep requires a Titan Reagent no rarer than the drawn card.'] };
+      // p.61: a low draw still pays the diver; nothing usable is recovered.
+      if (emptyDeepDraw && !input.selectedReagentId && !input.selectedPreparationId) {
+        messages.push('쓸 만한 티탄 영약재를 건지지 못했습니다. 잠수 비용 장신구 2개는 지불합니다.');
+      } else {
+        if (!item) return { status: 'invalid', value: null, messages: ['Select a canonical Reagent and Preparation.'] };
+        const reagent = REAGENT_BY_ID.get(item.canonicalReagentId!);
+        if (definition.id === 'rug-of-wonders' && reagent!.baseRarity > 9) return { status: 'invalid', value: null, messages: ['Rug of Wonders is limited to Reagents with Base Rarity 9 or lower.'] };
+        if (definition.id === 'catch-of-the-day' && reagent!.canonicalName !== (input.option === 'big' ? 'Big Fish' : 'Small Fish')) {
+          return { status: 'invalid', value: null, messages: ['Catch of the Day must match the selected fish size and price.'] };
+        }
+        if (definition.id === 'take-clippings' && reagent!.type !== 'PLANT') return { status: 'invalid', value: null, messages: ['Take Clippings requires a Plant Reagent.'] };
+        if (definition.id === 'pick-of-the-deep') {
+          if (deepValue === null || reagent!.type !== 'TITAN' || reagent!.baseRarity > deepValue) return { status: 'invalid', value: null, messages: ['Pick of the Deep requires a Titan Reagent no rarer than the drawn card.'] };
+        }
+        next = { ...next, inventory: [...next.inventory, item] };
       }
-      next = { ...next, inventory: [...next.inventory, item] };
     }
   }
 
   if (definition.duration === 'once-per-journey') next = { ...next, usedJourneyServiceIds: [...next.usedJourneyServiceIds, definition.id] };
-  const event: EngineJournalEvent = { id: `${input.transactionId}:journal`, type: 'downtime', title: definition.name, text: input.journalNote, authorship: 'player', playerMemory: input.journalNote };
+  const event: EngineJournalEvent = { id: `${input.transactionId}:journal`, type: 'downtime', title: definition.name, text: [input.journalNote, ...messages].join('\n'), authorship: 'player', playerMemory: input.journalNote };
   next = { ...next, journalEvents: [...next.journalEvents, event], appliedTransactionIds: [...next.appliedTransactionIds, input.transactionId] };
   return { status: pendingService ? 'manual' : 'resolved', value: { transactionId: input.transactionId, service: definition, nextState: next, pendingService, messages }, messages };
 };

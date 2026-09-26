@@ -6859,7 +6859,7 @@ const GUILD_SERVICES_DB = [
   { id: 'send_package', name: '소포 보내기 (Send Package)', cost: 2, places: 'Any Settlement or City', desc: '최대 무게 5의 실제 가방 물품을 다른 플레이어에게 보낼 의뢰로 기록합니다.' },
   { id: 'rug_wonders', name: '놀라운 양탄자 (Rug of Wonders)', cost: 1, places: 'Any Settlement or City', desc: '여정당 1회, 기본 희귀도 9 이하 영약재 부위 1개를 구입합니다.' },
   { id: 'news_trail', name: '길 위의 소식 (News From The Trail)', cost: 2, places: 'Any Settlement or City', desc: '목적지에 도착할 때까지 이동 조우를 한 번 2장 중 선택합니다.' },
-  { id: 'smithing', name: '철공 개조 (Smithing)', cost: 3, places: 'Mountain Settlements', desc: '보유한 기본 도구 하나를 룰북 66쪽의 호환 업그레이드로 교체합니다.' },
+  { id: 'smithing', name: '철공 개조 (Smithing)', cost: 3, places: 'Mountain Settlements / Any City', desc: '산악 정착지 또는 어느 도시에서든 기본 도구 하나를 룰북 66쪽의 호환 업그레이드로 교체합니다.' },
   { id: 'forecast', name: '날씨 예보 (Forecast)', cost: 1, places: 'Bog Settlement', desc: '다음 3번 이동 동안 날씨 태그 채집 조우의 부정적 효과를 무시합니다.' },
   { id: 'shortcut', name: '숨은 지름길 (Shortcut)', cost: 2, places: 'Forest Settlement', desc: '안전한 숲길로 근처 위치까지 즉시 이동하고 지도 경로를 남깁니다.' },
   { id: 'hitch_ride', name: '농부 마차 얻어타기 (Hitch a Ride)', cost: 2, places: 'Meadow Settlement', desc: '초원 위치까지 최대 5경로 이동하고 이동 조우를 생략합니다.' },
@@ -6919,6 +6919,7 @@ const isGuildServiceAvailableAtLocation = (service: any, s: GameState, bypass: b
   const isSettlementOrCity = s.currentLocationType === 'Settlement' || s.currentLocationType === 'City';
   if (places === 'Any Settlement or City') return isSettlementOrCity;
   if (places === 'Any City') return s.currentLocationType === 'City';
+  if (service.id === 'smithing') return s.currentLocationType === 'City' || (s.currentLocationType === 'Settlement' && s.currentRegion === 'Mountain');
   if (places.includes('Settlement') && s.currentLocationType !== 'Settlement') return false;
   if (places.includes('City') && s.currentLocationType !== 'City') return false;
   if (['Glasswall', 'Summit', 'Spoolkeep', 'Newdam', 'Vessel', 'Odoak', 'Noonhill'].some(city => places.includes(city) && s.currentLocationName === city)) return true;
@@ -12576,8 +12577,9 @@ export default function App() {
       {campaignWriteBlocked && <p role="alert" className="cloud-slots__warning">{STALE_CAMPAIGN_TAB_MESSAGE}</p>}
       {/* Header Banner */}
       <header className="journal-header">
+        <img className="woodland-frontispiece" src={`${import.meta.env.BASE_URL}art/woodland-bear-and-owl.webp`} alt="" width="2048" height="768" fetchPriority="high" />
         <button type="button" className="journal-brand" onClick={() => changeActiveTab('play')} disabled={isOnboarding} aria-label={isOnboarding ? 'Apawthecaria 새 기록 설정' : '오늘의 여행 첫 페이지로 돌아가기'}>
-          <span className="journal-brand__eyebrow">Bristley Woods · A travelling apothecary's field notes</span>
+          <span className="journal-brand__eyebrow">브리슬리 숲 · 여행하는 약제사의 수첩</span>
           <h1 className="journal-brand__title"><span>APAW</span><span>THECARIA</span></h1>
           <span className="journal-brand__edition">들녘 일지 · 제1권</span>
         </button>
@@ -17040,14 +17042,16 @@ function PlayView({
     if (['rug-of-wonders', 'catch-of-the-day', 'take-clippings', 'pick-of-the-deep'].includes(serviceId)) {
       if (serviceId === 'pick-of-the-deep') card = drawPlayingCard();
       const limit = card ? getRuleCardValue(card, 'table') : 12;
-      const candidates = REAGENTS.filter(row => serviceId === 'rug-of-wonders' ? row.type !== 'TITAN' && row.baseRarity <= 9 : serviceId === 'take-clippings' ? row.type === 'PLANT' : serviceId === 'pick-of-the-deep' ? row.type === 'TITAN' && row.baseRarity <= limit : row.canonicalName === (service.id === 'catch_day_big' ? 'Big Fish' : 'Small Fish'));
-      const chosen = await chooseOne('획득할 정식 영약재를 선택하세요.', candidates.map(row => ({ id: row.id, label: `${row.displayName} · 기본 희귀도 ${row.baseRarity}` })));
-      const reagent = chosen ? REAGENT_BY_ID.get(chosen) : null;
-      if (!reagent) return;
-      const preparationId = await chooseOne('획득할 부위와 조제법을 선택하세요.', reagent.preparations.map(row => ({ id: row.id, label: `${localizePreparationName(row.name)} · ${localizePreparationMethod(row.method)} · 무게 ${formatWeight(row.weight)}` })));
-      if (!preparationId) return;
-      selectedReagentId = reagent.id;
-      selectedPreparationId = preparationId;
+      const candidates = REAGENTS.filter(row => serviceId === 'rug-of-wonders' ? row.baseRarity <= 9 : serviceId === 'take-clippings' ? row.type === 'PLANT' : serviceId === 'pick-of-the-deep' ? row.type === 'TITAN' && row.baseRarity <= limit : row.canonicalName === (service.id === 'catch_day_big' ? 'Big Fish' : 'Small Fish'));
+      if (serviceId !== 'pick-of-the-deep' || candidates.length > 0) {
+        const chosen = await chooseOne('획득할 정식 영약재를 선택하세요.', candidates.map(row => ({ id: row.id, label: `${row.displayName} · 기본 희귀도 ${row.baseRarity}` })));
+        const reagent = chosen ? REAGENT_BY_ID.get(chosen) : null;
+        if (!reagent) return;
+        const preparationId = await chooseOne('획득할 부위와 조제법을 선택하세요.', reagent.preparations.map(row => ({ id: row.id, label: `${localizePreparationName(row.name)} · ${localizePreparationMethod(row.method)} · 무게 ${formatWeight(row.weight)}` })));
+        if (!preparationId) return;
+        selectedReagentId = reagent.id;
+        selectedPreparationId = preparationId;
+      }
     }
 
     const runtime = toServiceRuntime(state);
@@ -17057,6 +17061,7 @@ function PlayView({
       return;
     }
     const outcome = result.value;
+    if (outcome.messages.length) showAlert(outcome.messages.join('\n'));
     updateState(s => {
       let customMapLocations = s.customMapLocations || [];
       let customMapEdges = s.customMapEdges || [];
@@ -17105,10 +17110,10 @@ function PlayView({
         journals: [{
           id: `${transaction.id}:journal`,
           title: `길드 서비스: ${outcome.service.name}`,
-          text: note,
+          text: [note, ...outcome.messages].join('\n'),
           semantic: {
             ...createPlayerMemorySemantic(note),
-            outcome: `${outcome.service.name} 서비스를 이용했습니다.`,
+            outcome: outcome.messages.join(' ') || `${outcome.service.name} 서비스를 이용했습니다.`,
             source: {
               page: outcome.service.sourcePage,
               title: outcome.service.name,
@@ -25664,7 +25669,7 @@ function PlayView({
                 <div style={{ marginTop: '0.5rem', padding: '0.6rem', background: '#f9f5ee', border: '1px dashed #c9b68a', borderRadius: '8px', fontSize: '0.82rem' }}>
                   <strong>🔍 여분 채집 (p.37)</strong> — 치료 완료 후 남은 타이머로 여분 약재 획득 가능.<br />
                   타이머 소비: 현재 위치 채집 1회, 인접 위치 채집 1회, 현재 위치 약재 1개(효능≤2), 인접 약재 1개(효능≤2).<br />
-                  <span style={{ color: '#888' }}>* 치료제 완성 후 모든 타이머가 0 이상일 때만 사용 가능.</span>
+                  <span style={{ color: '#888' }}>* 치료제 완성 후 모든 타이머가 0보다 클 때만 시작할 수 있습니다.</span>
                   {(hasTool(state, 'tool_needles') || hasTool(state, '뜨개바늘') || hasTool(state, 'Knitting Needles')) && (
                     <div style={{ marginTop: '0.65rem', paddingTop: '0.55rem', borderTop: '1px dashed #d6c8a8' }}>
                       <strong style={{ color: '#7c5a2a' }}>🧶 뜨개질 프로젝트 (Knitting Needles, p.64)</strong>
