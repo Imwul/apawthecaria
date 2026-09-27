@@ -4,6 +4,8 @@ import { REAGENTS, REAGENT_BY_ID } from './data/reagents';
 import { TOOLS } from './data/tools';
 import type { EngineInventoryItem, EngineJournalEvent, TravelGraphNode } from './gameplay';
 import type { Region, Season } from './types';
+import type { UnbuckledForageCache } from './travelEncounterRuntime';
+import type { CanonicalToolState } from './toolEngine';
 
 export interface ServiceMapMutation {
   id: string;
@@ -25,6 +27,8 @@ export interface PendingGuildService {
   selectedReagentId?: string;
   selectedPreparationId?: string;
   requestedItem?: EngineInventoryItem;
+  retrievedFrom?: { cacheId: string; itemId: string };
+  requestedToolState?: CanonicalToolState;
   paidDrawCard?: RuleCard;
   journalNote: string;
   createdAtDay: number;
@@ -47,6 +51,8 @@ export interface ServiceRuntimeState {
   calendarDays: number;
   trinkets: number;
   inventory: EngineInventoryItem[];
+  retrievalCaches?: UnbuckledForageCache[];
+  toolStates?: CanonicalToolState[];
   graph: Record<string, TravelGraphNode>;
   mapMutations: ServiceMapMutation[];
   pendingServices: PendingGuildService[];
@@ -71,6 +77,8 @@ export interface GuildServiceInput {
   selectedPreparationId?: string;
   selectedToolId?: string;
   requestedItem?: EngineInventoryItem;
+  lostItem?: { cacheId: string; itemId: string };
+  paidDrawTransactionId?: string;
   option?: 'small' | 'big';
   forecastPayment?: 1 | 2;
   card?: RuleCard;
@@ -224,6 +232,19 @@ const validRetrievalItem = (item: EngineInventoryItem | undefined): boolean => B
   && (item.quantity === undefined || (Number.isInteger(item.quantity) && item.quantity > 0))
   && (item.type !== 'tool' || TOOLS.some(tool => tool.id === item.canonicalToolId && tool.weight === item.weight && !['teeth', 'paws', 'basic-tools-replacement'].includes(tool.id))));
 
+/** p.61: only the non-Titan Reagent option creates a new item. The other
+ * option transfers an actual item left behind (p.94), with its original ID.
+ * Consumed/sold/discarded prose is not evidence of a recoverable possession. */
+export const guildRetrievalTargets = (state: Pick<ServiceRuntimeState, 'retrievalCaches'>) => (
+  (state.retrievalCaches || []).filter(cache => cache.status === 'available')
+    .flatMap(cache => cache.items.filter(item => item.id && item.name.trim()
+      && ['reagent', 'tool', 'item', 'trinket'].includes(item.type)
+      && Number.isFinite(item.weight) && item.weight >= 0
+      && (item.quantity === undefined || (Number.isInteger(item.quantity) && item.quantity > 0))
+      && !['teeth', 'paws', 'basic-tools-replacement'].includes(item.canonicalToolId || ''))
+      .map(item => ({ cacheId: cache.id, itemId: item.id, locationId: cache.locationId, item })))
+);
+
 export const resolveGuildService = (input: GuildServiceInput): GuildServiceResolution => {
   const definition = GUILD_SERVICE_BY_ID.get(input.serviceId);
   if (!definition) return { status: 'invalid', value: null, messages: ['Unknown Guild Service.'] };
@@ -236,6 +257,9 @@ export const resolveGuildService = (input: GuildServiceInput): GuildServiceResol
   const paidDraw = definition.id === 'pick-of-the-deep'
     ? input.state.pendingServices.find(row => row.serviceId === definition.id && row.status === 'pending-choice' && row.paidDrawCard)
     : undefined;
+  if (input.paidDrawTransactionId && paidDraw?.transactionId !== input.paidDrawTransactionId) {
+    return { status: 'invalid', value: null, messages: ['이 잠수 결과는 이미 받았거나 더 이상 선택 대기 중이 아닙니다.'] };
+  }
   const cost = paidDraw ? 0 : serviceCost(definition, input);
   if (input.state.trinkets < cost) return { status: 'invalid', value: null, messages: [`${definition.name} costs ${cost} Trinkets.`] };
   if (definition.duration === 'once-per-journey' && input.state.usedJourneyServiceIds.includes(definition.id)) {
@@ -263,15 +287,32 @@ export const resolveGuildService = (input: GuildServiceInput): GuildServiceResol
     if (input.selectedReagentId && REAGENT_BY_ID.get(input.selectedReagentId)?.type === 'TITAN') {
       return { status: 'invalid', value: null, messages: ['Retrieval cannot request a Titan Reagent.'] };
     }
-    if (input.requestedItem && (!validRetrievalItem(input.requestedItem) || input.selectedReagentId)) {
-      return { status: 'invalid', value: null, messages: ['분실물의 이름·무게·종류를 확인해 주세요. 영약재는 부위 선택으로 의뢰합니다.'] };
+    const lost = input.lostItem && guildRetrievalTargets(next).find(row =>
+      row.cacheId === input.lostItem!.cacheId && row.itemId === input.lostItem!.itemId);
+    if (input.requestedItem || (input.lostItem && (!lost || input.selectedReagentId || input.selectedPreparationId))) {
+      return { status: 'invalid', value: null, messages: ['실제로 두고 온 짐 기록에서 회수할 물품을 선택해 주세요. 소지 중인 물품이나 임의의 새 물품은 의뢰할 수 없습니다.'] };
     }
-    if (!input.requestedItem && !makeInventoryItem(input)) {
+    if (!lost && !makeInventoryItem(input)) {
       return { status: 'invalid', value: null, messages: ['회수할 영약재 부위 또는 분실물을 먼저 정해 주세요.'] };
     }
     pendingService = pending(input, definition, 'pending-delivery');
+    if (lost) {
+      const cache = next.retrievalCaches!.find(row => row.id === lost.cacheId)!;
+      const toolState = cache.toolStates?.find(row => row.instanceId === lost.itemId)
+        || next.toolStates?.find(row => row.instanceId === lost.itemId);
+      pendingService = { ...pendingService, requestedItem: structuredClone(lost.item),
+        retrievedFrom: { cacheId: lost.cacheId, itemId: lost.itemId },
+        requestedToolState: toolState ? structuredClone(toolState) : undefined };
+      // Reserve atomically with payment. Walking back to the cache cannot
+      // award a second copy while the Freelancer is carrying this item.
+      next = { ...next, retrievalCaches: next.retrievalCaches!.map(row => {
+        if (row.id !== lost.cacheId) return row;
+        const items = row.items.filter(item => item.id !== lost.itemId);
+        return { ...row, items, status: items.length ? 'available' : 'recovered' };
+      }) };
+    }
     next = { ...next, pendingServices: [...next.pendingServices, pendingService] };
-    messages.push(`${next.graph[target].name}에 회수 의뢰를 맡겼습니다. 그 정착지에 도착하면 ${input.requestedItem?.name || makeInventoryItem(input)!.name}을(를) 받습니다. 지금 가방에 추가되지는 않습니다.`);
+    messages.push(`${next.graph[target].name}에 회수 의뢰를 맡겼습니다. 그 정착지에 도착하면 ${lost?.item.name || makeInventoryItem(input)!.name}을(를) 받습니다. 지금 가방에 추가되지는 않습니다.`);
   } else if (definition.id === 'send-package') {
     const selected = next.inventory.filter(item => (input.selectedItemIds || []).includes(item.id));
     const weight = selected.reduce((sum, item) => sum + item.weight * Math.max(1, item.quantity || 1), 0);
@@ -332,11 +373,11 @@ export const resolveGuildService = (input: GuildServiceInput): GuildServiceResol
   } else if (definition.id === 'scare-tactics') {
     const target = input.targetIds?.[0];
     if (!target) return { status: 'invalid', value: null, messages: ['Scare Tactics requires one Behemoth-related map target.'] };
-    if (next.removedThreatIds.includes(target) || (next.availableThreatIds && !next.availableThreatIds.includes(target))) {
+    if (!next.availableThreatIds?.includes(target)) {
       return { status: 'invalid', value: null, messages: ['이미 제거했거나 현재 지도에 없는 거수 위협입니다.'] };
     }
     const mutation: ServiceMapMutation = { id: `${input.transactionId}:map`, serviceId: definition.id, kind: 'remove-threat', nodeIds: [target], active: true, transactionId: input.transactionId };
-    next = { ...next, removedThreatIds: [...new Set([...next.removedThreatIds, target])], mapMutations: [...next.mapMutations, mutation] };
+    next = { ...next, availableThreatIds: next.availableThreatIds?.filter(id => id !== target), removedThreatIds: [...new Set([...next.removedThreatIds, target])], mapMutations: [...next.mapMutations, mutation] };
   } else if (['hitch-a-ride', 'taxi-service', 'smithing'].includes(definition.id)) {
     pendingService = pending(input, definition, definition.id === 'smithing' ? 'pending-choice' : 'pending-move');
     next = { ...next, pendingServices: [...next.pendingServices, pendingService] };
@@ -529,7 +570,11 @@ export const completeGuildServiceDelivery = (input: {
     if (input.state.currentLocationId !== delivery.targetIds[0]) {
       return { status: 'invalid', value: null, messages: ['Retrieval is collected only at the recorded Settlement.'] };
     }
-    const item = delivery.requestedItem && validRetrievalItem(delivery.requestedItem)
+    const item = delivery.retrievedFrom && delivery.requestedItem?.id === delivery.retrievedFrom.itemId
+      ? structuredClone(delivery.requestedItem)
+      : delivery.requestedItem && validRetrievalItem(delivery.requestedItem)
+      // Honour already-paid commissions from older saves, but never allow
+      // new arbitrary-item requests through resolveGuildService.
       ? { ...structuredClone(delivery.requestedItem), id: `${delivery.transactionId}:item` }
       : makeInventoryItem({
       transactionId: delivery.transactionId,
@@ -540,7 +585,10 @@ export const completeGuildServiceDelivery = (input: {
       journalNote: delivery.journalNote
     });
     if (!item) return { status: 'invalid', value: null, messages: ['Retrieval is missing its canonical Reagent and Preparation.'] };
-    if (!inventory.some(row => row.id === item.id)) inventory = [...inventory, item];
+    const existing = inventory.find(row => row.id === item.id);
+    inventory = existing && delivery.retrievedFrom
+      ? inventory.map(row => row.id === item.id ? { ...row, quantity: (row.quantity || 1) + (item.quantity || 1) } : row)
+      : existing ? inventory : [...inventory, item];
   } else if (delivery.serviceId === 'send-package' && !input.confirmExternalDelivery) {
     return { status: 'invalid', value: null, messages: ['Confirm that the recipient entered a Settlement or City before completing Send Package.'] };
   }
@@ -556,6 +604,10 @@ export const completeGuildServiceDelivery = (input: {
   const nextState = {
     ...input.state,
     inventory,
+    ...(delivery.requestedToolState ? { toolStates: [
+      ...(input.state.toolStates || []).filter(row => row.instanceId !== delivery.requestedToolState!.instanceId),
+      structuredClone(delivery.requestedToolState)
+    ] } : {}),
     pendingServices,
     appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
     journalEvents: [...input.state.journalEvents, event]

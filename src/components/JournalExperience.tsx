@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { FieldIcon } from './FieldIcon';
 import { localizeJourneyGoalText, localizeLocationName, localizeRegionLabel, localizeSeasonLabel } from '../localization/gameplayKo';
 import { referenceForJournalTab } from '../rulebook/context';
 import type { RulebookReferenceRequest } from '../rulebook/types';
@@ -34,6 +33,7 @@ export function JournalNavigation({ activeTab, onChange }: { activeTab: JournalT
 
   return (
     <nav className="journal-tabs" aria-label="여행 일지 책갈피">
+      <span className="woodland-index-heading" aria-hidden="true">이 책의 갈피</span>
       {NAVIGATION.map((item, index) => {
         return (
           <button
@@ -47,7 +47,6 @@ export function JournalNavigation({ activeTab, onChange }: { activeTab: JournalT
             onClick={() => onChange(item.id)}
           >
             <span className="journal-tab__index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
-            <FieldIcon kind={item.id} />
             <span>{item.label}</span>
           </button>
         );
@@ -140,21 +139,27 @@ export function ChapterOpening({
     <header className={`chapter-opening chapter-opening--${tab}`} aria-labelledby={`chapter-title-${tab}`}>
       <span className="chapter-opening__folio" aria-hidden="true">들녘 기록 / {String(NAVIGATION.findIndex(item => item.id === tab) + 1).padStart(2, '0')}</span>
       <div className="chapter-opening__copy">
-        <p className="chapter-opening__kicker"><FieldIcon kind={tab} />{chapter.kicker}</p>
-        <h2 id={`chapter-title-${tab}`}>{chapter.title}</h2>
-        <p className="chapter-opening__body">{chapter.body}</p>
-        <ul className="chapter-opening__notes" aria-label="현재 기록 요약">
-          {chapter.notes.map(note => <li key={note}>{note}</li>)}
-        </ul>
-        {tab === 'ailments' && patientName ? (
-          <button type="button" onClick={onReturnToToday}>
-            <span className="emoji-icon" aria-hidden="true">📖</span> 현재 진료로 돌아가기
-          </button>
-        ) : null}
-        <button type="button" className="chapter-opening__reference" onClick={() => onOpenReference(referenceForJournalTab(tab, state))}>
-          <span className="emoji-icon" aria-hidden="true">📚</span> 이 장의 룰북 맥락
-        </button>
+        <div className="chapter-opening__heading">
+          <p className="chapter-opening__kicker">{chapter.kicker}</p>
+          <h2 id={`chapter-title-${tab}`}>{chapter.title}</h2>
+        </div>
+        <div className="chapter-opening__context">
+          <p className="chapter-opening__body">{chapter.body}</p>
+          <div className="chapter-opening__actions">
+            {tab === 'ailments' && patientName ? (
+              <button type="button" onClick={onReturnToToday}>
+                <span className="emoji-icon" aria-hidden="true">📖</span> 현재 진료로 돌아가기
+              </button>
+            ) : null}
+            <button type="button" className="chapter-opening__reference" onClick={() => onOpenReference(referenceForJournalTab(tab, state))}>
+              <span className="emoji-icon" aria-hidden="true">📚</span> 이 장의 룰북 맥락
+            </button>
+          </div>
+        </div>
       </div>
+      <ul className="chapter-opening__notes" aria-label="현재 기록 요약">
+        {chapter.notes.map(note => <li key={note}>{note}</li>)}
+      </ul>
     </header>
   );
 }
@@ -226,15 +231,13 @@ export function TodayOverview({
     <section className="today-overview" aria-labelledby="today-title">
       <div className="today-focus">
       <div className="today-scene">
-        <span className="today-scene__mark emoji-icon" aria-hidden="true">🧭</span>
-        <span className="today-scene__folio" aria-hidden="true">들녘 기록 / 01</span>
         <div className="today-scene__copy">
-          <span className="today-scene__season"><span className="emoji-icon" aria-hidden="true">🌤️</span> {localizeSeasonLabel(state.currentSeason)}</span>
-          <p>오늘의 들녘 기록</p>
+          <span className="today-scene__season">첫 번째 갈피 · {localizeSeasonLabel(state.currentSeason)}</span>
           <h2 id="today-title">
             <span className="today-title__place">{dayPlace}</span>
             <span className="today-title__phrase">{dayPhrase}</span>
           </h2>
+          <p className="today-scene__next">{continuity.nextAction}</p>
           <div className="today-scene__actions">
             <button
               type="button"
@@ -256,6 +259,10 @@ export function TodayOverview({
             </button>
           </div>
         </div>
+        <figure className="woodland-travellers">
+          <img src={`${import.meta.env.BASE_URL}art/woodland-print-travellers.png`} alt="망토를 두른 곰과 흰 올빼미가 함께 걷는 삽화" width="1536" height="1024" fetchPriority="high" />
+          <figcaption><span>01 · 여행의 권두화</span><span>{localizeSeasonLabel(state.currentSeason)} · {dayPlace}</span></figcaption>
+        </figure>
       </div>
 
       <section className={`campaign-continuity campaign-continuity--${continuity.stage}`} aria-labelledby="campaign-continuity-title">

@@ -290,6 +290,7 @@ import {
   consumeGuildServiceTravelReroll,
   resolveGuildService,
   beginPickOfTheDeep,
+  guildRetrievalTargets,
   resolveGuildServiceJourneyEnd,
   resolveGuildServiceJourneyStart,
   resolveBraveTravelEffect,
@@ -3537,6 +3538,8 @@ const toServiceRuntime = (s: GameState): ServiceRuntimeState => ({
   trinkets: s.trinkets.length,
   inventory: toEngineInventory(s.bag),
   graph: toServiceMapGraph(s),
+  retrievalCaches: s.travelEncounterWorld.unbuckledCaches,
+  toolStates: s.toolStates as CanonicalToolState[],
   mapMutations: (s.serviceMapMutations || []) as ServiceMapMutation[],
   pendingServices: (s.pendingServices || []) as ServiceRuntimeState['pendingServices'],
   usedJourneyServiceIds: s.griphUsedThisJourney ? ['rug-of-wonders'] : [],
@@ -3559,6 +3562,8 @@ const applyServiceRuntime = (s: GameState, runtime: ServiceRuntimeState): GameSt
   trinkets: resizeTrinkets(s.trinkets, runtime.trinkets, '길드 서비스 장신구'),
   bag: fromEngineInventory(runtime.inventory, s.bag),
   pendingServices: runtime.pendingServices,
+  travelEncounterWorld: { ...s.travelEncounterWorld, unbuckledCaches: runtime.retrievalCaches || s.travelEncounterWorld.unbuckledCaches },
+  toolStates: runtime.toolStates || s.toolStates,
   serviceMapMutations: runtime.mapMutations,
   forecastMoves: runtime.weatherProtectionMoves,
   forecastActiveAtLocation: runtime.weatherProtectionActive,
@@ -11420,7 +11425,10 @@ export default function App() {
             ? [...next.travelEncounterWorld.locationBlocks.filter(row => row.id !== travelP0Patch.locationBlock!.id), travelP0Patch.locationBlock]
             : next.travelEncounterWorld.locationBlocks,
           unbuckledCaches: travelP0Patch.cache
-            ? [...next.travelEncounterWorld.unbuckledCaches.filter(row => row.id !== travelP0Patch.cache!.id), travelP0Patch.cache]
+            ? [...next.travelEncounterWorld.unbuckledCaches.filter(row => row.id !== travelP0Patch.cache!.id), {
+              ...travelP0Patch.cache,
+              toolStates: canonicalToolsFromState(s).filter(tool => travelP0Patch.cache!.items.some(item => item.id === tool.instanceId))
+            }]
             : next.travelEncounterWorld.unbuckledCaches,
           deferredConversions: travelP0Patch.conversion
             ? [...next.travelEncounterWorld.deferredConversions.filter(row => row.id !== travelP0Patch.conversion!.id), travelP0Patch.conversion]
@@ -12566,11 +12574,14 @@ export default function App() {
       : undefined;
 
   return (
-    <div className={`journal-app journal-app--${activeTab} ${isOnboarding ? 'journal-app--onboarding' : ''}`}>
+    <div className={`journal-app print-edition journal-app--${activeTab} ${isOnboarding ? 'journal-app--onboarding' : ''}`}>
+      <a className="woodland-skip" href="#journal-main" onClick={event => {
+        event.preventDefault();
+        document.getElementById('journal-main')?.focus();
+      }}>본문으로 건너뛰기</a>
       {campaignWriteBlocked && <p role="alert" className="cloud-slots__warning">{STALE_CAMPAIGN_TAB_MESSAGE}</p>}
       {/* Header Banner */}
       <header className="journal-header">
-        <img className="woodland-frontispiece" src={`${import.meta.env.BASE_URL}art/woodland-pen-edition.webp`} alt="" width="2048" height="768" fetchPriority="high" />
         <button type="button" className="journal-brand" onClick={() => changeActiveTab('play')} disabled={isOnboarding} aria-label={isOnboarding ? 'Apawthecaria 새 기록 설정' : '오늘의 여행 첫 페이지로 돌아가기'}>
           <span className="journal-brand__eyebrow">브리슬리 숲 · 여행하는 약제사의 수첩</span>
           <h1 className="journal-brand__title"><span>APAW</span><span>THECARIA</span></h1>
@@ -12728,7 +12739,7 @@ export default function App() {
         {/* =================================================================
             MAIN CONTENT VIEWS
            ================================================================= */}
-        <main className="glass-panel main-content-panel">
+        <main id="journal-main" tabIndex={-1} className="glass-panel main-content-panel">
           {isOnboarding ? (
             <section className="onboarding-focus" aria-labelledby="onboarding-title">
               <header className="onboarding-focus__intro">
@@ -12884,7 +12895,7 @@ export default function App() {
             </>
           )}
           {activeTab !== 'play' && (
-            <>
+            <div className={`woodland-spread woodland-spread--${activeTab}`}>
                 <ChapterOpening
                   tab={activeTab}
                   state={state}
@@ -13010,7 +13021,7 @@ export default function App() {
                   />
                 )}
               </section>
-            </>
+            </div>
           )}
           </>}
         </main>
@@ -16920,7 +16931,7 @@ function PlayView({
     showAlert(`${outcome.inventory.find(item => item.id === `${transaction.id}:tool`)?.name || '도구'}를 구매했습니다.`);
   };
 
-  const handleHireGuildService = async (service: any) => {
+  const performHireGuildService = async (service: any) => {
     const serviceId = LEGACY_SERVICE_IDS[service.id];
     const definition = serviceId ? GUILD_SERVICE_BY_ID.get(serviceId) : null;
     if (!definition) {
@@ -16966,7 +16977,7 @@ function PlayView({
     let selectedItemIds: string[] = [];
     let selectedReagentId: string | undefined;
     let selectedPreparationId: string | undefined;
-    let requestedItem: EngineInventoryItem | undefined;
+    let lostItem: { cacheId: string; itemId: string } | undefined;
     let forecastPayment: 1 | 2 | undefined;
     let card: PlayingCard | undefined;
     const nodes = Object.values(graph).map(node => ({ id: node.id, label: `${node.name} · ${localizeRegionLabel(node.region)} · ${locationTypeLabel(node.locationType)}` }));
@@ -17031,21 +17042,18 @@ function PlayView({
       const chosen = await chooseOne('경로 5개 이상 떨어진 정착지를 선택하세요.', nodes.filter(row => graph[row.id].locationType === 'Settlement' && (shortestPathDistance(graph, currentLocationId, row.id) || 0) >= 5));
       if (!chosen) return;
       targetIds.push(chosen);
-      const kind = await chooseOne('무엇을 되찾아 올까요?', [{ id: 'reagent', label: '티탄 이외의 영약재 부위' }, { id: 'tool', label: '잃어버린 도구' }, { id: 'item', label: '그 밖의 분실물' }]);
+      const lost = guildRetrievalTargets(toServiceRuntime(state));
+      const kind = await chooseOne('새 영약재를 부탁하거나, 실제로 두고 온 짐에서 물품 하나를 선택합니다. 분실 기록이 없는 물건은 새로 만들어 의뢰할 수 없습니다.', [
+        { id: 'reagent', label: '티탄 이외의 영약재 부위' },
+        ...(lost.length ? [{ id: 'lost', label: `두고 온 짐에서 회수 · ${lost.length}개 선택 가능` }] : [])
+      ]);
       if (!kind) return;
-      if (kind === 'tool') {
-        const chosenTool = await chooseOne('실제로 잃어버린 도구를 고르세요. 도착한 뒤 가방으로 돌아옵니다.', TOOLS.filter(row => !['teeth', 'paws', 'basic-tools-replacement'].includes(row.id)).map(row => ({ id: row.id, label: `${localizeCanonicalToolName(row.canonicalName)} · 무게 ${formatWeight(row.weight)}` })));
-        const tool = TOOLS.find(row => row.id === chosenTool);
-        if (!tool) return;
-        requestedItem = { id: `${transaction.id}:item`, type: 'tool', name: tool.canonicalName, canonicalToolId: tool.id, weight: tool.weight, quantity: 1 };
-      } else if (kind === 'item') {
-        const name = await requestControlledPrompt({ title: '분실물 회수', message: '실제로 잃어버린 물건의 이름을 적어 주세요.', defaultValue: '' });
-        if (!name?.trim()) return;
-        const rawWeight = await requestControlledPrompt({ title: '분실물 무게', message: '잃어버리기 전 무게를 숫자로 적어 주세요. 예: 1, 0.333', defaultValue: '1' });
-        if (rawWeight === null) return;
-        const weight = Number(rawWeight);
-        if (!rawWeight.trim() || !Number.isFinite(weight) || weight < 0) { showAlert('무게는 0 이상의 숫자로 적어 주세요.'); return; }
-        requestedItem = { id: `${transaction.id}:item`, type: 'item', name: name.trim(), weight, quantity: 1 };
+      if (kind === 'lost') {
+        const selected = await chooseOne('회수할 물품을 고르세요. 의뢰하면 떨어진 짐에서 맡겨지며, 지정한 정착지에 도착할 때 원래 물품 그대로 받습니다.', lost.map((row, index) => ({
+          id: String(index), label: `${localizeInventoryItemName(row.item.name)} · ${row.item.quantity || 1}개 · ${graph[row.locationId]?.name || row.locationId}`
+        })));
+        if (selected === null) return;
+        lostItem = { cacheId: lost[Number(selected)].cacheId, itemId: lost[Number(selected)].itemId };
       } else {
         const reagentId = await chooseOne('회수할 티탄 이외의 영약재를 선택하세요.', REAGENTS.filter(row => row.type !== 'TITAN').map(row => ({ id: row.id, label: `${formatReagentName(row)} · 기본 희귀도 ${row.baseRarity}` })));
         const reagent = reagentId ? REAGENT_BY_ID.get(reagentId) : null;
@@ -17093,7 +17101,7 @@ function PlayView({
     }
 
     const runtime = toServiceRuntime(serviceState);
-    const result = resolveGuildService({ transactionId: transaction.id, state: runtime, serviceId, targetIds, selectedItemIds, selectedReagentId, selectedPreparationId, requestedItem, forecastPayment, option: service.id === 'catch_day_big' ? 'big' : 'small', card, journalNote: note });
+    const result = resolveGuildService({ transactionId: transaction.id, state: runtime, serviceId, targetIds, selectedItemIds, selectedReagentId, selectedPreparationId, lostItem, paidDrawTransactionId: paidDeep?.transactionId, forecastPayment, option: service.id === 'catch_day_big' ? 'big' : 'small', card, journalNote: note });
     if (!result.value) {
       showAlert(result.messages.join('\n'));
       return;
@@ -17134,6 +17142,8 @@ function PlayView({
         trinkets: resizeTrinkets(s.trinkets, outcome.nextState.trinkets, `${outcome.service.name} 정산 장신구`),
         bag: fromEngineInventory(outcome.nextState.inventory, s.bag),
         pendingServices: outcome.nextState.pendingServices,
+        travelEncounterWorld: { ...s.travelEncounterWorld, unbuckledCaches: outcome.nextState.retrievalCaches || s.travelEncounterWorld.unbuckledCaches },
+        toolStates: outcome.nextState.toolStates || s.toolStates,
         serviceMapMutations: outcome.nextState.mapMutations,
         forecastMoves: outcome.nextState.weatherProtectionMoves,
         guildServiceTravelRerolls: outcome.nextState.travelEncounterRerolls,
@@ -17162,6 +17172,19 @@ function PlayView({
       };
       return enqueueManualDrafts(serviceId === 'scare-tactics' ? removeGuildThreat(next, targetIds[0]) : next, [pendingDraft]);
     });
+  };
+
+  const handleHireGuildService = async (service: any) => {
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    try {
+      await performHireGuildService(service);
+    } finally {
+      if (['pick_deep', 'retrieval', 'scare_tactics'].includes(service.id)) {
+        window.requestAnimationFrame(() => {
+          if (trigger?.isConnected && !document.querySelector('[role="dialog"], [role="alertdialog"]')) trigger.focus();
+        });
+      }
+    }
   };
 
   const handleUpgradeTool = () => {
@@ -23725,6 +23748,16 @@ function PlayView({
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 0.8rem 0', lineHeight: 1.45 }}>
                   정착지/도시를 떠나기 전 고용하는 지역 서비스입니다. 적용한 서비스는 가방, 지도, 이동 보정, 일지 중 해당 위치에 바로 기록됩니다.
                 </p>
+                {(state.pendingServices as ServiceRuntimeState['pendingServices']).filter(row => row.serviceId === 'retrieval' && row.status === 'pending-delivery').map(delivery => (
+                  <div className="guild-service-entry" key={delivery.transactionId}>
+                    <strong>회수 의뢰 · {toServiceMapGraph(state)[delivery.targetIds[0]]?.name || delivery.targetIds[0]}</strong>
+                    <p>{localizeInventoryItemName(delivery.requestedItem?.name || REAGENT_BY_ID.get(delivery.selectedReagentId || '')?.canonicalName || '영약재')} · 비용 지불 완료 · 도착 후 수령</p>
+                    {delivery.targetIds[0] === resolveCurrentMapLocationKey(state) && <button type="button" className="btn-cozy-secondary" onClick={() => {
+                      const transaction = createClientTransaction('service:retrieval:collect');
+                      updateState(s => applyServiceRuntime(s, collectGuildRetrievalsAtLocation(toServiceRuntime(s), transaction.id)));
+                    }}>도착한 회수 물품 받기</button>}
+                  </div>
+                ))}
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.8rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                   {(state.guildServiceTravelRerolls || 0) > 0 && <span>🗞️ 이동 조우 선택권 {state.guildServiceTravelRerolls}회</span>}
                   {(state.forecastMoves || 0) > 0 && <span>🌦️ 예보 보호 {state.forecastMoves}회 이동</span>}
@@ -28598,6 +28631,7 @@ function AtlasMapPanel({
   const selectedMapRecords = selectedId
     ? visibleMapEncounterRecords(state.mapEncounterRecords, state.barrows).filter(record => record.locationId === selectedId)
     : [];
+  const selectedBehemothEffects = guildThreatTargets(state).filter(row => row.sourceEncounterId && row.locationId === selectedId);
   const connectionKindLabel = (kind?: string) =>
     kind === 'river' ? '물길 · 실선' : kind === 'waterway' ? '물길 · 빗금' : '육로';
   const persistStop = (stop: RouteStop, terrainOptions?: readonly MapTerrain[]) => {
@@ -29294,6 +29328,11 @@ function AtlasMapPanel({
                 y: selected.y
               }, next.terrainOptions)}
           />
+            {selectedBehemothEffects.length > 0 && <div className="map-atelier__records" aria-label="이 위치의 거수 효과">
+              <strong>이 위치의 거수 효과</strong>
+              <ul>{selectedBehemothEffects.map(effect => <li key={effect.id}>{effect.label}</li>)}</ul>
+              <span>Odoak의 Scare Tactics 서비스로 제거할 수 있습니다.</span>
+            </div>}
             {selectedMapRecords.length > 0 && (
               <div className="map-atelier__records" aria-label="이 위치에 남긴 조우 기록">
                 <strong>이 위치의 조우 기록</strong>
@@ -29697,7 +29736,7 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
         약제사가 숲을 거닐며 모은 인연과 배낭에 담긴 장신구의 사연, 박물지 표본이 서랍 속에 소중히 깃들어 있습니다.
       </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', gap: '1rem', alignItems: 'start' }}>
+      <div className="woodland-memory-spread" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', gap: '1rem', alignItems: 'start' }}>
         <section className="cute-card" style={{ background: '#fffefa' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
             <h3 style={{ margin: 0, color: 'var(--primary)' }}>환자 기록장</h3>
@@ -30505,16 +30544,16 @@ function JournalsView({
 
   return (
     <div>
-      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>약제사 연대기 일지</span>
+      <div className="journal-running-header">
+        <h2 className="journal-running-heading">약제사 연대기 일지</h2>
         <div className="journal-document-actions" style={{ display: 'flex', gap: '0.5rem' }}>
           <button onClick={handleExportData} style={{ padding: '0.4rem 0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem', border: 'none', cursor: 'pointer' }}><span className="emoji-icon" aria-hidden="true">📥</span> 내 기록 백업</button>
-          <label style={{ padding: '0.4rem 0.8rem', background: '#eee', color: '#333', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer' }}>
+          <label className="journal-file-action" style={{ padding: '0.4rem 0.8rem', background: '#eee', color: '#333', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer' }}>
             <span className="emoji-icon" aria-hidden="true">📤</span> 기록 불러오기
-            <input type="file" accept=".json" onChange={handleImportData} style={{ display: 'none' }} />
+            <input type="file" accept=".json" aria-label="기록 불러오기" onChange={handleImportData} />
           </label>
         </div>
-      </h2>
+      </div>
       {importNotice && (
         <div role="status" style={{ margin: '0.75rem 0', padding: '0.65rem 0.8rem', border: '1px solid #c77972', borderRadius: '6px', background: '#fff2f0', color: '#8f2f28', fontSize: '0.85rem' }}>
           {importNotice.text}
@@ -30522,44 +30561,50 @@ function JournalsView({
       )}
 
       {/* Sub tabs navigation */}
-      <div className="journal-subtabs" style={{ display: 'flex', gap: '0.5rem', margin: '1rem 0', flexWrap: 'wrap' }}>
+      <nav className="journal-subtabs" aria-label="일지 분류 색인" style={{ display: 'flex', gap: '0.5rem', margin: '1rem 0', flexWrap: 'wrap' }}>
         <button
+          aria-pressed={subTab === 'casebook'}
           onClick={() => setSubTab('casebook')}
           style={{ padding: '0.5rem 1rem', background: subTab === 'casebook' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'casebook' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
         >
           진료 기록 ({(state.patientCasebook || []).length})
         </button>
         <button
+          aria-pressed={subTab === 'almanac'}
           onClick={() => setSubTab('almanac')}
           style={{ padding: '0.5rem 1rem', background: subTab === 'almanac' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'almanac' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
         >
           세계 도감 ({(state.worldAlmanac || []).length})
         </button>
         <button
+          aria-pressed={subTab === 'scrapbook'}
           onClick={() => setSubTab('scrapbook')}
           style={{ padding: '0.5rem 1rem', background: subTab === 'scrapbook' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'scrapbook' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
         >
           여정 기록장 ({(state.travelScrapbook || []).length})
         </button>
         <button
+          aria-pressed={subTab === 'journals'}
           onClick={() => setSubTab('journals')}
           style={{ padding: '0.5rem 1rem', background: subTab === 'journals' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'journals' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
         >
           개인 저널 일지 ({state.journals.length})
         </button>
         <button
+          aria-pressed={subTab === 'chronicles'}
           onClick={() => setSubTab('chronicles')}
           style={{ padding: '0.5rem 1rem', background: subTab === 'chronicles' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'chronicles' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
         >
           방랑 연대기 ({(state.journeyChronicles || []).length})
         </button>
         <button
+          aria-pressed={subTab === 'legacy'}
           onClick={() => setSubTab('legacy')}
           style={{ padding: '0.5rem 1rem', background: subTab === 'legacy' ? 'var(--primary)' : '#f7f6ef', color: subTab === 'legacy' ? '#fff' : 'var(--text-muted)', border: '1px solid var(--glass-border)', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
         >
           은퇴의 전당 및 약제소 망
         </button>
-      </div>
+      </nav>
 
       {subTab === 'casebook' && (
         <div className="journal-casebook-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '1rem' }}>
@@ -30871,18 +30916,19 @@ function JournalsView({
 
       {subTab === 'journals' && (
         <>
-          <section className="cute-card" style={{ background: '#fffdf8', border: '1.5px solid var(--border-cozy)', padding: '1rem', marginTop: '1rem' }} aria-label="약제사 시작 기록">
+          <section className="journal-opening-notes" aria-label="약제사 시작 기록">
             <h3 style={{ margin: '0 0 0.35rem 0', color: 'var(--primary)' }}>약제사 시작 기록</h3>
             <p style={{ margin: '0 0 0.8rem 0', fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
               캐릭터를 만들 때 짧게 적어 둔 출발 계기, 기념품, 길동무 만남이 여기에 남습니다. 나중에 더 적을 수도 있습니다.
             </p>
+            <div className="journal-writing-spread">
             {([
               { key: 'originJournal', title: '약제사의 출발 계기', value: state.bio.originJournal || '', hint: state.bio.originName },
               { key: 'mementoNote', title: '첫 여정의 기념품', value: state.bio.mementoNote || '', hint: '' },
               { key: 'familiarJournal', title: '길동무와의 첫 만남', value: state.bio.familiarJournal || '', hint: state.bio.familiarName },
               { key: 'relationshipJournal', title: '길동무와의 관계', value: state.bio.relationshipJournal || '', hint: state.bio.familiarRelation }
             ] as const).map(row => (
-              <label key={row.key} style={{ display: 'grid', gap: '0.3rem', marginBottom: '0.75rem' }}>
+              <label key={row.key} className={`journal-writing-field journal-writing-field--${row.key}`}>
                 <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-bright)' }}>{row.title}</span>
                 {row.hint ? <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>{row.hint}</span> : null}
                 <textarea
@@ -30900,9 +30946,10 @@ function JournalsView({
                 />
               </label>
             ))}
+            </div>
           </section>
           {/* Write custom journal */}
-          <form onSubmit={handleAddJournal} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', background: '#fafafa', padding: '1.2rem', borderRadius: '12px', border: '1px solid #ddd', marginTop: '1rem' }}>
+          <form className="journal-writing-composer" onSubmit={handleAddJournal} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', background: '#fafafa', padding: '1.2rem', borderRadius: '12px', border: '1px solid #ddd', marginTop: '1rem' }}>
             <h4>✍️ 새로운 저널 일지 작성하기</h4>
             <input
               type="text"
@@ -30918,20 +30965,20 @@ function JournalsView({
               onChange={e => setNewText(e.target.value)}
               style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid #ccc', resize: 'vertical' }}
             />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', padding: '0.75rem', border: '1px dashed #d6d1c6', borderRadius: '8px', background: '#fffdf7' }}>
+            <div className="journal-photo-supplement" style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', padding: '0.75rem', border: '1px dashed #d6d1c6', borderRadius: '8px', background: '#fffdf7' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: 'bold', color: 'var(--text-bright)', fontSize: '0.9rem' }}>📷 사진 첨부</span>
-                <label style={{ padding: '0.45rem 0.75rem', border: '1px solid var(--glass-border)', borderRadius: '999px', background: '#fff', color: 'var(--primary)', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.82rem' }}>
+                <label className="journal-file-action" style={{ padding: '0.45rem 0.75rem', border: '1px solid var(--glass-border)', borderRadius: '999px', background: '#fff', color: 'var(--primary)', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.82rem' }}>
                   사진 선택
                   <input
                     type="file"
                     accept="image/*"
                     multiple
+                    aria-label="사진 선택"
                     onChange={async e => {
                       await handleNewJournalPhotos(e.currentTarget.files);
                       e.currentTarget.value = '';
                     }}
-                    style={{ display: 'none' }}
                   />
                 </label>
               </div>
@@ -30991,17 +31038,17 @@ function JournalsView({
                     </div>
                     <div className="journal-entry__actions">
                       <time>{formatDateTime(j.timestamp)}</time>
-                      <label className="journal-entry__photo-action">
+                      <label className="journal-entry__photo-action journal-file-action">
                         사진 추가
                         <input
                           type="file"
                           accept="image/*"
                           multiple
+                          aria-label="사진 추가"
                           onChange={async e => {
                             await handleAddPhotosToJournal(j.id, e.currentTarget.files);
                             e.currentTarget.value = '';
                           }}
-                          style={{ display: 'none' }}
                         />
                       </label>
                       <button type="button" className="journal-entry__delete" onClick={() => handleRemoveJournal(j.id)}>삭제</button>

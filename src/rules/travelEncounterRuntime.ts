@@ -389,6 +389,8 @@ export interface UnbuckledForageCache {
   locationId: string;
   rarity: 10;
   items: EngineInventoryItem[];
+  /** Preserve the state of the exact tools dropped, not fresh replacements. */
+  toolStates?: import('./toolEngine').CanonicalToolState[];
   status: 'available' | 'recovered';
 }
 

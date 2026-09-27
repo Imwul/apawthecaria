@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { beginPickOfTheDeep, collectGuildRetrievalsAtLocation, completeGuildServiceDelivery, resolveGuildService, type ServiceRuntimeState } from './serviceEngine';
+import { beginPickOfTheDeep, collectGuildRetrievalsAtLocation, completeGuildServiceDelivery, guildRetrievalTargets, resolveGuildService, type ServiceRuntimeState } from './serviceEngine';
 import { REAGENTS } from './data/reagents';
 import { TOOLS } from './data/tools';
-import type { TravelGraphNode } from './gameplay';
+import type { EngineInventoryItem, TravelGraphNode } from './gameplay';
+import { resolveUnbuckled, recoverUnbuckledCache } from './travelEncounterRuntime';
+import { migrateSavedRulesState } from './migrations';
 
 const state = (): ServiceRuntimeState => {
   const graph: Record<string, TravelGraphNode> = {};
@@ -60,17 +62,21 @@ describe('p.61 paid draws and delayed deliveries', () => {
 
   it('delivers lost items and tools together, only at the chosen stop, once across reload', () => {
     const tool = TOOLS.find(row => row.id === 'belt-knife')!;
-    const first = resolveGuildService({ transactionId: 'notebook', serviceId: 'retrieval', state: state(), targetIds: ['n5'], journalNote: '분실물',
-      requestedItem: { id: 'old', name: '잃어버린 수첩', type: 'item', weight: 0.5, quantity: 1 } });
+    const dropped = lostState([{ id: 'old', name: '잃어버린 수첩', type: 'item', weight: 0.5, quantity: 1 },
+      { id: 'old-knife', name: tool.canonicalName, type: 'tool', weight: tool.weight, canonicalToolId: tool.id }]);
+    const first = resolveGuildService({ transactionId: 'notebook', serviceId: 'retrieval', state: dropped, targetIds: ['n5'], journalNote: '분실물',
+      lostItem: { cacheId: 'drop:unbuckled-cache', itemId: 'old' } });
     const second = resolveGuildService({ transactionId: 'knife', serviceId: 'retrieval', state: first.value!.nextState, targetIds: ['n5'], journalNote: '잃어버린 칼',
-      requestedItem: { id: 'old-knife', name: tool.canonicalName, type: 'tool', weight: tool.weight, canonicalToolId: tool.id } });
+      lostItem: { cacheId: 'drop:unbuckled-cache', itemId: 'old-knife' } });
     expect(second.value!.nextState.trinkets).toBe(10);
     expect(completeGuildServiceDelivery({ transactionId: 'early', serviceTransactionId: 'notebook', state: second.value!.nextState }).status).toBe('invalid');
     const arrived = collectGuildRetrievalsAtLocation({ ...copy(second.value!.nextState), currentLocationId: 'n5' }, 'arrive');
-    expect(arrived.inventory.map(row => row.id)).toEqual(['notebook:item', 'knife:item']);
+    expect(arrived.inventory.map(row => row.id)).toEqual(['old', 'old-knife']);
     expect(arrived.pendingServices.every(row => row.status === 'completed')).toBe(true);
     expect(collectGuildRetrievalsAtLocation(copy(arrived), 'reload').inventory).toEqual(arrived.inventory);
     expect(arrived.inventory[1].canonicalToolId).toBe(tool.id);
+    expect(guildRetrievalTargets(arrived)).toEqual([]);
+    expect(recoverUnbuckledCache({ cache: arrived.retrievalCaches![0], currentLocationId: 'n2', card: 12, foragingPoints: 0 }).status).toBe('invalid');
   });
 
   it('rejects missing requests, Titan reagents, and invalid lost items before payment', () => {
@@ -81,4 +87,66 @@ describe('p.61 paid draws and delayed deliveries', () => {
     expect(resolveGuildService({ ...base, targetIds: ['n4'], requestedItem: { id: 'x', name: '수첩', type: 'item', weight: 1 } }).status).toBe('invalid');
     expect(base.state.trinkets).toBe(20);
   });
+
+  it('rejects stale paid-result confirmation even when money is still available', () => {
+    let paid = beginPickOfTheDeep({ transactionId: 'paid-id', state: state(), card: { value: 10, suit: '♣' }, journalNote: '' }).value!.nextState;
+    for (let i = 0; i < 3; i++) {
+      paid = copy(paid); // selection cancellation has no domain mutation
+      expect(paid.pendingServices[0]).toMatchObject({ transactionId: 'paid-id', paidDrawCard: { value: 10, suit: '♣' } });
+      expect(paid.trinkets).toBe(18);
+    }
+    const input = { transactionId: 'finish', serviceId: 'pick-of-the-deep' as const, paidDrawTransactionId: 'paid-id', ...choice, journalNote: '수확' };
+    const done = resolveGuildService({ ...input, state: paid }).value!.nextState;
+    expect(resolveGuildService({ ...input, transactionId: 'stale-dialog', state: copy(done), card: 12 }).status).toBe('invalid');
+    expect(done.inventory).toHaveLength(1);
+    expect(done.trinkets).toBe(18);
+    expect(migrateSavedRulesState(copy({ pendingServices: paid.pendingServices })).pendingServices).toEqual(paid.pendingServices);
+  });
+
+  it.each([
+    { id: 'herb', name: 'Dandelions', type: 'reagent', weight: 1 / 3, canonicalReagentId: 'dandelions', preparationId: 'flowers', usesRemaining: 1 },
+    { id: 'coat', name: 'Knitted Coat', type: 'item', weight: 1, craftedItemId: 'knitted-coat' },
+    { id: 'note', name: 'Notebook', type: 'item', weight: 0, guildNote: { kind: 'ledger', region: 'Forest' } },
+    { id: 'token', name: 'Keepsake', type: 'trinket', weight: 1 / 3 }
+  ] satisfies EngineInventoryItem[])('restores the original category and metadata of $id', item => {
+    const dropped = lostState([item]);
+    const request = { transactionId: 'hire', serviceId: 'retrieval' as const, targetIds: ['n5'], journalNote: '회수', lostItem: { cacheId: 'drop:unbuckled-cache', itemId: item.id } };
+    const sent = resolveGuildService({ ...request, state: dropped }).value!.nextState;
+    expect(sent.inventory).toEqual([]);
+    expect(resolveGuildService({ ...request, transactionId: 'second-hire', state: copy(sent) }).status).toBe('invalid');
+    const received = collectGuildRetrievalsAtLocation({ ...copy(sent), currentLocationId: 'n5' }, 'arrival');
+    expect(received.inventory).toEqual([item]);
+    expect(collectGuildRetrievalsAtLocation(copy(received), 'again').inventory).toEqual([item]);
+  });
+
+  it('rejects current/arbitrary items, and cancelling before confirmation does not reserve or pay', () => {
+    const item: EngineInventoryItem = { id: 'held', name: 'My notebook', type: 'item', weight: 1 };
+    const current = { ...state(), inventory: [item] };
+    const input = { transactionId: 'held', serviceId: 'retrieval' as const, state: current, targetIds: ['n5'], journalNote: '회수' };
+    expect(resolveGuildService({ ...input, requestedItem: item }).status).toBe('invalid');
+    expect(resolveGuildService({ ...input, lostItem: { cacheId: 'invented', itemId: item.id } }).status).toBe('invalid');
+    const dropped = lostState([item]);
+    expect(guildRetrievalTargets(copy(dropped))).toEqual(guildRetrievalTargets(dropped));
+    expect(dropped.trinkets).toBe(20);
+    expect(current.inventory).toEqual([item]);
+  });
+
+  it('preserves upgraded-tool instance state, charges and adjusted weight', () => {
+    const item: EngineInventoryItem = { id: 'knife', type: 'tool', name: 'Pairing Knife', weight: 0, canonicalToolId: 'belt-knife' };
+    const original = lostState([item]);
+    const tool = { instanceId: 'knife', toolId: 'belt-knife', upgradeId: 'pairing-knife', charges: 2, broken: true, consumed: false, acquiredBy: 'market', appliedEffectIds: ['upgrade'], weightAdjustment: -1 / 3 };
+    original.retrievalCaches![0].toolStates = [tool];
+    const sent = resolveGuildService({ transactionId: 'hire', serviceId: 'retrieval', state: original, targetIds: ['n5'], journalNote: '칼', lostItem: { cacheId: 'drop:unbuckled-cache', itemId: 'knife' } }).value!.nextState;
+    const received = collectGuildRetrievalsAtLocation({ ...copy(sent), currentLocationId: 'n5', toolStates: [] }, 'arrival');
+    expect(received.inventory).toEqual([item]);
+    expect(received.toolStates).toEqual([tool]);
+  });
 });
+
+function lostState(items: EngineInventoryItem[]): ServiceRuntimeState {
+  const original = state();
+  const drop = resolveUnbuckled({ transactionId: 'drop', choice: 'too-important', graph: original.graph,
+    currentLocationId: 'n5', inventory: items, dropSuit: '♠', cacheLocationId: 'n2' });
+  expect(drop.status).toBe('resolved');
+  return { ...original, inventory: drop.value!.inventory, retrievalCaches: [drop.value!.cache!] };
+}
