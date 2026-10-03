@@ -498,9 +498,10 @@ export const planForagingEncounterTransaction = async (
       if (reagentType === null) return cancelled();
       const tag = await chooseOne(prompt, 'Odoak Market · Tag', '이 영약재가 제공할 [TAG 2]의 Tag 하나를 고르세요.', ['ELSEWHERE', 'INSTINCT', 'JOY', 'MOOD', 'NERVES', 'INFECTION', 'PAIN', 'PARASITE', 'SENSES', 'SLEEP', 'BREATH', 'BURN', 'FEATHER', 'FUR', 'HIDE', 'POISON', 'SCALE', 'STOMACH', 'TEMPERATURE', 'WOUND', 'FAIR', 'FOUL'].map(value => ({ value, label: value })));
       if (tag === null) return cancelled();
-      const preparationMethod = await prompt({ title: 'Odoak Market · 조제법', message: 'Preparation Method 하나를 기록하세요.' });
+      const preparationMethod = await chooseOne(prompt, 'Odoak Market · 조제법', '이 방법의 도구가 있어야 치료제에 사용할 수 있습니다.',
+        ['USED', 'GROUND', 'CRUSHED', 'BOILED', 'BREWED', 'CHEWED', 'APPLIED', 'COOKED', 'DISTILLED'].map(value => ({ value, label: value })));
       if (preparationMethod === null) return cancelled();
-      if (!reagentType || !tag || !preparationMethod.trim()) return invalid('Type, Tag, Preparation Method가 모두 필요합니다.');
+      if (!reagentType || !tag || !preparationMethod) return invalid('Type, Tag, Preparation Method가 모두 필요합니다.');
       return { status: 'planned', command: {
         code: FORAGING_ENCOUNTER_TRANSACTION_CODES.odoakMarket,
         input: {

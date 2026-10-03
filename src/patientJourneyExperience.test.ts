@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const appSource = readFileSync('src/App.tsx', 'utf8');
-const cssSource = readFileSync('src/index.css', 'utf8');
+const cssSource = readFileSync('src/index.css', 'utf8') + readFileSync('src/workspace.css', 'utf8');
 
 describe('patient identity experience', () => {
   it('lets the descriptor card lead to rulebook animal candidates before severity is drawn', () => {
@@ -61,11 +61,11 @@ describe('local-care journey composition', () => {
     expect(appSource).toContain('현지 진료 중 여정 요약');
     expect(appSource).toContain('채집·물물교환은 질환 Timer를 쓰며 여정 달력은 그대로입니다.');
     expect(appSource).toContain('이번 여정의 목표');
-    expect(appSource).toContain('Moving On · 다음 이동 준비');
+    expect(appSource).toContain('길 떠나기 · 다음 이동 준비');
     expect(appSource).toContain('이번 여정 다시 준비');
     expect(appSource).toContain('REVIEWED_MAP_LOCATION_BY_ID.get(journeyOriginId)\n          || MARKER_BY_ID.get(journeyOriginId)\n          || journeyMapNodes[journeyOriginId]');
     expect(appSource).toContain("play-with-map${localCarePhase ? ' play-with-map--care' : ''}");
-    expect(appSource).toContain('{localCarePhase ? (\n          <section className="journey-care-context"');
+    expect(appSource).toContain('{localCarePhase ? (\n        <details className="play-journey-compact-summary"');
     expect(appSource).toContain('{!localCarePhase && !journeyUiContext.atDestination && (\n          <div id="active-journey-panel"');
     expect(appSource).toContain('{!localCarePhase && (\n              <>\n                <div className="prose-summary"');
     expect(cssSource).toContain('.play-with-map.play-with-map--care');

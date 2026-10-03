@@ -8,6 +8,7 @@ import {
   type TreatmentDraft,
   type TreatmentAilmentTagOverride
 } from './rules';
+import { formatRuleTag } from './localization/ruleTagsKo';
 
 export type TreatmentRequirementRowState = 'satisfied' | 'available' | 'missing' | 'manual';
 
@@ -143,7 +144,7 @@ const containsManualRequirement = (requirement: RequirementExpression): boolean 
 };
 
 const formatRequirement = (requirement: RequirementExpression): string => {
-  if (requirement.kind === 'tag') return `${requirement.tag} ${requirement.threshold}`;
+  if (requirement.kind === 'tag') return `${formatRuleTag(requirement.tag)} ${requirement.threshold}`;
   if (requirement.kind === 'special') return requirement.description;
   const children = requirement.kind === 'alternatives' ? requirement.alternatives : requirement.requirements;
   const joined = children.map(formatRequirement).join(requirement.kind === 'allOf' ? ' + ' : ' / ');
@@ -154,7 +155,7 @@ const formatProgress = (
   requirement: RequirementExpression,
   provided: Partial<Record<RuleTag, number>>
 ): string => {
-  if (requirement.kind === 'tag') return `${requirement.tag} ${provided[requirement.tag] || 0}/${requirement.threshold}`;
+  if (requirement.kind === 'tag') return `${formatRuleTag(requirement.tag)} ${provided[requirement.tag] || 0}/${requirement.threshold}`;
   if (requirement.kind === 'special') return '원문을 보고 직접 확인';
   const children = requirement.kind === 'alternatives' ? requirement.alternatives : requirement.requirements;
   return children.map(child => formatProgress(child, provided)).join(requirement.kind === 'allOf' ? ' · ' : ' / ');

@@ -10,29 +10,29 @@
 
 ## 상태 집계
 
-Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류, executor 또는 manual resolution behavior를 변경하지 않는다.
+현재 집계는 `src/rules/fixtures/printed-effects.snapshot.json`과 이를 runtime registry에 대조하는 Golden Master 계약을 따른다. 이전 동결·단계 기록은 역사이며, 지금의 구현 상태를 덮어쓰지 않는다.
 
 | Status | Count |
 |---|---:|
-| implemented | 11 |
-| manual | 347 |
+| implemented | 46 |
+| manual | 312 |
 | ambiguous | 0 |
 | not-applicable | 0 |
 | source-conflict | 0 |
 
-## Release Candidate 최종 분류
+## 현재 실행 분류 (2026-10-03)
 
 | Classification | Count |
 |---|---:|
-| deterministic | 7 |
-| structured-choice | 4 |
-| narrative | 347 |
+| deterministic | 10 |
+| structured-choice | 36 |
+| narrative | 312 |
 | ambiguous | 0 |
 | 합계 | 358 |
 
-룰북 대체 1단계에서 자동/선택형 11개 전부의 executor, UI, transaction, persistence, test 경로를 다시 검증했다. 실행 상태는 `implemented 11 / manual 347`이다. 숫자나 자원명이 들어간 서술이라도 조건·대상·선택·후속 카드가 구조화되지 않은 행은 억지로 자동화하지 않았다.
+현재 registry 계약은 `implemented 46 / manual 312`이다. 자동/선택형의 데이터 등록 자체를 추가 UI·종단 검증 완료로 해석하지 않는다. 아래 Step별 서술의 11/347은 당시 집계다. 숫자나 자원명이 들어간 서술이라도 조건·대상·선택·후속 카드가 구조화되지 않은 행은 억지로 자동화하지 않았다.
 
-### Rulebook Replacement Step 2
+### Rulebook Replacement Step 2 (과거 기록)
 
 - `manual` 347개 전부에 owner, source page, Rule ID, trigger별 충실한 효과 문구, 판단 이유, 실제 결정 과제, 조건, 필요한 입력, 가능한 canonical action, journal 지시를 연결했다. 완성 `347/347`, 누락 `0`이다.
 - 질병은 같은 행이라도 diagnosis, treatment-success, treatment-failure, timer-change, barter별 문구와 입력을 분리한다. 성공과 실패 지시가 한 화면에 섞이지 않는다.
@@ -42,14 +42,14 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 - Travel 103, Foraging 144, Social 66, Named Ailment 45의 registry/runtime 연결을 전수 실행했다. 도달 불가 행은 `0`이다.
 - schema v7은 v6 저장에 manual queue, partial draft, selected action/target, resolution record, override, pending follow-up을 additive migration으로 추가한다.
 
-### Rulebook Replacement Step 1
+### Rulebook Replacement Step 1 (과거 기록)
 
 - `Bad Idea`의 Potency 3·FOUL 금지 조건과 Inspiration 두 선택을 치료 transaction에 결합했다.
 - 기본 도구 업그레이드와 도구 Weight 1/3 감소는 가능한 대상만 구조화해 반환하며, 선택 전에는 Inventory를 차감하지 않는다.
 - `Brand Care`와 `Forager's Twitch`의 진단 선택/후속 카드를 환자 생성 UI, Reputation, Requirement, Journal, Save에 연결했다.
 - 자동/선택형 11개와 서술형 347개의 분류 합계는 그대로 358이며, 서술형 항목은 계속 명시적 manual이다.
 
-## Phase 6 처리 방식
+## Phase 6 처리 방식 (과거 기록)
 
 - A/B/C/D 분류를 `deterministic`, `structured-choice`, `narrative`, `ambiguous`로 registry에서 계산한다.
 - 실제 Ailment 실행기가 확인된 7개 family를 `implemented`로 맞춰 `3 → 10`으로 갱신했다. 구조만 있거나 원문 서술을 요구하는 행은 올리지 않았다.
@@ -78,22 +78,22 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 | `travel-bog-j-winter` | manual | encounter | p77 | `executeEncounter` | - |
 | `travel-bog-m-spring` | manual | encounter | p75 | `executeEncounter` | - |
 | `travel-bog-m-summer` | manual | encounter | p76 | `executeEncounter` | - |
-| `travel-bog-m-autumn` | manual | encounter | p77 | `executeEncounter` | - |
+| `travel-bog-m-autumn` | implemented | encounter | p77 | `executeEncounter` | - |
 | `travel-bog-m-winter` | implemented | encounter | p77 | `executeEncounter` | TRAVEL-009 warning rows |
-| `travel-forest-a-2` | manual | encounter | p78 | `executeEncounter` | TRAVEL-008/TRAVEL-009 warning rows |
+| `travel-forest-a-2` | implemented | encounter | p78 | `executeEncounter` | TRAVEL-008/TRAVEL-009 warning rows |
 | `travel-forest-3-4` | manual | encounter | p78 | `executeEncounter` | - |
 | `travel-forest-5-6` | manual | encounter | p78 | `executeEncounter` | - |
 | `travel-forest-7-8` | manual | encounter | p78 | `executeEncounter` | - |
 | `travel-forest-9-10-spring` | manual | encounter | p79 | `executeEncounter` | - |
 | `travel-forest-9-10-summer` | manual | encounter | p79 | `executeEncounter` | - |
-| `travel-forest-9-10-autumn` | manual | encounter | p80 | `executeEncounter` | - |
+| `travel-forest-9-10-autumn` | implemented | encounter | p80 | `executeEncounter` | - |
 | `travel-forest-9-10-winter` | manual | encounter | p81 | `executeEncounter` | - |
 | `travel-forest-j-spring` | manual | encounter | p79 | `executeEncounter` | - |
-| `travel-forest-j-summer` | manual | encounter | p79 | `executeEncounter` | - |
+| `travel-forest-j-summer` | implemented | encounter | p79 | `executeEncounter` | - |
 | `travel-forest-j-autumn` | manual | encounter | p80 | `executeEncounter` | - |
 | `travel-forest-j-winter` | manual | encounter | p81 | `executeEncounter` | - |
 | `travel-forest-m-spring` | manual | encounter | p79 | `executeEncounter` | - |
-| `travel-forest-m-summer` | manual | encounter | p79 | `executeEncounter` | - |
+| `travel-forest-m-summer` | implemented | encounter | p79 | `executeEncounter` | - |
 | `travel-forest-m-autumn` | manual | encounter | p80 | `executeEncounter` | - |
 | `travel-forest-m-winter` | manual | encounter | p81 | `executeEncounter` | - |
 | `travel-loch-a-2` | manual | encounter | p82 | `executeEncounter` | - |
@@ -107,17 +107,17 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 | `travel-loch-j-spring` | manual | encounter | p83 | `executeEncounter` | - |
 | `travel-loch-j-summer` | manual | encounter | p84 | `executeEncounter` | - |
 | `travel-loch-j-autumn` | manual | encounter | p84 | `executeEncounter` | - |
-| `travel-loch-j-winter` | manual | encounter | p85 | `executeEncounter` | - |
+| `travel-loch-j-winter` | implemented | encounter | p85 | `executeEncounter` | - |
 | `travel-loch-m-spring` | manual | encounter | p83 | `executeEncounter` | - |
 | `travel-loch-m-summer` | manual | encounter | p84 | `executeEncounter` | - |
 | `travel-loch-m-autumn` | manual | encounter | p85 | `executeEncounter` | - |
-| `travel-loch-m-winter` | manual | encounter | p85 | `executeEncounter` | - |
+| `travel-loch-m-winter` | implemented | encounter | p85 | `executeEncounter` | - |
 | `travel-meadow-a-2` | manual | encounter | p86 | `executeEncounter` | TRAVEL-009 warning rows |
-| `travel-meadow-3-4` | manual | encounter | p86 | `executeEncounter` | - |
+| `travel-meadow-3-4` | implemented | encounter | p86 | `executeEncounter` | - |
 | `travel-meadow-5-6` | manual | encounter | p86 | `executeEncounter` | - |
 | `travel-meadow-7-8` | manual | encounter | p86 | `executeEncounter` | - |
 | `travel-meadow-9-10-spring` | manual | encounter | p87 | `executeEncounter` | - |
-| `travel-meadow-9-10-summer` | manual | encounter | p87 | `executeEncounter` | - |
+| `travel-meadow-9-10-summer` | implemented | encounter | p87 | `executeEncounter` | - |
 | `travel-meadow-9-10-autumn` | manual | encounter | p88 | `executeEncounter` | - |
 | `travel-meadow-9-10-winter` | manual | encounter | p89 | `executeEncounter` | - |
 | `travel-meadow-j-spring` | manual | encounter | p87 | `executeEncounter` | - |
@@ -135,34 +135,34 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 | `travel-mountain-9-10-spring` | manual | encounter | p91 | `executeEncounter` | - |
 | `travel-mountain-9-10-summer` | manual | encounter | p92 | `executeEncounter` | - |
 | `travel-mountain-9-10-autumn` | manual | encounter | p93 | `executeEncounter` | - |
-| `travel-mountain-9-10-winter` | manual | encounter | p93 | `executeEncounter` | TRAVEL-009 warning rows |
+| `travel-mountain-9-10-winter` | implemented | encounter | p93 | `executeEncounter` | TRAVEL-009 warning rows |
 | `travel-mountain-j-spring` | manual | encounter | p91 | `executeEncounter` | - |
-| `travel-mountain-j-summer` | manual | encounter | p92 | `executeEncounter` | - |
+| `travel-mountain-j-summer` | implemented | encounter | p92 | `executeEncounter` | - |
 | `travel-mountain-j-autumn` | manual | encounter | p93 | `executeEncounter` | - |
 | `travel-mountain-j-winter` | manual | encounter | p93 | `executeEncounter` | - |
 | `travel-mountain-m-spring` | manual | encounter | p91 | `executeEncounter` | - |
-| `travel-mountain-m-summer` | manual | encounter | p92 | `executeEncounter` | - |
+| `travel-mountain-m-summer` | implemented | encounter | p92 | `executeEncounter` | - |
 | `travel-mountain-m-autumn` | manual | encounter | p93 | `executeEncounter` | - |
-| `travel-mountain-m-winter` | manual | encounter | p93 | `executeEncounter` | - |
+| `travel-mountain-m-winter` | implemented | encounter | p93 | `executeEncounter` | - |
 | `travel-soar-a-2` | manual | encounter | p94 | `executeEncounter` | - |
 | `travel-soar-3-4` | manual | encounter | p94 | `executeEncounter` | - |
 | `travel-soar-5-6` | manual | encounter | p94 | `executeEncounter` | - |
 | `travel-soar-7-8` | manual | encounter | p95 | `executeEncounter` | - |
 | `travel-soar-9-10-spring` | manual | encounter | p95 | `executeEncounter` | - |
-| `travel-soar-9-10-summer` | manual | encounter | p96 | `executeEncounter` | TRAVEL-009 warning rows |
-| `travel-soar-9-10-autumn` | manual | encounter | p96 | `executeEncounter` | TRAVEL-009 warning rows |
-| `travel-soar-9-10-winter` | manual | encounter | p97 | `executeEncounter` | TRAVEL-009 warning rows |
+| `travel-soar-9-10-summer` | manual | encounter | p95 | `executeEncounter` | TRAVEL-009 warning rows |
+| `travel-soar-9-10-autumn` | manual | encounter | p95 | `executeEncounter` | TRAVEL-009 warning rows |
+| `travel-soar-9-10-winter` | manual | encounter | p95 | `executeEncounter` | TRAVEL-009 warning rows |
 | `travel-soar-j-spring` | manual | encounter | p96 | `executeEncounter` | - |
 | `travel-soar-j-summer` | manual | encounter | p96 | `executeEncounter` | - |
 | `travel-soar-j-autumn` | manual | encounter | p97 | `executeEncounter` | - |
 | `travel-soar-j-winter` | implemented | encounter | p97 | `executeEncounter` | TRAVEL-009 warning rows |
 | `travel-soar-m-spring` | manual | encounter | p96 | `executeEncounter` | - |
-| `travel-soar-m-summer` | manual | encounter | p97 | `executeEncounter` | - |
+| `travel-soar-m-summer` | manual | encounter | p96 | `executeEncounter` | - |
 | `travel-soar-m-autumn` | manual | encounter | p97 | `executeEncounter` | - |
 | `travel-soar-m-winter` | manual | encounter | p97 | `executeEncounter` | TRAVEL-009 warning rows |
 | `travel-titan-a-2` | manual | encounter | p98 | `executeEncounter` | - |
 | `travel-titan-3-4` | manual | encounter | p98 | `executeEncounter` | - |
-| `travel-titan-5-6` | manual | encounter | p98 | `executeEncounter` | - |
+| `travel-titan-5-6` | implemented | encounter | p98 | `executeEncounter` | - |
 | `travel-titan-7-8` | manual | encounter | p99 | `executeEncounter` | - |
 | `travel-titan-9-10` | manual | encounter | p99 | `executeEncounter` | - |
 | `travel-titan-j` | manual | encounter | p99 | `executeEncounter` | - |
@@ -176,24 +176,24 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 |---|---|---|---:|---|---|
 | `foraging-bog-a` | manual | encounter | p154 | `executeEncounter` | - |
 | `foraging-bog-2` | manual | encounter | p154 | `executeEncounter` | - |
-| `foraging-bog-3` | manual | encounter | p154 | `executeEncounter` | - |
+| `foraging-bog-3` | implemented | encounter | p154 | `executeEncounter` | - |
 | `foraging-bog-4` | manual | encounter | p155 | `executeEncounter` | - |
 | `foraging-bog-5` | manual | encounter | p155 | `executeEncounter` | - |
 | `foraging-bog-6` | manual | encounter | p155 | `executeEncounter` | - |
 | `foraging-bog-7` | manual | encounter | p155 | `executeEncounter` | - |
 | `foraging-bog-8` | manual | encounter | p155 | `executeEncounter` | - |
-| `foraging-bog-9-spring` | manual | encounter | p156 | `executeEncounter` | - |
+| `foraging-bog-9-spring` | implemented | encounter | p156 | `executeEncounter` | - |
 | `foraging-bog-9-summer` | manual | encounter | p157 | `executeEncounter` | - |
 | `foraging-bog-9-autumn` | manual | encounter | p158 | `executeEncounter` | - |
 | `foraging-bog-9-winter` | manual | encounter | p159 | `executeEncounter` | - |
 | `foraging-bog-10-spring` | manual | encounter | p156 | `executeEncounter` | - |
 | `foraging-bog-10-summer` | manual | encounter | p157 | `executeEncounter` | - |
 | `foraging-bog-10-autumn` | manual | encounter | p158 | `executeEncounter` | - |
-| `foraging-bog-10-winter` | manual | encounter | p159 | `executeEncounter` | - |
+| `foraging-bog-10-winter` | implemented | encounter | p159 | `executeEncounter` | - |
 | `foraging-bog-j-spring` | manual | encounter | p156 | `executeEncounter` | - |
-| `foraging-bog-j-summer` | manual | encounter | p157 | `executeEncounter` | - |
+| `foraging-bog-j-summer` | implemented | encounter | p157 | `executeEncounter` | - |
 | `foraging-bog-j-autumn` | manual | encounter | p158 | `executeEncounter` | - |
-| `foraging-bog-j-winter` | manual | encounter | p159 | `executeEncounter` | - |
+| `foraging-bog-j-winter` | implemented | encounter | p159 | `executeEncounter` | - |
 | `foraging-bog-m-spring` | manual | encounter | p156 | `executeEncounter` | - |
 | `foraging-bog-m-summer` | manual | encounter | p157 | `executeEncounter` | - |
 | `foraging-bog-m-autumn` | manual | encounter | p158 | `executeEncounter` | - |
@@ -203,7 +203,7 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 | `foraging-forest-3` | manual | encounter | p160 | `executeEncounter` | - |
 | `foraging-forest-4` | manual | encounter | p160 | `executeEncounter` | - |
 | `foraging-forest-5` | manual | encounter | p161 | `executeEncounter` | - |
-| `foraging-forest-6` | manual | encounter | p161 | `executeEncounter` | - |
+| `foraging-forest-6` | implemented | encounter | p161 | `executeEncounter` | - |
 | `foraging-forest-7` | manual | encounter | p161 | `executeEncounter` | - |
 | `foraging-forest-8` | manual | encounter | p161 | `executeEncounter` | - |
 | `foraging-forest-9-spring` | manual | encounter | p162 | `executeEncounter` | - |
@@ -220,7 +220,7 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 | `foraging-forest-j-winter` | manual | encounter | p165 | `executeEncounter` | - |
 | `foraging-forest-m-spring` | manual | encounter | p162 | `executeEncounter` | - |
 | `foraging-forest-m-summer` | manual | encounter | p163 | `executeEncounter` | - |
-| `foraging-forest-m-autumn` | manual | encounter | p164 | `executeEncounter` | - |
+| `foraging-forest-m-autumn` | implemented | encounter | p164 | `executeEncounter` | - |
 | `foraging-forest-m-winter` | manual | encounter | p165 | `executeEncounter` | - |
 | `foraging-loch-a` | manual | encounter | p166 | `executeEncounter` | - |
 | `foraging-loch-2` | manual | encounter | p166 | `executeEncounter` | - |
@@ -236,14 +236,14 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 | `foraging-loch-9-winter` | manual | encounter | p171 | `executeEncounter` | - |
 | `foraging-loch-10-spring` | manual | encounter | p168 | `executeEncounter` | - |
 | `foraging-loch-10-summer` | manual | encounter | p169 | `executeEncounter` | - |
-| `foraging-loch-10-autumn` | manual | encounter | p169 | `executeEncounter` | - |
-| `foraging-loch-10-winter` | manual | encounter | p170 | `executeEncounter` | - |
+| `foraging-loch-10-autumn` | manual | encounter | p170 | `executeEncounter` | - |
+| `foraging-loch-10-winter` | manual | encounter | p171 | `executeEncounter` | - |
 | `foraging-loch-j-spring` | manual | encounter | p168 | `executeEncounter` | - |
-| `foraging-loch-j-summer` | manual | encounter | p170 | `executeEncounter` | - |
-| `foraging-loch-j-autumn` | manual | encounter | p171 | `executeEncounter` | - |
+| `foraging-loch-j-summer` | manual | encounter | p169 | `executeEncounter` | - |
+| `foraging-loch-j-autumn` | manual | encounter | p170 | `executeEncounter` | - |
 | `foraging-loch-j-winter` | implemented | encounter | p171 | `executeEncounter` | FORAGE-006 warning rows |
 | `foraging-loch-m-spring` | manual | encounter | p168 | `executeEncounter` | - |
-| `foraging-loch-m-summer` | manual | encounter | p169 | `executeEncounter` | - |
+| `foraging-loch-m-summer` | implemented | encounter | p169 | `executeEncounter` | - |
 | `foraging-loch-m-autumn` | manual | encounter | p170 | `executeEncounter` | - |
 | `foraging-loch-m-winter` | manual | encounter | p171 | `executeEncounter` | - |
 | `foraging-meadow-a` | manual | encounter | p172 | `executeEncounter` | - |
@@ -253,7 +253,7 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 | `foraging-meadow-5` | manual | encounter | p173 | `executeEncounter` | - |
 | `foraging-meadow-6` | manual | encounter | p173 | `executeEncounter` | - |
 | `foraging-meadow-7` | manual | encounter | p173 | `executeEncounter` | - |
-| `foraging-meadow-8` | manual | encounter | p173 | `executeEncounter` | - |
+| `foraging-meadow-8` | implemented | encounter | p173 | `executeEncounter` | - |
 | `foraging-meadow-9-spring` | manual | encounter | p174 | `executeEncounter` | - |
 | `foraging-meadow-9-summer` | manual | encounter | p175 | `executeEncounter` | - |
 | `foraging-meadow-9-autumn` | manual | encounter | p176 | `executeEncounter` | - |
@@ -264,7 +264,7 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 | `foraging-meadow-10-winter` | manual | encounter | p177 | `executeEncounter` | - |
 | `foraging-meadow-j-spring` | manual | encounter | p174 | `executeEncounter` | - |
 | `foraging-meadow-j-summer` | manual | encounter | p175 | `executeEncounter` | - |
-| `foraging-meadow-j-autumn` | manual | encounter | p176 | `executeEncounter` | - |
+| `foraging-meadow-j-autumn` | implemented | encounter | p176 | `executeEncounter` | - |
 | `foraging-meadow-j-winter` | manual | encounter | p177 | `executeEncounter` | - |
 | `foraging-meadow-m-spring` | manual | encounter | p174 | `executeEncounter` | - |
 | `foraging-meadow-m-summer` | manual | encounter | p175 | `executeEncounter` | - |
@@ -273,7 +273,7 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 | `foraging-mountain-a` | manual | encounter | p178 | `executeEncounter` | - |
 | `foraging-mountain-2` | manual | encounter | p178 | `executeEncounter` | - |
 | `foraging-mountain-3` | manual | encounter | p178 | `executeEncounter` | - |
-| `foraging-mountain-4` | manual | encounter | p178 | `executeEncounter` | - |
+| `foraging-mountain-4` | implemented | encounter | p178 | `executeEncounter` | - |
 | `foraging-mountain-5` | manual | encounter | p179 | `executeEncounter` | - |
 | `foraging-mountain-6` | manual | encounter | p179 | `executeEncounter` | - |
 | `foraging-mountain-7` | manual | encounter | p179 | `executeEncounter` | - |
@@ -285,12 +285,12 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 | `foraging-mountain-10-spring` | manual | encounter | p180 | `executeEncounter` | - |
 | `foraging-mountain-10-summer` | manual | encounter | p181 | `executeEncounter` | - |
 | `foraging-mountain-10-autumn` | manual | encounter | p182 | `executeEncounter` | - |
-| `foraging-mountain-10-winter` | manual | encounter | p183 | `executeEncounter` | - |
+| `foraging-mountain-10-winter` | implemented | encounter | p183 | `executeEncounter` | - |
 | `foraging-mountain-j-spring` | manual | encounter | p180 | `executeEncounter` | - |
 | `foraging-mountain-j-summer` | manual | encounter | p181 | `executeEncounter` | - |
 | `foraging-mountain-j-autumn` | manual | encounter | p182 | `executeEncounter` | - |
 | `foraging-mountain-j-winter` | manual | encounter | p183 | `executeEncounter` | - |
-| `foraging-mountain-m-spring` | manual | encounter | p180 | `executeEncounter` | - |
+| `foraging-mountain-m-spring` | implemented | encounter | p180 | `executeEncounter` | - |
 | `foraging-mountain-m-summer` | manual | encounter | p181 | `executeEncounter` | - |
 | `foraging-mountain-m-autumn` | manual | encounter | p182 | `executeEncounter` | - |
 | `foraging-mountain-m-winter` | manual | encounter | p183 | `executeEncounter` | - |
@@ -326,8 +326,8 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 | Owner ID | Status | Trigger | Source | Executor | Test |
 |---|---|---|---:|---|---|
 | `social-bog-settlement-♥` | manual | encounter | p190 | `executeEncounter` | - |
-| `social-bog-settlement-♦` | manual | encounter | p190 | `executeEncounter` | - |
-| `social-bog-noonhill-♥` | manual | encounter | p191 | `executeEncounter` | - |
+| `social-bog-settlement-♦` | implemented | encounter | p190 | `executeEncounter` | - |
+| `social-bog-noonhill-♥` | implemented | encounter | p191 | `executeEncounter` | - |
 | `social-bog-noonhill-♦` | manual | encounter | p191 | `executeEncounter` | - |
 | `social-bog-spring-♣` | manual | encounter | p192 | `executeEncounter` | - |
 | `social-bog-spring-♠` | manual | encounter | p192 | `executeEncounter` | - |
@@ -335,10 +335,10 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 | `social-bog-autumn-♣` | manual | encounter | p193 | `executeEncounter` | - |
 | `social-bog-summer-♠` | manual | encounter | p193 | `executeEncounter` | - |
 | `social-bog-autumn-♠` | manual | encounter | p193 | `executeEncounter` | - |
-| `social-bog-winter-♣` | manual | encounter | p193 | `executeEncounter` | - |
+| `social-bog-winter-♣` | implemented | encounter | p193 | `executeEncounter` | - |
 | `social-bog-winter-♠` | manual | encounter | p193 | `executeEncounter` | - |
 | `social-forest-settlement-♥` | manual | encounter | p194 | `executeEncounter` | - |
-| `social-forest-settlement-♦` | manual | encounter | p194 | `executeEncounter` | - |
+| `social-forest-settlement-♦` | implemented | encounter | p194 | `executeEncounter` | - |
 | `social-forest-odoak-♦` | manual | encounter | p195 | `executeEncounter` | - |
 | `social-forest-odoak-♥` | manual | encounter | p195 | `executeEncounter` | - |
 | `social-forest-spring-♣` | manual | encounter | p196 | `executeEncounter` | - |
@@ -351,7 +351,7 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 | `social-forest-winter-♣` | manual | encounter | p197 | `executeEncounter` | - |
 | `social-loch-settlement-♦` | manual | encounter | p198 | `executeEncounter` | - |
 | `social-loch-settlement-♥` | manual | encounter | p198 | `executeEncounter` | - |
-| `social-loch-newdam-♥` | manual | encounter | p199 | `executeEncounter` | - |
+| `social-loch-newdam-♥` | implemented | encounter | p199 | `executeEncounter` | - |
 | `social-loch-newdam-♦` | manual | encounter | p199 | `executeEncounter` | - |
 | `social-loch-vessel-♥` | manual | encounter | p201 | `executeEncounter` | - |
 | `social-loch-vessel-♦` | manual | encounter | p201 | `executeEncounter` | - |
@@ -364,9 +364,9 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 | `social-loch-winter-♠` | manual | encounter | p203 | `executeEncounter` | - |
 | `social-loch-winter-♣` | manual | encounter | p203 | `executeEncounter` | - |
 | `social-meadow-settlement-♥` | manual | encounter | p204 | `executeEncounter` | - |
-| `social-meadow-settlement-♦` | manual | encounter | p204 | `executeEncounter` | - |
+| `social-meadow-settlement-♦` | implemented | encounter | p204 | `executeEncounter` | - |
 | `social-meadow-summit-♥` | manual | encounter | p205 | `executeEncounter` | - |
-| `social-meadow-summit-♦` | manual | encounter | p205 | `executeEncounter` | - |
+| `social-meadow-summit-♦` | implemented | encounter | p205 | `executeEncounter` | - |
 | `social-meadow-spring-♠` | manual | encounter | p206 | `executeEncounter` | - |
 | `social-meadow-spring-♣` | manual | encounter | p206 | `executeEncounter` | - |
 | `social-meadow-summer-♠` | manual | encounter | p206 | `executeEncounter` | - |
@@ -376,7 +376,7 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 | `social-meadow-winter-♣` | manual | encounter | p207 | `executeEncounter` | - |
 | `social-meadow-winter-♠` | manual | encounter | p207 | `executeEncounter` | - |
 | `social-mountain-settlement-♥` | manual | encounter | p208 | `executeEncounter` | - |
-| `social-mountain-settlement-♦` | manual | encounter | p208 | `executeEncounter` | - |
+| `social-mountain-settlement-♦` | implemented | encounter | p208 | `executeEncounter` | - |
 | `social-mountain-spoolkeep-♥` | manual | encounter | p209 | `executeEncounter` | - |
 | `social-mountain-spoolkeep-♦` | manual | encounter | p209 | `executeEncounter` | - |
 | `social-mountain-spring-♣` | manual | encounter | p210 | `executeEncounter` | - |
@@ -398,51 +398,51 @@ Version `1.0.0`에서 이 registry는 동결됐다. Release packaging은 분류,
 
 | Owner ID | Status | Trigger | Source | Executor | Test |
 |---|---|---|---:|---|---|
-| `ailment-anxious-scratching` | manual | treatment-success | p104 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-dullsweats` | manual | treatment-success | p106 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-firstfever` | manual | treatment-success | p106 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-fond-farewell` | manual | treatment-success | p106 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-forgeclawed` | manual | treatment-success | p107 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-monthly-chore` | manual | treatment-success | p110 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-paw-rot` | manual | treatment-success | p110 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-safety-stench` | manual | treatment-success | p111 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-sunstruck` | manual | treatment-success | p113 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-the-runs` | manual | treatment-success | p113 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-tickbitten-twice-shy` | manual | treatment-success | p113 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-waen-drops` | manual | treatment-success | p114 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-blocked-ears` | manual | treatment-success | p105 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-brand-care` | implemented | diagnosis | p105 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003 special choice |
-| `ailment-crestfallen` | manual | treatment-success | p106 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-forager-s-twitch` | implemented | diagnosis | p107 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003 special diagnosis |
-| `ailment-midge-munched` | manual | treatment-success | p109 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-migration-migraine` | manual | treatment-success | p109 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-night-shift` | manual | treatment-success | p110 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-soured-dough` | manual | treatment-success | p112 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-005 special failure |
-| `ailment-stingshock` | implemented | treatment-success | p112 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
-| `ailment-trowel-trouble` | manual | treatment-success | p114 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-wormridden` | implemented | treatment-success | p115 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
-| `ailment-bad-idea` | implemented | treatment-success | p104 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
-| `ailment-bite-the-hand-that-cures` | manual | treatment-success | p104 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-bloodthirst` | manual | treatment-success | p105 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-broken-beaks-and-thinning-fangs` | manual | treatment-success | p105 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-herbivorous-tendencies` | manual | treatment-success | p108 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-nervefright` | manual | treatment-success | p110 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-pinned-by-pine` | implemented | timer-change | p111 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003 special timer |
-| `ailment-quagmire-s-scale` | implemented | timer-change | p111 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-005 special timer |
-| `ailment-seasonshift` | manual | treatment-success | p111 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-smokesnout` | manual | treatment-success | p112 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-snail-ails` | manual | treatment-success | p113 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-fight-marks` | manual | treatment-success | p106 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-004 special success |
-| `ailment-foul-deceiver` | manual | treatment-success | p107 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-groundhog-syndrome` | manual | treatment-success | p107 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-005 special failure |
-| `ailment-hunted` | manual | treatment-success | p108 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-living-with-a-black-beast` | manual | treatment-success | p108 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-lockjaw` | manual | treatment-success | p108 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-long-drop` | manual | treatment-success | p109 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-mawfoam` | manual | treatment-success | p109 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-titan-touched` | manual | treatment-success | p114 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
-| `ailment-wake` | implemented | barter | p115 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
-| `ailment-wingbreak` | manual | treatment-success | p115 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-anxious-scratching` | manual | treatment-failure | p104 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-dullsweats` | manual | treatment-failure | p106 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-firstfever` | manual | treatment-failure | p106 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-fond-farewell` | manual | treatment-failure | p106 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-forgeclawed` | manual | treatment-failure | p107 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-monthly-chore` | manual | treatment-failure | p110 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-paw-rot` | manual | treatment-failure, treatment-success | p110 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-safety-stench` | manual | treatment-failure | p111 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-sunstruck` | manual | treatment-failure | p113 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-the-runs` | manual | treatment-failure | p113 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-tickbitten-twice-shy` | manual | treatment-failure | p113 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-waen-drops` | manual | treatment-failure | p114 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-blocked-ears` | manual | treatment-failure | p105 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-brand-care` | implemented | diagnosis, treatment-failure | p105 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003 special choice |
+| `ailment-crestfallen` | manual | treatment-failure | p106 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-forager-s-twitch` | implemented | diagnosis, treatment-failure | p107 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003 special diagnosis |
+| `ailment-midge-munched` | manual | treatment-failure | p109 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-migration-migraine` | manual | treatment-failure | p109 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-night-shift` | manual | treatment-failure, treatment-success | p110 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-soured-dough` | manual | treatment-failure, treatment-success | p112 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-005 special failure |
+| `ailment-stingshock` | implemented | treatment-failure, treatment-success | p112 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
+| `ailment-trowel-trouble` | manual | treatment-failure | p114 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-wormridden` | implemented | treatment-failure, treatment-success | p115 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
+| `ailment-bad-idea` | implemented | treatment-failure, treatment-success | p104 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
+| `ailment-bite-the-hand-that-cures` | manual | treatment-failure, treatment-success | p104 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-bloodthirst` | manual | treatment-failure | p105 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-broken-beaks-and-thinning-fangs` | manual | treatment-failure, treatment-success | p105 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-herbivorous-tendencies` | manual | treatment-failure | p108 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-nervefright` | manual | treatment-failure | p110 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-pinned-by-pine` | implemented | timer-change, treatment-failure | p111 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003 special timer |
+| `ailment-quagmire-s-scale` | implemented | timer-change, treatment-failure | p111 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-005 special timer |
+| `ailment-seasonshift` | manual | treatment-failure, treatment-success | p111 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-smokesnout` | manual | treatment-failure, treatment-success | p112 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-snail-ails` | manual | treatment-failure | p113 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-fight-marks` | manual | treatment-failure, treatment-success | p106 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-004 special success |
+| `ailment-foul-deceiver` | manual | treatment-failure | p107 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-groundhog-syndrome` | manual | treatment-failure, treatment-success | p107 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-005 special failure |
+| `ailment-hunted` | manual | treatment-failure | p108 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-living-with-a-black-beast` | manual | treatment-failure | p108 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-lockjaw` | manual | treatment-failure | p108 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-long-drop` | manual | treatment-failure, treatment-success | p109 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-mawfoam` | manual | treatment-failure, treatment-success | p109 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-titan-touched` | manual | treatment-failure, treatment-success | p114 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
+| `ailment-wake` | implemented | barter, treatment-failure, treatment-success | p115 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | AILMENT-003/AILMENT-007 special success |
+| `ailment-wingbreak` | manual | treatment-failure, treatment-success | p115 | `resolveTreatmentTransaction / resolveAilmentPrintedEffect` | - |
 
 ## Manual 처리 계약
 

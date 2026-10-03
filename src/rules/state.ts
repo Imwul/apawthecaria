@@ -47,6 +47,8 @@ export interface TreatmentHistoryEntry {
   ailmentInstanceIds: string[];
   preparationIds: string[];
   providedTags: Partial<Record<RuleTag, number>>;
+  separateDoses?: Array<{ doseId: string; label: string; itemIds: string[] }>;
+  ingredientUses?: Record<string, number>;
   remedyFlags?: Array<'PRESERVED'>;
   outcome: 'success' | 'failure' | 'pending';
   effects: StructuredRuleEffect[];

@@ -5,6 +5,9 @@ import type { EngineInventoryItem, GameplayLocationType } from './gameplay';
 import type { PatientState } from './state';
 import type { Availability, EncounterDefinition, ReagentDefinition, ReagentPreparation, Season, TravelRegion } from './types';
 import { resolveToolEffects, type CanonicalToolState } from './toolEngine';
+import { replacementInventoryItem, type AlternativeAcquisition } from './leaveEngine';
+import { preparationForInventory } from './inventoryPreparation';
+import { applyBearDeference } from './encounterEngine';
 
 export interface ForagingPartSelection {
   preparationId: string;
@@ -31,6 +34,7 @@ export interface ForagingEngineInput {
   locationRelation: 'current' | 'adjacent';
   card: RuleCard;
   targetReagentId?: string;
+  replacement?: AlternativeAcquisition;
   parts?: ForagingPartSelection[];
   spendForagingPoints?: boolean;
   rarityModifiers?: number;
@@ -345,7 +349,7 @@ export const resolveForagingEngine = (input: ForagingEngineInput): ForagingEngin
     .map(reagent => candidateFor(reagent, input, cardValue))
     .filter((candidate): candidate is ForagingCandidate => candidate !== null);
   const skipsPrintedEncounter = input.skipEncounter || input.source === 'familiar-independent';
-  const encounter = skipsPrintedEncounter
+  const printedEncounter = skipsPrintedEncounter
     ? null
     : input.bearScurryActive && cardValue === 12
       ? BEAR_SCURRY_ENCOUNTER
@@ -355,8 +359,41 @@ export const resolveForagingEngine = (input: ForagingEngineInput): ForagingEngin
           card: input.card,
           season: input.state.season
         });
+  const encounter = printedEncounter ? applyBearDeference(printedEncounter, input.state.conditions) : null;
   const ignoredNegativeEncounterEffects = Boolean(input.weatherProtectionActive && encounter?.tags?.includes('Weather'));
   if (!skipsPrintedEncounter && !encounter) return { status: 'invalid', value: null, messages: ['No canonical Foraging Encounter matches this draw.'] };
+
+  if (input.replacement) {
+    const acquisition = input.replacement;
+    if (acquisition.kind !== 'replacement' || acquisition.baseRarity !== 12 || acquisition.selectedSource === 'barter'
+      || (acquisition.patientId && acquisition.patientId !== input.state.patient?.id)
+      || (acquisition.ailmentInstanceId && !input.state.patient?.ailments.some(row => row.id === acquisition.ailmentInstanceId && row.status === 'active'))) {
+      return { status: 'invalid', value: null, messages: ['Replacement must belong to the active Patient and this Forage.'] };
+    }
+    const item = replacementInventoryItem(acquisition, 'forage', input.transactionId, `${input.transactionId}:replacement`);
+    const preparation = preparationForInventory(item);
+    if (!acquisition.name?.trim() || !preparation) return { status: 'invalid', value: null, messages: ['Replacement requires a name, preparation, and positive Tag potency.'] };
+    const candidate: ForagingCandidate = { reagentId: acquisition.id, canonicalName: acquisition.name || 'Replacement', rarity: 12,
+      cardSuccess: cardValue >= 12, automaticWithForagingPoints: input.state.foragingPoints >= 12, gapCost: Math.max(0, 12 - cardValue) };
+    const gatherRequested = input.targetReagentId === acquisition.id;
+    const spent = gatherRequested && !candidate.cardSuccess && !candidate.automaticWithForagingPoints
+      && input.spendForagingPoints && input.state.foragingPoints >= candidate.gapCost ? candidate.gapCost : 0;
+    const success = gatherRequested && !input.declineGather && (candidate.cardSuccess || candidate.automaticWithForagingPoints || spent > 0);
+    if (success && !hasPreparationTools(preparation, input.state.toolIds)) return { status: 'invalid', value: null, messages: [`Missing Tool for Replacement: ${preparation.requiredTools.join(', ')}`] };
+    const gained = gatherRequested && !success ? applyForagingPointTool(input, 1) : { gain: 0, tools: input.state.tools };
+    const gatheredItems = success ? [{ ...item, provenance: { ...item.provenance!, region: input.forageRegion } }] : [];
+    const gatherTools = success ? applyGatherTools(input, [preparation]) : { tools: gained.tools, patient: input.state.patient };
+    if ('error' in gatherTools && gatherTools.error) return { status: 'invalid', value: null, messages: [gatherTools.error] };
+    return { status: encounter?.support === 'implemented' || skipsPrintedEncounter ? 'resolved' : 'manual', value: {
+      transactionId: input.transactionId,
+      nextState: { ...input.state, inventory: [...input.state.inventory, ...gatheredItems], patient: gatherTools.patient,
+        tools: gatherTools.tools, foragingPoints: input.state.foragingPoints - spent + gained.gain },
+      candidates: [candidate], selectedReagentId: gatherRequested ? acquisition.id : null, gatheredItems,
+      foragingPointsSpent: spent, foragingPointsGained: gained.gain,
+      timerCostAfterEncounter: input.source === 'familiar-independent' ? 0 : input.locationRelation === 'adjacent' ? 2 : 1,
+      encounter, ignoredNegativeEncounterEffects, ailmentInterruption: null
+    }, messages: [] };
+  }
 
   if (input.declineGather) {
     const declined = input.targetReagentId

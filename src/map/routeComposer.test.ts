@@ -204,6 +204,17 @@ describe('player-confirmed route distances', () => {
 });
 
 describe('waterway and carry rules', () => {
+  it('requires exactly the effective Speed by default under p.24, including retraced Paths', () => {
+    let draft = appendRouteStop(draftFromOrigin(stop('origin')), stop('nearby'));
+    const input = { speed: 4, carry: 8, weight: 2, canStopInLoch: true, protectsFromSoaking: true };
+    expect(evaluateRouteDraft({ ...input, draft })).toMatchObject({ reason: 'too-close', movementCost: 1, effectiveSpeed: 4 });
+    draft = appendRouteStop(draft, stop('origin'));
+    draft = appendRouteStop(draft, stop('nearby'));
+    draft = appendRouteStop(draft, stop('destination'));
+    expect(evaluateRouteDraft({ ...input, draft })).toMatchObject({ reason: 'legal', movementCost: 4, effectiveSpeed: 4 });
+    expect(evaluateRouteDraft({ ...input, draft: appendRouteStop(draft, stop('extra')) })).toMatchObject({ reason: 'too-far', movementCost: 5 });
+  });
+
   it('allows a player to stop on a shorter route when Speed is a maximum', () => {
     let draft = draftFromOrigin(stop('origin'));
     draft = appendRouteStop(draft, stop('nearby'));

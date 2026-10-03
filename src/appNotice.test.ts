@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const appSource = readFileSync(fileURLToPath(new URL('./App.tsx', import.meta.url)), 'utf8');
-const cssSource = readFileSync(fileURLToPath(new URL('./index.css', import.meta.url)), 'utf8');
+const cssSource = readFileSync(fileURLToPath(new URL('./index.css', import.meta.url)), 'utf8') + readFileSync(fileURLToPath(new URL('./workspace.css', import.meta.url)), 'utf8');
 
 describe('application notice dialog', () => {
   it('keeps gameplay notices inside the application instead of native alerts', () => {

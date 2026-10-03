@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 520" fill="none" role="img" aria-labelledby="botanical-title botanical-desc">
+  <title id="botanical-title">들녘에서 모은 약초 한 묶음</title>
+  <desc id="botanical-desc">작은 분홍 꽃, 둥근 세이지 잎과 버터색 꽃을 끈으로 묶은 독창적인 약초 판화 장식.</desc>
+  <!-- Original vector artwork. The transparent surface adapts to chapter paper. -->
+  <defs>
+    <pattern id="leaf-hatch" width="12" height="13" patternUnits="userSpaceOnUse" patternTransform="rotate(-28)">
+      <path d="M1 3h7M4 8h5" stroke="#315944" stroke-opacity=".3" stroke-width="1"/>
+    </pattern>
+    <g id="sage-leaf" stroke="#315944" stroke-width="2" stroke-linejoin="round">
+      <path d="M0 0C-37-3-70-22-56-47c15-20 50-6 56 47z" fill="#a8bc8b"/>
+      <path d="M0 0C-37-3-70-22-56-47c15-20 50-6 56 47z" fill="url(#leaf-hatch)"/>
+      <path d="M-4-3l-42-34M-18-14l-20 2M-29-23l-3-18"/>
+    </g>
+    <g id="flower" stroke="#315944" stroke-width="1.8" stroke-linejoin="round">
+      <path d="M0-3c-18 3-29-6-19-17-19-14-3-29 11-18 4-21 26-15 22 2 21-7 29 13 11 21 15 15-1 29-14 16z" fill="#d59a87"/>
+      <circle cy="-17" r="8" fill="#ead98f"/>
+      <path d="M-3-22l1 3M4-18l-2 2M-3-13l1-2" stroke-width="1.1"/>
+    </g>
+    <g id="seed" stroke="#315944" stroke-width="1.5">
+      <path d="M0 0c-17-7-17-20-8-20 9 0 10 11 8 20" fill="#ddcb82"/>
+    </g>
+  </defs>
+  <g stroke="#315944" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M211 462c6-78-21-150-67-205C111 218 107 170 115 120M204 464c-17-147 56-261 108-359M220 465c-42-100-38-215-3-331M213 465c14-108 78-165 131-198" stroke-width="3"/>
+    <path d="M201 360c-49-32-80-42-111-55M229 343c37-4 68-20 90-38M190 312c-38-25-54-53-66-84M240 293c33-16 58-29 78-61M200 255c-29-17-41-41-43-68M258 231c40-19 63-37 76-62" stroke-width="2"/>
+    <use href="#sage-leaf" x="193" y="377" transform="rotate(-8 193 377)"/>
+    <use href="#sage-leaf" x="188" y="320" transform="rotate(12 188 320)"/>
+    <use href="#sage-leaf" x="172" y="266" transform="rotate(26 172 266)"/>
+    <use href="#sage-leaf" x="136" y="209" transform="rotate(28 136 209)"/>
+    <use href="#sage-leaf" x="116" y="155" transform="rotate(46 116 155) scale(.84) translate(22 31)"/>
+    <use href="#sage-leaf" x="241" y="349" transform="rotate(132 241 349)"/>
+    <use href="#sage-leaf" x="265" y="291" transform="rotate(146 265 291)"/>
+    <use href="#sage-leaf" x="288" y="233" transform="rotate(152 288 233)"/>
+    <use href="#sage-leaf" x="319" y="169" transform="rotate(159 319 169)"/>
+    <use href="#sage-leaf" x="293" y="157" transform="rotate(25 293 157) scale(.75) translate(98 52)"/>
+    <use href="#sage-leaf" x="207" y="201" transform="rotate(40 207 201) scale(.76) translate(65 63)"/>
+    <path d="M92 307c-37 5-67-10-62-27 7-23 44-9 62 27" fill="#76935f" stroke-width="2"/>
+    <path d="M319 305c37 8 62-1 59-23-2-21-40-13-59 23" fill="#76935f" stroke-width="2"/>
+    <path d="M340 267c-6-34 6-57 24-53 21 5 13 41-24 53" fill="#a8bc8b" stroke-width="2"/>
+    <path d="M92 307l-40-18M319 305l36-17M340 267l20-31" stroke-width="1.5"/>
+    <path d="M201 420c-67-88-121-123-145-194M213 419c-7-120-16-216-23-327" stroke-width="2.5"/>
+  </g>
+  <g>
+    <use href="#flower" x="113" y="124" transform="rotate(-11 113 124)"/>
+    <use href="#flower" x="149" y="204" transform="rotate(13 149 204) scale(.76) translate(46 64)"/>
+    <use href="#flower" x="339" y="167" transform="rotate(20 339 167) scale(.7) translate(145 72)"/>
+    <use href="#flower" x="319" y="106" transform="rotate(8 319 106)"/>
+    <use href="#flower" x="348" y="266" transform="rotate(26 348 266) scale(.76) translate(110 84)"/>
+  </g>
+  <g stroke="#315944" stroke-width="1.7" stroke-linecap="round">
+    <path d="M189 98l-23-27M187 114l-28-14M188 131l-23-9M190 97l18-26M190 113l24-18M191 129l27-11M188 78l-3-20"/>
+    <use href="#seed" x="166" y="72" transform="rotate(-42 166 72)"/>
+    <use href="#seed" x="159" y="101" transform="rotate(-64 159 101)"/>
+    <use href="#seed" x="165" y="122" transform="rotate(-66 165 122)"/>
+    <use href="#seed" x="208" y="72" transform="rotate(41 208 72)"/>
+    <use href="#seed" x="214" y="96" transform="rotate(55 214 96)"/>
+    <use href="#seed" x="218" y="118" transform="rotate(65 218 118)"/>
+    <use href="#seed" x="185" y="62"/>
+    <path d="M57 233l-19-21M64 250l-21-12M69 267l-25-10M57 233l9-24M64 250l15-19M69 267l18-14"/>
+    <use href="#seed" x="38" y="214" transform="rotate(-45 38 214)"/>
+    <use href="#seed" x="43" y="239" transform="rotate(-61 43 239)"/>
+    <use href="#seed" x="44" y="258" transform="rotate(-67 44 258)"/>
+    <use href="#seed" x="66" y="211" transform="rotate(20 66 211)"/>
+    <use href="#seed" x="79" y="232" transform="rotate(43 79 232)"/>
+    <use href="#seed" x="87" y="254" transform="rotate(55 87 254)"/>
+  </g>
+  <g stroke="#315944" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M188 405l44 4-2 14-41-5z" fill="#d59a87"/>
+    <path d="M210 413c-26-29-62-30-60-13 2 15 40 20 60 13M210 413c17-27 46-25 44-9-1 12-26 18-44 9" fill="#eadab0"/>
+    <path d="M210 413l-39 42 20-9 2 15 21-38M213 414l34 41-5-23 12-2-32-14" fill="#d59a87"/>
+    <path d="M206 411l10 5"/>
+  </g>
+  <g fill="#d5be70" stroke="#315944" stroke-width="1.4">
+    <path d="M54 116l3 8 8 3-8 3-3 8-3-8-8-3 8-3zM367 370l2 6 6 2-6 3-2 6-3-6-6-3 6-2z"/>
+    <circle cx="333" cy="76" r="3"/>
+    <circle cx="67" cy="359" r="3"/>
+    <circle cx="347" cy="346" r="2.5"/>
+  </g>
+</svg>

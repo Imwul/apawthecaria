@@ -2,6 +2,10 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { ManualEffectDraft } from '../rules';
 import { isPrintedResolutionInputSatisfied } from '../rules/printedEffects';
 import { ENCOUNTERS } from '../rules/data/encounters';
+import { REAGENTS } from '../rules/data/reagents';
+import { formatReagentName } from '../foragingInventoryPresentation';
+import { localizePreparationName, localizePreparationMethod } from '../localization/gameplayKo';
+import { useDialogFocus } from './useDialogFocus';
 import {
   patchManualEffectDraft,
   setManualEffectActionSelected,
@@ -358,6 +362,9 @@ export default function ManualEffectPanel({
   const hasChoiceField = draft.inputFields.some(field => field.type === 'choice');
 
   const localizedOption = (option: string, optionIndex: number, options: string[]): string => {
+    const segments = option.split(' · ');
+    const reagent = segments.length === 3 ? REAGENTS.find(row => row.canonicalName === segments[0]) : undefined;
+    if (reagent) return `${formatReagentName(reagent)} · ${localizePreparationName(segments[1])} · ${localizePreparationMethod(segments[2])}`;
     const normalizedOption = normalizeChoiceHeading(option);
     const usesTopLevelEncounterChoiceOrder = options.length === draft.choices.length
       && options.every((candidate, index) => candidate === draft.choices[index]);
@@ -369,7 +376,13 @@ export default function ManualEffectPanel({
     return localizeManualEffectOption(option, encounter ? draft.ownerId : undefined, matchedChoice?.id);
   };
 
-  return <section className="manual-effect" aria-labelledby="manual-effect-title">
+  const dialogRef = useDialogFocus<HTMLElement>(() => {
+    // Record fields commit on blur before the current draft is deferred.
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    onDefer();
+  });
+
+  return <section ref={dialogRef} tabIndex={-1} className="manual-effect" aria-labelledby="manual-effect-title">
     <header className="manual-effect__header">
       <span className="status-label status-label--manual">직접 고를 장면</span>
       <h2 id="manual-effect-title">{localizedSummary}</h2>

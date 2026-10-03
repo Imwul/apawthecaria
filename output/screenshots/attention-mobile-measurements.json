@@ -1,0 +1,166 @@
+[
+  {
+    "phase": "before",
+    "bodyY": 1087.03125,
+    "guideHeight": 323.46875,
+    "headings": [],
+    "openingHeight": 348.359375,
+    "overflow": 0,
+    "tab": "#map",
+    "width": 360
+  },
+  {
+    "phase": "before",
+    "bodyY": 1087.03125,
+    "guideHeight": 323.46875,
+    "headings": [
+      "병세와 처방 관찰"
+    ],
+    "openingHeight": 348.359375,
+    "overflow": 0,
+    "tab": "#ailments",
+    "width": 360
+  },
+  {
+    "phase": "before",
+    "bodyY": 1053.03125,
+    "guideHeight": 323.46875,
+    "headings": [
+      "영약재 관찰 기록"
+    ],
+    "openingHeight": 314.359375,
+    "overflow": 0,
+    "tab": "#reagents",
+    "width": 360
+  },
+  {
+    "phase": "before",
+    "bodyY": 1087.03125,
+    "guideHeight": 323.46875,
+    "headings": [
+      "약제사 기록 시트"
+    ],
+    "openingHeight": 348.359375,
+    "overflow": 0,
+    "tab": "#bio",
+    "width": 360
+  },
+  {
+    "phase": "before",
+    "bodyY": 1053.03125,
+    "guideHeight": 323.46875,
+    "headings": [],
+    "openingHeight": 314.359375,
+    "overflow": 0,
+    "tab": "#almanack",
+    "width": 360
+  },
+  {
+    "phase": "before",
+    "bodyY": 1053.03125,
+    "guideHeight": 323.46875,
+    "headings": [
+      "기록장"
+    ],
+    "openingHeight": 314.359375,
+    "overflow": 0,
+    "tab": "#patientArchive",
+    "width": 360
+  },
+  {
+    "phase": "before",
+    "bodyY": 1053.03125,
+    "guideHeight": 323.46875,
+    "headings": [
+      "살아 있는 기록들박물지 현장 기록"
+    ],
+    "openingHeight": 314.359375,
+    "overflow": 0,
+    "tab": "#livingArchive",
+    "width": 360
+  },
+  {
+    "phase": "before",
+    "bodyY": 1053.03125,
+    "guideHeight": 323.46875,
+    "headings": [
+      "약제사 연대기 일지"
+    ],
+    "openingHeight": 314.359375,
+    "overflow": 0,
+    "tab": "#journals",
+    "width": 360
+  },
+  {
+    "phase": "after",
+    "bodyY": 849.15625,
+    "guideHeight": 85.59375,
+    "openingHeight": 348.359375,
+    "overflow": 0,
+    "tab": "#map",
+    "width": 360
+  },
+  {
+    "phase": "after",
+    "bodyY": 849.15625,
+    "guideHeight": 85.59375,
+    "openingHeight": 348.359375,
+    "overflow": 0,
+    "tab": "#ailments",
+    "width": 360
+  },
+  {
+    "phase": "after",
+    "bodyY": 815.15625,
+    "guideHeight": 85.59375,
+    "openingHeight": 314.359375,
+    "overflow": 0,
+    "tab": "#reagents",
+    "width": 360
+  },
+  {
+    "phase": "after",
+    "bodyY": 849.15625,
+    "guideHeight": 85.59375,
+    "openingHeight": 348.359375,
+    "overflow": 0,
+    "tab": "#bio",
+    "width": 360
+  },
+  {
+    "phase": "after",
+    "bodyY": 815.15625,
+    "guideHeight": 85.59375,
+    "openingHeight": 314.359375,
+    "overflow": 0,
+    "tab": "#almanack",
+    "width": 360
+  },
+  {
+    "phase": "after",
+    "bodyY": 815.15625,
+    "guideHeight": 85.59375,
+    "openingHeight": 314.359375,
+    "overflow": 0,
+    "tab": "#patientArchive",
+    "width": 360
+  },
+  {
+    "phase": "after",
+    "bodyY": 815.15625,
+    "guideHeight": 85.59375,
+    "openingHeight": 314.359375,
+    "overflow": 0,
+    "tab": "#livingArchive",
+    "width": 360
+  },
+  {
+    "phase": "after",
+    "bodyY": 815.15625,
+    "guideHeight": 85.59375,
+    "openingHeight": 314.359375,
+    "overflow": 0,
+    "tab": "#journals",
+    "width": 360
+  }
+]

@@ -335,7 +335,7 @@ describe('Encounter-only fixed Remedies', () => {
       selectedItemIds: inventory.map(item => item.id), selectedToolIds: [], journalText: '',
       confirmedManualRequirements: ['TWO_SEPARATE_INFECTION_3_DOSES']
     });
-    expect(resolved.status).toBe('manual');
+    expect(resolved.status).toBe('invalid');
     expect(resolved.value).toBeNull();
     expect(resolved.messages.join(' ')).toContain('separately prepared doses');
   });

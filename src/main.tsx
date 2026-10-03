@@ -2,12 +2,13 @@
 import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import './workspace.css'
 
 const App = lazy(() => import('./App.tsx'))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Suspense fallback={<main className="app-loading" role="status">여행 일지를 여는 중...</main>}>
+    <Suspense fallback={<main className="app-loading" role="status"><span aria-hidden="true">✿</span> 숲으로 가는 일지를 펼치고 있어요…</main>}>
       <App />
     </Suspense>
   </StrictMode>,

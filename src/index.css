@@ -1,10 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=Gowun+Batang:wght@400;700&display=swap');
 
 :root {
-  --font-base: 'Fraunces', 'Gowun Batang', 'Noto Serif KR', 'Apple SD Gothic Neo', serif;
+  --font-base: 'Instrument Serif', 'Freesentation', system-ui, sans-serif;
   --font-fancy: var(--font-base);
   --font-script: var(--font-base);
-  --font-display: 'Fraunces', 'Gowun Batang', serif;
+  --font-display: 'Instrument Serif', 'Freesentation', serif;
 
   /* Apawthecaria field-document palette: printed, muted, and practical. */
   --bg-deep: #ece9df;
@@ -268,12 +267,8 @@ button:active {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 58px;
-  height: 58px;
   border-radius: 50%;
   border: 2px solid var(--accent-red);
-  color: var(--accent-red);
-  background: #fbfaf4;
   font-size: 0.75rem;
   font-weight: bold;
   transform: rotate(-3deg);
@@ -575,7 +570,6 @@ button:active {
   margin: 0 0 0.75rem;
   color: #4f6d58;
   font-size: 0.94rem;
-  line-height: 1.6;
 }
 
 .forage-discovery-surface__context {
@@ -712,14 +706,8 @@ button:active {
 }
 
 .forage-candidate {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.45rem 0.65rem;
   min-width: 0;
   min-height: 64px;
-  padding: 0.58rem 0.15rem;
-  border-bottom: 1px dotted rgba(83, 110, 91, 0.44);
 }
 
 .forage-candidate.is-expanded {
@@ -795,24 +783,18 @@ button:active {
 }
 
 .forage-candidate__action {
-  min-width: 7.6rem;
-  min-height: 44px;
-  flex-shrink: 0;
   padding: 0.45rem 0.65rem;
   border-radius: 3px;
-  white-space: normal;
 }
 
 .forage-candidate__tags {
   grid-column: 1 / -1;
-  margin-top: 0.18rem;
   padding-top: 0.62rem;
   border-top: 1px dotted rgba(79, 109, 88, 0.4);
 }
 
 .forage-candidate__rarity {
   margin: 0;
-  font-size: 0.86rem;
 }
 
 .forage-candidate__reference {
@@ -1303,40 +1285,6 @@ button:active {
   margin-bottom: 0.85rem;
 }
 
-@media (min-width: 1241px) {
-  .journey-start-decisions {
-    grid-template-columns: minmax(0, 1.08fr) minmax(24rem, 0.92fr);
-    align-items: start;
-    column-gap: 1.1rem !important;
-  }
-
-  .journey-start-decisions > :first-child {
-    grid-column: 1 / -1;
-  }
-
-  .journey-start-decisions > .journey-choice-fieldset:first-of-type {
-    grid-column: 1;
-    grid-row: 2 / span 4;
-  }
-
-  .journey-start-reason,
-  .journey-start-decisions > .journey-choice-fieldset:nth-of-type(2),
-  .journey-goal-result {
-    grid-column: 2;
-  }
-
-  .journey-start-urgency {
-    grid-column: 1 / -1;
-    grid-template-columns: minmax(15rem, 0.45fr) minmax(0, 1fr);
-    align-items: center;
-  }
-
-  .journey-start-urgency textarea {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-  }
-}
-
 @media (max-width: 1240px) {
   .journey-start-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1618,7 +1566,6 @@ button:active {
 }
 
 .almanack {
-  max-width: 1040px;
   margin: 0 auto;
 }
 
@@ -1626,14 +1573,11 @@ button:active {
   display: flex;
   justify-content: space-between;
   gap: var(--space-6);
-  padding-bottom: var(--space-6);
-  border-bottom: 2px solid var(--border-cozy);
 }
 
 .almanack__header h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 2rem;
 }
 
 .almanack__header p,
@@ -1653,7 +1597,6 @@ button:active {
   display: grid;
   grid-template-columns: minmax(220px, 2fr) minmax(150px, 1fr) minmax(150px, 1fr);
   gap: var(--space-3);
-  padding: var(--space-6) 0;
 }
 
 .almanack__controls label,
@@ -1668,22 +1611,18 @@ button:active {
 .almanack__recent { margin: 0 0 var(--space-4); color: var(--text-muted); font-size: 0.8rem; }
 .almanack__more { display: block; margin: var(--space-6) auto 0; min-width: 12rem; }
 
-.almanack__index { border-top: 1px solid rgba(36, 32, 24, 0.3); }
-
 .almanack-entry {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) minmax(120px, 0.35fr);
   gap: var(--space-3);
   align-items: center;
-  min-height: 88px;
   padding: var(--space-3) 0;
   border-bottom: 1px solid rgba(36, 32, 24, 0.22);
 }
 
-.almanack-entry__favorite { background: transparent; color: var(--warning); font-size: 1.3rem; }
+.almanack-entry__favorite { background: transparent; font-size: 1.3rem; }
 .almanack-entry__kind { color: var(--primary); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
 .almanack-entry h3 { margin: 2px 0 0; font-size: 1rem; }
-.almanack-entry__meta { display: flex; flex-direction: column; align-items: flex-end; color: var(--text-muted); font-size: 0.72rem; }
+.almanack-entry__meta { display: flex; flex-direction: column; color: var(--text-muted); font-size: 0.72rem; }
 .almanack-entry__effect { grid-column: 2 / -1; padding: var(--space-3) 0 var(--space-2); border-top: 1px dashed var(--border-cozy); }
 .almanack-entry__effect p { max-width: 76ch; white-space: pre-wrap; line-height: 1.6; }
 .almanack-entry__effect h4 { margin: var(--space-3) 0 0; font-size: 0.82rem; }
@@ -1769,7 +1708,6 @@ button:active {
 .controlled-prompt.app-dialog .app-dialog__header h2 {
   margin: 0;
   color: var(--editorial-ink, #25211c);
-  font-size: 1.08rem;
   line-height: 1.3;
 }
 
@@ -1777,7 +1715,6 @@ button:active {
   margin: 0;
   padding: 1.15rem 1.2rem;
   color: var(--text-bright);
-  font-size: 0.9rem;
   line-height: 1.65;
   white-space: pre-wrap;
 }
@@ -3095,28 +3032,19 @@ button:active {
 
 /* Current-turn action hub */
 .action-hub {
-  background: #fffefa;
-  border: 1.6px solid var(--border-cozy);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
 }
 
 .action-hub__header {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 1rem;
-  border-bottom: 1px dashed rgba(36, 32, 24, 0.22);
-  padding-bottom: 0.75rem;
 }
 
 .action-hub__header h2 {
   margin: 0.15rem 0 0;
-  font-size: 1.15rem;
   color: var(--text-bright);
 }
 
@@ -3133,9 +3061,6 @@ button:active {
   align-items: center;
   gap: 0.35rem;
   padding: 0.25rem 0.5rem;
-  border: 1px solid rgba(36, 32, 24, 0.18);
-  border-radius: var(--radius-sm);
-  background: #f7f6ef;
   color: var(--text-muted);
   font-size: 0.76rem;
   line-height: 1.35;
@@ -3148,8 +3073,6 @@ button:active {
 
 .action-hub__grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.65rem;
 }
 
 .action-step {
@@ -3167,9 +3090,7 @@ button:active {
 }
 
 .action-step:hover:not(:disabled) {
-  transform: translateY(-1px);
   border-color: var(--border-cozy);
-  box-shadow: var(--shadow-md);
 }
 
 .action-step:disabled {
@@ -3221,29 +3142,14 @@ button:active {
 }
 
 .action-step--primary {
-  background: #f2f6ec;
   border-color: rgba(102, 116, 93, 0.58);
 }
 
-.action-step--primary .action-step__index {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
-
 .action-step--warning {
-  background: #fff6ea;
   border-color: rgba(176, 122, 66, 0.7);
 }
 
-.action-step--warning .action-step__index {
-  background: var(--accent-orange);
-  border-color: var(--accent-orange);
-  color: #fff;
-}
-
 .action-step--done {
-  background: #edf6f0;
   border-color: rgba(61, 130, 77, 0.52);
 }
 
@@ -3275,14 +3181,6 @@ button:active {
 
   .action-hub__status {
     justify-content: flex-start;
-  }
-
-  .action-hub__grid {
-    grid-template-columns: 1fr;
-  }
-
-  .action-step {
-    min-height: 92px;
   }
 
   .app-dialog-backdrop {
@@ -3364,133 +3262,6 @@ button:active {
   }
 }
 
-/* =================================================================
-   BOTANICAL JOURNAL REMASTER
-   The interface reads as one continuous field book instead of a
-   collection of dashboard cards. Existing inline gameplay layout is
-   intentionally preserved underneath this editorial layer.
-   ================================================================= */
-
-:root {
-  --paper: #f6f1e5;
-  --paper-light: #fffdf6;
-  --paper-shadow: #ddd4c2;
-  --sage: #87937b;
-  --herb: #657255;
-  --forest-ink: #3f4c3a;
-  --wood: #705943;
-  --berry: #8c4055;
-  --petal: #d89ba4;
-  --apricot: #d59a68;
-  --rain: #657d85;
-  --ink: #342f27;
-  --soft-ink: #6d655a;
-
-  --bg-deep: var(--paper-shadow);
-  --bg-gradient: var(--paper);
-  --primary: var(--herb);
-  --primary-hover: var(--forest-ink);
-  --primary-light: #e5eadf;
-  --secondary: var(--wood);
-  --secondary-light: #efe6d8;
-  --accent-blue: var(--rain);
-  --accent-red: var(--berry);
-  --accent-orange: var(--apricot);
-  --text-bright: var(--ink);
-  --text-muted: var(--soft-ink);
-  --text-dim: #948b7e;
-  --surface: var(--paper-light);
-  --surface-muted: #ececde;
-  --glass-card: var(--paper-light);
-  --border-cozy: #51483b;
-  --shadow-sm: 0 1px 0 rgba(52, 47, 39, 0.12);
-  --shadow-md: 0 10px 30px rgba(52, 47, 39, 0.08);
-  --journal-content-gutter: clamp(1.25rem, 2.6vw, 3rem);
-}
-
-html {
-  background: var(--paper);
-  scroll-behavior: smooth;
-}
-
-body {
-  background: var(--paper);
-  background-image: none;
-  color: var(--ink);
-}
-
-.journal-app {
-  min-height: 100vh;
-  background:
-    repeating-linear-gradient(0deg, transparent 0, transparent 33px, rgba(93, 80, 61, 0.035) 34px),
-    var(--paper);
-}
-
-.journal-header {
-  position: relative;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
-  max-width: 1360px;
-  margin: 0 auto;
-  padding: 1.5rem 2rem 1.1rem;
-  border-bottom: 1px solid rgba(52, 47, 39, 0.28);
-  background: rgba(246, 241, 229, 0.96);
-}
-
-.journal-header h1 {
-  font-family: var(--font-display);
-  font-size: 1.32rem !important;
-  font-weight: 500;
-}
-
-.journal-brand {
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-}
-
-.journal-header > div:last-child {
-  justify-content: flex-end;
-  flex-wrap: wrap;
-}
-
-.journal-header > div:last-child > div {
-  border-radius: var(--radius-sm) !important;
-  background: transparent !important;
-}
-
-.journal-header__action,
-.journal-header__icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  min-height: 36px;
-  padding: 0.35rem 0.65rem;
-  border: 0;
-  border-bottom: 1px solid rgba(52, 47, 39, 0.35);
-  border-radius: 0;
-  background: transparent;
-  color: var(--soft-ink);
-  font-size: 0.76rem;
-}
-
-.journal-header__action:hover,
-.journal-header__icon-button:hover {
-  border-color: var(--herb);
-  color: var(--forest-ink);
-}
-
-.journal-header__action--reset {
-  color: var(--berry);
-}
-
 .stamped-icon {
   width: 44px;
   height: 44px;
@@ -3500,282 +3271,11 @@ body {
   opacity: 0.82;
 }
 
-.journal-tabs {
-  position: sticky;
-  top: 0;
-  z-index: 18;
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  max-width: 1360px;
-  margin: 0 auto;
-  padding: 0 2rem;
-  overflow-x: auto;
-  border-bottom: 1px solid rgba(52, 47, 39, 0.22);
-  background: rgba(246, 241, 229, 0.97);
-  scrollbar-width: none;
-}
-
-.journal-tabs::-webkit-scrollbar {
-  display: none;
-}
-
-.journal-tab {
-  --tab-paper: #e8dfcf;
-  --tab-ink: #5f5547;
-  position: relative;
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  gap: 0.42rem;
-  min-height: 50px;
-  padding: 0.65rem 0.82rem;
-  border-right: 1px solid rgba(52, 47, 39, 0.1);
-  border-bottom: 3px solid transparent;
-  background: var(--tab-paper);
-  color: var(--tab-ink);
-  font-size: 0.78rem;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.journal-tab:hover {
-  color: var(--ink);
-  filter: brightness(0.97) saturate(1.04);
-}
-
-.journal-tab--active {
-  border-bottom-color: var(--tab-ink);
-  color: var(--ink);
-  font-weight: 700;
-}
-
-.journal-tab--play { --tab-paper: #ead9c5; --tab-ink: #765a43; }
-.journal-tab--ailments { --tab-paper: #e7d2d6; --tab-ink: #805d66; }
-.journal-tab--reagents { --tab-paper: #d9e2d2; --tab-ink: #5f7459; }
-.journal-tab--bio { --tab-paper: #e8dfc5; --tab-ink: #796847; }
-.journal-tab--map { --tab-paper: #d8e1e1; --tab-ink: #5c7274; }
-.journal-tab--almanack { --tab-paper: #dfd9e5; --tab-ink: #706477; }
-.journal-tab--patientArchive { --tab-paper: #ead8cf; --tab-ink: #825f54; }
-.journal-tab--livingArchive { --tab-paper: #d7e2dc; --tab-ink: #5c7368; }
-.journal-tab--journals { --tab-paper: #e1dad7; --tab-ink: #716360; }
-
-.grid-dashboard {
-  display: block;
-  max-width: 1280px;
-  min-height: 0;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
-.grid-dashboard > aside {
-  display: none !important;
-}
-
-.glass-panel.main-content-panel {
-  min-width: 0;
-  padding: 0 var(--journal-content-gutter);
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  background-image: none;
-  box-shadow: none;
-}
-
-.main-content-panel > * + * {
-  margin-top: 2.5rem;
-}
-
-.today-overview {
-  display: grid;
-  gap: 2.5rem;
-  margin-bottom: 4.5rem;
-}
-
-.today-scene {
-  position: relative;
-  isolation: isolate;
-  display: flex;
-  min-height: 360px;
-  align-items: center;
-  overflow: hidden;
-  padding: clamp(2rem, 7vw, 5rem);
-  border: 1px solid rgba(83, 62, 46, 0.24);
-  border-radius: var(--radius-md);
-  background: #ead9c5;
-  color: #4f4034;
-  box-shadow: var(--shadow-md);
-}
-
-.today-scene__mark {
-  position: absolute;
-  right: clamp(-1.5rem, 3vw, 2.5rem);
-  bottom: clamp(-2.5rem, -2vw, -1rem);
-  width: clamp(190px, 31vw, 390px);
-  height: auto;
-  color: #765a43;
-  opacity: 0.13;
-  pointer-events: none;
-}
-
-.today-scene__copy {
-  position: relative;
-  z-index: 2;
-  width: min(650px, 100%);
-  color: #4f4034;
-}
-
-.today-scene__copy p {
-  margin: 0.55rem 0 0.25rem;
-  font-size: 0.86rem;
-}
-
-.today-scene__copy h2 {
-  max-width: 18ch;
-  margin: 0 0 1.35rem;
-  color: #4f4034;
-  font-family: var(--font-base);
-  font-size: 2.45rem;
-  font-weight: 500;
-  line-height: 1.25;
-}
-
-.today-scene__season {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.38rem;
-  padding-bottom: 0.25rem;
-  border-bottom: 1px solid rgba(79, 64, 52, 0.48);
-  font-size: 0.76rem;
-}
-
-.today-scene__copy button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-height: 42px;
-  padding: 0.65rem 0.9rem;
-  border: 1px solid rgba(79, 64, 52, 0.56);
-  border-radius: var(--radius-sm);
-  background: rgba(255, 253, 246, 0.34);
-  color: #4f4034;
-}
-
-.today-scene__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  margin-top: 0.9rem;
-}
-
-.today-scene__restart {
-  border-color: rgba(79, 64, 52, 0.66) !important;
-}
-
-.today-scene__map-preview {
-  border-color: rgba(79, 64, 52, 0.72) !important;
-}
-
-.today-scene__copy button:hover {
-  background: rgba(255, 253, 246, 0.62);
-}
-
-.today-story {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  border-top: 2px solid var(--ink);
-  border-bottom: 1px solid rgba(52, 47, 39, 0.3);
-}
-
-.today-story article {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  padding: 1.4rem 1.15rem 1.55rem;
-  border-right: 1px solid rgba(52, 47, 39, 0.22);
-  background: rgba(255, 253, 246, 0.48);
-}
-
-.today-story article:last-child {
-  border-right: 0;
-}
-
-.today-patient { grid-column: span 3; }
-.today-herbs { grid-column: span 3; }
-.today-place { grid-column: span 2; }
-.today-bag { grid-column: span 2; }
-.today-journal { grid-column: span 2; }
-
 .journal-note-label {
   display: block;
   margin-bottom: 0.75rem;
-  color: var(--berry);
   font-family: var(--font-fancy);
-  font-size: 0.7rem;
   font-weight: 700;
-}
-
-.today-story h3 {
-  margin: 0;
-  font-family: var(--font-base);
-  font-size: 1.05rem;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.today-story p,
-.today-story li,
-.today-story dt,
-.today-story dd {
-  font-size: 0.78rem;
-  line-height: 1.65;
-}
-
-.today-story p {
-  margin: 0.35rem 0 0;
-  color: var(--soft-ink);
-}
-
-.today-journal__summary {
-  white-space: pre-line;
-}
-
-.today-story dl {
-  display: grid;
-  gap: 0.2rem;
-  margin: 0.8rem 0 0;
-}
-
-.today-story dl > div {
-  display: flex;
-  min-height: 28px;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.8rem;
-  padding-top: 0.25rem;
-  border-top: 1px dotted rgba(52, 47, 39, 0.24);
-}
-
-.today-story dd {
-  margin: 0;
-  text-align: right;
-  font-weight: 600;
-}
-
-.today-herbs ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  margin: 0.8rem 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.today-herbs li {
-  padding: 0.12rem 0.4rem;
-  border-bottom: 1px solid rgba(63, 76, 58, 0.42);
-  color: var(--forest-ink);
 }
 
 .journal-text-action {
@@ -3785,178 +3285,30 @@ body {
   align-self: flex-start;
   gap: 0.35rem;
   min-height: 40px;
-  margin-top: 1rem;
   padding: 0.2rem 0;
   border-bottom: 1px solid rgba(63, 76, 58, 0.45);
   border-radius: 0;
   background: transparent;
-  color: var(--forest-ink);
   font-size: 0.75rem;
   line-height: 1.2;
 }
 
-.today-bag__line {
-  height: 4px;
-  margin-top: 0.75rem;
-  overflow: hidden;
-  background: rgba(52, 47, 39, 0.12);
-}
-
-.today-bag__line span {
-  display: block;
-  height: 100%;
-  background: var(--sage);
-}
-
 /* Each destination opens as a field-journal chapter before its working notes. */
-.chapter-opening {
-  --chapter-paper: #e8dfcf;
-  --chapter-ink: #52493e;
-  --chapter-accent: #766958;
-  position: relative;
-  isolation: isolate;
-  min-height: 310px;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  margin-bottom: 4.5rem;
-  border: 1px solid color-mix(in srgb, var(--chapter-accent) 40%, transparent);
-  border-left: 8px solid var(--chapter-accent);
-  border-radius: var(--radius-sm);
-  background: var(--chapter-paper);
-  color: var(--chapter-ink);
-  box-shadow: var(--shadow-md);
-}
-
-.chapter-opening__mark {
-  position: absolute;
-  right: clamp(-1rem, 2vw, 2rem);
-  bottom: clamp(-2.5rem, -2vw, -1rem);
-  width: clamp(180px, 28vw, 340px);
-  height: auto;
-  color: var(--chapter-accent);
-  opacity: 0.13;
-  pointer-events: none;
-}
-
-.chapter-opening--ailments { --chapter-paper: #e7d2d6; --chapter-ink: #553f45; --chapter-accent: #805d66; }
-.chapter-opening--reagents { --chapter-paper: #d9e2d2; --chapter-ink: #3f4d3b; --chapter-accent: #5f7459; }
-.chapter-opening--bio { --chapter-paper: #e8dfc5; --chapter-ink: #51482f; --chapter-accent: #796847; }
-.chapter-opening--map { --chapter-paper: #d8e1e1; --chapter-ink: #3f5052; --chapter-accent: #5c7274; }
-.chapter-opening--almanack { --chapter-paper: #dfd9e5; --chapter-ink: #4c4551; --chapter-accent: #706477; }
-.chapter-opening--patientArchive { --chapter-paper: #ead8cf; --chapter-ink: #55443d; --chapter-accent: #825f54; }
-.chapter-opening--livingArchive { --chapter-paper: #d7e2dc; --chapter-ink: #3f4f48; --chapter-accent: #5c7368; }
-.chapter-opening--journals { --chapter-paper: #e1dad7; --chapter-ink: #4d4543; --chapter-accent: #716360; }
-
-.chapter-opening__copy {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  min-height: 310px;
-  max-width: 720px;
-  flex-direction: column;
-  justify-content: center;
-  padding: 2.6rem clamp(1.5rem, 5%, 4.5rem) 2.8rem;
-}
-
-.chapter-opening__kicker {
-  width: fit-content;
-  margin: 0 0 0.5rem;
-  padding-bottom: 0.24rem;
-  border-bottom: 1px solid currentColor;
-  font-family: var(--font-fancy);
-  font-size: 0.72rem;
-  font-weight: 700;
-  opacity: 0.88;
-}
-
-.chapter-opening__copy h2 {
-  margin: 0;
-  color: inherit;
-  font-family: var(--font-base);
-  font-size: 2.35rem;
-  font-weight: 500;
-  line-height: 1.25;
-}
-
-.chapter-opening__body {
-  max-width: 58ch;
-  margin: 0.8rem 0 0;
-  font-size: 0.86rem;
-  line-height: 1.75;
-}
-
-.chapter-opening__notes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem 0;
-  margin: 1.15rem 0 0;
-  padding: 0;
-  list-style: none;
-  font-family: var(--font-fancy);
-  font-size: 0.7rem;
-  font-weight: 600;
-}
-
-.chapter-opening__notes li {
-  padding: 0 0.65rem;
-  border-left: 1px solid currentColor;
-}
-
-.chapter-opening__notes li:first-child {
-  padding-left: 0;
-  border-left: 0;
-}
-
-.chapter-opening__copy button {
-  display: inline-flex;
-  width: fit-content;
-  min-height: 40px;
-  align-items: center;
-  gap: 0.42rem;
-  margin-top: 1.15rem;
-  padding: 0.55rem 0.8rem;
-  border: 1px solid currentColor;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 253, 246, 0.12);
-  color: inherit;
-}
-
-.chapter-opening__copy button:hover {
-  background: rgba(255, 253, 246, 0.52);
-}
 
 .journal-chapter {
-  max-width: 1120px;
   margin: 0 auto;
   padding: 0 0 6rem;
-}
-
-.journal-chapter > .parchment-panel,
-.journal-chapter > .glass-panel,
-.journal-chapter > div {
-  border: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.journal-chapter > .parchment-panel,
-.journal-chapter > .glass-panel {
-  padding: 0 !important;
 }
 
 .journal-chapter > div > h2:first-child,
 .journal-chapter > .parchment-panel > div:first-child h2 {
   color: var(--ink) !important;
   font-family: var(--font-base) !important;
-  font-size: 1.55rem !important;
-  font-weight: 500 !important;
 }
 
 .journal-chapter > div > h2:first-child {
   margin: 0;
   padding: 0 0 0.85rem !important;
-  border-bottom: 3px double rgba(52, 47, 39, 0.56) !important;
 }
 
 .journal-chapter > div > h2:first-child + p {
@@ -3965,34 +3317,10 @@ body {
   line-height: 1.8;
 }
 
-.journal-chapter input,
-.journal-chapter textarea,
-.journal-chapter select {
-  min-height: 42px;
-  border-color: rgba(52, 47, 39, 0.34) !important;
-  border-radius: var(--radius-sm) !important;
-  background: rgba(255, 253, 246, 0.82) !important;
-  color: var(--ink) !important;
-}
-
-.journal-chapter input:focus-visible,
-.journal-chapter textarea:focus-visible,
-.journal-chapter select:focus-visible {
-  outline: 2px solid var(--rain);
-  outline-offset: 2px;
-}
-
 .journal-chapter--reagents .grid-reagents,
 .journal-chapter--ailments > div > div:last-child {
   border-top: 1px solid rgba(52, 47, 39, 0.32);
   border-bottom: 1px solid rgba(52, 47, 39, 0.24);
-}
-
-.journal-chapter--reagents .cute-card h4,
-.journal-chapter--ailments .cute-card h4 {
-  color: var(--ink) !important;
-  font-family: var(--font-base);
-  font-weight: 600 !important;
 }
 
 .journal-chapter--bio .grid-2col > div,
@@ -4002,30 +3330,6 @@ body {
   border-radius: 0 !important;
   background: rgba(255, 253, 246, 0.34) !important;
   box-shadow: none !important;
-}
-
-.bio-page-actions,
-.bio-page-actions button {
-  display: inline-flex !important;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.bio-page-actions button {
-  min-height: 38px;
-  padding: 0.35rem 0.6rem !important;
-  border: 0 !important;
-  border-bottom: 1px solid rgba(52, 47, 39, 0.42) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  color: var(--soft-ink) !important;
-  font-size: 0.72rem !important;
-}
-
-.bio-page-actions button:first-child {
-  border-bottom-color: rgba(140, 64, 85, 0.55) !important;
-  color: var(--berry) !important;
 }
 
 .bio-page-header,
@@ -4079,15 +3383,6 @@ body {
   color: var(--text-muted);
   font-size: 0.8rem;
   font-weight: 700;
-}
-
-.forage-location-controls select {
-  width: 100%;
-  min-width: 0;
-  min-height: 44px;
-  padding: 0.55rem 2rem 0.55rem 0.7rem;
-  color: var(--text-bright);
-  font: inherit;
 }
 
 .forage-context__summary {
@@ -4184,15 +3479,6 @@ body {
   font-weight: 700;
 }
 
-.forage-plan select {
-  width: 100%;
-  min-width: 0;
-  min-height: 44px;
-  padding: 0.5rem 2rem 0.5rem 0.65rem;
-  color: var(--text-bright);
-  font: inherit;
-}
-
 .forage-requirement-picker {
   display: grid;
   gap: 0.5rem;
@@ -4218,48 +3504,6 @@ body {
   min-width: 0;
   flex-wrap: wrap;
   gap: 0.4rem;
-}
-
-.forage-tag-choices > button {
-  display: grid;
-  min-width: 7.5rem;
-  min-height: 52px;
-  gap: 0.08rem;
-  padding: 0.45rem 0.65rem;
-  border: 1px solid rgba(140, 64, 85, 0.45);
-  background: rgba(248, 228, 233, 0.62);
-  color: var(--berry);
-  text-align: left;
-}
-
-.forage-tag-choices > button small {
-  color: #765461;
-  font-size: 0.74rem;
-}
-
-.forage-tag-choices > button:hover,
-.forage-tag-choices > button:focus-visible,
-.forage-tag-choices > button.is-active {
-  border-color: #52734e;
-  background: #e3eddf;
-  color: #31543a;
-  box-shadow: inset 0 -3px 0 #52734e;
-}
-
-.forage-tag-choices > button.is-covered {
-  border-color: rgba(80, 98, 105, 0.42);
-  background: #e3e9e9;
-  color: #566365;
-  box-shadow: none;
-}
-
-.forage-tag-choices > button.is-covered small {
-  color: #687477;
-}
-
-.forage-tag-choices > button.is-active.is-covered {
-  border-color: #52734e;
-  box-shadow: inset 0 -3px 0 #52734e;
 }
 
 .forage-target-table {
@@ -4542,17 +3786,6 @@ body {
   align-items: flex-start;
 }
 
-.forage-action-row > button,
-.forage-action-row .forage-primary-action > button {
-  min-height: 46px;
-  line-height: 1.35;
-}
-
-.forage-primary-action > button {
-  width: 100%;
-  min-height: 46px;
-}
-
 .forage-candidate {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -4619,13 +3852,6 @@ body {
   font-weight: 700;
 }
 
-.inventory-ledger__toolbar input {
-  width: 100%;
-  min-height: 40px;
-  padding: 0.45rem 0.6rem;
-  font: inherit;
-}
-
 .inventory-ledger__detail {
   margin-top: 0.16rem;
   font-weight: 400;
@@ -4683,10 +3909,6 @@ body {
   line-height: 1.5;
 }
 
-.downtime-season-action button {
-  flex: 0 0 auto;
-}
-
 .journal-chapter--patientArchive,
 .journal-chapter--journals {
   max-width: 940px;
@@ -4705,51 +3927,15 @@ body {
   background: rgba(255, 253, 246, 0.8) !important;
 }
 
-.journal-document-actions,
-.journal-document-actions button,
-.journal-document-actions label {
-  display: inline-flex !important;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.journal-document-actions button,
-.journal-document-actions label {
-  min-height: 38px;
-  padding: 0.4rem 0.65rem !important;
-  border: 0 !important;
-  border-bottom: 1px solid rgba(52, 47, 39, 0.4) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  color: var(--soft-ink) !important;
-  font-family: var(--font-fancy);
-  font-size: 0.72rem !important;
-  font-weight: 600;
-}
-
 .journal-subtabs {
   gap: 0 !important;
   margin: 1.25rem 0 2.5rem !important;
   overflow-x: auto;
-  border-top: 1px solid rgba(52, 47, 39, 0.28);
-  border-bottom: 1px solid rgba(52, 47, 39, 0.28);
   scrollbar-width: none;
 }
 
 .journal-subtabs::-webkit-scrollbar {
   display: none;
-}
-
-.journal-subtabs button {
-  flex: 0 0 auto;
-  min-height: 46px;
-  padding: 0.55rem 0.8rem !important;
-  border: 0 !important;
-  border-right: 1px solid rgba(52, 47, 39, 0.18) !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  font-size: 0.74rem !important;
-  white-space: nowrap;
 }
 
 .journal-casebook-grid {
@@ -4766,44 +3952,11 @@ body {
 }
 
 /* Ongoing chapters: unframed forms separated like field-book entries. */
-.main-content-panel .action-hub,
-.main-content-panel .glass-panel,
-.main-content-panel .parchment-panel,
-.main-content-panel .cute-card {
-  border-radius: 0;
-  background-color: rgba(255, 253, 246, 0.48) !important;
-  background-image: none !important;
-  box-shadow: none !important;
-}
-
-.main-content-panel .cute-card {
-  border: 0 !important;
-  border-top: 1px solid rgba(52, 47, 39, 0.28) !important;
-  padding: 1.25rem 0.4rem !important;
-}
-
-.main-content-panel .cute-card::after,
-.main-content-panel .cute-border::after {
-  display: none;
-}
-
-.main-content-panel .glass-panel,
-.main-content-panel .parchment-panel {
-  border-color: rgba(52, 47, 39, 0.32);
-}
-
-.main-content-panel h2,
-.main-content-panel h3 {
-  font-family: var(--font-base);
-}
 
 .action-hub {
-  gap: 1.25rem;
   margin-top: 0;
   padding: 2rem 0 2.5rem;
   border: 0;
-  border-top: 2px solid var(--ink);
-  border-bottom: 1px solid rgba(52, 47, 39, 0.25);
   background: transparent;
   box-shadow: none;
   scroll-margin-top: 72px;
@@ -4811,7 +3964,6 @@ body {
 
 .action-hub__header {
   border-bottom: 0;
-  padding-bottom: 0;
 }
 
 .action-hub__chip {
@@ -4832,12 +3984,9 @@ body {
 .action-step--primary,
 .action-step--warning,
 .action-step--done {
-  min-height: 118px;
   padding: 1rem;
   border: 0;
-  border-right: 1px solid rgba(52, 47, 39, 0.24);
   border-radius: 0;
-  background: rgba(255, 253, 246, 0.35);
 }
 
 .action-step:last-child {
@@ -4846,7 +3995,6 @@ body {
 
 .action-step:hover:not(:disabled) {
   transform: none;
-  background: rgba(229, 234, 223, 0.72);
   box-shadow: none;
 }
 
@@ -4881,7 +4029,6 @@ body {
 .almanack__header {
   align-items: flex-end;
   padding-bottom: 1.6rem;
-  border-bottom: 3px double var(--ink);
 }
 
 .almanack__header h2 {
@@ -4931,10 +4078,6 @@ body {
 .automation-mark--manual { color: var(--manual); }
 .automation-mark--ambiguous { color: var(--berry); }
 .automation-mark--choice { color: var(--rain); }
-
-#patient-clinic-panel select {
-  min-height: 44px;
-}
 
 .treatment-workbench__header {
   display: flex;
@@ -5037,23 +4180,6 @@ body {
   min-width: 0;
   overflow-wrap: anywhere;
   font-family: var(--font-fancy);
-}
-
-.remedy-ledger__entry > button {
-  min-height: 44px;
-  flex: 0 0 auto;
-  padding: 0.4rem 0.65rem;
-  border: 1px solid rgba(91, 116, 67, 0.55);
-  border-radius: 0;
-  background: rgba(251, 248, 235, 0.9);
-  color: var(--forest-ink);
-  font-weight: 700;
-}
-
-.remedy-ledger__entry > button:disabled {
-  border-color: rgba(70, 58, 43, 0.2);
-  background: rgba(229, 224, 211, 0.6);
-  color: var(--text-muted);
 }
 
 .treatment-comparison {
@@ -5213,13 +4339,6 @@ body {
   cursor: pointer;
 }
 
-.treatment-option > label > input {
-  width: 1.05rem;
-  height: 1.05rem;
-  flex: 0 0 auto;
-  margin-top: 0.12rem;
-}
-
 .treatment-option > label > span {
   display: grid;
   min-width: 0;
@@ -5347,13 +4466,6 @@ body {
   gap: 0.5rem;
 }
 
-.treatment-submit-actions > button {
-  min-width: 10rem;
-  min-height: 50px;
-  padding: 0.65rem 0.9rem;
-  font-weight: 700;
-}
-
 .treatment-submit-actions > .treatment-complete {
   border: 1px solid var(--primary);
   background: var(--primary);
@@ -5365,13 +4477,6 @@ body {
   border: 1px solid rgba(91, 74, 57, 0.52);
   background: var(--paper-deep);
   color: var(--ink);
-}
-
-.treatment-submit-actions > button:disabled {
-  border-color: rgba(52, 47, 39, 0.24);
-  background: rgba(52, 47, 39, 0.14);
-  color: var(--text-muted);
-  cursor: not-allowed;
 }
 
 .treatment-reward-checkpoint {
@@ -5396,15 +4501,6 @@ body {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.65rem;
   margin-top: 0.85rem;
-}
-
-.treatment-reward-checkpoint__choices > button {
-  display: grid;
-  min-height: 58px;
-  min-width: 0;
-  gap: 0.15rem;
-  align-content: center;
-  text-align: left;
 }
 
 .treatment-reward-checkpoint__choices span {
@@ -5501,12 +4597,6 @@ body {
   overflow-wrap: anywhere;
 }
 
-.treatment-result-receipt button {
-  grid-column: 1 / -1;
-  justify-self: start;
-  min-height: 42px;
-}
-
 @media (max-width: 560px) {
   .patient-intake-fields {
     grid-template-columns: minmax(0, 1fr) !important;
@@ -5554,11 +4644,6 @@ body {
     max-height: none;
   }
 
-  .treatment-submit-actions,
-  .treatment-submit-actions > button {
-    width: 100%;
-  }
-
   .treatment-submit-actions {
     flex-wrap: wrap;
   }
@@ -5593,9 +4678,7 @@ body {
 
 .barrow-field-note {
   padding: 2rem;
-  border: 1px solid var(--rain);
   border-left: 6px solid var(--rain);
-  background: #edf1ed;
 }
 
 .barrow-field-note__header {
@@ -5671,25 +4754,6 @@ body {
 }
 
 @media (max-width: 1040px) {
-  .journal-header,
-  .journal-tabs,
-  .grid-dashboard {
-    padding-left: 1.25rem;
-    padding-right: 1.25rem;
-  }
-
-  .today-story {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .today-patient,
-  .today-herbs { grid-column: span 3; }
-  .today-place,
-  .today-bag,
-  .today-journal { grid-column: span 2; }
-
-  .today-story article:nth-child(2) { border-right: 0; }
-  .today-story article:nth-child(-n + 2) { border-bottom: 1px solid rgba(52, 47, 39, 0.22); }
 
   .action-hub__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -5697,110 +4761,9 @@ body {
 
   .action-step:nth-child(2) { border-right: 0; }
   .action-step:nth-child(-n + 2) { border-bottom: 1px solid rgba(52, 47, 39, 0.24); }
-
-  .chapter-opening {
-    margin-bottom: 3.5rem;
-  }
 }
 
 @media (max-width: 720px) {
-  :root {
-    --journal-content-gutter: 1rem;
-  }
-
-  .journal-header {
-    flex-direction: row;
-    align-items: center !important;
-    gap: 0.5rem;
-    padding: 1rem !important;
-  }
-
-  .journal-header > div:first-child {
-    min-width: 0;
-  }
-
-  .journal-header .stamped-icon,
-  .journal-header > div:first-child > div > div {
-    display: none;
-  }
-
-  .journal-header h1 {
-    font-size: 1.05rem !important;
-    line-height: 1.25;
-  }
-
-  .journal-header > div:last-child {
-    width: auto;
-    margin-left: auto;
-    flex-wrap: nowrap;
-    justify-content: flex-end;
-  }
-
-  .journal-header__action span,
-  .journal-header__icon-button span {
-    display: none;
-  }
-
-  .journal-header__action,
-  .journal-header__icon-button {
-    width: 44px;
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0;
-    border: 1px solid rgba(52, 47, 39, 0.25);
-    border-radius: var(--radius-sm);
-  }
-
-  .journal-tabs {
-    padding: 0 0.55rem;
-  }
-
-  .journal-tab {
-    min-width: 52px;
-    padding: 0.55rem 0.7rem;
-  }
-
-  .journal-tab span {
-    display: none;
-  }
-
-  .grid-dashboard {
-    padding: 1rem;
-  }
-
-  .chapter-opening {
-    min-height: 330px;
-    margin-bottom: 2.75rem;
-  }
-
-  .chapter-opening__copy {
-    min-height: 330px;
-    justify-content: center;
-    padding: 2.2rem 1.25rem;
-  }
-
-  .chapter-opening__mark {
-    right: -1.5rem;
-    bottom: -1.5rem;
-    width: 190px;
-  }
-
-  .chapter-opening__copy h2 {
-    font-size: 1.75rem;
-  }
-
-  .chapter-opening__body {
-    font-size: 0.8rem;
-    line-height: 1.65;
-  }
-
-  .chapter-opening__notes {
-    font-size: 0.66rem;
-  }
-
-  .chapter-opening__notes li {
-    padding: 0 0.45rem;
-  }
 
   .journal-chapter {
     padding-bottom: 4rem;
@@ -5824,44 +4787,6 @@ body {
   .journal-document-actions {
     width: 100%;
     flex-wrap: wrap;
-  }
-
-  .today-overview {
-    gap: 1.35rem;
-    margin-bottom: 3rem;
-  }
-
-  .today-scene {
-    min-height: 320px;
-    padding: 2rem 1.3rem;
-  }
-
-  .today-scene__mark {
-    right: -2rem;
-    bottom: -1.5rem;
-    width: 210px;
-  }
-
-  .today-scene__copy h2 {
-    font-size: 1.72rem;
-  }
-
-  .today-story {
-    grid-template-columns: 1fr;
-  }
-
-  .today-patient,
-  .today-herbs,
-  .today-place,
-  .today-bag,
-  .today-journal {
-    grid-column: 1;
-    border-right: 0 !important;
-    border-bottom: 1px solid rgba(52, 47, 39, 0.22);
-  }
-
-  .today-journal {
-    border-bottom: 0;
   }
 
   .action-hub__header,
@@ -5916,10 +4841,6 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .main-content-panel header:not(.journal-header) {
-    padding: 0 !important;
-  }
-
   .ailment-card__header {
     align-items: flex-start !important;
     flex-direction: column;
@@ -5970,191 +4891,12 @@ body {
     align-items: stretch;
     flex-direction: column;
   }
-
-  .downtime-season-action button {
-    width: 100%;
-  }
-}
-
-@media (min-width: 721px) and (max-height: 650px) {
-  .today-scene {
-    min-height: 300px;
-  }
-
-  .today-scene__copy h2 {
-    margin-bottom: 0.8rem;
-    font-size: 1.8rem;
-  }
-}
-
-/* =================================================================
-   EDITORIAL FIELD GUIDE
-   A print-led layer inspired by independent art books: a bold
-   masthead, small table-of-contents navigation, asymmetric colour
-   fields, and hard-edged natural-history notes instead of app cards.
-   ================================================================= */
-
-:root {
-  --editorial-ink: #25211c;
-  --editorial-paper: #f7f1e4;
-  --editorial-sky: #cfe1df;
-  --editorial-pink: #e5c8ce;
-  --editorial-green: #cbd9c5;
-  --editorial-yellow: #e5d8ad;
-  --editorial-blue: #c8d9dc;
-  --editorial-lilac: #d8cfe0;
-  --editorial-clay: #dfc4b7;
-  --editorial-mint: #c5d9d0;
-  --editorial-stone: #d8cfca;
-  --editorial-rule: 2px solid var(--editorial-ink);
-}
-
-body {
-  background: var(--editorial-paper);
-}
-
-.journal-app {
-  --page-tint: var(--editorial-sky);
-  background: var(--editorial-paper);
-}
-
-.journal-app--play { --page-tint: #e4ceb5; }
-.journal-app--ailments { --page-tint: var(--editorial-pink); }
-.journal-app--reagents { --page-tint: var(--editorial-green); }
-.journal-app--bio { --page-tint: var(--editorial-yellow); }
-.journal-app--map { --page-tint: var(--editorial-blue); }
-.journal-app--almanack { --page-tint: var(--editorial-lilac); }
-.journal-app--patientArchive { --page-tint: var(--editorial-clay); }
-.journal-app--livingArchive { --page-tint: var(--editorial-mint); }
-.journal-app--journals { --page-tint: var(--editorial-stone); }
-
-.journal-header {
-  position: relative;
-  display: block;
-  max-width: none;
-  min-height: 280px;
-  margin: 0;
-  padding: 4rem 3rem 2rem;
-  border: 0;
-  border-bottom: var(--editorial-rule);
-  background: var(--editorial-sky);
-}
-
-.journal-brand {
-  display: grid;
-  width: min(1420px, 100%);
-  min-height: 0;
-  margin: 0 auto;
-  place-items: center;
-  color: var(--editorial-ink);
-  text-align: center;
-}
-
-.journal-brand__eyebrow {
-  order: 2;
-  margin-top: 1rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  line-height: 1.5;
-  text-transform: uppercase;
-}
-
-.journal-header .journal-brand__title {
-  order: 1;
-  margin: 0;
-  color: var(--editorial-ink);
-  font-family: var(--font-display);
-  font-size: 7.5rem !important;
-  font-weight: 700 !important;
-  line-height: 0.9;
-  letter-spacing: 0;
-}
-
-.journal-brand__title span {
-  display: inline;
-}
-
-.journal-brand__edition {
-  order: 3;
-  margin-top: 0.25rem;
-  color: rgba(37, 33, 28, 0.72);
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.journal-header__utilities {
-  position: absolute;
-  top: 1rem;
-  right: 2rem;
-  display: flex;
-  max-width: calc(100% - 4rem);
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.45rem 0.8rem;
-}
-
-.journal-header__utilities > div {
-  border: 0 !important;
-  background: transparent !important;
-}
-
-.journal-header__action,
-.journal-header__icon-button,
-.pending-action-button,
-.save-state {
-  min-height: 44px;
-  padding: 0.2rem 0.35rem;
-  border: 0;
-  border-bottom: 1px solid rgba(37, 33, 28, 0.5);
-  border-radius: 0;
-  background: transparent;
-  color: var(--editorial-ink);
-  font-size: 0.7rem;
 }
 
 .save-state {
   display: inline-flex;
   align-items: center;
   border-bottom-color: transparent;
-}
-
-.journal-tabs {
-  position: sticky;
-  top: 0;
-  z-index: 18;
-  justify-content: center;
-  gap: 1rem;
-  max-width: none;
-  min-height: 64px;
-  margin: 0;
-  padding: 0 1.5rem;
-  border-bottom: var(--editorial-rule);
-  background: var(--editorial-paper);
-}
-
-.journal-tab {
-  --tab-paper: var(--editorial-sky);
-  display: grid;
-  min-width: 96px;
-  min-height: 62px;
-  grid-template-columns: auto auto;
-  grid-template-rows: auto auto;
-  gap: 0 0.4rem;
-  align-content: center;
-  justify-content: center;
-  padding: 0.45rem 0.75rem;
-  border: 0;
-  border-right: 0;
-  border-bottom: 0;
-  background: transparent;
-  color: var(--editorial-ink);
-  font-size: 0.72rem;
-  font-weight: 600;
-}
-
-.journal-tab::before {
-  display: none;
 }
 
 .emoji-icon {
@@ -6171,11 +4913,6 @@ body {
   font-size: 1rem;
 }
 
-.journal-tab > span:last-child {
-  grid-row: 1;
-  grid-column: 2;
-}
-
 .journal-tab__index {
   grid-row: 2;
   grid-column: 1 / -1;
@@ -6185,275 +4922,16 @@ body {
   text-align: center;
 }
 
-.journal-tab:hover {
-  background: color-mix(in srgb, var(--tab-paper) 45%, transparent);
-  filter: none;
-}
-
-.journal-tab--active {
-  box-shadow: inset 0 -4px 0 var(--tab-paper);
-  background: transparent;
-  color: var(--editorial-ink);
-  font-weight: 700;
-}
-
-.grid-dashboard {
-  max-width: 1480px;
-  padding: 2rem 2.25rem 6rem;
-}
-
-.glass-panel.main-content-panel {
-  padding: 0;
-}
-
-.main-content-panel > * + * {
-  margin-top: 4rem;
-}
-
-.today-overview {
-  gap: 0;
-  margin-bottom: 5rem;
-}
-
-.today-scene {
-  display: grid;
-  min-height: 430px;
-  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.7fr);
-  align-items: stretch;
-  padding: 0;
-  border: var(--editorial-rule);
-  border-radius: 0;
-  background: var(--page-tint);
-  box-shadow: none;
-}
-
-.today-scene::after {
-  content: 'A\A FIELD\A NOTE';
-  display: flex;
-  grid-column: 2;
-  grid-row: 1;
-  align-items: flex-end;
-  justify-content: flex-start;
-  padding: 2.4rem;
-  border-left: var(--editorial-rule);
-  background: #d9e2ce;
-  color: var(--editorial-ink);
-  font-size: 3rem;
-  font-weight: 700;
-  line-height: 0.95;
-  white-space: pre;
-}
-
-.today-scene__copy {
-  display: flex;
-  width: auto;
-  min-width: 0;
-  grid-column: 1;
-  grid-row: 1;
-  flex-direction: column;
-  justify-content: flex-end;
-  padding: 3rem;
-}
-
-.today-scene__copy h2 {
-  max-width: 14ch;
-  margin: 0.35rem 0 1.8rem;
-  color: var(--editorial-ink);
-  font-size: 4rem;
-  font-weight: 600;
-  line-height: 1.16;
-}
-
-.today-title__place {
-  display: block;
-  font-family: 'Fraunces', serif;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.today-title__phrase {
-  display: block;
-  margin-top: 0.12em;
-  font-family: 'Gowun Batang', 'Noto Serif KR', serif;
-  font-size: 0.78em;
-  font-weight: 700;
-}
-
-.today-scene__copy p {
-  margin-top: auto;
-  color: rgba(37, 33, 28, 0.7);
-  font-size: 0.74rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.today-scene__season {
-  width: fit-content;
-  border-bottom-color: var(--editorial-ink);
-  color: var(--editorial-ink);
-}
-
-.today-scene__copy button,
-.chapter-opening__copy button {
-  border: 1px solid var(--editorial-ink);
-  border-radius: 0;
-  background: var(--editorial-paper);
-  color: var(--editorial-ink);
-  box-shadow: none;
-}
-
-.today-scene__actions {
-  margin-top: 1rem;
-}
-
-.today-scene__copy button:hover,
-.chapter-opening__copy button:hover {
-  background: var(--editorial-ink);
-  color: var(--editorial-paper);
-}
-
-.today-scene__mark {
-  right: 1.5rem;
-  bottom: 8rem;
-  z-index: 2;
-  width: auto;
-  height: auto;
-  color: inherit;
-  font-size: 9rem;
-  filter: saturate(0.82);
-  opacity: 0.78;
-}
-
-.today-scene__folio,
-.chapter-opening__folio {
-  position: absolute;
-  top: 1.25rem;
-  right: 1.4rem;
-  z-index: 3;
-  color: rgba(37, 33, 28, 0.72);
-  font-size: 0.62rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.today-story {
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  border: var(--editorial-rule);
-  border-top: 0;
-  border-bottom: var(--editorial-rule);
-}
-
-.today-story article {
-  counter-increment: today-note;
-  min-height: 250px;
-  padding: 1.5rem;
-  border-right: var(--editorial-rule);
-  border-bottom: var(--editorial-rule);
-  background: var(--editorial-paper);
-}
-
-.today-story article::before {
-  content: '0' counter(today-note);
-  display: block;
-  margin-bottom: 2.4rem;
-  color: rgba(37, 33, 28, 0.5);
-  font-size: 0.62rem;
-  font-weight: 700;
-}
-
-.today-story {
-  counter-reset: today-note;
-}
-
-.today-patient { grid-column: span 4; background: #e4c8ca !important; }
-.today-herbs { grid-column: span 5; background: #ccd9c5 !important; }
-.today-place { grid-column: span 3; border-right: 0 !important; background: #c9d9dc !important; }
-.today-bag { grid-column: span 5; border-bottom: 0 !important; background: #e5d8ad !important; }
-.today-journal { grid-column: span 7; border-right: 0 !important; border-bottom: 0 !important; background: #d7cfdf !important; }
-
 .journal-note-label {
   color: var(--editorial-ink);
   font-size: 0.64rem;
   text-transform: uppercase;
 }
 
-.today-story h3 {
-  font-size: 1.25rem;
-  font-weight: 700;
-}
-
-.today-story p,
-.today-story li,
-.today-story dt,
-.today-story dd {
-  color: rgba(37, 33, 28, 0.76);
-  font-size: 0.8rem;
-}
-
 .journal-text-action {
   margin-top: auto;
   border-bottom-color: var(--editorial-ink);
   color: var(--editorial-ink);
-}
-
-.chapter-opening {
-  min-height: 400px;
-  margin-bottom: 5rem;
-  border: var(--editorial-rule);
-  border-left: var(--editorial-rule);
-  border-radius: 0;
-  background: var(--chapter-paper);
-  box-shadow: none;
-}
-
-.chapter-opening::after {
-  content: 'FIELD NOTES';
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: flex;
-  width: 28%;
-  height: 100%;
-  align-items: flex-end;
-  padding: 2rem;
-  border-left: var(--editorial-rule);
-  color: var(--chapter-ink);
-  font-size: 2.2rem;
-  font-weight: 700;
-  line-height: 0.95;
-  white-space: normal;
-}
-
-.chapter-opening__copy {
-  min-height: 400px;
-  max-width: 72%;
-  padding: 3rem 3.5rem;
-}
-
-.chapter-opening__copy h2 {
-  font-size: 3.5rem;
-  font-weight: 600;
-  line-height: 1.14;
-}
-
-.chapter-opening__body {
-  max-width: 52ch;
-  font-size: 0.88rem;
-}
-
-.chapter-opening__mark {
-  right: 1.5rem;
-  bottom: 5rem;
-  z-index: 2;
-  width: auto;
-  height: auto;
-  font-size: 8rem;
-  filter: saturate(0.8);
-  opacity: 0.72;
-}
-
-.chapter-opening__folio {
-  color: var(--chapter-ink);
 }
 
 .journal-chapter {
@@ -6468,41 +4946,6 @@ body {
 
 .journal-chapter > div > h2:first-child {
   border-bottom: var(--editorial-rule) !important;
-}
-
-input,
-textarea,
-select,
-.journal-chapter input,
-.journal-chapter textarea,
-.journal-chapter select {
-  border: 1px solid rgba(37, 33, 28, 0.65) !important;
-  border-radius: 0 !important;
-  background: rgba(255, 253, 246, 0.76) !important;
-  box-shadow: none !important;
-}
-
-button,
-.tag-pill,
-.action-hub__chip,
-.automation-mark,
-.almanack-entry__meta span {
-  border-radius: 0 !important;
-}
-
-.main-content-panel .glass-panel,
-.main-content-panel .parchment-panel,
-.main-content-panel .cute-card,
-.journal-chapter--patientArchive article,
-.journal-chapter--journals article {
-  border-radius: 0 !important;
-  box-shadow: none !important;
-}
-
-.main-content-panel .cute-card {
-  padding: 1.4rem 0.5rem !important;
-  border-top: 1px solid rgba(37, 33, 28, 0.44) !important;
-  background: transparent !important;
 }
 
 .tag-badge-list > *,
@@ -6546,16 +4989,6 @@ button,
   border-bottom: 1px solid var(--editorial-ink);
 }
 
-.journal-subtabs button {
-  border-right-color: var(--editorial-ink) !important;
-  background: transparent !important;
-}
-
-.journal-subtabs button:hover,
-.journal-subtabs button[aria-selected='true'] {
-  background: var(--page-tint) !important;
-}
-
 .almanack__header {
   border-bottom: var(--editorial-rule);
 }
@@ -6589,280 +5022,23 @@ button,
   border-color: var(--editorial-ink) !important;
 }
 
-@media (max-width: 1320px) {
-  .journal-header .journal-brand__title {
-    font-size: 6rem !important;
-  }
-
-  .journal-tab {
-    min-width: 88px;
-  }
-}
-
-@media (max-width: 1080px) {
-  .journal-header .journal-brand__title {
-    font-size: 5rem !important;
-  }
-
-  .journal-tabs {
-    justify-content: flex-start;
-  }
-
-  .journal-tab {
-    min-width: 104px;
-  }
-
-  .today-scene__copy h2 {
-    font-size: 3.2rem;
-  }
-
-  .chapter-opening__copy h2 {
-    font-size: 2.8rem;
-  }
-}
-
 @media (max-width: 800px) {
-  .journal-header {
-    min-height: 250px;
-    padding: 4.2rem 1rem 2rem !important;
-  }
-
-  .journal-header .journal-brand__title {
-    font-size: 3.25rem !important;
-  }
-
-  .journal-brand__eyebrow {
-    max-width: 34ch;
-    font-size: 0.64rem;
-  }
-
-  .journal-header__utilities {
-    top: 0.65rem;
-    right: 0.75rem;
-    max-width: calc(100% - 1.5rem);
-  }
-
-  .journal-tabs {
-    min-height: 54px;
-    gap: 0;
-    padding: 0;
-  }
-
-  .journal-tab {
-    min-width: 62px;
-    min-height: 52px;
-    grid-template-columns: 1fr;
-    padding: 0.35rem 0.5rem;
-  }
-
-  .journal-tab::before {
-    display: none;
-  }
 
   .journal-tab__emoji {
     display: block !important;
-    grid-row: 1;
-    grid-column: 1;
     justify-self: center;
-  }
-
-  .journal-header__action .emoji-icon,
-  .journal-header__icon-button .emoji-icon {
-    display: inline-block !important;
-  }
-
-  .journal-tab > span:last-child {
-    display: none;
   }
 
   .journal-tab__index {
     display: block !important;
-    grid-row: 2;
-    grid-column: 1;
     font-size: 0.72rem;
     line-height: 1.2;
-  }
-
-  .grid-dashboard {
-    padding: 1rem 1rem 4rem;
-  }
-
-  .today-scene {
-    min-height: 500px;
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr 135px;
-  }
-
-  .today-scene__copy {
-    grid-column: 1;
-    grid-row: 1;
-    padding: 1.5rem;
-  }
-
-  .today-scene::after {
-    grid-column: 1;
-    grid-row: 2;
-    padding: 1.25rem 1.5rem;
-    border-top: var(--editorial-rule);
-    border-left: 0;
-    font-size: 2rem;
-  }
-
-  .today-scene__copy h2 {
-    font-size: 2.25rem;
-  }
-
-  .today-scene__mark {
-    right: 1rem;
-    bottom: 1rem;
-    width: auto;
-    font-size: 6.5rem;
-  }
-
-  .today-scene__folio {
-    right: 1rem;
-  }
-
-  .today-story {
-    grid-template-columns: 1fr;
-  }
-
-  .today-patient,
-  .today-herbs,
-  .today-place,
-  .today-bag,
-  .today-journal {
-    min-height: 220px;
-    grid-column: 1;
-    border-right: 0 !important;
-    border-bottom: var(--editorial-rule) !important;
-  }
-
-  .today-journal {
-    border-bottom: 0 !important;
-  }
-
-  .today-story article::before {
-    margin-bottom: 1.4rem;
-  }
-
-  .chapter-opening {
-    display: grid;
-    min-height: 520px;
-    grid-template-rows: minmax(0, 1fr) 130px;
-  }
-
-  .chapter-opening::after {
-    top: auto;
-    bottom: 0;
-    width: 100%;
-    height: 130px;
-    padding: 1.25rem;
-    border-top: var(--editorial-rule);
-    border-left: 0;
-    font-size: 1.8rem;
-  }
-
-  .chapter-opening__copy {
-    min-height: 390px;
-    max-width: 100%;
-    padding: 2.2rem 1.35rem;
-  }
-
-  .chapter-opening__copy h2 {
-    font-size: 2.15rem;
-  }
-
-  .chapter-opening__mark {
-    right: -1rem;
-    bottom: 2.3rem;
-    width: auto;
-    font-size: 6rem;
-  }
-
-  .chapter-opening__folio {
-    right: 1rem;
-  }
-}
-
-@media (max-width: 420px) {
-  .journal-header .journal-brand__title {
-    display: grid;
-    font-size: 2.3rem !important;
-    line-height: 0.9;
-  }
-
-  .journal-brand__title span {
-    display: block;
-  }
-
-  .journal-header {
-    min-height: 250px;
-  }
-
-  .journal-header__action,
-  .journal-header__icon-button {
-    width: 34px;
-    min-height: 34px;
-    border: 1px solid rgba(37, 33, 28, 0.42);
-  }
-
-  .today-scene__copy h2 {
-    font-size: 1.9rem;
   }
 }
 
 /* Wide-monitor reading scale: the owner's ultrawide is treated as a
    reading desk, not as empty margin around a tablet-sized page. */
 @media (min-width: 1800px) {
-  html {
-    font-size: 20px;
-  }
-
-  body {
-    font-size: 18px;
-  }
-
-  .journal-header {
-    min-height: 300px;
-    padding: 4.5rem 4rem 2.4rem;
-  }
-
-  .journal-brand {
-    width: min(1900px, 100%);
-  }
-
-  .journal-header .journal-brand__title {
-    font-size: 8.5rem !important;
-  }
-
-  .journal-brand__eyebrow,
-  .journal-brand__edition {
-    font-size: 0.84rem;
-  }
-
-  .journal-header__utilities {
-    top: 1.4rem;
-    right: 3rem;
-  }
-
-  .journal-header__action,
-  .journal-header__icon-button,
-  .pending-action-button,
-  .save-state {
-    font-size: 0.78rem;
-  }
-
-  .journal-tabs {
-    min-height: 70px;
-    gap: 1.45rem;
-  }
-
-  .journal-tab {
-    min-width: 118px;
-    min-height: 68px;
-    font-size: 0.8rem;
-  }
 
   .journal-tab__emoji {
     font-size: 1.15rem;
@@ -6870,74 +5046,6 @@ button,
 
   .journal-tab__index {
     font-size: 0.62rem;
-  }
-
-  .grid-dashboard {
-    width: calc(100% - 6rem);
-    max-width: 2200px;
-    padding: 2.75rem 0 8rem;
-  }
-
-  .today-scene {
-    min-height: 510px;
-    grid-template-columns: minmax(0, 1.7fr) minmax(380px, 0.68fr);
-  }
-
-  .today-scene__copy {
-    padding: 3.6rem;
-  }
-
-  .today-scene__copy h2 {
-    font-size: 4.6rem;
-  }
-
-  .today-scene::after {
-    padding: 3rem;
-    font-size: 3.4rem;
-  }
-
-  .today-scene__mark {
-    right: 2.5rem;
-    font-size: 10.5rem;
-  }
-
-  .today-story article {
-    min-height: 300px;
-    padding: 2rem;
-  }
-
-  .today-story h3 {
-    font-size: 1.4rem;
-  }
-
-  .today-story p,
-  .today-story li,
-  .today-story dt,
-  .today-story dd {
-    font-size: 0.88rem;
-  }
-
-  .chapter-opening {
-    min-height: 520px;
-  }
-
-  .chapter-opening__copy {
-    min-height: 520px;
-    max-width: 74%;
-    padding: 4rem 4.5rem;
-  }
-
-  .chapter-opening__copy h2 {
-    font-size: 4.4rem;
-  }
-
-  .chapter-opening__body {
-    font-size: 0.96rem;
-  }
-
-  .chapter-opening__mark {
-    right: 3rem;
-    font-size: 9.5rem;
   }
 
   .journal-chapter,
@@ -6964,101 +5072,6 @@ button,
 }
 
 @media (min-width: 2600px) {
-  html {
-    font-size: 22px;
-  }
-
-  body {
-    font-size: 20px;
-  }
-
-  .journal-header {
-    min-height: 360px;
-    padding-top: 5.4rem;
-  }
-
-  .journal-brand {
-    width: min(2400px, 100%);
-  }
-
-  .journal-header .journal-brand__title {
-    font-size: 10rem !important;
-  }
-
-  .journal-tabs {
-    min-height: 78px;
-    gap: 1.8rem;
-  }
-
-  .journal-tab {
-    min-width: 138px;
-    min-height: 76px;
-    font-size: 0.84rem;
-  }
-
-  .grid-dashboard {
-    width: calc(100% - 8rem);
-    max-width: 2800px;
-    padding-top: 3.5rem;
-  }
-
-  .today-scene {
-    min-height: 650px;
-    grid-template-columns: minmax(0, 1.75fr) minmax(480px, 0.65fr);
-  }
-
-  .today-scene__copy {
-    padding: 4.5rem;
-  }
-
-  .today-scene__copy h2 {
-    font-size: 5.4rem;
-  }
-
-  .today-scene::after {
-    padding: 3.8rem;
-    font-size: 4rem;
-  }
-
-  .today-scene__mark {
-    right: 3.5rem;
-    bottom: 10rem;
-    font-size: 13rem;
-  }
-
-  .today-story article {
-    min-height: 350px;
-    padding: 2.4rem;
-  }
-
-  .today-story h3 {
-    font-size: 1.55rem;
-  }
-
-  .today-story p,
-  .today-story li,
-  .today-story dt,
-  .today-story dd {
-    font-size: 0.92rem;
-  }
-
-  .chapter-opening {
-    min-height: 620px;
-  }
-
-  .chapter-opening__copy {
-    min-height: 620px;
-    padding: 5rem 5.5rem;
-  }
-
-  .chapter-opening__copy h2 {
-    font-size: 5.2rem;
-  }
-
-  .chapter-opening__mark {
-    right: 4rem;
-    font-size: 12rem;
-  }
 
   .journal-chapter,
   .almanack {
@@ -7357,7 +5370,7 @@ button,
 
 .route-composer__eyebrow {
   color: #6b5343;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.65rem;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -7371,7 +5384,7 @@ button,
   border-radius: 999px;
   background: #f5eee1;
   color: #6b5343;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.74rem;
   font-weight: 700;
   line-height: 1.2;
@@ -7397,7 +5410,7 @@ button,
   border-radius: 999px;
   background: #fffaf0;
   color: #6b5343;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.72rem;
   line-height: 1.2;
 }
@@ -7418,7 +5431,7 @@ button,
 }
 
 .route-composer__endpoint span {
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.68rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -7433,7 +5446,7 @@ button,
 
 .route-composer__endpoint em {
   font-style: normal;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.76rem;
   color: #6b5343;
 }
@@ -7501,7 +5514,7 @@ button,
   min-height: 2.75rem;
   border: 1px solid #a99885;
   border-radius: 6px;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.78rem;
   line-height: normal;
 }
@@ -7598,7 +5611,7 @@ button,
   padding: 0;
   font-size: 0.62rem;
   line-height: 1;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   text-align: center;
   cursor: pointer;
   box-shadow: 0 1px 0 rgba(22, 20, 16, 0.12);
@@ -7689,7 +5702,7 @@ button,
   justify-content: space-between;
   gap: 0.5rem;
   color: #6b5343;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.7rem;
   font-weight: 700;
 }
@@ -7724,7 +5737,7 @@ button,
   border-radius: 6px;
   background: #fffaf0;
   color: #4a3628;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.72rem;
   font-weight: 700;
   line-height: normal;
@@ -7955,7 +5968,7 @@ button,
   min-width: 0;
   overflow: hidden;
   color: #6b5343;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.68rem;
   line-height: 1.3;
   text-overflow: ellipsis;
@@ -8033,7 +6046,7 @@ button,
   align-items: center;
   min-height: 2.75rem;
   color: #7c6858;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.72rem;
 }
 
@@ -8105,7 +6118,7 @@ button,
 .route-connector__remaining-label {
   flex: 0 0 auto;
   color: #657255;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.58rem;
   font-weight: 700;
   line-height: 1.1;
@@ -8233,7 +6246,7 @@ button,
   min-height: 1.1rem;
   margin: -0.15rem 0 0;
   color: #526244;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.7rem;
   line-height: 1.35;
 }
@@ -8292,7 +6305,7 @@ button,
   border-radius: 4px;
   background: #f4ead8;
   color: #342f27;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.82rem;
   line-height: normal;
   white-space: normal;
@@ -8514,7 +6527,6 @@ button,
   width: 100%;
   min-width: 0;
   min-height: 48px;
-  padding: 0.75rem 0.85rem;
   border: 1px solid var(--glass-border);
   border-radius: 4px;
   background: rgba(255, 254, 250, 0.92);
@@ -9123,7 +7135,7 @@ button,
   border-radius: 4px;
   background: #657255;
   color: #fffdf6;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.82rem;
 }
 
@@ -9664,7 +7676,7 @@ button,
   border-radius: 3px;
   background: #f4ead8;
   color: #4a3628;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.55rem;
   line-height: 1.15;
   pointer-events: none;
@@ -9679,7 +7691,7 @@ button,
   border-radius: 3px;
   background: #eef1df;
   color: #4f6841;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.5rem;
   line-height: 1.15;
   pointer-events: none;
@@ -9722,7 +7734,7 @@ button,
   background: rgba(250, 247, 237, 0.95);
   box-shadow: 0 2px 5px rgba(53, 43, 32, 0.2);
   color: #334329;
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.78rem;
   line-height: 1.3;
   text-align: left;
@@ -10592,7 +8604,6 @@ details.rulebook-source-text > summary {
   border-left: 2px solid #708468;
   background: rgba(218, 228, 208, 0.44);
   color: #43513f;
-  font-size: 0.66rem;
   font-weight: 700;
 }
 
@@ -11665,43 +9676,10 @@ details.rulebook-source-text > summary {
 
 /* Session shell: keep the player in the current chapter and make first setup
    a single focused task instead of exposing the finished campaign shell. */
-.journal-header__action--reset {
-  color: #7d342f;
-  border-bottom-color: rgba(125, 52, 47, 0.55);
-}
-
-.journal-header__action--reset:hover {
-  background: rgba(125, 52, 47, 0.08);
-  color: #692823;
-}
 
 /* The first screen has no Journals tab yet. Keep backup recovery in the
    same upper-right utility rail so a reset or fresh device can start from a
    saved JSON without entering character setup first. */
-.journal-header__action--import {
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
-}
-
-.journal-header__action--import input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.journal-header__action--import:focus-within {
-  outline: 3px solid #2f6f7b;
-  outline-offset: -3px;
-}
-
-.journal-header__action--import:hover {
-  background: rgba(37, 33, 28, 0.08);
-}
 
 .save-state--saving {
   opacity: 0.72;
@@ -11713,188 +9691,24 @@ details.rulebook-source-text > summary {
   font-weight: 800;
 }
 
-.grid-dashboard--onboarding {
-  display: block;
-  width: min(100% - 2rem, 920px);
-  padding-top: 2.25rem;
-}
-
-.journal-app--onboarding .journal-header {
-  min-height: 210px;
-  padding-top: 3.25rem;
-}
-
-.journal-app--onboarding .journal-header .journal-brand__title {
-  font-size: 5.2rem !important;
-}
-
-.journal-app--onboarding .journal-brand {
-  cursor: default;
-}
-
-.onboarding-focus {
-  border: var(--editorial-rule);
-  background: color-mix(in srgb, var(--editorial-yellow) 42%, var(--editorial-paper));
-}
-
-.onboarding-focus__intro {
-  padding: 2rem 2rem 1.15rem;
-  border-bottom: var(--editorial-rule);
-}
-
-.onboarding-focus__intro h2 {
-  max-width: 18ch;
-  margin: 0.3rem 0 0.65rem;
-  color: var(--editorial-ink);
-  font-family: var(--font-display);
-  font-size: clamp(2rem, 5vw, 3.5rem);
-  /* The display face has a tall Korean glyph box; the previous sub-1 line
-     height made the two-line welcome title visually collide at desktop sizes. */
-  line-height: 1.1;
-}
-
-.onboarding-focus__intro p {
-  max-width: 62ch;
-  margin: 0;
-  color: rgba(37, 33, 28, 0.76);
-  line-height: 1.78;
-}
-
-.character-wizard--focused {
-  margin: 0 !important;
-  padding: 1.5rem 2rem 2rem !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: rgba(255, 253, 248, 0.82) !important;
-}
-
-.journal-tab:focus-visible,
-.journal-header__action:focus-visible,
-.journal-header__icon-button:focus-visible,
-.journal-brand:focus-visible {
-  outline: 3px solid #2f6f7b;
-  outline-offset: -3px;
-}
-
 @media (max-width: 800px) {
-  .journal-tabs {
-    min-height: 68px;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scroll-padding-inline: 0.4rem;
-    scroll-snap-type: x proximity;
-    touch-action: pan-x;
-  }
-
-  .journal-tab {
-    min-width: 92px;
-    min-height: 70px;
-    flex: 0 0 92px;
-    grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto;
-    gap: 0.08rem 0.28rem;
-    padding: 0.4rem 0.35rem;
-    scroll-snap-align: start;
-  }
 
   .journal-tab__emoji {
     grid-row: 1;
     grid-column: 1;
   }
 
-  .journal-tab > span:last-child {
-    display: -webkit-box;
-    grid-row: 1;
-    grid-column: 2;
-    overflow: hidden;
-    font-size: 0.62rem;
-    line-height: 1.15;
-    text-align: left;
-    white-space: normal;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-  }
-
   .journal-tab__index {
     grid-row: 2;
     grid-column: 1 / -1;
-  }
-
-  .journal-app--onboarding .journal-header {
-    min-height: 180px;
-    padding-top: 3.4rem !important;
-  }
-
-  .journal-app--onboarding .journal-header .journal-brand__title {
-    font-size: 2.8rem !important;
-  }
-
-  .grid-dashboard--onboarding {
-    width: min(100% - 1.25rem, 920px);
-    padding: 0.75rem 0 3rem;
-  }
-
-  .onboarding-focus__intro {
-    padding: 1.4rem 1rem 1rem;
-  }
-
-  .character-wizard--focused {
-    padding: 1rem !important;
-  }
-}
-
-@media (max-width: 420px) {
-  .journal-header__action,
-  .journal-header__icon-button {
-    width: 44px;
-    min-width: 44px;
-    min-height: 44px;
-  }
-
-  .journal-app--onboarding .journal-header .journal-brand__title {
-    font-size: 2.3rem !important;
-  }
-}
-
-@media (max-width: 800px) {
-  .journal-header__action--import {
-    width: auto;
-    min-width: 44px;
-    padding-inline: 0.55rem;
-    white-space: nowrap;
-  }
-
-  .journal-header__action--import > span {
-    display: inline !important;
   }
 }
 
 /* Gameplay-first recomposition: preserve the field-journal character while
    keeping the current decision and its controls in the first working view. */
-.journal-app:not(.journal-app--onboarding) .journal-header {
-  min-height: 150px;
-  padding: 2.55rem 2.5rem 1.25rem;
-}
-
-.journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title {
-  font-size: clamp(3.35rem, 6vw, 5rem) !important;
-  line-height: 0.88;
-}
-
-.journal-app:not(.journal-app--onboarding) .journal-brand__eyebrow {
-  margin-top: 0.55rem;
-}
-
-.journal-app:not(.journal-app--onboarding) .grid-dashboard {
-  padding-top: 1.5rem;
-}
 
 .journal-app:not(.journal-app--onboarding) .main-content-panel > * + * {
   margin-top: 2rem;
-}
-
-.today-overview {
-  margin-bottom: 2.25rem;
 }
 
 .today-focus {
@@ -11912,10 +9726,6 @@ details.rulebook-source-text > summary {
 
 .today-focus .today-scene::after {
   display: none;
-}
-
-.today-focus .today-scene__copy {
-  padding: 2rem 2.25rem;
 }
 
 .today-focus .today-scene__copy h2 {
@@ -11972,7 +9782,6 @@ details.rulebook-source-text > summary {
 
 .chapter-opening__copy {
   min-height: 230px;
-  max-width: 76%;
   padding: 1.7rem 2.25rem;
 }
 
@@ -11995,18 +9804,6 @@ details.rulebook-source-text > summary {
 }
 
 @media (min-width: 1081px) {
-  .journal-app:not(.journal-app--onboarding) .journal-header {
-    min-height: 124px;
-    padding: 1.25rem 2.5rem 0.75rem;
-  }
-
-  .journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title {
-    font-size: clamp(3rem, 4vw, 3.6rem) !important;
-  }
-
-  .journal-app:not(.journal-app--onboarding) .journal-brand__eyebrow {
-    margin-top: 0.3rem;
-  }
 
   .chapter-opening {
     min-height: 205px;
@@ -12420,7 +10217,6 @@ details.rulebook-source-text > summary {
 }
 
 .encounter-dialog__prompt {
-  max-height: 15rem;
   overflow-y: auto;
   margin: 0;
   padding: 0.85rem 1rem;
@@ -12428,13 +10224,11 @@ details.rulebook-source-text > summary {
   background: rgba(255, 253, 246, 0.82);
   color: var(--text-bright);
   font-size: 1rem;
-  line-height: 1.72;
   white-space: pre-wrap;
 }
 
 .encounter-choice-list {
   display: grid;
-  gap: 0.55rem;
 }
 
 .encounter-dialog__secondary-draw {
@@ -13077,58 +10871,19 @@ details.rulebook-source-text > summary {
   line-height: 1.55;
 }
 
-/* Readability floor for actionable copy. Tiny folios may stay decorative,
-   but controls and gameplay metadata must remain readable at normal zoom. */
-.journal-app:not(.journal-app--onboarding) :is(.journal-header__action, .journal-header__icon-button, .pending-action-button, .journal-tab),
-.journal-app:not(.journal-app--onboarding) .journal-chapter :is(button, input, select, textarea),
-.journal-app:not(.journal-app--onboarding) .play-with-map__panels :is(button, input, select, textarea),
-.journal-app:not(.journal-app--onboarding) .today-overview button,
-.app-dialog :is(button, input, select, textarea),
-.encounter-dialog :is(button, input, select, textarea) {
-  font-size: 0.875rem !important;
-  line-height: 1.4;
-}
-
-.journal-app:not(.journal-app--onboarding) :is(.journal-note-label, .document-kicker),
-.app-dialog__kicker,
-.controlled-prompt.app-dialog .app-dialog__field label,
-.controlled-prompt.app-dialog .app-dialog__field-label {
-  font-size: 0.78rem;
-  line-height: 1.4;
-}
-
-.journal-app:not(.journal-app--onboarding) .journal-chapter small,
-.journal-app:not(.journal-app--onboarding) .play-with-map__panels small,
-.encounter-dialog small {
-  font-size: 0.8rem !important;
-  line-height: 1.45;
-}
-
-.journal-app:not(.journal-app--onboarding) .journal-chapter table {
-  font-size: 0.875rem !important;
-}
-
-.controlled-prompt.app-dialog .app-dialog__header h2 {
-  font-size: 1.25rem;
-}
-
-.controlled-prompt.app-dialog .app-dialog__message {
-  font-size: 1rem;
-}
-
 /* Reading text may be quieter than headings, but must not become fine print.
    This floor is limited to semantic copy and controls; folios, map marks, and
    other decorative notation keep their compact scale. */
-.journal-app:not(.journal-app--onboarding) .main-content-panel :is(button, input, select, textarea),
+.folio-app.journal-app .main-content-panel :is(button, input, select, textarea),
 .app-dialog :is(button, input, select, textarea),
 .encounter-dialog :is(button, input, select, textarea) {
-  font-size: 0.9375rem !important;
+  font-size: 1.125rem !important;
 }
 
-.journal-app:not(.journal-app--onboarding) .main-content-panel :is(p, li, dt, dd, label, td, th),
+.folio-app.journal-app .main-content-panel :is(p, li, dt, dd, label, td, th):where(:not(.folio-scene-title):not(.folio-chapter-title)),
 .app-dialog :is(p, li, label),
 .encounter-dialog :is(p, li, label) {
-  font-size: max(0.875rem, 1em);
+  font-size: max(1.25rem, 1em) !important;
 }
 
 .journal-app:not(.journal-app--onboarding) :is(
@@ -13139,24 +10894,24 @@ details.rulebook-source-text > summary {
   .action-step span,
   .action-step em
 ) {
-  font-size: 0.875rem !important;
-  line-height: 1.45;
+  font-size: 1.0625rem !important;
+  line-height: 1.65;
 }
 
 #treatment-workspace :is(p, span, strong, small, summary, label),
 #patient-acquisition-panel :is(p, span, strong, small, summary, label) {
-  font-size: 0.875rem !important;
-  line-height: 1.5;
+  font-size: 1.0625rem !important;
+  line-height: 1.7;
 }
 
 .route-composer :is(span, small, strong, em) {
-  font-size: 0.875rem !important;
-  line-height: 1.4;
+  font-size: 1.0625rem !important;
+  line-height: 1.65;
 }
 
 .route-composer .route-composer__eyebrow,
 .route-composer .route-connector__remaining-label {
-  font-size: 0.75rem !important;
+  font-size: 0.9375rem !important;
 }
 
 .map-atelier__shortcut-help,
@@ -13164,8 +10919,8 @@ details.rulebook-source-text > summary {
 .bio-extended-records p,
 .journal-chapter--journals label,
 .journal-chapter--journals .cute-card > p {
-  font-size: 0.875rem !important;
-  line-height: 1.5;
+  font-size: 1.0625rem !important;
+  line-height: 1.7;
 }
 
 /* Home resume precision: keep only state that changes the next decision.
@@ -13175,17 +10930,12 @@ details.rulebook-source-text > summary {
 }
 
 .today-story--resume > article {
-  min-height: 150px;
   grid-column: auto !important;
   border-bottom: 0 !important;
 }
 
 .today-story--resume > article:last-child {
   border-right: 0 !important;
-}
-
-.today-story--resume > article::before {
-  margin-bottom: 0.65rem;
 }
 
 .today-story--resume .today-bag {
@@ -13232,42 +10982,15 @@ details.rulebook-source-text > summary {
 }
 
 @media (max-width: 800px) {
-  .journal-header__action span,
-  .journal-header__icon-button span {
-    display: none;
-  }
-
-  .journal-header__action,
-  .journal-header__icon-button {
-    width: 44px;
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0;
-  }
-
-  .journal-app:not(.journal-app--onboarding) .journal-header {
-    min-height: 150px;
-    padding: 3.2rem 1rem 1rem !important;
-  }
-
-  .journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title {
-    font-size: clamp(2.35rem, 11vw, 3.1rem) !important;
-  }
 
   .today-focus .today-scene {
-    min-height: 335px;
     grid-template-rows: minmax(0, 1fr);
-  }
-
-  .today-focus .today-scene__copy {
-    padding: 1.4rem;
   }
 
   .today-story article {
     min-height: 165px;
   }
 
-  .journal-tab > span:last-child,
   .journal-tab__index {
     font-size: 0.75rem;
   }
@@ -13302,14 +11025,6 @@ details.rulebook-source-text > summary {
 
   .today-focus .today-scene {
     min-height: 365px;
-  }
-
-  .today-focus .campaign-continuity__facts {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .today-focus .campaign-continuity__facts > div {
-    border-right: 0;
   }
 
   .patient-workflow__treatment {
@@ -13363,23 +11078,7 @@ details.rulebook-source-text > summary {
   max-width: 100%;
 }
 
-/* =================================================================
-   VISUAL POLISH PASS
-   Keep the existing field-journal system, but make the next decision,
-   case notes, encounters, and specimen records easier to scan. These
-   rules are intentionally presentation-only and narrowly scoped.
-   ================================================================= */
-
 /* A quieter masthead leaves more of the working page in the first view. */
-.journal-app:not(.journal-app--onboarding) .journal-header {
-  min-height: 128px;
-  padding: 2rem 2.25rem 1rem;
-}
-
-.journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title {
-  font-size: clamp(3rem, 5vw, 4.25rem) !important;
-  line-height: 0.92;
-}
 
 .journal-app:not(.journal-app--onboarding) .grid-dashboard {
   padding-top: 1.15rem;
@@ -13586,57 +11285,6 @@ details.rulebook-source-text > summary {
 @media (max-width: 1500px) {
   /* Save feedback must stay visible. A real tool row also prevents long
      cloud/error messages from covering the centered title. */
-  .journal-app .journal-header {
-    display: flex;
-    flex-direction: column;
-    gap: 0.65rem;
-    padding-top: 0.65rem !important;
-  }
-
-  .journal-header .journal-header__utilities {
-    position: static;
-    order: -1;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    flex-wrap: wrap;
-    gap: 0.25rem 0.55rem;
-  }
-
-  .journal-header__utilities > div {
-    max-width: 100%;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    padding-inline: 0 !important;
-  }
-
-  .journal-header .save-state {
-    display: inline-flex;
-    min-height: 0;
-    max-width: 100%;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    line-height: 1.45;
-    text-align: right;
-  }
-
-  .journal-app:not(.journal-app--onboarding) .journal-header__action span:not(.emoji-icon),
-  .journal-app:not(.journal-app--onboarding) .journal-header__icon-button span:not(.emoji-icon) {
-    display: none;
-  }
-
-  .journal-app:not(.journal-app--onboarding) .journal-header__action .emoji-icon,
-  .journal-app:not(.journal-app--onboarding) .journal-header__icon-button .emoji-icon {
-    display: inline-block !important;
-  }
-
-  .journal-app:not(.journal-app--onboarding) .journal-header__action,
-  .journal-app:not(.journal-app--onboarding) .journal-header__icon-button {
-    width: 44px;
-    min-width: 44px;
-    min-height: 44px;
-    padding: 0;
-  }
 }
 
 @media (min-width: 1081px) {
@@ -13664,16 +11312,6 @@ details.rulebook-source-text > summary {
 /* Mobile retains the same hierarchy while preserving touch targets and a
    single scroll surface for long dialogs. */
 @media (max-width: 800px) {
-  .journal-app:not(.journal-app--onboarding) .journal-header {
-    min-height: 154px;
-    padding: 0.65rem 0.85rem 0.75rem !important;
-  }
-
-  .journal-header .save-state {
-    flex-basis: 100%;
-    justify-content: flex-end;
-    padding: 0.15rem 0;
-  }
 
   .journal-app:not(.journal-app--onboarding) .grid-dashboard {
     padding-top: 0.75rem;
@@ -13734,15 +11372,6 @@ details.rulebook-source-text > summary {
 }
 
 @media (max-width: 480px) {
-  .journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title {
-    font-size: clamp(2rem, 9.4vw, 2.35rem) !important;
-    letter-spacing: -0.015em;
-    white-space: nowrap;
-  }
-
-  .journal-app:not(.journal-app--onboarding) .journal-brand__title span {
-    display: inline;
-  }
 
   .today-focus .campaign-continuity__facts {
     grid-template-columns: repeat(2, minmax(0, 1fr));

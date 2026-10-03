@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { RULEBOOK_REFERENCE_BY_ID, searchReferenceEntries } from '../rulebook/referenceRegistry';
 import { loadRulebookPage } from '../rulebook/sourceLoader';
 import type { RulebookReferenceEntry, RulebookReferenceRequest, RulebookSourcePage } from '../rulebook/types';
+import { useDialogFocus } from './useDialogFocus';
 import {
   formatRulebookDetailValue,
   RULEBOOK_DETAIL_LABELS,
@@ -11,6 +12,7 @@ import {
 
 export default function RulebookReferenceDrawer({ request, onClose }: { request: RulebookReferenceRequest; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useDialogFocus<HTMLElement>(onClose);
   const [source, setSource] = useState<RulebookSourcePage | null>(null);
   const candidates = useMemo(() => request.entryId
     ? [RULEBOOK_REFERENCE_BY_ID.get(request.entryId)].filter(Boolean) as RulebookReferenceEntry[]
@@ -35,29 +37,14 @@ export default function RulebookReferenceDrawer({ request, onClose }: { request:
   }));
 
   useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     const locksPageScroll = window.matchMedia('(max-width: 820px)').matches;
     if (locksPageScroll) document.body.style.overflow = 'hidden';
     closeRef.current?.focus();
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-      if (event.key !== 'Tab') return;
-      const dialog = closeRef.current?.closest('[role="dialog"]');
-      const focusable = dialog ? Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])')) : [];
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-    };
-    document.addEventListener('keydown', handleKey);
     return () => {
-      document.removeEventListener('keydown', handleKey);
       if (locksPageScroll) document.body.style.overflow = previousOverflow;
-      previous?.focus();
     };
-  }, [onClose]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,7 +54,7 @@ export default function RulebookReferenceDrawer({ request, onClose }: { request:
 
   return (
     <div className="rulebook-drawer-backdrop" role="presentation" onMouseDown={event => { if (event.currentTarget === event.target) onClose(); }}>
-      <aside className="rulebook-drawer" role="dialog" aria-modal="true" aria-labelledby="rulebook-drawer-title">
+      <aside ref={dialogRef} tabIndex={-1} className="rulebook-drawer" role="dialog" aria-modal="true" aria-labelledby="rulebook-drawer-title">
         <header><div><span className="document-kicker">상황별 룰북</span><h2 id="rulebook-drawer-title">{active?.title || request.title || `룰북 p.${page}`}</h2></div><div className="rulebook-drawer__actions"><button type="button" disabled={trail.index <= 0} onClick={() => moveInTrail(-1)} aria-label="이전 참고 기록">←</button><button type="button" disabled={trail.index >= trail.ids.length - 1} onClick={() => moveInTrail(1)} aria-label="다음 참고 기록">→</button><button ref={closeRef} type="button" onClick={onClose}>닫고 돌아가기</button></div></header>
         {candidates.length > 1 && <nav aria-label="관련 원문 항목">{candidates.map(entry => <button type="button" key={entry.id} className={active?.id === entry.id ? 'is-active' : ''} onClick={() => openEntry(entry.id)}>{entry.title}<span>{RULEBOOK_KIND_LABELS[entry.kind]} · p.{entry.sourcePage}</span></button>)}</nav>}
         {active && <section className="rulebook-drawer__context"><span>{RULEBOOK_KIND_LABELS[active.kind]} · {RULEBOOK_STATUS_LABELS[active.runtimeStatus]}</span><p>{active.summary}</p><dl>{[...(request.context || []), ...active.details].map(row => <div key={`${row.label}:${row.value}`}><dt>{RULEBOOK_DETAIL_LABELS[row.label] || row.label}</dt><dd>{formatRulebookDetailValue(row.label, row.value)}</dd></div>)}</dl></section>}

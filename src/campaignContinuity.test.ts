@@ -17,32 +17,32 @@ describe('campaign continuity', () => {
   it('prioritizes the active cross-system workflow over another Move', () => {
     const journey = { journeyActive: true, journeyDestination: 'Widrow', calendarDays: 3, calendarMaxDays: 12 };
     expect(getCampaignContinuity({ ...journey, pendingEncounter: { id: 'travel' } }).nextAction)
-      .toBe('열어 둔 이동 조우를 먼저 해결하세요.');
+      .toBe('열어 둔 이동 조우를 이어가세요');
     expect(getCampaignContinuity({
       ...journey,
       pendingEncounter: { encounter: { encounterType: 'social' } }
     })).toMatchObject({
-      nextAction: '열어 둔 사회 조우를 먼저 해결하세요.',
-      continueLabel: '사회 조우 이어가기'
+      nextAction: '열어 둔 사회 조우를 이어가세요',
+      continueLabel: '조우 이어가기'
     });
     expect(getCampaignContinuity({ ...journey, pendingForaging: { id: 'forage' }, activeAilment: { id: 'patient' } }).nextAction)
-      .toBe('열어 둔 채집 조우를 먼저 해결하세요.');
+      .toBe('채집 결과를 끝까지 확인하세요');
     expect(getCampaignContinuity({ ...journey, activeAilment: { id: 'patient' } }).nextAction)
-      .toBe('현재 환자의 치료를 이어가세요.');
+      .toBe('필요한 약효부터 살펴보세요');
     expect(getCampaignContinuity({ ...journey, scroungingMode: true }).nextAction)
-      .toBe('치료를 마쳤습니다. 여분 채집을 하거나 Moving On으로 다음 이동을 준비하세요.');
+      .toBe('떠나기 전, 조금 더 머물러도 좋아요');
     expect(getCampaignContinuity({ ...journey, needsLocalHelpBeforeMove: true }).nextAction)
-      .toBe('현지 야수의 질환을 해결해야 다시 이동할 수 있습니다.');
+      .toBe('이 길목의 야수를 도와주세요');
     expect(getCampaignContinuity({ ...journey, activeAilment: { id: 'patient' } }).continueLabel)
-      .toBe('환자 치료 이어가기');
+      .toBe('현재 처방 보기');
     expect(getCampaignContinuity({ ...journey, pendingForaging: { id: 'forage' } }).continueLabel)
-      .toBe('채집 조우 이어가기');
+      .toBe('채집 이어가기');
     expect(getCampaignContinuity({ ...journey, pendingForaging: { id: 'forage' }, manualEffectQueue: [{ id: 'manual' }] }).continueLabel)
-      .toBe('보류 판정 이어가기');
+      .toBe('판정 이어가기');
     expect(getCampaignContinuity({ ...journey, pursuedByBehemoth: { id: 'chase' } }).continueLabel)
-      .toBe('거수 추격 이어가기');
+      .toBe('이동 계획 보기');
     expect(getCampaignContinuity({ ...journey, activeDelve: { id: 'barrow' } }).continueLabel)
-      .toBe('고분 탐사 이어가기');
+      .toBe('고분 도전 보기');
   });
 
   it('routes Home resume to the blocking work before offering another Move', () => {
@@ -69,8 +69,8 @@ describe('campaign continuity', () => {
       calendarMaxDays: 12
     };
     expect(getCampaignContinuity(arrived)).toMatchObject({
-      nextAction: '목적지에 도착했습니다. 여정을 돌아보고 실제 결말을 정하세요.',
-      continueLabel: '여정 결말 정하기'
+      nextAction: '목적지에 도착했어요',
+      continueLabel: '여정 마무리 보기'
     });
     expect(getCampaignResumeActionIds(arrived).at(0)).toBe('journey-end');
     expect(getCampaignResumeActionIds(arrived)).not.toContain('travel-next');
@@ -90,7 +90,7 @@ describe('campaign continuity', () => {
       pendingEnding: { journeyId: 'journey-1', selectedOutcome: 'partial' as const }
     };
     expect(getCampaignContinuity(ending)).toMatchObject({
-      continueLabel: '여정 결말 이어가기'
+      continueLabel: '여정 마무리 보기'
     });
     expect(getCampaignContinuity(ending).guidance).toContain('부분 성공 선택 저장됨');
     expect(getCampaignResumeActionIds(ending).at(0)).toBe('journey-end');
@@ -106,8 +106,8 @@ describe('campaign continuity', () => {
 
     expect(getCampaignContinuity(state)).toMatchObject({
       stage: 'manual-effect',
-      nextAction: '보류한 직접 판정을 먼저 마무리하세요.',
-      continueLabel: '보류 판정 이어가기'
+      nextAction: '남겨 둔 판정을 마무리하세요',
+      continueLabel: '판정 이어가기'
     });
     expect(getCampaignResumeActionIds(state)).toEqual(['manual-effect']);
   });

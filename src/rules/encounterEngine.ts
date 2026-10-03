@@ -2,6 +2,14 @@ import type { EncounterRuntimeState } from './gameplay';
 import type { EncounterChoice, EncounterDefinition, RuleEffect, StructuredRuleEffect } from './types';
 import { encounterForagingPointMultiplier, isNegativeEncounterCondition } from './encounterConditionRuntime';
 
+/** p.183 protects actual bear meetings, not text such as "bears fruit". */
+export const applyBearDeference = (encounter: EncounterDefinition, conditions: readonly string[] = []): EncounterDefinition => {
+  if (!conditions.includes('bear-lord-deference') || !['foraging-forest-m-spring', 'foraging-forest-bear-scurry'].includes(encounter.id)) return encounter;
+  return { ...encounter, support: 'implemented', mandatoryEffects: [],
+    prompt: '곰 영주를 치료한 소식이 전해졌습니다. 곰의 부정적 결과 대신, 거대한 곰이 예의를 보이는 만남을 말·그림·글로 남기세요. (p.183)',
+    choices: [{ id: 'bear-deference', label: '곰의 경의 · 거대한 곰과의 만남 기록', effects: [], requiresJournal: true }] };
+};
+
 export interface EncounterExecutionInput {
   transactionId: string;
   encounter: EncounterDefinition;
@@ -127,6 +135,8 @@ const isNegativeEffect = (effect: RuleEffect): boolean => {
 };
 
 export const executeEncounter = (input: EncounterExecutionInput): EncounterExecutionResolution => {
+  const protectedEncounter = applyBearDeference(input.encounter, input.state.conditions);
+  if (protectedEncounter !== input.encounter) input = { ...input, encounter: protectedEncounter, choiceId: 'bear-deference' };
   if (!input.transactionId) return { status: 'invalid', value: null, messages: ['Encounter requires a transaction ID.'] };
   const choice = input.choiceId ? input.encounter.choices.find(candidate => candidate.id === input.choiceId) : undefined;
   if (input.choiceId && !choice) return { status: 'invalid', value: null, messages: [`Unknown encounter choice: ${input.choiceId}`] };

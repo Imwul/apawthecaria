@@ -1,0 +1,209 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 900" overflow="hidden" fill="none" role="img" aria-labelledby="forest-title forest-desc">
+  <title id="forest-title">약제사가 걷는 다정한 들녘</title>
+  <desc id="forest-desc">부드러운 녹색 언덕과 약초 숲, 햇살이 비치는 작은 마을을 살구색 길로 잇는 독창적인 민속 판화 풍경. 배낭을 멘 작은 동물 약제사가 강 위의 다리로 향합니다.</desc>
+  <!-- Original vector artwork for Apawthecaria. Botanical folk-print palette. -->
+  <defs>
+    <pattern id="paper" width="7" height="11" patternUnits="userSpaceOnUse">
+      <path d="M1 3h1M5 9h1" stroke="#284c3d" stroke-opacity=".11" stroke-width=".8"/>
+    </pattern>
+    <pattern id="hill-lines" width="28" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(-17)">
+      <path d="M3 8h12M8 16h7" stroke="#44644b" stroke-opacity=".3" stroke-width="1.2"/>
+    </pattern>
+    <pattern id="water" width="65" height="28" patternUnits="userSpaceOnUse">
+      <path d="M1 8q9-7 18 0t18 0M32 21q9-6 18 0t18 0" stroke="#365e56" stroke-opacity=".5" stroke-width="1.6"/>
+    </pattern>
+    <pattern id="roof-lines" width="10" height="10" patternUnits="userSpaceOnUse">
+      <path d="M0 1l10 9" stroke="#284c3d" stroke-width="1"/>
+    </pattern>
+    <g id="fir" stroke="#294b3a" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M0 162V30" stroke-width="6"/>
+      <path d="M-7 13l-29 41 15-1-31 40 19-1-29 40c17 6 40 10 62 10s45-4 62-10L33 92l19 1-31-40 15 1L7 13 0 1z" fill="#527c4f" stroke-width="2.5"/>
+      <path d="M0 27v105M-4 50l-15 13M5 49l17 17M-5 79l-24 20M5 80l28 19M-5 108l-35 18M5 108l37 20" stroke-width="2"/>
+      <path d="M-28 119l-10 8M27 121l12 8M-19 85l-8 8M20 84l8 8M-11 54l-8 8" stroke="#b8cc8f" stroke-opacity=".55" stroke-width="1.8"/>
+    </g>
+    <g id="round-tree" stroke="#294b3a" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M0 142V73M0 114l-24-26M0 98l23-23" stroke-width="5"/>
+      <path d="M-4 4c-22-8-43 6-41 25-23 2-29 26-14 39-21 18-6 42 16 37 4 22 28 26 42 12 20 18 44 6 45-13 22 4 39-21 20-38 9-20-3-39-22-39C34 8 15-3-4 4z" fill="#95b67e" stroke-width="2.5"/>
+      <path d="M0 102V36M0 77l-20-18M0 65l18-16M0 92l27-14M-7 108l-26-14" stroke-width="2"/>
+      <path d="M-38 42l-9 12M-23 24l-9 11M13 19l-8 11M35 44l-7 11M-40 75l-9 11M24 91l-9 11" stroke="#d5df9c" stroke-width="3"/>
+    </g>
+    <g id="flower-stem" stroke="#294b3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M0 92C-7 66 13 44 0 15M0 70c-27-12-31-28-15-27 14 0 12 15 15 27M2 58c24-15 34-27 18-26C6 32 6 47 2 58" fill="#98b980"/>
+      <path d="M0 17C-17 15-18 2-8 1c-4-13 13-16 15-3 14-5 19 8 7 14 5 11-8 17-14 5z" fill="#e5a09c"/>
+      <circle cy="9" r="4" fill="#efdc89"/>
+    </g>
+    <g id="grass" stroke="#294b3a" stroke-width="2" stroke-linecap="round">
+      <path d="M-8 1l6 15 2-24 4 22 7-14"/>
+    </g>
+    <g id="sprig" stroke="#294b3a" stroke-linejoin="round" stroke-linecap="round" stroke-width="1.8">
+      <path d="M0 83V2"/>
+      <path d="M0 63C-29 49-31 28-12 36c11 5 12 17 12 27M0 49C26 37 31 15 13 23c-10 4-12 14-13 26M0 31C-17 25-23 4-10 8c8 3 10 12 10 23" fill="#749960"/>
+    </g>
+    <g id="stone" stroke="#294b3a" stroke-width="2">
+      <path d="M-33 15l9-25 24-14 26 8 14 34-8 7h-60z" fill="#b4c6a5"/>
+      <path d="M-20 14l6-18 16-10M9-9l17 19"/>
+    </g>
+    <g id="cottage" stroke="#294b3a" stroke-width="2.5" stroke-linejoin="round">
+      <path d="M-51 6v65h99V6" fill="#f0dc92"/>
+      <path d="M-66 9l60-45 68 45z" fill="#da8a69"/>
+      <path d="M-66 9l60-45 68 45z" fill="url(#roof-lines)" opacity=".5"/>
+      <path d="M22-13v-31h13v40" fill="#e9d896"/>
+      <path d="M-8 71V37q11-14 22 0v34" fill="#44664c"/>
+      <path d="M-37 29h17v18h-17zM28 29h12v18H28z" fill="#b2c2a0"/>
+      <path d="M-29 29v18M34 29v18M-48 56h20M20 60h23M-45 19h14" stroke-width="1.3"/>
+      <path d="M26-55q-10-7-1-13 9-6 1-13" stroke="#faf0ca" stroke-width="5" stroke-linecap="round"/>
+    </g>
+    <g id="star" fill="#f0dc8b" stroke="#294b3a" stroke-width="1.6">
+      <path d="M0-13l4 9 10 4-10 4-4 10-4-10-10-4 10-4z"/>
+    </g>
+  </defs>
+
+  <path fill="#d7dfb3" d="M0 0h1400v900H0z"/>
+  <path d="M0 0h1400v220c-122-29-240-45-340-17-125 36-226-4-363-31C507 136 262 263 0 178z" fill="#315a47"/>
+  <g stroke="#f1df90" stroke-linecap="round">
+    <circle cx="1039" cy="134" r="65" fill="#edda82" stroke="#294b3a" stroke-width="2.5"/>
+    <path d="M1039 44V28M1039 242v-17M950 134h-18M1129 134h19M973 68l-15-15M1104 199l14 14M1102 69l15-15M974 200l-15 14M1005 52l-7-16M1073 218l8 16M1121 100l16-6M956 168l-18 7" stroke-width="3"/>
+  </g>
+  <g stroke="#ede5bd" stroke-width="3" stroke-linecap="round">
+    <path d="M246 81c28-13 45-4 63 12 18-22 42-25 64-10M580 43c14-13 29-12 43 1M766 112c15-15 33-13 48 0"/>
+  </g>
+  <use href="#star" x="874" y="62"/>
+  <use href="#star" x="1243" y="94" transform="rotate(10 1243 94)"/>
+  <use href="#star" x="146" y="63"/>
+  <use href="#star" x="450" y="123" transform="scale(.6) translate(290 85)"/>
+
+  <path d="M0 270L184 107l173 174L496 155l174 115 164-120 148 174 185-134 233 212v226H0z" fill="#94b294" stroke="#294b3a" stroke-width="2.5"/>
+  <path d="M151 139l33-32 50 50-39-16-15 22zM465 184l31-29 47 31-41-9-11 19zM803 180l31-30 43 51-30-13-10 18zM1136 212l31-22 34 31-35-4-13 13z" fill="#dfdfb9" stroke="#294b3a" stroke-width="1.7"/>
+  <g stroke="#294b3a" stroke-opacity=".55" stroke-width="1.6" stroke-linecap="round">
+    <path d="M155 187l-55 55M163 202l-59 64M173 217l-53 61M290 237l35 29M491 207l-66 60M500 221l-53 49M819 219l-30 41M829 231l-31 42M1141 253l-45 44M1151 270l-43 38"/>
+  </g>
+  <path d="M0 310c173-77 319-57 442 11 178 99 302 34 419-13 169-68 363-40 539 74v518H0z" fill="#c3d095" stroke="#294b3a" stroke-width="2.5"/>
+  <path d="M0 310c173-77 319-57 442 11 178 99 302 34 419-13 169-68 363-40 539 74v518H0z" fill="url(#hill-lines)" opacity=".5"/>
+  <path d="M0 450c145-99 289-82 406 15 133 111 243 30 389-49 199-108 393-18 605 105v379H0z" fill="#91b27c" stroke="#294b3a" stroke-width="2.5"/>
+  <path d="M0 604c183-135 338-109 514 41 181 154 314 77 408-5 172-149 319-138 478-49v309H0z" fill="#aebd7f" stroke="#294b3a" stroke-width="2.5"/>
+
+  <!-- The journey path winds between villages, without copying a map reference. -->
+  <path d="M1260 323c-76 14-147 22-147 51 0 45 182 8 173 66-8 52-310 56-392 70-119 21-184 54-163 95 31 60 354 22 327 99-26 73-336 66-480 85-125 16-148 68-192 111" stroke="#294b3a" stroke-width="58"/>
+  <path d="M1260 323c-76 14-147 22-147 51 0 45 182 8 173 66-8 52-310 56-392 70-119 21-184 54-163 95 31 60 354 22 327 99-26 73-336 66-480 85-125 16-148 68-192 111" stroke="#dda07b" stroke-width="53"/>
+  <path d="M1234 336l-20 4M1178 370l23 3M1234 440l-30 9M927 513l-23 5M788 558l-18 16M889 625l34 1M992 718l-36 10M585 798l-38 9M447 866l-14 21" stroke="#f6dfad" stroke-width="3" stroke-linecap="round"/>
+
+  <path d="M623 274c-67 50-72 88-46 136 30 54 75 84 34 138-55 73-176 69-163 124 17 70 152 85 132 144-12 35-53 59-96 84" stroke="#294b3a" stroke-width="49"/>
+  <path d="M623 274c-67 50-72 88-46 136 30 54 75 84 34 138-55 73-176 69-163 124 17 70 152 85 132 144-12 35-53 59-96 84" stroke="#acc9b4" stroke-width="44"/>
+  <path d="M623 274c-67 50-72 88-46 136 30 54 75 84 34 138-55 73-176 69-163 124 17 70 152 85 132 144-12 35-53 59-96 84" stroke="#edf0c8" stroke-width="3" stroke-dasharray="15 18" stroke-linecap="round"/>
+
+  <g>
+    <use href="#fir" x="66" y="230" transform="translate(15 -43) scale(1.2)"/>
+    <use href="#fir" x="180" y="243" transform="scale(.91)"/>
+    <use href="#fir" x="266" y="260" transform="scale(.8)"/>
+    <use href="#fir" x="297" y="326" transform="scale(.75)"/>
+    <use href="#fir" x="407" y="340" transform="scale(.83)"/>
+    <use href="#fir" x="450" y="239" transform="scale(.72)"/>
+    <use href="#fir" x="682" y="322" transform="scale(.8)"/>
+    <use href="#fir" x="751" y="342" transform="scale(.8)"/>
+    <use href="#fir" x="861" y="357" transform="scale(.72)"/>
+    <use href="#fir" x="931" y="322" transform="scale(.74)"/>
+    <use href="#fir" x="1143" y="338" transform="scale(.72)"/>
+    <use href="#fir" x="1333" y="280"/>
+    <use href="#round-tree" x="468" y="271"/>
+    <use href="#round-tree" x="999" y="280" transform="translate(178 50) scale(.8)"/>
+    <use href="#round-tree" x="1120" y="324" transform="translate(250 10) scale(.82)"/>
+    <use href="#round-tree" x="338" y="369" transform="translate(26 -18) scale(1.06)"/>
+    <use href="#round-tree" x="826" y="409" transform="translate(106 40) scale(.92)"/>
+    <use href="#fir" x="1312" y="468" transform="translate(-135 -40) scale(1.12)"/>
+    <use href="#fir" x="68" y="394" transform="translate(-14 -68) scale(1.35)"/>
+    <use href="#fir" x="207" y="430" transform="translate(-7 3) scale(1.1)"/>
+    <use href="#round-tree" x="220" y="573"/>
+    <use href="#fir" x="1120" y="548"/>
+    <use href="#round-tree" x="1306" y="629"/>
+  </g>
+
+  <use href="#cottage" x="1242" y="317" transform="translate(231 45) scale(.8)"/>
+  <use href="#cottage" x="866" y="425"/>
+  <use href="#cottage" x="988" y="420" transform="translate(200 60) scale(.8)"/>
+  <use href="#cottage" x="347" y="509" transform="translate(-15 -5) scale(1.05)"/>
+
+  <!-- A low stone bridge and a little wayside herb garden. -->
+  <g stroke="#294b3a" stroke-width="2.5" stroke-linejoin="round">
+    <path d="M543 607l34-27 68 23-15 29-11-3c9-16 2-25-15-27-17-2-23 4-26 17l-17 6z" fill="#e7dfb8"/>
+    <path d="M543 607l70 23 32-27M560 595l70 23M573 584l70 22M566 614l-4 11M621 611l-3 16"/>
+    <path d="M299 588l114 35-35 55-109-38z" fill="#718b58"/>
+    <path d="M285 618l109 36M306 598l-27 43M335 606l-28 45M364 615l-28 47M393 624l-29 47" stroke="#e3d99f" stroke-width="2"/>
+  </g>
+
+  <g>
+    <use href="#grass" x="430" y="363"/>
+    <use href="#grass" x="565" y="323"/>
+    <use href="#grass" x="794" y="355"/>
+    <use href="#grass" x="1047" y="375"/>
+    <use href="#grass" x="1370" y="430"/>
+    <use href="#grass" x="734" y="454"/>
+    <use href="#grass" x="689" y="511"/>
+    <use href="#grass" x="391" y="461"/>
+    <use href="#grass" x="223" y="533"/>
+    <use href="#grass" x="382" y="699"/>
+    <use href="#grass" x="655" y="724"/>
+    <use href="#grass" x="827" y="689"/>
+    <use href="#grass" x="928" y="803"/>
+    <use href="#grass" x="1215" y="718"/>
+    <use href="#grass" x="1150" y="860"/>
+    <use href="#stone" x="497" y="529" transform="translate(20 255) scale(.68)"/>
+    <use href="#stone" x="736" y="559" transform="translate(91 67) scale(.9)"/>
+    <use href="#stone" x="990" y="614" transform="translate(150 98) scale(.86)"/>
+    <use href="#flower-stem" x="1194" y="455" transform="translate(150 67) scale(.88)"/>
+    <use href="#flower-stem" x="1210" y="514" transform="translate(55 -40) scale(.96)"/>
+    <use href="#flower-stem" x="488" y="418" transform="translate(35 10) scale(.88)"/>
+    <use href="#flower-stem" x="454" y="423" transform="translate(39 -21) scale(.9)"/>
+  </g>
+
+  <!-- The healer: an original small fox with a leaf clasp and travel satchel. -->
+  <g transform="translate(739 745) rotate(-6)" stroke="#294b3a" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5">
+    <path d="M14 34c49 11 70 52 52 62-17 8-39-19-43-43" fill="#d58c64"/>
+    <path d="M58 68c14 11 17 24 8 28-10 4-20-4-26-14z" fill="#f1e4be"/>
+    <path d="M-20 16c-13 12-17 33-11 61 9 11 33 13 46-1 1-23-6-46-19-60z" fill="#e2b375"/>
+    <path d="M-26 21c-12 7-25 20-22 41 2 13 11 24 25 18l-1-42" fill="#758c58"/>
+    <path d="M-43 35l21 5M-39 46l18 3M-37 59l12 2" stroke="#cbd18e" stroke-width="2"/>
+    <path d="M-28 80l-4 18 12 1 5-19M4 81l6 16 12-3-9-20" fill="#294b3a"/>
+    <path d="M-28-22l-5-36 26 18M11-32l21-28-1 37" fill="#d58c64"/>
+    <path d="M-28-45l4 15 11-5M22-46l-11 14 13 6" fill="#64754c" stroke-width="1.5"/>
+    <path d="M-25-29c20-14 40-12 49 3l-2 22 15 14-25 13-30-4-20-26z" fill="#d58c64"/>
+    <path d="M-26-5l19 16 15-15 22 8-20 13-27-2-20-17z" fill="#f1e4be"/>
+    <path d="M27 8l10 2-7 5z" fill="#294b3a"/>
+    <path d="M6-15l1 4M-15-13l1 4" stroke-width="3.5"/>
+    <path d="M-22 17l15 8 20-6" fill="#526f48"/>
+    <path d="M-4 24q-10-15 6-11 8 8-6 11z" fill="#c1ce8b" stroke-width="1.5"/>
+    <path d="M7 39l17 7 5-14M29 21l-5 75" stroke-width="4"/>
+    <path d="M24 46c10 0 16-9 12-17-6-7-16-2-13 5" fill="#d58c64"/>
+  </g>
+
+  <!-- A tiny rabbit waits where the road bends. -->
+  <g transform="translate(1113 477)" stroke="#294b3a" stroke-width="2" stroke-linejoin="round">
+    <path d="M-7-12c-10-28-5-39 1-34 6 6 6 20 7 34M6-13c-1-29 6-40 10-30 2 10-2 22-4 31" fill="#efe4bb"/>
+    <path d="M-15 3c-13 8-13 25 4 29l21-4c16 3 24-9 13-17l-7-11c3-15-28-17-31 3z" fill="#efe4bb"/>
+    <path d="M-9 28l-8 6M10 27l10 3M11-3l1 3" stroke-linecap="round"/>
+    <circle cx="-20" cy="18" r="6" fill="#f4eccd"/>
+  </g>
+
+  <path d="M0 742c104-55 228-19 332 63 77 60 108 77 170 95H0z" fill="#355e45" stroke="#294b3a" stroke-width="3"/>
+  <path d="M1080 900c71-116 170-181 320-192v192z" fill="#355e45" stroke="#294b3a" stroke-width="3"/>
+  <g>
+    <use href="#sprig" x="77" y="747" transform="translate(-30 -70) scale(1.25) rotate(-15 77 747)"/>
+    <use href="#sprig" x="159" y="796" transform="rotate(10 159 796)"/>
+    <use href="#sprig" x="254" y="840" transform="rotate(-15 254 840)"/>
+    <use href="#flower-stem" x="194" y="728" transform="translate(-20 -85) scale(1.15) rotate(-7 194 728)"/>
+    <use href="#flower-stem" x="76" y="786"/>
+    <use href="#flower-stem" x="334" y="820" transform="rotate(16 334 820)"/>
+    <use href="#flower-stem" x="1294" y="729" transform="rotate(13 1294 729)"/>
+    <use href="#flower-stem" x="1356" y="744" transform="rotate(-9 1356 744)"/>
+    <use href="#sprig" x="1231" y="812" transform="rotate(-17 1231 812)"/>
+    <use href="#sprig" x="1160" y="845" transform="rotate(9 1160 845)"/>
+    <use href="#stone" x="1329" y="852"/>
+  </g>
+  <g fill="#efdda0" stroke="#294b3a" stroke-width="1.5">
+    <path d="M17 825q5-17 22-15 10 4 13 17zM28 827v15h12v-15M1147 809q7-16 23-13 10 2 15 16zM1158 813v16h12v-16"/>
+  </g>
+  <g stroke="#efd9a5" stroke-width="2" stroke-linecap="round" opacity=".7">
+    <path d="M24 772l9 4M246 872l12 5M298 857l9 4M100 862l11 6M1182 871l10-5M1267 808l12-4M1348 888l11-3"/>
+  </g>
+  <path fill="url(#paper)" d="M0 0h1400v900H0z"/>
+  <path d="M12 12h1376v876H12z" stroke="#ecdfb0" stroke-width="2" stroke-opacity=".45"/>
+</svg>

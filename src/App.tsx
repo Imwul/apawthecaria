@@ -166,6 +166,10 @@ import {
   applyForcedJourneyAbandonment,
   applyAilmentTagOverrides,
   previewTreatmentSelection,
+  preparationForInventory,
+  rememberCustomReagents,
+  customReagentCatalogueProjection,
+  type CustomReagentCatalogueEntry,
   canTreatAilmentWithInventory,
   calculatePawnReward,
   beginBarrowChallenge,
@@ -177,7 +181,6 @@ import {
   derivePatientArchiveTimer,
   createManualEffectDraft,
   createReplacementAcquisition,
-  commitAlternativeAcquisition,
   scopeAlternativeAcquisition,
   evaluateJourneyGoal,
   drawCollapsedEntranceCard,
@@ -438,8 +441,17 @@ import {
   type EncounterRemedyTriggerResolution
 } from './encounterRemedyIntegration';
 import { BarrowPanel } from './components/Phase4Panels';
-import { ChapterOpening, JournalNavigation, TodayOverview, type JournalTab } from './components/JournalExperience';
+import { ChapterOpening, FolioEmblem, JournalNavigation, TodayOverview, type JournalTab } from './components/JournalExperience';
+import { getPatientTimerProjection } from './patientTimerProjection';
+import { focusCurrentWorkspace } from './workspaceNavigation';
+import CloudSaveCapacityNotice from './components/CloudSaveCapacityNotice';
+import FocusDialog from './components/FocusDialog';
+import EncounterReadiness from './components/EncounterReadiness';
+import { useDialogFocus } from './components/useDialogFocus';
+import { cloudCapacityIssueForPayload, cloudCapacityMessage, type CloudCapacityIssue } from './persistence/cloudCapacity';
+import PlayGuide from './components/PlayGuide';
 import LocalizedManualEffectText from './components/LocalizedManualEffectText';
+import { formatRuleTag } from './localization/ruleTagsKo';
 import {
   localizeCharacterChoiceLabel,
   localizeCharacterDescriptor,
@@ -546,7 +558,7 @@ import { referenceForJournalTab } from './rulebook/context';
 import { fuzzyReferenceTextMatch } from './rulebook/referenceRegistry';
 import { PaperMap, type MapClinicOverlay, type MapPickLocation, type MapSavedConnection, type MapSelectionIntent } from './map/PaperMap';
 import { type MapPlace, type MapPlaceType } from './map/mapLayers';
-import { applyManualCalendarAdjustment, getCampaignContinuity, getCampaignResumeActionIds, inferCompletedSeasons } from './campaignContinuity';
+import { applyManualCalendarAdjustment, getCampaignContinuity, getCampaignNextAction, inferCompletedSeasons } from './campaignContinuity';
 import {
   getJourneyUiContext,
   journeyGoalConfirmationDefault,
@@ -1513,10 +1525,11 @@ type SaveWriteResult = {
   localFailure: DeviceSaveFailure | null;
   pendingCloudSaves: number;
   cloudStatus: 'local-only' | 'synced' | 'pending';
+  cloudCapacityIssue?: CloudCapacityIssue;
 };
 
 const store = {
-  set: async (key: string, value: any) => {
+  set: async (key: string, value: any): Promise<SaveWriteResult> => {
     const blockedSave = { localSaved: false, localFailure: null, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
     if (!ensureCurrentCampaignWrite()) return blockedSave;
     const saveOwnerUid = readCloudAccountBinding();
@@ -1554,9 +1567,10 @@ const store = {
     if (!ensureCurrentCampaignWrite()
       || readCloudAccountBinding() !== saveOwnerUid
       || readActiveCloudSlot() !== saveOwnerSlot) return blockedSave;
-    if (summarizeCloudUploadSource(jsonString).payloadBytes >= CLOUD_PAYLOAD_SAFE_BYTES) {
+    const cloudCapacityIssue = cloudCapacityIssueForPayload(jsonString);
+    if (cloudCapacityIssue) {
       console.warn('캠페인 파일이 클라우드 저장 한도를 넘어 로컬에만 저장했습니다.');
-      return { localSaved, localFailure, pendingCloudSaves: 0, cloudStatus: 'local-only' } satisfies SaveWriteResult;
+      return { localSaved, localFailure, pendingCloudSaves: 0, cloudStatus: 'local-only', cloudCapacityIssue };
     }
     const uid = auth?.currentUser?.uid;
     if (isFirebaseConfigured && db && uid && readCloudAccountBinding() === uid) {
@@ -2003,6 +2017,8 @@ interface GameState {
   pendingLeaveObligation: PendingLeaveObligation | null;
   pendingAlternativeAcquisition: AlternativeAcquisition | null;
 
+  customReagentCatalogue?: CustomReagentCatalogueEntry[];
+
   // Log history
   journals: JournalEntry[];
 
@@ -2181,7 +2197,7 @@ const INITIAL_BIO: ApothecaryBio = {
 
 const INITIAL_BAG: BagItem[] = [
   { id: "tool_knife", name: "벨트 칼", weight: 1/3, type: "tool", canonicalToolId: 'belt-knife' },
-  { id: "tool_mortar", name: "나무 절구와 공이 [GRIND/CRUSH]", weight: 1/3, type: "tool", canonicalToolId: 'mortar-and-pestle' },
+  { id: "tool_mortar", name: "나무 절구와 공이 · 갈기/빻기", weight: 1/3, type: "tool", canonicalToolId: 'mortar-and-pestle' },
   { id: "tool_kettle", name: "낡은 캠프 주전자 [BOIL/BREW]", weight: 1/3, type: "tool", canonicalToolId: 'camp-kettle' },
   { id: "tool_jaws", name: "이빨 [CHEW/DIGEST]", weight: 0, type: "tool", canonicalToolId: 'teeth' },
   { id: "tool_paws", name: "앞발/발톱 [ADD/APPLY]", weight: 0, type: "tool", canonicalToolId: 'paws' }
@@ -2341,17 +2357,6 @@ const formatWeight = (w: number) => {
   if (rem === 0) return `${whole}`;
   if (whole === 0) return `${rem}/3`;
   return `${whole} ${rem}/3`;
-};
-
-const getReputationRank = (rep: number) => {
-  const rank = guildReputationRank(rep);
-  const colors = {
-    Trusted: '#5c9c6f',
-    Upstanding: '#6ba6c9',
-    Established: '#e59a73',
-    Unknown: '#9b9487'
-  } as const;
-  return { rank, color: colors[rank] };
 };
 
 const CHARACTER_SUITS = ['♥', '♦', '♣', '♠'];
@@ -2933,6 +2938,10 @@ const fromEngineInventory = (inventory: readonly EngineInventoryItem[], previous
     preparationId: item.preparationId,
     usesRemaining: item.usesRemaining,
     ruinedWhenSoaked: item.ruinedWhenSoaked,
+    tags: item.customReagent
+      ? preparationForInventory(item)?.tags.map(tag => `[${tag.tag} ${tag.value}]`).join(' · ')
+      : previousById.get(item.id)?.tags,
+    preps: item.customReagent ? item.customReagent.preparation : previousById.get(item.id)?.preps,
     customReagent: item.customReagent,
     provenance: item.provenance,
     guildNote: item.guildNote,
@@ -3068,34 +3077,11 @@ const commitPendingAlternativeAcquisition = (
     || acquisition.ailmentInstanceId !== state.activeAilment?.id) {
     return { ...state, pendingAlternativeAcquisition: null };
   }
-  const transactionId = `alternative:${acquisition.id}:${sourceTransactionId}`;
-  const result = commitAlternativeAcquisition({
-    transactionId,
-    acquisition,
-    source,
-    sourceTransactionId,
-    acquisitionSucceeded: true,
-    state: {
-      inventory: toEngineInventory(state.bag),
-      patient,
-      reputation: state.reputation,
-      trinkets: state.trinkets.length,
-      currentRegion: (state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion) as Region,
-      adjacentRegions: [],
-      foragingPoints: state.activeAilment?.foragingPoints || 0,
-      pendingObligation: null,
-      journalEvents: [],
-      appliedTransactionIds: state.appliedTransactionIds
-    }
-  });
-  if (!result.value) return state;
-  return {
-    ...state,
-    bag: fromEngineInventory(result.value.inventory, state.bag),
-    pendingAlternativeAcquisition: null,
-    appliedTransactionIds: result.value.appliedTransactionIds,
-    journals: appendPlayerFacingEngineJournals<JournalEntry>(state.journals, result.value.journalEvents)
-  };
+  // Acquisition belongs to the actual BR-12 Forage/Barter transaction. A
+  // success with an unrelated ordinary Part must never add another reward.
+  const acquired = state.bag.some(item => item.provenance?.acquisitionId === acquisition.id
+    && item.provenance.source === source && item.provenance.sourceTransactionId === sourceTransactionId);
+  return acquired ? { ...state, pendingAlternativeAcquisition: null } : state;
 };
 
 const findMapLocationKey = (name: string, customLocations: CustomMapLocation[] = []) => {
@@ -3984,6 +3970,7 @@ const applyForagingEncounterTransactionState = (
     trinkets: resizeTrinkets(s.trinkets, Math.max(0, runtime.trinkets), '채집 조우 보상 장신구'),
     bag: fromEngineInventory(runtime.inventory, s.bag),
     patients: patient ? replacePatient(s.patients, patient) : s.patients,
+    customReagentCatalogue: rememberCustomReagents(s.customReagentCatalogue, runtime.inventory),
     toolStates: runtime.tools,
     companionStates: runtime.companions,
     manualConditions: runtime.conditions,
@@ -4147,6 +4134,7 @@ const toBarterRuntime = (s: GameState, patient: PatientState): BarterRuntimeStat
 const applyBarterRuntime = (s: GameState, runtime: BarterRuntimeState): GameState => ({
   ...s,
   bag: fromEngineInventory(runtime.inventory, s.bag),
+  customReagentCatalogue: rememberCustomReagents(s.customReagentCatalogue, runtime.inventory),
   patients: replacePatient(s.patients, runtime.patient),
   reputation: runtime.reputation,
   trinkets: resizeTrinkets(s.trinkets, runtime.trinkets, '물꼬 거래 장신구'),
@@ -5586,7 +5574,7 @@ const CardDrawSlot = ({
           title={card ? `${card.suit} ${cardDisplayValue(card.value)}` : '오프라인에서 뽑은 카드를 직접 입력합니다.'}
           style={{
             width: '112px',
-            minHeight: '144px',
+            minHeight: card ? '144px' : '44px',
             border: card ? '1px solid #d8d1bf' : '2px dashed var(--glass-border)',
             borderRadius: '8px',
             background: card ? '#fff' : '#f8f6ef',
@@ -5607,7 +5595,7 @@ const CardDrawSlot = ({
           {card ? (
             <img src={getCardSvgUrl(card.suit, card.value)} alt={`${card.suit} ${cardDisplayValue(card.value)}`} style={{ width: '100%', height: 'auto', display: 'block' }} />
           ) : (
-            <span style={{ display: 'grid', justifyItems: 'center', gap: '0.3rem' }}><span className="emoji-icon" aria-hidden="true" style={{ fontSize: '1.4rem' }}>🃏</span><span>카드 선택</span></span>
+            <span>카드 선택</span>
           )}
         </button>
         <button
@@ -5829,7 +5817,11 @@ const renderSingleTagBadge = (tagContent: string) => {
 
   const cleanKey = tagName.toLowerCase();
   const translated = tagTranslationMap[cleanKey] || tagTranslationMap[tagName] || tagName.toUpperCase();
-  const finalTagText = tagNum ? `${translated} ${tagNum}` : translated;
+  const label = translated === 'MINIMUM FAIR' ? `${formatRuleTag('FAIR')} 최소`
+    : translated === 'SOMETHING TO SET A BONE' ? '뼈를 고정할 재료'
+      : translated === 'A BRIGHTLY COLOURED PLANT REAGENT' ? '밝은 색 식물 약재'
+        : translated.replace(/\b[A-Z]+\b/g, formatRuleTag);
+  const finalTagText = tagNum ? `${label} ${tagNum}` : label;
 
   const style = getTagStyle(finalTagText);
   return (
@@ -5846,9 +5838,9 @@ const renderSingleTagBadge = (tagContent: string) => {
         alignItems: 'center',
         boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
         letterSpacing: '0.03em',
-        textTransform: 'uppercase',
+        textTransform: 'none',
         fontFamily: 'var(--font-fancy)',
-        whiteSpace: 'nowrap'
+        whiteSpace: 'normal'
       }}
     >
       {finalTagText}
@@ -6952,6 +6944,8 @@ const withCloudBootstrapTimeout = <T,>(operation: Promise<T>): Promise<T> => new
 
 export default function App() {
   const [storedState, setState] = useState<GameState | null>(null);
+  const latestBackupStateRef = useRef(storedState);
+  useLayoutEffect(() => { latestBackupStateRef.current = storedState; }, [storedState]);
   const state = storedState ? withCanonicalPatientView(storedState) : null;
   const campaignReadyForOfficialMap = Boolean(state);
   const [loading, setLoading] = useState(true);
@@ -7000,6 +6994,7 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState<'ready' | 'saving' | 'saved' | 'error'>('ready');
   const [campaignWriteBlocked, setCampaignWriteBlocked] = useState(() => !campaignWriteOwnership.isCurrent());
   const [localSaveFailure, setLocalSaveFailure] = useState<DeviceSaveFailure | null>(null);
+  const [cloudCapacityIssue, setCloudCapacityIssue] = useState<CloudCapacityIssue | null>(null);
   const localSaveUnavailable = localSaveFailure !== null;
   const initialSetupRouted = useRef(false);
   const officialMapDefaultsLoaded = useRef(false);
@@ -7145,6 +7140,7 @@ export default function App() {
   const [reagentTypeFilter, setReagentTypeFilter] = useState("");
   const [herbariumViewState, setHerbariumViewState] = useState<HerbariumViewState>(initialHerbariumViewState);
   const [bioRecordFolds, setBioRecordFolds] = useState<BioRecordFoldState>(initialBioRecordFoldState);
+  const [journalWorkspace, setJournalWorkspace] = useState<JournalWorkspaceState>(initialJournalWorkspace);
   const [ailmentFilter, setAilmentFilter] = useState("");
 
   const resetCampaignScopedUi = useCallback(() => {
@@ -7178,6 +7174,7 @@ export default function App() {
     setAilmentFilter('');
     setHerbariumViewState(initialHerbariumViewState());
     setBioRecordFolds(initialBioRecordFoldState());
+    setJournalWorkspace(initialJournalWorkspace());
     setForageDrawCard(null);
     setForageTargetReagentIds([]);
     setForageTargetTag('');
@@ -7341,6 +7338,7 @@ export default function App() {
           resetCampaignScopedUi();
           setState(migrated.state);
           setSaveStatus(localSave.localSaved ? 'saved' : 'error');
+          setCloudCapacityIssue(cloudCapacityIssueForPayload(JSON.stringify(migrated.state)));
           setLocalSaveFailure(localSave.localFailure);
           setActiveCloudSlot(bindingSaved ? record.slot : readActiveCloudSlot());
           setCloudSyncStatus(!bindingSaved || migrated.repaired ? 'local-only' : 'synced');
@@ -7553,6 +7551,7 @@ export default function App() {
         if (migrated.repaired) repairSave = await persistHydratedCampaignLocally(migrated.state);
         setState(migrated.state);
         setSaveLoadError(null);
+        setCloudCapacityIssue(cloudCapacityIssueForPayload(JSON.stringify(migrated.state)));
         setSaveStatus(repairSave && !repairSave.localSaved ? 'error' : 'saved');
         setLocalSaveFailure(repairSave?.localFailure || null);
         if (!migrated.repaired && isDeviceSavePointer(localRaw)) {
@@ -7585,6 +7584,7 @@ export default function App() {
           const repairSave = migrated.repaired ? await persistHydratedCampaignLocally(migrated.state) : null;
           setState(migrated.state);
           setSaveLoadError(null);
+          setCloudCapacityIssue(cloudCapacityIssueForPayload(JSON.stringify(migrated.state)));
           setSaveStatus(repairSave && !repairSave.localSaved ? 'error' : 'saved');
           setLocalSaveFailure(repairSave?.localFailure || null);
           if (!migrated.repaired) void removeDeviceSave(CAMPAIGN_SAVE_KEY);
@@ -7692,7 +7692,7 @@ export default function App() {
         targetReagentId: pending.targetReagentId,
         rememberedReagentIds: pending.rememberedReagentIds || [],
         candidateSelectionReagentId: pending.candidateSelectionReagentId,
-        foundReagents: result.value!.candidates.map(candidate => ({
+        foundReagents: (restoredSpecialAcquisition ? [] : result.value!.candidates).map(candidate => ({
           name: REAGENT_BY_ID.has(candidate.reagentId)
             ? formatReagentName(REAGENT_BY_ID.get(candidate.reagentId)!)
             : candidate.canonicalName,
@@ -7703,7 +7703,7 @@ export default function App() {
         timerBaseCost: pending.locationRelation === 'adjacent' ? 2 : 1,
         gatheredPartCount: restoredSpecialAcquisition?.itemCount || restoredGatheredItems.length,
         selectedReagentId: restoredSpecialAcquisition
-          ? `unbuckled-cache:${restoredSpecialAcquisition.cacheId}`
+          ? restoredSpecialAcquisition.kind === 'replacement' ? restoredSpecialAcquisition.cacheId : `unbuckled-cache:${restoredSpecialAcquisition.cacheId}`
           : pending.selectedReagentId,
         specialAcquisition: restoredSpecialAcquisition,
         forageFailed: Boolean(pending.selectedReagentId && restoredGatheredItems.length === 0),
@@ -7750,6 +7750,7 @@ export default function App() {
         }
         setPendingCloudSaveCount(result.pendingCloudSaves);
         setCloudSyncStatus(result.cloudStatus);
+        setCloudCapacityIssue(result.cloudCapacityIssue || null);
         setLocalSaveFailure(result.localSaved ? null : result.localFailure || 'unavailable');
         if (result.cloudStatus === 'synced') {
           setSaveStatus('saved');
@@ -7829,6 +7830,7 @@ export default function App() {
         }
         setPendingCloudSaveCount(result.pendingCloudSaves);
         setCloudSyncStatus(result.cloudStatus);
+        setCloudCapacityIssue(result.cloudCapacityIssue || null);
         setLocalSaveFailure(result.localSaved ? null : result.localFailure || 'unavailable');
         setSaveStatus(result.localSaved || result.cloudStatus === 'synced' ? 'saved' : 'error');
       }).catch(error => {
@@ -8273,7 +8275,7 @@ export default function App() {
         showAlert(gossipResult.messages.join('\n'));
         return;
       }
-      updateState((s: GameState) => commitPendingAlternativeAcquisition(applyBarterRuntime(s, gossipResult.value!), 'barter', transactionId));
+      updateState((s: GameState) => commitPendingAlternativeAcquisition(applyBarterRuntime(s, gossipResult.value!), 'barter', pending.barterId));
       setBarterJournalNote('');
       showAlert('흥미로운 소문을 건네고 선택한 영약재를 받았습니다.');
       return;
@@ -8338,7 +8340,7 @@ export default function App() {
         });
         if (mycophiliacs.consumed) next = { ...next, manualConditions: mycophiliacs.conditions };
       }
-      return isSuccess ? commitPendingAlternativeAcquisition(next, 'barter', transactionId) : next;
+      return isSuccess ? commitPendingAlternativeAcquisition(next, 'barter', state.pendingBarter!.barterId) : next;
     });
     setBarterJournalNote("");
     showAlert(isSuccess ? "거래가 완료되어 선택한 조제 부위가 가방에 추가되었습니다." : "거래를 중단해 모든 활성 타이머가 1 감소했습니다.");
@@ -8587,11 +8589,13 @@ export default function App() {
           if (migrated.ok) {
             resetCampaignScopedUi();
             setState(migrated.state);
+            setCloudCapacityIssue(cloudCapacityIssueForPayload(JSON.stringify(migrated.state)));
           }
           else showAlert('저장 데이터를 올리지 못했습니다. 기존 기록은 지우지 않았습니다.');
         } else {
           resetCampaignScopedUi();
           setState(syncWorldMemory(INITIAL_STATE));
+          setCloudCapacityIssue(null);
         }
       } catch (e: any) {
         console.error("Sign-out error:", e);
@@ -8818,6 +8822,7 @@ export default function App() {
       resetCampaignScopedUi();
       setState(migrated.state);
       setActiveCloudSlot(bindingSaved ? slot : readActiveCloudSlot());
+      setCloudCapacityIssue(cloudCapacityIssueForPayload(JSON.stringify(migrated.state)));
       setSaveStatus(localSave.localSaved ? 'saved' : 'error');
       setLocalSaveFailure(localSave.localFailure);
       setCloudSyncStatus(!bindingSaved || migrated.repaired ? 'local-only' : 'synced');
@@ -9029,9 +9034,35 @@ export default function App() {
     }
   };
 
-  const handleReset = () => {
+  const handleExportBackup = () => {
+    // Flush active workflow drafts before reading the preferred current record.
+    flushSync(() => flushWorkflowDrafts());
+    const inMemory = latestBackupStateRef.current || INITIAL_STATE;
+    const payload = preferredCloudUploadPayload(JSON.stringify(inMemory), safeLocalStorageGetItem(CAMPAIGN_SAVE_KEY));
+    const blob = new Blob([payload || JSON.stringify(inMemory)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `apawthecaria_save_${Date.now()}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const handleReset = async () => {
     if (!ensureCurrentCampaignWrite()) return;
-    if (askWindowConfirm("⚠️ 경고: 정말 모든 진행상황과 연대기를 초기화하고 새로운 약제사로 시작하시겠습니까? (저널 일지 기록도 함께 삭제됩니다.)")) {
+    const choice = await requestControlledPrompt({
+      title: '새 약제사로 시작', kicker: '기록 · 설정',
+      message: '현재 기기의 진행과 연대기·일지를 새 기록으로 바꿉니다. 먼저 JSON 백업을 내려받으면 기록 불러오기로 복구할 수 있습니다. 클라우드 슬롯 삭제는 별도 작업입니다.',
+      defaultValue: 'backup', label: '기록 보존과 초기화', tone: 'destructive',
+      options: [
+        { value: 'backup', label: '먼저 JSON 백업만 내려받기 · 현재 기록 유지' },
+        { value: 'reset', label: '백업을 보관했습니다 · 새 기록으로 초기화' }
+      ], confirmLabel: '선택 적용'
+    });
+    if (choice === 'backup') { handleExportBackup(); return; }
+    if (choice === 'reset' && ensureCurrentCampaignWrite()) {
       changeActiveTab('bio');
       resetCampaignScopedUi();
       updateState(() => syncWorldMemory(INITIAL_STATE));
@@ -9178,8 +9209,8 @@ export default function App() {
           value: `${reagent.id}::${preparation.id}`,
           label: `${formatReagentName(reagent)} · ${localizePreparationName(preparation.name)}`,
           detail: localizePreparationMethod(preparation.method),
-          remedyTags: preparation.tags.filter(tag => !['FAIR', 'FOUL'].includes(tag.tag)).map(tag => `${tag.tag} ${tag.value}`),
-          tradeTags: preparation.tags.filter(tag => ['FAIR', 'FOUL'].includes(tag.tag)).map(tag => `${tag.tag} ${tag.value}`),
+          remedyTags: preparation.tags.filter(tag => !['FAIR', 'FOUL'].includes(tag.tag)).map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`),
+          tradeTags: preparation.tags.filter(tag => ['FAIR', 'FOUL'].includes(tag.tag)).map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`),
           meta: `기본 희귀도 ${reagent.baseRarity} · 무게 ${formatWeight(preparation.weight)}`,
           searchText: `${reagent.canonicalName} ${reagent.displayName} ${preparation.name} ${preparation.method}`
         }))
@@ -9596,8 +9627,8 @@ export default function App() {
           label: localizePreparationName(part.name),
           title: localizePreparationName(part.name),
           detail: localizePreparationMethod(part.method),
-          remedyTags: tagGroups.remedy.map(tag => `${tag.tag} ${tag.value}`),
-          tradeTags: tagGroups.trade.map(tag => `${tag.tag} ${tag.value}`),
+          remedyTags: tagGroups.remedy.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`),
+          tradeTags: tagGroups.trade.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`),
           meta: `무게 ${formatWeight(part.weight)} · ${part.uses}회분`,
           relevant: treatmentRelevantPreparationTags(part.tags, treatmentNeededRequirements).length > 0,
           disabled: missingTools.length > 0,
@@ -11127,7 +11158,7 @@ export default function App() {
           defaultValue: '1',
           options: preparations.map((preparation, index) => ({
             value: String(index + 1),
-            label: `${index + 1}. ${localizePreparationName(preparation.name)} · ${localizePreparationMethod(preparation.method)} · ${preparation.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 없음'}`
+            label: `${index + 1}. ${localizePreparationName(preparation.name)} · ${localizePreparationMethod(preparation.method)} · ${preparation.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ') || '약효 없음'}`
           }))
         });
         if (partChoice === null) return;
@@ -11788,7 +11819,7 @@ export default function App() {
       });
       if (bearName === null) return false;
     }
-    if (encounter.id === 'foraging-forest-bear-scurry') {
+    if (encounter.id === 'foraging-forest-bear-scurry' && selectedChoiceId !== 'bear-deference') {
       const foragingPoints = activePatient?.foragingPoints ?? state.activeAilment?.foragingPoints ?? 0;
       const reagentItems = toEngineInventory(state.bag).filter(item => item.type === 'reagent' && Math.max(1, item.quantity || 1) > 0);
       if (selectedChoiceId === 'lose-foraging-points') {
@@ -12142,11 +12173,13 @@ export default function App() {
         trinkets: Array.from({ length: runtime.trinkets }, (_, index) => s.trinkets[index] || '채집 조우 보상 장신구'),
         bag: fromEngineInventory(runtime.inventory, s.bag),
         patients: (() => {
+          // Foreign Reagent definitions are separately retained in the Almanack below.
           let patients = runtimePatient ? replacePatient(s.patients, runtimePatient) : s.patients;
           if (fixedRemedyPatient) patients = replacePatient(patients, fixedRemedyPatient);
           return patients;
         })(),
         activePatientId: fixedRemedyPatient?.id || (encounterAilmentInstanceId && patient ? patient.id : s.activePatientId),
+        customReagentCatalogue: rememberCustomReagents(s.customReagentCatalogue, runtime.inventory),
         toolStates: encounterAilmentInstanceId
           ? encounterAilmentToolStates
           : typedForagingValue?.nextState.tools || s.toolStates,
@@ -12530,6 +12563,7 @@ export default function App() {
     ? requirementTagThresholds(effectiveTreatmentRequirement(referenceAilmentDefinition, referencePatientAilment, state.ailmentTagOverrides))
     : [];
   const isOnboarding = !state.bio.name.trim();
+  const patientTimerProjection = getPatientTimerProjection(state);
   const cloudAccountLinked = Boolean(user && readCloudAccountBinding() === user.uid);
   // Serializing a long campaign is only needed while the cloud panel is
   // visible. Doing this on every keystroke made unrelated journal/manual
@@ -12545,7 +12579,9 @@ export default function App() {
     : saveStatus === 'error'
       ? '저장 실패'
       : saveStatus === 'saved'
-        ? localSaveUnavailable
+        ? cloudCapacityIssue && !localSaveUnavailable
+          ? '기기에 저장됨 · 클라우드 용량 초과'
+          : localSaveUnavailable
           ? cloudSyncStatus === 'synced'
             ? localSaveFailure === 'quota'
               ? '클라우드에 저장됨 · 기기 저장 제한 확인 필요'
@@ -12565,22 +12601,54 @@ export default function App() {
         : '자동 저장 준비됨';
   const saveStatusTitle = campaignWriteBlocked
     ? STALE_CAMPAIGN_TAB_MESSAGE
-    : saveStatus === 'error' || localSaveUnavailable
+    : cloudCapacityIssue
+      ? cloudCapacityMessage(cloudCapacityIssue, !localSaveUnavailable)
+      : saveStatus === 'error' || localSaveUnavailable
       ? localSaveFailure === 'quota'
         ? '사이트 데이터 한도나 비공개 탐색 제한을 확인하고 기록을 내보내 주세요.'
         : '브라우저의 사이트 저장 권한을 확인하고 기록을 내보내 주세요.'
       : undefined;
 
+  const playGuide = <PlayGuide
+    state={state}
+    tab={activeTab}
+    mode={activeTab === 'play' ? 'help-only' : 'contextual'}
+    onNavigate={(tab, targetId, actionId) => {
+      changeActiveTab(tab);
+      window.requestAnimationFrame(() => focusCurrentWorkspace(targetId || 'field-main', actionId));
+    }}
+    onOpenReference={openRulebookReference}
+  />;
+
   return (
-    <div className={`journal-app journal-app--${activeTab} ${isOnboarding ? 'journal-app--onboarding' : ''}`}>
+    <div className={`journal-app folio-app journal-app--${activeTab} ${isOnboarding ? 'journal-app--onboarding' : ''}`}>
+      <a className="skip-to-play" href="#field-main" onClick={event => {
+        event.preventDefault();
+        const main = document.getElementById('field-main');
+        main?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        main?.focus({ preventScroll: true });
+      }}>본문으로 건너뛰기</a>
       {campaignWriteBlocked && <p role="alert" className="cloud-slots__warning">{STALE_CAMPAIGN_TAB_MESSAGE}</p>}
       {/* Header Banner */}
       <header className="journal-header">
         <button type="button" className="journal-brand" onClick={() => changeActiveTab('play')} disabled={isOnboarding} aria-label={isOnboarding ? 'Apawthecaria 새 기록 설정' : '오늘의 여행 첫 페이지로 돌아가기'}>
-          <span className="journal-brand__eyebrow">Bristley Woods · A travelling apothecary's field notes</span>
-          <h1 className="journal-brand__title"><span>APAW</span><span>THECARIA</span></h1>
-          <span className="journal-brand__edition">들녘 일지 · 제1권</span>
+          <FolioEmblem />
+          <span className="journal-brand__copy">
+          <span className="journal-brand__eyebrow">A JOURNAL FROM THE BRISTLEY WOODS</span>
+          <h1 className="journal-brand__title">Apawthecaria</h1>
+          <span className="journal-brand__edition">여행하는 약제사의 작업실</span>
+          </span>
         </button>
+
+        {!isOnboarding && <div className="adventure-context" aria-label="현재 모험 상태">
+          <button type="button" onClick={() => changeActiveTab('map')}><span>현재 위치</span><strong>{localizeLocationName(state.currentLocationName)}</strong></button>
+          <div><span>계절</span><strong>{localizeSeasonLabel(state.currentSeason)}</strong></div>
+          <button type="button" onClick={() => changeActiveTab('bio')}><span>배낭</span><strong>{formatWeight(currentWeight)} / {maxCarry}{isOverEncumbered ? ' · 한도 초과' : ''}</strong></button>
+          {patientTimerProjection.hasActiveAilment && <button type="button" className="adventure-context__patient" onClick={() => {
+            changeActiveTab('play');
+            window.requestAnimationFrame(() => focusCurrentWorkspace('treatment-workspace'));
+          }}><span>가장 급한 기한</span><strong>{patientTimerProjection.shortestHours === null ? '기한 없음' : `${patientTimerProjection.shortestHours}시간`}</strong></button>}
+        </div>}
 
         <div className="journal-header__utilities">
           {isOnboarding && (
@@ -12598,8 +12666,26 @@ export default function App() {
               />
             </label>
           )}
-          <button type="button" className="journal-header__action" onClick={() => openRulebookReference(currentRulebookRequest)} aria-label="현재 페이지의 룰북 맥락 열기" title="현재 페이지의 룰북 맥락">
-            <span className="emoji-icon" aria-hidden="true">📚</span><span>룰북</span>
+          {!isOnboarding && <button type="button" className="journal-header__action" onClick={() => {
+            const guide = document.getElementById('play-guide');
+            const details = guide?.querySelector<HTMLDetailsElement>('.play-guide__details');
+            if (details) details.open = true;
+            guide?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            guide?.focus({ preventScroll: true });
+          }} aria-label="플레이 길잡이 열기" title="플레이 길잡이">
+            <span className="emoji-icon" aria-hidden="true">🧭</span><span>플레이 길잡이</span>
+          </button>}
+          <details className="adventure-settings"><summary>기록 · 설정</summary><div className="adventure-settings__content">
+          {!isOnboarding && <>
+            <p className="workspace-settings__caption">기록 보관과 복원</p>
+            <button type="button" className="journal-header__action" onClick={handleExportBackup}>JSON 백업 내려받기</button>
+            <label className="journal-header__action journal-header__action--import">
+              <span>JSON 백업 불러오기</span>
+              <input type="file" accept=".json,application/json" onChange={handleCampaignImportFile} aria-label="JSON 백업 기록 파일 선택" />
+            </label>
+          </>}
+          <button type="button" className="journal-header__action" onClick={() => openRulebookReference(currentRulebookRequest)} aria-label="현재 페이지의 자세한 규칙 열기" title="자세한 규칙">
+            <span className="emoji-icon" aria-hidden="true">📚</span><span>자세한 규칙</span>
           </button>
           {isFirebaseConfigured && auth && (
                 user ? (
@@ -12635,111 +12721,38 @@ export default function App() {
               )}
             </>
           )}
+          </div></details>
           <span className={`save-state save-state--${saveStatus === 'error' || localSaveUnavailable ? 'error' : saveStatus}`} role={saveStatus === 'error' || localSaveUnavailable ? 'alert' : 'status'} aria-live="polite" title={saveStatusTitle}>
             {saveStatusText}
           </span>
         </div>
       </header>
 
+      {cloudCapacityIssue && <CloudSaveCapacityNotice issue={cloudCapacityIssue} localSaved={!localSaveUnavailable} onBackup={handleExportBackup} onManageCloud={() => void openCloudSlots()} />}
+
       {!isOnboarding && <JournalNavigation activeTab={activeTab} onChange={tab => changeActiveTab(tab, { restoreScroll: true })} />}
 
       <div className={`grid-dashboard ${isOnboarding ? 'grid-dashboard--onboarding' : ''}`}>
         {/* =================================================================
-            SIDEBAR PANEL
-           ================================================================= */}
-        {!isOnboarding && <aside style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-          {/* Quick Profile Summary */}
-          <div className="glass-panel" style={{ padding: '1.2rem', background: '#fffefa' }}>
-            <h3 style={{ borderBottom: '1.5px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.8rem', color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>약제사 기록</span>
-              <span className="journal-stamp" style={{ color: getReputationRank(state.reputation).color, borderColor: getReputationRank(state.reputation).color }}>
-                {getReputationRank(state.reputation).rank}
-              </span>
-            </h3>
-            {state.bio.name ? (
-              <div className="prose-summary">
-                <strong>{state.bio.animal || state.bio.examples}</strong> 약제사 <strong>{state.bio.name}</strong>.
-                <br />
-                {state.bio.travelStyle}으로 여행하며, Guild Reputation 등급은 {getReputationRank(state.reputation).rank} <span className="dim">({state.reputation})</span>.
-
-                {state.bio.familiarName && (
-                  <div style={{ borderTop: '1px dashed var(--glass-border)', marginTop: '0.45rem', paddingTop: '0.45rem' }}>
-                    🐾 길동무 <strong>{state.bio.familiarName}</strong>{state.bio.familiarAnimal ? ` (${state.bio.familiarAnimal})` : ''}.
-                    <br />
-                    <span className="dim">{state.bio.familiarBenefit}.</span>
-                    {state.activePassenger && (
-                      <>
-                        <br />
-                        <span className="dim">승객 {state.activePassenger.name}의 임시 역할: {state.activePassenger.roleBenefit}.</span>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                <div style={{ borderTop: '1px dashed var(--glass-border)', marginTop: '0.45rem', paddingTop: '0.45rem' }}>
-                  🎒 배낭 <span style={{ color: isOverEncumbered ? 'var(--accent-red)' : 'var(--primary)', fontWeight: 'bold' }}>{formatWeight(currentWeight)}</span> / {maxCarry}
-                  <div className="bag-progress">
-                    <div
-                      className="bag-progress__fill"
-                      style={{
-                        width: `${Math.min(100, (currentWeight / maxCarry) * 100)}%`,
-                        background: isOverEncumbered ? 'var(--accent-red)' : currentWeight / maxCarry > 0.8 ? 'var(--accent-orange)' : 'var(--primary)'
-                      }}
-                    />
-                  </div>
-                  {isOverEncumbered && (
-                    <div style={{ color: 'var(--accent-red)', fontSize: '0.75rem', fontWeight: 'bold', marginTop: '0.2rem' }}>
-                      ⚠️ 과다적재! 이동이 1경로로 고정됩니다.
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div style={{ fontStyle: 'italic', color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center' }}>
-                [약제사 시트] 탭에서 이름을 작성하고 캐릭터를 잠금해제 하세요!
-              </div>
-            )}
-          </div>
-
-          {/* Current Journey Calendar */}
-          <div className="glass-panel journey-record" style={{ padding: '1.2rem', textAlign: 'left', background: '#fffefa' }}>
-              <span className="document-kicker">여정 / 일정</span>
-            {state.journeyActive ? (
-              <div style={{ marginTop: '0.5rem' }}>
-                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary)' }}>{state.journeyDestination}</div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  방향: {state.journeyDirection} | 거리 형태: {state.journeyDistance}
-                </div>
-
-                <div className="calendar-counter" style={{ marginTop: '0.8rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem' }}>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 'bold' }}>{state.calendarDays}</div>
-                  <div style={{ fontSize: '1rem', color: 'var(--text-dim)' }}>/</div>
-                  <div style={{ fontSize: '1.2rem', color: 'var(--text-muted)' }}>{state.calendarMaxDays} 일</div>
-                </div>
-
-                {state.rulesetId === 'sandbox' && <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.8rem' }}>
-                  <button onClick={() => updateState(s => applyManualCalendarAdjustment(s, s.calendarDays + 1))} style={{ flex: 1, padding: '0.3rem', background: 'var(--primary-light)', border: '1px solid var(--primary)', color: 'var(--primary)', borderRadius: '4px', fontSize: '0.8rem' }}>+1일 경과</button>
-                  <button onClick={() => updateState(s => applyManualCalendarAdjustment(s, s.calendarDays - 1))} style={{ padding: '0.3rem 0.5rem', background: '#f5f5f5', color: '#666', borderRadius: '4px', fontSize: '0.8rem' }}>-1</button>
-                </div>}
-              </div>
-            ) : (
-              <div style={{ fontStyle: 'italic', color: 'var(--text-dim)', fontSize: '0.85rem', marginTop: '0.5rem' }}>
-                활성화된 여정이 없습니다.
-              </div>
-            )}
-          </div>
-        </aside>}
-
-        {/* =================================================================
             MAIN CONTENT VIEWS
            ================================================================= */}
-        <main className="glass-panel main-content-panel">
+        <main id="field-main" tabIndex={-1} className="glass-panel main-content-panel">
           {isOnboarding ? (
             <section className="onboarding-focus" aria-labelledby="onboarding-title">
               <header className="onboarding-focus__intro">
-                <span className="document-kicker">새 들녘 일지</span>
-                <h2 id="onboarding-title">약제사와 길동무를 먼저 기록하세요</h2>
-                <p>룰북 p.10–16의 순서만 따라갑니다. 완성하면 이 페이지를 거치지 않고 첫 여정 준비로 바로 이어집니다.</p>
+                <img className="onboarding-focus__art" src="/art/forest-folio.jpg" alt="" />
+                <div className="onboarding-focus__welcome">
+                  <p className="folio-chapter-title" aria-hidden="true">Your story begins.</p>
+                  <span className="document-kicker">당신의 이야기가 자라는 곳</span>
+                  <h2 id="onboarding-title">당신의 첫 모험을<br />시작해볼까요?</h2>
+                  <p>길동무와 들녘을 걸으며 약초를 찾고, 아픈 이웃에게 처방을 건네세요. 카드가 만남을 정하고, 당신의 기록이 이야기가 됩니다.</p>
+                  <ol className="onboarding-focus__promise" aria-label="첫 플레이 순서">
+                    <li><span>01</span> 약제사와 길동무 만들기</li>
+                    <li><span>02</span> 첫 여정의 목적지 정하기</li>
+                    <li><span>03</span> 안내를 따라 여행하고 돌보기</li>
+                  </ol>
+                  <p className="onboarding-focus__note">카드 뽑기와 필요한 규칙은 모두 여기 있어요. 작성 중인 내용도 이 기기에 저장됩니다.</p>
+                </div>
               </header>
               <CharacterCreationWizard
                 key={`onboarding-character-${campaignUiEpoch}`}
@@ -12782,71 +12795,13 @@ export default function App() {
                 maxCarry={maxCarry}
                 onNavigate={(tab) => changeActiveTab(tab, { restoreScroll: true })}
                 onContinue={() => {
-                  const focusContinueTarget = () => {
-                    const encounterDialog = document.querySelector<HTMLElement>('.encounter-dialog-backdrop .encounter-dialog');
-                    if (state.pendingEncounter || activeTravelEncounter || state.pendingForaging || activeForageEncounter) {
-                      if (encounterDialog) {
-                        encounterDialog.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        encounterDialog.focus();
-                        return true;
-                      }
-                    }
-
-                    const clickActionById = (ids: string[]) => {
-                      for (const id of ids) {
-                        const actionButton = document.querySelector<HTMLButtonElement>(`#action-hub .action-step[data-play-action-id="${id}"]:not(:disabled)`);
-                        if (!actionButton) continue;
-                        actionButton.click();
-                        actionButton.focus({ preventScroll: true });
-                        return true;
-                      }
-                      return false;
-                    };
-
-                    const currentBarrow = (state.barrows || []).find(b => !b.removed && b.locationName === state.currentLocationName);
-
-                    const preferredActionIds = getCampaignResumeActionIds(state, Boolean(currentBarrow));
-
-                    if (!clickActionById(preferredActionIds)) {
-                      const fallbackAction = document.querySelector<HTMLButtonElement>('#action-hub .action-step:not(:disabled)');
-                      if (fallbackAction) {
-                        fallbackAction.click();
-                        fallbackAction.focus({ preventScroll: true });
-                        return true;
-                      }
-
-                      const fallbackPanels = !state.journeyActive
-                        ? state.downtimeRequired || state.downtimeCompleted
-                          ? ['downtime-panel']
-                          : ['journey-start-panel', 'downtime-panel']
-                        : (() => {
-                          const panels = [];
-                          if (state.pendingPatientArchive) panels.push('pending-archive-panel');
-                          if (state.pendingEncounter || state.pendingForaging) panels.push('travel-panel');
-                          if (state.activeDelve || ((state.barrows || []).some(b => !b.removed && b.locationName === state.currentLocationName)) || state.needsLocalHelpBeforeMove) panels.push('barrow-panel');
-                          if (state.activeAilment || state.scroungingMode || state.pursuedByBehemoth) panels.push('patient-clinic-panel');
-                          if (!state.pursuedByBehemoth && !state.needsLocalHelpBeforeMove) panels.push('route-planning-panel');
-                          return panels;
-                        })();
-
-                      for (const panelId of fallbackPanels) {
-                        const panel = document.getElementById(panelId);
-                        if (panel) {
-                          panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                          return true;
-                        }
-                      }
-                    }
-                    return false;
-                  };
-
-                  const actionHub = document.getElementById('action-hub');
-                  const pendingFollowUps = document.getElementById('pending-follow-ups');
-                  if (focusContinueTarget()) return;
-                  (pendingFollowUps || actionHub)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  const next = getCampaignNextAction(state);
+                  changeActiveTab(next.tab);
+                  window.requestAnimationFrame(() => focusCurrentWorkspace(next.targetId || 'field-main', next.actionId));
                 }}
                 onOpenReference={openRulebookReference}
               />
+              {playGuide}
               <BarrowPanel delve={state.activeDelve} />
               <PlayView
                 key={campaignUiEpoch}
@@ -12900,6 +12855,7 @@ export default function App() {
                 }}
                 onOpenReference={openRulebookReference}
               />
+              {playGuide}
               <section
                 className={`journal-chapter journal-chapter--${activeTab}`}
                 aria-label={`${({
@@ -12934,6 +12890,7 @@ export default function App() {
                   <ReagentsView
                     state={state}
                     updateState={updateState}
+                    requestControlledPrompt={requestControlledPrompt}
                     search={searchReagent}
                     setSearch={setSearchReagent}
                     filter={reagentFilter}
@@ -12949,6 +12906,7 @@ export default function App() {
                   <AilmentsView
                     state={state}
                     updateState={updateState}
+                    requestControlledPrompt={requestControlledPrompt}
                     search={searchAilment}
                     setSearch={setSearchAilment}
                     filter={ailmentFilter}
@@ -13004,6 +12962,8 @@ export default function App() {
                     key={`journals-${campaignUiEpoch}`}
                     state={state}
                     updateState={updateState}
+                    workspace={journalWorkspace}
+                    setWorkspace={setJournalWorkspace}
                     onCampaignImported={(nextState: GameState) => {
                       flushWorkflowDrafts();
                       resetCampaignScopedUi();
@@ -13021,6 +12981,12 @@ export default function App() {
         </main>
       </div>
 
+      <footer className="field-footer">
+        <FolioEmblem className="folio-emblem--footer" />
+        <p>오늘 건넨 작은 다정함이, 내일의 숲을 바꿉니다.</p>
+        <span>APAWTHECARIA · 들녘 여행 일지</span>
+      </footer>
+
       {rulebookRequest && (
         <Suspense fallback={<div className="rulebook-drawer-backdrop"><div className="rulebook-drawer rulebook-drawer--loading" role="status">룰북 맥락을 여는 중...</div></div>}>
           <RulebookReferenceDrawer key={rulebookRequest.entryId || rulebookRequest.query || `p.${rulebookRequest.page || 6}`} request={rulebookRequest} onClose={closeRulebookReference} />
@@ -13030,7 +12996,7 @@ export default function App() {
       {controlledPromptOverlay}
 
       {state.pendingManualEffect && (
-        <div className="phase4-modal-backdrop" role="presentation">
+        <div className="phase4-modal-backdrop manual-effect-backdrop" role="presentation">
           <div className="phase4-modal phase4-modal--manual-effect" role="dialog" aria-modal="true" aria-label="장면 결과 확인">
             <Suspense fallback={<div className="manual-effect">판정 기록을 펼치는 중...</div>}>
               <ManualEffectPanel
@@ -13335,8 +13301,15 @@ export default function App() {
         );
 
         return (
-          <div className="encounter-dialog-backdrop">
-            <div className="glass-panel encounter-dialog" role="dialog" aria-modal="true" aria-label={encounterKindLabel}>
+          <FocusDialog label={encounterKindLabel} onEscape={() => {
+            if (resolvingTravelEncounter) return;
+            if (!activeTravelEncounter.resolved) {
+              const journalNote = document.querySelector<HTMLTextAreaElement>('.encounter-dialog .encounter-journal-note textarea')?.value || '';
+              updateState(s => ({ ...s, pendingEncounter: s.pendingEncounter ? { ...s.pendingEncounter, journalNote } : null }));
+              setDeferredEncounterId(state.pendingEncounter?.transactionId || null);
+            }
+            setActiveTravelEncounter(null);
+          }}>
               {activeTravelEncounter.resolved ? (
                 <div className="encounter-resolution" role="status" aria-live="polite">
                   <span className="encounter-dialog__eyebrow">판정 완료</span>
@@ -13564,10 +13537,16 @@ export default function App() {
               )}
 
               {/* Action buttons */}
+              <EncounterReadiness id="travel-encounter-readiness" missing={[
+                !travelChoiceReady && { message: selectedTravelChoiceDisabledReason || '현재 상태에 맞는 결과를 먼저 선택하세요.', selector: '.encounter-choice-button:not(:disabled)' },
+                !travelJournalReady && { message: '기억을 적거나 말·그림으로 떠올렸다는 확인을 남겨 주세요.', selector: '.encounter-journal-note textarea' },
+                !travelSecondaryCardsReady && { message: `추가 카드 ${travelRequiredSecondaryCardCount || 1}장 중 ${travelSecondaryCards.length}장이 저장되었습니다. 남은 카드를 뽑으세요.`, selector: '.encounter-dialog__secondary-draw button:not(:disabled)' }
+              ]} />
               <div className="encounter-dialog-actions">
                 <button
                   type="button"
                   disabled={resolvingTravelEncounter || !travelJournalReady || !travelChoiceReady || !travelSecondaryCardsReady}
+                  aria-describedby={!travelJournalReady || !travelChoiceReady || !travelSecondaryCardsReady ? 'travel-encounter-readiness' : undefined}
                   title={!travelChoiceReady
                     ? selectedTravelChoiceDisabledReason || '해당하는 결과를 먼저 선택하세요.'
                     : !travelJournalReady
@@ -13591,8 +13570,7 @@ export default function App() {
                 }} disabled={resolvingTravelEncounter} className="encounter-dialog__defer">나중에 계속</button>
               </div>
               </>}
-            </div>
-          </div>
+          </FocusDialog>
         );
       })()}
 
@@ -13811,7 +13789,7 @@ export default function App() {
                       {remembered && <small className="is-remembered">조사 노트에 있음</small>}
                       {patientRelevance.relevant && (
                         <small className="is-patient-relevant">
-                          부위에 따라 처방 기여 · {Array.from(new Set(patientRelevance.tags.map(tag => tag.tag))).join(' / ')}
+                          부위에 따라 처방 기여 · {Array.from(new Set(patientRelevance.tags.map(tag => formatRuleTag(tag.tag)))).join(' / ')}
                           {patientRelevance.allNeedTools ? ' · 조제 도구 필요' : ''}
                         </small>
                       )}
@@ -13905,8 +13883,13 @@ export default function App() {
         /* eslint-enable react-hooks/refs */
 
         return (
-          <div className="encounter-dialog-backdrop">
-            <div className="glass-panel encounter-dialog encounter-dialog--forage" role="dialog" aria-modal="true" aria-label="채집 조우">
+          <FocusDialog label="채집 조우" className="encounter-dialog--forage" onEscape={() => {
+            if (resolvingForageEncounter) return;
+            const journalNote = document.querySelector<HTMLTextAreaElement>('.encounter-dialog .encounter-journal-note textarea')?.value || '';
+            updateState(s => ({ ...s, pendingForaging: s.pendingForaging ? { ...s.pendingForaging, journalNote } : null }));
+            setDeferredForageEncounterId(state.pendingForaging?.transactionId || null);
+            setActiveForageEncounter(null);
+          }}>
               <header className="encounter-dialog__masthead">
                 <img
                   src={getCardSvgUrl(activeForageEncounter.suit, activeForageEncounter.cardValue)}
@@ -13939,7 +13922,8 @@ export default function App() {
                   )}
                   {activeForageEncounter.choices.map((choice: EncounterDefinition['choices'][number]) => (
                     (() => {
-                      const scurry = activeForageEncounter.id === 'foraging-forest-bear-scurry';
+                      const scurry = activeForageEncounter.id === 'foraging-forest-bear-scurry'
+                        && !activeForageEncounter.choices.some((row: EncounterDefinition['choices'][number]) => row.id === 'bear-deference');
                       const reagentCount = state.bag.filter(item => item.type === 'reagent').length;
                       const choiceAvailability = encounterChoiceAvailability(choice, {
                         reputation: state.reputation,
@@ -13987,7 +13971,7 @@ export default function App() {
 
               {/* Secondary draw guidance */}
               {hasSecondaryDraw && (
-                <div style={{ marginTop: '0.9rem', padding: '0.8rem 1rem', background: '#f0f4ff', border: '1.5px dashed #7a8ec9', borderRadius: '10px', fontSize: '0.88rem', lineHeight: 1.65 }}>
+                <div className="encounter-dialog__secondary-draw" style={{ marginTop: '0.9rem', padding: '0.8rem 1rem', background: '#f0f4ff', border: '1.5px dashed #7a8ec9', borderRadius: '10px', fontSize: '0.88rem', lineHeight: 1.65 }}>
                   <div style={{ fontWeight: 'bold', color: '#3a4c8a', marginBottom: '0.35rem' }}>🃏 카드 판정이 필요합니다</div>
                   <div style={{ color: '#3a4c8a', marginBottom: '0.6rem' }}>
                     인쇄된 지시에 적힌 장수만큼 실제 덱이나 아래 도구를 사용하세요.<br />
@@ -14139,7 +14123,7 @@ export default function App() {
               {activeForageEncounter.selectedReagentId && (
                 <div className={`forage-result-receipt ${activeForageEncounter.forageFailed ? 'is-failure' : 'is-success'}`} role="status" aria-live="polite">
                   <strong>{activeForageEncounter.forageFailed ? '채집 판정 완료' : '가방에 담았습니다'}</strong>
-                  <span>{activeForageEncounter.specialAcquisition?.kind === 'unbuckled-cache'
+                  <span>{activeForageEncounter.specialAcquisition?.label
                     ? activeForageEncounter.specialAcquisition.label
                     : <>선택한 재료 · {REAGENT_BY_ID.has(activeForageEncounter.selectedReagentId)
                       ? formatReagentName(REAGENT_BY_ID.get(activeForageEncounter.selectedReagentId)!)
@@ -14231,6 +14215,11 @@ export default function App() {
                 )}
               </label>
 
+              <EncounterReadiness id="forage-encounter-readiness" missing={[
+                !forageChoiceReady && { message: selectedForageChoiceDisabledReason || '현재 상태에 맞는 결과를 먼저 선택하세요.', selector: '.encounter-choice-button:not(:disabled)' },
+                !forageJournalReady && { message: '기억을 적거나 말·그림으로 떠올렸다는 확인을 남겨 주세요.', selector: '.encounter-journal-note textarea' },
+                !forageSecondaryCardsReady && { message: `추가 카드 ${forageRequiredSecondaryCardCount || 1}장 중 ${forageSecondaryCards.length}장이 저장되었습니다. 남은 카드를 뽑으세요.`, selector: '.encounter-dialog__secondary-draw button:not(:disabled)' }
+              ]} />
               <div className="encounter-dialog-actions">
                 <button
                   type="button"
@@ -14241,6 +14230,7 @@ export default function App() {
                 <button
                   type="button"
                   disabled={resolvingForageEncounter || !forageJournalReady || !forageChoiceReady || !forageSecondaryCardsReady}
+                  aria-describedby={!forageJournalReady || !forageChoiceReady || !forageSecondaryCardsReady ? 'forage-encounter-readiness' : undefined}
                   title={!forageChoiceReady
                     ? selectedForageChoiceDisabledReason || '해당하는 결과를 먼저 선택하세요.'
                     : !forageJournalReady
@@ -14268,15 +14258,13 @@ export default function App() {
                   className="encounter-dialog__defer"
                 >나중에 계속</button>
               </div>
-            </div>
-          </div>
+          </FocusDialog>
         );
       })()}
 
       {/* Seasoned (베테랑 여행자) 카드 선택 모달 */}
       {showSeasonedModal && seasonedDraws.length === 2 && (
-        <div className="card-choice-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '2rem' }}>
-          <div className="glass-panel card-choice-dialog" role="dialog" aria-modal="true" aria-label="베테랑 여행자 조우 카드 선택" style={{ maxWidth: '500px', width: '100%', padding: '2rem', background: '#fff', borderRadius: '20px', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', textAlign: 'center' }}>
+        <FocusDialog label="베테랑 여행자 조우 카드 선택" className="card-choice-dialog" onEscape={() => { setShowSeasonedModal(false); setSeasonedDraws([]); }}>
             <h3 style={{ color: 'var(--primary)', margin: '0 0 1rem 0' }}>🧭 베테랑 여행자 (Seasoned) 조우 선택</h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
               길동무의 베테랑 길잡이 혜택으로 2장의 카드 중 여정 조우에 적용할 카드를 선택합니다.
@@ -14335,14 +14323,12 @@ export default function App() {
             >
               취소
             </button>
-          </div>
-        </div>
+        </FocusDialog>
       )}
 
       {/* Titanwise (유적/고분 마스터) 카드 선택 모달 */}
       {showTitanwiseModal && titanwiseDraws.length === 2 && (
-        <div className="card-choice-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(50, 45, 35, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '2rem' }}>
-          <div className="glass-panel card-choice-dialog" role="dialog" aria-modal="true" aria-label="유적 고분 마스터 채집 카드 선택" style={{ maxWidth: '500px', width: '100%', padding: '2rem', background: '#fff', borderRadius: '20px', boxShadow: '0 15px 45px rgba(0,0,0,0.15)', textAlign: 'center' }}>
+        <FocusDialog label="유적 고분 마스터 채집 카드 선택" className="card-choice-dialog" onEscape={() => { setShowTitanwiseModal(false); setTitanwiseDraws([]); }}>
             <h3 style={{ color: 'var(--primary)', margin: '0 0 1rem 0' }}>🏛️ 유적/고분 마스터 (Titanwise) 채집 선택</h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
               티탄 유적이나 고분에서 2장의 카드 중 채집에 적용할 카드를 선택합니다.
@@ -14394,13 +14380,12 @@ export default function App() {
             >
               취소
             </button>
-          </div>
-        </div>
+        </FocusDialog>
       )}
 
       {showSuccessionModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-          <div style={{ background: '#fff', padding: '2rem', borderRadius: '16px', maxWidth: '500px', width: '90%', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', display: 'flex', flexDirection: 'column', gap: '1rem', border: '2px solid var(--secondary)' }}>
+        <FocusDialog label="스승의 유산 계승" className="card-choice-dialog" onEscape={() => setShowSuccessionModal(false)}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <h3 style={{ margin: 0, color: 'var(--secondary)', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               🌅 스승의 유산 계승
             </h3>
@@ -14444,7 +14429,7 @@ export default function App() {
               은퇴 결정 취소
             </button>
           </div>
-        </div>
+        </FocusDialog>
       )}
 
       {showCloudSlots && (
@@ -14808,6 +14793,7 @@ function CloudSlotsDialog({
   onClose: () => void;
 }) {
   const busy = operation !== null;
+  const dialogRef = useDialogFocus<HTMLElement>(() => { if (!busy) onClose(); });
   const busyStatusRef = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
     if (busy) busyStatusRef.current?.focus();
@@ -14835,6 +14821,8 @@ function CloudSlotsDialog({
       }}
     >
       <section
+        ref={dialogRef}
+        tabIndex={-1}
         className="phase4-modal controlled-prompt app-dialog app-dialog--slots cloud-slots-dialog"
         role="dialog"
         aria-modal="true"
@@ -14949,6 +14937,7 @@ function CloudSlotsDialog({
 }
 
 function NoticeDialog({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  const dialogRef = useDialogFocus<HTMLElement>(onDismiss);
   return (
     <div
       className="phase4-modal-backdrop controlled-prompt-backdrop app-dialog-backdrop"
@@ -14958,6 +14947,8 @@ function NoticeDialog({ message, onDismiss }: { message: string; onDismiss: () =
       }}
     >
       <section
+        ref={dialogRef}
+        tabIndex={-1}
         className="phase4-modal controlled-prompt app-dialog app-dialog--notice"
         role="alertdialog"
         aria-modal="true"
@@ -14993,6 +14984,7 @@ function ControlledPromptDialog({
   onConfirm: () => void;
 }) {
   const [searchQuery, setSearchQuery] = useState('');
+  const dialogRef = useDialogFocus<HTMLFormElement>(onCancel);
   const [activeSearchIndex, setActiveSearchIndex] = useState(0);
   const multiSelectOptions = request.multiSelect && request.options ? request.options : null;
   const searchableOptions = request.searchable && request.options
@@ -15032,6 +15024,8 @@ function ControlledPromptDialog({
       }}
     >
       <form
+        ref={dialogRef}
+        tabIndex={-1}
         className={`phase4-modal controlled-prompt app-dialog app-dialog--prompt${request.tone === 'destructive' ? ' app-dialog--destructive' : ''}${multiSelectOptions ? ' app-dialog--multi-select' : ''}${searchableOptions ? ' app-dialog--searchable' : ''}`}
         role="dialog"
         aria-modal="true"
@@ -15089,7 +15083,7 @@ function ControlledPromptDialog({
                     {option.tradeTags && option.tradeTags.length > 0 && (
                       <div className="controlled-prompt__tag-group controlled-prompt__tag-group--trade">
                         <small>거래 가치 · FAIR/FOUL</small>
-                        <span>{option.tradeTags.map(tag => <b key={tag} className={tag.startsWith('FAIR ') ? 'is-fair' : 'is-foul'}>{tag}</b>)}</span>
+                        <span>{option.tradeTags.map(tag => <b key={tag} className={(tag.startsWith('FAIR ') || tag.includes('(FAIR)')) ? 'is-fair' : 'is-foul'}>{tag}</b>)}</span>
                       </div>
                     )}
                     {option.meta && <small>{option.meta}</small>}
@@ -15193,7 +15187,7 @@ function ControlledPromptDialog({
                     </span>
                     <span className="controlled-prompt__search-context">
                       {option.remedyTags && option.remedyTags.length > 0 && <span className="controlled-prompt__search-tag-group"><small>치료 약효</small><span>{option.remedyTags.map(tag => <b key={tag}>{tag}</b>)}</span></span>}
-                      {option.tradeTags && option.tradeTags.length > 0 && <span className="controlled-prompt__search-tag-group"><small>거래 가치 · FAIR/FOUL</small><span>{option.tradeTags.map(tag => <b key={tag} className={tag.startsWith('FAIR ') ? 'is-fair' : 'is-foul'}>{tag}</b>)}</span></span>}
+                      {option.tradeTags && option.tradeTags.length > 0 && <span className="controlled-prompt__search-tag-group"><small>거래 가치 · FAIR/FOUL</small><span>{option.tradeTags.map(tag => <b key={tag} className={(tag.startsWith('FAIR ') || tag.includes('(FAIR)')) ? 'is-fair' : 'is-foul'}>{tag}</b>)}</span></span>}
                       {option.meta && <small>{option.meta}</small>}
                       {option.relevant && <em>{option.relevanceText || '현재 처방 태그 충족'}</em>}
                     </span>
@@ -15219,7 +15213,7 @@ function ControlledPromptDialog({
             autoFocus
           >
             {request.options.map(option => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+              <option key={option.value} value={option.value} disabled={option.disabled}>{option.label}{option.disabledReason ? ` · ${option.disabledReason}` : ''}</option>
             ))}
           </select>
         ) : request.inputMode === 'multiline' ? (
@@ -15242,7 +15236,7 @@ function ControlledPromptDialog({
         </div>}
         <footer className="controlled-prompt__actions app-dialog__actions">
           <button type="button" autoFocus={request.hideField} onClick={onCancel}>{request.cancelLabel || '취소'}</button>
-          <button className="app-dialog__primary" type="submit" disabled={(Boolean(multiSelectOptions) && selectedTotal === 0) || (Boolean(searchableOptions) && !selectedSearchableOption)}>{request.confirmLabel || '선택 확정'}</button>
+          <button className="app-dialog__primary" type="submit" disabled={(Boolean(multiSelectOptions) && selectedTotal === 0) || (Boolean(searchableOptions) && !selectedSearchableOption) || Boolean(!multiSelectOptions && !searchableOptions && request.options?.find(option => option.value === value)?.disabled)}>{request.confirmLabel || '선택 확정'}</button>
         </footer>
       </form>
     </div>
@@ -15788,8 +15782,7 @@ function PlayView({
   const previousTreatmentSelectionKey = useRef(treatmentSelectionKey);
   const treatmentCanonicalTools = useMemo(() => canonicalToolsFromState(state), [state]);
   const availableTreatmentReagents = useMemo(() => state.bag.flatMap(item => {
-    if (item.type !== 'reagent' || !item.canonicalReagentId || !item.preparationId) return [];
-    const preparation = REAGENT_BY_ID.get(item.canonicalReagentId)?.preparations.find(row => row.id === item.preparationId);
+    const preparation = preparationForInventory(toEngineInventory([item])[0]);
     if (!preparation) return [];
     const quantity = item.qty === undefined ? 1 : Math.max(0, Math.floor(item.qty));
     const currentUses = item.usesRemaining === undefined ? preparation.uses : Math.max(0, Math.floor(item.usesRemaining));
@@ -15900,7 +15893,9 @@ function PlayView({
     }))
     .sort((left, right) => Number(right.relevant) - Number(left.relevant) || left.index - right.index);
   const treatmentBlockingMessage = treatmentPreview?.ready
-    ? '선택한 부위와 도구를 확인했습니다. 완성하면 각 부위의 1회분이 소비됩니다.'
+    ? treatmentPreview.separateDoses?.length
+      ? '각 별도 회분에 필요한 부위와 사용 횟수를 확보했습니다. 아래에 표시된 회분별 사용량을 소비합니다.'
+      : '선택한 부위와 도구를 확인했습니다. 완성하면 각 부위의 1회분이 소비됩니다.'
     : localizeGameplayMessage(treatmentPreview?.messages[0] || '필요 약효와 준비 도구를 확인하세요.');
 
   const treatmentInputFromRewardCheckpoint = (
@@ -15975,9 +15970,8 @@ function PlayView({
       const item = state.bag.find(row => row.id === itemId && row.type === 'reagent');
       return item ? [{ itemId, reagentId: item.canonicalReagentId || null, preparationId: item.preparationId || null }] : [];
     });
-    const preparations = selectedParts.flatMap(part => part.reagentId && part.preparationId
-      ? [REAGENT_BY_ID.get(part.reagentId)?.preparations.find(row => row.id === part.preparationId)]
-      : []).filter(Boolean);
+    const preparations = toEngineInventory(state.bag.filter(item => nextItemIds.includes(item.id)))
+      .flatMap(item => { const preparation = preparationForInventory(item); return preparation ? [preparation] : []; });
     const fair = preparations.reduce((sum, preparation) => sum + (preparation?.tags.filter(tag => tag.tag === 'FAIR').reduce((part, tag) => part + tag.value, 0) || 0), 0);
     const foul = nextPurify ? 0 : preparations.reduce((sum, preparation) => sum + (preparation?.tags.filter(tag => tag.tag === 'FOUL').reduce((part, tag) => part + tag.value, 0) || 0), 0);
     updateState((current: GameState) => {
@@ -17183,7 +17177,25 @@ function PlayView({
   const handleBuyWagonUpgrade = async (upgrade: any) => {
     const expansionId = ({ sealedCarriage: 'sealed-carriage', pedalMotor: 'pedal-motor', axelSprings: 'axel-springs', sideBrackets: 'side-brackets', hiveBrackets: 'hive-brackets', passengerBooth: 'passenger-booth', shadowCanvas: 'shadow-canvas', experimentalContraption: 'experimental-contraption', clayPots: 'clay-pots' } as Record<string, string>)[upgrade.id];
     const coracle = state.bag.find(item => item.canonicalToolId === 'bark-coracle');
-    const recycleCoracle = expansionId === 'sealed-carriage' && !!coracle && askWindowConfirm('나무껍질 배를 부품으로 재활용해 비용을 5 줄일까요? 사용한 배는 가방에서 제거됩니다.');
+    let recycleCoracle = false;
+    if (upgrade.id === 'baseUnit') {
+      const confirmed = await requestControlledPrompt({
+        title: '기본 마차 위탁', kicker: '휴식기 · 도시의 Craftpaws', hideField: true, defaultValue: 'confirm',
+        message: `장신구 ${state.trinkets.length}개 → ${state.trinkets.length - 20}개. 이번 휴식기 활동 1회를 사용해 소지 한도 +4, 속도 +1을 얻습니다.\n\n원문 p.43의 Commission Wagon은 20개, p.68 표의 Base Unit은 15개로 서로 다른 가격을 제시합니다. 사이트는 휴식기 위탁 절차인 p.43의 20개를 적용하며, 표의 15개를 별도 구매나 할인으로 합치지 않습니다.`,
+        confirmLabel: '장신구 20개로 위탁', cancelLabel: '아직 위탁하지 않기'
+      });
+      if (confirmed === null) return;
+    } else if (expansionId === 'sealed-carriage' && coracle) {
+      const recycleChoice = await requestControlledPrompt({
+        title: '밀폐형 마차 개조', message: '나무껍질 배를 부품으로 재활용하면 비용이 5 줄고, 사용한 배는 배낭에서 제거됩니다. 배를 보관할 수도 있습니다.',
+        defaultValue: 'keep', options: [
+          { value: 'keep', label: `배 보관 · 장신구 ${upgrade.cost}개` },
+          { value: 'recycle', label: `배 재활용 · 장신구 ${Math.max(0, upgrade.cost - 5)}개` }
+        ], confirmLabel: '선택한 방법으로 개조'
+      });
+      if (recycleChoice === null) return;
+      recycleCoracle = recycleChoice === 'recycle';
+    }
     const transaction = createClientTransaction(upgrade.id === 'baseUnit' ? 'downtime:commission-wagon' : 'wagon-expansion');
     const allowOverride = bypassShopRules && state.rulesetId !== 'original-1e-3p';
     let clayPotReagentId: string | undefined;
@@ -17785,11 +17797,9 @@ function PlayView({
       canStopInLoch: hasLochStoppingGear(state),
       protectsFromSoaking: hasSafeWaterwayTravel(state),
       waterwaySpan: wagonCapabilities.waterwaySpan,
-      // The rulebook sets Speed as a maximum for a Move. A player may stop
-      // before using every available Path; only routes over effective Speed
-      // are invalid. Keep this explicit for both ordinary and hitch moves so
-      // the UI and transaction layer make the same choice.
-      mustUseFullSpeed: false,
+      // p.24 requires exactly Speed Paths; compatibility saves retain their
+      // previous shorter-route behaviour.
+      mustUseFullSpeed: state.rulesetId === 'original-1e-3p',
       freePathLocationIds: (state.manualConditions || [])
         .filter(condition => condition.startsWith('free-path:'))
         .map(condition => condition.slice('free-path:'.length))
@@ -19177,6 +19187,11 @@ function PlayView({
       }
     }
     const region = (overrideRegion || state.currentRegion) as Exclude<TravelRegion, 'Soar'>;
+    const scopedAlternative = scopeAlternativeAcquisition({ acquisition: state.pendingAlternativeAcquisition,
+      activePatientId: state.activePatientId, activeAilmentInstanceIds: getActivePatient(state)?.ailments.filter(row => row.status === 'active').map(row => row.id) || [],
+      preferredAilmentInstanceId: state.activeAilment?.id });
+    const replacementForDraw = source === 'standard' && scopedAlternative?.kind === 'replacement' && scopedAlternative.selectedSource !== 'barter'
+      ? scopedAlternative : undefined;
     const transactionId = createClientTransaction('forage').id;
     const locationRelation = overrideRegion ? 'adjacent' as const : 'current' as const;
     if (!overrideRegion) {
@@ -19219,10 +19234,53 @@ function PlayView({
       locationRelation,
       card: { value: effectiveCardValue, suit: effectiveDrawnSuit },
       source,
+      replacement: replacementForDraw,
       ...canonicalForagingModifiers(state)
     });
     if (!result.value) {
       showAlert(result.messages.join('\n'));
+      return;
+    }
+    if (replacementForDraw && !result.value.ailmentInterruption) {
+      const candidate = result.value.candidates[0];
+      let spendForagingPoints = false;
+      if (!candidate.cardSuccess && !candidate.automaticWithForagingPoints && result.value.nextState.foragingPoints >= candidate.gapCost) {
+        const spend = await requestControlledPrompt({ title: 'Replacement · 희귀도 12 채집',
+          message: `${replacementForDraw.name}을(를) 찾는 카드 ${effectiveCardValue}가 희귀도 12보다 낮습니다. 채집 포인트 ${candidate.gapCost}을 써서 차이를 메우거나 실패를 기록하세요.`,
+          defaultValue: 'spend', hideField: true, confirmLabel: `채집 포인트 ${candidate.gapCost} 사용`, cancelLabel: '실패 기록' });
+        spendForagingPoints = spend === 'spend';
+      }
+      const gathered = resolveForaging({ transactionId, state: result.value.nextState, forageRegion: region, locationRelation,
+        card: { value: effectiveCardValue, suit: effectiveDrawnSuit }, source, replacement: replacementForDraw,
+        targetReagentId: replacementForDraw.id, spendForagingPoints,
+        ...canonicalForagingModifiers(state), weatherProtectionActive: state.forecastActiveAtLocation });
+      if (!gathered.value) return showAlert(gathered.messages.join('\n'));
+      const outcome = gathered.value;
+      const succeeded = outcome.gatheredItems.length > 0;
+      const label = `${replacementForDraw.name} · 희귀도 12 · ${succeeded ? `획득 (${replacementForDraw.targetTag} ${replacementForDraw.requiredPotency})` : `채집 실패 · 채집 포인트 +${outcome.foragingPointsGained}`}`;
+      const specialAcquisition = { kind: 'replacement' as const, cacheId: replacementForDraw.id, label, itemCount: outcome.gatheredItems.length };
+      const undoSnapshot = onStartForaging(transactionId, state);
+      const pending: PendingForagingState = { transactionId, region, locationRelation,
+        card: { value: effectiveCardValue, suit: effectiveDrawnSuit }, timerCostAfterEncounter: outcome.timerCostAfterEncounter,
+        encounterId: outcome.encounter?.id || null, phase: 'encounter', source,
+        selectedReagentId: replacementForDraw.id, specialAcquisition, undoSnapshot,
+        ignoreNegativeEncounterEffects: outcome.ignoredNegativeEncounterEffects };
+      updateState(s => {
+        const next = { ...s, bag: fromEngineInventory(outcome.nextState.inventory, s.bag), pendingForaging: pending,
+          customReagentCatalogue: rememberCustomReagents(s.customReagentCatalogue, outcome.nextState.inventory),
+          pendingAlternativeAcquisition: succeeded ? null : replacementForDraw,
+          toolStates: outcome.nextState.tools || canonicalToolsFromState(s), lastForageCardValue: effectiveCardValue,
+          patients: outcome.nextState.patient ? s.patients.map(patient => patient.id === outcome.nextState.patient!.id
+            ? { ...outcome.nextState.patient!, foragingPoints: outcome.nextState.foragingPoints } : patient) : s.patients,
+          appliedTransactionIds: Array.from(new Set([...s.appliedTransactionIds, transactionId])),
+          journals: [{ id: `${transactionId}:replacement`, title: 'Replacement 채집', text: `${label}. 카드 ${effectiveCardValue}, 사용한 채집 포인트 ${outcome.foragingPointsSpent}. 조우를 해결한 뒤 치료 가능 여부와 타이머를 확인합니다.`, timestamp: Date.now() }, ...s.journals] };
+        return succeeded ? { ...next, journey: recordCanonicalJourneyEvent(next, { id: `${transactionId}:journey-forage`, type: 'forage', reagentId: replacementForDraw.id, region, locationId: currentLocationId }) } : next;
+      });
+      setActiveForageEncounter({ ...(outcome.encounter || {}), text: outcome.encounter?.prompt || '', page: outcome.encounter?.sourcePage || 30,
+        cardValue: cardDisplayValue(effectiveCardValue), suit: effectiveDrawnSuit, suitLabel: suitLabels[effectiveDrawnSuit],
+        foundReagents: [], selectedReagentId: replacementForDraw.id, specialAcquisition, region, season: state.currentSeason,
+        timerBaseCost: outcome.timerCostAfterEncounter, gatheredPartCount: outcome.gatheredItems.length,
+        forageFailed: !succeeded, resultNotice: label, transactionId });
       return;
     }
     const fishUnavailableHere = !overrideRegion && Boolean(currentLocationId)
@@ -19730,8 +19788,8 @@ function PlayView({
       },
       options: eligibleParts.map(part => {
         const { remedy, trade } = splitForagingTags(part.tags);
-        const remedyTags = remedy.map(tag => `${tag.tag} ${tag.value}`);
-        const tradeTags = trade.map(tag => `${tag.tag} ${tag.value}`);
+        const remedyTags = remedy.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`);
+        const tradeTags = trade.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`);
         return {
           value: part.id,
           label: localizePreparationName(part.name),
@@ -19823,7 +19881,7 @@ function PlayView({
       scroungingMode: false,
       scroungingTimer: 0
     }));
-    showAlert('Moving On을 마쳤습니다. 달력은 아직 늘지 않으며, 다음 Move와 도착 조우를 완료하면 1일이 표시됩니다.');
+    showAlert('길 떠나기를 마쳤습니다. 달력은 아직 늘지 않으며, 다음 이동과 도착 조우를 완료하면 1일이 표시됩니다.');
   };
 
   const handleAbandonPatient = async () => {
@@ -19910,7 +19968,7 @@ function PlayView({
     setPawnItemIds([]);
   };
 
-  const handleKnitProject = () => {
+  const handleKnitProject = async () => {
     if (acquisitionCheckpointBlocked) {
       showAlert(acquisitionCheckpointBlockingMessage);
       return;
@@ -19925,19 +19983,27 @@ function PlayView({
       '3': { id: 'knitted-satchel', name: '뜨개 가방 (Knitted Satchel)', hours: 10 },
       '4': { id: 'knitted-scarf', name: '뜨개 목도리 (Knitted Scarf)', hours: 5 }
     };
-    const choice = prompt("뜨개 프로젝트 선택:\n1. 담요 20시간\n2. 코트 15시간\n3. 가방 10시간\n4. 목도리 5시간", "4") || '4';
-    const project = projects[choice] || projects['4'];
     const availableTimer = state.scroungingTimer || state.activeAilment?.timer || 0;
     if (availableTimer <= 0) {
       showAlert("줄일 수 있는 타이머가 0이면 뜨개질을 진행할 수 없습니다.");
       return;
     }
+    const choice = await requestControlledPrompt({
+      title: '뜨개 프로젝트', kicker: '뜨개바늘 · 시간 사용',
+      message: `현재 사용할 수 있는 시간은 ${availableTimer}시간입니다. 프로젝트를 완성하면 표시된 시간만큼 질환/여분 채집 시간이 줄어듭니다. 취소하면 시간과 재료를 사용하지 않습니다.`,
+      defaultValue: Object.entries(projects).find(([, row]) => row.hours <= availableTimer)?.[0] || '4', label: '만들 물건',
+      options: Object.entries(projects).map(([value, row]) => ({ value, label: `${row.name} · ${row.hours}시간`, disabled: state.rulesetId !== 'sandbox' && row.hours > availableTimer })),
+      confirmLabel: '프로젝트 선택'
+    });
+    if (!choice || !projects[choice]) return;
+    const project = projects[choice];
     if (availableTimer < project.hours) {
       if (state.rulesetId !== 'sandbox') {
         showAlert(`${project.name} 완성에는 ${project.hours}시간이 필요합니다. 현재 타이머는 ${availableTimer}시간입니다.`);
         return;
       }
-      if (!askWindowConfirm(`현재 추적 중인 타이머가 ${availableTimer}시간뿐입니다. 복구용 샌드박스에서 ${project.name}을 완성 처리할까요?`)) return;
+      const confirmation = await requestControlledPrompt({ title: '샌드박스 뜨개 확인', message: `현재 시간은 ${availableTimer}시간이고 ${project.name}에는 ${project.hours}시간이 필요합니다. 복구용 완성 처리를 시도할까요?`, defaultValue: 'confirm', hideField: true, confirmLabel: '완성 처리 시도' });
+      if (confirmation === null) return;
     }
 
     const transaction = createClientTransaction('tool:knitting');
@@ -19977,7 +20043,7 @@ function PlayView({
     });
   };
 
-  const handleExploreNewPath = () => {
+  const handleExploreNewPath = async () => {
     const graph = toServiceMapGraph(state);
     const locations = Object.values(graph).sort((a, b) => a.name.localeCompare(b.name));
     if (locations.length < 2) {
@@ -19988,26 +20054,37 @@ function PlayView({
       const key = value.trim().toLocaleLowerCase('ko-KR');
       return locations.find(node => node.id.toLocaleLowerCase('ko-KR') === key || node.name.toLocaleLowerCase('ko-KR') === key);
     };
-    const fromName = prompt('룰북 p.41의 “여정을 마친 곳 가까이”는 플레이어가 판단합니다.\n지도에서 확인한 첫 장소 이름을 입력하세요.', state.currentLocationName);
-    if (fromName === null) return;
-    const from = findLocation(fromName);
+    const fromId = await requestControlledPrompt({
+      title: '새 길 발견 · 시작 장소', kicker: '휴식기 탐험 · 룰북 p.41',
+      message: '여정을 마친 곳 가까이의 두 장소를 새 길로 연결합니다. 가까운지는 지도를 보고 판단합니다. 마지막 확인 전에는 지도나 휴식기를 바꾸지 않습니다.',
+      defaultValue: findLocation(state.currentLocationName)?.id || locations[0].id, label: '첫 장소',
+      options: locations.map(node => ({ value: node.id, label: localizeLocationName(node.name) })), searchable: { placeholder: '지도 장소 검색' }
+    });
+    if (fromId === null) return;
+    const from = locations.find(node => node.id === fromId);
     if (!from) {
       showAlert('지도에 있는 첫 장소의 정확한 이름을 입력해 주세요.');
       return;
     }
-    const toName = prompt('새 길이나 물길로 이을 두 번째 장소 이름을 입력하세요.', '');
-    if (toName === null) return;
-    const to = findLocation(toName);
+    const destinations = locations.filter(node => node.id !== from.id && !from.edges.some(edge => edge.to === node.id));
+    if (!destinations.length) return showAlert('이 장소에는 새로 직접 이을 수 있는 다른 장소가 없습니다.');
+    const toId = await requestControlledPrompt({
+      title: '새 길 발견 · 도착 장소', message: `${localizeLocationName(from.name)}에서 아직 직접 이어지지 않은 장소를 고르세요.`,
+      defaultValue: destinations[0].id, label: '두 번째 장소', options: destinations.map(node => ({ value: node.id, label: localizeLocationName(node.name) })), searchable: { placeholder: '이어질 장소 검색' }
+    });
+    if (toId === null) return;
+    const to = destinations.find(node => node.id === toId);
     if (!to) return showAlert('지도에 있는 두 번째 장소의 정확한 이름을 입력해 주세요.');
     if (from.id === to.id || from.edges.some(edge => edge.to === to.id)) {
       showAlert('서로 다르고 아직 직접 이어지지 않은 두 장소를 골라 주세요.');
       return;
     }
-    if (!askWindowConfirm(`${from.name}와 ${to.name} 모두 마지막 여정 종료지 ${state.currentLocationName} 가까이에 있다고 판단했나요?\n\n룰북은 고정 경로 수를 제시하지 않으므로 지도를 보고 직접 판단합니다.`)) return;
-    const kindChoice = prompt('새 연결의 종류를 선택하세요.\n1. 길\n2. 물길', '1');
+    const nearConfirmation = await requestControlledPrompt({ title: '발견 위치 확인', message: `${localizeLocationName(from.name)}와 ${localizeLocationName(to.name)} 모두 마지막 여정 종료지 ${localizeLocationName(state.currentLocationName)} 가까이에 있다고 판단했나요? 원문은 고정 경로 수를 제시하지 않습니다.`, defaultValue: 'confirm', hideField: true, confirmLabel: '지도에서 확인했습니다' });
+    if (nearConfirmation === null) return;
+    const kindChoice = await requestControlledPrompt({ title: '새 연결의 종류', message: `${localizeLocationName(from.name)}와 ${localizeLocationName(to.name)} 사이의 이동 연결을 만듭니다.`, defaultValue: 'path', options: [{ value: 'path', label: '길' }, { value: 'waterway', label: '물길' }] });
     if (kindChoice === null) return;
-    const kind = kindChoice === '2' ? 'waterway' as const : 'path' as const;
-    const pathDesc = prompt('길을 벗어나 발견한 풍경과 야생 동물을 기록하세요.', `${from.name}에서 ${to.name}(으)로 이어지는 ${kind === 'waterway' ? '물길' : '길'}을 발견했다.`);
+    const kind = kindChoice === 'waterway' ? 'waterway' as const : 'path' as const;
+    const pathDesc = await requestControlledPrompt({ title: '탐험의 발견 기록', message: '확정하면 새 연결을 지도에 표시하고 이번 휴식기의 탐험 활동을 완료합니다. 발견한 풍경과 야생 동물을 적어 주세요.', defaultValue: `${localizeLocationName(from.name)}에서 ${localizeLocationName(to.name)}(으)로 이어지는 ${kind === 'waterway' ? '물길' : '길'}을 발견했다.`, inputMode: 'multiline', label: '발견한 장면', confirmLabel: '지도와 일지에 저장' });
     if (!pathDesc?.trim()) return;
     const transaction = createClientTransaction('downtime:explore');
     try {
@@ -20024,11 +20101,13 @@ function PlayView({
     }
   };
 
-  const handleAddMappedSettlement = () => {
-    const settlementName = prompt("지도에 추가할 정착지 이름을 입력하세요:")?.trim();
+  const handleAddMappedSettlement = async () => {
+    const settlementName = (await requestControlledPrompt({ title: '새 정착지 기록', message: `${localizeLocationName(state.currentLocationName)} 근처에 생긴 영구적 결과를 지도에 표시합니다. 마지막 기록 확인 전에 취소하면 지도는 그대로입니다.`, defaultValue: '', label: '정착지 이름' }))?.trim();
     if (!settlementName) return;
-    const regionName = prompt("정착지 지역을 입력하세요: 숲(Forest), 초원(Meadow), 호수(Loch), 늪지(Bog), 산맥(Mountain), 티탄 유적(Titan)", state.currentRegion)?.trim() || state.currentRegion;
-    const sourceNoteInput = prompt("이 정착지가 생긴 이유나 특징을 적어주세요:", "여정의 영구적 결과로 생긴 정착지");
+    const regionName = await requestControlledPrompt({ title: `${settlementName}의 지역`, message: '지도와 이후 이동·채집에 쓰일 지역을 선택하세요.', defaultValue: state.currentRegion, options: ['Forest', 'Meadow', 'Loch', 'Bog', 'Mountain', 'Titan'].map(value => ({ value, label: localizeRegionLabel(value) })) });
+    if (regionName === null) return;
+    const sourceNoteInput = await requestControlledPrompt({ title: '정착지가 생긴 이유', message: `${settlementName} · ${localizeRegionLabel(regionName)}. 확정하면 지도와 방문 장소·일지에 함께 저장합니다.`, defaultValue: '여정의 영구적 결과로 생긴 정착지', inputMode: 'multiline', label: '이유와 특징', confirmLabel: '정착지 저장' });
+    if (sourceNoteInput === null) return;
     const sourceNote = sourceNoteInput?.trim() ? sourceNoteInput : "여정의 영구적 결과로 생긴 정착지";
 
     updateState((s: GameState) => ({
@@ -20099,7 +20178,7 @@ function PlayView({
     return { satisfied: true, message: '없음 (즉시 추가 가능) ✅' };
   };
 
-	  const handleBuildClinic = (agendaService: string) => {
+	  const handleBuildClinic = async (agendaService: string) => {
     const requirement = getClinicAgendaRequirement(agendaService);
 	    if (!requirement.satisfied) {
       showAlert(requirement.message);
@@ -20109,12 +20188,12 @@ function PlayView({
     let soddenReagentId: string | null = null;
     if (requirement.satisfied && agendaId === 'sodden-logs') {
       const insects = REAGENTS.filter(row => row.type === 'INSECT');
-      const choice = prompt(`Sodden Logs에서 기를 곤충 영약재를 선택하세요.\n${insects.map((row, index) => `${index + 1}. ${row.displayName}`).join('\n')}`, '1');
+      const choice = await requestControlledPrompt({ title: '물에 젖은 통나무의 곤충', message: '약제소 완공 후 기를 곤충 영약재를 정합니다. 아직 건설 비용을 사용하지 않습니다.', defaultValue: insects[0]?.id || '', options: insects.map(row => ({ value: row.id, label: formatReagentName(row) })) });
       if (choice === null) return;
-      soddenReagentId = insects[Math.max(0, (parseInt(choice, 10) || 1) - 1)]?.id || null;
+      soddenReagentId = insects.find(row => row.id === choice)?.id || null;
       if (!soddenReagentId) return;
     }
-    const name = prompt('완공될 약제소 이름을 기록하세요:', `${state.currentLocationName} 약제소`)?.trim();
+    const name = (await requestControlledPrompt({ title: '약제소 건설', message: `${localizeLocationName(state.currentLocationName)}에 ${clinicServiceLabel(agendaService)}을 준비합니다. 확정하면 장신구 15개를 쓰고 다음 계절에 완공됩니다. 현재 장신구 ${state.trinkets.length}개.`, defaultValue: `${localizeLocationName(state.currentLocationName)} 약제소`, label: '약제소 이름', confirmLabel: '장신구 15개로 건설' }))?.trim();
     if (!name) return;
     const transaction = createClientTransaction('clinic-commission');
     const locationId = resolveCurrentMapLocationKey(state);
@@ -20161,8 +20240,8 @@ function PlayView({
     }
 	  };
 
-	  const handleMailboxPatient = () => {
-	    const note = prompt('외부 길드 우체통에서 확인한 도움 요청을 기록하세요:', '도움 요청의 발신자, 위치, 요청 내용을 기록했다.');
+	  const handleMailboxPatient = async () => {
+	    const note = await requestControlledPrompt({ title: '길드 우체통의 도움 요청', message: '확인한 발신자·위치·도움 요청을 기록합니다. 환자와 질환의 진단은 별도 절차로 이어갑니다.', defaultValue: '도움 요청의 발신자, 위치, 요청 내용을 기록했다.', label: '받은 요청', inputMode: 'multiline', confirmLabel: '요청 기록' });
 	    if (!note?.trim()) return;
     const transaction = createClientTransaction('clinic:mailbox');
     try {
@@ -20178,12 +20257,17 @@ function PlayView({
     }
 	  };
 
-  const handlePantryHibernate = () => {
+  const handlePantryHibernate = async () => {
     if (!atClinicLocation) return showAlert('식료품 저장고에서의 동면은 약제소에 머물 때만 사용할 수 있습니다.');
     if (state.journeyActive) return showAlert('현재 여정을 마친 뒤 동면해 주세요. 동면은 계절과 날짜를 정산하므로 여정 중에는 진행할 수 없습니다.');
-    const occupantsInput = prompt('함께 동면할 인원 수를 입력하세요. Guild Reputation 15 미만이면 인원당 장신구 15개가 필요합니다.', '1');
+    const occupantsInput = await requestControlledPrompt({ title: '식료품 저장고에서 동면', message: `여정을 마친 겨울에 동면하고 봄으로 계절을 정산합니다. 길드 명성 15 미만이면 인원당 장신구 15개가 필요합니다. 현재 명성 ${state.reputation}, 장신구 ${state.trinkets.length}개.`, defaultValue: '1', inputMode: 'number', label: '동면 인원' });
     if (occupantsInput === null) return;
-    const occupants = Math.max(1, parseInt(occupantsInput, 10) || 1);
+    const occupants = Number(occupantsInput);
+    if (!Number.isInteger(occupants) || occupants < 1) return showAlert('동면 인원은 1 이상의 정수로 입력해 주세요.');
+    const hibernateCost = state.reputation < 15 ? occupants * 15 : 0;
+    if (state.trinkets.length < hibernateCost) return showAlert(`동면에 장신구 ${hibernateCost}개가 필요합니다. 현재 ${state.trinkets.length}개로는 진행할 수 없습니다.`);
+    const confirmation = await requestControlledPrompt({ title: '동면과 계절 정산 확인', message: `${occupants}명 · 장신구 ${hibernateCost}개 사용 (${state.trinkets.length} → ${state.trinkets.length - hibernateCost}). 확정하면 동면 뒤 봄을 맞고 계절 수입·약제소·길동무 효과를 정산합니다.`, defaultValue: 'confirm', hideField: true, confirmLabel: '동면하고 봄 맞기' });
+    if (confirmation === null) return;
     const transaction = createClientTransaction('clinic:pantry');
     try {
       const outcome = resolveClinicAgendaAction({
@@ -20258,15 +20342,15 @@ function PlayView({
     }
   };
 
-  const handleGardenHarvest = () => {
+  const handleGardenHarvest = async () => {
     const clinic = canonicalClinicsFromState(state).find(row => row.status === 'active' && row.locationId === currentClinicLocationId);
     const patient = getActivePatient(state);
     const ailment = patient?.ailments.find(row => row.status === 'active');
     const reagent = clinic?.gardenReagentId ? REAGENT_BY_ID.get(clinic.gardenReagentId) : null;
     if (!clinic || !ailment || !reagent) return showAlert('현재 약제소의 정원과 치료 중인 질환이 모두 필요합니다.');
-    const choice = prompt(`수확할 부위를 선택하세요:\n${reagent.preparations.map((part, index) => `${index + 1}. ${localizePreparationName(part.name)} · ${localizePreparationMethod(part.method)}`).join('\n')}`, '1');
+    const choice = await requestControlledPrompt({ title: '약제소 정원의 수확', message: `${formatReagentName(reagent)}에서 부위 하나를 수확합니다. 현재 질환에 대한 정원 수확 기록과 배낭에 반영하며 취소하면 그대로 둡니다.`, defaultValue: reagent.preparations[0]?.id || '', options: reagent.preparations.map(part => ({ value: part.id, label: `${localizePreparationName(part.name)} · ${localizePreparationMethod(part.method)}` })), confirmLabel: '부위 수확' });
     if (choice === null) return;
-    const preparation = reagent.preparations[Math.max(0, (parseInt(choice, 10) || 1) - 1)];
+    const preparation = reagent.preparations.find(part => part.id === choice);
     if (!preparation) return;
     const transaction = createClientTransaction('clinic:garden:harvest');
     try {
@@ -20297,7 +20381,7 @@ function PlayView({
     }
   };
 
-  const handleSoddenLogHarvest = () => {
+  const handleSoddenLogHarvest = async () => {
     if (acquisitionCheckpointBlocked) {
       showAlert(acquisitionCheckpointBlockingMessage);
       return;
@@ -20306,9 +20390,9 @@ function PlayView({
     const ailment = patient?.ailments.find(row => row.status === 'active');
     const reagent = state.soddenLogInsect ? REAGENT_BY_ID.get(state.soddenLogInsect) : null;
     if (!ailment || !reagent) return showAlert('치료 중인 질환과 지정된 곤충 영약재가 필요합니다.');
-    const choice = prompt(`채취할 부위를 선택하세요:\n${reagent.preparations.map((part, index) => `${index + 1}. ${localizePreparationName(part.name)} · ${localizePreparationMethod(part.method)}`).join('\n')}`, '1');
+    const choice = await requestControlledPrompt({ title: '물에 젖은 통나무의 채취', message: `${formatReagentName(reagent)} 부위 하나를 배낭에 넣고 모든 활성 질환의 치료 시간을 1시간 줄입니다. 취소하면 시간과 배낭을 그대로 둡니다.`, defaultValue: reagent.preparations[0]?.id || '', options: reagent.preparations.map(part => ({ value: part.id, label: `${localizePreparationName(part.name)} · ${localizePreparationMethod(part.method)}` })), confirmLabel: '부위 채취 · 1시간 사용' });
     if (choice === null) return;
-    const preparation = reagent.preparations[Math.max(0, (parseInt(choice, 10) || 1) - 1)];
+    const preparation = reagent.preparations.find(part => part.id === choice);
     if (!preparation) return;
     const transaction = createClientTransaction('clinic:sodden:harvest');
     try {
@@ -20486,11 +20570,13 @@ function PlayView({
     }
     const reagent = REAGENT_BY_ID.get(selection.reagentId);
     const preparation = reagent?.preparations.find(row => row.id === selection.preparationId);
-    if (!reagent || !preparation) {
+    const replacement = state.pendingAlternativeAcquisition?.kind === 'replacement' && state.pendingAlternativeAcquisition.id === selection.reagentId
+      ? state.pendingAlternativeAcquisition : undefined;
+    if ((!reagent || !preparation) && !replacement) {
       showAlert('선택한 영약재 부위를 정규 도감에서 확인할 수 없습니다. 목록을 다시 열어 선택해 주세요.');
       return;
     }
-    if (reagent.type === 'TITAN') {
+    if (reagent?.type === 'TITAN') {
       showAlert('티탄 영약재는 물꼬 거래로 구할 수 없습니다.');
       return;
     }
@@ -20523,8 +20609,9 @@ function PlayView({
       transactionId,
       state: toBarterRuntime(state, patient),
       patientId: patient.id,
-      targetReagentId: reagent.id,
-      preparationId: preparation.id,
+      targetReagentId: replacement?.id || reagent!.id,
+      replacement,
+      preparationId: replacement ? `replacement:${replacement.id}` : preparation!.id,
       currentLocationId,
       locationId: selectedBarterLocation.key,
       season: state.currentSeason,
@@ -20604,7 +20691,7 @@ function PlayView({
   };
 
   // Add Foraged item directly (Manual collection)
-  const handleCollectReagent = (reagentName: string) => {
+  const handleCollectReagent = async (reagentName: string) => {
     const canonical = findCanonicalReagent(reagentName);
     const r = canonical ? reagentDisplayRecord(canonical) : null;
     if (!r) {
@@ -20614,11 +20701,12 @@ function PlayView({
 
     // Split preps by newlines or green circles or fractions
     const parts = splitReagentPreparations(r.preps);
-    const chosenPart = prompt(`원하는 영약재 부위를 번호로 선택하세요:\n${parts.map((p, i) => `${i+1}. ${p.trim()}`).join('\n')}`);
-
-    if (!chosenPart) return;
-    const partIdx = parseInt(chosenPart) - 1;
-    const partText = parts[partIdx] || parts[0];
+    const chosenPart = await requestControlledPrompt({ title: `${formatReagentName(canonical!)} 수동 획득`,
+      kicker: '자유 플레이', message: '추가할 부위를 선택하세요. 채집 판정과 시간 비용을 적용하지 않는 자유 플레이 기록입니다.',
+      options: parts.map((part, index) => ({ value: String(index), label: part.trim() })), defaultValue: '0', confirmLabel: '이 부위를 배낭에 추가' });
+    if (chosenPart === null) return;
+    const partText = parts[Number(chosenPart)];
+    if (!partText) return;
 
     updateState(s => {
       const newItem: BagItem = createPreparedReagentItem(r, partText, 'reag');
@@ -20634,7 +20722,7 @@ function PlayView({
     });
   };
 
-  const handleCreateReplacementReagent = () => {
+  const handleCreateReplacementReagent = async () => {
     if (!state.activeAilment) return;
     const requirements = parseAilmentRequirements(state.activeAilment.tags);
     const choices = requirements.flatMap(req => {
@@ -20647,25 +20735,37 @@ function PlayView({
       return;
     }
 
-    const choiceInput = prompt(
-      `대체할 요구 성분을 선택하세요:\n${choices.map((choice, idx) => `${idx + 1}. ${choice.label}`).join('\n')}`,
-      '1'
-    );
+    const choiceInput = await requestControlledPrompt({ title: '대체할 약효', message: '현재 처방에서 대체할 약효를 고르세요.', defaultValue: '1',
+      options: choices.map((choice, index) => ({ value: String(index + 1), label: choice.label })) });
+    if (choiceInput === null) return;
     const choice = choices[Math.max(0, (parseInt(choiceInput || '1') || 1) - 1)] || choices[0];
-    const modeInput = prompt("대체 방식 선택:\n1. Make Do — 한 단계 높은 가치의 대용품\n2. Replacement — 희귀도 12, 무게 2/3 대안 재료", "2");
+    const modeInput = await requestControlledPrompt({ title: '대체 방법', message: 'Make Do는 더 강한 실제 약재를 찾고, Replacement는 새로운 약재 자체를 희귀도 12로 획득합니다.', defaultValue: '2',
+      options: [{ value: '1', label: 'Make Do · 필요한 효능보다 1 높은 실제 부위' }, { value: '2', label: 'Replacement · 희귀도 12, 무게 2/3' }] });
     if (!modeInput) return;
     const isMakeDo = modeInput === '1';
     if (!isHouseRuleEnabled(state.rulesetId, 'directMakeDoReplacement')) {
       const tag = choice.tag as RuleTag;
+      let replacementName = `${choice.tag} 대체재`;
+      let replacementPreparation = 'USED';
+      if (!isMakeDo) {
+        const name = await requestControlledPrompt({ title: '새 약재의 이름', message: '발견할 대체 약재의 이름을 정하세요.', defaultValue: replacementName });
+        if (!name?.trim()) return;
+        replacementName = name.trim();
+        const method = await requestControlledPrompt({ title: '대체 약재의 조제법', message: '실제 조제 때 이 방법에 필요한 도구를 사용합니다.', defaultValue: 'USED',
+          options: ['USED', 'GROUND', 'CRUSHED', 'BOILED', 'BREWED', 'CHEWED', 'APPLIED', 'COOKED', 'DISTILLED'].map(value => ({ value, label: localizePreparationMethod(value) })) });
+        if (!method) return;
+        replacementPreparation = method;
+      }
       const acquisitionBase = isMakeDo
         ? createMakeDoAcquisition(tag, choice.val)
         : createReplacementAcquisition({
           targetTag: tag,
           requiredPotency: choice.val,
-          name: prompt('발견할 대체 영약재의 이름을 정하세요.', `${choice.tag} 대체재`) || `${choice.tag} 대체재`,
-          preparation: prompt('발견할 조제 부위의 이름을 정하세요.', '준비한 부위') || '준비한 부위'
+          name: replacementName,
+          preparation: replacementPreparation
         });
-      const sourceInput = prompt('어떤 방식으로 획득할까요?\n1. 채집\n2. 흥정', '1');
+      const sourceInput = await requestControlledPrompt({ title: '획득 방법', message: '대체 약재를 실제로 획득할 방법을 고르세요.', defaultValue: '1',
+        options: [{ value: '1', label: '채집' }, { value: '2', label: '흥정' }] });
       if (!sourceInput) return;
       const acquisition = {
         ...acquisitionBase,
@@ -21164,12 +21264,12 @@ function PlayView({
         return;
       }
       const kindChoice = availableKinds.length === 1
-        ? '1'
-        : prompt('Bad Idea의 Inspiration을 선택하세요.\n1. 기본 도구를 업그레이드한다\n2. 도구 무게를 1/3 줄인다', '1');
+        ? availableKinds[0]
+        : await requestControlledPrompt({ title: '나쁜 생각의 영감', message: '이번 치료의 영감으로 기본 도구를 개조하거나 도구 하나의 무게를 1/3 줄입니다. 도구와 결과를 모두 고른 뒤 치료에 함께 반영합니다. 취소하면 아직 적용하지 않습니다.', defaultValue: availableKinds[0], options: [{ value: 'upgrade', label: '기본 도구 개조' }, { value: 'lighten', label: '도구 무게 1/3 감소' }] });
       if (kindChoice === null) return;
       const requestedKind = availableKinds.length === 1
         ? availableKinds[0]
-        : kindChoice === '1' ? 'upgrade' : kindChoice === '2' ? 'lighten' : null;
+        : kindChoice === 'upgrade' ? 'upgrade' : kindChoice === 'lighten' ? 'lighten' : null;
       if (!requestedKind || !availableKinds.includes(requestedKind)) {
         showAlert('적용할 수 있는 영감을 선택해 주세요.');
         return;
@@ -21177,25 +21277,25 @@ function PlayView({
 
       let badIdeaOutcome: BadIdeaOutcomeChoice;
       if (requestedKind === 'upgrade') {
-        const toolChoice = prompt(`업그레이드할 기본 도구를 선택하세요.\n${action.upgradeTargets.map((target, index) => `${index + 1}. ${state.bag.find(item => item.id === target.toolInstanceId)?.name || target.toolId}`).join('\n')}`, '1');
+        const toolChoice = await requestControlledPrompt({ title: '영감으로 개조할 도구', message: '이 도구의 개조를 치료 결과와 함께 적용합니다. 아직 도구를 변경하지 않습니다.', defaultValue: action.upgradeTargets[0]?.toolInstanceId || '', options: action.upgradeTargets.map(target => ({ value: target.toolInstanceId, label: localizeInventoryItemName(state.bag.find(item => item.id === target.toolInstanceId)?.name || target.toolId) })) });
         if (toolChoice === null) return;
-        const target = action.upgradeTargets[(parseInt(toolChoice, 10) || 0) - 1];
+        const target = action.upgradeTargets.find(target => target.toolInstanceId === toolChoice);
         if (!target) {
           showAlert('목록에 있는 기본 도구를 선택해 주세요.');
           return;
         }
-        const upgradeChoice = prompt(`적용할 개조를 선택하세요.\n${target.upgrades.map((upgrade, index) => `${index + 1}. ${upgrade.canonicalName}`).join('\n')}`, '1');
+        const upgradeChoice = await requestControlledPrompt({ title: '영감의 개조 결과', message: '선택한 개조와 치료제 소비·치료 결과를 같은 판정에 반영합니다. 취소하면 이번 개조는 적용하지 않습니다.', defaultValue: target.upgrades[0]?.id || '', options: target.upgrades.map(upgrade => ({ value: upgrade.id, label: localizeInventoryItemName(upgrade.canonicalName) })) });
         if (upgradeChoice === null) return;
-        const upgrade = target.upgrades[(parseInt(upgradeChoice, 10) || 0) - 1];
+        const upgrade = target.upgrades.find(upgrade => upgrade.id === upgradeChoice);
         if (!upgrade) {
           showAlert('목록에 있는 개조를 선택해 주세요.');
           return;
         }
         badIdeaOutcome = { kind: 'upgrade-basic-tool', toolInstanceId: target.toolInstanceId, upgradeId: upgrade.id };
       } else {
-        const toolChoice = prompt(`무게를 줄일 도구를 선택하세요.\n${action.lightenTargets.map((target, index) => `${index + 1}. ${state.bag.find(item => item.id === target.toolInstanceId)?.name || target.toolId} (${formatWeight(target.currentWeight)})`).join('\n')}`, '1');
+        const toolChoice = await requestControlledPrompt({ title: '무게를 줄일 도구', message: '선택한 도구의 무게를 1/3 줄입니다. 치료제 소비·치료 결과와 함께 확정하며 취소하면 그대로 둡니다.', defaultValue: action.lightenTargets[0]?.toolInstanceId || '', options: action.lightenTargets.map(target => ({ value: target.toolInstanceId, label: `${localizeInventoryItemName(state.bag.find(item => item.id === target.toolInstanceId)?.name || target.toolId)} · ${formatWeight(target.currentWeight)} → ${formatWeight(target.currentWeight * 2 / 3)}` })) });
         if (toolChoice === null) return;
-        const target = action.lightenTargets[(parseInt(toolChoice, 10) || 0) - 1];
+        const target = action.lightenTargets.find(target => target.toolInstanceId === toolChoice);
         if (!target) {
           showAlert('목록에 있는 도구를 선택해 주세요.');
           return;
@@ -21206,8 +21306,12 @@ function PlayView({
       result = resolveTreatmentTransaction(treatmentInput);
     }
     if (!result.value && result.status === 'manual') {
-      const confirmed = result.messages.filter(message => askWindowConfirm(`${localizeGameplayMessage(message)}\n\n이 수동 요구조건을 충족했습니까?`));
-      if (confirmed.length !== result.messages.length) return;
+      const confirmed: string[] = [];
+      for (const message of result.messages) {
+        const confirmation = await requestControlledPrompt({ title: '치료의 직접 확인 조건', message: `${localizeGameplayMessage(message)}\n\n이 조건을 충족했나요? 모든 조건을 확인한 뒤에만 재료와 치료 결과를 반영합니다.`, defaultValue: 'confirm', hideField: true, confirmLabel: '조건을 충족했습니다' });
+        if (confirmation === null) return;
+        confirmed.push(message);
+      }
       treatmentInput = { ...treatmentInput, confirmedManualRequirements: confirmed };
       result = resolveTreatmentTransaction(treatmentInput);
     }
@@ -21769,7 +21873,7 @@ function PlayView({
         speed: activeTravelSpeed,
         canStopInLoch: hasLochStoppingGear(state),
         waterwaySpan: resolveWagonCapabilities(canonicalWagonFromState(state)).waterwaySpan,
-        mustUseFullSpeed: false
+        mustUseFullSpeed: state.rulesetId === 'original-1e-3p'
       });
     }
     return [];
@@ -22203,7 +22307,7 @@ function PlayView({
     if (state.scroungingMode) {
       addActionHubItem({
         id: 'scrounging',
-        label: 'Moving On 또는 여분 채집',
+        label: '길 떠나기 또는 여분 채집',
         detail: `치료를 마쳤습니다. 남은 ${state.scroungingTimer || 0}시간을 쓰거나 바로 다음 Move를 준비합니다.`,
         meta: `떠날 준비 · 가방 약재 ${patientReagentCount}개`,
         targetId: 'patient-clinic-panel',
@@ -22213,7 +22317,7 @@ function PlayView({
       addActionHubItem({
         id: 'active-patient',
         label: '환자 치료 진행',
-        detail: `${state.activeAilment.name} 치료 기한 ${state.activeAilment.timer}시간, 채집 포인트 ${state.activeAilment.foragingPoints}.`,
+        detail: `${state.activeAilment.name} 치료 기한 ${getPatientTimerProjection(state).selectedHours ?? 0}시간, 채집 포인트 ${state.activeAilment.foragingPoints}.`,
         meta: `가방 약재 ${patientReagentCount}개`,
         targetId: 'treatment-workspace',
         tone: 'primary'
@@ -22342,6 +22446,8 @@ function PlayView({
       canTravel={routeTravelBlockedReason === null}
       readOnly={!journeyUiContext.canMove}
       movementMode={activeRouteMode}
+      mustUseFullSpeed={state.rulesetId === 'original-1e-3p'}
+      moveDays={activeRouteMode === 'soar' && activeTravelWagonCapabilities.canSoar ? 3 : 1}
       travelBlockedReason={routeTravelBlockedReason}
       availableStops={routeStopChoices}
       journeyTarget={routeJourneyTarget}
@@ -22428,6 +22534,7 @@ function PlayView({
         </div>
       )}
 
+        <details className="adventure-action-menu"><summary>이곳에서 할 수 있는 행동 <span>여행 · 현지 활동 · 정비</span></summary>
         <section id="action-hub" className="action-hub" aria-label="현재 진행판">
         <div className="action-hub__header">
           <div>
@@ -22455,6 +22562,7 @@ function PlayView({
           ))}
         </div>
       </section>
+      </details>
 
       {canonicalWagonFromState(state).expansionIds.includes('passenger-booth') && (
         <div className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--border-cozy)', borderRadius: '7px', padding: '1rem' }}>
@@ -22505,8 +22613,10 @@ function PlayView({
         </div>
       )}
 
-      <div className={`play-with-map${localCarePhase ? ' play-with-map--care' : ''}`}>
+      <div className={`play-with-map${localCarePhase ? ' play-with-map--care' : ''}${!journeyUiContext.active ? ' play-with-map--setup' : ''}`}>
         {localCarePhase ? (
+        <details className="play-journey-compact-summary">
+          <summary>여정 현황과 이동 준비 <span>{state.calendarDays} / {state.calendarMaxDays}일 · {state.journeyDestination}</span></summary>
           <section className="journey-care-context" aria-label="현지 진료 중 여정 요약">
             <div>
               <span>현재 위치</span>
@@ -22530,17 +22640,20 @@ function PlayView({
             </div>
             <footer>
               <p>{state.scroungingMode
-                ? '치료를 마쳤습니다. 여분 채집은 선택이며, Moving On을 마쳐야 다음 Move로 이어집니다.'
+                ? '치료를 마쳤습니다. 여분 채집은 선택이며, 길 떠나기를 마쳐야 다음 이동으로 이어집니다.'
                 : '지금은 현지 야수를 도울 차례입니다. 채집·물물교환은 질환 Timer를 쓰며 여정 달력은 그대로입니다.'}</p>
               <div>
                 {state.scroungingMode ? (
-                  <button type="button" className="btn-cozy-primary" onClick={handleFinishScrounging}>Moving On · 다음 이동 준비</button>
+                  <button type="button" className="btn-cozy-primary" onClick={handleFinishScrounging}>길 떠나기 · 다음 이동 준비</button>
                 ) : null}
                 <button type="button" className="btn-cozy-secondary" onClick={() => void handleRestartJourneyPlanning()}>이번 여정 다시 준비</button>
               </div>
             </footer>
           </section>
+        </details>
         ) : (
+        <details className="workspace-map-preview" open={journeyUiContext.active}>
+          <summary>여정 지도 <span>현재 위치 · 목적지 · 연결된 길</span></summary>
         <aside id="play-journey-map" className="play-with-map__map" aria-label="여정 지도">
           <MapView
             state={state}
@@ -22583,13 +22696,14 @@ function PlayView({
                       : '현재 카드 조건과 저장된 연결을 모두 만족하는 후보가 없습니다. 연결을 확인하거나 카드를 다시 뽑으세요.')
                   : '목적지 카드를 뽑으면 저장된 연결의 최단 거리까지 계산한 후보가 지도에 표시됩니다.')
                 : playMapMode === 'travel'
-                  ? `룰북 지도를 보고 다음 위치를 누르세요. Route Editor에서 연결 타입과 순서를 고를 수 있습니다.${currentWeight > maxCarry ? ' 현재 과적 상태라 속도는 1입니다.' : ''}`
+                  ? `사이트 지도에서 다음 위치를 누르세요. 경로 편집에서 연결 타입과 순서를 고를 수 있습니다.${currentWeight > maxCarry ? ' 현재 과적 상태라 속도는 1입니다.' : ''}`
                   : journeyUiContext.atDestination
                     ? `${state.journeyDestination}에 도착했습니다. 남은 의무를 끝낸 뒤 여정 결말을 정하세요.`
                     : '현재 단계의 판정을 마치면 다음 이동 경로를 다시 편집할 수 있습니다.'
             }
           />
         </aside>
+        </details>
         )}
         <div className="play-with-map__panels">
           {(journeyUiContext.phase === 'destination-ready' || journeyUiContext.phase === 'ending') && (
@@ -22636,7 +22750,7 @@ function PlayView({
                 <small>
                   {activeRouteMode === 'soar'
                     ? '출발지와 마지막 위치를 잇고 계절별 Soar 조우를 해결합니다.'
-                    : `이동력 ${activeTravelSpeed} 이내로 경로를 이은 뒤 도착지 조우를 해결합니다.`}
+                    : `이동력 ${activeTravelSpeed}${state.rulesetId === 'sandbox' ? ' 이내로' : '을 모두 사용해'} 경로를 이은 뒤 도착지 조우를 해결합니다.`}
                 </small>
               </div>
               <select
@@ -22678,12 +22792,12 @@ function PlayView({
               </div>
             </div>
             <div className={`downtime-stage downtime-stage--${campaignContinuity.stage}`}>
-              <div className="downtime-stage__steps" aria-label="계절 사이 진행 단계">
+              {(state.downtimeRequired || state.downtimeCompleted || state.completedSeasons > 0) && <div className="downtime-stage__steps" aria-label="계절 사이 진행 단계">
                 <span className="is-done">1. 여정 마감</span>
-                <span className={state.downtimeRequired ? 'is-current' : state.downtimeCompleted ? 'is-done' : ''}>2. 활동 하나</span>
-                <span className={state.downtimeCompleted ? 'is-current' : ''}>3. 계절 정산</span>
+                <span className={state.downtimeRequired ? 'is-current' : 'is-done'}>2. 활동 하나</span>
+                <span className={state.downtimeCompleted ? 'is-current' : !state.downtimeRequired ? 'is-done' : ''}>3. 계절 정산</span>
                 <span className={!state.downtimeRequired && !state.downtimeCompleted ? 'is-current' : ''}>4. 새 여정</span>
-              </div>
+              </div>}
               <strong>{campaignContinuity.nextAction}</strong>
               <p>{campaignContinuity.guidance}</p>
             </div>
@@ -23168,11 +23282,11 @@ function PlayView({
                       <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.2rem' }}>영구적으로 바꿀 태그:</label>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '0.35rem', alignItems: 'center' }}>
                         <select value={gpTagChange} onChange={e => setGpTagChange(e.target.value)} disabled={!gpAilment} style={{ width: '100%', padding: '0.4rem' }}>
-                          {Array.from(new Set(requirementRuleTags(AILMENTS.find(row => row.id === gpAilment)?.requirements || { kind: 'special', code: 'NONE', description: '' }))).map(tag => <option key={tag} value={tag}>{tag}</option>)}
+                          {Array.from(new Set(requirementRuleTags(AILMENTS.find(row => row.id === gpAilment)?.requirements || { kind: 'special', code: 'NONE', description: '' }))).map(tag => <option key={tag} value={tag}>{formatRuleTag(tag)}</option>)}
                         </select>
                         <span aria-hidden="true">→</span>
                         <select value={gpReplacementTag} onChange={e => setGpReplacementTag(e.target.value)} disabled={!gpAilment} style={{ width: '100%', padding: '0.4rem' }}>
-                          {RULE_TAGS.filter(tag => tag !== 'FAIR' && tag !== 'FOUL' && tag !== gpTagChange).map(tag => <option key={tag} value={tag}>{tag}</option>)}
+                          {RULE_TAGS.filter(tag => tag !== 'FAIR' && tag !== 'FOUL' && tag !== gpTagChange).map(tag => <option key={tag} value={tag}>{formatRuleTag(tag)}</option>)}
                         </select>
                       </div>
                     </div>
@@ -23387,7 +23501,7 @@ function PlayView({
                     실제 지도 경로상 가장 가까운 도시가 자동으로 계산됩니다. 같은 거리의 도시가 여럿이면 선택할 수 있습니다.
                   </div>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       const noteType = (document.getElementById('reconnect_note_select') as HTMLSelectElement)?.value;
                       const selectedRegion = (document.getElementById('reconnect_region_select') as HTMLSelectElement)?.value;
                       const graph = toServiceMapGraph(state);
@@ -23403,9 +23517,12 @@ function PlayView({
                       }
                       let destination = nearest[0].node;
                       if (nearest.length > 1) {
-                        const cityChoice = prompt(`가장 가까운 도시가 여럿입니다. 한 곳을 선택하세요:\n${nearest.map((row, index) => `${index + 1}. ${row.node.name} · 경로 ${row.distance}개`).join('\n')}`, '1');
+                        const cityChoice = await requestControlledPrompt({ title: '길드 재접속 · 도착 도시',
+                          message: '지도 경로로 같은 거리에 있는 도시 중 한 곳을 선택하세요. 이동과 길드 노트 획득에 이번 휴식기 활동 1회를 사용합니다.',
+                          options: nearest.map(row => ({ value: row.node.id, label: `${localizeLocationName(row.node.name)} · 경로 ${row.distance}개` })),
+                          defaultValue: nearest[0].node.id, confirmLabel: '이 도시에서 재접속' });
                         if (cityChoice === null) return;
-                        destination = nearest[(parseInt(cityChoice, 10) || 1) - 1]?.node;
+                        destination = nearest.find(row => row.node.id === cityChoice)?.node;
                         if (!destination) return;
                       }
                       const cityRegion = destination.region === 'Soar' ? toRuleRegion(state.currentRegion) : destination.region;
@@ -23839,7 +23956,10 @@ function PlayView({
               <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)', padding: '1rem' }}>
                 <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🚚 마차 개조 및 확장</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
-                  <strong>모든 도시</strong>에서 마차 기본 유닛을 주문(장신구 15개)하거나 기존 마차를 업그레이드(장신구 소모)합니다.
+                  <strong>모든 도시</strong>에서 휴식기 활동 1회와 장신구 20개로 기본 마차를 위탁하거나 기존 마차를 개조합니다.
+                </p>
+                <p className="wagon-price-source" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
+                  원문 p.43의 위탁 가격은 20개, p.68의 Base Unit 표는 15개입니다. 이 사이트는 휴식기 위탁 절차인 p.43의 20개를 적용합니다. 두 가격의 차이는 원문에서도 명시적으로 설명되지 않습니다.
                 </p>
 
                 {state.currentLocationType !== 'City' && !bypassShopRules ? (
@@ -24095,7 +24215,7 @@ function PlayView({
                         <header>
                           <div>
                             <strong>방향·장소 유형 후보</strong>
-                            <span>저장된 연결은 거리를 자동 계산하고, 없는 연결은 인쇄 지도에서 직접 확인할 수 있습니다.</span>
+                            <span>저장된 길은 거리를 자동 계산합니다. 연결이 부족한 곳은 이 사이트의 세계 지도에서 경로를 확인하고 기록할 수 있습니다.</span>
                           </div>
                           {selectedJourneyDestination && journeyDestinationCandidates.length > 1 && (
                             <button type="button" className="journey-candidate-list__toggle" onClick={() => setShowJourneyDestinationCandidates(value => !value)}>
@@ -24128,7 +24248,7 @@ function PlayView({
                                     </>
                                   ) : (
                                     <>
-                                      <strong>인쇄 지도에서 거리 확인</strong>
+                                      <strong>사이트 지도에서 거리 확인</strong>
                                       <small>{journeyDestinationRequirement?.distance}인지 직접 세어 보세요.</small>
                                     </>
                                   )}
@@ -24138,6 +24258,9 @@ function PlayView({
                           </div>
                         )}
                         {selectedJourneyDestination && !selectedJourneyDestination.routeSummary && (
+                          <div className="journey-distance-review">
+                            <p>지도에 저장된 연결만으로는 거리를 확정할 수 없습니다. 세계 지도를 열어 출발지에서 목적지까지 길을 세어 보세요. 길이 만나는 교차점은 새 경로가 아닙니다. 필요한 연결은 지도에서 보완할 수 있습니다.</p>
+                            <button type="button" className="btn-cozy-secondary" onClick={onOpenFullMap}>세계 지도에서 거리 확인하기</button>
                           <label className="journey-distance-confirmation">
                             <input
                               type="checkbox"
@@ -24145,10 +24268,11 @@ function PlayView({
                               onChange={event => { setJourneyDistanceConfirmedManually(event.target.checked); scheduleJourneyDraftPersistence('distanceConfirmedManually'); }}
                             />
                             <span>
-                              <strong>인쇄 지도에서 {journeyDestinationRequirement?.distance}임을 확인했습니다.</strong>
-                              <small>앱에 저장된 연결이 불완전할 때만 사용하는 룰북식 수동 확인입니다.</small>
+                              <strong>사이트 지도에서 {journeyDestinationRequirement?.distance}임을 확인했습니다.</strong>
+                              <small>현재 경로 정보가 부족한 곳의 수동 확인입니다. 새 연결을 저장하면 이후 여정에서 자동으로 거리를 계산합니다.</small>
                             </span>
                           </label>
+                          </div>
                         )}
                       </section>
                     )}
@@ -24480,7 +24604,7 @@ function PlayView({
 
             {/* Travel Form */}
             {state.needsLocalHelpBeforeMove && (
-              <div style={{ borderTop: '1px dashed var(--glass-border)', padding: '0.9rem', background: '#fffaf0', borderRadius: '8px', border: '1.5px solid #f59e0b', color: 'var(--text)', fontSize: '0.86rem', lineHeight: 1.6, marginBottom: '0.5rem' }}>
+              <details className="travel-obligation" open={!state.activeAilment}><summary>현지 진료를 마친 뒤 다음 이동으로 · p.25</summary>
                 <strong style={{ color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.9rem' }}>
                   🔒 현지 질환 미해결 — 다음 이동 전 치료 필요 (룰북 p.25)
                 </strong>
@@ -24505,7 +24629,7 @@ function PlayView({
                     📝 앱 밖에서 해결한 질환 기록
                   </button>
                 </div>
-              </div>
+              </details>
             )}
             {canonicalWagonFromState(state).expansionIds.includes('clay-pots') && canonicalWagonFromState(state).clayPotReagentId && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0', borderTop: '1px dashed var(--glass-border)', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
@@ -24668,7 +24792,7 @@ function PlayView({
                     {availableParts.map(item => {
                       const order = barrowSelectedItemIds.indexOf(item.id);
                       const preparation = REAGENT_BY_ID.get(item.canonicalReagentId!)?.preparations.find(row => row.id === item.preparationId);
-                      const tagText = preparation?.tags.map(tag => `${tag.tag} ${tag.value}`).join(', ') || item.tags || '';
+                      const tagText = preparation?.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(', ') || item.tags || '';
                       return (
                         <label key={item.id} style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)', gap: '0.55rem', alignItems: 'start' }}>
                           <input type="checkbox" checked={order >= 0} onChange={event => togglePart(item.id, event.target.checked)} />
@@ -24782,9 +24906,9 @@ function PlayView({
             <h3 style={{ color: 'var(--accent-purple)', margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>{state.scroungingMode ? '🔍 여분 채집' : '🤒 환자 약제소'}</span>
               {state.scroungingMode ? (
-                <span style={{ fontSize: '0.9rem', color: '#d97706' }}>⏱️ 여분 시간: <strong>{state.scroungingTimer} 시간 남음</strong></span>
+                <span style={{ fontSize: '0.9rem', color: '#d97706' }}>여분 채집 기한: <strong>{getPatientTimerProjection(state).scroungingHours ?? state.scroungingTimer}시간 남음</strong></span>
               ) : state.activeAilment ? (
-                <span style={{ fontSize: '0.9rem', color: '#ff6b6b' }}>⏱️ 치료 완료 기한: <strong>{state.activeAilment.timer} 시간 남음</strong></span>
+                <span style={{ fontSize: '0.9rem', color: '#ff6b6b' }}>선택한 질환 기한: <strong>{getPatientTimerProjection(state).selectedHours ?? state.activeAilment.timer}시간 남음</strong></span>
               ) : null}
             </h3>
 
@@ -24920,7 +25044,7 @@ function PlayView({
                   onClick={handleFinishScrounging}
                   style={{ width: '100%', padding: '0.8rem', background: '#d97706', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '1rem', marginTop: '1rem', cursor: 'pointer' }}
                 >
-                  Moving On · 떠날 준비 마치고 다음 이동으로
+                  길 떠나기 · 떠날 준비 마치고 다음 이동으로
                 </button>
               </div>
             ) : !state.activeAilment ? (
@@ -24999,7 +25123,7 @@ function PlayView({
                       })()}
                     </div>
                   </div>
-                  
+
                   {/* Ambient Workshop Lines */}
                   <div style={{ gridColumn: '1 / -1', borderTop: '1.5px dashed var(--glass-border)', paddingTop: '0.75rem', marginTop: '0.4rem', textAlign: 'center' }}>
                     {(() => {
@@ -25008,7 +25132,7 @@ function PlayView({
                       const trinketLen = (state.trinketArchive || []).length;
                       const repVal = state.reputation || 0;
                       const ambientIndex = (dayVal + casebookLen + trinketLen + repVal) % 6;
-                      
+
                       const ambientLines = [
                         "약초 다발이 천장 아래에서 천천히 마르고 있습니다.",
                         "창가에 놓인 빈 찻잔에는 아직도 은은한 향이 남아 있습니다.",
@@ -25017,7 +25141,7 @@ function PlayView({
                         "벽에 꽂힌 식물 표본들이 조용히 계절을 견디고 있습니다.",
                         "누군가 남기고 간 작은 발자국이 아직도 문가에 희미하게 남아 있습니다."
                       ];
-                      
+
                       return (
                         <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-muted)', fontStyle: 'italic', fontFamily: 'var(--font-base)' }}>
                           ✨ {ambientLines[ambientIndex]}
@@ -25280,7 +25404,7 @@ function PlayView({
                                       setForageTargetReagentIds([]);
                                     }}
                                   >
-                                    <strong>{requirement.tag} {requirement.threshold}</strong>
+                                    <strong>{formatRuleTag(requirement.tag)} {requirement.threshold}</strong>
                                     <small>{covered
                                       ? `${progressLabel} · 충족`
                                       : progress.potential
@@ -25328,12 +25452,12 @@ function PlayView({
                                       <span key={part.id} className="forage-target-row__part-tags">
                                         <small>{localizePreparationName(part.name)} · {localizePreparationMethod(part.method)}</small>
                                         <span>
-                                          {tagGroups.remedy.map(tag => <em key={tag.tag}>{tag.tag} {tag.value}</em>)}
+                                          {tagGroups.remedy.map(tag => <em key={tag.tag}>{formatRuleTag(tag.tag)} {tag.value}</em>)}
                                         </span>
                                         {tagGroups.trade.length > 0 && (
                                           <span className="forage-target-row__trade-tags">
                                             <i>거래 가치</i>
-                                            {tagGroups.trade.map(tag => <em key={tag.tag} className={tag.tag === 'FAIR' ? 'is-fair' : 'is-foul'}>{tag.tag} {tag.value}</em>)}
+                                            {tagGroups.trade.map(tag => <em key={tag.tag} className={tag.tag === 'FAIR' ? 'is-fair' : 'is-foul'}>{formatRuleTag(tag.tag)} {tag.value}</em>)}
                                           </span>
                                         )}
                                       </span>
@@ -25429,16 +25553,18 @@ function PlayView({
 
                   {/* Barter — show remaining attempts */}
                   {(() => {
-                    const barterOptions = getAvailableBarterLocations(state);
-                    const maxBarters = barterOptions.reduce((max, option) => Math.max(max, getBarterAttemptLimit(option.type)), 0);
-                    const remaining = barterOptions.reduce((max, option) => Math.max(max,
-                      state.activePatientId ? getBarterAttemptsRemaining(state.barterAttemptHistory, state.activePatientId, option.key, option.type) : 0
-                    ), 0);
+                    const barterOptions = getAvailableBarterLocations(state).map(option => ({
+                      ...option,
+                      limit: getBarterAttemptLimit(option.type),
+                      remaining: state.activePatientId
+                        ? getBarterAttemptsRemaining(state.barterAttemptHistory, state.activePatientId, option.key, option.type) : 0
+                    }));
+                    const availableLocations = barterOptions.filter(option => option.remaining > 0);
                     const pendingBarter = state.pendingBarter && !['completed', 'abandoned'].includes(state.pendingBarter.status)
                       ? state.pendingBarter
                       : null;
                     const canBarter = !acquisitionCheckpointBlocked
-                      && (Boolean(pendingBarter) || (barterOptions.length > 0 && remaining > 0));
+                      && (Boolean(pendingBarter) || availableLocations.length > 0);
                     const barterButtonLabel = pendingBarter?.status === 'manual-social'
                       ? '사교 조우 판정 계속'
                       : pendingBarter?.status === 'awaiting-second-card'
@@ -25446,8 +25572,8 @@ function PlayView({
                         : pendingBarter?.status === 'awaiting-payment'
                           ? `거래 대가 ${pendingBarter.paymentRequired} 지불`
                           : barterOptions.length > 0
-                            ? `물꼬 거래 ${remaining}/${maxBarters}회 남음`
-                            : '물꼬 거래 — 현재/인접 정착지·도시만 가능';
+                            ? `물물교환 · 거래 가능한 장소 ${availableLocations.length}곳`
+                            : '물물교환 — 현재/인접 정착지·도시만 가능';
                     const pendingTargetReagent = pendingBarter ? REAGENT_BY_ID.get(pendingBarter.targetReagentId) : null;
                     const pendingTargetPreparation = pendingTargetReagent?.preparations.find(row => row.id === pendingBarter?.preparationId);
                     return (
@@ -25478,13 +25604,13 @@ function PlayView({
                             }).flat().filter(payment => payment.trinkets <= state.trinkets.length && payment.reputation <= state.reputation);
                             const choice = await requestControlledPrompt({
                               title: '거래 대가를 정하세요',
-                              message: `부족한 값 ${pendingBarter.paymentRequired}을 장신구와 Guild Reputation으로 정확히 채웁니다. 거래를 포기하면 진행 중인 모든 질병 타이머가 1 줄어듭니다.`,
+                              message: `부족한 값 ${pendingBarter.paymentRequired}을 장신구와 길드 명성으로 정확히 채웁니다. 거래를 포기하면 진행 중인 모든 질환의 치료 기한이 1시간 줄어듭니다.`,
                               defaultValue: paymentOptions.length > 0 ? '0' : 'abandon',
                               kicker: '물꼬 거래 마감',
                               options: [
                                 ...paymentOptions.map((payment, index) => ({
                                   value: String(index),
-                                  label: `${payment.inventoryValue > 0 ? `Fresh Clams 등 물품 ${payment.inventoryValue}점 · ` : ''}장신구 ${payment.trinkets}개 · Guild Reputation ${payment.reputation}`
+                                  label: `${payment.inventoryValue > 0 ? `물품 ${payment.inventoryValue}점 · ` : ''}장신구 ${payment.trinkets}개 · 길드 명성 ${payment.reputation}`
                                 })),
                                 { value: 'abandon', label: '거래 포기' }
                               ]
@@ -25500,20 +25626,24 @@ function PlayView({
                           }
                           barterSelectionPendingRef.current = true;
                           try {
-                            let selectedLocation = barterOptions[0];
+                            let selectedLocation = availableLocations[0];
+                            if (!selectedLocation) return;
                             if (barterOptions.length > 1) {
                               const choice = await requestControlledPrompt({
                                 title: '거래할 장소를 선택하세요',
-                                message: '현재 위치 또는 인접한 정착지와 도시에서 거래할 수 있습니다.',
-                                defaultValue: '1',
+                                message: '현재 또는 인접 장소마다 이 환자의 거래 횟수를 따로 기록합니다. 정착지는 1회, 도시는 3회이며 남은 횟수가 있는 장소를 선택하세요.',
+                                defaultValue: String(barterOptions.indexOf(selectedLocation) + 1),
                                 kicker: '물꼬 거래',
                                 options: barterOptions.map((option, idx) => ({
                                   value: String(idx + 1),
-                                  label: `${idx + 1}. ${option.name} (${option.type === 'City' ? '도시' : '정착지'}, ${option.relation === 'current' ? '현재 위치' : '인접 위치'})`
+                                  label: `${idx + 1}. ${localizeLocationName(option.name)} · ${option.type === 'City' ? '도시' : '정착지'} · ${option.relation === 'current' ? '현재 위치' : '인접 위치'} · ${option.remaining}/${option.limit}회 남음`,
+                                  disabled: option.remaining <= 0,
+                                  disabledReason: option.remaining <= 0 ? '이 환자의 이 장소 거래 횟수를 모두 사용했습니다.' : undefined
                                 }))
                               });
                               if (!choice || !playViewAliveRef.current) return;
-                              selectedLocation = barterOptions[Math.max(0, (parseInt(choice) || 1) - 1)] || barterOptions[0];
+                              selectedLocation = barterOptions[Math.max(0, (parseInt(choice) || 1) - 1)] || availableLocations[0];
+                              if (selectedLocation.remaining <= 0) return;
                             }
                             const graph = toBarterMapGraph(state);
                             if (!graph[selectedLocation.key]) {
@@ -25555,12 +25685,12 @@ function PlayView({
                                   label: `${row.reagentLabel} — ${row.preparationLabel}`,
                                   title: `${row.reagentLabel} — ${row.preparationLabel}`,
                                   detail: `${row.methodLabel} · 무게 ${formatWeight(row.preparation.weight)} · ${row.preparation.uses}회분`,
-                                  remedyTags: row.remedyTags.map(tag => `${tag.tag} ${tag.value}`),
-                                  tradeTags: row.tradeTags.map(tag => `${tag.tag} ${tag.value}`),
+                                  remedyTags: row.remedyTags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`),
+                                  tradeTags: row.tradeTags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`),
                                   meta: `거래 희귀도 ${calculation.br} · 현재 보유 ${row.ownedQuantity}개`,
                                   relevant: row.patientRelevantTags.length > 0,
                                   relevanceText: row.patientRelevantTags.length > 0
-                                    ? `현재 처방 태그 중 ${row.patientRelevantTags.map(tag => `${tag.tag} ${tag.value}`).join(' · ')} 충족`
+                                    ? `현재 처방 태그 중 ${row.patientRelevantTags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ')} 충족`
                                     : undefined,
                                   searchText: row.searchText,
                                   selectionSummary: `${row.reagentLabel} — ${row.preparationLabel} · ${row.methodLabel}\n기본 희귀도 ${row.reagent.baseRarity}${modifierText ? ` · ${modifierText}` : ''} → 거래 희귀도 ${calculation.br}\n확정하면 거리로 나가 사교 조우를 시작하며, 이 환자·장소의 거래 1회를 사용합니다.`
@@ -25586,16 +25716,32 @@ function PlayView({
                           ? acquisitionCheckpointBlockingMessage
                           : barterOptions.length === 0
                             ? '현재 또는 인접한 정착지/도시에서만 가능'
-                            : remaining === 0 ? '거래 횟수 초과' : ''}
+                            : availableLocations.length === 0 && !pendingBarter ? '모든 장소의 거래 횟수를 사용했습니다.' : ''}
                         style={{ width: '100%', padding: '0.7rem', background: canBarter ? 'var(--secondary-light)' : '#eee', color: canBarter ? 'var(--secondary)' : '#aaa', border: `1.5px solid ${canBarter ? 'var(--secondary)' : '#ccc'}`, borderRadius: '8px', fontWeight: 'bold', cursor: canBarter ? 'pointer' : 'not-allowed' }}
                       >
-                        🤝 {barterButtonLabel}
+                        {barterButtonLabel}
                       </button>
+                      {barterOptions.length > 0 && (
+                        <ul className="barter-action__locations" aria-label="장소별 이 환자의 남은 거래 횟수">
+                          {barterOptions.map(option => (
+                            <li key={option.key}>
+                              {localizeLocationName(option.name)} · {option.type === 'City' ? '도시' : '정착지'} · {option.relation === 'current' ? '현재' : '인접'} · <strong>{option.remaining}/{option.limit}회 남음</strong>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                       {pendingTargetReagent && pendingTargetPreparation && (
                         <p className="barter-action__target" aria-live="polite">
                           <span>거래 대상</span>
                           <strong>{formatReagentName(pendingTargetReagent)} — {localizePreparationName(pendingTargetPreparation.name)}</strong>
                           <small>{localizePreparationMethod(pendingTargetPreparation.method)} · 거래 희귀도 {pendingBarter?.calculatedBR}</small>
+                        </p>
+                      )}
+                      {pendingBarter?.replacement && (
+                        <p className="barter-action__target" aria-live="polite">
+                          <span>대안 영약재 거래 대상</span>
+                          <strong>{pendingBarter.replacement.name} — {localizePreparationMethod(pendingBarter.replacement.preparation || 'USED')}</strong>
+                          <small>{pendingBarter.replacement.targetTag} {pendingBarter.replacement.requiredPotency} · 거래 희귀도 {pendingBarter.calculatedBR} · 획득 시 1개</small>
                         </p>
                       )}
                       </div>
@@ -25611,9 +25757,12 @@ function PlayView({
                   </button>
 
                   {state.rulesetId === 'sandbox' && <button
-                    onClick={() => {
-                      const req = prompt("발견(채집완료) 처리할 영약재 이름을 입력하세요 (예: 너도밤나무):");
-                      if (req) handleCollectReagent(req);
+                    onClick={async () => {
+                      const req = await requestControlledPrompt({ title: '수작업 영약재 획득', kicker: '자유 플레이',
+                        message: '추가할 영약재를 선택하세요. 다음 단계에서 부위를 선택하며, 채집 판정과 시간 비용은 적용하지 않습니다.',
+                        options: REAGENTS.map(row => ({ value: row.id, label: formatReagentName(row) })),
+                        searchable: { placeholder: '영약재 이름 검색' }, defaultValue: REAGENTS[0]?.id || '', confirmLabel: '부위 선택으로' });
+                      if (req) await handleCollectReagent(req);
                     }}
                     style={{ padding: '0.7rem 1rem', background: '#f5f5f5', color: '#555', borderRadius: '8px' }}
                   >
@@ -25662,9 +25811,9 @@ function PlayView({
 
                 {/* Scrounging — rulebook p.37: spend remaining timer to forage extra reagents */}
                 <div style={{ marginTop: '0.5rem', padding: '0.6rem', background: '#f9f5ee', border: '1px dashed #c9b68a', borderRadius: '8px', fontSize: '0.82rem' }}>
-                  <strong>🔍 여분 채집 (p.37)</strong> — 치료 완료 후 남은 타이머로 여분 약재 획득 가능.<br />
-                  타이머 소비: 현재 위치 채집 1회, 인접 위치 채집 1회, 현재 위치 약재 1개(효능≤2), 인접 약재 1개(효능≤2).<br />
-                  <span style={{ color: '#888' }}>* 치료제 완성 후 모든 타이머가 0 이상일 때만 사용 가능.</span>
+                  <strong>여분 채집 (p.37)</strong> — 치료 완료 후 모든 치료 기한이 0보다 클 때 남은 시간을 사용할 수 있습니다.<br />
+                  카드 채집: 현재 지역 1시간 · 인접 지역 2시간. 약효 2 이하 부위 1개 직접 확보: 현재 지역 3시간 · 인접 지역 4시간.<br />
+                  <span>필요한 시간만큼 모든 기한이 남아 있어야 합니다. 채집 조우 등 필수 절차를 마친 뒤 바로 길을 떠나도 됩니다.</span>
                   {(hasTool(state, 'tool_needles') || hasTool(state, '뜨개바늘') || hasTool(state, 'Knitting Needles')) && (
                     <div style={{ marginTop: '0.65rem', paddingTop: '0.55rem', borderTop: '1px dashed #d6c8a8' }}>
                       <strong style={{ color: '#7c5a2a' }}>🧶 뜨개질 프로젝트 (Knitting Needles, p.64)</strong>
@@ -25823,17 +25972,34 @@ function PlayView({
                               ? selectedBagItems.map(id => localizeInventoryItemName(state.bag.find(item => item.id === id)?.name || id)).join(', ')
                               : '아직 선택하지 않음'}</strong>
                             <span>보상 계산</span>
-                            <strong>FAIR {treatmentPreview?.fair || 0} · FOUL {treatmentPreview?.foul || 0}</strong>
+                            <strong>좋은 성질 (FAIR) {treatmentPreview?.fair || 0} · 불쾌한 성질 (FOUL) {treatmentPreview?.foul || 0}</strong>
                           </div>
                           <small>일반 약효는 가장 높은 값만 사용합니다. FAIR와 FOUL만 합산한 뒤 서로 상쇄합니다.</small>
+                          {treatmentPreview?.separateDoses?.map((dose, index) => (
+                            <p key={dose.doseId}>{index + 1}번째 별도 회분 · {dose.label}: {dose.itemIds.map(id => state.bag.find(item => item.id === id)?.name || id).join(', ')}</p>
+                          ))}
+                          {treatmentPreview?.separateDoses?.length ? <small>각 회분의 사용 횟수를 따로 확보했습니다. {Object.entries(treatmentPreview.ingredientUses || {}).map(([id, uses]) => `${state.bag.find(item => item.id === id)?.name || id} ${uses}회 소비`).join(' · ')}</small> : null}
                         </div>
                         <details style={{ marginBottom: '1rem', padding: '0.65rem 0', borderBottom: '1px dashed #d4a853', fontSize: '0.82rem', lineHeight: 1.45 }} open={Boolean(alternative)}>
-                          <summary style={{ cursor: 'pointer', color: '#8b5e1a', fontWeight: 700, minHeight: '40px', display: 'flex', alignItems: 'center' }}>🧩 필요한 약효가 없나요? Make Do / Replacement (p.30)</summary>
+                          <summary style={{ cursor: 'pointer', color: '#8b5e1a', fontWeight: 700, minHeight: '40px', display: 'flex', alignItems: 'center' }}>필요한 약효가 없나요? 대용품과 대안 영약재 (p.30)</summary>
+                          <p><strong>대용품 쓰기(Make Do)</strong>: 필요한 약효보다 1 높은 대용품을 확보하고, 그 재료가 질환을 어떻게 가라앉히는지 기록합니다.</p>
+                          <p><strong>대안 영약재(Replacement)</strong>: 필요한 약효를 가진 새 재료의 이름과 부위를 정합니다. 기본 희귀도 12 · 무게 2/3이며 실제 채집이나 거래에 성공한 뒤 도감과 일지에 남깁니다.</p>
+                          <p>탐색 조건을 정하면 다음 획득의 목표가 됩니다. 재료는 채집·거래 성공 후 배낭에 들어옵니다.</p>
                           {alternative && (
                             <div style={{ marginTop: '0.55rem', padding: '0.55rem', background: '#fff', border: '1px solid #dfcfaa', borderRadius: '4px' }}>
-                            <strong>{alternative.kind === 'make-do' ? 'Make Do 탐색 중' : 'Replacement 탐색 중'}</strong>
-                            <div>{alternative.targetTag} {alternative.requiredPotency} · 채집 또는 흥정으로 실제 획득 필요</div>
+                            <strong>{alternative.kind === 'make-do' ? '대용품 탐색 중' : '대안 영약재 탐색 중'}</strong>
+                            <div>{formatRuleTag(alternative.targetTag)} {alternative.requiredPotency} · 채집 또는 거래로 실제 획득 필요</div>
                             {alternative.kind === 'replacement' && <div>희귀도 12 · 무게 2/3 · {alternative.name} ({alternative.preparation})</div>}
+                            {alternative.kind === 'replacement' && alternative.selectedSource === 'barter' && (
+                              <button type="button" className="btn-cozy-secondary" onClick={async () => {
+                                const locations = getAvailableBarterLocations(state).filter(location => state.activePatientId && getBarterAttemptsRemaining(state.barterAttemptHistory, state.activePatientId, location.key, location.type) > 0);
+                                if (!locations.length) return showAlert('거래 가능한 현재·인접 정착지 또는 도시가 없습니다.');
+                                const place = await requestControlledPrompt({ title: 'Replacement 흥정 장소', message: `${alternative.name} 자체를 기본 희귀도 12의 목표로 거래합니다. 다른 일반 약재는 함께 지급되지 않습니다.`,
+                                  defaultValue: locations[0].key, options: locations.map(location => ({ value: location.key, label: `${location.name} · ${location.type === 'City' ? '도시' : '정착지'}` })) });
+                                const location = locations.find(row => row.key === place);
+                                if (location) handleBarterAttempt({ reagentId: alternative.id, preparationId: `replacement:${alternative.id}` }, location);
+                              }}>대체재 자체로 흥정 시작</button>
+                            )}
                             {makeDoMatches.length > 0 && (
                               <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.45rem' }}>
                                 {makeDoMatches.map(item => (
@@ -25935,9 +26101,9 @@ function PlayView({
                                 />
                                 <span>
                                   <strong>{formatReagentItemName(item.name, item.canonicalReagentId)}</strong>
-                                  <small>{preparation.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음'} · {totalUses}회분 · 무게 {formatWeight(item.weight)}</small>
+                                  <small>{preparation.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ') || '약효 태그 없음'} · {totalUses}회분 · 무게 {formatWeight(item.weight)}</small>
                                   <small className="treatment-option__state">
-                                    {relevantTags.length > 0 ? `현재 요구에 기여 · ${relevantTags.map(tag => `${tag.tag} ${tag.value}`).join(' · ')}` : '현재 요구 약효와 직접 일치하지 않음'}
+                                    {relevantTags.length > 0 ? `현재 요구에 기여 · ${relevantTags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ')}` : '현재 요구 약효와 직접 일치하지 않음'}
                                     {missingOwnedTools.length > 0
                                       ? ` · 도구 없음: ${missingOwnedTools.map(toolId => localizeInventoryItemName(TOOL_BY_ID.get(toolId)?.canonicalName || toolId)).join(', ')}`
                                       : unselectedRequiredTools.length > 0
@@ -25971,9 +26137,7 @@ function PlayView({
                           const isRequired = treatmentPreview?.missingToolIds.includes(item.canonicalToolId || item.id)
                             || selectedBagItems.some(itemId => {
                               const ingredient = state.bag.find(row => row.id === itemId);
-                              const preparation = ingredient?.canonicalReagentId && ingredient.preparationId
-                                ? REAGENT_BY_ID.get(ingredient.canonicalReagentId)?.preparations.find(row => row.id === ingredient.preparationId)
-                                : null;
+                              const preparation = ingredient ? preparationForInventory(toEngineInventory([ingredient])[0]) : null;
                               return preparation?.requiredTools.some(toolId => toolId === (item.canonicalToolId || item.id));
                             });
                           const selected = automatic || selectedTools.includes(item.id);
@@ -26061,7 +26225,7 @@ function PlayView({
 // =================================================================
 // 6. CHARACTER SHEET (BIO & BAGS) VIEW
 const WizardFieldCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div style={{ border: '1.5px solid var(--border-cozy)', borderRadius: '8px', padding: '1rem', background: '#fff' }}>
+  <div className="wizard-step-content">
     <h4 style={{ margin: '0 0 0.75rem 0', color: 'var(--primary)', fontFamily: 'var(--font-fancy)', fontSize: '1.15rem' }}>{title}</h4>
     {children}
   </div>
@@ -26087,13 +26251,12 @@ const WizardChoiceSelect = ({ value, onChange, items, labelKey = 'name', label }
 );
 
 const WizardAnimalChoices = ({ examples, onPick }: { examples: string; onPick: (value: string) => void }) => (
-  <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+  <div className="wizard-animal-choices">
     {examplesToOptions(examples).map(option => (
       <button
         key={option}
         type="button"
         onClick={() => onPick(option)}
-        style={{ padding: '0.25rem 0.55rem', border: '1px solid var(--glass-border)', borderRadius: '999px', background: '#fffdf8', color: 'var(--text-muted)', fontSize: '0.8rem' }}
       >
         {option}
       </button>
@@ -26521,12 +26684,11 @@ function CharacterCreationWizard({
     <div
       className={`character-wizard ${focused ? 'character-wizard--focused' : ''}`}
       onBlurCapture={() => persistCharacterDraftNow()}
-      style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1rem', background: '#fffdf8', marginBottom: '1.4rem' }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.75rem', marginBottom: '0.9rem' }}>
+      <div className="character-wizard__header">
         <div>
-          <h3 style={{ margin: 0, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)', fontSize: '1.35rem' }}>룰북 따라 캐릭터 만들기</h3>
-          <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.86rem', color: 'var(--text-muted)' }}>p.10–16의 표를 따라 카드를 뽑거나 직접 골라 시트를 완성합니다.</p>
+          <h3 style={{ margin: 0, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)', fontSize: '1.35rem' }}>우리의 첫 여행 채비</h3>
+          <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.86rem', color: 'var(--text-muted)' }}>각 단계에서 카드를 뽑거나 마음에 드는 항목을 직접 고르세요. 결과와 능력은 자동으로 기록됩니다.</p>
           <p style={{ margin: '0.25rem 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>필수 선택 {CHARACTER_CREATION_CHOICES.filter(choice => choiceConfirmed(choice.field)).length}/6 · 이야기와 기념품 메모는 나중에 써도 됩니다.</p>
         </div>
         {state.bio.name.trim() ? (
@@ -26536,27 +26698,18 @@ function CharacterCreationWizard({
         ) : null}
       </div>
 
-      <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+      <nav className="wizard-steps" aria-label="캐릭터 생성 단계">
         {steps.map((label, idx) => (
           <button
             key={label}
             type="button"
             aria-current={step === idx ? 'step' : undefined}
             onClick={() => setStep(idx)}
-            style={{
-              padding: '0.35rem 0.55rem',
-              border: '1px solid var(--glass-border)',
-              borderRadius: '999px',
-              background: step === idx ? 'var(--primary)' : '#fff',
-              color: step === idx ? '#fff' : 'var(--text-muted)',
-              fontSize: '0.78rem',
-              fontWeight: step === idx ? 'bold' : 'normal'
-            }}
           >
             {idx + 1}. {label}
           </button>
         ))}
-      </div>
+      </nav>
 
       {step === 0 && (
         <WizardFieldCard title="어떤 동물인가요?">
@@ -26849,6 +27002,7 @@ function CharacterCreationWizard({
 }
 
 function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeight, handleRetireClick, onOpenReference, requestControlledPrompt, onGoToDowntime }: { state: GameState; updateState: any; recordFolds: BioRecordFoldState; setRecordFolds: Dispatch<SetStateAction<BioRecordFoldState>>; currentWeight: number; handleRetireClick: () => void; onOpenReference: (request: RulebookReferenceRequest) => void; requestControlledPrompt: (request: ControlledPromptRequest) => Promise<string | null>; onGoToDowntime: () => void }) {
+  const patientClock = getPatientTimerProjection(state);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(state.bio.name);
   const [familiarName, setFamiliarName] = useState(state.bio.familiarName);
@@ -27127,7 +27281,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
   const handleSaveBio = (e: React.FormEvent) => {
     e.preventDefault();
     const selectedFamiliar = FAMILIAR_BENEFITS.find(f => f.name === familiarBenefitEdit) || FAMILIAR_BENEFITS[0];
-    
+
     if (!canFly && !canFlyOverride && state.bio.travelStyle === '가볍고 신속하게') {
       showAlert("⚠️ 경고: 비행 능력이 없고 하우스 룰의 비행 제약 무시도 꺼져 있습니다. 비행 이동 스타일 '가볍고 신속하게'를 유지할 수 없어 기본 이동 스타일 '천천히 꾸준하게'로 전환됩니다.");
       updateState((s: GameState) => ({
@@ -27273,7 +27427,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
       defaultValue: reagent.preparations[0]?.id || '',
       options: reagent.preparations.map(preparation => ({
         value: preparation.id,
-        label: `${localizePreparationName(preparation.name)} · ${localizePreparationMethod(preparation.method)} · ${preparation.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 없음'}`
+        label: `${localizePreparationName(preparation.name)} · ${localizePreparationMethod(preparation.method)} · ${preparation.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ') || '약효 없음'}`
       }))
     });
     if (!preparationId) return;
@@ -27500,7 +27654,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
             <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff' }}>
               {(() => {
                 const hasBandolier = hasTool(state, 'tool_bandolier') || hasTool(state, 'Greenpaw Bandolier');
-                
+
                 let bandolierLoad = 0;
                 state.bag.forEach(item => {
                   if (hasBandolier && item.inBandolier && isEligibleForBandolier(item)) {
@@ -27659,7 +27813,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                                     {inBando && <span style={{ color: '#16a34a', fontSize: '0.7rem', marginLeft: '0.3rem', fontWeight: 'bold', background: '#dcfce7', padding: '0.05rem 0.3rem', borderRadius: '4px' }}>🎽 반도리어</span>}
                                     {preparation && (
                                       <small className="inventory-ledger__detail">
-                                        {localizePreparationName(preparation.name)} · {localizePreparationMethod(preparation.method)} · {preparation.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 없음'} · 남은 사용 {item.usesRemaining ?? preparation.uses}회
+                                        {localizePreparationName(preparation.name)} · {localizePreparationMethod(preparation.method)} · {preparation.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ') || '약효 없음'} · 남은 사용 {item.usesRemaining ?? preparation.uses}회
                                       </small>
                                     )}
                                     {(sourceText || breakdown) && (
@@ -27672,7 +27826,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                                         Craftpaws와 교환
                                       </button>
                                     )}
-                                    {relevantTags.length > 0 && <small className="inventory-ledger__context">현재 환자에 맞음 · {relevantTags.map(tag => `${tag.tag} ${tag.value}`).join(' · ')}</small>}
+                                    {relevantTags.length > 0 && <small className="inventory-ledger__context">현재 환자에 맞음 · {relevantTags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ')}</small>}
                                   </td>
                                   <td style={{ padding: '0.4rem 0.5rem' }}>
                                     {inBando ? (
@@ -27832,12 +27986,12 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                   <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--secondary)', fontFamily: 'var(--font-fancy)' }}>⏱️ 환자 인내심 기록</h4>
                 </div>
-                {state.activeAilment ? (
+                {state.activeAilment && patientClock.hasActiveAilment ? (
                   <div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '0.5rem' }}>
                       {(() => {
                         const maxTimer = state.activeAilment.maxTimer;
-                        const timer = state.activeAilment.timer;
+                        const timer = patientClock.selectedHours ?? 0;
                         const spent = maxTimer - timer;
                         return Array.from({ length: maxTimer }).map((_, idx) => {
                           const isChecked = idx < spent;
@@ -27857,9 +28011,9 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                       })()}
                     </div>
                     <div style={{ fontSize: '0.875rem', lineHeight: 1.55, color: 'var(--text-muted)', marginTop: '0.5rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                      <span>남은 치료 시간: {state.activeAilment.timer} / {state.activeAilment.maxTimer}시간</span>
+                      <span>선택한 질환의 남은 치료 시간: {patientClock.selectedHours ?? 0} / {state.activeAilment.maxTimer}시간</span>
                       <span>아래 ‘직접 판정 보정’에서 안전하게 수정</span>
-                      {state.activeAilment.timer === 0 && <span style={{ color: 'var(--accent-red)', fontWeight: 'bold' }}>⚠️ 시간 초과!</span>}
+                      {patientClock.selectedHours === 0 && <span style={{ color: 'var(--accent-red)', fontWeight: 'bold' }}>⚠️ 시간 초과!</span>}
                     </div>
                   </div>
                 ) : (
@@ -27916,7 +28070,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                     >
                       {(selectedManualReagent?.preparations || []).map(part => (
                         <option key={part.id} value={part.id}>
-                          {localizePreparationName(part.name)} · {localizePreparationMethod(part.method)} · {part.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '치료 태그 없음'}
+                          {localizePreparationName(part.name)} · {localizePreparationMethod(part.method)} · {part.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ') || '치료 태그 없음'}
                         </option>
                       ))}
                     </select>
@@ -28239,7 +28393,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
 // =================================================================
 const HERBARIUM_PAGE_SIZE = 16;
 
-function ReagentsView({ state, updateState, search, setSearch, filter, setFilter, typeFilter, setTypeFilter, viewState, setViewState, onOpenReference }: {
+function ReagentsView({ state, updateState, search, setSearch, filter, setFilter, typeFilter, setTypeFilter, viewState, setViewState, onOpenReference, requestControlledPrompt }: {
   state: GameState;
   updateState: any;
   search: string;
@@ -28251,6 +28405,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
   viewState: HerbariumViewState;
   setViewState: Dispatch<SetStateAction<HerbariumViewState>>;
   onOpenReference: (request: RulebookReferenceRequest) => void;
+  requestControlledPrompt: (request: ControlledPromptRequest) => Promise<string | null>;
 }) {
   const currentRegion = state.currentRegion === 'Barrow' ? 'Titan' : state.currentRegion;
   const { regionFilter, seasonFilter, patientOnly, expandedId, visiblePage } = viewState;
@@ -28274,7 +28429,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
     const inCurrentSeason = reagent.seasonAvailability[state.currentSeason] !== 'Unavailable';
     return { reagent, display, matchingParts, owned, inCurrentRegion, inCurrentSeason };
   }).filter(row => {
-    const searchText = [row.reagent.displayName, row.reagent.canonicalName, row.reagent.description, ...row.reagent.preparations.flatMap(part => [part.name, part.method, ...part.tags.map(tag => `${tag.tag} ${tag.value}`)])].join(' ');
+    const searchText = [row.reagent.displayName, row.reagent.canonicalName, row.reagent.description, ...row.reagent.preparations.flatMap(part => [part.name, part.method, ...part.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`)])].join(' ');
     if (search && !fuzzyReferenceTextMatch(searchText, search)) return false;
     if (filter && !row.reagent.preparations.some(part => part.tags.some(tag => tag.tag.toLowerCase() === filter.toLowerCase()))) return false;
     if (typeFilter && row.reagent.type !== typeFilter) return false;
@@ -28283,6 +28438,14 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
     if (patientOnly && row.matchingParts.length === 0) return false;
     return true;
   }).sort((left, right) => left.reagent.sourcePage - right.reagent.sourcePage || left.reagent.canonicalName.localeCompare(right.reagent.canonicalName));
+
+  const learnedReagents = customReagentCatalogueProjection(state.customReagentCatalogue, toEngineInventory(state.bag));
+  const visibleLearnedReagents = learnedReagents.filter(entry => {
+    const words = [entry.name, localizePreparationMethod(entry.preparation), formatRuleTag(entry.targetTag), entry.reagentType ? localizeReagentType(entry.reagentType) : ''].join(' ');
+    return (!search || fuzzyReferenceTextMatch(words, search)) && (!filter || entry.targetTag === filter)
+      && (!typeFilter || entry.reagentType === typeFilter)
+      && (!patientOnly || activeRequirements.some(requirement => requirement.tag === entry.targetTag));
+  });
 
   const patientContextKey = patientOnly
     ? `${patient?.id || 'none'}:${activeRequirements.map(row => `${row.tag}:${row.threshold}`).join(',')}`
@@ -28316,7 +28479,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
           <span>지금 이곳</span><strong>{state.currentLocationName} · {localizeRegionLabel(currentRegion)} · {localizeSeasonLabel(state.currentSeason)}</strong><small>현재 지역·계절에서 찾기</small>
         </button>
         <button type="button" disabled={!activeRequirements.length} aria-pressed={patientOnly} onClick={() => setViewState(current => ({ ...current, patientOnly: !current.patientOnly, regionFilter: '', seasonFilter: '', expandedId: null }))}>
-          <span>현재 환자</span><strong>{patient?.name || '진료 중인 환자 없음'}</strong><small>{activeRequirements.length ? activeRequirements.map(row => `${row.tag} ${row.threshold}`).join(' · ') : '필요 약효가 생기면 연결됩니다'}</small>
+          <span>현재 환자</span><strong>{patient?.name || '진료 중인 환자 없음'}</strong><small>{activeRequirements.length ? activeRequirements.map(row => `${formatRuleTag(row.tag)} ${row.threshold}`).join(' · ') : '필요 약효가 생기면 연결됩니다'}</small>
         </button>
         <div><span>펼쳐둔 배낭</span><strong>{state.bag.filter(item => item.type === 'reagent').length}개 영약재</strong><small>각 관찰 기록에 현재 보유량을 함께 적습니다</small></div>
       </section>
@@ -28326,8 +28489,21 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
         <label><span>분류</span><select value={typeFilter} onChange={event => setTypeFilter(event.target.value)}><option value="">모든 분류</option><option value="PLANT">풀과 나무</option><option value="ANIMAL">야수의 흔적</option><option value="INSECT">곤충과 벌레</option><option value="EARTH">흙과 돌</option><option value="TITAN">거수의 조각</option></select></label>
         <label><span>지역</span><select value={regionFilter} onChange={event => setViewState(current => ({ ...current, regionFilter: event.target.value, expandedId: null }))}><option value="">모든 지역</option>{['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain', 'Titan'].map(region => <option key={region} value={region}>{localizeRegionLabel(region)}</option>)}</select></label>
         <label><span>계절</span><select value={seasonFilter} onChange={event => setViewState(current => ({ ...current, seasonFilter: event.target.value, expandedId: null }))}><option value="">모든 계절</option>{['Spring', 'Summer', 'Autumn', 'Winter'].map(season => <option key={season} value={season}>{localizeSeasonLabel(season)}</option>)}</select></label>
-        <label><span>약효</span><select value={filter} onChange={event => setFilter(event.target.value)}><option value="">모든 약효</option>{RULE_TAGS.map(tag => <option key={tag} value={tag}>{tag}</option>)}</select></label>
+        <label><span>약효</span><select value={filter} onChange={event => setFilter(event.target.value)}><option value="">모든 약효</option>{RULE_TAGS.map(tag => <option key={tag} value={tag}>{formatRuleTag(tag)}</option>)}</select></label>
       </div>
+
+      {learnedReagents.length > 0 && <section className="custom-herbarium" aria-label="직접 발견한 영약재">
+        <header><div><span className="workspace-kicker">나의 영약재 기록</span><h3>직접 발견한 영약재</h3></div><span>{visibleLearnedReagents.length} / {learnedReagents.length}개</span></header>
+        <p>대체 재료와 외지 영약재를 여기 기록합니다. 치료에 쓰고 배낭에서 사라져도 발견한 약재의 정의는 남습니다.</p>
+        {visibleLearnedReagents.length === 0 ? <p>현재 검색·약효·분류 조건에 맞는 발견이 없습니다.</p> : <div className="custom-herbarium__grid">{visibleLearnedReagents.map(entry => <article key={entry.id}>
+          <div className="custom-herbarium__origin">{entry.source === 'replacement' ? '대체 재료 · Replacement' : '외지 영약재 · Foreign Reagent'}<span>p.{entry.sourcePage}</span></div>
+          <h4>{entry.name}</h4>
+          <p><strong>{formatRuleTag(entry.targetTag)} {entry.potency}</strong> · {localizePreparationMethod(entry.preparation)}</p>
+          <dl><div><dt>기본 희귀도</dt><dd>{entry.baseRarity}</dd></div><div><dt>부위 무게</dt><dd>{formatWeight(entry.weight)}</dd></div><div><dt>한 부위의 사용</dt><dd>{entry.uses}회</dd></div><div><dt>배낭에 남은 사용</dt><dd>{entry.remainingUses}회</dd></div></dl>
+          <p>필요 도구: {entry.requiredToolIds.length ? entry.requiredToolIds.map(id => localizeInventoryItemName(TOOL_BY_ID.get(id)?.canonicalName || id)).join(', ') : '없음'}</p>
+          <button type="button" className="workspace-link" onClick={() => onOpenReference({ page: entry.sourcePage, title: entry.name, context: [{ label: '나의 발견', value: `${formatRuleTag(entry.targetTag)} ${entry.potency} · ${localizePreparationMethod(entry.preparation)}` }] })}>이 발견의 규칙 보기 →</button>
+        </article>)}</div>}
+      </section>}
 
       <div className="herbarium-result-summary"><span aria-live="polite">관찰 기록 {rows.length}개 · 지금 {visibleRows.length}개 펼침</span>{(search || filter || typeFilter || regionFilter || seasonFilter || patientOnly) && <button type="button" onClick={clearFilters}>전체 도감 보기</button>}</div>
 
@@ -28342,8 +28518,18 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
             </button>
             {expanded && <div className="herbarium-entry__detail">
               <div className="herbarium-entry__relations"><strong>어디서·언제</strong><div>{Object.entries(reagent.regionAvailability).filter(([, availability]) => availability !== 'Unavailable').map(([region, availability]) => <button type="button" key={region} onClick={() => setViewState(current => ({ ...current, regionFilter: region, expandedId: null }))}>{localizeRegionLabel(region)} · {localizeAppAvailabilityLabel(availability)}</button>)}{Object.entries(reagent.seasonAvailability).filter(([, availability]) => availability !== 'Unavailable').map(([season, availability]) => <button type="button" key={season} onClick={() => setViewState(current => ({ ...current, seasonFilter: season, expandedId: null }))}>{localizeSeasonLabel(season)} · {localizeAppAvailabilityLabel(availability)}</button>)}</div></div>
-              <div className="herbarium-parts"><strong>부위와 조제</strong>{reagent.preparations.map(part => { const relevant = treatmentRelevantPreparationTags(part.tags, activeRequirements); return <div key={part.id} className={relevant.length ? 'is-patient-relevant' : ''}><div><strong>{localizePreparationName(part.name)}</strong><span>{localizePreparationMethod(part.method)}</span></div><p>{part.tags.map(tag => `${tag.tag} ${tag.value}`).join(' · ') || '약효 태그 없음'} · 무게 {formatWeight(part.weight)} · {part.uses}회분</p>{part.requiredTools.filter(tool => tool !== 'none').length > 0 && <small>필요 도구: {part.requiredTools.filter(tool => tool !== 'none').map(tool => localizeInventoryItemName(TOOL_BY_ID.get(tool)?.canonicalName || tool)).join(', ')}</small>}{relevant.length > 0 && <em>현재 환자에게 {relevant.map(tag => `${tag.tag} ${tag.value}`).join(' · ')} 기여</em>}</div>; })}</div>
-              <div className="herbarium-entry__actions"><button type="button" onClick={() => onOpenReference({ entryId: `ingredient:${reagent.id}`, title: `${formatReagentName(reagent)} 관련 기록` })}>원문·관련 기록 보기</button>{state.journeyActive && state.rulesetId === 'sandbox' && <button type="button" onClick={() => { const parts = splitReagentPreparations(display.preps); const chosenPart = window.prompt(`가방에 넣을 ${formatReagentName(reagent)} 부위를 선택하세요:\n${parts.map((part, index) => `${index + 1}. ${part.trim()}`).join('\n')}`); if (!chosenPart) return; const partText = parts[Math.max(0, (parseInt(chosenPart) || 1) - 1)] || parts[0]; updateState((current: GameState) => ({ ...current, bag: [...current.bag, createPreparedReagentItem(display, partText, 'user_reag')] })); showAlert(`${formatReagentName(reagent)}을 수동으로 배낭에 추가했습니다.`); }}>배낭에 수동 획득 추가</button>}</div>
+              <div className="herbarium-parts"><strong>부위와 조제</strong>{reagent.preparations.map(part => { const relevant = treatmentRelevantPreparationTags(part.tags, activeRequirements); return <div key={part.id} className={relevant.length ? 'is-patient-relevant' : ''}><div><strong>{localizePreparationName(part.name)}</strong><span>{localizePreparationMethod(part.method)}</span></div><p>{part.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ') || '약효 태그 없음'} · 무게 {formatWeight(part.weight)} · {part.uses}회분</p>{part.requiredTools.filter(tool => tool !== 'none').length > 0 && <small>필요 도구: {part.requiredTools.filter(tool => tool !== 'none').map(tool => localizeInventoryItemName(TOOL_BY_ID.get(tool)?.canonicalName || tool)).join(', ')}</small>}{relevant.length > 0 && <em>현재 환자에게 {relevant.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ')} 기여</em>}</div>; })}</div>
+              <div className="herbarium-entry__actions"><button type="button" onClick={() => onOpenReference({ entryId: `ingredient:${reagent.id}`, title: `${formatReagentName(reagent)} 관련 기록` })}>원문·관련 기록 보기</button>{state.journeyActive && state.rulesetId === 'sandbox' && <button type="button" onClick={async () => {
+                const parts = splitReagentPreparations(display.preps);
+                const chosenPart = await requestControlledPrompt({ title: `${formatReagentName(reagent)} 수동 획득`, kicker: '자유 플레이',
+                  message: '추가할 부위를 선택하세요. 채집 판정과 시간 비용을 적용하지 않는 자유 플레이 기록입니다.',
+                  options: parts.map((part, index) => ({ value: String(index), label: part.trim() })), defaultValue: '0', confirmLabel: '배낭에 추가' });
+                if (chosenPart === null) return;
+                const partText = parts[Number(chosenPart)];
+                if (!partText) return;
+                updateState((current: GameState) => ({ ...current, bag: [...current.bag, createPreparedReagentItem(display, partText, 'user_reag')] }));
+                showAlert(`${formatReagentName(reagent)}을 수동으로 배낭에 추가했습니다.`);
+              }}>배낭에 수동 획득 추가</button>}</div>
             </div>}
           </article>;
         })}
@@ -28365,7 +28551,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
 // =================================================================
 // 8. AILMENTS VIEW COMPONENT
 // =================================================================
-function AilmentsView({ state, updateState, search, setSearch, filter, setFilter }: { state: GameState; updateState: any; search: string; setSearch: any; filter: string; setFilter: any }) {
+function AilmentsView({ state, updateState, search, setSearch, filter, setFilter, requestControlledPrompt }: { state: GameState; updateState: any; search: string; setSearch: any; filter: string; setFilter: any; requestControlledPrompt: (request: ControlledPromptRequest) => Promise<string | null> }) {
   const cleanAilmentName = (n: string) => n.replace(/^PAGE\s*\d+\s*(---|--|-)\s*/i, '');
 
   const filtered = AILMENTS.map(ailmentDisplayRecord).filter(a => {
@@ -28422,7 +28608,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
             <div key={i} className="cute-card ailment-card" style={{ background: '#fafafa', padding: '1.2rem', borderRadius: '12px' }}>
               <h4 className="ailment-card__header" style={{ margin: 0, color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1.1rem', fontWeight: 'bold' }}>
                 <span>{cleanedName}</span>
-                <span style={{ fontSize: '0.85rem', background: 'var(--primary-light)', padding: '0.2rem 0.5rem', borderRadius: '10px', color: 'var(--primary)', fontWeight: 'bold' }}>
+                <span className="ailment-card__timing">
                   등급: {localizeSeverityLabel(a.severity)} | 시간: {a.timer}시간
                 </span>
               </h4>
@@ -28447,10 +28633,17 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
 
               {state.journeyActive && !state.activeAilment && state.rulesetId === 'sandbox' && (
                 <button
-                  onClick={() => {
-                    const patientName = window.prompt("환자 이름 (선택):", "") || "";
-                    const species = window.prompt("종 / 생김새 (선택):", "") || "";
-                    const initialRememberedNote = window.prompt("첫 인상 메모 (선택):", "") || "";
+                  onClick={async () => {
+                    const patientName = await requestControlledPrompt({ title: `${cleanedName} 환자 등록`, kicker: '자유 플레이 · 1/3',
+                      message: '환자 이름을 입력하세요. 비워 두어도 됩니다. 마지막 확인까지 환자나 치료 시간은 변경되지 않습니다.', label: '환자 이름 (선택)', defaultValue: '', confirmLabel: '다음' });
+                    if (patientName === null) return;
+                    const species = await requestControlledPrompt({ title: '환자의 종과 생김새', kicker: '자유 플레이 · 2/3',
+                      message: '종이나 생김새를 기록하세요. 비워 두어도 됩니다.', label: '종 / 생김새 (선택)', defaultValue: '', confirmLabel: '다음' });
+                    if (species === null) return;
+                    const initialRememberedNote = await requestControlledPrompt({ title: '첫 인상과 등록 확인', kicker: '자유 플레이 · 3/3',
+                      message: `${patientName.trim() || '이름 없는 환자'} · ${cleanedName}을 등록합니다. 기본 치료 시간 ${a.timer}시간에 동행 혜택을 더하며, 등록 후 모든 활동이 이 환자의 시간을 사용합니다.`,
+                      label: '첫 인상 메모 (선택)', inputMode: 'multiline', defaultValue: '', confirmLabel: '환자 등록' });
+                    if (initialRememberedNote === null) return;
                     updateState(s => {
                       const familiarBenefit = getActiveFamiliarBenefit(s);
                       const familiarMechanic = getActiveFamiliarMechanic(s);
@@ -29535,7 +29728,7 @@ const MapView = memo(function MapView({
       speed: previewTravelSpeed(state, weight),
       canStopInLoch: hasLochStoppingGear(state),
       waterwaySpan: resolveWagonCapabilities(canonicalWagonFromState(state)).waterwaySpan,
-      mustUseFullSpeed: false,
+      mustUseFullSpeed: state.rulesetId === 'original-1e-3p',
       freePathLocationIds: freePathLocationIdsFromState(state)
     })
     : {};
@@ -29758,13 +29951,13 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
                     )}
                   </div>
                   <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>📍 {localizeRegionLabel(entry.region)} / 발견 횟수 {entry.sightings}</div>
-                  
+
                   {preps && preps.length > 0 && (
-                    <div style={{ 
-                      marginTop: '0.25rem', 
-                      padding: '0.35rem 0.45rem', 
-                      background: '#f4f3e8', 
-                      borderRadius: '4px', 
+                    <div style={{
+                      marginTop: '0.25rem',
+                      padding: '0.35rem 0.45rem',
+                      background: '#f4f3e8',
+                      borderRadius: '4px',
                       border: '1px solid var(--glass-border)',
                       fontSize: '0.74rem'
                     }}>
@@ -29809,7 +30002,7 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
                               <span style={{ fontWeight: 'bold', color: 'var(--text-bright)', fontSize: '0.74rem' }}>
                                 {localizePreparationName(p.part)}
                               </span>
-                              <span style={{ 
+                              <span style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 padding: '0.05rem 0.35rem',
@@ -29822,7 +30015,7 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
                                 {localizePreparationMethod(p.prep)}
                               </span>
                               <span style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>→</span>
-                              <span style={{ 
+                              <span style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 padding: '0.05rem 0.35rem',
@@ -29888,37 +30081,37 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
 
               return trinkets.map(record => {
                 const isOldest = oldestTrinket && record.id === oldestTrinket.id;
-                
+
                 // Deterministic hashing based on timestamp for vintage patina
                 const t = record.timestamp || 0;
                 const paperTones = ['#fbfaf4', '#fcfbf7', '#faf8f2', '#fbfaf2', '#fbfbf7'];
                 const borderStyles = ['dashed', 'dotted', 'solid'];
-                
+
                 const paperTone = isOldest ? '#f2eae0' : paperTones[t % paperTones.length];
                 const borderStyle = isOldest ? 'double' : borderStyles[t % borderStyles.length];
                 const borderWidth = isOldest ? '3px' : '1.3px';
                 const boxS = isOldest ? '0 4px 10px rgba(107, 81, 59, 0.15)' : 'none';
-                
+
                 // Split spent details from story
                 const storyLines = (record.story || '').split('\n');
                 const originalStory = storyLines[0];
                 const spentStoryLine = storyLines.slice(1).join('\n').trim();
 
                 return (
-                  <article 
-                    key={record.id} 
+                  <article
+                    key={record.id}
                     className={record.spent ? 'keepsake-spent' : ''}
-                    style={{ 
-                      border: `${borderWidth} ${borderStyle} #c4b5a3`, 
-                      background: paperTone, 
-                      padding: '0.8rem', 
+                    style={{
+                      border: `${borderWidth} ${borderStyle} #c4b5a3`,
+                      background: paperTone,
+                      padding: '0.8rem',
                       borderRadius: '4px',
                       boxShadow: boxS,
                       transition: 'all 0.3s ease'
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem', alignItems: 'center' }}>
-                      <strong 
+                      <strong
                         className={record.spent ? 'keepsake-spent-title' : ''}
                         style={{ color: 'var(--text-bright)', fontSize: '0.88rem' }}
                       >
@@ -30231,25 +30424,50 @@ function PatientArchiveView({
 // =================================================================
 // 11. JOURNALS VIEW COMPONENT
 // =================================================================
+interface JournalWorkspaceState {
+  title: string;
+  text: string;
+  photos: JournalPhoto[];
+  subTab: 'casebook' | 'almanac' | 'scrapbook' | 'journals' | 'chronicles' | 'legacy';
+}
+
+// The existing unsent draft and selected chapter survive a reference round-trip.
+// They remain session UI, outside the campaign/save schema.
+function initialJournalWorkspace(): JournalWorkspaceState {
+  return { title: '', text: '', photos: [], subTab: 'journals' };
+}
+
 function JournalsView({
   state,
   updateState,
+  workspace,
+  setWorkspace,
   onCampaignImported,
   highlightedPatientId,
   setHighlightedPatientId
 }: {
   state: GameState;
   updateState: any;
+  workspace: JournalWorkspaceState;
+  setWorkspace: Dispatch<SetStateAction<JournalWorkspaceState>>;
   onCampaignImported: (state: GameState) => void;
   highlightedPatientId?: string | null;
   setHighlightedPatientId?: any;
 }) {
-  const [newTitle, setNewTitle] = useState("");
-  const [newText, setNewText] = useState("");
-  const [newPhotos, setNewPhotos] = useState<JournalPhoto[]>([]);
+  const { title: newTitle, text: newText, photos: newPhotos, subTab } = workspace;
+  const setNewTitle = (title: string) => setWorkspace(current => ({ ...current, title }));
+  const setNewText = (text: string) => setWorkspace(current => ({ ...current, text }));
+  const setNewPhotos = (next: SetStateAction<JournalPhoto[]>) => setWorkspace(current => ({
+    ...current, photos: typeof next === 'function' ? next(current.photos) : next
+  }));
+  const setSubTab = (next: JournalWorkspaceState['subTab']) => setWorkspace(current => ({ ...current, subTab: next }));
   const [viewingPhoto, setViewingPhoto] = useState<{ photo: JournalPhoto; title: string } | null>(null);
-  const [subTab, setSubTab] = useState<'casebook' | 'almanac' | 'scrapbook' | 'journals' | 'chronicles' | 'legacy'>('journals');
   const [importNotice, setImportNotice] = useState<{ text: string } | null>(null);
+  const journalViewAliveRef = useRef(true);
+  useEffect(() => {
+    journalViewAliveRef.current = true;
+    return () => { journalViewAliveRef.current = false; };
+  }, []);
   const journalsNewestFirst = journalEntriesNewestFirst(state.journals);
   const storyJournals = journalsNewestFirst.filter(journal => !isActivityJournalEntry(journal));
   const activityJournals = journalsNewestFirst.filter(journal => isActivityJournalEntry(journal));
@@ -30285,6 +30503,8 @@ function JournalsView({
   const handleNewJournalPhotos = async (files: FileList | null) => {
     try {
       const photos = await prepareJournalPhotos(files);
+      // A replaced campaign or closed view must not receive a late upload.
+      if (!journalViewAliveRef.current) return;
       if (photos.length > 0) {
         setNewPhotos(prev => [...prev, ...photos]);
       }
@@ -30486,16 +30706,16 @@ function JournalsView({
 
   return (
     <div>
-      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>약제사 연대기 일지</span>
-        <div className="journal-document-actions" style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={handleExportData} style={{ padding: '0.4rem 0.8rem', background: 'var(--primary)', color: '#fff', borderRadius: '6px', fontSize: '0.85rem', border: 'none', cursor: 'pointer' }}><span className="emoji-icon" aria-hidden="true">📥</span> 내 기록 백업</button>
-          <label style={{ padding: '0.4rem 0.8rem', background: '#eee', color: '#333', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer' }}>
+      <header className="folio-section-heading">
+        <h2>약제사 연대기 일지</h2>
+        <div className="journal-document-actions">
+          <button className="folio-tool-button" onClick={handleExportData}><span className="emoji-icon" aria-hidden="true">📥</span> 내 기록 백업</button>
+          <label className="folio-file-control">
             <span className="emoji-icon" aria-hidden="true">📤</span> 기록 불러오기
-            <input type="file" accept=".json" onChange={handleImportData} style={{ display: 'none' }} />
+            <input type="file" accept=".json" onChange={handleImportData} />
           </label>
         </div>
-      </h2>
+      </header>
       {importNotice && (
         <div role="status" style={{ margin: '0.75rem 0', padding: '0.65rem 0.8rem', border: '1px solid #c77972', borderRadius: '6px', background: '#fff2f0', color: '#8f2f28', fontSize: '0.85rem' }}>
           {importNotice.text}
@@ -30714,13 +30934,13 @@ function JournalsView({
                           )}
                         </div>
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>📍 {entry.locationName ? getLocalizedLocationName(entry.locationName) : '정해진 장소 없음'} {entry.region ? `- ${localizeRegionLabel(entry.region)}` : ''}</div>
-                        
+
                         {entry.category === 'reagent' && preps && preps.length > 0 && (
-                          <div style={{ 
-                            marginTop: '0.4rem', 
-                            padding: '0.5rem', 
-                            background: '#f4f3e8', 
-                            borderRadius: '4px', 
+                          <div style={{
+                            marginTop: '0.4rem',
+                            padding: '0.5rem',
+                            background: '#f4f3e8',
+                            borderRadius: '4px',
                             border: '1px solid var(--glass-border)',
                             fontSize: '0.78rem'
                           }}>
@@ -30768,7 +30988,7 @@ function JournalsView({
                                     <span style={{ fontWeight: 'bold', color: 'var(--text-bright)', fontSize: '0.78rem' }}>
                                       {localizePreparationName(p.part)}
                                     </span>
-                                    <span style={{ 
+                                    <span style={{
                                       display: 'inline-flex',
                                       alignItems: 'center',
                                       padding: '0.1rem 0.4rem',
@@ -30781,7 +31001,7 @@ function JournalsView({
                                       {localizePreparationMethod(p.prep)}
                                     </span>
                                     <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>→</span>
-                                    <span style={{ 
+                                    <span style={{
                                       display: 'inline-flex',
                                       alignItems: 'center',
                                       padding: '0.1rem 0.4rem',
@@ -30883,26 +31103,25 @@ function JournalsView({
             ))}
           </section>
           {/* Write custom journal */}
-          <form onSubmit={handleAddJournal} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', background: '#fafafa', padding: '1.2rem', borderRadius: '12px', border: '1px solid #ddd', marginTop: '1rem' }}>
+          <form className="journal-editor" onSubmit={handleAddJournal}>
             <h4>✍️ 새로운 저널 일지 작성하기</h4>
             <input
               type="text"
               placeholder="제목 (예: Odoak 정착지 도착, 곰의 다리를 꿰매다...)"
               value={newTitle}
               onChange={e => setNewTitle(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid #ccc' }}
             />
             <textarea
               placeholder="여행 기록 내용, 묘사, 환자의 상태나 내 동물의 느낌을 자유롭게 서술해 주세요..."
               rows={4}
               value={newText}
               onChange={e => setNewText(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid #ccc', resize: 'vertical' }}
+              style={{ resize: 'vertical' }}
             />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', padding: '0.75rem', border: '1px dashed #d6d1c6', borderRadius: '8px', background: '#fffdf7' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div className="journal-editor__photos">
+              <div>
                 <span style={{ fontWeight: 'bold', color: 'var(--text-bright)', fontSize: '0.9rem' }}>📷 사진 첨부</span>
-                <label style={{ padding: '0.45rem 0.75rem', border: '1px solid var(--glass-border)', borderRadius: '999px', background: '#fff', color: 'var(--primary)', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.82rem' }}>
+                <label className="folio-file-control">
                   사진 선택
                   <input
                     type="file"
@@ -30912,7 +31131,6 @@ function JournalsView({
                       await handleNewJournalPhotos(e.currentTarget.files);
                       e.currentTarget.value = '';
                     }}
-                    style={{ display: 'none' }}
                   />
                 </label>
               </div>
@@ -30928,7 +31146,7 @@ function JournalsView({
               )}
               <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)' }}>로그인 상태에서는 사진을 서버 파일 저장소에 올리고, 세이브에는 주소만 남깁니다.</div>
             </div>
-            <button type="submit" style={{ padding: '0.6rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>🖋️ 저널 등록</button>
+            <button type="submit" className="journal-editor__submit btn-cozy-primary">🖋️ 저널 등록</button>
           </form>
 
           {/* List journals */}

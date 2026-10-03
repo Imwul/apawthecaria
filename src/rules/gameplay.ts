@@ -23,6 +23,10 @@ export interface EngineInventoryItem {
     baseRarity: number;
     targetTag: RuleTag;
     preparation: string;
+    /** Actual remedy strength; Rarity is never a substitute for Potency. */
+    potency?: number;
+    reagentType?: 'PLANT' | 'ANIMAL' | 'INSECT' | 'EARTH' | 'TITAN';
+    uses?: number;
   };
   guildNote?: {
     kind: 'ledger' | 'map' | 'gossip';
@@ -96,7 +100,7 @@ export interface PendingForagingState {
   /** A non-Reagent acquisition that used this Foraging draw.  Kept explicit
    * so reload cannot reopen the Reagent picker and allow a second reward. */
   specialAcquisition?: {
-    kind: 'unbuckled-cache';
+    kind: 'unbuckled-cache' | 'replacement';
     cacheId: string;
     label: string;
     itemCount: number;

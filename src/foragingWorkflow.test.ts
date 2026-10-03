@@ -64,8 +64,8 @@ describe('foraging workflow order', () => {
   });
 
   it('separates patient-remedy tags from the FAIR/FOUL reward modifiers before part selection', () => {
-    expect(appSource).toContain('remedyTags: tagGroups.remedy.map(tag => `${tag.tag} ${tag.value}`)');
-    expect(appSource).toContain('tradeTags: tagGroups.trade.map(tag => `${tag.tag} ${tag.value}`)');
+    expect(appSource.includes('remedyTags: tagGroups.remedy.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`)')).toBe(true);
+    expect(appSource.includes('tradeTags: tagGroups.trade.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`)')).toBe(true);
     expect(appSource).toContain('<small>치료 약효</small>');
     expect(appSource).toContain('<small>거래 가치 · FAIR/FOUL</small>');
     expect(appSource).toContain('일반 치료 태그와 FAIR/FOUL 거래 가치는 서로 다른 칸에서 확인하세요.');

@@ -10,6 +10,7 @@ import type { CanonicalToolState } from './toolEngine';
 import type { EngineInventoryItem, EngineJournalEvent } from './gameplay';
 import type { PatientState } from './state';
 import type { Availability, EncounterDefinition, Region, Season } from './types';
+import { replacementInventoryItem, type AlternativeAcquisition } from './leaveEngine';
 
 export type BarterLocationType = 'Settlement' | 'City';
 export type BarterStatus =
@@ -45,6 +46,7 @@ export interface PendingBarterState {
   barterId: string;
   patientId: string;
   targetReagentId: string;
+  replacement?: AlternativeAcquisition;
   preparationId: string;
   locationId: string;
   locationType: BarterLocationType;
@@ -207,6 +209,7 @@ export const resolveBarterStart = (input: {
   state: BarterRuntimeState;
   patientId: string;
   targetReagentId: string;
+  replacement?: AlternativeAcquisition;
   preparationId: string;
   currentLocationId: string;
   locationId: string;
@@ -225,9 +228,16 @@ export const resolveBarterStart = (input: {
   const locationError = validateLocation(input.graph, input.currentLocationId, input.locationId);
   if (locationError) return { status: 'invalid', value: null, messages: [locationError] };
   const reagent = REAGENT_BY_ID.get(input.targetReagentId);
-  if (!reagent) return { status: 'invalid', value: null, messages: ['Unknown target Reagent.'] };
-  if (reagent.type === 'TITAN') return { status: 'invalid', value: null, messages: ['Titan Reagents cannot be Bartered for.'] };
-  if (!reagent.preparations.some(row => row.id === input.preparationId)) {
+  const replacement = input.replacement;
+  if (replacement && (replacement.kind !== 'replacement' || replacement.baseRarity !== 12 || replacement.id !== input.targetReagentId
+    || !replacement.name?.trim() || !replacement.preparation?.trim() || !Number.isInteger(replacement.requiredPotency) || replacement.requiredPotency < 1
+    || replacement.selectedSource === 'forage' || (replacement.patientId && replacement.patientId !== input.patientId)
+    || (replacement.ailmentInstanceId && !input.state.patient.ailments.some(row => row.id === replacement.ailmentInstanceId && row.status === 'active')))) {
+    return { status: 'invalid', value: null, messages: ['Replacement must belong to this active Patient and Barter.'] };
+  }
+  if (!reagent && !replacement) return { status: 'invalid', value: null, messages: ['Unknown target Reagent.'] };
+  if (reagent?.type === 'TITAN') return { status: 'invalid', value: null, messages: ['Titan Reagents cannot be Bartered for.'] };
+  if (reagent && !replacement && !reagent.preparations.some(row => row.id === input.preparationId)) {
     return { status: 'invalid', value: null, messages: ['Select one Preparation belonging to the target Reagent.'] };
   }
   const location = input.graph[input.locationId];
@@ -235,7 +245,16 @@ export const resolveBarterStart = (input: {
   const used = input.state.attemptHistory[key] || 0;
   const limit = getBarterAttemptLimit(location.locationType as BarterLocationType);
   if (used >= limit) return { status: 'invalid', value: null, messages: ['No Barter attempts remain at this location for this patient.'] };
-  const calculation = calculateBarterBR({
+  const replacementModifiers: BarterModifier[] = replacement ? [
+    ...(replacement.requiredPotency >= 3 && !['FAIR', 'FOUL'].includes(replacement.targetTag) ? [{ id: 'tag-3' as const, label: 'Highly Prized', amount: 5 }] : []),
+    ...(replacement.targetTag === 'FAIR' ? [{ id: 'fair' as const, label: 'Gourmand', amount: 3 }] : []),
+    ...(replacement.targetTag === 'FOUL' ? [{ id: 'foul' as const, label: 'Why The Peck Would You Want That?', amount: replacement.requiredPotency }] : []),
+    { id: 'reputation', label: 'Friendly Donation', amount: reputationModifier(input.state.reputation) }
+  ] : [];
+  // A stand-in has no printed locality or seasonal availability. Its BR 12
+  // receives only the applicable Tag and Guild Reputation trade modifiers.
+  const calculation = replacement ? { br: Math.max(0, 12 + replacementModifiers.reduce((sum, row) => sum + row.amount, 0)),
+    modifiers: replacementModifiers, availability: { region: 'Unavailable' as const, season: 'Unavailable' as const } } : calculateBarterBR({
     targetReagentId: input.targetReagentId,
     preparationId: input.preparationId,
     locationId: input.locationId,
@@ -247,6 +266,7 @@ export const resolveBarterStart = (input: {
     barterId: input.transactionId,
     patientId: input.patientId,
     targetReagentId: input.targetReagentId,
+    replacement: replacement ? { ...replacement } : undefined,
     preparationId: input.preparationId,
     locationId: input.locationId,
     locationType: location.locationType as BarterLocationType,
@@ -384,19 +404,21 @@ const finalizeSuccessfulBarter = (
   transactionId: string,
   payment: BarterPaymentSelection
 ): BarterRuntimeState => {
-  const reagent = REAGENT_BY_ID.get(pending.targetReagentId)!;
-  const preparation = reagent.preparations.find(row => row.id === pending.preparationId)!;
-  const acquired: EngineInventoryItem = {
-    id: `${pending.barterId}:${preparation.id}`,
-    name: `${reagent.displayName} (${preparation.name})`,
+  const reagent = REAGENT_BY_ID.get(pending.targetReagentId);
+  const preparation = reagent?.preparations.find(row => row.id === pending.preparationId);
+  const acquired: EngineInventoryItem = pending.replacement
+    ? replacementInventoryItem(pending.replacement, 'barter', pending.barterId, `${pending.barterId}:replacement`)
+    : {
+    id: `${pending.barterId}:${preparation!.id}`,
+    name: `${reagent!.displayName} (${preparation!.name})`,
     type: 'reagent',
-    weight: preparation.weight,
-    canonicalReagentId: reagent.id,
-    preparationId: preparation.id,
-    usesRemaining: preparation.uses,
+    weight: preparation!.weight,
+    canonicalReagentId: reagent!.id,
+    preparationId: preparation!.id,
+    usesRemaining: preparation!.uses,
     quantity: 1,
     provenance: {
-      acquisitionId: `${pending.barterId}:${preparation.id}`,
+      acquisitionId: `${pending.barterId}:${preparation!.id}`,
       source: 'barter',
       sourceTransactionId: pending.barterId
     }
@@ -435,7 +457,7 @@ const finalizeSuccessfulBarter = (
       id: `${transactionId}:journal`,
       type: 'encounter',
       authorship: 'system',
-      title: `Barter: ${reagent.canonicalName}`,
+      title: `Barter: ${pending.replacement?.name || reagent!.canonicalName}`,
       text: `BR ${pending.calculatedBR}; paid ${payment.trinkets} Trinkets, ${payment.reputation} Reputation${paymentItemIds.size > 0 ? `, and ${paymentItemIds.size} printed Barter item(s)` : ''}.`
     }],
     appliedTransactionIds: [...state.appliedTransactionIds, transactionId]

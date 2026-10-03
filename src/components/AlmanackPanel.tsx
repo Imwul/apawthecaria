@@ -220,7 +220,7 @@ export default function AlmanackPanel({
     if (ingredient?.relatedIds.includes(`region:${currentRegionId}`)) labels.push(`현재 ${localizeRegionLabel(currentRegionId)} 지역`);
     if (ingredient?.relatedIds.includes(`season:${gameplayContext.currentSeason}`)) labels.push(`현재 ${localizeSeasonLabel(gameplayContext.currentSeason)}`);
     if (patientMatches(entry)) labels.push('현재 환자에 기여');
-    if (entry.ownerId === gameplayContext.activeAilmentId) labels.push('현재 질환');
+    if (gameplayContext.activeAilmentId && entry.ownerId === gameplayContext.activeAilmentId) labels.push('현재 질환');
     return labels;
   };
 

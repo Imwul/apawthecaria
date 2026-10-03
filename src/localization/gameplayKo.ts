@@ -1,4 +1,5 @@
 import { normalizeGuildReputationTerms } from './guildReputation';
+export { localizeRuleTag, formatRuleTag, getTagTooltip } from './ruleTagsKo';
 
 const preparationNames: Record<string, string> = {
   Acorns: '도토리',
@@ -224,7 +225,7 @@ const behemothClassLabels: Record<string, string> = {
 export const localizePreparationName = (value: string): string => preparationNames[value] || value;
 export const formatPreparationName = (value: string): string => {
   const korean = localizePreparationName(value);
-  return korean === value ? value : `${value} (${korean})`;
+  return korean === value ? value : `${korean} (${value})`;
 };
 export const localizePreparationMethod = (value: string): string => preparationMethods[value] || value;
 export const localizeCharacterDescriptor = (value: string): string => characterDescriptors[value] || value;
@@ -321,6 +322,13 @@ const canonicalToolNamesKo: Record<string, string> = {
 export const localizeCanonicalToolName = (value: string): string => canonicalToolNamesKo[value] || value;
 
 export const localizeInventoryItemName = (value: string): string => {
+  const legacyToolLabels: Record<string, string> = {
+    '나무 절구와 공이 [GRIND/CRUSH]': '나무 절구와 공이 · 갈기/빻기',
+    '낡은 캠프 주전자 [BOIL/BREW]': '낡은 캠프 주전자 · 끓이기/우려내기',
+    '이빨 [CHEW/DIGEST]': '이빨 · 씹기/소화',
+    '앞발/발톱 [ADD/APPLY]': '앞발/발톱 · 넣기/발라 사용'
+  };
+  if (legacyToolLabels[value]) return legacyToolLabels[value];
   if (value === '기념품 (Memento)') return '기념품';
   const canonicalToolName = localizeCanonicalToolName(value);
   if (canonicalToolName !== value) return canonicalToolName;

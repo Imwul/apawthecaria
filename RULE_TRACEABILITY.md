@@ -70,7 +70,7 @@
 | AILMENT-007 | p36-37 | 실패 시 질환별 특수 결과 후 일반 평판 손실을 적용; 예외 우선 | 치료 결과 | failure handlers | Partial | 없음 | 일반 손실은 있으나 질환별 예외가 대부분 적용되지 않는다. |
 | REMEDY-001 | p30 | 재료 가용성 → 지역과 계절 각각 Common +0, Rare +3, Unavailable이면 획득 불가 | 채집·흥정 | `foragingEngine.ts`, `barterEngine.ts` | Exact | `gameplayEngine.test.ts`, `phase3Engine.test.ts [REMEDY-001]` | Foraging과 Barter가 동일한 canonical 3상태 Availability와 선택 Preparation을 사용한다. |
 | REMEDY-002 | p30 | Make Do → 필요한 효능보다 1 높은 대체 태그 사용 | 치료 | `createMakeDoAcquisition()`, acquisition UI | Exact | `phase3Engine.test.ts [REMEDY-002]` | 원작 모드에서 직접 생성을 금지하고 +1 Potency 조건을 저장한 뒤 실제 canonical Part 획득을 확인한다. |
-| REMEDY-003 | p30 | Replacement → BR 12, Weight 2/3; 이름·준비법을 정하고 채집/흥정으로 획득 | 치료·가방 | `createReplacementAcquisition()`, `commitAlternativeAcquisition()`, Forage/Barter success adapters | Exact | `phase3Engine.test.ts`, `phase6Engine.test.ts [REMEDY-003]` | 원작 모드에서 직접 생성하지 않으며 선택한 Forage/Barter 성공 뒤 custom metadata와 provenance를 가진 item을 한 번만 commit한다. |
+| REMEDY-003 | p30 | Replacement → 새 대체재 자체를 Rarity 12·Weight 2/3으로 채집/흥정; 성공 뒤 이름·부위·약효를 정해 도감과 일지에 기록하고 조제에 사용 | 치료·채집·흥정·가방 | `createReplacementAcquisition()`, special-acquisition Forage/Barter, `inventoryPreparation.ts`, treatment adapter, `rememberCustomReagents()` | Exact | `customRemedyAcquisition.test.ts`의 BR12 획득·거래 결제 재개·준비/소비·JSON migration·영구 도감; 기존 phase3/phase6 검증 | 감사에서 이전 완료 판정을 철회한 뒤 실제 대체재 자체의 카드12/FP차액/FP12 획득, 도구·uses·소비, reload 뒤 조제와 결제 재개를 새 테스트로 확인했다. 성공한 정의는 배낭에서 소비해도 영구 도감에 남고 실패에는 생성하지 않는다. 새 목록 UI의 브라우저 검증은 자동 engine-chain 증거와 별도로 기록한다. |
 | REMEDY-004 | p31 | 충분한 재료가 모이면 Remedy는 즉시 완성; 별도 시간 판정 없음 | 치료 구성 | `treatmentEngine.ts` | Exact | `gameplayEngine.test.ts [REMEDY-004]` | 유효한 치료 transaction은 Timer 시간을 소비하지 않는다. |
 | REMEDY-005 | p31 | 준비법이 요구하는 Basic/Market Tool을 실제로 보유해야 Part를 준비 | 채집·가방 | Foraging/Treatment engines | Exact | `gameplayEngine.test.ts [REMEDY-005]` | 획득과 투여 양쪽에서 canonical required Tool을 강제한다. |
 | REMEDY-006 | p31 | Part별 Weight와 사용 횟수를 데이터대로 유지 | 가방·치료 | canonical Preparation inventory | Exact | `gameplayEngine.test.ts [REMEDY-006]` | 준비법의 Weight/Uses를 저장하고 사용 시 Uses를 1씩 차감한다. |
@@ -119,7 +119,7 @@
 | DOWNTIME-004 | p41 | Replenish → 가방을 규칙대로 채움 | 휴식기 | `canonicalDowntimeEngine.ts`, replenish UI | Exact | `step3Canonical.test.ts [DOWNTIME-004]` | UI가 여러 Reagent와 Part·수량을 한 번에 받아 canonical resolver에 전달하며 Tool·Region·Common Season·Carry·중복 ID를 한 transaction에서 검증한다. |
 | DOWNTIME-005 | p41-42 | Explore/Work on Yourself/Reconnect → 각 조건·거리·효과를 한 번 적용 | 휴식기 | `canonicalDowntimeEngine.ts`, graph-backed activity UI | Exact | `step3Canonical.test.ts [DOWNTIME-005/DOWNTIME-007/GRAPH-001]`, `phase3Engine.test.ts [DOWNTIME-005]` | Explore·Self Improvement·nearest City 이동과 Reconnect를 canonical 처리하고 Ledger는 Forage FP, Map은 Travel draw, Gossip은 Barter 성공에서 구조적으로 소비된다. |
 | DOWNTIME-006 | p42 | Relax → Tool 또는 Familiar 중 하나를 선택해 효과 적용 | 휴식기 | `downtimeEngine.ts`, relax UI | Exact | `gameplayEngine.test.ts [DOWNTIME-001]` | engine activity와 UI 모두 Tool/Familiar 중 정확히 하나만 허용한다. |
-| DOWNTIME-007 | p42-43 | Lend Paw와 Commission Wagon → 명시 비용·조건·완료 시점 적용 | 휴식기 | `downtimeEngine.ts`, `mobilityEngine.ts` | Partial | `gameplayEngine.test.ts [DOWNTIME-007/WAGON-001/WAGON-002]` | Lend Paw +5와 Wagon의 City·실제 비용·한 활동 제한은 원자 적용되지만 p43 commission 20과 p68 Base Unit 15의 서로 다른 항목을 UI가 하나의 구매로 표현해 원문 관계를 추가 확인해야 한다. |
+| DOWNTIME-007 | p42-43, p68 | Lend Paw와 Commission Wagon → 명시 비용·조건·완료 시점 적용; Wagon 위탁은 City·휴식기 활동 1회·Trinket 20개 | 휴식기 | `downtimeEngine.ts`, `mobilityEngine.ts`, controlled commission confirmation | Partial | `gameplayEngine.test.ts [DOWNTIME-007/WAGON-001/WAGON-002]` | p43 Commission Wagon 20개와 p68 Base Unit 표15개는 판본 안에서 충돌한다. 앱은 구체적 휴식기 절차 p43의20개를 채택하고 작업 설명·최종 확인에서 두 원문과 채택 기준을 표시한다. 엔진과 표시 비용은 일치하며 이 Partial은 추가 자동화 누락 대신 원문 모호성을 나타낸다. |
 | CLINIC-001 | p44-45 | 4계절 완료 후 Wild에서 치료 성공; 15 Trinket 지불해 Clinic 설립 | 진료소 | `clinicEngine.ts`, clinic panel | Exact | `phase10ReleaseBlockers.test.ts [CLINIC-001/CLINIC-005]` | 설립 resolver가 누적 일수 대신 완료 계절 4회, Wild 치료, 15 Trinket, 위치 중복을 한 transaction에서 검증한다. |
 | CLINIC-002 | p45 | 설립한 Clinic은 다음 Season 시작에 완성 | 진료소 | `seasonEngine.ts` | Exact | `gameplayEngine.test.ts [CLINIC-002]` | 설립 시 `building`으로 저장하고 지정한 다음 계절 경계에서 활성화한다. |
 | CLINIC-003 | p45 | Clinic service area는 3 Paths | 지도·진료소 | `clinicEngine.ts`, `MAP_SERVICE_HOPS` | Exact | `phase4Engine.test.ts [CLINIC-003]` | graph 최단거리 3 Paths와 UI 서비스 범위가 같은 상수를 사용한다. |
@@ -132,7 +132,7 @@
 | Rule ID | 룰북 | 규칙 명세 | 대응 화면 | 구현 위치 | 상태 | 자동 테스트 | 문제 |
 |---|---|---|---|---|---|---|---|
 | ALMANACK-001 | p54-71 | Almanack의 서비스·도구·업그레이드·왜건·동료 표를 참고 정보로 제공 | 연감 | `AlmanackPanel.tsx`, canonical catalogues | Exact | `phase4Engine.test.ts` | 누락 없는 표를 검색·분류·source page와 함께 제공하고 긴 목록은 단계 렌더링한다. |
-| ALMANACK-002 | p56-57 | Trinket을 받을 때마다 3장 표로 물건/재질/유래를 정해 저널에 기록 | 보상·저널 | `almanackEngine.ts`, schema v5 | Logic-only | `phase4Engine.test.ts [ALMANACK-002]` | 3장 생성기와 개별 record 저장은 있으나 모든 보상 지급 경로가 아직 이를 호출하지 않는다. |
+| ALMANACK-002 | p56-57 | 한 번에 Trinket을 몇 개 받든 그중 하나를 저널에 기록; 물건·재질·유래의 영감을 위한 표3회 드로우는 선택 | 보상·저널 | `almanackEngine.ts`, schema v5 | Logic-only | `phase4Engine.test.ts [ALMANACK-002]` | 선택 영감 생성기와 개별 record 저장이 있다. 모든 보상 경로에서 세 장을 강제로 뽑을 필요는 없으며, 선택 생성기의 존재를 보상 뒤 장신구 한 개의 기록 안내까지 모두 연결한 증거로 간주하지 않는다. |
 | ALMANACK-003 | p54-71 | 발견/현재 보유/참고 정보는 서로 구분하고 저장 | 연감·가방 | compendium/inventory state | Partial | 없음 | 일부 발견 상태는 있으나 완전한 잠금·사용 이력·중복 ID 검증이 없다. |
 | ALMANACK-004 | p58-61 | Guild Service 17종의 조건·비용·효과를 정확히 적용 | 서비스 | `data/services.ts`, `serviceEngine.ts`, Service UI | Exact | `phase4Engine.test.ts`, `phase10ReleaseBlockers.test.ts [ALMANACK-004/SERVICE-001/SERVICE-002/SERVICE-005]` | 17종 모두 비용·위치·대상·기간과 즉시/Move/도착/Spring 후속 consumer를 canonical transaction으로 닫는다. |
 | ALMANACK-005 | p62-65 | Tool 18종과 획득 제한·준비법·효과를 정확히 적용 | 상점·가방 | `data/tools.ts`, `toolEngine.ts`, gameplay consumers | Exact | `phase4Engine.test.ts`, `phase10ReleaseBlockers.test.ts [ALMANACK-005/ALMANACK-006/TOOL-003/TOOL-005]` | 18종의 준비·보관·파손·소모·이동·조우·공연·뜨개 효과가 해당 canonical 행동에서 실행된다. |
@@ -303,4 +303,13 @@
 
 ## Version 1.0 Freeze
 
-Version `1.0.0` release packaging은 Rule ID, 상태, resolver와 test mapping을 변경하지 않는다. 공식 baseline은 `Exact 117 / Partial 24 / Incorrect 0 / Missing 0 / UI-only 0 / Logic-only 2 / Ambiguous 2 / House Rule 6`이며 24개 Partial의 분류와 사유는 `KNOWN_LIMITATIONS.md`에 고정한다.
+Version `1.0.0` release packaging 당시 baseline은 `Exact 117 / Partial 24 / Incorrect 0 / Missing 0 / UI-only 0 / Logic-only 2 / Ambiguous 2 / House Rule 6`이었다. 위의 Phase별 집계와 검증 수치는 과거 기록이며, 현재 판단은 앞쪽 Rule ID별 표와 아래 재감사 결과를 따른다. 과거 완료 표시는 새 실행 결함을 덮어쓰지 않는다.
+
+## 2026-10-03 플레이 재감사
+
+- 사용자 승인 범위는 감사 후보 1~30 중27 협동 모드 확장을 제외한 항목이다. `output/design-thinking-play-audit-2026-10-03.md`에 발견 당시 근거를 보존한다.
+- `REMEDY-003`의 과거 Exact는 획득 데이터만 확인하고 실제 조제까지의 단절을 놓쳐 철회했다. 새 특수 획득·사용자 정의 부위 조제·소비·JSON migration·결제 재개·영구 도감 테스트를 근거로 다시 Exact로 판정했다. 단순 metadata 존재를 증거로 재사용하지 않았다.
+- `ALMANACK-002`는 p56의 필수 기록과 선택 영감 표를 구별했다. 선택 세 장 드로우를 필수 규칙으로 표시하거나 모든 보상에 강제할 근거는 없다.
+- `DOWNTIME-007`은 p43의20개를 계속 채택하며 p68의15개 충돌을 작업 화면과 최종 확인에 표시한다. 인쇄 데이터의15개를 임의로 수정하지 않는다.
+- 조우 키보드/보류, 판정 전 입력 목록, controlled 선택, 클라우드 용량 안내·JSON 백업은 UI 보강이며 원문 수치·저장 transaction 계약을 바꾸는 규칙으로 분류하지 않는다.
+- 새 `customRemedyAcquisition.test.ts`13개는 BR12/Foreign/Bear의 획득·실제 회분·도구·소비·저장 경계·영구 도감을 검증한다. 전체 자동·브라우저 결과는 별도 통합 기록으로 남긴다. 이전119파일/1,243개 테스트 통과는 새 변경의 통과를 의미하지 않는다. 실제 초보 사용자 과제 테스트와 공개 배포는 실시하지 않았다.

@@ -400,8 +400,8 @@
   },
   {
     "id": "DOWNTIME-007",
-    "sourcePage": "p42-43",
-    "executor": "downtimeEngine.ts, mobilityEngine.ts",
+    "sourcePage": "p42-43, p68",
+    "executor": "downtimeEngine.ts, mobilityEngine.ts, controlled commission confirmation",
     "status": "Partial",
     "classification": "intentional-ambiguous"
   },
@@ -667,7 +667,7 @@
   {
     "id": "REMEDY-003",
     "sourcePage": "p30",
-    "executor": "createReplacementAcquisition(), commitAlternativeAcquisition(), Forage/Barter success adapters",
+    "executor": "createReplacementAcquisition(), special-acquisition Forage/Barter, inventoryPreparation.ts, treatment adapter, rememberCustomReagents()",
     "status": "Exact",
     "classification": "exact"
   },

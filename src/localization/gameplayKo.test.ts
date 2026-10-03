@@ -44,11 +44,11 @@ describe('gameplay presentation localization', () => {
 
   it('translates preparation and legacy display fragments', () => {
     expect(localizePreparationName('Leaves')).toBe('잎');
-    expect(formatPreparationName('Leaves')).toBe('Leaves (잎)');
-    expect(formatPreparationName('Perfect Conker')).toBe('Perfect Conker (잘 여문 마로니에 열매)');
+    expect(formatPreparationName('Leaves')).toBe('잎 (Leaves)');
+    expect(formatPreparationName('Perfect Conker')).toBe('잘 여문 마로니에 열매 (Perfect Conker)');
     expect(localizePreparationMethod('BREWED')).toBe('우려냄');
-    expect(localizeInventoryItemName('Nettles (Leaves, BREWED)')).toBe('Nettles (Leaves (잎), 우려냄)');
-    expect(localizeInventoryItemName('Nettles (Leaves)')).toBe('Nettles (Leaves (잎))');
+    expect(localizeInventoryItemName('Nettles (Leaves, BREWED)')).toBe('Nettles (잎 (Leaves), 우려냄)');
+    expect(localizeInventoryItemName('Nettles (Leaves)')).toBe('Nettles (잎 (Leaves))');
     expect(localizeInventoryItemName('기념품 (Memento)')).toBe('기념품');
     expect(localizeCanonicalToolName('paws')).toBe('앞발/발톱');
     expect(localizeInventoryItemName('Paws/Claws')).toBe('앞발/발톱');

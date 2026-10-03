@@ -11,7 +11,7 @@ import {
   type RouteEdgeKind,
   type RouteStop
 } from '../map/routeComposer';
-import { routeReadinessText } from './routeComposerPresentation';
+import { routeExecutionPreview, routeReadinessText } from './routeComposerPresentation';
 
 type RouteComposerProps = {
   draft: RouteDraft;
@@ -25,6 +25,8 @@ type RouteComposerProps = {
   canTravel: boolean;
   readOnly?: boolean;
   movementMode?: 'move' | 'soar';
+  mustUseFullSpeed?: boolean;
+  moveDays?: number;
   travelBlockedReason?: string | null;
   availableStops?: RouteStop[];
   journeyTarget?: RouteStop | null;
@@ -42,7 +44,7 @@ type RouteComposerProps = {
 };
 
 const reasonText = (reason: ReturnType<typeof evaluateRouteDraft>['reason'], speed: number, cost: number): string => {
-  if (reason === 'incomplete') return `지도나 위치 검색에서 이번 이동이 지날 경로를 하나 이상, 이동력 ${speed} 이내로 순서대로 고르세요.`;
+  if (reason === 'incomplete') return `지도나 위치 검색에서 이번 이동이 지날 경로를 이동력 ${speed}에 맞게 순서대로 고르세요.`;
   if (reason === 'legal') return cost === speed
     ? `이동력 ${speed}을 모두 사용합니다. 이 경로로 이동할 수 있습니다.`
     : `이동력 ${speed} 중 ${cost}만 사용합니다. 짧은 경로로 이동할 수 있습니다.`;
@@ -82,6 +84,8 @@ export function RouteComposer({
   canTravel,
   readOnly = false,
   movementMode = 'move',
+  mustUseFullSpeed = true,
+  moveDays = 1,
   travelBlockedReason,
   availableStops = [],
   journeyTarget = null,
@@ -113,7 +117,7 @@ export function RouteComposer({
     canStopInLoch,
     protectsFromSoaking,
     soakableItemIds: soakableItemNames,
-    mustUseFullSpeed: false
+    mustUseFullSpeed
   });
   const count = draft.stops.length;
   const travelReady = !readOnly && canTravel
@@ -532,6 +536,11 @@ export function RouteComposer({
             <p>지도나 위치 검색에서 첫 경유지를 고르세요.</p>
           )}
           {travelBlockedReason && <p className="route-composer__blocker">{travelBlockedReason}</p>}
+          {destination && <p className="route-composer__execution" aria-label="이동 실행 예고">
+            {travelReady ? '이동하면: ' : '경로를 완성하고 이동하면: '}
+            {routeExecutionPreview({ destinationName: destination.name || '선택한 위치', destinationKind: destination.kind,
+              movementMode, days: moveDays, soakedItemNames: movementMode === 'move' ? evaluation.soakedItemIds : [] })}
+          </p>}
         </div>
 
         {!readOnly && <div className="route-composer__actions">

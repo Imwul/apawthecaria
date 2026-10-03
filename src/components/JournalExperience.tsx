@@ -1,56 +1,92 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { localizeJourneyGoalText, localizeLocationName, localizeRegionLabel, localizeSeasonLabel } from '../localization/gameplayKo';
 import { referenceForJournalTab } from '../rulebook/context';
 import type { RulebookReferenceRequest } from '../rulebook/types';
-import { getCampaignContinuity } from '../campaignContinuity';
+import { getCampaignNextAction } from '../campaignContinuity';
+import { getPatientTimerProjection } from '../patientTimerProjection';
+import { formatRuleTag } from '../localization/ruleTagsKo';
 import { getJourneyUiContext } from '../journeyUiContext';
 import { readCalendarClocks } from '../calendarTime';
 import type { JournalTab } from '../sessionNavigation';
+import { getPatientArrivalPreview } from '../patientArrivalPreview';
 import { isActivityJournalEntry, journalDisplayTitle, journalEntriesNewestFirst, journalPreview } from '../journalSemantics';
 
 export type { JournalTab } from '../sessionNavigation';
 
 type ChapterTab = Exclude<JournalTab, 'play'>;
 
+const CHAPTER_ENGLISH: Record<JournalTab, string> = {
+  play: 'The journey', map: 'The atlas', ailments: 'Ailments', reagents: 'The herbarium',
+  bio: 'The satchel', almanack: 'Field guide', patientArchive: 'The casebook',
+  livingArchive: 'Discoveries', journals: 'The journal'
+};
+const CHAPTER_NUMBER: Record<JournalTab, string> = {
+  play: '01', map: '02', ailments: '03', reagents: '04', bio: '05',
+  almanack: '06', patientArchive: '07', livingArchive: '08', journals: '09'
+};
+
+/** The book's ornament is decorative, never a gameplay status or control. */
+export function FolioEmblem({ className = '' }: { className?: string }) {
+  return <span className={`folio-emblem ${className}`} aria-hidden="true"><span>A</span></span>;
+}
+
 const NAVIGATION = [
-  { id: 'play', label: '오늘의 여행', emoji: '📖' },
-  { id: 'ailments', label: '진료 수첩', emoji: '🩺' },
-  { id: 'reagents', label: '약초 도감', emoji: '🌿' },
-  { id: 'bio', label: '배낭과 약제사', emoji: '🎒' },
-  { id: 'map', label: '접어둔 지도', emoji: '🗺️' },
-  { id: 'almanack', label: '자연사 색인', emoji: '📚' },
-  { id: 'patientArchive', label: '환자 기록장', emoji: '🗂️' },
-  { id: 'livingArchive', label: '표본과 기억', emoji: '🪻' },
-  { id: 'journals', label: '들녘의 일지', emoji: '✒️' }
+  {
+    id: 'primary', label: '모험의 도구', items: [
+      { id: 'play', label: '모험', emoji: '🧭' },
+      { id: 'map', label: '세계 지도', emoji: '🗺️' },
+      { id: 'ailments', label: '병증 사전', emoji: '🩺' },
+      { id: 'reagents', label: '약초', emoji: '🌿' },
+      { id: 'bio', label: '배낭', emoji: '🎒' }
+    ]
+  },
+  {
+    id: 'reference', label: '도움이 필요할 때', items: [
+      { id: 'almanack', label: '자료실', emoji: '🔎' }
+    ]
+  },
+  {
+    id: 'memories', label: '남긴 기억', items: [
+      { id: 'patientArchive', label: '진료 기록', emoji: '🗂️' },
+      { id: 'livingArchive', label: '발견', emoji: '🪻' },
+      { id: 'journals', label: '이야기', emoji: '✒️' }
+    ]
+  }
 ] as const;
 
 export function JournalNavigation({ activeTab, onChange }: { activeTab: JournalTab; onChange: (tab: JournalTab) => void }) {
-  const tabRefs = useRef<Partial<Record<JournalTab, HTMLButtonElement | null>>>({});
+  const moreRef = useRef<HTMLDetailsElement>(null);
 
-  useEffect(() => {
-    tabRefs.current[activeTab]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-  }, [activeTab]);
 
+  const renderItems = (group: typeof NAVIGATION[number]) => group.items.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                className={`journal-tab adventure-nav__item journal-tab--${item.id} ${activeTab === item.id ? 'journal-tab--active' : ''}`}
+                aria-current={activeTab === item.id ? 'page' : undefined}
+                title={item.label}
+                onClick={() => {
+                  onChange(item.id);
+                  if (moreRef.current) moreRef.current.open = false;
+                }}
+              >
+                <span className="workspace-nav__number" aria-hidden="true">{CHAPTER_NUMBER[item.id]}</span>
+                <span className="workspace-nav__copy"><span>{item.label}</span><span className="workspace-nav__english" aria-hidden="true">{CHAPTER_ENGLISH[item.id]}</span></span>
+              </button>
+            ));
+  const secondaryActive = NAVIGATION.slice(1).some(group => group.items.some(item => item.id === activeTab));
   return (
-    <nav className="journal-tabs" aria-label="여행 일지 책갈피">
-      {NAVIGATION.map((item, index) => {
-        return (
-          <button
-            key={item.id}
-            ref={node => { tabRefs.current[item.id] = node; }}
-            type="button"
-            className={`journal-tab journal-tab--${item.id} ${activeTab === item.id ? 'journal-tab--active' : ''}`}
-            aria-current={activeTab === item.id ? 'page' : undefined}
-            aria-label={`${String(index + 1).padStart(2, '0')} ${item.label}`}
-            title={item.label}
-            onClick={() => onChange(item.id)}
-          >
-            <span className="journal-tab__index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
-            <span className="journal-tab__emoji emoji-icon" aria-hidden="true">{item.emoji}</span>
-            <span>{item.label}</span>
-          </button>
-        );
-      })}
+    <nav className="journal-tabs workspace-nav" aria-label="모험 도구와 기록">
+      <div className="workspace-nav__primary">{renderItems(NAVIGATION[0])}</div>
+      <details ref={moreRef} className={`workspace-nav__more${secondaryActive ? ' is-active' : ''}`}>
+        <summary>자료 · 기록 <span aria-hidden="true">⌄</span></summary>
+        <div className="workspace-nav__menu">
+          {NAVIGATION.slice(1).map(group => <div key={group.id} role="group" aria-label={group.label}>
+            <p>{group.label}</p>
+            {renderItems(group)}
+          </div>)}
+          </div>
+      </details>
     </nav>
   );
 }
@@ -75,92 +111,114 @@ export function ChapterOpening({
   const patientName = patient?.name || legacyAilment?.patientName;
   const ailmentName = legacyAilment?.name || ailment?.legacyName;
   const journalCount = state.journals?.filter((row: any) => !isActivityJournalEntry(row)).length || 0;
-  const caseCount = state.patientArchive?.length || state.patientCasebook?.length || 0;
+  const caseCount = (state.patientArchive?.length || 0) + (state.patientCasebook?.length || 0);
   const discoveryCount = state.worldAlmanac?.length || 0;
   const bagCount = state.bag?.reduce((sum: number, item: any) => sum + (item.qty || 1), 0) || 0;
 
-  const content: Record<ChapterTab, { kicker: string; title: string; body: string; notes: string[] }> = {
+  const content: Record<ChapterTab, { kicker: string; title: string; body: string; notes: string[]; steps: string[] }> = {
     ailments: {
-      kicker: patientName ? `현재 환자 · ${patientName}` : '진료 메모',
-      title: patientName ? `${patientName}의 진료 수첩` : '진료 수첩',
+      kicker: patientName ? `현재 환자 · ${patientName}` : '치료에 필요한 정보',
+      title: '병증 사전',
       body: ailmentName
-        ? `${ailmentName}의 징후와 필요한 약효를 차분히 대조합니다. 아래 병증 기록은 현재 처방을 위한 참고 페이지입니다.`
+        ? `${ailmentName}에 필요한 약효를 확인하고 모험 화면에서 채집과 조제를 이어가세요.`
         : patientName
           ? `${patientName}의 병증 이름은 아직 기록되지 않았습니다. 관찰을 이어가며 아래 병증 기록과 징후를 대조해보세요.`
-          : '아직 기다리는 환자는 없습니다. 길 위에서 누군가를 만나면 증상과 관찰, 처방의 순서가 이곳에 이어집니다.',
-      notes: [ailmentName || '병증 미기록', patient ? displayTimer(patient) : legacyAilment ? `${legacyAilment.timer}시간` : '기한 없음', localizeSeasonLabel(state.currentSeason)]
+          : '병증을 검색해 증상과 필요한 약효를 확인하세요. 환자를 만나면 모험 화면에서 치료를 진행합니다.',
+      notes: [ailmentName || '병증 미기록', patient ? displayTimer(patient) : legacyAilment ? `${legacyAilment.timer}시간` : '기한 없음', localizeSeasonLabel(state.currentSeason)],
+      steps: ['증상 확인', '필요 약효 찾기', '모험에서 치료']
     },
     reagents: {
-      kicker: '약재 기록',
-      title: '약초 도감',
-      body: `${localizeRegionLabel(state.currentRegion)}에서 만날 수 있는 잎과 뿌리, 꽃과 균류의 쓰임을 기록합니다. 이름보다 생김새와 조제법을 먼저 읽어보세요.`,
-      notes: [localizeSeasonLabel(state.currentSeason), `${localizeRegionLabel(state.currentRegion)} 관찰`, `${bagCount}점 소지`]
+      kicker: '치료 재료 찾기',
+      title: '약초',
+      body: '약효로 재료를 찾고 서식지·계절·채집 부위와 조제법을 확인하세요.',
+      notes: [localizeSeasonLabel(state.currentSeason), `${localizeRegionLabel(state.currentRegion)} 관찰`, `${bagCount}점 소지`],
+      steps: ['약효로 약재 찾기', '서식지·계절 확인', '채집 부위·조제법 확인']
     },
     bio: {
-      kicker: '여행 채비',
-      title: '배낭과 약제사',
-      body: '여행 도구와 길동무, 모아둔 약재를 한데 펼쳐보고 다음 걸음을 준비하는 페이지입니다.',
-      notes: [`속도 ${state.bio?.speed ?? '미기록'} · 소지 ${maxCarry}`, `Guild Reputation ${state.reputation ?? 0} · 마친 계절 ${state.completedSeasons ?? 0}`, `${localizeSeasonLabel(state.currentSeason)} · 누적 ${state.cumulativeDays ?? 0}일`]
+      kicker: '출발 전 채비',
+      title: '배낭',
+      body: '약재와 도구, 약제사와 길동무를 관리하세요. 짐이 소지 한도를 넘으면 이동 전에 정리합니다.',
+      notes: [`이동 속도 ${state.bio?.speed ?? '미기록'} · 소지 한도 ${maxCarry}`, `길드 명성 ${state.reputation ?? 0} · 마친 계절 ${state.completedSeasons ?? 0}`, `${localizeSeasonLabel(state.currentSeason)} · 누적 ${state.cumulativeDays ?? 0}일`],
+      steps: ['약제사·길동무 살피기', '약재와 도구 확인', '출발 전 짐 정리']
     },
     map: {
-      kicker: '지도 기록',
-      title: '접어둔 지도',
-      body: `${localizeLocationName(state.currentLocationName) || '이름 없는 길목'}에서 시작해 지나온 숲과 아직 걷지 않은 길을 함께 펼칩니다.`,
-      notes: [localizeRegionLabel(state.currentRegion), `${state.visitedLocations?.length || 0}곳의 발자국`, journeyActive ? `${localizeLocationName(state.journeyDestination) || '목적지'}로 이동 중` : '머무르는 중']
+      kicker: '이동 경로 살피기',
+      title: '세계 지도',
+      body: `${localizeLocationName(state.currentLocationName) || '현재 위치'}에서 이어지는 길을 살펴보세요. 장소를 눌러 경로를 확인하고 모험 화면에서 이동합니다.`,
+      notes: [localizeRegionLabel(state.currentRegion), `${state.visitedLocations?.length || 0}곳의 발자국`, journeyActive ? `${localizeLocationName(state.journeyDestination) || '목적지'}로 이동 중` : '머무르는 중'],
+      steps: ['현재 위치 찾기', '연결된 길 확인', '모험에서 이동']
     },
     almanack: {
-      kicker: '들녘의 참고 기록',
-      title: '자연사 색인',
-      body: '병증, 약재, 도구와 길 위의 만남을 서로 대조해 읽는 자연사 색인입니다. 필요한 말에서 시작해 관련 기록으로 천천히 건너가세요.',
-      notes: [`${discoveryCount}건의 발견`, localizeSeasonLabel(state.currentSeason), state.currentRegion ? localizeRegionLabel(state.currentRegion) : '전 지역']
+      kicker: '궁금한 것 찾아보기',
+      title: '자료실',
+      body: '병증·약재·도구·만남을 검색하고 쓰임과 조건, 관련 자료를 확인하세요.',
+      notes: [`${discoveryCount}건의 발견`, localizeSeasonLabel(state.currentSeason), state.currentRegion ? localizeRegionLabel(state.currentRegion) : '전 지역'],
+      steps: ['궁금한 이름 검색', '쓰임과 조건 읽기', '관련 기록 함께 보기']
     },
     patientArchive: {
-      kicker: '진료 기록철',
-      title: '환자 기록장',
-      body: '만났던 이의 첫인상과 병색, 건넨 처방과 그 뒤의 이야기를 한 사람씩 다시 읽습니다.',
-      notes: [`${caseCount}건의 진료`, patientName ? `${patientName} 치료 중` : '현재 환자 없음', localizeLocationName(state.currentLocationName)]
+      kicker: '만났던 환자들',
+      title: '진료 기록',
+      body: '지난 환자의 증상과 처방, 치료 결과와 남겨둔 기억을 다시 읽어보세요.',
+      notes: [`${caseCount}건의 진료`, patientName ? `${patientName} 치료 중` : '현재 환자 없음', localizeLocationName(state.currentLocationName)],
+      steps: ['지난 환자 찾기', '처방과 결과 돌아보기', '남겨둔 기억 다시 읽기']
     },
     livingArchive: {
-      kicker: '압화한 기억',
-      title: '표본과 기억',
-      body: '길에서 주운 작은 발견과 오래 남겨두고 싶은 기억을 압화 표본처럼 한 장씩 모았습니다.',
-      notes: [`${discoveryCount}건의 관찰`, `${caseCount}건의 만남`, `${state.trinketArchive?.length || 0}개의 기념품`]
+      kicker: '여행에서 모은 것들',
+      title: '발견',
+      body: '관찰한 약초와 지나온 장소, 만남과 기념품을 살펴보고 연결된 기록으로 이동하세요.',
+      notes: [`${discoveryCount}건의 관찰`, `${caseCount}건의 만남`, `${state.trinketArchive?.length || 0}개의 기념품`],
+      steps: ['발견과 기념품 살피기', '기억 한 장 펼치기', '연결된 기록 돌아보기']
     },
     journals: {
-      kicker: '계절의 기억',
-      title: '들녘의 일지',
-      body: '하루의 사건을 숫자로 세지 않고 문장으로 남기는 곳입니다. 계절과 장소를 따라 지난 여행을 다시 읽어보세요.',
-      notes: [`${journalCount}편의 일지`, localizeSeasonLabel(state.currentSeason), localizeLocationName(state.currentLocationName)]
+      kicker: '당신이 남기는 이야기',
+      title: '이야기',
+      body: '오늘의 기억을 적고 지난 이야기를 읽어보세요. 여행 기록을 저장하거나 불러올 수도 있습니다.',
+      notes: [`${journalCount}편의 일지`, localizeSeasonLabel(state.currentSeason), localizeLocationName(state.currentLocationName)],
+      steps: ['오늘의 기억 적기', '지난 일지 돌아보기', '여행 기록 보관하기']
     }
   };
 
   const chapter = content[tab];
   return (
-    <header className={`chapter-opening chapter-opening--${tab}`} aria-labelledby={`chapter-title-${tab}`}>
-      <span className="chapter-opening__folio" aria-hidden="true">들녘 기록 / {String(NAVIGATION.findIndex(item => item.id === tab) + 1).padStart(2, '0')}</span>
+    <header className={`chapter-opening adventure-tool-heading chapter-opening--${tab}`} aria-labelledby={`chapter-title-${tab}`}>
+      <div className="chapter-opening__plate" aria-hidden="true">
+        <img className="chapter-opening__art" src={tab === 'reagents' || tab === 'ailments' || tab === 'livingArchive' ? '/art/botanical-endpaper.webp' : '/art/forest-folio.jpg'} alt="" />
+        <span className="chapter-opening__seal">{CHAPTER_NUMBER[tab]}</span>
+        <p className="folio-chapter-title">{CHAPTER_ENGLISH[tab]}</p>
+        <span className="chapter-opening__flourish">✦</span>
+      </div>
       <div className="chapter-opening__copy">
         <p className="chapter-opening__kicker">{chapter.kicker}</p>
         <h2 id={`chapter-title-${tab}`}>{chapter.title}</h2>
         <p className="chapter-opening__body">{chapter.body}</p>
         <ul className="chapter-opening__notes" aria-label="현재 기록 요약">
-          {chapter.notes.map(note => <li key={note}>{note}</li>)}
+          {chapter.notes.slice(0, 2).map(note => <li key={note}>{note}</li>)}
         </ul>
+        <div className="chapter-opening__actions">
         {tab === 'ailments' && patientName ? (
           <button type="button" onClick={onReturnToToday}>
-            <span className="emoji-icon" aria-hidden="true">📖</span> 현재 진료로 돌아가기
+            <span className="emoji-icon" aria-hidden="true">🧭</span> 모험에서 치료 이어가기
           </button>
         ) : null}
         <button type="button" className="chapter-opening__reference" onClick={() => onOpenReference(referenceForJournalTab(tab, state))}>
-          <span className="emoji-icon" aria-hidden="true">📚</span> 이 장의 룰북 맥락
+          <span className="emoji-icon" aria-hidden="true">🔎</span> 플레이 방법
         </button>
+        <details className="chapter-opening__help">
+          <summary>이 화면에서 하는 일</summary>
+          <ol className="chapter-opening__flow">
+            {chapter.steps.map(step => <li key={step}>{step}</li>)}
+          </ol>
+        </details>
+        </div>
       </div>
+      <span className="folio-divider" aria-hidden="true"><span>✦</span></span>
     </header>
   );
 }
 
 const displayTimer = (patient: any) => {
-  const active = patient?.timers?.filter((timer: any) => timer.status === 'active') || [];
-  return active.length ? `${Math.min(...active.map((timer: any) => timer.current))}시간` : '기한 없음';
+  const projection = getPatientTimerProjection({ patients: patient ? [patient] : [], activePatientId: patient?.id });
+  return projection.shortestHours === null ? '기한 없음' : `${projection.shortestHours}시간`;
 };
 
 const requirementWords = (value: string) => value
@@ -169,14 +227,7 @@ const requirementWords = (value: string) => value
   .filter(Boolean)
   .slice(0, 5);
 
-export function TodayOverview({
-  state,
-  currentWeight,
-  maxCarry,
-  onNavigate,
-  onContinue,
-  onOpenReference
-}: {
+export function TodayOverview({ state, currentWeight, maxCarry, onNavigate, onContinue, onOpenReference }: {
   state: any;
   currentWeight: number;
   maxCarry: number;
@@ -184,169 +235,73 @@ export function TodayOverview({
   onContinue: () => void;
   onOpenReference: (request: RulebookReferenceRequest) => void;
 }) {
-  const patient = state.patients?.find((row: any) => row.id === state.activePatientId);
+  const patient = state.patients?.find((row: any) => row.id === state.activePatientId && row.status === 'active');
   const ailment = patient?.ailments?.find((row: any) => row.status === 'active');
-  const legacyAilment = state.activeAilment;
-  const ailmentName = legacyAilment?.name || ailment?.legacyName || '살펴볼 병증이 없습니다';
-  const requirements = requirementWords(legacyAilment?.tags || ailment?.requirementSnapshot || '');
-  const recentJournal = journalEntriesNewestFirst<any>(state.journals || [])
-    .find((row: any) => !isActivityJournalEntry(row));
-  const recentJournalSummary = recentJournal?.title.startsWith('새 환자:')
-    ? (() => {
-        const [impression = '', diagnosis = ''] = recentJournal.text.split('\n').filter(Boolean);
-        const cleanImpression = impression.replace(/^첫인상:\s*/, '');
-        const cleanDiagnosis = diagnosis.replace(/^병증:\s*/, '');
-        return [`첫인상: ${cleanImpression}`, cleanDiagnosis ? `병증: ${cleanDiagnosis}` : ''].filter(Boolean).join('\n');
-      })()
-    : recentJournal ? journalPreview(recentJournal, 180) : '';
-  const continuity = getCampaignContinuity(state);
-  const journeyActive = getJourneyUiContext(state).active;
-  const calendarClocks = readCalendarClocks(state);
-  const recentTimeChanges = (state.calendarHistory || []).slice(-2).reverse();
-  const dayPlace = localizeLocationName(state.currentLocationName) || '현재 위치 미기록';
-  const dayPhrase = journeyActive ? '여정을 이어가는 날' : '이곳에 머무는 날';
-  const continuityFacts = journeyActive
-    ? [
-        { label: '여정 목적지', value: localizeLocationName(state.journeyDestination) || '미정' },
-        { label: '여정 달력', value: `${calendarClocks.calendarDays} / ${Math.max(0, state.calendarMaxDays || 0)}일` },
-        { label: '남은 여정 기한', value: `${Math.max(0, (state.calendarMaxDays || 0) - calendarClocks.calendarDays)}일` },
-        { label: '캠페인 누적 일수', value: `${calendarClocks.cumulativeDays}일` },
-        { label: 'Guild Reputation', value: `${Math.max(0, state.reputation || 0)}` }
-      ]
-    : [
-        { label: '캠페인 누적 일수', value: `${calendarClocks.cumulativeDays}일` },
-        { label: '마친 계절', value: `${Math.max(0, state.completedSeasons || 0)}회` },
-        { label: 'Guild Reputation', value: `${Math.max(0, state.reputation || 0)}` }
-      ];
-  const isOverCapacity = currentWeight > maxCarry;
-  const hasResumeContext = Boolean(patient || legacyAilment || requirements.length || isOverCapacity || recentJournal);
+  const legacy = state.activeAilment;
+  const timers = getPatientTimerProjection(state);
+  const next = getCampaignNextAction(state);
+  const journey = getJourneyUiContext(state);
+  const calendar = readCalendarClocks(state);
+  const requirements = requirementWords(legacy?.tags || ailment?.requirementSnapshot || '');
+  const recent = journalEntriesNewestFirst<any>(state.journals || []).find((row: any) => !isActivityJournalEntry(row));
+  const arrival = getPatientArrivalPreview(recent);
+  const overCapacity = currentWeight > maxCarry;
+  const sceneTitle = ({
+    'journey-start': 'Where to next?', downtime: 'A little time to rest.', season: 'A new season.',
+    patient: 'The art of care.', 'patient-expired': 'A difficult goodbye.',
+    'foraging-remedy': 'The art of care.', 'barter-remedy': 'The art of care.',
+    'treatment-reward': 'A little kindness.', 'local-help': 'A little kindness.',
+    archive: 'The casebook.', manual: 'An unfinished story.', encounter: 'Along the way.',
+    foraging: 'Among the leaves.', barter: 'A fair exchange.', scrounging: 'Among the leaves.',
+    'journey-end': 'The journey, remembered.', delve: 'Beneath the woods.', chase: 'Find your way.', move: 'On the road.'
+  } as Record<string, string>)[next.kind] || 'Field notes.';
+  const facts = journey.active ? [
+    { label: '여정 목적지', value: localizeLocationName(state.journeyDestination) || '미정' },
+    { label: '여정 달력', value: `${calendar.calendarDays} / ${state.calendarMaxDays || 0}일` },
+    { label: '남은 기한', value: `${Math.max(0, (state.calendarMaxDays || 0) - calendar.calendarDays)}일` },
+    { label: '길드 명성', value: `${state.reputation || 0}` }
+  ] : [
+    { label: '누적 여행', value: `${calendar.cumulativeDays}일` },
+    { label: '마친 계절', value: `${state.completedSeasons || 0}회` },
+    { label: '길드 명성', value: `${state.reputation || 0}` }
+  ];
 
-  return (
-    <section className="today-overview" aria-labelledby="today-title">
-      <div className="today-focus">
-      <div className="today-scene">
-        <span className="today-scene__mark emoji-icon" aria-hidden="true">🧭</span>
-        <span className="today-scene__folio" aria-hidden="true">들녘 기록 / 01</span>
-        <div className="today-scene__copy">
-          <span className="today-scene__season"><span className="emoji-icon" aria-hidden="true">🌤️</span> {localizeSeasonLabel(state.currentSeason)}</span>
-          <p>오늘의 들녘 기록</p>
-          <h2 id="today-title">
-            <span className="today-title__place">{dayPlace}</span>
-            <span className="today-title__phrase">{dayPhrase}</span>
-          </h2>
-          <div className="today-scene__actions">
-            <button
-              type="button"
-              onClick={onContinue}
-              aria-label={`${continuity.continueLabel}. ${continuity.nextAction}`}
-              title={continuity.guidance}
-            >
-              <span className="emoji-icon" aria-hidden="true">🧭</span> {continuity.continueLabel}
-            </button>
-            <button
-              type="button"
-              className="today-scene__map-preview"
-              onClick={() => document.getElementById('play-journey-map')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-            >
-              <span className="emoji-icon" aria-hidden="true">🗺️</span> 지도에 짚어보기
-            </button>
-            <button type="button" className="today-scene__reference" onClick={() => onOpenReference(referenceForJournalTab('play', state))}>
-              <span className="emoji-icon" aria-hidden="true">📚</span> 현재 절차 확인
-            </button>
-          </div>
-        </div>
+  return <section className="workspace-today" aria-labelledby="today-title">
+    <div className="workspace-today__main">
+      <div className="workspace-today__context">
+        <span className="workspace-kicker">{patient || legacy ? '오늘의 진료' : '길 위의 약제사'}</span>
+        <span>{localizeLocationName(state.currentLocationName)} · {localizeSeasonLabel(state.currentSeason)}</span>
       </div>
-
-      <section className={`campaign-continuity campaign-continuity--${continuity.stage}`} aria-labelledby="campaign-continuity-title">
-        <div className="campaign-continuity__heading">
-          <div>
-            <span className="journal-note-label">캠페인 이어보기</span>
-            <h3 id="campaign-continuity-title">{continuity.label}</h3>
-          </div>
-          <span className="campaign-continuity__season">{localizeSeasonLabel(state.currentSeason)}</span>
-        </div>
-        <dl className="campaign-continuity__facts">
-          {continuityFacts.map(fact => (
-            <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>
-          ))}
-        </dl>
-        {journeyActive && state.journeyGoalTitle ? (
-          <div className="campaign-continuity__goal">
-            <span>이번 여정의 목표</span>
-            <strong>{state.journeyGoalTitle}</strong>
-            <p>{localizeJourneyGoalText(state.journeyGoalDesc || state.journeyGoalProgress || '완료 조건을 여정 기록에서 확인하세요.')}</p>
-          </div>
-        ) : null}
-        {patient || legacyAilment ? (
-          <p className="campaign-continuity__clock-note">
-            <strong>달력과 질환 Timer는 별개입니다.</strong>
-            <span>채집·물물교환은 환자의 남은 시간을 줄이고, 여정 달력은 Move 완료 또는 조우의 ‘하루 표시’ 지시 때만 갑니다.</span>
-          </p>
-        ) : null}
-        <p className="campaign-continuity__guidance">
-          <strong>{continuity.nextAction}</strong>
-          <span>{continuity.guidance}</span>
-        </p>
-        {recentTimeChanges.length > 0 ? (
-          <details className="campaign-continuity__history">
-            <summary>최근 시간 변화 {recentTimeChanges.length}건</summary>
-            <ol>{recentTimeChanges.map((line: string, index: number) => <li key={`${line}:${index}`}>{line}</li>)}</ol>
-          </details>
-        ) : null}
-      </section>
+      <p className="folio-scene-title" aria-hidden="true">{sceneTitle}</p>
+      <h2 id="today-title">{next.title}</h2>
+      <p className="workspace-today__reason">{next.reason}</p>
+      <div className="workspace-today__actions">
+        <button type="button" className="workspace-primary" onClick={onContinue}>{next.label}<span aria-hidden="true"> →</span></button>
+        <button type="button" className="workspace-link" onClick={() => onOpenReference(next.reference)}>이 단계의 규칙</button>
       </div>
-
-      {hasResumeContext ? <div className="today-story today-story--resume" aria-label="다시 시작할 때 필요한 맥락">
-        {patient || legacyAilment ? (
-        <article className="today-patient">
-          <span className="journal-note-label">오늘 돌볼 이</span>
-          <h3>{patient?.name || legacyAilment?.patientName || '이름 없는 환자'}</h3>
-          <p>{patient?.species || legacyAilment?.species || '종 미기록'}</p>
-          <dl>
-            <div><dt>병증</dt><dd>{ailmentName}</dd></div>
-            <div><dt>질환 Timer</dt><dd>{patient ? displayTimer(patient) : `${legacyAilment.timer}시간`}</dd></div>
-          </dl>
-          <p className="today-patient__clock-note">이 시간은 여정 일수와 별개입니다. 치료를 마치면 Moving On으로 다음 Move를 준비합니다.</p>
-          <button type="button" className="journal-text-action" onClick={() => onNavigate('ailments')}>
-            <span className="emoji-icon" aria-hidden="true">🩺</span> 진료 수첩 펼치기
-          </button>
-        </article>
-        ) : null}
-
-        {requirements.length ? (
-        <article className="today-herbs">
-          <span className="journal-note-label">찾아야 할 약초</span>
-          <h3>처방에 필요한 기운</h3>
-          <ul>{requirements.map(word => <li key={word}>{word}</li>)}</ul>
-          <button type="button" className="journal-text-action" onClick={() => onNavigate('reagents')}>
-            <span className="emoji-icon" aria-hidden="true">🌿</span> 약초 도감 살피기
-          </button>
-        </article>
-        ) : null}
-
-        {isOverCapacity ? (
-        <article className="today-bag">
-          <span className="journal-note-label">이동 전 확인</span>
-          <h3>가방 한도 초과 · {currentWeight.toFixed(1)} / {maxCarry}</h3>
-          <p>영약재 {state.bag?.filter((item: any) => item.type === 'reagent').length || 0} · 도구 {state.bag?.filter((item: any) => item.type === 'tool').length || 0}</p>
-          <div className="today-bag__line"><span style={{ width: `${Math.min(100, (currentWeight / Math.max(1, maxCarry)) * 100)}%` }} /></div>
-          <button type="button" className="journal-text-action" onClick={() => onNavigate('bio')}>
-            <span className="emoji-icon" aria-hidden="true">🎒</span> 배낭 정리하기
-          </button>
-        </article>
-        ) : null}
-
-        {recentJournal ? (
-        <article className="today-journal">
-          <span className="journal-note-label">최근에 남긴 기록</span>
-          <h3>{journalDisplayTitle(recentJournal)}</h3>
-          <p className="today-journal__summary">{recentJournalSummary || '남긴 내용이 없습니다.'}</p>
-          <button type="button" className="journal-text-action" onClick={() => onNavigate('journals')}>
-            <span className="emoji-icon" aria-hidden="true">✒️</span> 지난 기록 읽기
-          </button>
-        </article>
-        ) : null}
+      {patient || legacy || overCapacity ? <div className="workspace-patient-strip" aria-label="현재 진료와 준비물">
+        {patient || legacy ? <>
+          <div><span>현재 환자</span><strong>{patient?.name || legacy?.patientName || '이름 없는 환자'}</strong><small>{legacy?.name || ailment?.legacyName || '병증 확인 중'}</small></div>
+          {requirements.length > 0 && <div><span>필요 약효</span><strong className="workspace-patient-strip__tags">{requirements.map(value => value.replace(/\b[A-Z]+\b/g, formatRuleTag)).join(' · ')}</strong></div>}
+          <div><span>가장 급한 치료 기한</span><strong className={timers.shortestHours === 0 ? 'is-urgent' : ''}>{timers.shortestHours === null ? '기한 없음' : `${timers.shortestHours}시간`}</strong>{timers.activeTimers.length > 1 && <small>{timers.activeTimers.length}개 기한을 각각 추적합니다</small>}</div>
+        </> : null}
+        {overCapacity && <div className="is-urgent"><span>배낭 한도 초과</span><strong>{currentWeight.toFixed(1)} / {maxCarry}</strong><button type="button" className="workspace-link" onClick={() => onNavigate('bio')}>짐 정리하기</button></div>}
       </div> : null}
-    </section>
-  );
+    </div>
+    <div className="workspace-today__atmosphere" aria-hidden="true">
+      <img src="/art/forest-folio.jpg" alt="" />
+      <span className="workspace-today__seal">01</span>
+      <span className="workspace-today__flourish">✦</span>
+      <span>The Bristley Woods<small>A travelling apothecary's journal</small></span>
+    </div>
+    <details className="workspace-session">
+      <summary><span>{journey.active ? '여정과 남긴 기록' : '나의 여행 기록'}</span><span>{journey.active ? `${calendar.calendarDays} / ${state.calendarMaxDays || 0}일` : `${state.completedSeasons || 0}계절`}<span aria-hidden="true"> ＋</span></span></summary>
+      <div className="workspace-session__body">
+        <dl>{facts.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}</dl>
+        {journey.active && state.journeyGoalTitle && <p><strong>이번 목표 · {state.journeyGoalTitle}</strong><br />{localizeJourneyGoalText(state.journeyGoalDesc || '')}</p>}
+        {recent && <div><strong>{journalDisplayTitle(recent)}</strong>{arrival ? <dl className="workspace-arrival-preview"><div><dt>첫인상</dt><dd>{arrival.impression}</dd></div><div><dt>병증</dt><dd>{arrival.diagnosis}</dd></div></dl> : <p>{journalPreview(recent, 160)}</p>}<button type="button" className="workspace-link" onClick={() => onNavigate('journals')}>기록 펼치기 →</button></div>}
+        <button type="button" className="workspace-link" onClick={() => onNavigate('map')}>세계 지도에서 보기 →</button>
+      </div>
+    </details>
+  </section>;
 }

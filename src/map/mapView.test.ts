@@ -130,7 +130,7 @@ describe('map interaction contracts', () => {
     expect(appSource).toContain('key={journeyStartDraftRevision}');
   });
 
-  it('interprets a drawn destination card and supports measured or printed-map-confirmed candidates', () => {
+  it('interprets a drawn destination card and supports measured or site-map-confirmed candidates', () => {
     expect(appSource).toContain('journey-card-result');
     expect(appSource).toContain('이 카드의 목적지');
     expect(appSource).toContain('journeyDestinationRequirement.direction.short');
@@ -140,7 +140,7 @@ describe('map interaction contracts', () => {
     expect(appSource).toContain('수로 {candidate.routeSummary.waterwayCount}');
     expect(appSource).toContain('destinationDistanceConfirmed');
     expect(appSource).toContain('journeyDistanceConfirmedManually');
-    expect(appSource).toContain('인쇄 지도에서 {journeyDestinationRequirement?.distance}임을 확인했습니다.');
+    expect(appSource).toContain('사이트 지도에서 {journeyDestinationRequirement?.distance}임을 확인했습니다.');
   });
 
   it('only asks gameplay to travel from the Travel action', () => {

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 const appSource = readFileSync(fileURLToPath(new URL('./App.tsx', import.meta.url)), 'utf8');
 const routeComposerSource = readFileSync(fileURLToPath(new URL('./components/RouteComposer.tsx', import.meta.url)), 'utf8');
-const cssSource = readFileSync(fileURLToPath(new URL('./index.css', import.meta.url)), 'utf8');
+const cssSource = readFileSync(fileURLToPath(new URL('./index.css', import.meta.url)), 'utf8') + readFileSync(fileURLToPath(new URL('./workspace.css', import.meta.url)), 'utf8');
 
 describe('mobile layout regression guards', () => {
   it('never hides save feedback and wraps long cloud/error states outside the title lane', () => {
@@ -47,7 +47,7 @@ describe('mobile layout regression guards', () => {
     expect(cssSource).toMatch(/\.encounter-dialog-actions\s*\{[\s\S]*?display:\s*grid\s*!important/);
     expect(appSource).toContain('className="encounter-journal-note"');
     expect(appSource).toContain('defaultValue={activeTravelEncounter.journalNote || state.pendingEncounter?.journalNote || \'\'}');
-    expect(cssSource).toMatch(/\.encounter-journal-note textarea\s*\{[\s\S]*?font-size:\s*1rem\s*!important/);
+    expect(cssSource).toMatch(/\.encounter-journal-note textarea\s*\{[\s\S]*?font-size:\s*1\.0625rem\s*!important/);
   });
 
   it('keeps the current task ahead of historical and fallback material', () => {
@@ -61,11 +61,11 @@ describe('mobile layout regression guards', () => {
   });
 
   it('keeps gameplay controls and semantic copy above the fine-print scale', () => {
-    expect(cssSource).toMatch(/\.main-content-panel :is\(button, input, select, textarea\)[\s\S]*?font-size:\s*0\.9375rem\s*!important/);
-    expect(cssSource).toMatch(/\.main-content-panel :is\(p, li, dt, dd, label, td, th\)[\s\S]*?font-size:\s*max\(0\.875rem, 1em\)/);
-    expect(cssSource).toMatch(/\.save-state,[\s\S]*?\.action-hub__chip,[\s\S]*?font-size:\s*0\.875rem\s*!important/);
-    expect(cssSource).toMatch(/#treatment-workspace :is\(p, span, strong, small, summary, label\),[\s\S]*?font-size:\s*0\.875rem\s*!important/);
-    expect(cssSource).toMatch(/\.route-composer :is\(span, small, strong, em\)\s*\{[\s\S]*?font-size:\s*0\.875rem\s*!important/);
+    expect(cssSource).toMatch(/\.main-content-panel :is\(button, input, select, textarea\)[\s\S]*?font-size:\s*1\.125rem\s*!important/);
+    expect(cssSource).toMatch(/\.main-content-panel :is\(p, li, dt, dd, label, td, th\)[\s\S]*?font-size:\s*max\(1\.25rem, 1em\)/);
+    expect(cssSource).toMatch(/\.save-state,[\s\S]*?\.action-hub__chip,[\s\S]*?font-size:\s*1\.0625rem\s*!important/);
+    expect(cssSource).toMatch(/#treatment-workspace :is\(p, span, strong, small, summary, label\),[\s\S]*?font-size:\s*1\.0625rem\s*!important/);
+    expect(cssSource).toMatch(/\.route-composer :is\(span, small, strong, em\)\s*\{[\s\S]*?font-size:\s*1\.0625rem\s*!important/);
   });
 
   it('keeps treatment comparison, selection, and its primary action in one responsive workspace', () => {

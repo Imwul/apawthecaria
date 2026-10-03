@@ -22,6 +22,7 @@ import { normalizeEncounterConditions } from './encounterConditionRuntime';
 import { normalizeTravelEncounterWorldState } from './travelEncounterRuntime';
 import { CURRENT_SCHEMA_VERSION, type PatientState, type TreatmentDraft } from './state';
 import type { EngineInventoryItem } from './gameplay';
+import { rememberCustomReagents, type CustomReagentCatalogueEntry } from './customReagentCatalogue';
 import type { CanonicalToolState } from './toolEngine';
 import type { TreatmentAilmentTagOverride } from './treatmentEngine';
 import type { AilmentSeverity, RulebookEdition, RulesetId, RuleTag } from './types';
@@ -59,6 +60,13 @@ export const migrateLegacyBagItem = (item: LegacyBagItem): LegacyBagItem => {
     return { ...item, canonicalToolId: item.canonicalToolId || toolAliases[normalize(item.id || '')] };
   }
   if (item.type !== 'reagent') return item;
+  // A deliberately invented Foreign/Replacement Part can share a printed
+  // name. It must retain its chosen Tag instead of becoming that namesake.
+  if (item.customReagent && typeof item.customReagent === 'object') return {
+    ...item,
+    weight: typeof item.weight === 'number' ? item.weight : 2 / 3,
+    usesRemaining: typeof item.usesRemaining === 'number' ? item.usesRemaining : 1
+  };
   const itemName = normalize(item.name || '');
   const reagent = REAGENTS.find(candidate =>
     item.canonicalReagentId === candidate.id
@@ -871,17 +879,17 @@ const normalizePendingForaging = (
   const rawSpecialAcquisition = isSaveRecord(value.specialAcquisition)
     ? value.specialAcquisition
     : null;
-  const specialAcquisition = rawSpecialAcquisition?.kind === 'unbuckled-cache'
+  const specialAcquisition = (rawSpecialAcquisition?.kind === 'unbuckled-cache' || rawSpecialAcquisition?.kind === 'replacement')
     && typeof rawSpecialAcquisition.cacheId === 'string'
     && Boolean(rawSpecialAcquisition.cacheId.trim())
     && typeof rawSpecialAcquisition.label === 'string'
     && Boolean(rawSpecialAcquisition.label.trim())
     ? {
-      kind: 'unbuckled-cache' as const,
+      kind: rawSpecialAcquisition.kind as 'unbuckled-cache' | 'replacement',
       cacheId: rawSpecialAcquisition.cacheId,
       label: rawSpecialAcquisition.label,
       itemCount: Number.isFinite(Number(rawSpecialAcquisition.itemCount))
-        ? Math.max(1, Math.floor(Number(rawSpecialAcquisition.itemCount)))
+        ? Math.max(rawSpecialAcquisition.kind === 'replacement' ? 0 : 1, Math.floor(Number(rawSpecialAcquisition.itemCount)))
         : 1
     }
     : undefined;
@@ -894,7 +902,8 @@ const normalizePendingForaging = (
     candidateSelectionReagentId: phase === 'choose-reagent'
       ? canonicalReagentId(value.candidateSelectionReagentId)
       : undefined,
-    selectedReagentId: canonicalReagentId(value.selectedReagentId),
+    selectedReagentId: phase !== 'choose-reagent' && specialAcquisition?.kind === 'replacement'
+      ? specialAcquisition.cacheId : canonicalReagentId(value.selectedReagentId),
     specialAcquisition: phase === 'choose-reagent' ? undefined : specialAcquisition,
     locationRelation: value.locationRelation === 'adjacent' ? 'adjacent' : 'current',
     timerCostAfterEncounter: Number.isFinite(Number(value.timerCostAfterEncounter))
@@ -950,6 +959,19 @@ const normalizePendingBarter = (
   const locationId = typeof value.locationId === 'string' ? value.locationId.trim() : '';
   const reagent = REAGENT_BY_ID.get(reagentId);
   const preparation = reagent?.preparations.find(row => row.id === preparationId);
+  const replacementAilmentId = isSaveRecord(value.replacement) ? value.replacement.ailmentInstanceId : null;
+  const replacement = isSaveRecord(value.replacement)
+    && value.replacement.kind === 'replacement'
+    && value.replacement.id === reagentId
+    && value.replacement.baseRarity === 12
+    && typeof value.replacement.name === 'string' && Boolean(value.replacement.name.trim())
+    && typeof value.replacement.preparation === 'string' && Boolean(value.replacement.preparation.trim())
+    && normalizeNonNegativeInteger(value.replacement.requiredPotency) !== null
+    && Number(value.replacement.requiredPotency) > 0
+    && (!value.replacement.patientId || value.replacement.patientId === patientId)
+    && (!value.replacement.ailmentInstanceId || context.patients.find(patient => patient.id === patientId)?.ailments
+      .some(ailment => ailment.id === replacementAilmentId && ailment.status === 'active'))
+    ? value.replacement : null;
   const locationType = value.locationType === 'City' || value.locationType === 'Settlement'
     ? value.locationType
     : null;
@@ -962,7 +984,7 @@ const normalizePendingBarter = (
   const socialEncounter = SOCIAL_ENCOUNTERS.find(encounter => encounter.id === socialEncounterId) ?? null;
   const socialStepSkipped = value.socialStepSkipped === true;
   const paymentRequired = normalizeNonNegativeInteger(value.paymentRequired);
-  if (!barterId || !reagent || !preparation || reagent.type === 'TITAN' || !locationId || !locationType || calculatedBR === null) {
+  if (!barterId || ((!reagent || !preparation) && !replacement) || reagent?.type === 'TITAN' || !locationId || !locationType || calculatedBR === null) {
     return null;
   }
   if (status === 'manual-social' && (!firstCard || !socialEncounter)) return null;
@@ -976,8 +998,9 @@ const normalizePendingBarter = (
     ...value,
     barterId,
     patientId,
-    targetReagentId: reagent.id,
-    preparationId: preparation.id,
+    targetReagentId: replacement ? reagentId : reagent!.id,
+    preparationId: replacement ? preparationId : preparation!.id,
+    replacement: replacement || undefined,
     locationId,
     locationType,
     calculatedBR,
@@ -1117,6 +1140,7 @@ const normalizeCurrentSave = (saved: SaveRecord): SaveRecord => {
       : [],
     currentSeason: normalizeSeason(withMetadata.currentSeason),
     bag,
+    customReagentCatalogue: rememberCustomReagents(withMetadata.customReagentCatalogue, bag),
     routeDraft: normalizeRouteDraft(withMetadata.routeDraft),
     activePatientId,
     patients,
@@ -1183,6 +1207,7 @@ export const migrateSavedRulesState = <T extends Record<string, unknown>>(saved:
     activePatientId: string | null;
     patients: PatientState[];
     appliedTransactionIds: string[];
+    customReagentCatalogue: CustomReagentCatalogueEntry[];
     appliedEncounterEffectIds: string[];
     pendingBarter: unknown | null;
     journey: unknown | null;

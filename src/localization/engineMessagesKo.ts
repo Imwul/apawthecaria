@@ -2,6 +2,11 @@ import { localizeCanonicalToolName } from './gameplayKo';
 import { normalizeGuildReputationTerms } from './guildReputation';
 
 const exactEngineMessages: Record<string, string> = {
+  'Replacement must belong to this active Patient and Barter.': '대체 재료는 현재 환자를 위한 이번 물물교환에 연결되어야 합니다.',
+  'Replacement must belong to the active Patient and this Forage.': '대체 재료는 현재 환자를 위한 이번 채집에 연결되어야 합니다.',
+  'Replacement requires a name, preparation, and positive Tag potency.': '대체 재료의 이름·조제법·1 이상의 약효 값을 정하세요.',
+  'Every selected Remedy ingredient must be a prepared Reagent in Inventory.': '치료제에 선택한 모든 재료는 배낭에 있는 조제 가능한 영약재여야 합니다.',
+
   "Odoak Market · Foreign Reagent": "Odoak 시장 · 외지 영약재",
   "The Wailing Curse drove the Apothecary away; no reward was taken.": "통곡의 저주에 밀려 방에서 달아났습니다. 발견물은 얻지 못했습니다.",
   "A Clammy Deal requires 3 Trinkets for this payment choice.": "이 방식으로 진주를 거래하려면 장신구 3개가 필요합니다.",
@@ -540,6 +545,7 @@ const localizeAilmentSeverity = (value: string): string => ({
 } as Record<string, string>)[value] || value;
 
 const dynamicEngineMessages: Array<[RegExp, (...matches: string[]) => string]> = [
+  [/^This Encounter Remedy requires (.+) separately prepared doses\. Select enough matching Parts and remaining Uses for each dose\.$/, (count) => `이 조우는 치료제 ${count}회분을 각각 준비해야 합니다. 각 회분의 부위와 남은 사용 횟수를 확인하세요.`],
   [/^This Encounter Remedy requires (.+) separately prepared doses \((.+)\)\. The single-Remedy transaction cannot safely combine or consume them; resolve the listed doses separately\.$/, (count, doses) => `이 조우 치료에는 서로 따로 만든 치료제 ${count}회분(${doses})이 필요합니다. 한 번의 일반 치료로 합치지 말고 각 회분을 따로 준비해 판정하세요.`],
   [/^Unknown Season: (.+)$/, season => `알 수 없는 계절입니다: ${season}`],
   [/^Unknown season: (.+)$/, season => `알 수 없는 계절입니다: ${season}`],

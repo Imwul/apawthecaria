@@ -1206,7 +1206,7 @@ export const resolveOdoakMarket = (input: TransactionEnvelope & ({
     weight: 2 / 3,
     quantity: 1,
     usesRemaining: 1,
-    customReagent: { baseRarity: 0, targetTag: input.tag, preparation: methods.join(' / ') },
+    customReagent: { baseRarity: 0, targetTag: input.tag, preparation: methods.join(' / '), potency: 2, reagentType: input.reagentType, uses: 1 },
     encounterMetadata: {
       kind: 'foreign-reagent',
       reagentType: input.reagentType,

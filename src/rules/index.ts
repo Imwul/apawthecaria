@@ -31,6 +31,8 @@ export * from './serviceEngine';
 export * from './travelEngine';
 export * from './travelEncounterRuntime';
 export * from './treatmentEngine';
+export * from './inventoryPreparation';
+export * from './customReagentCatalogue';
 export * from './toolEngine';
 export * from './almanackEngine';
 export * from './source';

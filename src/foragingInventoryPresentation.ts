@@ -1,4 +1,4 @@
-import { formatPreparationName, localizeInventoryItemName, localizePreparationMethod } from './localization/gameplayKo';
+import { formatPreparationName, localizeInventoryItemName, localizePreparationMethod, localizePreparationName } from './localization/gameplayKo';
 import { REAGENT_BY_ID, REAGENTS } from './rules/data/reagents';
 import type { ReagentDefinition, RuleTag, TagValue } from './rules/types';
 
@@ -117,7 +117,7 @@ const parsedReagentItem = (value: string, canonicalReagentId?: string | null): P
   if (!reagent) return { reagent: null, detail: localizeInventoryItemName(value) };
   const canonicalPreparation = parsed.preparation
     ? reagent.preparations.find(part =>
-      part.name === parsed.preparation || formatPreparationName(part.name).endsWith(`(${parsed.preparation})`)
+      part.name === parsed.preparation || localizePreparationName(part.name) === parsed.preparation
     )?.name || parsed.preparation
     : '';
   const detail = [

@@ -386,7 +386,8 @@ const S: Record<string, PreparationSpec[]> = {
 
 const slugify = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-const toolsForMethod = (method: string): PreparationToolId[] => {
+export const toolsForPreparationMethod = (rawMethod: string): PreparationToolId[] => {
+  const method = rawMethod.toUpperCase();
   const tools: PreparationToolId[] = [];
   if (/GROUND|CRUSHED/.test(method)) tools.push('mortar-and-pestle');
   if (/BOILED|BREWED/.test(method)) tools.push('camp-kettle');
@@ -406,7 +407,7 @@ export const CANONICAL_PREPARATIONS: Record<string, ReagentPreparation[]> = Obje
   Object.entries(S).map(([reagent, preparations]) => [
     reagent,
     preparations.map(([part, method, weight, tags, options], index) => {
-      const requiredTools = toolsForMethod(method);
+      const requiredTools = toolsForPreparationMethod(method);
       const sourcePage = (canonicalAvailability as Record<string, { sourcePage: number }>)[reagent]?.sourcePage;
       if (!sourcePage) throw new Error(`Missing preparation source page for ${reagent}`);
       return {

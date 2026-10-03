@@ -1,5 +1,18 @@
 import type { RouteComposerReason } from '../map/routeComposer';
 
+export const routeExecutionPreview = (input: {
+  destinationName: string;
+  destinationKind: string;
+  movementMode: 'move' | 'soar';
+  days: number;
+  soakedItemNames: string[];
+}): string => {
+  const encounter = input.movementMode === 'soar' ? '활공 조우'
+    : ['City', 'Settlement', 'Clinic'].includes(input.destinationKind) ? '사교 조우' : '도착 지역의 여행 조우';
+  const soaking = input.soakedItemNames.length > 0 ? ` · 젖어서 버릴 물품: ${input.soakedItemNames.join(', ')}` : '';
+  return `${input.destinationName}에 도착 · 달력 ${input.days}일 소비 · ${encounter} 카드 1장${soaking}`;
+};
+
 export const routeReadinessText = ({
   movementMode,
   travelReady,

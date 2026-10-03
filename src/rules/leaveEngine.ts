@@ -210,9 +210,13 @@ export const commitAlternativeAcquisition = (input: {
   if (input.state.inventory.some(item => item.provenance?.acquisitionId === acquisition.id)) return { status: 'invalid', value: null, messages: ['This Replacement acquisition is already in Inventory.'] };
   const name = acquisition.kind === 'replacement' ? acquisition.name?.trim() : `Make Do: ${acquisition.targetTag}`;
   if (!name || (acquisition.kind === 'replacement' && !acquisition.preparation?.trim())) return { status: 'invalid', value: null, messages: ['Replacement requires a custom name and preparation.'] };
-  const item: EngineInventoryItem = {
-    id: `alternative:${input.transactionId}`,
-    name: `${name} (${acquisition.preparation || 'Substitute'})`,
+  const item = replacementInventoryItem(acquisition, input.source, input.sourceTransactionId, `alternative:${input.transactionId}`);
+  return { status: 'resolved', value: { ...input.state, inventory: [...input.state.inventory, item], appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId], journalEvents: [...input.state.journalEvents, { id: `${input.transactionId}:journal`, type: 'foraging', title: acquisition.kind === 'replacement' ? 'Replacement Acquired' : 'Make Do Acquired', text: `${item.name} acquired through ${input.source}; BR ${acquisition.baseRarity ?? acquisition.requiredPotency}, Weight ${item.weight}, target ${acquisition.targetTag}, source REMEDY-003.` }] }, messages: [] };
+};
+
+export const replacementInventoryItem = (acquisition: AlternativeAcquisition, source: 'forage' | 'barter', sourceTransactionId: string, id: string): EngineInventoryItem => ({
+    id,
+    name: `${acquisition.name || 'Replacement'} (${acquisition.preparation || 'USED'})`,
     type: 'reagent',
     weight: acquisition.kind === 'replacement' ? 2 / 3 : 1 / 3,
     quantity: 1,
@@ -220,16 +224,16 @@ export const commitAlternativeAcquisition = (input: {
     customReagent: {
       baseRarity: acquisition.baseRarity ?? acquisition.requiredPotency,
       targetTag: acquisition.targetTag,
-      preparation: acquisition.preparation || 'Substitute'
+      preparation: acquisition.preparation || 'Substitute',
+      potency: acquisition.requiredPotency,
+      uses: 1
     },
     provenance: {
       acquisitionId: acquisition.id,
-      source: input.source,
-      sourceTransactionId: input.sourceTransactionId
+      source,
+      sourceTransactionId
     }
-  };
-  return { status: 'resolved', value: { ...input.state, inventory: [...input.state.inventory, item], appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId], journalEvents: [...input.state.journalEvents, { id: `${input.transactionId}:journal`, type: 'foraging', title: acquisition.kind === 'replacement' ? 'Replacement Acquired' : 'Make Do Acquired', text: `${item.name} acquired through ${input.source}; BR ${acquisition.baseRarity ?? acquisition.requiredPotency}, Weight ${item.weight}, target ${acquisition.targetTag}, source REMEDY-003.` }] }, messages: [] };
-};
+  });
 
 export interface PawnPreview {
   selectedItemIds: string[];
