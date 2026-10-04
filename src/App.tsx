@@ -12740,7 +12740,7 @@ export default function App() {
           {isOnboarding ? (
             <section className="onboarding-focus" aria-labelledby="onboarding-title">
               <header className="onboarding-focus__intro">
-                <img className="onboarding-focus__art" src="/art/forest-folio.jpg" alt="" />
+                <img className="onboarding-focus__art" src="/art/woodland-whimsy.webp" alt="" />
                 <div className="onboarding-focus__welcome">
                   <p className="folio-chapter-title" aria-hidden="true">Your story begins.</p>
                   <span className="document-kicker">당신의 이야기가 자라는 곳</span>

@@ -177,12 +177,10 @@ export function ChapterOpening({
   return (
     <header className={`chapter-opening adventure-tool-heading chapter-opening--${tab}`} aria-labelledby={`chapter-title-${tab}`}>
       <div className="chapter-opening__plate" aria-hidden="true">
-        <img className="chapter-opening__art" src={tab === 'reagents' || tab === 'ailments' || tab === 'livingArchive' ? '/art/botanical-endpaper.webp' : '/art/forest-folio.jpg'} alt="" />
-        <span className="chapter-opening__seal">{CHAPTER_NUMBER[tab]}</span>
-        <p className="folio-chapter-title">{CHAPTER_ENGLISH[tab]}</p>
-        <span className="chapter-opening__flourish">✦</span>
+        <img className="chapter-opening__art" src="/art/woodland-whimsy.webp" alt="" />
       </div>
       <div className="chapter-opening__copy">
+        <p className="folio-chapter-title" aria-hidden="true">{CHAPTER_ENGLISH[tab]}</p>
         <p className="chapter-opening__kicker">{chapter.kicker}</p>
         <h2 id={`chapter-title-${tab}`}>{chapter.title}</h2>
         <p className="chapter-opening__body">{chapter.body}</p>
@@ -206,7 +204,7 @@ export function ChapterOpening({
         </details>
         </div>
       </div>
-      <span className="folio-divider" aria-hidden="true"><span>✦</span></span>
+      <span className="folio-divider" aria-hidden="true"><span>✿</span></span>
     </header>
   );
 }
@@ -284,9 +282,7 @@ export function TodayOverview({ state, currentWeight, maxCarry, onNavigate, onCo
       </div> : null}
     </div>
     <div className="workspace-today__atmosphere" aria-hidden="true">
-      <img src="/art/forest-folio.jpg" alt="" />
-      <span className="workspace-today__seal">01</span>
-      <span className="workspace-today__flourish">✦</span>
+      <img src="/art/woodland-whimsy.webp" alt="" />
       <span>The Bristley Woods<small>A travelling apothecary's journal</small></span>
     </div>
     <details className="workspace-session">
