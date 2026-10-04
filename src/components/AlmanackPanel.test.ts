@@ -23,7 +23,7 @@ const renderCatalogue = (activeAilmentId?: string) => renderToStaticMarkup(creat
 describe('reference catalogue patient context', () => {
   it('does not label unrelated chapters as the current ailment when there is no diagnosis', () => {
     const html = renderCatalogue();
-    expect(html).toContain('Overview');
+    expect(html).toContain('플레이 흐름');
     expect(html).not.toContain('현재 질환');
     expect(html).toContain('진료 중인 환자 없음');
   });

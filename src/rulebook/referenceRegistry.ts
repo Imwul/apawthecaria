@@ -96,7 +96,7 @@ const PROCEDURES: RulebookReferenceEntry[] = [
   ['tools', 'Tools와 Upgrades', 62, 67, 'Tool effect, trigger, replacement, break/repair와 Upgrade를 공통 resolver로 처리합니다.', ['TOOL-003', 'TOOL-005']],
   ['wagon', 'Wagon', 68, 69, 'Carry, Speed, Waterway, Passenger, Clay Pots와 expansion lifecycle을 적용합니다.', ['WAGON-001', 'WAGON-002', 'WAGON-004']],
   ['companions', 'Companions', 70, 71, '지역 제한, Journey/Encounter/Season trigger, milestone과 reward를 적용합니다.', ['COMPANION-001', 'COMPANION-005']],
-  ['soaring', 'Soaring', 72, 73, 'Flightpath, 도착, 고유 조우와 이동 비용을 판정합니다.', ['TRAVEL-002', 'TRAVEL-009']],
+  ['soaring', 'Soaring', 25, 25, 'Flightpath, 도착, 고유 조우와 이동 비용을 판정합니다.', ['TRAVEL-002', 'TRAVEL-009']],
   ['barrows', 'Barrow Delve', 116, 125, '진입 조건, class/suit challenge, 선택, 결과와 지도 귀환을 처리합니다.', ['BARROW-001', 'BARROW-007']]
 ].map(([id, title, sourcePage, endPage, summary, ruleIds]) => createEntry({
   id: `procedure:${id}`,
@@ -334,7 +334,7 @@ const DOWNTIME_ENTRIES = [createEntry({
 const GUIDANCE_ENTRIES = [
   createEntry({ id: 'guidance:specific-overrides-general', kind: 'guidance', title: 'Specific Overrides General', summary: '두 규칙이 충돌하면 더 구체적인 규칙이 우선합니다.', sourcePage: 6, ruleIds: ['CORE-001'], runtimeStatus: 'reference-only', details: [detail('Source type', 'Player guidance')], relatedIds: ['chapter:introduction'] }),
   createEntry({ id: 'guidance:journaling', kind: 'guidance', title: 'Journaling', summary: 'Journal prompt는 글, 말, 그림 등 원하는 형식으로 멈춰 생각하는 지시입니다.', sourcePage: 7, ruleIds: [], runtimeStatus: 'reference-only', details: [detail('Source type', 'Player guidance')], relatedIds: ['chapter:introduction'] }),
-  createEntry({ id: 'guidance:manual-is-intentional', kind: 'guidance', title: 'Manual Resolution은 누락이 아닙니다', summary: '원문이 선택, 서술 또는 후속 판단을 플레이어에게 맡긴 경우 앱은 결론을 만들지 않고 필요한 맥락과 기록 수단을 제공합니다.', sourcePage: 7, ruleIds: [], runtimeStatus: 'reference-only', details: [detail('347개 Manual', '원작의 player choice / narrative / follow-up을 보존')], relatedIds: [] })
+  createEntry({ id: 'guidance:manual-is-intentional', kind: 'guidance', title: '플레이어가 정하는 이야기와 선택', summary: '원문이 선택이나 이야기의 의미를 플레이어에게 맡긴 경우 직접 골라 주세요. 수치 효과의 자동 적용 여부와 서술 선택은 서로 다른 문제입니다.', sourcePage: 7, ruleIds: [], runtimeStatus: 'reference-only', details: [detail('서술과 규칙', '자유로운 이야기 판단은 선택 사항이며, 입력하지 않아도 진행할 수 있습니다.')], relatedIds: [] })
 ];
 
 const EXAMPLE_ENTRIES = [

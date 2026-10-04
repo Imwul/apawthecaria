@@ -659,7 +659,8 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure"
+      "treatment-failure",
+      "treatment-success"
     ]
   },
   {
@@ -711,7 +712,8 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure"
+      "treatment-failure",
+      "treatment-success"
     ]
   },
   {
@@ -764,8 +766,7 @@
       "CORE-002"
     ],
     "triggers": [
-      "treatment-failure",
-      "treatment-success"
+      "treatment-failure"
     ]
   },
   {

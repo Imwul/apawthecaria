@@ -2,13 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ManualEffectDraft, ManualEffectRecord, RuleTag } from '../rules';
 import {
   RULEBOOK_REFERENCE_BY_ID,
-  referenceSearchReason,
-  searchReferenceEntries
+  referenceSearchReason
 } from '../rulebook/referenceRegistry';
 import { CHAPTER_FOR_PAGE } from '../rulebook/chapters';
 import { localizeRegionLabel, localizeSeasonLabel } from '../localization/gameplayKo';
 import { EMPTY_PERSONAL_RULEBOOK_STATE, loadPersonalRulebookState, savePersonalRulebookState } from '../rulebook/personalState';
-import { loadRulebookPage, searchRulebookPages } from '../rulebook/sourceLoader';
+import { searchRulebookPages } from '../rulebook/sourceLoader';
+import { readableReference, referenceChoices, searchReadableReferences } from '../rulebook/readingPresentation';
+import ReaderGuide from './ReaderGuide';
+import RulebookSourceText from './RulebookSourceText';
 import type {
   PersonalRulebookState,
   RulebookReferenceEntry,
@@ -95,7 +97,6 @@ export default function AlmanackPanel({
   const [ownedOnly, setOwnedOnly] = useState(false);
   const [bookmarkedOnly, setBookmarkedOnly] = useState(false);
   const [pageResults, setPageResults] = useState<RulebookSourcePage[]>([]);
-  const [sourcePage, setSourcePage] = useState<RulebookSourcePage | null>(null);
   const [personal, setPersonal] = useState<PersonalRulebookState>(() => loadPersonalRulebookState());
   const [consultationCategory, setConsultationCategory] = useState<PersonalRulebookState['consultations'][number]['category']>('rule wording');
   const [consultationReason, setConsultationReason] = useState('');
@@ -151,7 +152,7 @@ export default function AlmanackPanel({
   const isOwnedEntry = useCallback((entry: RulebookReferenceEntry) => Boolean(entry.ownerId && ownedIdSet.has(entry.ownerId)), [ownedIdSet]);
 
   const visible = useMemo(() => {
-    const canonical = searchReferenceEntries(query, kind).filter(entry => {
+    const canonical = searchReadableReferences(query, kind).filter(entry => {
       if (status !== 'all' && statusFor(entry) !== status) return false;
       if (bookmarkedOnly && !personal.bookmarks.includes(entry.id)) return false;
       if (ownedOnly && !isOwnedEntry(entry)) return false;
@@ -172,19 +173,9 @@ export default function AlmanackPanel({
   const selected = useMemo(() => {
     if (!selectedId) return null;
     if (selectedId.startsWith('source:p')) return pageResults.map(sourceEntry).find(entry => entry.id === selectedId) || null;
-    return RULEBOOK_REFERENCE_BY_ID.get(selectedId) || null;
+    const entry = RULEBOOK_REFERENCE_BY_ID.get(selectedId);
+    return entry ? readableReference(entry) : null;
   }, [pageResults, selectedId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!selected) return;
-    loadRulebookPage(selected.sourcePage).then(page => {
-      if (!cancelled) setSourcePage(page);
-    }).catch(() => {
-      if (!cancelled) setSourcePage(null);
-    });
-    return () => { cancelled = true; };
-  }, [selected]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -226,7 +217,6 @@ export default function AlmanackPanel({
 
   const note = selected ? personal.notes[selected.id] || '' : '';
   const houseRule = selected ? personal.houseRules[selected.id] || '' : '';
-  const sourceLoading = Boolean(selected && sourcePage?.page !== selected.sourcePage);
 
   const updatePersonalText = (field: 'notes' | 'houseRules', id: string, value: string) => {
     const next = { ...personal[field] };
@@ -287,7 +277,8 @@ export default function AlmanackPanel({
       </div>
 
       <div className="almanack__index" role="list">
-        {visible.slice(0, visibleLimit).map(entry => {
+        {visible.slice(0, visibleLimit).map(canonicalEntry => {
+          const entry = readableReference(canonicalEntry);
           const isBookmarked = personal.bookmarks.includes(entry.id);
           const resolutionStatus = statusFor(entry);
           return (
@@ -320,12 +311,11 @@ export default function AlmanackPanel({
             <section><span>출처</span><h4>원문 위치</h4><p>{selected.ruleIds.length ? `연결된 규칙 ${selected.ruleIds.length}개` : '별도 규칙 연결 없음'} · p.{selected.sourcePage}</p></section>
           </div>
 
-          {selected.relatedIds.length > 0 && <nav className="rulebook-crosslinks" aria-label="관련 룰북 항목"><strong>함께 읽기</strong><span>책의 ‘함께 보기’처럼 관련 지역·계절·약효·도구를 따라갑니다.</span>{selected.relatedIds.slice(0, 28).map(id => { const related = RULEBOOK_REFERENCE_BY_ID.get(id); return related ? <button type="button" key={id} onClick={() => openEntry(id)}><small>{KIND_LABELS[related.kind]}</small>{related.title}<span>p.{related.sourcePage}</span></button> : null; })}</nav>}
+          {selected.relatedIds.length > 0 && <nav className="rulebook-crosslinks" aria-label="관련 룰북 항목"><strong>함께 읽기</strong><span>책의 ‘함께 보기’처럼 관련 지역·계절·약효·도구를 따라갑니다.</span>{selected.relatedIds.slice(0, 28).map(id => { const related = RULEBOOK_REFERENCE_BY_ID.get(id); return related ? <button type="button" key={id} onClick={() => openEntry(id)}><small>{KIND_LABELS[related.kind]}</small>{readableReference(related).title}<span>p.{related.sourcePage}</span></button> : null; })}</nav>}
 
-          <details className="rulebook-source-text" aria-busy={sourceLoading}>
-            <summary>원본 룰북 p.{selected.sourcePage} 펼치기</summary>
-            {sourceLoading ? <p>원문 페이지를 여는 중...</p> : <pre>{sourcePage?.text || '페이지 텍스트를 불러오지 못했습니다.'}</pre>}
-          </details>
+          {referenceChoices(selected).length > 0 && <section><h3>이 장면의 선택과 결과</h3><ul className="reference-choices">{referenceChoices(selected).map((choice, index) => <li key={index}>{choice}</li>)}</ul></section>}
+          <ReaderGuide page={selected.sourcePage} />
+          <RulebookSourceText page={selected.sourcePage} endPage={selected.endPage} />
 
           <div className="rulebook-personal-layer">
             <div><h4>개인 메모</h4><p>이 메모는 정식 규칙 데이터나 캠페인 저장 기록을 바꾸지 않습니다.</p><textarea aria-label={`${selected.title} 개인 메모`} rows={4} value={note} onChange={event => updatePersonalText('notes', selected.id, event.target.value)} /></div>

@@ -57,21 +57,21 @@ const missingReagents: Array<{
   {
     canonicalName: 'Woundwort',
     displayName: '운드워트',
-    description: 'Hairy and foul smelling hedge nettles used for instinct and nerves.',
+    description: '털이 나 있고 냄새가 강한 풀입니다. 본능과 긴장을 다스리는 약재로 쓰입니다.',
     type: 'PLANT',
     baseRarity: 7
   },
   {
     canonicalName: 'Yarrow',
     displayName: '서양톱풀',
-    description: 'A wet-soil plant used for cramping, cycles, wounds and infection.',
+    description: '습한 땅에서 자라는 풀입니다. 경련과 주기적인 불편, 상처와 감염을 돌보는 데 쓰입니다.',
     type: 'PLANT',
     baseRarity: 7
   },
   {
     canonicalName: 'Yellow Wort',
     displayName: '옐로 워트',
-    description: 'A hardy yellow plant nicknamed mountain crest.',
+    description: '산의 볏이라는 별명이 붙은, 강인하게 자라는 노란 풀입니다.',
     type: 'PLANT',
     baseRarity: 4
   }

@@ -64,7 +64,7 @@ export const AILMENT_WORDING_CLAUSES: readonly AilmentWordingClause[] = [
   clause(111, 'ailment-seasonshift', 'trim-fur', 'may', 'For a thick coat, cutting back fur may add 2 to the Timer.', 'structured-choice', 'manual printed-effect transaction'),
   clause(112, 'ailment-smokesnout', 'fire-brigade', 'may', 'Choose to reduce the Timer by 2 to fight the fire and gain 4 Reputation.', 'structured-choice', 'manual printed-effect transaction'),
   clause(112, 'ailment-soured-dough', 'four-timers', 'must', 'Treat four separate Ailments with four Timers and individual rewards.', 'automatic', 'patientEngine repeatCount 4'),
-  clause(112, 'ailment-soured-dough', 'any-failure', 'if', 'If any patient is not cured, the next Remedy earns 0 Trinkets.', 'structured-choice', 'manual follow-up condition'),
+  clause(112, 'ailment-soured-dough', 'any-failure', 'if', 'If no patient is cured, the next Remedy earns 0 Trinkets.', 'structured-choice', 'manual follow-up condition'),
   clause(112, 'ailment-stingshock', 'two-doses', 'if', 'Two Remedy doses grant Emergency Averted and 3 Reputation.', 'automatic', 'treatmentEngine doseCount'),
   clause(113, 'ailment-snail-ails', 'settlement-ban', 'cannot', 'Failure prevents visiting the nearest Settlement until next Season.', 'structured-choice', 'manual follow-up condition'),
   clause(113, 'ailment-the-runs', 'low-foul', 'if', 'FOUL 1 or less cures the patient, pays Trinkets, and also applies the consequence.', 'automatic', 'treatmentEngine foul branch'),
@@ -79,4 +79,3 @@ export const AILMENT_WORDING_CLAUSES: readonly AilmentWordingClause[] = [
   clause(115, 'ailment-wingbreak', 'barter-rarity', 'if', 'Failure increases all Reagent Part Barter Rarity by 2 until the end of this Season.', 'structured-choice', 'manual follow-up condition'),
   clause(115, 'ailment-wormridden', 'foul-rule', 'if', 'FOUL cancels FAIR for this Ailment but adds no FOUL penalty.', 'automatic', 'treatmentEngine Wormridden branch')
 ];
-

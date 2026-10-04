@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { REAGENT_BY_ID } from './rules/data/reagents';
+import { REAGENT_BY_ID, REAGENTS } from './rules/data/reagents';
+import { RULE_TAGS } from './rules/tags';
+import { formatRuleTag, TAG_READING_KO } from './localization/tagReadingKo';
 import {
   formatReagentItemName,
   formatReagentName,
+  formatReagentPartChoice,
   gatheredReagentSummary,
   groupReagentPartNames,
   reagentInventorySearchText,
@@ -10,15 +13,40 @@ import {
 } from './foragingInventoryPresentation';
 
 describe('foraging and inventory presentation', () => {
-  it('uses the canonical English reagent name and only an exact Korean common name', () => {
+  it('explains every canonical tag in Korean while retaining the rule token', () => {
+    expect(Object.keys(TAG_READING_KO).sort()).toEqual([...RULE_TAGS].sort());
+    for (const tag of RULE_TAGS) {
+      expect(formatRuleTag(tag)).toMatch(/[가-힣]/);
+      expect(formatRuleTag(tag)).toContain(tag);
+    }
+    expect(formatRuleTag('사용자 태그')).toBe('사용자 태그');
+  });
+
+  it('pairs every canonical name with a Korean reading label without changing the data', () => {
     expect(formatReagentName(REAGENT_BY_ID.get('reagent-marigold')!)).toBe('Marigold (금잔화)');
-    expect(formatReagentName(REAGENT_BY_ID.get('reagent-lavender')!)).toBe('Lavender');
+    expect(formatReagentName(REAGENT_BY_ID.get('reagent-lavender')!)).toBe('Lavender (라벤더)');
+    for (const reagent of REAGENTS) {
+      expect(formatReagentName(reagent)).toMatch(/[가-힣]/);
+      expect(formatReagentName(reagent)).toContain(reagent.canonicalName);
+    }
   });
 
   it('normalizes legacy Korean and English names to one prepared-item label', () => {
     expect(formatReagentItemName('금잔화/메리골드 (꽃잎)', 'reagent-marigold')).toBe('Marigold (금잔화) — 꽃잎 (Petals)');
     expect(formatReagentItemName('Marigold (Petals)', 'reagent-marigold')).toBe(formatReagentItemName('금잔화/메리골드 (꽃잎)', 'reagent-marigold'));
     expect(formatReagentItemName('Marigold (Nectar, Added)', 'reagent-marigold')).toBe('Marigold (금잔화) — 꽃꿀 (Nectar) · 넣어 사용');
+  });
+
+  it('shows every part’s preparation, potency and uses before a service selection', () => {
+    for (const reagent of REAGENTS) for (const part of reagent.preparations) {
+      const label = formatReagentPartChoice(part);
+      expect(label).toContain(part.name);
+      expect(label).toContain(`${part.uses}회분`);
+      for (const tag of part.tags) {
+        expect(label).toContain(tag.tag);
+        expect(label).toContain(` ${tag.value}`);
+      }
+    }
   });
 
   it('groups different parts of the same reagent without making them look duplicated', () => {

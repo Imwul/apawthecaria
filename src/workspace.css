@@ -300,7 +300,16 @@ button,input,textarea,select,[tabindex] { scroll-margin-top: 24px; }
 .folio-tool-button:active:not(:disabled),.play-guide__action:active:not(:disabled),.workspace-primary:active:not(:disabled) { box-shadow: inset 0 0 0 2px var(--primary); }
 .journal-editor { display: flex; flex-direction: column; gap: 16px; margin-top: var(--folio-space-section); padding: var(--folio-space-group); border: 1px solid #c9bb93; border-top: 4px solid var(--folio-brass); border-radius: 2px; background: #fffaf0; box-shadow: 4px 4px 0 #e3dcc8; }
 .journal-entry { border-left: 4px solid #849271; background: #fffaf0; box-shadow: 3px 3px 0 #ded6c350; }
-.journal-subtabs button { min-height: 46px; border-radius: 2px 2px 0 0 !important; border-bottom: 3px solid #a28f61 !important; }
+.journal-subtabs { display: flex; flex-wrap: wrap; gap: 12px; overflow: visible; }
+.journal-subtabs button { min-height: 46px; white-space: normal; overflow-wrap: anywhere; border-radius: 2px 2px 0 0 !important; border-bottom: 3px solid #a28f61 !important; }
+.journal-writing-spread { display: grid; grid-template-columns: repeat(12,minmax(0,1fr)); gap: 28px 32px; margin-top: 24px; }
+.journal-writing-field { display: flex; flex-direction: column; min-width: 0; gap: 8px; }
+.journal-writing-field--originJournal { grid-column: span 8; }
+.journal-writing-field--mementoNote { grid-column: span 4; }
+.journal-writing-field--familiarJournal { grid-column: span 7; }
+.journal-writing-field--relationshipJournal { grid-column: span 5; }
+.journal-writing-field textarea { min-height: 120px; resize: vertical; }
+.journal-writing-field--mementoNote textarea { min-height: 88px; }
 .character-continuity { border-top: 4px solid #849271; background: #eeeddf; }
 .patient-casebook__card { border-top: 4px solid #9c7560; box-shadow: 3px 3px 0 #ddd6c255; }
 .journal-editor h4 { margin: 0; }
@@ -489,6 +498,8 @@ button,input,textarea,select,[tabindex] { scroll-margin-top: 24px; }
  .folio-app .main-content-panel .chapter-opening .folio-chapter-title { font-size: 44px; max-width: 85%; }
  .folio-section-heading { padding: 14px; }
  .journal-editor { padding: 18px; }
+ .journal-writing-spread { grid-template-columns: minmax(0,1fr); gap: 24px; }
+ .journal-writing-field { grid-column: 1; }
  .chapter-opening__copy h2 { font-size: 28px; }
  .chapter-opening__body { font-size: 17px; }
  #patient-clinic-panel { padding: 18px 0; }

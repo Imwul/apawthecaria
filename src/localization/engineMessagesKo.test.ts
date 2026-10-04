@@ -71,7 +71,7 @@ const auditedEngineStrings = () => {
 
 describe('gameplay message Korean presentation layer', () => {
   it('covers every audited fixed engine message', () => {
-    expect(ENGINE_MESSAGE_TRANSLATION_COUNT).toBe(477);
+    expect(ENGINE_MESSAGE_TRANSLATION_COUNT).toBe(479);
   });
 
   it('preserves canonical tags while localizing player-facing names and instructions', () => {
@@ -94,7 +94,9 @@ describe('gameplay message Korean presentation layer', () => {
     expect(localizeGameplayMessage('BR 8; paid 2 Trinkets and 1 Reputation.'))
       .toBe('기본 희귀도 8; 장신구 2개와 Guild Reputation 1점을 지불했습니다.');
     expect(localizeGameplayMessage('guaranteed-adjacent in Mountain; every active Timer decreased by 2.'))
-      .toBe('산악에서 인접 위치의 희귀도 2 이하 부위 획득을(를) 수행해 진행 중인 모든 타이머가 2 줄었습니다.');
+      .toBe('산악에서 인접 위치의 약효 강도 2 이하 부위 획득을(를) 수행해 진행 중인 모든 타이머가 2 줄었습니다.');
+    expect(localizeGameplayMessage('guaranteed-current in Forest; every active Timer decreased by 3.'))
+      .toBe('숲에서 현재 위치의 약효 강도 2 이하 부위 획득을(를) 수행해 진행 중인 모든 타이머가 3 줄었습니다.');
   });
 
   it('keeps engine implementation jargon out of fixed player-facing messages', () => {
