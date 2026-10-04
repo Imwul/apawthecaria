@@ -35,10 +35,7 @@ input[aria-invalid="true"],textarea[aria-invalid="true"],select[aria-invalid="tr
 button,input,textarea,select,[tabindex] { scroll-margin-top: 24px; }
 .emoji-icon { font-family: 'Apple Color Emoji','Segoe UI Emoji',sans-serif; }
 .journal-app { min-height: 100dvh; padding: 0 40px 32px; background: transparent; }
-/* The monogram and flourishes are ornaments, not controls or game state. */
-.folio-emblem { display: inline-grid; place-items: center; flex: 0 0 auto; position: relative; width: 74px; height: 74px; border: 3px double var(--folio-brass-light); border-radius: 50%; background: linear-gradient(#102d2499,#102d2499),url('/art/botanical-endpaper.webp') center/230px; color: #f2dfaa; box-shadow: 0 0 0 7px #d8be8212; pointer-events: none; }
-.folio-emblem::before { content: ''; position: absolute; inset: 8px; border: 1px solid #d8be8270; border-radius: 50%; }
-.folio-emblem > span { position: relative; font-family: var(--font-display); font-size: 44px; font-weight: 400; line-height: 1; }
+/* Flourishes are ornaments, not controls or game state. */
 .folio-divider { display: flex; align-items: center; gap: 18px; width: 100%; color: var(--folio-brass); pointer-events: none; }
 .folio-divider::before,.folio-divider::after { content: ''; flex: 1; height: 3px; border-top: 1px solid #b4945b80; border-bottom: 1px solid #b4945b40; }
 .folio-divider > span { font-size: 22px !important; line-height: 1 !important; }
@@ -48,7 +45,7 @@ button,input,textarea,select,[tabindex] { scroll-margin-top: 24px; }
  display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 32px;
  max-width: var(--folio-page-width); min-height: 166px; margin: 0 auto; padding: 28px 24px !important; background: #102d24eb; border: 1px solid #d8be8250; border-top: 0; border-bottom: 3px double #d8be8280; color: var(--paper);
 }
-.journal-header .journal-brand { display: flex; align-items: center; gap: 22px; flex: 0 0 auto; order: 0; width: auto; max-width: 100%; margin: 0; padding: 0; text-align: left; border: 0; background: transparent; color: var(--paper); }
+.journal-header .journal-brand { display: flex; align-items: center; flex: 0 0 auto; order: 0; width: auto; max-width: 100%; margin: 0; padding: 0; text-align: left; border: 0; background: transparent; color: var(--paper); }
 .journal-brand__copy { min-width: 0; display: block; }
 .journal-header .journal-brand__eyebrow { display: block; margin-bottom: 8px; font-size: 16px; letter-spacing: .13em; color: #c2cbb4; }
 .journal-app .journal-header .journal-brand__title,.journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title,.journal-app--onboarding .journal-header .journal-brand__title {
@@ -358,8 +355,6 @@ button,input,textarea,select,[tabindex] { scroll-margin-top: 24px; }
 .card-draw-hero__actions button { border: 1px solid var(--folio-control-border) !important; border-radius: 3px !important; min-height: 44px; background: transparent !important; color: var(--primary) !important; font-weight: 500; }
 .card-draw-hero__actions button:hover:not(:disabled) { background: var(--primary-light) !important; }
 .field-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; max-width: var(--folio-page-width); margin: 20px auto 0; padding: 22px 24px; border: 1px solid #d8be8250; border-top: 3px double #d8be8280; background: #102d24eb; color: #c2cbb4; font-size: 17px; }
-.field-footer > .folio-emblem { display: inline-grid; width: 46px; height: 46px; box-shadow: none; }
-.field-footer .folio-emblem > span { font-size: 28px; }
 .field-footer p { flex: 1; margin: 0; }
 .field-footer > span:last-child { font-family: var(--font-display); font-size: 20px; color: var(--paper); }
 .skip-to-play { position: fixed; top: -80px; left: 16px; z-index: 3000; padding: 12px 16px; border: 1px solid var(--primary); border-radius: 3px; background: var(--paper); color: var(--ink); }
@@ -426,9 +421,6 @@ button,input,textarea,select,[tabindex] { scroll-margin-top: 24px; }
  .journal-app { padding-inline: 24px; }
  .journal-app .journal-header { flex-wrap: wrap; gap: 20px; }
  .journal-header .journal-brand__eyebrow { font-size: 14px; }
- .journal-header .journal-brand { gap: 14px; }
- .journal-header .folio-emblem { width: 56px; height: 56px; }
- .journal-header .folio-emblem > span { font-size: 34px; }
  .journal-app .journal-header .journal-brand__title,.journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title { font-size: 56px !important; }
  .adventure-context { order: 3; flex-basis: 100%; justify-content: flex-start; gap: 24px; padding-top: 12px; border-top: 1px solid #d8be8240; }
  .adventure-context > button:first-child { display: grid; }
@@ -441,8 +433,7 @@ button,input,textarea,select,[tabindex] { scroll-margin-top: 24px; }
 @media (max-width:760px) {
  .journal-app { padding: 0 12px 24px; }
  .journal-app .journal-header,.journal-app:not(.journal-app--onboarding) .journal-header,.journal-app--onboarding .journal-header { min-height: 0; padding: 18px 16px !important; gap: 14px; flex-wrap: wrap; }
- .journal-header .journal-brand { width: 100%; justify-content: center; gap: 16px; }
- .journal-header .folio-emblem { width: 54px; height: 54px; }
+ .journal-header .journal-brand { width: 100%; justify-content: center; }
  .journal-app .journal-header .journal-brand__title,.journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title,.journal-app--onboarding .journal-header .journal-brand__title { font-size: 43px !important; }
  .journal-header .journal-brand__eyebrow { display: none; }
  .journal-header .journal-brand__edition { margin-top: 8px; font-size: 17px; }
@@ -530,9 +521,6 @@ button,input,textarea,select,[tabindex] { scroll-margin-top: 24px; }
  .journal-app .journal-header .journal-brand__title,.journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title,.journal-app--onboarding .journal-header .journal-brand__title { font-size: clamp(34px,11vw,40px) !important; }
  .journal-header .journal-header__utilities { max-width: none; flex-basis: 100%; }
  .journal-header .journal-header__utilities > .journal-header__action { width: auto; }
- .journal-header .journal-brand { gap: 12px; }
- .journal-header .folio-emblem { width: 44px; height: 44px; }
- .journal-header .folio-emblem > span { font-size: 30px; }
  .journal-app .grid-dashboard,.journal-app:not(.journal-app--onboarding) .grid-dashboard,.journal-app--onboarding .grid-dashboard { padding-inline: 14px !important; }
  .workspace-nav__more { flex-basis: 60px; }
  .journal-tabs.workspace-nav .journal-tab { font-size: 17px !important; }

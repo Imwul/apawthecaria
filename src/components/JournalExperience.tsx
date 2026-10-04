@@ -25,11 +25,6 @@ const CHAPTER_NUMBER: Record<JournalTab, string> = {
   almanack: '06', patientArchive: '07', livingArchive: '08', journals: '09'
 };
 
-/** The book's ornament is decorative, never a gameplay status or control. */
-export function FolioEmblem({ className = '' }: { className?: string }) {
-  return <span className={`folio-emblem ${className}`} aria-hidden="true"><span>A</span></span>;
-}
-
 const NAVIGATION = [
   {
     id: 'primary', label: '모험의 도구', items: [

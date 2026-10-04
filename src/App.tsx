@@ -446,7 +446,7 @@ import {
   type EncounterRemedyTriggerResolution
 } from './encounterRemedyIntegration';
 import { BarrowPanel } from './components/Phase4Panels';
-import { ChapterOpening, FolioEmblem, JournalNavigation, TodayOverview, type JournalTab } from './components/JournalExperience';
+import { ChapterOpening, JournalNavigation, TodayOverview, type JournalTab } from './components/JournalExperience';
 import { getPatientTimerProjection } from './patientTimerProjection';
 import { focusCurrentWorkspace } from './workspaceNavigation';
 import CloudSaveCapacityNotice from './components/CloudSaveCapacityNotice';
@@ -12633,7 +12633,6 @@ export default function App() {
       {/* Header Banner */}
       <header className="journal-header">
         <button type="button" className="journal-brand" onClick={() => changeActiveTab('play')} disabled={isOnboarding} aria-label={isOnboarding ? 'Apawthecaria 새 기록 설정' : '오늘의 여행 첫 페이지로 돌아가기'}>
-          <FolioEmblem />
           <span className="journal-brand__copy">
           <span className="journal-brand__eyebrow">A JOURNAL FROM THE BRISTLEY WOODS</span>
           <h1 className="journal-brand__title">Apawthecaria</h1>
@@ -12983,7 +12982,6 @@ export default function App() {
       </div>
 
       <footer className="field-footer">
-        <FolioEmblem className="folio-emblem--footer" />
         <p>오늘 건넨 작은 다정함이, 내일의 숲을 바꿉니다.</p>
         <span>APAWTHECARIA · 들녘 여행 일지</span>
       </footer>
