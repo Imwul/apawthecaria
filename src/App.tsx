@@ -12752,7 +12752,7 @@ export default function App() {
                   }}>약제사 만들기 <span aria-hidden="true">↓</span></button>
                 </div>
                 <figure className="onboarding-focus__landscape" aria-hidden="true">
-                  <img className="onboarding-focus__art" src="/art/forest-folio.jpg" alt="" />
+                  <img className="onboarding-focus__art" src="/art/woodland-path-watercolor.webp" alt="" />
                   <figcaption>A little courage. A little kindness.</figcaption>
                 </figure>
                 <ol className="onboarding-focus__promise" aria-label="첫 플레이 순서">
@@ -26320,13 +26320,14 @@ const WizardChoiceSelect = ({ value, onChange, items, labelKey = 'name', label }
   </select>
 );
 
-const WizardAnimalChoices = ({ examples, onPick }: { examples: string; onPick: (value: string) => void }) => (
+const WizardAnimalChoices = ({ examples, selected, onPick }: { examples: string; selected: string; onPick: (value: string) => void }) => (
   <div className="wizard-animal-choices">
     {examplesToOptions(examples).map(option => (
       <button
         key={option}
         type="button"
         onClick={() => onPick(option)}
+        aria-pressed={selected === option}
       >
         {option}
       </button>
@@ -26753,6 +26754,7 @@ function CharacterCreationWizard({
   return (
     <div
       className={`character-wizard ${focused ? 'character-wizard--focused' : ''}`}
+      data-step={step}
       id={focused ? 'character-creation-page' : undefined}
       tabIndex={focused ? -1 : undefined}
       onBlurCapture={() => persistCharacterDraftNow()}
@@ -26761,8 +26763,8 @@ function CharacterCreationWizard({
         <div>
           <p className="wizard-page-kicker">첫 기록 · {String(step + 1).padStart(2, '0')} / {String(steps.length).padStart(2, '0')}</p>
           <h3 style={{ margin: 0, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)', fontSize: '1.35rem' }}>우리의 첫 여행 채비</h3>
-          <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.86rem', color: 'var(--text-muted)' }}>각 단계에서 카드를 뽑거나 마음에 드는 항목을 직접 고르세요. 결과와 능력은 자동으로 기록됩니다.</p>
-          <p style={{ margin: '0.25rem 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>필수 선택 {CHARACTER_CREATION_CHOICES.filter(choice => choiceConfirmed(choice.field)).length}/6 · 이야기와 기념품 메모는 나중에 써도 됩니다.</p>
+          <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.86rem', color: 'var(--text-muted)' }}>카드를 뽑고, 마음에 드는 모습을 기록하세요. 직접 선택해도 됩니다.</p>
+          <p className="wizard-progress-note">필수 선택 {CHARACTER_CREATION_CHOICES.filter(choice => choiceConfirmed(choice.field)).length}/6 · 메모는 천천히 남겨도 좋아요.</p>
         </div>
         {state.bio.name.trim() ? (
           <button type="button" onClick={() => setOpen(false)} style={{ padding: '0.35rem 0.65rem', background: '#eee', color: '#555', borderRadius: '6px' }}>접기</button>
@@ -26777,18 +26779,20 @@ function CharacterCreationWizard({
             key={label}
             type="button"
             aria-current={step === idx ? 'step' : undefined}
+            data-complete={idx < 7 && (idx === 3 ? Boolean(draft.mementoNote.trim()) : !characterIssues.some(issue => issue.step === idx))}
             onClick={() => setStep(idx)}
           >
             <span className="wizard-steps__number" aria-hidden="true">{String(idx + 1).padStart(2, '0')}</span>
             <span>{label}</span>
+            {idx < 7 && (idx === 3 ? Boolean(draft.mementoNote.trim()) : !characterIssues.some(issue => issue.step === idx)) && <span className="wizard-steps__check" aria-label="입력됨">✓</span>}
           </button>
         ))}
       </nav>
 
       {step === 0 && (
         <WizardFieldCard title="어떤 동물인가요?">
-          <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <input value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} placeholder="약제사의 이름을 지어주세요" />
+          <div className="wizard-decision-flow">
+            <label className="wizard-name-field"><span>약제사 이름</span><input value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} placeholder="어떤 이름으로 불리나요?" autoComplete="off" /></label>
             <CardDrawSlot
               variant="hero"
               label="약제사 정체성 카드 (p.10)"
@@ -26796,15 +26800,15 @@ function CharacterCreationWizard({
               card={wizardCards.self || null}
               onCard={card => applyDescriptorCard('self', 'self', card)}
             />
-            <div style={{ color: 'var(--text-bright)', fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
+            <div className="wizard-result" aria-live="polite">
               {choiceConfirmed('descriptorName') ? (
                 <>선택한 약제사의 유형은 <strong style={{ color: 'var(--primary)' }}>{localizeCharacterDescriptor(draft.descriptor.name)}</strong>입니다.<br /><span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.descriptor.examples} 중에서 골라보세요.</span></>
               ) : (
                 <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑거나 아래에서 동물 유형을 직접 선택하세요.</span>
               )}
             </div>
-            <WizardAnimalChoices examples={draft.descriptor.examples} onPick={value => setDraft(d => ({ ...d, animal: value }))} />
-            <input value={draft.animal} onChange={e => setDraft(d => ({ ...d, animal: e.target.value }))} placeholder="실제 동물 또는 외형을 적어주세요" />
+            <WizardAnimalChoices examples={draft.descriptor.examples} selected={draft.animal} onPick={value => setDraft(d => ({ ...d, animal: value }))} />
+            <label className="wizard-name-field"><span>약제사의 동물 · 외형</span><input value={draft.animal} onChange={e => setDraft(d => ({ ...d, animal: e.target.value }))} placeholder="목록에서 고르거나 직접 적으세요" /></label>
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
               <div style={{ marginTop: '0.4rem' }}>
@@ -26817,7 +26821,7 @@ function CharacterCreationWizard({
 
       {step === 1 && (
         <WizardFieldCard title="어떻게 여행하나요?">
-          <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div className="wizard-decision-flow">
             <CardDrawSlot
               variant="hero"
               label="이동 방식 카드 (p.11)"
@@ -26825,7 +26829,7 @@ function CharacterCreationWizard({
               card={wizardCards.travel || null}
               onCard={applyTravelCard}
             />
-            <div style={{ padding: '0.8rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
+            <div className="wizard-result" aria-live="polite">
               {choiceConfirmed('travelName') ? (
                 <>
                   <strong style={{ color: 'var(--primary)' }}>{localizeTravelStyle(draft.travel.name)}</strong> 방식으로 여행합니다.<br />
@@ -26850,7 +26854,7 @@ function CharacterCreationWizard({
 
       {step === 2 && (
         <WizardFieldCard title="왜 약제사의 길을 떠났나요?">
-          <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div className="wizard-decision-flow">
             <CardDrawSlot
               variant="hero"
               label="출발 계기 카드 (p.12)"
@@ -26858,7 +26862,7 @@ function CharacterCreationWizard({
               card={wizardCards.origin || null}
               onCard={applyOriginCard}
             />
-            <div style={{ fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
+            <div className="wizard-result" aria-live="polite">
               {choiceConfirmed('originName') ? (
                 <>
                   <strong style={{ color: 'var(--primary)' }}>{draft.origin.name}</strong><br />
@@ -26868,7 +26872,7 @@ function CharacterCreationWizard({
                 <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑거나 아래에서 출발 계기를 직접 선택하세요.</span>
               )}
             </div>
-            <textarea value={draft.originJournal} onChange={e => setDraft(d => ({ ...d, originJournal: e.target.value }))} rows={4} placeholder="선택 메모 · 그 계기가 약제사의 길로 어떻게 이어졌나요?" />
+            <details className="wizard-optional-note"><summary>출발 계기 메모 <span>선택</span></summary><label><span className="sr-only">출발 계기 메모</span><textarea aria-label="출발 계기 메모" value={draft.originJournal} onChange={e => setDraft(d => ({ ...d, originJournal: e.target.value }))} rows={4} placeholder="선택 메모 · 그 계기가 약제사의 길로 어떻게 이어졌나요?" /></label></details>
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
               <div style={{ marginTop: '0.4rem' }}>
@@ -26900,8 +26904,8 @@ function CharacterCreationWizard({
 
       {step === 4 && (
         <WizardFieldCard title="함께하는 길동무는 누구인가요?">
-          <div style={{ display: 'grid', gap: '0.75rem' }}>
-            <input value={draft.familiarName} onChange={e => setDraft(d => ({ ...d, familiarName: e.target.value }))} placeholder="길동무의 이름을 지어주세요" />
+          <div className="wizard-decision-flow">
+            <label className="wizard-name-field"><span>길동무 이름</span><input value={draft.familiarName} onChange={e => setDraft(d => ({ ...d, familiarName: e.target.value }))} placeholder="함께 걸을 친구의 이름" autoComplete="off" /></label>
             <CardDrawSlot
               variant="hero"
               label="길동무 정체성 카드 (p.14)"
@@ -26909,16 +26913,16 @@ function CharacterCreationWizard({
               card={wizardCards.familiar || null}
               onCard={card => applyDescriptorCard('familiar', 'familiar', card)}
             />
-            <div style={{ color: 'var(--text-bright)', fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
+            <div className="wizard-result" aria-live="polite">
               {choiceConfirmed('familiarDescriptorName') ? (
                 <>당신의 길동무는 <strong style={{ color: 'var(--primary)' }}>{localizeCharacterDescriptor(draft.familiarDescriptor.name)}</strong> 유형입니다.<br /><span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.familiarDescriptor.examples} 중에서 골라보세요.</span></>
               ) : (
                 <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑거나 아래에서 길동무의 동물 유형을 직접 선택하세요.</span>
               )}
             </div>
-            <WizardAnimalChoices examples={draft.familiarDescriptor.examples} onPick={value => setDraft(d => ({ ...d, familiarAnimal: value }))} />
-            <input value={draft.familiarAnimal} onChange={e => setDraft(d => ({ ...d, familiarAnimal: e.target.value }))} placeholder="길동무의 실제 동물 또는 외형" />
-            <textarea value={draft.familiarJournal} onChange={e => setDraft(d => ({ ...d, familiarJournal: e.target.value }))} rows={3} placeholder="선택 메모 · 길동무와 처음 어떻게 만났나요?" />
+            <WizardAnimalChoices examples={draft.familiarDescriptor.examples} selected={draft.familiarAnimal} onPick={value => setDraft(d => ({ ...d, familiarAnimal: value }))} />
+            <label className="wizard-name-field"><span>길동무의 동물 · 외형</span><input value={draft.familiarAnimal} onChange={e => setDraft(d => ({ ...d, familiarAnimal: e.target.value }))} placeholder="목록에서 고르거나 직접 적으세요" /></label>
+            <details className="wizard-optional-note"><summary>첫 만남 메모 <span>선택</span></summary><label><span className="sr-only">첫 만남 메모</span><textarea aria-label="첫 만남 메모" value={draft.familiarJournal} onChange={e => setDraft(d => ({ ...d, familiarJournal: e.target.value }))} rows={3} placeholder="선택 메모 · 길동무와 처음 어떻게 만났나요?" /></label></details>
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
               <div style={{ marginTop: '0.4rem' }}>
@@ -26933,7 +26937,7 @@ function CharacterCreationWizard({
         const matchedBenefit = FAMILIAR_BENEFITS.find(f => f.card === draft.familiarBenefit.card);
         return (
           <WizardFieldCard title="길동무가 어떻게 도와주나요?">
-            <div style={{ display: 'grid', gap: '0.75rem' }}>
+            <div className="wizard-decision-flow">
               <CardDrawSlot
                 variant="hero"
                 label="길동무 도움 카드 (p.15)"
@@ -26941,7 +26945,7 @@ function CharacterCreationWizard({
                 card={wizardCards.familiarBenefit || null}
                 onCard={applyBenefitCard}
               />
-              <div style={{ padding: '0.8rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
+              <div className="wizard-result" aria-live="polite">
                 {choiceConfirmed('familiarBenefitName') ? (
                   <>
                     길동무의 특기: <strong style={{ color: 'var(--primary)' }}>{draft.familiarBenefit.name}</strong><br />
@@ -27002,7 +27006,7 @@ function CharacterCreationWizard({
 
       {step === 6 && (
         <WizardFieldCard title="길동무와 어떤 사이인가요?">
-          <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div className="wizard-decision-flow">
             <CardDrawSlot
               variant="hero"
               label="관계 카드 (p.16)"
@@ -27010,7 +27014,7 @@ function CharacterCreationWizard({
               card={wizardCards.relationship || null}
               onCard={applyRelationshipCard}
             />
-            <div style={{ fontSize: '0.9rem', lineHeight: 1.55, textAlign: 'center' }}>
+            <div className="wizard-result" aria-live="polite">
               {choiceConfirmed('relationshipName') ? (
                 <>
                   둘의 관계: <strong style={{ color: 'var(--primary)' }}>{draft.relationship.name}</strong><br />
@@ -27020,7 +27024,7 @@ function CharacterCreationWizard({
                 <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑거나 아래에서 관계를 직접 선택하세요.</span>
               )}
             </div>
-            <textarea value={draft.relationshipJournal} onChange={e => setDraft(d => ({ ...d, relationshipJournal: e.target.value }))} rows={4} placeholder="선택 메모 · 둘의 관계를 보여주는 짧은 장면이나 기억을 남겨보세요." />
+            <details className="wizard-optional-note"><summary>우리의 관계 메모 <span>선택</span></summary><label><span className="sr-only">우리의 관계 메모</span><textarea aria-label="우리의 관계 메모" value={draft.relationshipJournal} onChange={e => setDraft(d => ({ ...d, relationshipJournal: e.target.value }))} rows={4} placeholder="선택 메모 · 둘의 관계를 보여주는 짧은 장면이나 기억을 남겨보세요." /></label></details>
             <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
               <div style={{ marginTop: '0.4rem' }}>
@@ -27067,9 +27071,9 @@ function CharacterCreationWizard({
         );
       })()}
 
-      <div className="wizard-page-actions">
-        <button type="button" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0} style={{ padding: '0.45rem 0.8rem', borderRadius: '6px', background: step === 0 ? '#eee' : '#fff', color: step === 0 ? '#aaa' : 'var(--text-muted)', border: '1px solid var(--glass-border)' }}>이전</button>
-        <button type="button" onClick={() => setStep(Math.min(steps.length - 1, step + 1))} disabled={step === steps.length - 1} style={{ padding: '0.45rem 0.8rem', borderRadius: '6px', background: step === steps.length - 1 ? '#eee' : 'var(--secondary)', color: step === steps.length - 1 ? '#aaa' : '#fff', border: 'none' }}>다음</button>
+      <div className="wizard-page-actions" aria-label="생성 단계 이동">
+        <button type="button" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0} style={{ padding: '0.45rem 0.8rem', borderRadius: '6px', background: step === 0 ? '#eee' : '#fff', color: step === 0 ? '#aaa' : 'var(--text-muted)', border: '1px solid var(--glass-border)' }}>← 이전</button>
+        {step < steps.length - 1 && <button type="button" className="wizard-next" onClick={() => setStep(step + 1)}>다음 · {steps[step + 1]} <span aria-hidden="true">→</span></button>}
       </div>
     </div>
   );

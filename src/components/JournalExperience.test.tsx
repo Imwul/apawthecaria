@@ -90,6 +90,9 @@ describe('book object journal presentation', () => {
     const html = renderToStaticMarkup(<ChapterOpening tab="journals" state={campaign} maxCarry={4}
       onReturnToToday={noop} onOpenReference={noop} />);
     expect(html).toContain('<li>2편의 일지</li><li>가을</li>');
+    expect(html).toContain('두 번째 기억');
+    expect(html).toContain('“다시 길을 나섰다.”');
+    expect(html).not.toContain('여정 시작');
     expect(campaign).toEqual(original);
   });
 
@@ -116,5 +119,34 @@ describe('book object journal presentation', () => {
       onReturnToToday={noop} onOpenReference={noop} />);
     expect(emptyHtml).not.toContain('모험에서 치료 이어가기');
     expect(emptyHtml).toContain('플레이 방법');
+  });
+
+  it('shows the selected patient’s collection needs instead of a stale legacy ailment', () => {
+    const campaign = { ...state, activePatientId: 'patient-new',
+      activeAilment: { name: '오래된 병증', patientName: '지난 환자', tags: 'Stale', timer: 99 },
+      patients: [{ id: 'patient-new', name: '새봄', status: 'active',
+        ailments: [{ id: 'a', status: 'active', legacyName: '새 상처', requirementSnapshot: 'WOUND 2, PAIN 1' }], timers: [] }]
+    };
+    const original = structuredClone(campaign);
+    const html = renderToStaticMarkup(<ChapterOpening tab="reagents" state={campaign} maxCarry={4}
+      onReturnToToday={noop} onOpenReference={noop} />);
+    expect(html).toContain('오늘의 채집 메모');
+    expect(html).toContain('새봄');
+    expect(html).toContain('상처 (WOUND) 2 · 통증 (PAIN) 1');
+    expect(html).not.toContain('Stale');
+    expect(html).not.toContain('지난 환자');
+    expect(campaign).toEqual(original);
+  });
+
+  it('does not carry a completed journey’s destination and objective into the live map note', () => {
+    const campaign = { ...state, journeyActive: true, journey: { status: 'completed' },
+      journeyDestination: 'OldDestination', journeyGoalTitle: 'OldObjective' };
+    const original = structuredClone(campaign);
+    const html = renderToStaticMarkup(<ChapterOpening tab="map" state={campaign} maxCarry={4}
+      onReturnToToday={noop} onOpenReference={noop} />);
+    expect(html).toContain('다음 길을 생각하며');
+    expect(html).not.toContain('OldDestination');
+    expect(html).not.toContain('OldObjective');
+    expect(campaign).toEqual(original);
   });
 });

@@ -26,7 +26,7 @@ const CHAPTER_NUMBER: Record<JournalTab, string> = {
 };
 
 const CHAPTER_ART: Record<ChapterTab, { src: string; caption: string }> = {
-  map: { src: '/art/forest-folio.jpg', caption: 'Beyond the next bend.' },
+  map: { src: '/art/woodland-path-watercolor.webp', caption: 'Beyond the next bend.' },
   ailments: { src: '/art/woodland-herbarium.webp', caption: 'A small remedy, a little kindness.' },
   reagents: { src: '/art/woodland-herbarium.webp', caption: 'Gathered along the way.' },
   bio: { src: '/art/woodland-whimsy.webp', caption: 'Everything for the road.' },
@@ -116,13 +116,62 @@ export function ChapterOpening({
   const journeyActive = getJourneyUiContext(state).active;
   const patient = state.patients?.find((row: any) => row.id === state.activePatientId && row.status === 'active');
   const ailment = patient?.ailments?.find((row: any) => row.status === 'active');
-  const legacyAilment = state.activeAilment;
+  const legacyAilment = patient ? null : state.activeAilment;
   const patientName = patient?.name || legacyAilment?.patientName;
   const ailmentName = legacyAilment?.name || ailment?.legacyName;
   const journalCount = state.journals?.filter((row: any) => !isActivityJournalEntry(row)).length || 0;
   const caseCount = (state.patientArchive?.length || 0) + (state.patientCasebook?.length || 0);
   const discoveryCount = state.worldAlmanac?.length || 0;
   const bagCount = state.bag?.reduce((sum: number, item: any) => sum + (item.qty || 1), 0) || 0;
+  const requirements = requirementWords(ailment?.requirementSnapshot || legacyAilment?.tags || '');
+  const recent = journalEntriesNewestFirst<any>(state.journals || []).find(row => !isActivityJournalEntry(row));
+  const next = getCampaignNextAction(state);
+  const calendar = readCalendarClocks(state);
+  const place = localizeLocationName(state.currentLocationName) || '아직 정하지 않은 장소';
+  const marginNotes: Record<ChapterTab, { title: string; lines: [string, string][]; excerpt?: string }> = {
+    map: {
+      title: journeyActive ? '이번에 걷는 길' : '다음 길을 생각하며',
+      lines: journeyActive
+        ? [['머무는 곳', place], ['목적지', localizeLocationName(state.journeyDestination) || '아직 정하지 않았어요'], ['이번 목표', localizeJourneyGoalText(state.journeyGoalTitle || state.journeyGoalDesc || '모험에서 목표를 기록하세요')]]
+        : [['머무는 곳', place], ['다음 행동', next.label]]
+    },
+    ailments: {
+      title: patientName ? `${patientName}에게 필요한 돌봄` : '첫 진료를 기다리며',
+      lines: patientName
+        ? [['필요 약효', requirements.length ? requirements.map(value => value.replace(/\b[A-Z]+\b/g, formatRuleTag)).join(' · ') : '병증을 확인하면 여기에 나타나요']]
+        : [['머무는 곳', place], ['다음 행동', next.label]]
+    },
+    reagents: {
+      title: patientName ? '오늘의 채집 메모' : '숲에서 눈여겨볼 것',
+      lines: patientName
+        ? [['기다리는 이', patientName], ['찾을 약효', requirements.length ? requirements.map(value => value.replace(/\b[A-Z]+\b/g, formatRuleTag)).join(' · ') : '환자의 병증을 먼저 확인하세요']]
+        : [['살펴볼 곳', `${place} · ${localizeRegionLabel(state.currentRegion)}`], ['지금 계절', localizeSeasonLabel(state.currentSeason)]]
+    },
+    bio: {
+      title: '우리의 여행 채비',
+      lines: [['약제사', state.bio?.name || '아직 기록하지 않았어요'], ['길동무', state.bio?.familiarName || '아직 기록하지 않았어요'], ['꾸린 약재', `${bagCount}점`]]
+    },
+    almanack: {
+      title: '지금 궁금한 것부터',
+      lines: [['머무는 곳', place], ['이어서 할 일', next.label]]
+    },
+    patientArchive: {
+      title: patientName ? '아직 이어지는 이야기' : '다시 펼친 진료 수첩',
+      lines: patientName
+        ? [['기다리는 이', patientName], ['남은 시간', patient ? displayTimer(patient) : `${legacyAilment.timer}시간`]]
+        : [['남긴 진료', `${caseCount}건`], ['머무는 곳', place]]
+    },
+    livingArchive: {
+      title: '발자국을 따라',
+      lines: [['지나온 장소', `${state.visitedLocations?.length || 0}곳`], ['간직한 기념품', `${state.trinketArchive?.length || 0}개`]]
+    },
+    journals: {
+      title: recent ? '지난 기록의 한 조각' : '아직 쓰이지 않은 한 페이지',
+      lines: recent ? [['지난 기록', journalDisplayTitle(recent)]] : [['오늘의 자리', place], ['함께한 시간', `${calendar.cumulativeDays}일`]],
+      excerpt: recent ? journalPreview(recent, 130) : undefined
+    }
+  };
+  const marginNote = marginNotes[tab];
 
   const content: Record<ChapterTab, { kicker: string; title: string; body: string; notes: string[]; steps: string[] }> = {
     ailments: {
@@ -202,12 +251,18 @@ export function ChapterOpening({
         <ul className="chapter-opening__notes" aria-label="현재 기록 요약">
           {chapter.notes.slice(0, 2).map(note => <li key={note}>{note}</li>)}
         </ul>
+        <aside className="chapter-margin-note" aria-labelledby={`chapter-note-${tab}`}>
+          <h3 id={`chapter-note-${tab}`}>{marginNote.title}</h3>
+          <dl>{marginNote.lines.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+          {marginNote.excerpt && <p className="chapter-margin-note__excerpt">“{marginNote.excerpt}”</p>}
+        </aside>
         <div className="chapter-opening__actions">
         {tab === 'ailments' && patientName ? (
           <button type="button" onClick={onReturnToToday}>
             <span className="emoji-icon" aria-hidden="true">🧭</span> 모험에서 치료 이어가기
           </button>
         ) : null}
+        {tab === 'map' && <button type="button" className="chapter-opening__continue" onClick={onReturnToToday}>{next.label} <span aria-hidden="true">→</span></button>}
         <button type="button" className="chapter-opening__reference" onClick={() => onOpenReference(referenceForJournalTab(tab, state))}>
           <span className="emoji-icon" aria-hidden="true">🔎</span> 플레이 방법
         </button>
@@ -297,7 +352,7 @@ export function TodayOverview({ state, currentWeight, maxCarry, onNavigate, onCo
       </div> : null}
     </div>
     <div className="workspace-today__atmosphere" aria-hidden="true">
-      <img src="/art/forest-folio.jpg" alt="" />
+      <img src="/art/woodland-path-watercolor.webp" alt="" />
       <span>The Bristley Woods<small>A travelling apothecary's journal</small></span>
     </div>
     <details className="workspace-session">

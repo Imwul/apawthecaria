@@ -5,8 +5,11 @@
   --book-left: 34%;
   --book-paper: #faf7ed;
   --book-edge: #d4d8c4;
+  --book-block-ink: #355943;
+  --book-block-paper: #fff9e8;
 }
 .folio-app.journal-app .main-content-panel :is(button,input,select,textarea) { font-size: var(--folio-control-size) !important; }
+.folio-app.journal-app .main-content-panel :is(select,input:not([type]),input[type="text"],input[type="search"],input[type="number"]) { min-height: 52px; }
 .folio-app.journal-app .main-content-panel :is(p,li,dt,dd,label,td,th):where(:not(.folio-scene-title):not(.folio-chapter-title)) { font-size: max(var(--folio-body-size),1em) !important; }
 body { background: #e1e7d8; background-image: radial-gradient(ellipse at 14% 12%, #edf0e5, transparent 55%), radial-gradient(ellipse at 90% 80%, #eee6d8, transparent 60%); }
 .journal-app { padding: 28px 48px 40px; }
@@ -23,11 +26,8 @@ body { background: #e1e7d8; background-image: radial-gradient(ellipse at 14% 12%
 .journal-app .journal-tabs.workspace-nav { align-items: end; padding: 0 26px; margin: 0 auto; min-height: 76px; border: 0; background: transparent; gap: 20px; }
 .workspace-nav__primary { gap: 12px; align-items: end; }
 .journal-tabs.workspace-nav .journal-tab { min-height: 70px; padding: 12px 22px 14px; border: 1px solid #c6cfb9; border-bottom: 0; border-radius: 14px 14px 0 0; background: #e9ecdf; align-items: center; gap: 16px; }
-.journal-tabs.workspace-nav .journal-tab--map { background: #e1e9e3; }
-.journal-tabs.workspace-nav .journal-tab--ailments { background: #ebe3df; }
-.journal-tabs.workspace-nav .journal-tab--reagents { background: #e0e7d6; }
-.journal-tabs.workspace-nav .journal-tab--bio { background: #ece4d8; }
-.journal-tabs.workspace-nav .journal-tab--active { padding-top: 18px; min-height: 82px; background: var(--book-paper); color: var(--forest-dark); z-index: 1; border-color: #b7c2aa; }
+.journal-tabs.workspace-nav .journal-tab--active { padding-top: 18px; min-height: 82px; background: var(--book-block-ink); color: var(--book-block-paper); z-index: 1; border-color: var(--book-block-ink); }
+.journal-tabs.workspace-nav .journal-tab--active :is(.workspace-nav__number,.workspace-nav__english) { color: #e1e8cc; }
 .journal-tabs.workspace-nav .journal-tab:hover:not(.journal-tab--active) { background: #f0f1e7; }
 .workspace-nav__copy { gap: 3px; }
 .workspace-nav__number { font-size: 28px; }
@@ -54,13 +54,13 @@ body { background: #e1e7d8; background-image: radial-gradient(ellipse at 14% 12%
 .woodland-spread > .journal-chapter { padding: 0 0 var(--book-gutter); }
 .woodland-spread > .play-guide,.woodland-play-spread > .play-guide { margin-top: var(--book-gutter); margin-bottom: 26px; }
 .woodland-play-spread > :last-child { padding-bottom: var(--book-gutter); }
-.journal-app .chapter-opening { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 30px; min-height: 930px; }
+.journal-app .chapter-opening { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 18px; min-height: 900px; }
 .journal-app .chapter-opening__copy { display: block; width: 100%; padding: 0; order: 0; }
 .chapter-opening__plate { width: 100%; order: 1; align-self: stretch; margin: 8px 0 0; }
-.chapter-opening__art { width: 100%; height: 320px; object-fit: contain; }
-.chapter-opening--map .chapter-opening__art { height: 340px; object-fit: cover; border-radius: 46% 46% 4px 4px; }
+.chapter-opening__art { width: 100%; height: 220px; object-fit: contain; }
+.chapter-opening--map .chapter-opening__art { height: 260px; object-fit: contain; border-radius: 0; }
 .chapter-opening__caption { display: block; margin-top: 12px; text-align: center; font-family: var(--font-display); font-size: 25px; font-style: italic; color: #727d67; }
-.folio-app .main-content-panel .chapter-opening .folio-chapter-title { font-size: clamp(58px,5vw,78px); margin: 0 0 24px; line-height: 1.05; }
+.folio-app .main-content-panel .chapter-opening .folio-chapter-title { font-size: clamp(58px,5vw,72px); margin: 0 0 18px; line-height: 1.05; }
 .chapter-opening__kicker { margin-bottom: 12px; }
 .chapter-opening__copy h2 { font-size: 32px; line-height: 1.4; }
 .chapter-opening__body { max-width: 35ch; font-size: 21px; margin-top: 20px; }
@@ -80,7 +80,7 @@ body { background: #e1e7d8; background-image: radial-gradient(ellipse at 14% 12%
 .workspace-today__actions { margin: 26px 0 0; gap: 14px 24px; }
 .workspace-primary,.workspace-today .workspace-primary { min-height: 54px; font-size: 21px; padding: 14px 24px; border-radius: 7px; }
 .workspace-today__atmosphere { position: static; display: block; width: 100%; min-height: 0; margin: 18px 0 0; }
-.workspace-today__atmosphere img { display: block; width: 100%; height: 310px; object-fit: cover; border-radius: 46% 46% 4px 4px; }
+.workspace-today__atmosphere img { display: block; width: 100%; height: 280px; object-fit: contain; border-radius: 0; }
 .workspace-today__atmosphere > span { display: block; margin-top: 18px; text-align: center; font-family: var(--font-display); font-size: 25px; color: #65765f; }
 .workspace-today__atmosphere small { display: block; font-size: 18px; }
 .workspace-session { margin: auto 0 0; padding: 0; width: 100%; grid-column: auto; }
@@ -101,34 +101,35 @@ body { background: #e1e7d8; background-image: radial-gradient(ellipse at 14% 12%
 .play-guide__overview { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 /* First opening: an invitation facing a page with a proper chapter index. */
 .journal-app--onboarding .onboarding-focus { gap: 0; }
-.onboarding-focus__intro { display: flex; flex-direction: column; min-height: 1000px; }
+.onboarding-focus__intro { display: flex; flex-direction: column; min-height: 940px; }
 .onboarding-focus__welcome { padding: 0; }
 .onboarding-focus__begin { display: none; }
 .folio-app .main-content-panel .onboarding-focus__intro .folio-chapter-title { font-size: 74px; line-height: 1.05; max-width: 12ch; margin: 0 0 28px; }
 .onboarding-focus__intro h2 { font-size: 32px; margin: 18px 0; }
 .onboarding-focus__intro p { font-size: 21px; max-width: 35ch; line-height: 1.8; }
 .onboarding-focus__landscape { margin: 28px 0 0; }
-.onboarding-focus__art { width: 100%; height: 320px; object-fit: cover; border-radius: 46% 46% 4px 4px; }
+.onboarding-focus__art { width: 100%; height: 280px; object-fit: contain; border-radius: 0; }
 .onboarding-focus__landscape figcaption { margin-top: 18px; font-family: var(--font-display); font-style: italic; font-size: 24px; color: #718164; text-align: center; }
 .onboarding-focus__promise { gap: 12px; font-size: 20px; margin-top: 30px; }
 .onboarding-focus__promise > li { grid-template-columns: 36px minmax(0,1fr); gap: 14px; }
 .onboarding-focus__promise span { font-size: 25px; color: #727e62; }
 .onboarding-focus__note { margin-top: auto; font-size: 18px !important; color: #63705c; }
-.onboarding-focus .character-wizard { padding: var(--book-gutter); border: 0; border-radius: 0; background: transparent; min-height: 1000px; display: grid; grid-template-columns: 166px minmax(0,1fr); gap: 26px 30px; align-content: start; }
-.onboarding-focus .character-wizard__header { grid-column: 1/-1; padding-bottom: 24px; margin: 0; border-bottom: 1px solid #c8d0bb; }
+.onboarding-focus .character-wizard { padding: var(--book-gutter); border: 0; border-radius: 0; background: transparent; min-height: 940px; display: grid; grid-template-columns: 166px minmax(0,1fr); gap: 20px 30px; align-content: start; }
+.onboarding-focus .character-wizard__header { grid-column: 1/-1; padding: 18px 0; margin: 0; background: transparent; border: 0; border-top: 3px solid var(--book-block-ink); border-bottom: 1px solid #c8d0bb; border-radius: 0; }
+.folio-app .onboarding-focus .character-wizard__header h3 { color: var(--book-block-ink) !important; }
 .wizard-page-kicker { font-size: 18px !important; color: #7a785f !important; margin: 0 0 10px !important; }
 .onboarding-focus .wizard-steps { display: flex; flex-direction: column; grid-column: 1; grid-row: 2/span 2; gap: 8px; margin: 0; padding: 0 18px 0 0; border-right: 1px solid #d4dac8; }
 .onboarding-focus .wizard-steps button { display: flex; align-items: baseline; text-align: left; gap: 12px; background: transparent; border: 0; border-radius: 4px; padding: 10px 8px; min-height: 54px; color: #64705d; }
-.onboarding-focus .wizard-steps button[aria-current="step"] { background: #e4e9d8; color: #314e35; }
+.onboarding-focus .wizard-steps button[aria-current="step"] { background: transparent; color: #294f36; box-shadow: inset 3px 0 0 #355943; border-radius: 0; font-weight: 650; }
 .wizard-steps__number { font-family: var(--font-display); color: #7b886d; min-width: 22px; }
 .onboarding-focus .wizard-step-content { grid-column: 2; grid-row: 2; border: 0; padding: 0; min-width: 0; width: 100%; max-width: 1100px; }
-.folio-app .onboarding-focus .wizard-step-content h4 { margin-bottom: 24px !important; }
-.wizard-page-actions { display: flex; justify-content: space-between; gap: 16px; margin-top: 28px; }
-.onboarding-focus .wizard-page-actions { width: 100%; max-width: 1100px; grid-column: 2; grid-row: 3; border-top: 1px solid #d4dac8; padding-top: 24px; }
-.wizard-page-actions button { min-width: 94px; min-height: 52px; font-size: 20px !important; }
+.folio-app .onboarding-focus .wizard-step-content h4 { margin-bottom: 14px !important; }
+.wizard-page-actions { display: flex; justify-content: flex-start; flex-wrap: wrap; gap: 14px; margin-top: 10px; }
+.onboarding-focus .wizard-page-actions { width: 100%; max-width: 1100px; grid-column: 2; grid-row: 3; border-top: 1px solid #d4dac8; padding-top: 16px; }
+.wizard-page-actions button { border-radius: 6px; padding: 10px 18px; min-width: 94px; min-height: 52px; font-size: 20px !important; }
 .wizard-animal-choices { gap: 12px; flex-wrap: wrap; }
 .wizard-animal-choices button { min-height: 46px; background: transparent; border-radius: 24px; }
-.onboarding-focus .card-draw-hero { display: grid; grid-template-columns: 148px minmax(0,1fr); gap: 10px 24px; padding: 20px 0; margin: 8px 0; align-items: center; }
+.onboarding-focus .card-draw-hero { display: grid; grid-template-columns: 148px minmax(0,1fr); gap: 8px 24px; padding: 12px 0; margin: 0; align-items: center; }
 .onboarding-focus .card-draw-hero > * { grid-column: 2; min-width: 0; }
 .onboarding-focus .card-draw-hero__label { text-align: left; margin: 0; }
 .onboarding-focus .card-draw-hero__helper { text-align: left; max-width: 35ch; margin: 0; }
@@ -137,6 +138,37 @@ body { background: #e1e7d8; background-image: radial-gradient(ellipse at 14% 12%
 .card-draw-hero .card-draw-hero__card--empty > span { display: block; padding: 110px 6px 0; font-size: 18px !important; line-height: 1.4 !important; }
 .onboarding-focus .card-draw-hero__actions { justify-content: flex-start; flex-wrap: wrap; margin: 0; gap: 10px; }
 .onboarding-focus .card-draw-hero__actions button { min-height: 46px; padding: 10px 16px; }
+/* Live notes belong to the margin; they never compete with the working page. */
+.chapter-margin-note { margin: 24px 0 0; padding: 0 0 0 20px; border-left: 3px solid var(--book-block-ink); background: transparent; }
+.chapter-margin-note h3 { color: var(--book-block-ink); margin: 0 0 14px; font-weight: 600; }
+.chapter-margin-note dl { display: grid; gap: 10px; margin: 0; }
+.chapter-margin-note dl > div { display: grid; grid-template-columns: 5em minmax(0,1fr); gap: 14px; align-items: baseline; }
+.chapter-margin-note dt { color: #737767; font-weight: 400; }
+.chapter-margin-note dd { margin: 0; color: #344a36; overflow-wrap: anywhere; }
+.chapter-margin-note__excerpt { margin: 16px 0 0; color: #5e6657; line-height: 1.8; }
+.chapter-opening__continue { background: #e0e7d3; }
+/* One decision, one compact writing area, one clear next action. */
+.wizard-decision-flow { display: grid; gap: 14px; }
+.wizard-name-field { display: grid; gap: 4px; width: 100%; max-width: 560px; color: #66705e; }
+.folio-app.journal-app .main-content-panel .character-wizard .wizard-name-field input { min-width: 0; width: 100%; min-height: 50px; padding: 8px 0; border: 0 !important; border-bottom: 1px solid #a7b198 !important; border-radius: 0 !important; background: transparent !important; }
+.folio-app.journal-app .main-content-panel .character-wizard .wizard-name-field input:focus { border-bottom-color: #3d6246 !important; box-shadow: 0 2px 0 #3d6246; }
+.wizard-result { padding: 12px 0; text-align: left; background: transparent; border-top: 1px solid #b8c4a9; line-height: 1.65; }
+.wizard-progress-note { margin: 6px 0 0; color: #67715e; }
+.folio-app .character-wizard__header p { margin-block: 4px !important; line-height: 1.5 !important; }
+.folio-app .main-content-panel .wizard-result { font-size: var(--folio-body-size); }
+.wizard-steps__check { margin-left: auto; color: #4c7047; font-size: 18px; }
+.wizard-animal-choices button[aria-pressed="true"] { background: #dbe6ce; border-color: #728b60; color: #284c31; box-shadow: inset 0 0 0 1px #728b60; }
+.folio-app .character-wizard .wizard-next,.folio-app .character-wizard .card-draw-hero__actions button:first-child { background: #365b41 !important; color: #fffdf5 !important; border: 1px solid #365b41 !important; }
+.folio-app .character-wizard .wizard-page-actions button:not(.wizard-next),.folio-app .character-wizard .card-draw-hero__actions button + button { background: transparent !important; color: #4c6248 !important; border: 1px solid #aeb99e !important; }
+.folio-app .character-wizard .wizard-page-actions button:disabled { opacity: .45; }
+.wizard-optional-note { border-top: 1px solid #d4dac8; }
+.wizard-optional-note > summary { display: flex; gap: 14px; align-items: center; min-height: 46px; cursor: pointer; color: #4f664b; }
+.wizard-optional-note > summary::before { content: '+'; font-family: var(--font-display); font-size: 28px; }
+.wizard-optional-note[open] > summary::before { content: '−'; }
+.wizard-optional-note > summary span { color: #78816c; font-size: .9em; }
+.wizard-optional-note textarea { margin-top: 8px; }
+@keyframes card-settle { from { opacity: .7; transform: translateY(5px) rotate(-1deg); } to { opacity: 1; transform: none; } }
+.character-wizard .card-draw-hero__card--filled { animation: card-settle 220ms ease-out; }
 /* Herbarium: separate numbered specimen sheets, with ample room to unfold one entry. */
 .herbarium-field-guide__intro { padding-bottom: 24px; border-bottom: 1px solid #c5cfb7; }
 .herbarium-context { border: 0; border-bottom: 1px solid #c5cfb7; background: transparent; gap: 24px; padding: 24px 0; }
@@ -182,6 +214,7 @@ body { background: #e1e7d8; background-image: radial-gradient(ellipse at 14% 12%
 @media (min-width:1800px) {
   html { font-size: 20px; }
   :root { --folio-page-width: 2680px; --book-gutter: 48px; --book-left: 33%; --folio-body-size: 1.3rem; --folio-control-size: 1.15rem; --folio-meta-size: 1.05rem; --folio-heading-size: 2rem; }
+  .folio-app.journal-app .main-content-panel :is(select,input:not([type]),input[type="text"],input[type="search"],input[type="number"]) { min-height: 56px; }
   .journal-app { padding: 30px 80px 40px; }
   .journal-app .journal-header,.journal-app:not(.journal-app--onboarding) .journal-header,.journal-app--onboarding .journal-header { min-height: 158px; }
   .journal-app .journal-header .journal-brand__title,.journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title,.journal-app--onboarding .journal-header .journal-brand__title { font-size: 80px !important; }
@@ -197,12 +230,12 @@ body { background: #e1e7d8; background-image: radial-gradient(ellipse at 14% 12%
   .workspace-nav__more { flex-basis: 200px; }
   .workspace-nav__more > summary { font-size: 23px; }
   .workspace-nav__menu { width: 340px; }
-  .journal-app .chapter-opening { box-sizing: border-box; min-height: 1040px; gap: 22px; }
-  .folio-app .main-content-panel .chapter-opening .folio-chapter-title,.folio-app .main-content-panel .folio-scene-title { font-size: clamp(76px,3vw,96px); }
+  .journal-app .chapter-opening { box-sizing: border-box; min-height: 960px; gap: 18px; }
+  .folio-app .main-content-panel .chapter-opening .folio-chapter-title,.folio-app .main-content-panel .folio-scene-title { font-size: clamp(72px,2.5vw,84px); }
   .chapter-opening__copy h2,.workspace-today h2 { font-size: 42px; }
   .chapter-opening__body,.workspace-today__reason { font-size: 26px; max-width: 37ch; }
-  .chapter-opening__art { height: 300px; }
-  .chapter-opening--map .chapter-opening__art { height: 330px; }
+  .chapter-opening__art { height: 230px; }
+  .chapter-opening--map .chapter-opening__art { height: 230px; }
   .chapter-opening__caption { font-size: 28px; }
   .chapter-opening__notes { margin-top: 18px; padding-block: 12px; }
   .chapter-opening__actions { margin-top: 14px; }
@@ -210,25 +243,27 @@ body { background: #e1e7d8; background-image: radial-gradient(ellipse at 14% 12%
   .chapter-opening__page-number { font-size: 42px !important; }
   .chapter-opening__page-number > span { font-size: 21px !important; }
   .workspace-today { min-height: 1040px; box-sizing: border-box; }
-  .workspace-today__atmosphere img { height: 380px; }
+  .workspace-today__atmosphere img { height: 320px; }
   .workspace-primary,.workspace-today .workspace-primary { font-size: 25px; min-height: 62px; }
-  .onboarding-focus__intro,.onboarding-focus .character-wizard { box-sizing: border-box; min-height: 1080px; }
-  .folio-app .main-content-panel .onboarding-focus__intro .folio-chapter-title { font-size: 104px; max-width: 12ch; }
+  .onboarding-focus__intro,.onboarding-focus .character-wizard { box-sizing: border-box; min-height: 1010px; }
+  .folio-app .main-content-panel .onboarding-focus__intro .folio-chapter-title { font-size: 84px; max-width: 12ch; }
   .onboarding-focus__intro h2 { font-size: 42px; }
   .onboarding-focus__intro p { font-size: 26px; }
-  .onboarding-focus__art { height: 400px; }
-  .onboarding-focus__promise { font-size: 25px; gap: 16px; }
+  .onboarding-focus__art { height: 300px; }
+  .onboarding-focus__promise { font-size: 25px; gap: 10px; margin-top: 22px; }
   .onboarding-focus__note { font-size: 22px !important; }
-  .onboarding-focus .character-wizard { grid-template-columns: 220px minmax(0,1fr); gap: 34px 42px; }
+  .onboarding-focus .character-wizard { grid-template-columns: 220px minmax(0,1fr); gap: 22px 34px; }
+  .onboarding-focus .wizard-step-content,.onboarding-focus .wizard-page-actions { max-width: 1300px; }
+  .folio-app .main-content-panel .onboarding-focus__intro p:not(.folio-chapter-title) { max-width: 30em; }
   .folio-app .onboarding-focus .character-wizard__header h3 { font-size: 38px !important; }
   .wizard-page-kicker { font-size: 22px !important; }
-  .onboarding-focus .wizard-steps button { font-size: 23px !important; padding: 14px 12px; min-height: 64px; }
+  .onboarding-focus .wizard-steps button { font-size: 23px !important; padding: 10px 8px; min-height: 54px; }
   .folio-app .onboarding-focus .wizard-step-content h4 { font-size: 36px !important; }
-  .onboarding-focus .card-draw-hero { grid-template-columns: 190px minmax(0,1fr); gap: 16px 34px; padding: 28px 0; }
-  .onboarding-focus .card-draw-hero .card-draw-hero__card { width: 190px; height: 266px; }
-  .card-draw-hero .card-draw-hero__card--empty { background-size: 155px auto; }
-  .card-draw-hero .card-draw-hero__card--empty > span { padding-top: 148px; font-size: 23px !important; }
-  .wizard-page-actions button { font-size: 24px !important; min-height: 60px; min-width: 120px; }
+  .onboarding-focus .card-draw-hero { grid-template-columns: 160px minmax(0,1fr); gap: 10px 26px; padding: 12px 0; }
+  .onboarding-focus .card-draw-hero .card-draw-hero__card { width: 160px; height: 224px; }
+  .card-draw-hero .card-draw-hero__card--empty { background-size: 128px auto; }
+  .card-draw-hero .card-draw-hero__card--empty > span { padding-top: 120px; font-size: 21px !important; }
+  .wizard-page-actions button { font-size: 24px !important; min-height: 56px; min-width: 120px; }
   .onboarding-focus .wizard-step-content div[style*="font-size"] { font-size: 25px !important; }
   .card-draw-hero__label,.card-draw-hero__helper { font-size: 25px !important; }
   .folio-app .main-content-panel h3 { font-size: 32px !important; }
@@ -245,6 +280,16 @@ body { background: #e1e7d8; background-image: radial-gradient(ellipse at 14% 12%
   .character-continuity dd { font-size: 34px; }
   .journal-editor { padding: 40px; }
   .folio-app.journal-app .main-content-panel .journal-editor textarea { line-height: 44px !important; min-height: 264px; background: repeating-linear-gradient(transparent 0,transparent 43px,#dfe3d7 43px,#dfe3d7 44px) !important; }
+}
+@media (min-width:2800px) {
+  .onboarding-focus .character-wizard:is([data-step="0"],[data-step="4"]) .wizard-decision-flow { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 18px 34px; }
+  .onboarding-focus .character-wizard:is([data-step="0"],[data-step="4"]) .wizard-name-field:first-child { grid-column: 1/-1; }
+  .onboarding-focus .character-wizard:is([data-step="0"],[data-step="4"]) .card-draw-hero { grid-column: 1; grid-row: 2/span 4; align-self: start; }
+  .onboarding-focus .character-wizard:is([data-step="0"],[data-step="4"]) .wizard-result { grid-column: 2; grid-row: 2; }
+  .onboarding-focus .character-wizard:is([data-step="0"],[data-step="4"]) .wizard-animal-choices { grid-column: 2; grid-row: 3; }
+  .onboarding-focus .character-wizard:is([data-step="0"],[data-step="4"]) .wizard-name-field:not(:first-child) { grid-column: 2; grid-row: 4; }
+  .onboarding-focus .character-wizard:is([data-step="0"],[data-step="4"]) .wizard-decision-flow > details:not(.wizard-optional-note) { grid-column: 2; grid-row: 5; }
+  .onboarding-focus .character-wizard:is([data-step="0"],[data-step="4"]) .wizard-optional-note { grid-column: 1/-1; grid-row: 6; }
 }
 @media (min-width:1400px) {
   .woodland-spread > .chapter-opening,.woodland-play-spread > .workspace-today { position: sticky; top: 24px; }
@@ -361,10 +406,12 @@ body { background: #e1e7d8; background-image: radial-gradient(ellipse at 14% 12%
   .onboarding-focus__intro h2 br { display: none; }
   .onboarding-focus__intro p { max-width: none; margin-bottom: 0; }
   .onboarding-focus__landscape { margin-top: 22px; }
-  .onboarding-focus__art { height: 180px; border-radius: 42% 42% 3px 3px; }
+  .onboarding-focus__art { height: 180px; border-radius: 0; }
   .onboarding-focus__landscape figcaption { margin-top: 12px; font-size: 21px; }
   .onboarding-focus .character-wizard { padding: 24px 20px; gap: 22px; }
   .folio-app .onboarding-focus .character-wizard__header h3 { font-size: 28px !important; }
+  .onboarding-focus .character-wizard__header { flex-direction: column; padding: 16px 0; gap: 12px; }
+  .onboarding-focus .character-wizard__header > button { align-self: flex-end; white-space: nowrap; }
   .onboarding-focus .wizard-steps { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px; }
   .onboarding-focus .wizard-steps button { min-width: 0; padding: 8px; gap: 8px; font-size: 18px !important; }
   .onboarding-focus .card-draw-hero { grid-template-columns: 108px minmax(0,1fr); gap: 10px 16px; align-items: start; }
@@ -387,4 +434,4 @@ body { background: #e1e7d8; background-image: radial-gradient(ellipse at 14% 12%
   .character-continuity { padding: 22px; }
   .field-footer { padding: 14px 4px; }
 }
-@media (prefers-reduced-motion:reduce) { .journal-tabs.workspace-nav .journal-tab { transition: none; } }
+@media (prefers-reduced-motion:reduce) { .journal-tabs.workspace-nav .journal-tab { transition: none; } .character-wizard .card-draw-hero__card--filled { animation: none; } }
