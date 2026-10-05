@@ -9,6 +9,7 @@ import { localizeRegionLabel, localizeSeasonLabel } from '../localization/gamepl
 import { EMPTY_PERSONAL_RULEBOOK_STATE, loadPersonalRulebookState, savePersonalRulebookState } from '../rulebook/personalState';
 import { searchRulebookPages } from '../rulebook/sourceLoader';
 import { readableReference, referenceChoices, searchReadableReferences } from '../rulebook/readingPresentation';
+import { RuleTagText, RuleTagValues } from './RuleTag';
 import ReaderGuide from './ReaderGuide';
 import RulebookSourceText from './RulebookSourceText';
 import type {
@@ -246,7 +247,7 @@ export default function AlmanackPanel({
         <button type="button" disabled={!gameplayContext.requirements.length} aria-pressed={patientContextOnly} onClick={() => { setQuery(''); setKind('remedy'); setPatientContextOnly(true); setFieldContextOnly(false); setOwnedOnly(false); setBookmarkedOnly(false); }}>
           <span>현재 환자</span>
           <strong>{gameplayContext.patientName || '진료 중인 환자 없음'}</strong>
-          <small>{gameplayContext.requirements.length ? `${gameplayContext.ailmentName || '병증'} · ${gameplayContext.requirements.map(row => `${row.tag} ${row.threshold}`).join(' · ')}` : '환자가 생기면 필요한 약효가 연결됩니다'}</small>
+          <small>{gameplayContext.requirements.length ? <>{gameplayContext.ailmentName || '병증'} · <RuleTagValues values={gameplayContext.requirements.map(row => ({tag: row.tag, value: row.threshold}))} /></> : '환자가 생기면 필요한 약효가 연결됩니다'}</small>
         </button>
         <button type="button" aria-pressed={ownedOnly} onClick={() => { setQuery(''); setKind('all'); setOwnedOnly(true); setFieldContextOnly(false); setPatientContextOnly(false); setBookmarkedOnly(false); }}>
           <span>펼쳐둔 배낭</span>
@@ -285,7 +286,7 @@ export default function AlmanackPanel({
             <article key={entry.id} className={`almanack-entry ${selectedId === entry.id ? 'almanack-entry--selected' : ''}`} role="listitem">
               <button className="almanack-entry__favorite" aria-label={`${entry.title} 책갈피 ${isBookmarked ? '해제' : '추가'}`} aria-pressed={isBookmarked} onClick={() => persistPersonal({ ...personal, bookmarks: isBookmarked ? personal.bookmarks.filter(id => id !== entry.id) : [...personal.bookmarks, entry.id] })}>{isBookmarked ? '★' : '☆'}</button>
               <button type="button" className="almanack-entry__open" onClick={() => openEntry(entry.id)}>
-                <div className="almanack-entry__body"><span className="almanack-entry__kind">{KIND_LABELS[entry.kind]}</span><h3>{entry.title}</h3><p>{entry.summary}</p>{contextLabelsFor(entry).length > 0 && <div className="rulebook-context-marks">{contextLabelsFor(entry).map(label => <span key={label}>{label}</span>)}</div>}{query.trim() && <small className="rulebook-match-reason">{referenceSearchReason(entry, query)}에서 찾음</small>}</div>
+                <div className="almanack-entry__body"><span className="almanack-entry__kind">{KIND_LABELS[entry.kind]}</span><h3>{entry.title}</h3><p>{['remedy', 'ailment'].includes(entry.kind) ? <RuleTagText text={entry.summary} /> : entry.summary}</p>{contextLabelsFor(entry).length > 0 && <div className="rulebook-context-marks">{contextLabelsFor(entry).map(label => <span key={label}>{label}</span>)}</div>}{query.trim() && <small className="rulebook-match-reason">{referenceSearchReason(entry, query)}에서 찾음</small>}</div>
                 <div className="almanack-entry__meta"><span>{entry.ownerId ? '앱 규칙과 연결' : '원문 색인'}</span><span className={`automation-mark automation-mark--${resolutionStatus}`}>{STATUS_LABELS[resolutionStatus as Exclude<ResolutionFilter, 'all'>]}</span><span>p.{entry.sourcePage}</span></div>
               </button>
             </article>
@@ -298,7 +299,7 @@ export default function AlmanackPanel({
       {selected && (
         <article id="rulebook-reference-detail" className="rulebook-reference-detail" aria-labelledby="rulebook-reference-title">
           <header>
-            <div><span className="document-kicker">{KIND_LABELS[selected.kind]} · p.{selected.sourcePage}</span><h3 id="rulebook-reference-title">{selected.title}</h3><p>{selected.summary}</p></div>
+            <div><span className="document-kicker">{KIND_LABELS[selected.kind]} · p.{selected.sourcePage}</span><h3 id="rulebook-reference-title">{selected.title}</h3><p>{['remedy', 'ailment'].includes(selected.kind) ? <RuleTagText text={selected.summary} /> : selected.summary}</p></div>
             <div className="rulebook-reference-detail__actions">
               <button type="button" disabled={trail.index <= 0} onClick={() => moveInTrail(-1)} aria-label="이전 참고 기록">← 이전</button>
               <button type="button" disabled={trail.index >= trail.ids.length - 1} onClick={() => moveInTrail(1)} aria-label="다음 참고 기록">다음 →</button>
@@ -307,7 +308,7 @@ export default function AlmanackPanel({
           </header>
           <div className="rulebook-reference-detail__layers">
             <section><span>실전 요약</span><h4>현재 판정 기준</h4><p>{STATUS_LABELS[statusFor(selected) as Exclude<ResolutionFilter, 'all'>]} · {selected.ownerId ? '앱 규칙과 연결' : '원문 참고'}</p>{contextLabelsFor(selected).length > 0 && <div className="rulebook-context-marks">{contextLabelsFor(selected).map(label => <span key={label}>{label}</span>)}</div>}</section>
-            <section><span>현장 정보</span><h4>항목 정보</h4><dl>{selected.details.map(row => <div key={`${row.label}:${row.value}`}><dt>{RULEBOOK_DETAIL_LABELS[row.label] || row.label}</dt><dd>{formatRulebookDetailValue(row.label, row.value)}</dd></div>)}</dl></section>
+            <section><span>현장 정보</span><h4>항목 정보</h4><dl>{selected.details.map(row => <div key={`${row.label}:${row.value}`}><dt>{RULEBOOK_DETAIL_LABELS[row.label] || row.label}</dt><dd>{['Tags', 'Requirement', 'Potency'].includes(row.label) ? <RuleTagText text={formatRulebookDetailValue(row.label, row.value)} /> : formatRulebookDetailValue(row.label, row.value)}</dd></div>)}</dl></section>
             <section><span>출처</span><h4>원문 위치</h4><p>{selected.ruleIds.length ? `연결된 규칙 ${selected.ruleIds.length}개` : '별도 규칙 연결 없음'} · p.{selected.sourcePage}</p></section>
           </div>
 

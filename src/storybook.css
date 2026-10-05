@@ -541,3 +541,35 @@ body { background: #e1e7d8; background-image: radial-gradient(ellipse at 14% 12%
   .journal-tabs.workspace-nav .journal-tab { transition: none; }
   .folio-app .main-content-panel :is(.card-draw-hero__card,.herbarium-specimen,.journal-saved-receipt,.journal-entry[data-new-memory],.custom-herbarium article[data-new-discovery]) { animation: none !important; }
 }
+
+/* Canonical game labels keep their own colors across every working page. */
+#root .folio-app .rule-tag {
+  display: inline-flex; align-items: baseline; gap: .35em; flex: 0 0 auto;
+  max-width: 100%; padding: .16em .5em; margin-block: 2px;
+  background: var(--tag-paper) !important; color: var(--tag-ink) !important;
+  border: 1px solid var(--tag-edge) !important; border-left: 3px solid var(--tag-ink) !important;
+  border-radius: 4px !important; box-shadow: none !important;
+  font-family: var(--font-base) !important; font-size: clamp(21px,.8vw,26px) !important;
+  font-weight: 400 !important; font-style: normal !important; line-height: 1.3;
+  letter-spacing: .01em; white-space: nowrap;
+}
+#root .folio-app .rule-tag > span { color: inherit !important; font-size: inherit !important; font-weight: inherit !important; }
+.folio-app .rule-tag .rule-tag__value { padding-left: .35em; border-left: 1px solid var(--tag-edge); font-variant-numeric: tabular-nums; }
+.rule-tag-list { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 7px; max-width: 100%; vertical-align: baseline; }
+.rule-tag-list__join { white-space: pre-wrap; overflow-wrap: anywhere; }
+.rule-tag-match { display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.rule-tag-match > small { color: var(--forest); text-decoration: underline; text-underline-offset: 3px; }
+.world-discovery[data-new-discovery] { animation: page-arrival 250ms ease-out; }
+/* Destructive choices stay outlined; completion actions have the strongest ink. */
+.folio-app :is(.treatment-complete,.downtime-start-action,.btn-cozy-primary) {
+  background: #294a33 !important; color: #fffdf4 !important; border: 1px solid #294a33 !important;
+}
+.folio-app :is(.btn-cozy-secondary,.treatment-reset-draft,.inventory-reference-button) {
+  background: #fffdf6 !important; color: #355943 !important; border: 1px solid #acb69f !important; box-shadow: none !important;
+}
+.folio-app :is(.btn-cozy-danger,.inventory-delete-button,.journal-entry__delete,.cloud-slot__delete,.map-atelier__delete) {
+  background: transparent !important; color: #873f34 !important; border: 1px solid #c3a69b !important; box-shadow: none !important;
+}
+.folio-app button:disabled { cursor: not-allowed !important; }
+.folio-app :is(.treatment-complete,.downtime-start-action,.btn-cozy-primary,.btn-cozy-secondary,.btn-cozy-danger):disabled { opacity: .5; }
+@media (prefers-reduced-motion: reduce) { .world-discovery[data-new-discovery] { animation: none !important; } }

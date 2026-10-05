@@ -1,3 +1,4 @@
+import { RuleTagText } from './RuleTag';
 import { BARROW_DELVE_BY_ID, REAGENT_BY_ID, TOOL_BY_ID, type BarrowDelveId } from '../rules';
 import {
   localizeBehemothClass,
@@ -100,7 +101,7 @@ export function BarrowPanel({ delve }: { delve: any }) {
       <div className="barrow-field-note__column"><span>지도 결과</span><strong>{delve.removedFromMap ? '고분이 지도에서 사라짐' : '해결 전까지 현재 위치 유지'}</strong></div>
     </div>
 
-    {requirements.length > 0 && <div className="barrow-requirements"><span>필요한 처방</span><ul>{requirements.map((row: string) => <li key={row}>{row}</li>)}</ul></div>}
+    {requirements.length > 0 && <div className="barrow-requirements"><span>필요한 처방</span><ul>{requirements.map((row: string) => <li key={row}><RuleTagText text={row} /></li>)}</ul></div>}
     {unresolved.length > 0 && <div className="barrow-unresolved"><span>선택 필요</span>{unresolved.map(localizeGameplayMessage).join(' · ')}</div>}
     <p className="barrow-panel__note">새로고침해도 이 단계가 저장됩니다. 도전을 시작한 뒤에는 현재 판정 결과 또는 원문의 후퇴 절차로만 탐사를 마칠 수 있습니다.</p>
   </section>;

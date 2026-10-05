@@ -59,7 +59,7 @@ describe('foraging workflow order', () => {
     expect(appSource).toContain('부위와 조제법마다 얻을 수 있는 효과');
     expect(appSource).toContain('부위별 효과 · 한 줄이 한 가지 선택지입니다');
     expect(appSource).toContain('흐린 행은 필요한 조제 도구가 없어 이번에는 고를 수 없습니다.');
-    expect(appSource).toContain('{tag} {value}');
+    expect(appSource).toContain('<RuleTagBadge tag={tag} value={value} />');
     expect(appSource).not.toContain('highestValueByTag');
   });
 

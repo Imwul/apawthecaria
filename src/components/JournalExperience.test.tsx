@@ -132,7 +132,10 @@ describe('book object journal presentation', () => {
       onReturnToToday={noop} onOpenReference={noop} />);
     expect(html).toContain('오늘의 채집 메모');
     expect(html).toContain('새봄');
-    expect(html).toContain('상처 (WOUND) 2 · 통증 (PAIN) 1');
+    expect(html.replace(/<[^>]*>/g, '')).toContain('WOUND 2 · PAIN 1');
+    expect(html).toContain('data-rule-tag="WOUND"');
+    expect(html).toContain('data-rule-tag="PAIN"');
+    expect(html).not.toContain('상처 (WOUND)');
     expect(html).not.toContain('Stale');
     expect(html).not.toContain('지난 환자');
     expect(campaign).toEqual(original);

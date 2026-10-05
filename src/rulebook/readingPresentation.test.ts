@@ -48,7 +48,7 @@ describe('Korean in-app rulebook reading', () => {
     expect(searchReadableReferences('p.171').every(row => row.sourcePage <= 171 && (row.endPage || row.sourcePage) >= 171)).toBe(true);
     expect(searchReadableReferences('라벤더').some(row => row.ownerId === 'reagent-lavender')).toBe(true);
   });
-  it('shares bilingual names and tag meanings between the herbarium and reference reader', () => {
+  it('shares bilingual ingredient names and English game tags with the reference reader', () => {
     for (const reagent of REAGENTS) {
       const title = readableReference(RULEBOOK_REFERENCE_BY_ID.get(`ingredient:${reagent.id}`)!).title;
       expect(title).toContain(reagent.canonicalName);
@@ -57,7 +57,7 @@ describe('Korean in-app rulebook reading', () => {
         const reading = readableReference(RULEBOOK_REFERENCE_BY_ID.get(`remedy:${part.id}`)!);
         expect(reading.title).toContain(reagent.canonicalName);
         expect(reading.title).toMatch(/[가-힣]/);
-        for (const tag of part.tags) expect(reading.summary).toContain(`${tag.tag} · `);
+        for (const tag of part.tags) expect(reading.summary).toContain(`${tag.tag} ${tag.value}`);
       }
     }
   });

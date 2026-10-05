@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { RuleTagText } from './RuleTag';
 import { FieldIcon } from './FieldIcon';
 import { SeasonSprig } from './SeasonSprig';
 import { localizeJourneyGoalText, localizeLocationName, localizeRegionLabel, localizeSeasonLabel } from '../localization/gameplayKo';
@@ -256,7 +257,7 @@ export function ChapterOpening({
         </ul>
         <aside className="chapter-margin-note" aria-labelledby={`chapter-note-${tab}`}>
           <h3 id={`chapter-note-${tab}`}>{marginNote.title}</h3>
-          <dl>{marginNote.lines.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+          <dl>{marginNote.lines.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{label.includes('약효') ? <RuleTagText text={value} /> : value}</dd></div>)}</dl>
           {marginNote.excerpt && <p className="chapter-margin-note__excerpt">“{marginNote.excerpt}”</p>}
         </aside>
         <div className="chapter-opening__actions">
@@ -349,7 +350,7 @@ export function TodayOverview({ state, currentWeight, maxCarry, onNavigate, onCo
       {patient || legacy || overCapacity ? <div className="workspace-patient-strip" aria-label="현재 진료와 준비물">
         {patient || legacy ? <>
           <div><span>현재 환자</span><strong>{patient?.name || legacy?.patientName || '이름 없는 환자'}</strong><small>{legacy?.name || ailment?.legacyName || '병증 확인 중'}</small></div>
-          {requirements.length > 0 && <div><span>필요 약효</span><strong className="workspace-patient-strip__tags">{requirements.map(value => value.replace(/\b[A-Z]+\b/g, formatRuleTag)).join(' · ')}</strong></div>}
+          {requirements.length > 0 && <div><span>필요 약효</span><strong className="workspace-patient-strip__tags"><RuleTagText text={requirements.join(' · ')} /></strong></div>}
           <div><span>가장 급한 치료 기한</span><strong className={timers.shortestHours === 0 ? 'is-urgent' : ''}>{timers.shortestHours === null ? '기한 없음' : `${timers.shortestHours}시간`}</strong>{timers.activeTimers.length > 1 && <small>{timers.activeTimers.length}개 기한을 각각 추적합니다</small>}</div>
         </> : null}
         {overCapacity && <div className="is-urgent"><span>배낭 한도 초과</span><strong>{currentWeight.toFixed(1)} / {maxCarry}</strong><button type="button" className="workspace-link" onClick={() => onNavigate('bio')}>짐 정리하기</button></div>}

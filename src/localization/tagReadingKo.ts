@@ -7,5 +7,4 @@ export const TAG_READING_KO: Record<RuleTag, string> = {
   BREATH: '호흡', BURN: '화상', FEATHER: '깃털', FUR: '털', HIDE: '피부', POISON: '해독',
   SCALE: '비늘', STOMACH: '소화', TEMPERATURE: '체온', WOUND: '상처', FAIR: '호평', FOUL: '악평'
 };
-export const formatRuleTag = (tag: string): string => TAG_READING_KO[tag as RuleTag]
-  ? `${tag} · ${TAG_READING_KO[tag as RuleTag]}` : tag;
+export { formatRuleTag } from './ruleTagsKo';

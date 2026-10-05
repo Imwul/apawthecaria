@@ -458,6 +458,9 @@ import { useDialogFocus } from './components/useDialogFocus';
 import { cloudCapacityIssueForPayload, cloudCapacityMessage, type CloudCapacityIssue } from './persistence/cloudCapacity';
 import PlayGuide from './components/PlayGuide';
 import LocalizedManualEffectText from './components/LocalizedManualEffectText';
+import { RuleTagBadge, RuleTagText, RuleTagValues } from './components/RuleTag';
+import { DiscoveryArrival } from './components/DiscoveryArrival';
+import { localizeRuleTag } from './localization/ruleTagsKo';
 import { formatRuleTag } from './localization/ruleTagsKo';
 import {
   localizeCharacterChoiceLabel,
@@ -5784,81 +5787,13 @@ const tagTranslationMap: { [key: string]: string } = {
   'a brightly coloured plant reagent': 'A BRIGHTLY COLOURED PLANT REAGENT'
 };
 
-const tagColorMap: { [key: string]: { bg: string, text: string, border: string } } = {
-  'PAIN': { bg: '#fff0f0', text: '#d94141', border: '#fcc8c8' },
-  'WOUND': { bg: '#fff5f0', text: '#e05a36', border: '#ffd2c4' },
-  'INFECTION': { bg: '#f2f9f3', text: '#3d824d', border: '#cce6d2' },
-  'PARASITE': { bg: '#fbf5eb', text: '#8b5a2b', border: '#e8dbcd' },
-  'SENSES': { bg: '#f5f0ff', text: '#7d4bb5', border: '#e3d2fd' },
-  'SLEEP': { bg: '#f0f4ff', text: '#406ac4', border: '#d0ddfc' },
-  'BREATH': { bg: '#f0f9ff', text: '#207bb5', border: '#cce9fc' },
-  'BURN': { bg: '#fffdf0', text: '#cca010', border: '#fcf2c4' },
-  'FUR': { bg: '#faf6f0', text: '#806850', border: '#e6dec8' },
-  'FEATHER': { bg: '#f0fbfb', text: '#1ea0a0', border: '#cceeee' },
-  'HIDE': { bg: '#fbf6f2', text: '#8f5c38', border: '#ebd8cc' },
-  'SCALE': { bg: '#f0fbf7', text: '#1a9e78', border: '#ccf0e4' },
-  'POISON': { bg: '#fdf0ff', text: '#b33cb3', border: '#fcd0fc' },
-  'STOMACH': { bg: '#fafdf0', text: '#76941b', border: '#edf7cc' },
-  'TEMPERATURE': { bg: '#fff5f5', text: '#d94141', border: '#fcc8c8' },
-  'JOY': { bg: '#fff9e6', text: '#d19200', border: '#ffeebf' },
-  'MOOD': { bg: '#fdf6f7', text: '#bf435c', border: '#f7d2d8' },
-  'INSTINCT': { bg: '#f7f6f5', text: '#5c544d', border: '#ded9d5' },
-  'ELSEWHERE': { bg: '#f0fdf4', text: '#2b8a4a', border: '#ccf5d9' },
-  'NERVES': { bg: '#f9f6ff', text: '#6930c3', border: '#dec9ff' },
-
-  'DEFAULT': { bg: '#f5f5f5', text: '#555555', border: '#dddddd' }
-};
-
-const getTagStyle = (tagName: string) => {
-  const clean = tagName.toUpperCase().trim();
-  for (const key of Object.keys(tagColorMap)) {
-    if (clean.includes(key)) {
-      return tagColorMap[key];
-    }
-  }
-  return tagColorMap.DEFAULT;
-};
-
 const renderSingleTagBadge = (tagContent: string) => {
-  const numMatch = tagContent.trim().match(/^([\s\S]+?)\s*(\d+)$/);
-  let tagName = tagContent.trim();
-  let tagNum = '';
-  if (numMatch) {
-    tagName = numMatch[1].trim();
-    tagNum = numMatch[2];
-  }
-
-  const cleanKey = tagName.toLowerCase();
-  const translated = tagTranslationMap[cleanKey] || tagTranslationMap[tagName] || tagName.toUpperCase();
-  const label = translated === 'MINIMUM FAIR' ? `${formatRuleTag('FAIR')} 최소`
-    : translated === 'SOMETHING TO SET A BONE' ? '뼈를 고정할 재료'
-      : translated === 'A BRIGHTLY COLOURED PLANT REAGENT' ? '밝은 색 식물 약재'
-        : translated.replace(/\b[A-Z]+\b/g, formatRuleTag);
-  const finalTagText = tagNum ? `${label} ${tagNum}` : label;
-
-  const style = getTagStyle(finalTagText);
-  return (
-    <span
-      style={{
-        padding: '0.2rem 0.6rem',
-        borderRadius: '8px',
-        background: style.bg,
-        color: style.text,
-        border: `1.5px solid ${style.border}`,
-        fontSize: '0.78rem',
-        fontWeight: 700,
-        display: 'inline-flex',
-        alignItems: 'center',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-        letterSpacing: '0.03em',
-        textTransform: 'none',
-        fontFamily: 'var(--font-fancy)',
-        whiteSpace: 'normal'
-      }}
-    >
-      {formatRuleTag(translated)}{tagNum ? ` ${tagNum}` : ''}
-    </span>
-  );
+  const match = tagContent.trim().match(/^([\s\S]+?)\s*(\d+)$/);
+  const name = match ? match[1].trim() : tagContent.trim();
+  const translated = tagTranslationMap[name.toLowerCase()] || tagTranslationMap[name] || name.toUpperCase();
+  const label = translated === 'SOMETHING TO SET A BONE' ? '뼈를 고정할 재료'
+    : translated === 'A BRIGHTLY COLOURED PLANT REAGENT' ? '밝은 색 식물 약재' : translated;
+  return <RuleTagText text={`${label}${match ? ` ${match[2]}` : ''}`} />;
 };
 
 const parseAndRenderTags = (tagsStr: string) => {
@@ -5872,10 +5807,7 @@ const parseAndRenderTags = (tagsStr: string) => {
   // Canonical recipes retain their parentheses and alternatives. Tokenize only
   // the badges, never split an entire alternative recipe into one fake tag.
   if (/[()+]/.test(prepared)) return <div className="tag-badge-list">
-    {prepared.split(/(\b[A-Z]+\s+\d+\b)/g).filter(Boolean).map((part, index) =>
-      <Fragment key={index}>{/^[A-Z]+\s+\d+$/.test(part)
-        ? renderSingleTagBadge(part)
-        : <span>{part}</span>}</Fragment>)}
+    <RuleTagText text={prepared} />
   </div>;
 
   // Split by commas, '및', 'and', or '&'
@@ -9080,6 +9012,7 @@ export default function App() {
     />
   ) : null;
 
+  const recentlyObservedIds = useRecordArrivals((state?.worldAlmanac || []).map(entry => entry.id), String(campaignUiEpoch), Boolean(state && !loading));
   const recentlyDiscoveredIds = useRecordArrivals((state?.customReagentCatalogue || []).map(entry => entry.id), String(campaignUiEpoch), Boolean(state && !loading));
 
   if (loading || !cloudBootstrapComplete || !state) {
@@ -12957,6 +12890,7 @@ export default function App() {
                 {activeTab === 'livingArchive' && (
                   <LivingArchiveView
                     state={state}
+                    recentlyObservedIds={recentlyObservedIds}
                     setActiveTab={changeActiveTab}
                     setHighlightedPatientId={setHighlightedPatientId}
                   />
@@ -12974,6 +12908,7 @@ export default function App() {
                   <JournalsView
                     key={`journals-${campaignUiEpoch}`}
                     state={state}
+                    recentlyObservedIds={recentlyObservedIds}
                     updateState={updateState}
                     workspace={journalWorkspace}
                     setWorkspace={setJournalWorkspace}
@@ -13461,7 +13396,7 @@ export default function App() {
 
               {requiresTravelSecondaryDraw && (
                 <div className="encounter-dialog__secondary-draw">
-                  <strong>🃏 카드 판정이 필요합니다</strong>
+                  <strong><FieldIcon kind="card" /> 카드 판정이 필요합니다</strong>
                   <p>인쇄된 지시에 적힌 장수만큼 실제 덱이나 아래 도구를 사용하세요. 여러 장이면 다시 뽑기로 차례대로 확인할 수 있습니다.</p>
                   <TravelSecondaryDrawSlot
                     cards={travelSecondaryCards}
@@ -13854,14 +13789,14 @@ export default function App() {
                                 {tagGroups.remedy.length > 0
                                   ? tagGroups.remedy.map(({ tag, value }) => {
                                     const isRelevant = treatmentRelevantPreparationTags([{ tag, value }], neededForageRequirements).length > 0;
-                                    return <b key={tag} className={isRelevant ? 'is-relevant' : undefined}>{tag} {value}</b>;
+                                    return <span key={tag} className={isRelevant ? 'rule-tag-match' : undefined}><RuleTagBadge tag={tag} value={value} />{isRelevant && <small>필요 약효</small>}</span>;
                                   })
                                   : <i>일반 치료 태그 없음</i>}
                               </span>
                               {tagGroups.trade.length > 0 && (
                                 <span className="forage-candidate__part-trade-tags">
                                   <i>거래 가치</i>
-                                  {tagGroups.trade.map(({ tag, value }) => <b key={tag} className={tag === 'FAIR' ? 'is-fair' : 'is-foul'}>{tag} {value}</b>)}
+                                  {tagGroups.trade.map(({ tag, value }) => <RuleTagBadge key={tag} tag={tag} value={value} />)}
                                 </span>
                               )}
                               {missingTools.length > 0 && (
@@ -13984,7 +13919,7 @@ export default function App() {
               {/* Secondary draw guidance */}
               {hasSecondaryDraw && (
                 <div className="encounter-dialog__secondary-draw" style={{ marginTop: '0.9rem', padding: '0.8rem 1rem', background: '#f0f4ff', border: '1.5px dashed #7a8ec9', borderRadius: '10px', fontSize: '0.88rem', lineHeight: 1.65 }}>
-                  <div style={{ fontWeight: 'bold', color: '#3a4c8a', marginBottom: '0.35rem' }}>🃏 카드 판정이 필요합니다</div>
+                  <div style={{ fontWeight: 'bold', color: '#3a4c8a', marginBottom: '0.35rem' }}><FieldIcon kind="card" /> 카드 판정이 필요합니다</div>
                   <div style={{ color: '#3a4c8a', marginBottom: '0.6rem' }}>
                     인쇄된 지시에 적힌 장수만큼 실제 덱이나 아래 도구를 사용하세요.<br />
                     여러 장이면 다시 뽑기로 차례대로 확인한 뒤 결과를 판정합니다.
@@ -14028,7 +13963,7 @@ export default function App() {
 
               {!activeForageEncounter.selectedReagentId && <div className="forage-discovery-surface">
                 <header className="forage-discovery-surface__context">
-                  <h4>🌿 {plannedForageReagentId ? '목표 영약재 판정' : '채집 발견 처리'}</h4>
+                  <h4><FieldIcon kind="reagents" /> {plannedForageReagentId ? '목표 영약재 판정' : '채집 발견 처리'}</h4>
                   <span>{localizeRegionLabel(activeForageEncounter.region)} · {localizeSeasonLabel(activeForageEncounter.season || state.currentSeason)} · {activeForageEncounter.cardValue} {activeForageEncounter.suitLabel}</span>
                 </header>
                 {plannedForageReagentId && (
@@ -14277,7 +14212,7 @@ export default function App() {
       {/* Seasoned (베테랑 여행자) 카드 선택 모달 */}
       {showSeasonedModal && seasonedDraws.length === 2 && (
         <FocusDialog label="베테랑 여행자 조우 카드 선택" className="card-choice-dialog" onEscape={() => { setShowSeasonedModal(false); setSeasonedDraws([]); }}>
-            <h3 style={{ color: 'var(--primary)', margin: '0 0 1rem 0' }}>🧭 베테랑 여행자 (Seasoned) 조우 선택</h3>
+            <h3 style={{ color: 'var(--primary)', margin: '0 0 1rem 0' }}><FieldIcon kind="play" /> 베테랑 여행자 (Seasoned) 조우 선택</h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
               길동무의 베테랑 길잡이 혜택으로 2장의 카드 중 여정 조우에 적용할 카드를 선택합니다.
             </p>
@@ -14341,7 +14276,7 @@ export default function App() {
       {/* Titanwise (유적/고분 마스터) 카드 선택 모달 */}
       {showTitanwiseModal && titanwiseDraws.length === 2 && (
         <FocusDialog label="유적 고분 마스터 채집 카드 선택" className="card-choice-dialog" onEscape={() => { setShowTitanwiseModal(false); setTitanwiseDraws([]); }}>
-            <h3 style={{ color: 'var(--primary)', margin: '0 0 1rem 0' }}>🏛️ 유적/고분 마스터 (Titanwise) 채집 선택</h3>
+            <h3 style={{ color: 'var(--primary)', margin: '0 0 1rem 0' }}> 유적/고분 마스터 (Titanwise) 채집 선택</h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
               티탄 유적이나 고분에서 2장의 카드 중 채집에 적용할 카드를 선택합니다.
             </p>
@@ -14399,7 +14334,7 @@ export default function App() {
         <FocusDialog label="스승의 유산 계승" className="card-choice-dialog" onEscape={() => setShowSuccessionModal(false)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <h3 style={{ margin: 0, color: 'var(--secondary)', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              🌅 스승의 유산 계승
+               스승의 유산 계승
             </h3>
             <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text)', lineHeight: 1.4 }}>
               <strong>{retiredApothecaryName}</strong> 약제사는 은퇴하여 Bristley Woods의 역사로 기록됩니다. 설립된 <strong>{clinicsBuiltCount}개</strong>의 약제소 본부는 지도에 영구적으로 보존되며, 다음 대의 제자가 계승하게 됩니다.
@@ -14407,28 +14342,28 @@ export default function App() {
 
             <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
               <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#475569', marginBottom: '0.6rem' }}>
-                🎁 다음 대 약제사에게 물려줄 유산 선택:
+                <FieldIcon kind="gift" /> 다음 대 약제사에게 물려줄 유산 선택:
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <button
                   onClick={() => handleSuccessionConfirm('sickle')}
                   style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', textAlign: 'left', padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', background: '#fff' }}
                 >
-                  <strong style={{ color: 'var(--primary)', fontSize: '0.85rem' }}>🗡️ 스승의 명검: 은빛 낫 (Silver Sickle) 상속</strong>
+                  <strong style={{ color: 'var(--primary)', fontSize: '0.85rem' }}> 스승의 명검: 은빛 낫 (Silver Sickle) 상속</strong>
                   <span style={{ fontSize: '0.75rem', color: '#64748b' }}>개조된 은빛 낫 도구를 가방에 둔 채로 시작합니다. (채집 점수 +1 효과)</span>
                 </button>
                 <button
                   onClick={() => handleSuccessionConfirm('reputation')}
                   style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', textAlign: 'left', padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', background: '#fff' }}
                 >
-                  <strong style={{ color: 'var(--primary)', fontSize: '0.85rem' }}>📜 길드 추천 서한: 시작 Guild Reputation +10으로 상향</strong>
+                  <strong style={{ color: 'var(--primary)', fontSize: '0.85rem' }}><FieldIcon kind="journals" /> 길드 추천 서한: 시작 Guild Reputation +10으로 상향</strong>
                   <span style={{ fontSize: '0.75rem', color: '#64748b' }}>길드 내 지명도를 인정받아 시작 Guild Reputation이 5에서 10으로 증가합니다.</span>
                 </button>
                 <button
                   onClick={() => handleSuccessionConfirm('trinkets')}
                   style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', textAlign: 'left', padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', background: '#fff' }}
                 >
-                  <strong style={{ color: 'var(--primary)', fontSize: '0.85rem' }}>🪙 비상용 장신구 주머니: 시작 장신구 8개 지급</strong>
+                  <strong style={{ color: 'var(--primary)', fontSize: '0.85rem' }}><FieldIcon kind="coin" /> 비상용 장신구 주머니: 시작 장신구 8개 지급</strong>
                   <span style={{ fontSize: '0.75rem', color: '#64748b' }}>초반 마차 확보나 도구 보강에 쓸 수 있게 장신구 8개를 들고 시작합니다.</span>
                 </button>
               </div>
@@ -15089,13 +15024,13 @@ function ControlledPromptDialog({
                     {option.remedyTags && option.remedyTags.length > 0 ? (
                       <div className="controlled-prompt__tag-group controlled-prompt__tag-group--remedy">
                         <small>치료 약효</small>
-                        <span>{option.remedyTags.map(tag => <b key={tag}>{tag}</b>)}</span>
+                        <span>{option.remedyTags.map(tag => <RuleTagText key={tag} text={tag} />)}</span>
                       </div>
-                    ) : option.remedyTags ? <small>일반 치료 태그 없음</small> : option.tags && <span>{option.tags}</span>}
+                    ) : option.remedyTags ? <small>일반 치료 태그 없음</small> : option.tags && <RuleTagText text={option.tags} />}
                     {option.tradeTags && option.tradeTags.length > 0 && (
                       <div className="controlled-prompt__tag-group controlled-prompt__tag-group--trade">
                         <small>거래 가치 · FAIR/FOUL</small>
-                        <span>{option.tradeTags.map(tag => <b key={tag} className={(tag.startsWith('FAIR ') || tag.includes('(FAIR)')) ? 'is-fair' : 'is-foul'}>{tag}</b>)}</span>
+                        <span>{option.tradeTags.map(tag => <RuleTagText key={tag} text={tag} />)}</span>
                       </div>
                     )}
                     {option.meta && <small>{option.meta}</small>}
@@ -15198,8 +15133,8 @@ function ControlledPromptDialog({
                       {option.detail && <small>{option.detail}</small>}
                     </span>
                     <span className="controlled-prompt__search-context">
-                      {option.remedyTags && option.remedyTags.length > 0 && <span className="controlled-prompt__search-tag-group"><small>치료 약효</small><span>{option.remedyTags.map(tag => <b key={tag}>{tag}</b>)}</span></span>}
-                      {option.tradeTags && option.tradeTags.length > 0 && <span className="controlled-prompt__search-tag-group"><small>거래 가치 · FAIR/FOUL</small><span>{option.tradeTags.map(tag => <b key={tag} className={(tag.startsWith('FAIR ') || tag.includes('(FAIR)')) ? 'is-fair' : 'is-foul'}>{tag}</b>)}</span></span>}
+                      {option.remedyTags && option.remedyTags.length > 0 && <span className="controlled-prompt__search-tag-group"><small>치료 약효</small><span>{option.remedyTags.map(tag => <RuleTagText key={tag} text={tag} />)}</span></span>}
+                      {option.tradeTags && option.tradeTags.length > 0 && <span className="controlled-prompt__search-tag-group"><small>거래 가치 · FAIR/FOUL</small><span>{option.tradeTags.map(tag => <RuleTagText key={tag} text={tag} />)}</span></span>}
                       {option.meta && <small>{option.meta}</small>}
                       {option.relevant && <em>{option.relevanceText || '현재 처방 태그 충족'}</em>}
                     </span>
@@ -22571,7 +22506,7 @@ function PlayView({
                 checked={isBookmarkedDraft}
                 onChange={e => setIsBookmarkedDraft(e.target.checked)}
               />
-              <span>⭐ 이 인연을 마음에 깊이 품어두기</span>
+              <span> 이 인연을 마음에 깊이 품어두기</span>
             </label>
             {state.pendingPatientArchive.consequence && (
               <div style={{ marginTop: '0.55rem', padding: '0.55rem', background: '#f2eee9', border: '1px solid #d7cbc1', borderRadius: '4px', color: '#6c5a4f', fontSize: '0.8rem' }}>
@@ -22929,7 +22864,7 @@ function PlayView({
               {(atClinicLocation || inClinicServiceArea) && (
                 <div className="cute-card" style={{ background: '#f0fdf4', border: '2px solid #22c55e', borderRadius: '12px', padding: '1.2rem' }}>
                   <h3 style={{ color: '#15803d', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.2rem' }}>
-                    <span>🏡 약제소 본부</span>
+                    <span><FieldIcon kind="home" /> 약제소 본부</span>
                   </h3>
                   <p style={{ fontSize: '0.85rem', color: '#166534', margin: '0 0 1rem 0' }}>
                     현재 구역({localizeRegionLabel(state.currentRegion)}) 또는 위치({state.currentLocationName})에 길드 약제소가 설립되어 있어 본부 혜택을 이용할 수 있습니다.
@@ -22939,7 +22874,7 @@ function PlayView({
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
                     {(state.clinics || []).map((c, i) => (
                       <span key={i} style={{ background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', padding: '0.2rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                        📍 {c.locationName} 지부: {clinicServiceLabel(c.agendaService)}
+                        <FieldIcon kind="map" /> {c.locationName} 지부: {clinicServiceLabel(c.agendaService)}
                       </span>
                     ))}
 	                  </div>
@@ -22948,7 +22883,7 @@ function PlayView({
 	                    {/* Hive Boxes */}
 	                    {canonicalClinicAgendaIds(state).includes('hive-boxes') && (
 	                      <div style={{ background: '#fff', padding: '0.8rem', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-	                        <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.9rem', color: '#166534' }}>🐝 벌집 보관함</h4>
+	                        <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.9rem', color: '#166534' }}><FieldIcon kind="reagents" /> 벌집 보관함</h4>
 	                        <p style={{ fontSize: '0.8rem', color: '#666', margin: '0 0 0.6rem 0' }}>
 	                          활성 약제소에 머물 때 동반자를 보관하거나 다시 동행시킬 수 있습니다. 동행 한도가 꽉 찬 상태에서 회수하면 가장 오래 동행한 친구가 보관함으로 들어갑니다.
 	                        </p>
@@ -22984,7 +22919,7 @@ function PlayView({
 	                    {/* Mailbox */}
 	                    {(state.clinics || []).some(c => c.agendaService === 'mailbox') && (
 	                      <div style={{ background: '#fff', padding: '0.8rem', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-	                        <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.9rem', color: '#166534' }}>📮 우체통</h4>
+	                        <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.9rem', color: '#166534' }}><FieldIcon kind="journals" /> 우체통</h4>
 	                        <p style={{ fontSize: '0.8rem', color: '#666', margin: '0 0 0.6rem 0' }}>
 	                          외부 길드 우체통에서 확인한 도움 요청을 일지에 기록합니다. 환자와 질환은 일반 진단 절차로 시작합니다.
 	                        </p>
@@ -22999,7 +22934,7 @@ function PlayView({
 	                            cursor: 'pointer'
 	                          }}
 	                        >
-	                          📮 도움 요청 기록
+	                          <FieldIcon kind="journals" /> 도움 요청 기록
 	                        </button>
 	                      </div>
 	                    )}
@@ -23007,7 +22942,7 @@ function PlayView({
 	                    {/* 1. Pantry (Hibernate) */}
 	                    {(state.clinics || []).some(c => c.agendaService === 'pantry') && (
                       <div style={{ background: '#fff', padding: '0.8rem', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                        <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.9rem', color: '#166534' }}>❄️ 식료품 저장고 겨울잠</h4>
+                        <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.9rem', color: '#166534' }}> 식료품 저장고 겨울잠</h4>
                         <p style={{ fontSize: '0.8rem', color: '#666', margin: '0 0 0.6rem 0' }}>
                           겨울 시즌에 식료품 저장고를 통해 동면을 수행하여 즉시 봄으로 건너뛸 수 있습니다. (Guild Reputation 15점 이상 시 무료, 미만 시 15 장신구 소모)
                         </p>
@@ -23023,7 +22958,7 @@ function PlayView({
                             cursor: state.currentSeason === 'Winter' ? 'pointer' : 'not-allowed'
                           }}
                         >
-                          {state.currentSeason === 'Winter' ? '❄️ 겨울 동면 시작하기 (봄으로 건너뛰기)' : '⚠️ 겨울 시즌에만 동면이 가능합니다.'}
+                          {state.currentSeason === 'Winter' ? "겨울 동면 시작하기 (봄으로 건너뛰기)" : "겨울 시즌에만 동면이 가능합니다."}
                         </button>
                       </div>
                     )}
@@ -23035,7 +22970,7 @@ function PlayView({
                       const canHarvest = !isWinter || hasGreenhouse;
                       return (
                         <div style={{ background: '#fff', padding: '0.8rem', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                          <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.9rem', color: '#166534' }}>🌱 약초 정원{hasGreenhouse && '과 온실'}</h4>
+                          <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.9rem', color: '#166534' }}><FieldIcon kind="reagents" /> 약초 정원{hasGreenhouse && '과 온실'}</h4>
                           <p style={{ fontSize: '0.8rem', color: '#666', margin: '0 0 0.6rem 0' }}>
                             보유 중인 영약재를 정원에 심어 재배하고 수확할 수 있습니다. (질병 치료당 1회 수확 가능)
                           </p>
@@ -23065,7 +23000,7 @@ function PlayView({
                                 className="btn-cozy-primary"
                                 style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem' }}
                               >
-                                🌱 심기
+                                <FieldIcon kind="reagents" /> 심기
                               </button>
                             </div>
                             {currentGardenReagent && (
@@ -23082,7 +23017,7 @@ function PlayView({
                                   cursor: (atClinicLocation && canHarvest && !gardenHarvestedForCurrentAilment && currentClinicAilment) ? 'pointer' : 'not-allowed'
                                 }}
                               >
-                                🧺 정원 약초 수확하기
+                                <FieldIcon kind="reagents" /> 정원 약초 수확하기
                               </button>
                             )}
                           </div>
@@ -23093,7 +23028,7 @@ function PlayView({
                     {/* 3. Sodden Logs (물에 젖은 통나무) */}
                     {(state.clinics || []).some(c => c.agendaService === 'sodden_logs') && (
                       <div style={{ background: '#fff', padding: '0.8rem', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                        <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.9rem', color: '#166534' }}>🐛 물에 젖은 통나무</h4>
+                        <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.9rem', color: '#166534' }}><FieldIcon kind="reagents" /> 물에 젖은 통나무</h4>
                         <p style={{ fontSize: '0.8rem', color: '#666', margin: '0 0 0.6rem 0' }}>
                           곤충 서식지를 만들어 곤충 약재를 수확합니다. (치료 시간 1시간을 추가로 소비하여 질병 타이머 -1)
                         </p>
@@ -23121,7 +23056,7 @@ function PlayView({
                               className="btn-cozy-primary"
                               style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem' }}
                             >
-                              🐛 지정하기
+                              <FieldIcon kind="reagents" /> 지정하기
                             </button>
                           </div>
                           {soddenReagent && (
@@ -23138,7 +23073,7 @@ function PlayView({
                                 cursor: (state.currentSeason !== 'Winter' && !soddenHarvestedForCurrentAilment && currentClinicAilment) ? 'pointer' : 'not-allowed'
                               }}
                             >
-                              🧺 통나무 곤충 수확하기 (치료 중일 때만 가능)
+                              <FieldIcon kind="reagents" /> 통나무 곤충 수확하기 (치료 중일 때만 가능)
                             </button>
                           )}
                         </div>
@@ -23148,7 +23083,7 @@ function PlayView({
                     {/* 4. Goodwill Stand (친선 매대 기부) */}
                     {(state.clinics || []).some(c => c.agendaService === 'goodwill_stand') && (
                       <div style={{ background: '#fff', padding: '0.8rem', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                        <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.9rem', color: '#166534' }}>🎁 친선 매대</h4>
+                        <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.9rem', color: '#166534' }}><FieldIcon kind="gift" /> 친선 매대</h4>
                         <p style={{ fontSize: '0.8rem', color: '#666', margin: '0 0 0.6rem 0' }}>
                           가방의 약재나 도구를 기부하고 계절 정산 시 Guild Reputation으로 돌려받습니다.
                           (현재 계절 기부량: <strong>{formatWeight(state.goodwillDonationsVal || 0)}</strong>)
@@ -23172,7 +23107,7 @@ function PlayView({
                             className="btn-cozy-primary"
                             style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem' }}
                           >
-                            🎁 기부하기
+                            <FieldIcon kind="gift" /> 기부하기
                           </button>
                         </div>
                       </div>
@@ -23190,7 +23125,7 @@ function PlayView({
                 return (
                   <div className="cute-card" style={{ background: '#fef3c7', border: '2px solid #f59e0b', borderRadius: '12px', padding: '1.2rem' }}>
                     <h3 style={{ color: '#b45309', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.2rem' }}>
-                      <span>🏡 선배의 진료소 거점</span>
+                      <span><FieldIcon kind="home" /> 선배의 진료소 거점</span>
                     </h3>
                     <p style={{ fontSize: '0.85rem', color: '#78350f', margin: '0 0 1rem 0' }}>
                       이 지역({localizeRegionLabel(state.currentRegion)}) 또는 위치({state.currentLocationName})에 이전 세대의 선배 약제사(설립자: {legacyClinicsHere.map(c => c.founder).join(', ')})가 설립한 옛 진료소가 남아있습니다.
@@ -23199,7 +23134,7 @@ function PlayView({
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
                       {legacyClinicsHere.map((c, i) => (
                         <span key={i} style={{ background: '#fffbeb', color: '#78350f', border: '1px solid #fde68a', padding: '0.2rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                          📍 {c.locationName} 지부 ({c.services.join(', ').toUpperCase()})
+                          <FieldIcon kind="map" /> {c.locationName} 지부 ({c.services.join(', ').toUpperCase()})
                         </span>
                       ))}
                     </div>
@@ -23220,7 +23155,7 @@ function PlayView({
                         fontWeight: 'bold'
                       }}
                     >
-                      {state.legacyRestUsedThisLocation ? '🔒 이 구역에서 이미 휴식/보급을 받았습니다' : '☕ 선배의 진료실에서 휴식 및 보급 (치료 타이머 +1시간 / 거수 선행 거리 +1 / 보급약재 지급)'}
+                      {state.legacyRestUsedThisLocation ? "이 구역에서 이미 휴식/보급을 받았습니다" : "선배의 진료실에서 휴식 및 보급 (치료 타이머 +1시간 / 거수 선행 거리 +1 / 보급약재 지급)"}
                     </button>
                   </div>
                 );
@@ -23242,7 +23177,7 @@ function PlayView({
 
               {/* Listening to Rumours (City Only) */}
               <div {...downtimeActivityCardProps('rumour', rumourActivityAvailable)} style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🗺️{' '}소문 듣기 (추가 절차 · 활동 소모 없음)</h3>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}><FieldIcon kind="map" />{' '}소문 듣기 (추가 절차 · 활동 소모 없음)</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   Guild Reputation이 <strong>15점 이상</strong>이고 <strong>도시에서 여정을 마쳤을 때</strong> 들을 수 있습니다. 고분을 기록한 뒤에도 아래에서 휴식기 활동 하나를 선택합니다. (현재 Guild Reputation: {state.reputation}점)
                 </p>
@@ -23258,12 +23193,12 @@ function PlayView({
                 ) : (
                   <div>
                     <button onClick={handleDrawRumours} className="btn-cozy-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
-                      🎲{' '}소문 카드 4장 드로우하기
+                      <FieldIcon kind="card" />{' '}소문 카드 4장 드로우하기
                     </button>
 
                     {rumourCards.length > 0 && (
                       <div style={{ marginTop: '1rem', padding: '1rem', background: '#fcfaf6', border: '1.5px dashed var(--border-cozy)', borderRadius: '8px' }}>
-                        <h4 style={{ margin: '0 0 0.8rem 0', fontSize: '0.95rem' }}>🔮 드로우된 거수 정보</h4>
+                        <h4 style={{ margin: '0 0 0.8rem 0', fontSize: '0.95rem' }}> 드로우된 거수 정보</h4>
                         <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', marginBottom: '1rem' }}>
                           {rumourCards.map((c, idx) => (
                             <div key={idx} style={{ flex: '0 0 100px', background: '#fff', border: '1px solid #ddd', borderRadius: '6px', padding: '0.5rem', textAlign: 'center' }}>
@@ -23276,7 +23211,7 @@ function PlayView({
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.85rem' }}>
                           <div>
-                            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.2rem' }}>🏷️{' '}거수 고분 이름:</label>
+                            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.2rem' }}>{' '}거수 고분 이름:</label>
                             <input
                               type="text"
                               value={rumourBarrowName}
@@ -23285,7 +23220,7 @@ function PlayView({
                             />
                           </div>
                           <div>
-                            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.2rem' }}>📍 카드 조건을 만족하는 지도 위치:</label>
+                            <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.2rem' }}><FieldIcon kind="map" /> 카드 조건을 만족하는 지도 위치:</label>
                             <select
                               value={rumourLocName}
                               onChange={e => setRumourLocName(e.target.value)}
@@ -23304,7 +23239,7 @@ function PlayView({
                             </select>
                           </div>
                           <button onClick={handleEstablishBarrow} className="btn-cozy-secondary" style={{ alignSelf: 'flex-start', padding: '0.5rem 1rem' }}>
-                            💾{' '}고분 위치 지도에 등록
+                            <FieldIcon kind="edit" />{' '}고분 위치 지도에 등록
                           </button>
                         </div>
                       </div>
@@ -23315,7 +23250,7 @@ function PlayView({
 
               {/* General Practice */}
               <div {...downtimeActivityCardProps('general-practice')} style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🩺{' '}일반 진료</h3>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}><FieldIcon kind="ailments" />{' '}일반 진료</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   동네 주민들을 진료하며 <strong>5 장신구</strong>를 벌고 질병의 태그를 영구 변경합니다.
                 </p>
@@ -23364,14 +23299,14 @@ function PlayView({
                     />
                   </div>
                   <button type="submit" className="btn-cozy-secondary" style={{ alignSelf: 'flex-start', padding: '0.5rem 1rem' }}>
-                    🩺{' '}일반 진료 완료 및 5장신구 획득
+                    <FieldIcon kind="ailments" />{' '}일반 진료 완료 및 5장신구 획득
                   </button>
                 </form>
               </div>
 
               {/* Replenishing Stocks */}
               <div {...downtimeActivityCardProps('replenish')} style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🧺{' '}재고 보충</h3>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}><FieldIcon kind="reagents" />{' '}재고 보충</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   현재 구역(<strong style={{ color: 'var(--primary)' }}>{localizeRegionLabel(state.currentRegion)}</strong>)과 계절(<strong>{localizeSeasonLabel(state.currentSeason)}</strong>)에 맞는 제철 약재를 가방이 허용하는 만큼 여러 종류 고릅니다.
                 </p>
@@ -23410,7 +23345,7 @@ function PlayView({
                         />
                       </div>
                       <button type="submit" className="btn-cozy-secondary" style={{ alignSelf: 'flex-start', padding: '0.5rem 1rem' }} disabled={replenishReagentIndexes.length === 0}>
-                        🧺{' '}선택한 약초 보충하기
+                        <FieldIcon kind="reagents" />{' '}선택한 약초 보충하기
                       </button>
                     </form>
                   );
@@ -23419,22 +23354,22 @@ function PlayView({
 
               {/* Working on Yourself */}
               <div {...downtimeActivityCardProps('self-improvement')} style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🌱{' '}자기 계발</h3>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}><FieldIcon kind="reagents" />{' '}자기 계발</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   바쁜 일상에서 벗어나 자신을 갈고닦습니다. 영구 능력치 버프 또는 새로운 여행 방식을 정립합니다.
                 </p>
 
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <button onClick={() => handleWorkingOnYourself('speed')} className="btn-cozy-primary" style={{ padding: '0.5rem 0.8rem', fontSize: '0.8rem' }}>
-                    🏃‍♂️{' '}속도 영구 향상 (+1 속도)
+                    <FieldIcon kind="play" />{' '}속도 영구 향상 (+1 속도)
                   </button>
                   <button onClick={() => handleWorkingOnYourself('carry')} className="btn-cozy-primary" style={{ padding: '0.5rem 0.8rem', fontSize: '0.8rem' }}>
-                    🎒{' '}짐 소지 영구 향상 (+1 소지 한도)
+                    <FieldIcon kind="bio" />{' '}짐 소지 영구 향상 (+1 소지 한도)
                   </button>
                 </div>
 
                 <div style={{ marginTop: '1rem', borderTop: '1px dashed #eee', paddingTop: '1rem' }}>
-                  <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.4rem' }}>🧭{' '}이동 스타일 변경:</label>
+                  <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.4rem' }}><FieldIcon kind="play" />{' '}이동 스타일 변경:</label>
                   <div style={{ display: 'flex', gap: '0.4rem' }}>
                     <select id="style_select" style={{ padding: '0.4rem', fontSize: '0.85rem', flex: 1 }}>
                       {GAME_DATA.bioChoices.travelStyles.map((style, idx) => (
@@ -23458,14 +23393,14 @@ function PlayView({
               {/* 🐾 길동무와 교감 (Familiar Intimacy & milestones) */}
               {state.rulesetId === 'legacy-campaign' && <div className="cute-card" style={{ background: '#f8fafc', border: '1.5px solid var(--border-cozy)' }}>
                 <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>🐾{' '}길동무 교감</span>
+                  <span><FieldIcon kind="paw" />{' '}길동무 교감</span>
                   <span style={{ fontSize: '0.8rem', background: 'var(--primary)', color: '#fff', padding: '0.1rem 0.4rem', borderRadius: '12px' }}>
                     친밀도: {state.familiarTrust || 0}%
                   </span>
                 </h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   현재 동행 중인 길동무: <strong>{state.bio.familiarBenefit}</strong><br />
-                  - 친밀도 마일스톤 등급: <strong>{ (state.familiarTrust || 0) >= 80 ? '🌟 영혼의 동반자 (최대)' : (state.familiarTrust || 0) >= 40 ? '🤝 신뢰하는 파트너' : '🌱 어색한 동행' }</strong><br />
+                  - 친밀도 마일스톤 등급: <strong>{ (state.familiarTrust || 0) >= 80 ? "영혼의 동반자 (최대)" : (state.familiarTrust || 0) >= 40 ? "신뢰하는 파트너" : "어색한 동행" }</strong><br />
                   - 친밀도 보너스: {
                     (() => {
                       const trust = state.familiarTrust || 0;
@@ -23489,7 +23424,7 @@ function PlayView({
                     className="btn-cozy-primary"
                     style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', alignSelf: 'flex-start' }}
                   >
-                    🚶‍♂️{' '}길동무와 하루 동안 시간 보내기 (친밀도 +5%, 일정 +1일 소모)
+                    <FieldIcon kind="play" />{' '}길동무와 하루 동안 시간 보내기 (친밀도 +5%, 일정 +1일 소모)
                   </button>
 
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.5rem' }}>
@@ -23512,7 +23447,7 @@ function PlayView({
                       className="btn-cozy-secondary"
                       style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
                     >
-                      🍎 간식 주기
+                       간식 주기
                     </button>
                   </div>
                 </div>
@@ -23520,7 +23455,7 @@ function PlayView({
 
               {/* Exploring The Woods */}
               <div {...downtimeActivityCardProps('explore')} style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🧭{' '}숲 탐험하기</h3>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}><FieldIcon kind="play" />{' '}숲 탐험하기</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   현재 머무는 위치 주변의 지도에 두 장소 간 새로운 경로나 물길을 하나 개척합니다.
                 </p>
@@ -23529,13 +23464,13 @@ function PlayView({
                   className="btn-cozy-secondary"
                   style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
                 >
-                  🗺️{' '}새로운 경로 개척
+                  <FieldIcon kind="map" />{' '}새로운 경로 개척
                 </button>
               </div>
 
               {/* Reconnecting With Guildmates */}
               <div {...downtimeActivityCardProps('reconnect')} style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🤝{' '}동료들과 재회하기</h3>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>{' '}동료들과 재회하기</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   가장 가까운 도시로 이동해 다른 동료 약제사들과 정보와 노트를 공유합니다.
                 </p>
@@ -23543,9 +23478,9 @@ function PlayView({
                   <div>
                     <label style={{ fontWeight: 'bold' }}>가져갈 길드 정보 노트 선택:</label>
                     <select id="reconnect_note_select" style={{ width: '100%', padding: '0.4rem', marginTop: '0.2rem' }}>
-                      <option value="ledger">🌿 식물학자의 장부 (Botanist's Ledger - 무게 1/3, 해당 지역 채집 시작 시 채집 포인트 +2)</option>
-                      <option value="map">🗺️{' '}물류 지도 (Logistical Map - 무게 2/3, 해당 지역 이동 조우 시 2장 드로우 선택)</option>
-                      <option value="gossip">💬 흥미로운 소문 (Juicy Gossip - 무게 0, 흥정 거래 시 소모해 자동 성공)</option>
+                      <option value="ledger"><FieldIcon kind="reagents" /> 식물학자의 장부 (Botanist's Ledger - 무게 1/3, 해당 지역 채집 시작 시 채집 포인트 +2)</option>
+                      <option value="map"><FieldIcon kind="map" />{' '}물류 지도 (Logistical Map - 무게 2/3, 해당 지역 이동 조우 시 2장 드로우 선택)</option>
+                      <option value="gossip"><FieldIcon kind="journals" /> 흥미로운 소문 (Juicy Gossip - 무게 0, 흥정 거래 시 소모해 자동 성공)</option>
                     </select>
                   </div>
                   <div>
@@ -23630,14 +23565,14 @@ function PlayView({
                     className="btn-cozy-secondary"
                     style={{ padding: '0.5rem 1rem', alignSelf: 'flex-start' }}
                   >
-                    🤝{' '}동료들과 재회 완료
+                    {' '}동료들과 재회 완료
                   </button>
                 </div>
               </div>
 
               {/* Relaxing with Friends */}
               <div {...downtimeActivityCardProps('relax')} style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>💖{' '}친구들과 휴식하기</h3>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>{' '}친구들과 휴식하기</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   길동무를 교체하거나, 가방에 들어갈 새로운 기본 도구를 이별 선물로 받습니다.
                 </p>
@@ -23734,14 +23669,14 @@ function PlayView({
                     className="btn-cozy-secondary"
                     style={{ padding: '0.5rem 1rem', alignSelf: 'flex-start' }}
                   >
-                    💖{' '}휴식 및 재충전 완료
+                    {' '}휴식 및 재충전 완료
                   </button>
                 </div>
               </div>
 
               {/* Lending A Paw */}
               <div {...downtimeActivityCardProps('lend-a-paw')} style={{ background: '#fff', border: '1.5px solid var(--border-cozy)' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🐾{' '}도움의 손길</h3>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}><FieldIcon kind="paw" />{' '}도움의 손길</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   다른 길드나 이웃 동물들의 공공 프로젝트에 자원봉사하여 <strong>Guild Reputation +5점</strong>을 획득합니다.
                 </p>
@@ -23781,7 +23716,7 @@ function PlayView({
                     className="btn-cozy-secondary"
                     style={{ padding: '0.5rem 1rem', alignSelf: 'flex-start' }}
                   >
-                    🐾{' '}자원봉사 기록 및 Guild Reputation +5 획득
+                    <FieldIcon kind="paw" />{' '}자원봉사 기록 및 Guild Reputation +5 획득
                   </button>
                 </div>
               </div>
@@ -23792,7 +23727,7 @@ function PlayView({
               {/* Clinic Construction Panel */}
               {state.currentLocationType === 'Wilds' && state.curedAilmentInThisWilds && (
                 <div className="cute-card" style={{ background: '#ecfdf5', border: '1.5px solid #10b981' }}>
-                  <h3 style={{ margin: '0 0 0.5rem 0', color: '#047857', fontSize: '1.1rem' }}>🏡 새 약제소 설립 가능!</h3>
+                  <h3 style={{ margin: '0 0 0.5rem 0', color: '#047857', fontSize: '1.1rem' }}><FieldIcon kind="home" /> 새 약제소 설립 가능!</h3>
                   <p style={{ fontSize: '0.85rem', color: '#065f46', margin: '0 0 1rem 0' }}>
                     야생 지역에서 성공적으로 질병을 완치했으므로, <strong>장신구 15개</strong>를 들여 여기에 영구적인 길드 약제소를 지을 수 있습니다!<br />
                     건설하려면 아래에서 원하는 <strong>길드 아젠다 서비스</strong>를 하나 선택해 주십시오. (완료한 계절 {state.completedSeasons}/4)
@@ -23829,11 +23764,11 @@ function PlayView({
 	                      return (
 	                        <div style={{ marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
 	                          <div style={{ color: requirement.satisfied ? '#047857' : '#d97706', fontWeight: 'bold' }}>
-	                            📌 아젠다 서비스 요구사항: {requirement.message}
+	                            <FieldIcon kind="map" /> 아젠다 서비스 요구사항: {requirement.message}
 	                          </div>
 	                          <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: '#4b5563' }}>
-	                            <span>💰 장신구 15개 소지: {hasTrinkets ? '✅' : '❌ (장신구 부족)'}</span>
-	                            <span>📅 완료한 계절 4회: {hasSeasons ? '✅' : `❌ (현재 ${state.completedSeasons}회)`}</span>
+	                            <span><FieldIcon kind="coin" /> 장신구 15개 소지: {hasTrinkets ? '✅' : "(장신구 부족)"}</span>
+	                            <span><FieldIcon kind="clock" /> 완료한 계절 4회: {hasSeasons ? '✅' : `❌ (현재 ${state.completedSeasons}회)`}</span>
 	                          </div>
 
 	                          <button
@@ -23850,7 +23785,7 @@ function PlayView({
 	                              cursor: canBuildClinic && requirement.satisfied ? 'pointer' : 'not-allowed'
 	                            }}
 	                          >
-	                            🏡 약제소 설립 및 아젠다 지정 (장신구 15개 소모)
+	                            <FieldIcon kind="home" /> 약제소 설립 및 아젠다 지정 (장신구 15개 소모)
 	                          </button>
 	                        </div>
 	                      );
@@ -23867,7 +23802,7 @@ function PlayView({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
               <div className="cute-card" style={{ background: '#fffdf8', border: '1.5px solid var(--border-cozy)', padding: '1rem' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🛎️ 길드 서비스 (p.58-61)</h3>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}> 길드 서비스 (p.58-61)</h3>
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0 0 0.8rem 0', lineHeight: 1.45 }}>
                   정착지/도시를 떠나기 전 고용하는 지역 서비스입니다. 적용한 서비스는 가방, 지도, 이동 보정, 일지 중 해당 위치에 바로 기록됩니다.
                 </p>
@@ -23882,10 +23817,10 @@ function PlayView({
                   </div>
                 ))}
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.8rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                  {(state.guildServiceTravelRerolls || 0) > 0 && <span>🗞️ 이동 조우 선택권 {state.guildServiceTravelRerolls}회</span>}
-                  {(state.forecastMoves || 0) > 0 && <span>🌦️ 예보 보호 {state.forecastMoves}회 이동</span>}
-                  {state.taxiSoarActive && <span>🦅 다음 활공 택시 활성</span>}
-                  {(state.missiveSettlements || []).length > 0 && <span>✉️ 서신: {(state.missiveSettlements || []).join(', ')}</span>}
+                  {(state.guildServiceTravelRerolls || 0) > 0 && <span> 이동 조우 선택권 {state.guildServiceTravelRerolls}회</span>}
+                  {(state.forecastMoves || 0) > 0 && <span> 예보 보호 {state.forecastMoves}회 이동</span>}
+                  {state.taxiSoarActive && <span> 다음 활공 택시 활성</span>}
+                  {(state.missiveSettlements || []).length > 0 && <span><FieldIcon kind="journals" /> 서신: {(state.missiveSettlements || []).join(', ')}</span>}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(260px, 100%), 1fr))', gap: '0.75rem' }}>
 	                  {GUILD_SERVICES_DB.map(service => {
@@ -23899,7 +23834,7 @@ function PlayView({
                       <div key={service.id} className="guild-service-entry" style={{ border: '1px solid #e5dec9', borderRadius: '8px', padding: '0.75rem', background: isAvailable ? '#fff' : '#f9f6f0', opacity: isAvailable ? 1 : 0.62 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', fontWeight: 'bold', fontSize: '0.84rem', color: 'var(--primary)' }}>
                           <span>{service.name}</span>
-                          <span style={{ color: 'var(--secondary)', whiteSpace: 'nowrap' }}>🪙 {service.id === 'forecast' ? '1 / 2' : service.cost}</span>
+                          <span style={{ color: 'var(--secondary)', whiteSpace: 'nowrap' }}><FieldIcon kind="coin" /> {service.id === 'forecast' ? '1 / 2' : service.cost}</span>
                         </div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{localizeAppAvailabilityLabel(service.places)}</div>
                         <p style={{ fontSize: '0.74rem', color: '#666', margin: '0.35rem 0 0.55rem 0', lineHeight: 1.35, minHeight: '40px' }}>{service.desc}</p>
@@ -23921,14 +23856,14 @@ function PlayView({
 
               <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)', padding: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
-                  <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '1.1rem' }}>🛒 저잣거리 도구 상점</h3>
+                  <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '1.1rem' }}> 저잣거리 도구 상점</h3>
                   <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
                     <input
                       type="checkbox"
                       checked={bypassShopRules}
                       onChange={e => setBypassShopRules(e.target.checked)}
                     />
-                    ⚙️ 모든 지역 잠금 해제 (상점 규칙 우회)
+                    <FieldIcon kind="tools" /> 모든 지역 잠금 해제 (상점 규칙 우회)
                   </label>
                 </div>
 
@@ -23946,7 +23881,7 @@ function PlayView({
                       <div key={tool.id} style={{ border: '1px solid #e5dec9', borderRadius: '8px', padding: '0.8rem', background: isAvailable ? '#fff' : '#f9f6f0', opacity: isAvailable ? 1 : 0.6 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--primary)' }}>
                           <span>{tool.name}</span>
-                          <span style={{ color: 'var(--secondary)' }}>🪙 {tool.cost}개</span>
+                          <span style={{ color: 'var(--secondary)' }}><FieldIcon kind="coin" /> {tool.cost}개</span>
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
                           무게: {formatWeight(tool.weight)} | 판매지: {localizeAppAvailabilityLabel(tool.places)}
@@ -23970,14 +23905,14 @@ function PlayView({
 
               {/* Smithing / Upgrade basic tool */}
               <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)', padding: '1rem' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🛠️ 철공소 도구 업그레이드</h3>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}><FieldIcon kind="tools" /> 철공소 도구 업그레이드</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   산맥 정착지나 모든 도시에서 <strong>장신구 3개</strong>를 지불하고 기본 도구를 업그레이드합니다.
                 </p>
 
                 {state.currentLocationType !== 'City' && !(state.currentLocationType === 'Settlement' && state.currentRegion === 'Mountain') && !bypassShopRules ? (
                   <div style={{ fontStyle: 'italic', color: 'var(--accent-red)', fontSize: '0.85rem' }}>
-                    ⚠️ 현재 위치가 도시나 산맥 구역이 아니어서 대장간 이용이 불가능합니다.
+                    <FieldIcon kind="warning" /> 현재 위치가 도시나 산맥 구역이 아니어서 대장간 이용이 불가능합니다.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.85rem' }}>
@@ -24021,7 +23956,7 @@ function PlayView({
                       style={{ alignSelf: 'flex-start', padding: '0.5rem 1rem' }}
                       disabled={state.trinkets.length < 3 || !selectedToolToUpgrade || !selectedUpgradeOption}
                     >
-                      🛠️ 3 장신구 지불하고 도구 개조
+                      <FieldIcon kind="tools" /> 3 장신구 지불하고 도구 개조
                     </button>
                   </div>
                 )}
@@ -24029,7 +23964,7 @@ function PlayView({
 
               {/* Commission / Upgrade Wagon (City Only) */}
               <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)', padding: '1rem' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🚚 마차 개조 및 확장</h3>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}> 마차 개조 및 확장</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
                   <strong>모든 도시</strong>에서 휴식기 활동 1회와 장신구 20개로 기본 마차를 위탁하거나 기존 마차를 개조합니다.
                 </p>
@@ -24039,7 +23974,7 @@ function PlayView({
 
                 {state.currentLocationType !== 'City' && !bypassShopRules ? (
                   <div style={{ fontStyle: 'italic', color: 'var(--accent-red)', fontSize: '0.85rem' }}>
-                    ⚠️ 마차 개조 서비스는 도시의 Craftpaws 조각소에서만 가능합니다.
+                    <FieldIcon kind="warning" /> 마차 개조 서비스는 도시의 Craftpaws 조각소에서만 가능합니다.
                   </div>
                 ) : (
                   <div>
@@ -24051,7 +23986,7 @@ function PlayView({
                           style={{ padding: '0.6rem 1.2rem' }}
                           disabled={state.trinkets.length < 20 || !state.downtimeRequired || state.downtimeCompleted}
                         >
-                          🚚 기본 마차 위탁하기 (장신구 20개 소모 | 소지 한도 +4, 속도 +1)
+                           기본 마차 위탁하기 (장신구 20개 소모 | 소지 한도 +4, 속도 +1)
                         </button>
                         {(state.trinkets.length < 20 || !state.downtimeRequired || state.downtimeCompleted) && (
                           <div style={{ fontSize: '0.75rem', color: 'var(--accent-red)', marginTop: '0.4rem', fontWeight: 'bold' }}>
@@ -24083,7 +24018,7 @@ function PlayView({
                             <div key={upgrade.id} style={{ border: '1px solid #d8d0b5', borderRadius: '8px', padding: '0.8rem', background: '#fff', opacity: isWagonCity ? 1 : 0.6 }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '0.85rem' }}>
                                 <span>{upgrade.name}</span>
-                                <span style={{ color: 'var(--secondary)' }}>🪙 {finalCost}개</span>
+                                <span style={{ color: 'var(--secondary)' }}><FieldIcon kind="coin" /> {finalCost}개</span>
                               </div>
                               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0.2rem 0' }}>
                                 개조 위치: {localizeAppAvailabilityLabel(upgrade.city)}
@@ -24101,12 +24036,12 @@ function PlayView({
                               </button>
                               {!hasUpgrade && !isWagonCity && (
                                 <div style={{ fontSize: '0.7rem', color: 'var(--accent-red)', marginTop: '0.3rem', fontWeight: 'bold' }}>
-                                  ⚠️ 개조 불가: {upgrade.city} 도시 내의 조각소에서만 가능합니다.
+                                  <FieldIcon kind="warning" /> 개조 불가: {upgrade.city} 도시 내의 조각소에서만 가능합니다.
                                 </div>
                               )}
                               {!hasUpgrade && isWagonCity && state.trinkets.length < finalCost && (
                                 <div style={{ fontSize: '0.7rem', color: 'var(--accent-red)', marginTop: '0.3rem', fontWeight: 'bold' }}>
-                                  ⚠️ 개조 불가: 장신구 부족 (필요: {finalCost}개, 보유: {state.trinkets.length}개)
+                                  <FieldIcon kind="warning" /> 개조 불가: 장신구 부족 (필요: {finalCost}개, 보유: {state.trinkets.length}개)
                                 </div>
                               )}
                             </div>
@@ -24127,7 +24062,7 @@ function PlayView({
 
               {/* Active companions list */}
               <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)', padding: '1rem' }}>
-                <h3 style={{ margin: '0 0 0.8rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}>🐝 현재 동반 중인 곤충 동료</h3>
+                <h3 style={{ margin: '0 0 0.8rem 0', color: 'var(--primary)', fontSize: '1.1rem' }}><FieldIcon kind="reagents" /> 현재 동반 중인 곤충 동료</h3>
 
                 {(!state.companionStates || state.companionStates.length === 0) ? (
                   <div style={{ fontStyle: 'italic', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
@@ -24153,14 +24088,14 @@ function PlayView({
               {/* Adopt list */}
               <div className="cute-card" style={{ background: '#fff', border: '1.5px solid var(--border-cozy)', padding: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
-                  <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '1.1rem' }}>🏪 곤충 시장</h3>
+                  <h3 style={{ margin: 0, color: 'var(--primary)', fontSize: '1.1rem' }}><FieldIcon kind="home" /> 곤충 시장</h3>
                   <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
                     <input
                       type="checkbox"
                       checked={bypassShopRules}
                       onChange={e => setBypassShopRules(e.target.checked)}
                     />
-                    ⚙️ 모든 도시 영입 허용 (우회)
+                    <FieldIcon kind="tools" /> 모든 도시 영입 허용 (우회)
                   </label>
                 </div>
 
@@ -24177,7 +24112,7 @@ function PlayView({
                       <div key={comp.id} style={{ border: '1px solid #e5dec9', borderRadius: '8px', padding: '0.8rem', background: '#fff', opacity: isCompanionAvailable ? 1 : 0.6 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--primary)' }}>
                           <span>{comp.name}</span>
-                          <span style={{ color: 'var(--secondary)' }}>🪙 {comp.cost}개</span>
+                          <span style={{ color: 'var(--secondary)' }}><FieldIcon kind="coin" /> {comp.cost}개</span>
                         </div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0.2rem 0' }}>
                           영입 가능 도시 지역: {localizeRegionList(comp.region)}
@@ -24195,12 +24130,12 @@ function PlayView({
                         </button>
                         {!isCompanionAvailable && (
                           <div style={{ fontSize: '0.7rem', color: 'var(--accent-red)', marginTop: '0.3rem', fontWeight: 'bold' }}>
-                            ⚠️ 영입 불가: {localizeRegionList(comp.region)} 도시에서만 영입 가능합니다. (현재: {localizeRegionLabel(state.currentRegion)} {state.currentLocationType === 'City' ? '도시' : '일반 지형'})
+                            <FieldIcon kind="warning" /> 영입 불가: {localizeRegionList(comp.region)} 도시에서만 영입 가능합니다. (현재: {localizeRegionLabel(state.currentRegion)} {state.currentLocationType === 'City' ? '도시' : '일반 지형'})
                           </div>
                         )}
                         {isCompanionAvailable && state.trinkets.length < comp.cost && (
                           <div style={{ fontSize: '0.7rem', color: 'var(--accent-red)', marginTop: '0.3rem', fontWeight: 'bold' }}>
-                            ⚠️ 영입 불가: 장신구 부족 (필요: {comp.cost}개, 보유: {state.trinkets.length}개)
+                            <FieldIcon kind="warning" /> 영입 불가: 장신구 부족 (필요: {comp.cost}개, 보유: {state.trinkets.length}개)
                           </div>
                         )}
                       </div>
@@ -24223,7 +24158,7 @@ function PlayView({
               {/* First session tip */}
               {!state.cumulativeDays && (
                 <div style={{ padding: '0.6rem 0.8rem', borderRadius: '8px', background: '#f0fdf4', border: '1px solid #86efac', color: '#166534', fontSize: '0.82rem', marginBottom: '0.8rem', lineHeight: 1.5 }}>
-                  💡 <strong>첫 세션 권장:</strong> 숲의 도시 오도크(Odoak)에서 봄(Spring)에 첫 여정을 시작합니다. <span style={{ color: '#15803d' }}>(룰북 p.18)</span>
+                   <strong>첫 세션 권장:</strong> 숲의 도시 오도크(Odoak)에서 봄(Spring)에 첫 여정을 시작합니다. <span style={{ color: '#15803d' }}>(룰북 p.18)</span>
                 </div>
               )}
 
@@ -24422,7 +24357,7 @@ function PlayView({
                       {/* Justice special rule badge */}
                       {journeyGoalPreview && (journeyGoalPreview.title === 'Justice' || journeyGoalPreview.title === '정의' || journeyGoalCard.value === 8) && (
                         <div style={{ marginTop: '0.5rem', padding: '0.4rem 0.6rem', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: '6px', fontSize: '0.8rem', color: '#92400e', fontWeight: 600 }}>
-                          ⚖️ <strong>정의(Justice) 특수 규칙:</strong> 여정 출발 시 무게 1의 <em>증거물(Evidence)</em>을 자동으로 소지하고 시작합니다. (룰북 p.20)
+                           <strong>정의(Justice) 특수 규칙:</strong> 여정 출발 시 무게 1의 <em>증거물(Evidence)</em>을 자동으로 소지하고 시작합니다. (룰북 p.20)
                         </div>
                       )}
                     </div>
@@ -24484,7 +24419,7 @@ function PlayView({
               목표: <strong style={{ color: 'var(--primary)' }}>{state.journeyGoalTitle}</strong>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}> — {localizeJourneyGoalText(state.journeyGoalDesc)}</span>
               <div style={{ marginTop: '0.3rem', fontSize: '0.84rem', fontWeight: 'bold', color: checkJourneyGoalSatisfaction(state) ? '#16a34a' : '#ea580c' }}>
-                {checkJourneyGoalSatisfaction(state) ? '✅ 조건 충족됨' : '⚠️ 미달성'} · {localizeJourneyGoalText(state.journeyGoalProgress)}
+                {checkJourneyGoalSatisfaction(state) ? "조건 충족됨" : "미달성"} · {localizeJourneyGoalText(state.journeyGoalProgress)}
               </div>
             </div>
 
@@ -24625,29 +24560,29 @@ function PlayView({
               <div style={{ marginTop: '0.3rem', padding: '0.7rem', background: '#fff8ee', borderRadius: '8px', border: '1px dashed #d4a853', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button onClick={() => { if(askWindowConfirm('이동 속도 +1 영구 적용?')) updateState((s: GameState) => ({ ...s, bio: { ...s.bio, speed: s.bio.speed + 1 } })); }}
                   style={{ padding: '0.4rem 0.7rem', fontSize: '0.78rem', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '6px', cursor: 'pointer' }}>
-                  🦶 속도 +1
+                   속도 +1
                 </button>
                 <button onClick={() => { if(askWindowConfirm('가방 소지 한도 +1 영구 적용?')) updateState((s: GameState) => ({ ...s, bio: { ...s.bio, carry: s.bio.carry + 1 } })); }}
                   style={{ padding: '0.4rem 0.7rem', fontSize: '0.78rem', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '6px', cursor: 'pointer' }}>
-                  🎒 용량 +1
+                  <FieldIcon kind="bio" /> 용량 +1
                 </button>
                 <button onClick={() => { if(askWindowConfirm('Guild Reputation +5?')) updateState((s: GameState) => ({ ...s, reputation: s.reputation + 5 })); }}
                   style={{ padding: '0.4rem 0.7rem', fontSize: '0.78rem', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '6px', cursor: 'pointer' }}>
-                  ⭐ Guild Reputation +5
+                   Guild Reputation +5
                 </button>
                 <button onClick={() => { if(askWindowConfirm('Guild Reputation -5?')) updateState((s: GameState) => ({ ...s, reputation: Math.max(0, s.reputation - 5) })); }}
                   style={{ padding: '0.4rem 0.7rem', fontSize: '0.78rem', background: '#fff1f2', border: '1px solid #fca5a5', borderRadius: '6px', cursor: 'pointer' }}>
-                  📉 Guild Reputation -5
+                   Guild Reputation -5
                 </button>
                 <button onClick={() => {
                   handleAddMappedSettlement();
                 }}
                   style={{ padding: '0.4rem 0.7rem', fontSize: '0.78rem', background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: '6px', cursor: 'pointer' }}>
-                  🏘️ 정착지 추가
+                  <FieldIcon kind="home" /> 정착지 추가
                 </button>
                 <button onClick={handleRetireClick}
                   style={{ padding: '0.4rem 0.7rem', fontSize: '0.78rem', background: '#fdf4ff', border: '1px solid #d8b4fe', borderRadius: '6px', cursor: 'pointer' }}>
-                  🌅 캐릭터 은퇴
+                   캐릭터 은퇴
                 </button>
               </div>
             </details>
@@ -24660,7 +24595,7 @@ function PlayView({
             {!localCarePhase && (
               <>
                 <div className="prose-summary" style={{ marginBottom: '0.8rem' }}>
-                  📍 <strong>{localizeRegionLabel(state.currentRegion)}</strong> 지역 {state.currentLocationType === 'City' ? '도시' : state.currentLocationType === 'Settlement' ? '정착지' : state.currentLocationType === 'Wilds' ? '야생' : state.currentLocationType === 'Ruin' ? '유적지' : state.currentLocationType === 'Barrow' ? '야수 고분' : state.currentLocationType} <strong>{state.currentLocationName}</strong>에 머무는 중.
+                  <FieldIcon kind="map" /> <strong>{localizeRegionLabel(state.currentRegion)}</strong> 지역 {state.currentLocationType === 'City' ? '도시' : state.currentLocationType === 'Settlement' ? '정착지' : state.currentLocationType === 'Wilds' ? '야생' : state.currentLocationType === 'Ruin' ? '유적지' : state.currentLocationType === 'Barrow' ? '야수 고분' : state.currentLocationType} <strong>{state.currentLocationName}</strong>에 머무는 중.
                 </div>
                 <div className="travel-season-status">
                   <span className="travel-season-status__value">현재 계절 <strong>{localizeSeasonLabel(state.currentSeason)}</strong></span>
@@ -24681,7 +24616,7 @@ function PlayView({
             {state.needsLocalHelpBeforeMove && (
               <details className="travel-obligation" open={!state.activeAilment}><summary>현지 진료를 마친 뒤 다음 이동으로 · p.25</summary>
                 <strong style={{ color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.9rem' }}>
-                  🔒 현지 질환 미해결 — 다음 이동 전 치료 필요 (룰북 p.25)
+                  <FieldIcon kind="warning" /> 현지 질환 미해결 — 다음 이동 전 치료 필요 (룰북 p.25)
                 </strong>
                 <p style={{ margin: '0.4rem 0 0.6rem 0', color: 'var(--text-muted)', fontSize: '0.83rem' }}>
                   Move를 마친 뒤에는 현지 야수의 <strong>질환(Ailment)을 해결</strong>해야 다시 이동할 수 있습니다. 채집, 조우 완료, 고분 탐사는 이 의무를 대신하지 않습니다.
@@ -24694,14 +24629,14 @@ function PlayView({
                       document.getElementById('patient-clinic-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }}
                   >
-                    🩺 환자 진료로 이동
+                    <FieldIcon kind="ailments" /> 환자 진료로 이동
                   </button>
                   <button
                     type="button"
                     style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: '8px', cursor: 'pointer', color: '#1e40af', fontWeight: 600 }}
                     onClick={handleRecordExternalAilmentResolution}
                   >
-                    📝 앱 밖에서 해결한 질환 기록
+                    <FieldIcon kind="journals" /> 앱 밖에서 해결한 질환 기록
                   </button>
                 </div>
               </details>
@@ -24749,7 +24684,7 @@ function PlayView({
           {state.pursuedByBehemoth && (
             <div className="cute-card" style={{ background: '#fff2f2', border: '2.5px solid #d94141', borderRadius: '12px', padding: '1.2rem' }}>
               <h3 style={{ color: '#d94141', margin: '0 0 0.6rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span>🐾 거수 추격 중!</span>
+                <span><FieldIcon kind="paw" /> 거수 추격 중!</span>
                 <span style={{ fontSize: '0.85rem', fontWeight: 400, color: '#888', marginLeft: 'auto' }}>선행 거리: <strong style={{ fontSize: '1.3rem', color: '#d94141' }}>{state.pursuedByBehemoth.headStart}</strong> 경로</span>
               </h3>
               <p style={{ margin: '0 0 0.8rem 0', fontSize: '0.9rem', lineHeight: 1.6, color: '#555' }}>
@@ -24788,7 +24723,7 @@ function PlayView({
                     }}
                     style={{ padding: '0.6rem 1.2rem', background: '#d94141', color: '#fff', borderRadius: '8px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}
                   >
-                    🏹 석궁으로 도망치기 (볼트 소비)
+                     석궁으로 도망치기 (볼트 소비)
                   </button>
                 )}
                 {/* Cranky Contraption escape */}
@@ -24803,7 +24738,7 @@ function PlayView({
                     }}
                     style={{ padding: '0.6rem 1.2rem', background: '#7c5cbf', color: '#fff', borderRadius: '8px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}
                   >
-                    ⚙️ 기계 장치로 도망치기
+                    <FieldIcon kind="tools" /> 기계 장치로 도망치기
                   </button>
                 )}
                 <button
@@ -24814,7 +24749,7 @@ function PlayView({
                   }}
                   style={{ padding: '0.6rem 1rem', background: '#eee', color: '#555', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}
                 >
-                  🚶 계속 이동 (이동 후 선행 거리 자동 갱신)
+                  <FieldIcon kind="play" /> 계속 이동 (이동 후 선행 거리 자동 갱신)
                 </button>
               </div>
             </div>
@@ -24871,7 +24806,7 @@ function PlayView({
                       return (
                         <label key={item.id} style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)', gap: '0.55rem', alignItems: 'start' }}>
                           <input type="checkbox" checked={order >= 0} onChange={event => togglePart(item.id, event.target.checked)} />
-                          <span><strong>{ordered && order >= 0 ? `${order + 1}. ` : ''}{localizeInventoryItemName(item.name)}</strong>{tagText ? <small style={{ display: 'block', color: 'var(--text-muted)' }}>{tagText}</small> : null}</span>
+                          <span><strong>{ordered && order >= 0 ? `${order + 1}. ` : ''}{localizeInventoryItemName(item.name)}</strong>{tagText ? <small style={{ display: 'block', color: 'var(--text-muted)' }}><RuleTagText text={tagText} /></small> : null}</span>
                         </label>
                       );
                     })}
@@ -24979,7 +24914,7 @@ function PlayView({
           <div id="patient-clinic-panel" className="cute-card" tabIndex={-1} style={{ border: '1.5px solid var(--accent-purple)' }}>
 
             <h3 style={{ color: 'var(--accent-purple)', margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>{state.scroungingMode ? '🔍 여분 채집' : '🤒 환자 약제소'}</span>
+              <span>{state.scroungingMode ? "여분 채집" : "환자 약제소"}</span>
               {state.scroungingMode ? (
                 <span style={{ fontSize: '0.9rem', color: '#d97706' }}>여분 채집 기한: <strong>{getPatientTimerProjection(state).scroungingHours ?? state.scroungingTimer}시간 남음</strong></span>
               ) : state.activeAilment ? (
@@ -24990,7 +24925,7 @@ function PlayView({
             {state.scroungingMode ? (
               <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                  🎉 환자 치료에 성공했습니다! 남은 치료 시간 동안 주변 지역에서 여분 채집을 진행해 약초를 추가로 얻을 수 있습니다.
+                   환자 치료에 성공했습니다! 남은 치료 시간 동안 주변 지역에서 여분 채집을 진행해 약초를 추가로 얻을 수 있습니다.
                 </p>
 
                 {(() => {
@@ -25144,7 +25079,7 @@ function PlayView({
                           </div>
                         )}
                       </div>
-                      <span style={{ fontSize: '1.8rem', opacity: 0.65, marginLeft: '0.8rem', userSelect: 'none' }}>🕯️</span>
+                      <span style={{ fontSize: '1.8rem', opacity: 0.65, marginLeft: '0.8rem', userSelect: 'none' }}></span>
                     </div>
                     <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
                       <button
@@ -25164,7 +25099,7 @@ function PlayView({
                 <div className="patient-intake__history" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(240px, 100%), 1fr))', gap: '1.2rem', marginBottom: '1.5rem', background: '#faf9f5', border: '1px solid #dcd3c1', padding: '1.1rem', borderRadius: '8px' }}>
                   <div>
                     <h4 style={{ margin: '0 0 0.6rem 0', color: 'var(--primary)', fontSize: '0.92rem', fontFamily: 'var(--font-fancy)' }}>
-                      🌿 최근 다녀간 이들
+                      <FieldIcon kind="reagents" /> 최근 다녀간 이들
                     </h4>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       {(() => {
@@ -25174,7 +25109,7 @@ function PlayView({
                         }
                         return cured.map(p => (
                           <div key={p.id} style={{ borderBottom: '1px dotted var(--glass-border)', padding: '0.45rem 0', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
-                            🌿 {p.patientName || '이름 모를 이'}{p.species ? ` (${p.species})` : ''} — {p.locationName || '어느 숲'}
+                            <FieldIcon kind="reagents" /> {p.patientName || '이름 모를 이'}{p.species ? ` (${p.species})` : ''} — {p.locationName || '어느 숲'}
                           </div>
                         ));
                       })()}
@@ -25182,7 +25117,7 @@ function PlayView({
                   </div>
                   <div>
                     <h4 style={{ margin: '0 0 0.6rem 0', color: '#8c7a6b', fontSize: '0.92rem', fontFamily: 'var(--font-fancy)' }}>
-                      🕯️ 기억 속에 남은 이들
+                       기억 속에 남은 이들
                     </h4>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       {(() => {
@@ -25192,7 +25127,7 @@ function PlayView({
                         }
                         return lost.map(p => (
                           <div key={p.id} style={{ borderBottom: '1px dotted var(--glass-border)', padding: '0.45rem 0', fontSize: '0.84rem', color: 'var(--text-dim)' }}>
-                            🕯️ {p.patientName || '가여운 이'}{p.species ? ` (${p.species})` : ''} — {p.resolvedAtDay || 0}일째
+                             {p.patientName || '가여운 이'}{p.species ? ` (${p.species})` : ''} — {p.resolvedAtDay || 0}일째
                           </div>
                         ));
                       })()}
@@ -25219,7 +25154,7 @@ function PlayView({
 
                       return (
                         <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-muted)', fontStyle: 'italic', fontFamily: 'var(--font-base)' }}>
-                          ✨ {ambientLines[ambientIndex]}
+                           {ambientLines[ambientIndex]}
                         </p>
                       );
                     })()}
@@ -25351,13 +25286,13 @@ function PlayView({
                   </div>
                   <div>
                     <div style={{ fontSize: '0.9rem' }}>
-                      💊 <strong>필요 약효 성분:</strong>
+                      <FieldIcon kind="ailments" /> <strong>필요 약효 성분:</strong>
                       <div style={{ marginTop: '0.4rem' }}>
                         {parseAndRenderTags(state.activeAilment.tags)}
                       </div>
                     </div>
                     <div style={{ marginTop: '0.8rem', fontSize: '0.85rem' }}>
-                      🧺 <strong>누적 채집 포인트:</strong> <strong style={{ color: 'var(--primary)' }}>{state.activeAilment.foragingPoints}</strong>
+                      <FieldIcon kind="reagents" /> <strong>누적 채집 포인트:</strong> <strong style={{ color: 'var(--primary)' }}>{state.activeAilment.foragingPoints}</strong>
                     </div>
                   </div>
                 </div>
@@ -25479,7 +25414,7 @@ function PlayView({
                                       setForageTargetReagentIds([]);
                                     }}
                                   >
-                                    <strong>{formatRuleTag(requirement.tag)} {requirement.threshold}</strong>
+                                    <RuleTagBadge tag={requirement.tag} value={requirement.threshold} />
                                     <small>{covered
                                       ? `${progressLabel} · 충족`
                                       : progress.potential
@@ -25527,12 +25462,12 @@ function PlayView({
                                       <span key={part.id} className="forage-target-row__part-tags">
                                         <small>{localizePreparationName(part.name)} · {localizePreparationMethod(part.method)}</small>
                                         <span>
-                                          {tagGroups.remedy.map(tag => <em key={tag.tag}>{formatRuleTag(tag.tag)} {tag.value}</em>)}
+                                          {tagGroups.remedy.map(tag => <RuleTagBadge key={tag.tag} tag={tag.tag} value={tag.value} />)}
                                         </span>
                                         {tagGroups.trade.length > 0 && (
                                           <span className="forage-target-row__trade-tags">
                                             <i>거래 가치</i>
-                                            {tagGroups.trade.map(tag => <em key={tag.tag} className={tag.tag === 'FAIR' ? 'is-fair' : 'is-foul'}>{formatRuleTag(tag.tag)} {tag.value}</em>)}
+                                            {tagGroups.trade.map(tag => <RuleTagBadge key={tag.tag} tag={tag.tag} value={tag.value} />)}
                                           </span>
                                         )}
                                       </span>
@@ -25841,14 +25776,14 @@ function PlayView({
                     }}
                     style={{ padding: '0.7rem 1rem', background: '#f5f5f5', color: '#555', borderRadius: '8px' }}
                   >
-                    🧺 수작업 영약재 획득
+                    <FieldIcon kind="reagents" /> 수작업 영약재 획득
                   </button>}
 
                   {state.rulesetId === 'sandbox' && <button
                     onClick={() => handlePassHour(1)}
                     style={{ padding: '0.7rem 1.2rem', background: '#eee', color: '#555', borderRadius: '8px' }}
                   >
-                    ⏱️ 1시간 흘려보내기
+                    <FieldIcon kind="clock" /> 1시간 흘려보내기
                   </button>}
                 </div>
 
@@ -25858,7 +25793,7 @@ function PlayView({
                   if (familiarMechanic === 'independent' && !state.independentUsedThisAilment) {
                     return (
                       <div style={{ width: '100%', marginTop: '0.8rem', padding: '0.8rem', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <strong style={{ fontSize: '0.85rem', color: '#92400e' }}>🦉 자유로운 영혼 (Independent) 혜택: 인접 지역 안전 채집 (질병당 1회)</strong>
+                        <strong style={{ fontSize: '0.85rem', color: '#92400e' }}> 자유로운 영혼 (Independent) 혜택: 인접 지역 안전 채집 (질병당 1회)</strong>
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                           <span style={{ fontSize: '0.8rem' }}>인접 채집할 지역 선택:</span>
                           <select
@@ -25875,7 +25810,7 @@ function PlayView({
                             disabled={!scroungeAdjacentRegions.includes(toRuleRegion(independentAdjRegion))}
                             style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: '#d97706', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
                           >
-                            🦉 안전 채집 실행
+                             안전 채집 실행
                           </button>
                         </div>
                       </div>
@@ -25891,7 +25826,7 @@ function PlayView({
                   <span>필요한 시간만큼 모든 기한이 남아 있어야 합니다. 채집 조우 등 필수 절차를 마친 뒤 바로 길을 떠나도 됩니다.</span>
                   {(hasTool(state, 'tool_needles') || hasTool(state, '뜨개바늘') || hasTool(state, 'Knitting Needles')) && (
                     <div style={{ marginTop: '0.65rem', paddingTop: '0.55rem', borderTop: '1px dashed #d6c8a8' }}>
-                      <strong style={{ color: '#7c5a2a' }}>🧶 뜨개질 프로젝트 (Knitting Needles, p.64)</strong>
+                      <strong style={{ color: '#7c5a2a' }}><FieldIcon kind="bio" /> 뜨개질 프로젝트 (Knitting Needles, p.64)</strong>
                       <div style={{ marginTop: '0.35rem' }}>
                         <button
                           type="button"
@@ -25937,7 +25872,7 @@ function PlayView({
                   <header className="treatment-workbench__header">
                     <div>
                       <span className="document-kicker">환자 → 요구 약효 → 가방 → 판정</span>
-                      <h4>🔬 치료제 조제하기</h4>
+                      <h4><FieldIcon kind="ailments" /> 치료제 조제하기</h4>
                       <p>준비한 영약재가 환자의 요구 약효를 채우는지 비교한 뒤 치료제를 완성합니다.</p>
                     </div>
                     {treatmentAilmentDefinition && (
@@ -26035,9 +25970,9 @@ function PlayView({
                           </div>
                           {treatmentRequirementRows.map(row => (
                             <div key={row.id} className={`treatment-comparison__row treatment-comparison__row--${row.state}`}>
-                              <strong>{row.label}</strong>
-                              <span data-label="현재 선택">{row.selectedProgress}</span>
-                              <span data-label="가방">{row.ownedProgress}</span>
+                              <strong><RuleTagText text={row.label} /></strong>
+                              <span data-label="현재 선택"><RuleTagText text={row.selectedProgress} /></span>
+                              <span data-label="가방"><RuleTagText text={row.ownedProgress} /></span>
                               <em>{row.stateLabel}</em>
                             </div>
                           ))}
@@ -26047,7 +25982,7 @@ function PlayView({
                               ? selectedBagItems.map(id => localizeInventoryItemName(state.bag.find(item => item.id === id)?.name || id)).join(', ')
                               : '아직 선택하지 않음'}</strong>
                             <span>보상 계산</span>
-                            <strong>좋은 성질 (FAIR) {treatmentPreview?.fair || 0} · 불쾌한 성질 (FOUL) {treatmentPreview?.foul || 0}</strong>
+                            <strong><RuleTagValues values={[{ tag: 'FAIR', value: treatmentPreview?.fair || 0 }, { tag: 'FOUL', value: treatmentPreview?.foul || 0 }]} /></strong>
                           </div>
                           <small>일반 약효는 가장 높은 값만 사용합니다. FAIR와 FOUL만 합산한 뒤 서로 상쇄합니다.</small>
                           {treatmentPreview?.separateDoses?.map((dose, index) => (
@@ -26063,7 +25998,7 @@ function PlayView({
                           {alternative && (
                             <div style={{ marginTop: '0.55rem', padding: '0.55rem', background: '#fff', border: '1px solid #dfcfaa', borderRadius: '4px' }}>
                             <strong>{alternative.kind === 'make-do' ? '대용품 탐색 중' : '대안 영약재 탐색 중'}</strong>
-                            <div>{formatRuleTag(alternative.targetTag)} {alternative.requiredPotency} · 채집 또는 거래로 실제 획득 필요</div>
+                            <div><RuleTagBadge tag={alternative.targetTag} value={alternative.requiredPotency} /> · 채집 또는 거래로 실제 획득 필요</div>
                             {alternative.kind === 'replacement' && <div>희귀도 12 · 무게 2/3 · {alternative.name} ({alternative.preparation})</div>}
                             {alternative.kind === 'replacement' && alternative.selectedSource === 'barter' && (
                               <button type="button" className="btn-cozy-secondary" onClick={async () => {
@@ -26151,7 +26086,7 @@ function PlayView({
                     {/* Reagents selection */}
                     <section className="treatment-selection" aria-labelledby="treatment-reagent-title">
                       <header>
-                        <strong id="treatment-reagent-title">🎒 가방 내 영약재</strong>
+                        <strong id="treatment-reagent-title"><FieldIcon kind="bio" /> 가방 내 영약재</strong>
                         <span>{availableTreatmentReagents.length}개 부위 · {selectedBagItems.length}개 선택</span>
                       </header>
                       <div className="treatment-option-list">
@@ -26176,9 +26111,9 @@ function PlayView({
                                 />
                                 <span>
                                   <strong>{formatReagentItemName(item.name, item.canonicalReagentId)}</strong>
-                                  <small>{preparation.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ') || '약효 태그 없음'} · {totalUses}회분 · 무게 {formatWeight(item.weight)}</small>
+                                  <small>{preparation.tags.length ? <RuleTagValues values={preparation.tags} /> : '약효 태그 없음'} · {totalUses}회분 · 무게 {formatWeight(item.weight)}</small>
                                   <small className="treatment-option__state">
-                                    {relevantTags.length > 0 ? `현재 요구에 기여 · ${relevantTags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ')}` : '현재 요구 약효와 직접 일치하지 않음'}
+                                    {relevantTags.length > 0 ? <>현재 요구에 기여 · <RuleTagValues values={relevantTags} /></> : '현재 요구 약효와 직접 일치하지 않음'}
                                     {missingOwnedTools.length > 0
                                       ? ` · 도구 없음: ${missingOwnedTools.map(toolId => localizeInventoryItemName(TOOL_BY_ID.get(toolId)?.canonicalName || toolId)).join(', ')}`
                                       : unselectedRequiredTools.length > 0
@@ -26200,7 +26135,7 @@ function PlayView({
                     {/* Tools selection */}
                     <section className="treatment-selection" aria-labelledby="treatment-tool-title">
                       <header>
-                        <strong id="treatment-tool-title">⚒️ 준비 도구</strong>
+                        <strong id="treatment-tool-title"><FieldIcon kind="tools" /> 준비 도구</strong>
                         <span>선택한 부위에 필요한 도구만 강조됩니다.</span>
                       </header>
                       <div className="treatment-tool-list">
@@ -26964,7 +26899,7 @@ function CharacterCreationWizard({
               {/* Resourceful familiar: select target reagent */}
               {matchedBenefit?.mechanic === 'resourceful' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
-                  <label style={{ fontSize: '0.88rem' }}><strong>🌱 상시 채집할 약재 지정 (희귀도 7 이하):</strong></label>
+                  <label style={{ fontSize: '0.88rem' }}><strong><FieldIcon kind="reagents" /> 상시 채집할 약재 지정 (희귀도 7 이하):</strong></label>
                   <select
                     value={draft.resourcefulReagent}
                     onChange={e => setDraft(d => ({ ...d, resourcefulReagent: e.target.value }))}
@@ -26981,7 +26916,7 @@ function CharacterCreationWizard({
               {/* Ingenuitive familiar: select target tool */}
               {matchedBenefit?.mechanic === 'ingenuitive' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
-                  <label style={{ fontSize: '0.88rem' }}><strong>⚒️ 모방할 추가 도구 지정:</strong></label>
+                  <label style={{ fontSize: '0.88rem' }}><strong><FieldIcon kind="tools" /> 모방할 추가 도구 지정:</strong></label>
                   <select
                     value={draft.ingenuitiveTool}
                     onChange={e => setDraft(d => ({ ...d, ingenuitiveTool: e.target.value }))}
@@ -27069,7 +27004,7 @@ function CharacterCreationWizard({
                 </div>
               )}
               <button type="button" onClick={() => saveCharacter(Date.now())} disabled={characterIssues.length > 0} style={{ marginTop: '0.5rem', padding: '0.75rem 1rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '1rem' }}>
-                ✨ 약제사 시트에 저장
+                 약제사 시트에 저장
               </button>
             </div>
           </WizardFieldCard>
@@ -27669,7 +27604,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
             {/* PoulticePounder (약제사) */}
             <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff', position: 'relative' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
-                <span style={{ fontSize: '1.8rem' }}>🦡</span>
+                <span style={{ fontSize: '1.8rem' }}><FieldIcon kind="paw" /></span>
                 <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>약제사 정보</h3>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
@@ -27698,7 +27633,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
             {/* Familiar (길동무) */}
             <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff', position: 'relative' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
-                <span style={{ fontSize: '1.8rem' }}>🐿️</span>
+                <span style={{ fontSize: '1.8rem' }}><FieldIcon kind="paw" /></span>
                 <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>길동무</h3>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
@@ -27779,22 +27714,22 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                   <>
                     <div style={{ display: 'flex', flexDirection: 'column', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.6rem', marginBottom: '0.8rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>🎒 배낭 수집물</h3>
+                        <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}><FieldIcon kind="bio" /> 배낭 수집물</h3>
                         <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                           총 무게: <span style={{ color: currentWeight > getMaxCarry(state) ? 'var(--accent-red)' : 'var(--primary)', fontWeight: 'bold' }}>{formatWeight(currentWeight)}</span> / {getMaxCarry(state)}
                         </span>
                       </div>
                       {hasBandolier && (
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
-                          <span>🎽 반도리어 수납 무게: <span style={{ color: bandolierLoad > 5 ? 'var(--accent-red)' : 'var(--primary)', fontWeight: 'bold' }}>{formatWeight(bandolierLoad)}</span> / 5</span>
-                          {bandolierLoad > 5 && <span style={{ color: 'var(--accent-red)', fontWeight: 'bold' }}>(용량 초과! ⚠️)</span>}
+                          <span><FieldIcon kind="bio" /> 반도리어 수납 무게: <span style={{ color: bandolierLoad > 5 ? 'var(--accent-red)' : 'var(--primary)', fontWeight: 'bold' }}>{formatWeight(bandolierLoad)}</span> / 5</span>
+                          {bandolierLoad > 5 && <span style={{ color: 'var(--accent-red)', fontWeight: 'bold' }}>(용량 초과! <FieldIcon kind="warning" />)</span>}
                         </div>
                       )}
                     </div>
 
                     {/* Table A: Tools & Equipment */}
                     <div style={{ marginBottom: '1.2rem' }}>
-                      <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.95rem', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>🛠️ 도구 및 장비</h4>
+                      <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.95rem', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}><FieldIcon kind="tools" /> 도구 및 장비</h4>
                       <div className="inventory-ledger-scroll" style={{ maxHeight: '260px', overflowY: 'auto', border: '1px solid #f0f0f0', borderRadius: '8px' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'left' }}>
                           <thead>
@@ -27841,7 +27776,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
 
                     {/* Table B: Reagents & Items */}
                     <div>
-                      <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.95rem', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>🌿 영약재 및 수집물</h4>
+                      <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.95rem', color: 'var(--secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}><FieldIcon kind="reagents" /> 영약재 및 수집물</h4>
                       <div className="inventory-ledger__toolbar">
                         <span>{reagentItems.length}개 부위{canonicalReagentFamilies > 0 ? ` · ${canonicalReagentFamilies}종` : ''}{patientRelevantItemCount > 0 ? ` · 환자 관련 ${patientRelevantItemCount}` : ''}</span>
                         {reagentItems.length >= 8 && (
@@ -27893,10 +27828,10 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                                 <tr key={item.id} style={{ borderBottom: '1px solid #eee', background: inBando ? '#f3faf5' : 'transparent' }}>
                                   <td style={{ padding: '0.55rem 0.5rem', color: 'var(--text-bright)' }}>
                                     <strong>{formatReagentItemName(item.name, item.canonicalReagentId)}</strong>
-                                    {inBando && <span style={{ color: '#16a34a', fontSize: '0.7rem', marginLeft: '0.3rem', fontWeight: 'bold', background: '#dcfce7', padding: '0.05rem 0.3rem', borderRadius: '4px' }}>🎽 반도리어</span>}
+                                    {inBando && <span style={{ color: '#16a34a', fontSize: '0.7rem', marginLeft: '0.3rem', fontWeight: 'bold', background: '#dcfce7', padding: '0.05rem 0.3rem', borderRadius: '4px' }}><FieldIcon kind="bio" /> 반도리어</span>}
                                     {preparation && (
                                       <small className="inventory-ledger__detail">
-                                        {localizePreparationName(preparation.name)} · {localizePreparationMethod(preparation.method)} · {preparation.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ') || '약효 없음'} · 남은 사용 {item.usesRemaining ?? preparation.uses}회
+                                        {localizePreparationName(preparation.name)} · {localizePreparationMethod(preparation.method)} · {preparation.tags.length ? <RuleTagValues values={preparation.tags} /> : '약효 없음'} · 남은 사용 {item.usesRemaining ?? preparation.uses}회
                                       </small>
                                     )}
                                     {(sourceText || breakdown) && (
@@ -27909,7 +27844,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                                         Craftpaws와 교환
                                       </button>
                                     )}
-                                    {relevantTags.length > 0 && <small className="inventory-ledger__context">현재 환자에 맞음 · {relevantTags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ')}</small>}
+                                    {relevantTags.length > 0 && <small className="inventory-ledger__context">현재 환자에 맞음 · <RuleTagValues values={relevantTags} /></small>}
                                   </td>
                                   <td style={{ padding: '0.4rem 0.5rem' }}>
                                     {inBando ? (
@@ -27938,7 +27873,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                                             fontWeight: 'bold'
                                           }}
                                         >
-                                          {inBando ? "🎒 배낭으로" : "🎽 수납"}
+                                          {inBando ? "배낭으로" : "수납"}
                                         </button>
                                       ) : (
                                         <span style={{ color: 'var(--text-dim)' }}>-</span>
@@ -27977,14 +27912,14 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                   <option value={1.0}>무게 1</option>
                   <option value={0.0}>무게 0</option>
                 </select>
-                <button type="submit" style={{ background: 'var(--primary)', color: '#fff' }}>🎒 추가</button>
+                <button type="submit" style={{ background: 'var(--primary)', color: '#fff' }}><FieldIcon kind="bio" /> 추가</button>
               </form>
             </div>
 
             {/* Journey & Calendar */}
             <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
-                <h3 style={{ margin: 0, borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem', fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>🧭 여정 계획</h3>
+                <h3 style={{ margin: 0, borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem', fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}><FieldIcon kind="play" /> 여정 계획</h3>
                 {state.journeyActive ? (
                   <div style={{ fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                     <div><strong>목적지:</strong> {state.journeyDestination}</div>
@@ -28005,7 +27940,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
               {/* Calendar stamp grid */}
               <div style={{ borderTop: '1.5px dashed var(--border-cozy)', paddingTop: '0.8rem', marginTop: '0.8rem' }}>
                 <div className="calendar-ledger-heading">
-                  <h4>📅 일정 소모 기록</h4>
+                  <h4><FieldIcon kind="clock" /> 일정 소모 기록</h4>
                   {state.journeyActive ? (
                     <label>
                       <input type="checkbox" checked={calendarOverride} onChange={event => setCalendarOverride(event.target.checked)} />
@@ -28067,7 +28002,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
               {/* Patience Tracker (인내심 기록) */}
               <div style={{ borderTop: '1.5px dashed var(--border-cozy)', paddingTop: '0.8rem', marginTop: '0.8rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--secondary)', fontFamily: 'var(--font-fancy)' }}>⏱️ 환자 인내심 기록</h4>
+                  <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--secondary)', fontFamily: 'var(--font-fancy)' }}><FieldIcon kind="clock" /> 환자 인내심 기록</h4>
                 </div>
                 {state.activeAilment && patientClock.hasActiveAilment ? (
                   <div>
@@ -28096,7 +28031,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                     <div style={{ fontSize: '0.875rem', lineHeight: 1.55, color: 'var(--text-muted)', marginTop: '0.5rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'space-between' }}>
                       <span>선택한 질환의 남은 치료 시간: {patientClock.selectedHours ?? 0} / {state.activeAilment.maxTimer}시간</span>
                       <span>아래 ‘직접 판정 보정’에서 안전하게 수정</span>
-                      {patientClock.selectedHours === 0 && <span style={{ color: 'var(--accent-red)', fontWeight: 'bold' }}>⚠️ 시간 초과!</span>}
+                      {patientClock.selectedHours === 0 && <span style={{ color: 'var(--accent-red)', fontWeight: 'bold' }}><FieldIcon kind="warning" /> 시간 초과!</span>}
                     </div>
                   </div>
                 ) : (
@@ -28215,7 +28150,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
               {/* Companions (동반자) */}
               <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
-                  <span style={{ fontSize: '1.8rem' }}>🪲</span>
+                  <span style={{ fontSize: '1.8rem' }}><FieldIcon kind="reagents" /></span>
                   <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>동반자 곤충</h3>
                 </div>
                 {state.companionStates && state.companionStates.length > 0 ? (
@@ -28225,7 +28160,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                       return (
                         <div key={comp.instanceId} style={{ padding: '0.6rem', background: '#fcfaf6', borderRadius: '8px', border: '1px solid var(--border-cozy)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--primary)' }}>
-                            <span>🪲 {dbComp?.name || comp.companionId}</span>
+                            <span><FieldIcon kind="reagents" /> {dbComp?.name || comp.companionId}</span>
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>경로 {comp.pathsTravelled}/10개</span>
                           </div>
                           {dbComp && (
@@ -28247,13 +28182,13 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
               {/* Trinkets (장신구) */}
               <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>🪙 물꼬 장신구</h3>
+                  <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}><FieldIcon kind="coin" /> 물꼬 장신구</h3>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>보유: {state.trinkets.length}개</span>
                 </div>
                 <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
                   {state.trinkets.map((t, idx) => (
                     <span key={idx} style={{ padding: '0.3rem 0.6rem', background: '#fff9ef', border: '1.5px solid var(--secondary)', color: 'var(--secondary-hover)', borderRadius: '20px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      🪙 {localizeInventoryItemName(t)}
+                      <FieldIcon kind="coin" /> {localizeInventoryItemName(t)}
                       <button
                         type="button"
                         className="trinket-spend-button"
@@ -28281,7 +28216,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
             {/* The Guild (약제사 치유 길드) */}
             <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
-                <h3 style={{ margin: 0, borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem', fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>🛡️ Guild Reputation</h3>
+                <h3 style={{ margin: 0, borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem', fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}> Guild Reputation</h3>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#faf6ee', padding: '0.8rem', borderRadius: '8px', border: '1px solid #e5dec9', marginBottom: '1rem' }}>
                   <div><strong>Guild Reputation 수치:</strong></div>
                   <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>{state.reputation}</div>
@@ -28365,7 +28300,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
         </div>
       ) : (
         <form onSubmit={handleSaveBio} className="cute-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '1rem', maxWidth: '500px', background: '#fff' }}>
-          <h3 style={{ borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', fontFamily: 'var(--font-fancy)', color: 'var(--secondary)', fontSize: '1.4rem' }}>🔧 약제사 프로필 수정</h3>
+          <h3 style={{ borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', fontFamily: 'var(--font-fancy)', color: 'var(--secondary)', fontSize: '1.4rem' }}><FieldIcon kind="tools" /> 약제사 프로필 수정</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             <label><strong>약제사 이름:</strong></label>
             <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="약제사 동물의 이름을 지어주세요" />
@@ -28375,7 +28310,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
             <input type="text" value={familiarName} onChange={e => setFamiliarName(e.target.value)} placeholder="길동무의 이름을 지어주세요" />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <label><strong>🃏 길동무 혜택 (p.14-15):</strong></label>
+            <label><strong><FieldIcon kind="card" /> 길동무 혜택 (p.14-15):</strong></label>
             <select
               value={familiarBenefitEdit}
               onChange={e => setFamiliarBenefitEdit(e.target.value)}
@@ -28389,14 +28324,14 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
             </select>
             {FAMILIAR_BENEFITS.find(f => f.name === familiarBenefitEdit) && (
               <div style={{ fontSize: '0.82rem', color: '#3d824d', background: '#f3faf5', borderRadius: '6px', padding: '0.4rem 0.6rem', border: '1px solid #c8e6c9' }}>
-                ✨ {FAMILIAR_BENEFITS.find(f => f.name === familiarBenefitEdit)!.desc}
+                 {FAMILIAR_BENEFITS.find(f => f.name === familiarBenefitEdit)!.desc}
               </div>
             )}
 
             {/* Resourceful familiar: select target reagent */}
             {FAMILIAR_BENEFITS.find(f => f.name === familiarBenefitEdit)?.mechanic === 'resourceful' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
-                <label style={{ fontSize: '0.88rem' }}><strong>🌱 상시 채집할 약재 지정:</strong></label>
+                <label style={{ fontSize: '0.88rem' }}><strong><FieldIcon kind="reagents" /> 상시 채집할 약재 지정:</strong></label>
                 <select
                   value={resourcefulReagentEdit}
                   onChange={e => setResourcefulReagentEdit(e.target.value)}
@@ -28413,7 +28348,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
             {/* Ingenuitive familiar: select target tool */}
             {FAMILIAR_BENEFITS.find(f => f.name === familiarBenefitEdit)?.mechanic === 'ingenuitive' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
-                <label style={{ fontSize: '0.88rem' }}><strong>⚒️ 모방할 추가 도구 지정:</strong></label>
+                <label style={{ fontSize: '0.88rem' }}><strong><FieldIcon kind="tools" /> 모방할 추가 도구 지정:</strong></label>
                 <select
                   value={ingenuitiveToolEdit}
                   onChange={e => setIngenuitiveToolEdit(e.target.value)}
@@ -28439,7 +28374,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                 onChange={e => setCanFly(e.target.checked)}
                 style={{ width: '18px', height: '18px', cursor: 'pointer' }}
               />
-              <strong>🦅 비행 능력 보유</strong>
+              <strong> 비행 능력 보유</strong>
             </label>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '26px' }}>
               조류나 박쥐 등 선천적인 날개를 가진 종족일 경우 체크합니다.
@@ -28513,7 +28448,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
     const inCurrentSeason = reagent.seasonAvailability[state.currentSeason] !== 'Unavailable';
     return { reagent, display, matchingParts, owned, inCurrentRegion, inCurrentSeason };
   }).filter(row => {
-    const searchText = [formatReagentName(row.reagent), row.reagent.displayName, row.reagent.canonicalName, row.reagent.description, ...row.reagent.preparations.flatMap(part => [localizePreparationName(part.name), localizePreparationMethod(part.method), ...part.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`)])].join(' ');
+    const searchText = [formatReagentName(row.reagent), row.reagent.displayName, row.reagent.canonicalName, row.reagent.description, ...row.reagent.preparations.flatMap(part => [localizePreparationName(part.name), localizePreparationMethod(part.method), ...part.tags.map(tag => `${formatRuleTag(tag.tag)} ${localizeRuleTag(tag.tag)} ${tag.value}`)])].join(' ');
     if (search && !fuzzyReferenceTextMatch(searchText, search)) return false;
     if (filter && !row.reagent.preparations.some(part => part.tags.some(tag => tag.tag.toLowerCase() === filter.toLowerCase()))) return false;
     if (typeFilter && row.reagent.type !== typeFilter) return false;
@@ -28525,7 +28460,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
 
   const learnedReagents = customReagentCatalogueProjection(state.customReagentCatalogue, toEngineInventory(state.bag));
   const visibleLearnedReagents = learnedReagents.filter(entry => {
-    const words = [entry.name, localizePreparationMethod(entry.preparation), formatRuleTag(entry.targetTag), entry.reagentType ? localizeReagentType(entry.reagentType) : ''].join(' ');
+    const words = [entry.name, localizePreparationMethod(entry.preparation), formatRuleTag(entry.targetTag), localizeRuleTag(entry.targetTag), entry.reagentType ? localizeReagentType(entry.reagentType) : ''].join(' ');
     return (!search || fuzzyReferenceTextMatch(words, search)) && (!filter || entry.targetTag === filter)
       && (!typeFilter || entry.reagentType === typeFilter)
       && (!patientOnly || activeRequirements.some(requirement => requirement.tag === entry.targetTag));
@@ -28567,7 +28502,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
       <p className="herbarium-specimen__description">{reagent.description}</p>
             <div className="herbarium-entry__detail">
               <div className="herbarium-entry__relations"><strong>어디서·언제</strong><div>{Object.entries(reagent.regionAvailability).filter(([, availability]) => availability !== 'Unavailable').map(([region, availability]) => <button type="button" key={region} onClick={() => setViewState(current => ({ ...current, regionFilter: region, expandedId: null }))}>{localizeRegionLabel(region)} · {localizeAppAvailabilityLabel(availability)}</button>)}{Object.entries(reagent.seasonAvailability).filter(([, availability]) => availability !== 'Unavailable').map(([season, availability]) => <button type="button" key={season} onClick={() => setViewState(current => ({ ...current, seasonFilter: season, expandedId: null }))}>{localizeSeasonLabel(season)} · {localizeAppAvailabilityLabel(availability)}</button>)}</div></div>
-              <div className="herbarium-parts"><strong>부위와 조제</strong>{reagent.preparations.map(part => { const relevant = treatmentRelevantPreparationTags(part.tags, activeRequirements); return <div key={part.id} className={relevant.length ? 'is-patient-relevant' : ''}><div><strong>{localizePreparationName(part.name)}</strong><span>{localizePreparationMethod(part.method)}</span></div><p>{part.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ') || '약효 태그 없음'} · 무게 {formatWeight(part.weight)} · {part.uses}회분</p>{part.requiredTools.filter(tool => tool !== 'none').length > 0 && <small>필요 도구: {part.requiredTools.filter(tool => tool !== 'none').map(tool => localizeInventoryItemName(TOOL_BY_ID.get(tool)?.canonicalName || tool)).join(', ')}</small>}{relevant.length > 0 && <em>현재 환자에게 {relevant.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ')} 기여</em>}</div>; })}</div>
+              <div className="herbarium-parts"><strong>부위와 조제</strong>{reagent.preparations.map(part => { const relevant = treatmentRelevantPreparationTags(part.tags, activeRequirements); return <div key={part.id} className={relevant.length ? 'is-patient-relevant' : ''}><div><strong>{localizePreparationName(part.name)}</strong><span>{localizePreparationMethod(part.method)}</span></div><p>{part.tags.length ? <RuleTagValues values={part.tags} /> : '약효 태그 없음'} · 무게 {formatWeight(part.weight)} · {part.uses}회분</p>{part.requiredTools.filter(tool => tool !== 'none').length > 0 && <small>필요 도구: {part.requiredTools.filter(tool => tool !== 'none').map(tool => localizeInventoryItemName(TOOL_BY_ID.get(tool)?.canonicalName || tool)).join(', ')}</small>}{relevant.length > 0 && <em>현재 환자에게 <RuleTagValues values={relevant} /> 기여</em>}</div>; })}</div>
               <div className="herbarium-entry__actions"><button type="button" onClick={() => onOpenReference({ entryId: `ingredient:${reagent.id}`, title: `${formatReagentName(reagent)} 관련 기록` })}>원문·관련 기록 보기</button>{state.journeyActive && state.rulesetId === 'sandbox' && <button type="button" onClick={async () => {
                 const parts = splitReagentPreparations(display.preps);
                 const chosenPart = await requestControlledPrompt({ title: `${formatReagentName(reagent)} 수동 획득`, kicker: '자유 플레이',
@@ -28608,7 +28543,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
           <span>지금 이곳</span><strong>{state.currentLocationName} · {localizeRegionLabel(currentRegion)} · {localizeSeasonLabel(state.currentSeason)}</strong><small>현재 지역·계절에서 찾기</small>
         </button>
         <button type="button" disabled={!activeRequirements.length} aria-pressed={patientOnly} onClick={() => setViewState(current => ({ ...current, patientOnly: !current.patientOnly, regionFilter: '', seasonFilter: '', expandedId: null }))}>
-          <span>현재 환자</span><strong>{patient?.name || '진료 중인 환자 없음'}</strong><small>{activeRequirements.length ? activeRequirements.map(row => `${formatRuleTag(row.tag)} ${row.threshold}`).join(' · ') : '필요 약효가 생기면 연결됩니다'}</small>
+          <span>현재 환자</span><strong>{patient?.name || '진료 중인 환자 없음'}</strong><small>{activeRequirements.length ? <RuleTagValues values={activeRequirements.map(row => ({tag: row.tag, value: row.threshold}))} /> : '필요 약효가 생기면 연결됩니다'}</small>
         </button>
         <div><span>펼쳐둔 배낭</span><strong>{state.bag.filter(item => item.type === 'reagent').length}개 영약재</strong><small>각 관찰 기록에 현재 보유량을 함께 적습니다</small></div>
       </section>
@@ -28618,17 +28553,17 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
         <label><span>분류</span><select value={typeFilter} onChange={event => setTypeFilter(event.target.value)}><option value="">모든 분류</option><option value="PLANT">풀과 나무</option><option value="ANIMAL">야수의 흔적</option><option value="INSECT">곤충과 벌레</option><option value="EARTH">흙과 돌</option><option value="TITAN">티탄 유물</option></select></label>
         <label><span>지역</span><select value={regionFilter} onChange={event => setViewState(current => ({ ...current, regionFilter: event.target.value, expandedId: null }))}><option value="">모든 지역</option>{['Bog', 'Forest', 'Loch', 'Meadow', 'Mountain', 'Titan'].map(region => <option key={region} value={region}>{localizeRegionLabel(region)}</option>)}</select></label>
         <label><span>계절</span><select value={seasonFilter} onChange={event => setViewState(current => ({ ...current, seasonFilter: event.target.value, expandedId: null }))}><option value="">모든 계절</option>{['Spring', 'Summer', 'Autumn', 'Winter'].map(season => <option key={season} value={season}>{localizeSeasonLabel(season)}</option>)}</select></label>
-        <label><span>약효</span><select value={filter} onChange={event => setFilter(event.target.value)}><option value="">모든 약효</option>{RULE_TAGS.map(tag => <option key={tag} value={tag}>{formatRuleTag(tag)}</option>)}</select></label>
+        <label><span>약효{filter && <> · <RuleTagBadge tag={filter} /></>}</span><select aria-label="약효" value={filter} onChange={event => setFilter(event.target.value)}><option value="">모든 약효</option>{RULE_TAGS.map(tag => <option key={tag} value={tag}>{formatRuleTag(tag)}</option>)}</select></label>
       </div>
 
       {learnedReagents.length > 0 && <section className="custom-herbarium" aria-label="직접 발견한 영약재">
         <header><div><span className="workspace-kicker">나의 영약재 기록</span><h3>직접 발견한 영약재</h3></div><span>{visibleLearnedReagents.length} / {learnedReagents.length}개</span></header>
         <p>대체 재료와 외지 영약재를 여기 기록합니다. 치료에 쓰고 배낭에서 사라져도 발견한 약재의 정의는 남습니다.</p>
         {visibleLearnedReagents.length === 0 ? <p>현재 검색·약효·분류 조건에 맞는 발견이 없습니다.</p> : <div className="custom-herbarium__grid">{visibleLearnedReagents.map(entry => <article key={entry.id} data-new-discovery={recentlyDiscoveredIds.includes(entry.id) || undefined}>
-          {recentlyDiscoveredIds.includes(entry.id) && <span className="specimen-arrival" role="status"><FieldIcon kind="reagents" /> 새 표본을 수첩에 남겼어요</span>}
+          {recentlyDiscoveredIds.includes(entry.id) && <DiscoveryArrival specimen />}
           <div className="custom-herbarium__origin">{entry.source === 'replacement' ? '대체 재료 · Replacement' : '외지 영약재 · Foreign Reagent'}<span>p.{entry.sourcePage}</span></div>
           <h4>{entry.name}</h4>
-          <p><strong>{formatRuleTag(entry.targetTag)} {entry.potency}</strong> · {localizePreparationMethod(entry.preparation)}</p>
+          <p><RuleTagBadge tag={entry.targetTag} value={entry.potency} /> · {localizePreparationMethod(entry.preparation)}</p>
           <dl><div><dt>기본 희귀도</dt><dd>{entry.baseRarity}</dd></div><div><dt>부위 무게</dt><dd>{formatWeight(entry.weight)}</dd></div><div><dt>한 부위의 사용</dt><dd>{entry.uses}회</dd></div><div><dt>배낭에 남은 사용</dt><dd>{entry.remainingUses}회</dd></div></dl>
           <p>필요 도구: {entry.requiredToolIds.length ? entry.requiredToolIds.map(id => localizeInventoryItemName(TOOL_BY_ID.get(id)?.canonicalName || id)).join(', ') : '없음'}</p>
           <button type="button" className="workspace-link" onClick={() => onOpenReference({ page: entry.sourcePage, title: entry.name, context: [{ label: '나의 발견', value: `${formatRuleTag(entry.targetTag)} ${entry.potency} · ${localizePreparationMethod(entry.preparation)}` }] })}>이 발견의 규칙 보기 →</button>
@@ -28715,7 +28650,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
               </h4>
               {a.sourceNote && <p className="ailment-source-note">{a.sourceNote}</p>}
               <div className="ailment-card__requirements" style={{ marginTop: '0.4rem', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <strong>💊 요구 약효 태그:</strong> {parseAndRenderTags(a.tags)}
+                <strong><FieldIcon kind="ailments" /> 요구 약효 태그:</strong> {parseAndRenderTags(a.tags)}
               </div>
 
               <p style={{ fontSize: '0.95rem', color: '#333', background: '#fff', padding: '0.8rem', borderRadius: '6px', margin: '0.6rem 0', lineHeight: '1.6' }}>
@@ -28724,11 +28659,11 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
 
               <div className="ailment-card__outcomes" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.9rem', background: '#fff', padding: '0.8rem', borderRadius: '6px' }}>
                 <div>
-                  <strong style={{ color: 'var(--primary)' }}>💡 성공 시 특별 결과:</strong>
+                  <strong style={{ color: 'var(--primary)' }}> 성공 시 특별 결과:</strong>
                   <div style={{ marginTop: '4px', color: '#444', fontSize: '0.88rem', lineHeight: '1.5' }}>{localizeAilmentPresentationText(a.outcome || '인쇄된 특별 결과 없음 · 일반 치료 보상만 적용')}</div>
                 </div>
                 <div>
-                  <strong style={{ color: 'var(--accent-red)' }}>💥 실패 시 결과:</strong>
+                  <strong style={{ color: 'var(--accent-red)' }}> 실패 시 결과:</strong>
                   <div style={{ marginTop: '4px', color: '#444', fontSize: '0.88rem', lineHeight: '1.5' }}>{localizeAilmentPresentationText(a.consequence)}</div>
                 </div>
               </div>
@@ -28778,7 +28713,7 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
                   }}
                   style={{ width: '100%', padding: '0.5rem', marginTop: '0.6rem', background: 'var(--accent-purple)', color: '#fff', borderRadius: '6px', fontSize: '0.9rem', fontWeight: 'bold' }}
                 >
-                  🏥 이 환자를 현재 약제소에 진단/등록
+                  <FieldIcon kind="home" /> 이 환자를 현재 약제소에 진단/등록
                 </button>
               )}
             </div>
@@ -29930,7 +29865,7 @@ const MapView = memo(function MapView({
 // =================================================================
 // 11. LIVING ARCHIVE VIEW COMPONENT
 // =================================================================
-function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { state: GameState; setActiveTab?: any; setHighlightedPatientId?: any }) {
+function LivingArchiveView({ state, recentlyObservedIds, setActiveTab, setHighlightedPatientId }: { state: GameState; recentlyObservedIds: readonly string[]; setActiveTab?: any; setHighlightedPatientId?: any }) {
   const patients = [...(state.patientCasebook || [])].sort((a, b) => b.timestamp - a.timestamp);
   const herbarium = (state.worldAlmanac || [])
     .filter(entry => entry.category === 'reagent')
@@ -29990,7 +29925,7 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
               if (isFailure) {
                 return (
                   <div key={record.id} style={{ borderBottom: '1px dotted var(--glass-border)', padding: '0.6rem 0', fontSize: '0.86rem', color: 'var(--text-dim)' }}>
-                    🕯️ {record.patientName || '가여운 이'}{record.species ? ` (${record.species})` : ''} — {record.resolvedAtDay || 0}일째 되던 날
+                     {record.patientName || '가여운 이'}{record.species ? ` (${record.species})` : ''} — {record.resolvedAtDay || 0}일째 되던 날
                   </div>
                 );
               }
@@ -30051,14 +29986,15 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
               }
 
               return (
-                <div key={entry.id} style={{ border: '1px solid var(--glass-border)', background: '#fbfaf4', padding: '0.65rem', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <div key={entry.id} className="world-discovery" data-new-discovery={recentlyObservedIds.includes(entry.id) || undefined} style={{ border: '1px solid var(--glass-border)', background: '#fbfaf4', padding: '0.65rem', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  {recentlyObservedIds.includes(entry.id) && <DiscoveryArrival />}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <strong style={{ color: 'var(--text-bright)' }}>{matchedReag?.name || entry.name}</strong>
                     {matchedReag && matchedReag.rawName && matchedReag.rawName.toLowerCase() !== (matchedReag.name || entry.name).toLowerCase() && (
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>({matchedReag.rawName})</span>
                     )}
                   </div>
-                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>📍 {localizeRegionLabel(entry.region)} / 발견 횟수 {entry.sightings}</div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}><FieldIcon kind="map" /> {localizeRegionLabel(entry.region)} / 발견 횟수 {entry.sightings}</div>
 
                   {preps && preps.length > 0 && (
                     <div style={{
@@ -30088,23 +30024,6 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
                             prepColor = '#6b21a8';
                           }
 
-                          let tagBg = '#f3f4f6';
-                          let tagColor = '#4b5563';
-                          const tagUpper = p.tag.toUpperCase();
-                          if (['WOUND', 'BURN', 'PAIN'].includes(tagUpper)) {
-                            tagBg = '#fee2e2';
-                            tagColor = '#b91c1c';
-                          } else if (['FEVER', 'STOMACH', 'SENSES', 'BREATH'].includes(tagUpper)) {
-                            tagBg = '#e0f2fe';
-                            tagColor = '#0369a1';
-                          } else if (['FAIR', 'JOY', 'MOOD'].includes(tagUpper)) {
-                            tagBg = '#d1fae5';
-                            tagColor = '#047857';
-                          } else if (['HIDE', 'FEATHER', 'SCALE', 'FUR', 'INSTINCT'].includes(tagUpper)) {
-                            tagBg = '#ffedd5';
-                            tagColor = '#c2410c';
-                          }
-
                           return (
                             <div key={idx} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.3rem', padding: '0.15rem 0', borderBottom: idx < preps.length - 1 ? '1px dashed #e2d6b5' : 'none' }}>
                               <span style={{ fontWeight: 'bold', color: 'var(--text-bright)', fontSize: '0.74rem' }}>
@@ -30123,18 +30042,7 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
                                 {localizePreparationMethod(p.prep)}
                               </span>
                               <span style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>→</span>
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                padding: '0.05rem 0.35rem',
-                                borderRadius: '10px',
-                                fontSize: '0.64rem',
-                                fontWeight: 'bold',
-                                background: tagBg,
-                                color: tagColor
-                              }}>
-                                {p.tag} {p.val}
-                              </span>
+                              <RuleTagText text={`${p.tag} ${p.val}`} />
                             </div>
                           );
                         })}
@@ -30250,7 +30158,7 @@ function LivingArchiveView({ state, setActiveTab, setHighlightedPatientId }: { s
                           className="btn-cozy-secondary"
                           style={{ padding: '0.2rem 0.55rem', fontSize: '0.72rem', border: '1px dashed #c4b5a3', background: '#fff', color: '#6e5d4f', cursor: 'pointer' }}
                         >
-                          🌿 선물을 보낸 인연 돌아보기
+                          <FieldIcon kind="reagents" /> 선물을 보낸 인연 돌아보기
                         </button>
                       </div>
                     )}
@@ -30432,7 +30340,7 @@ function PatientArchiveView({
                 {/* Visual Highlight Banner if clicked from Trinket cabinet */}
                 {isHighlighted && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fcf8eb', border: '1px dashed #d97706', borderRadius: '4px', padding: '0.45rem 0.65rem', marginBottom: '0.75rem', fontSize: '0.78rem', color: '#b45309', fontStyle: 'italic' }}>
-                    <span>🕯️ 이 물건을 건네주고 떠난 야수의 소중한 기억이 여기에 깃들어 있습니다.</span>
+                    <span> 이 물건을 건네주고 떠난 야수의 소중한 기억이 여기에 깃들어 있습니다.</span>
                     <button
                       onClick={() => setHighlightedPatientId(null)}
                       style={{ background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer', color: '#b45309', padding: 0, fontWeight: 'bold', fontSize: '0.75rem' }}
@@ -30481,12 +30389,12 @@ function PatientArchiveView({
                     const keepsake = (state.trinketArchive || []).find(t => t.patientCaseId === record.id || (record.sourceId && t.patientCaseId === memoryKey('case', record.sourceId)));
                     if (keepsake) {
                       if (!keepsake.spent) {
-                        return <div style={{ fontSize: '0.85rem', color: 'var(--accent-orange)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>💝 이 야수는 ’{keepsake.name}’를 남겼습니다.</div>;
+                        return <div style={{ fontSize: '0.85rem', color: 'var(--accent-orange)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}><FieldIcon kind="gift" /> 이 야수는 ’{keepsake.name}’를 남겼습니다.</div>;
                       } else {
-                        return <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>🪙 이 야수의 선물은 이후 거래에 사용되었습니다.</div>;
+                        return <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}><FieldIcon kind="coin" /> 이 야수의 선물은 이후 거래에 사용되었습니다.</div>;
                       }
                     } else {
-                      return <div style={{ fontSize: '0.85rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>🙏 이 야수는 선물 대신 감사의 축복을 남겼습니다.</div>;
+                      return <div style={{ fontSize: '0.85rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}> 이 야수는 선물 대신 감사의 축복을 남겼습니다.</div>;
                     }
                   })()}
 
@@ -30502,12 +30410,12 @@ function PatientArchiveView({
                 {/* 7. Clinical Drawer (🗒️ 병증에 관한 관찰 일지) */}
                 <details className="medical-drawer" style={{ marginTop: '0.85rem', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.55rem' }}>
                   <summary style={{ cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-dim)', outline: 'none', userSelect: 'none' }}>
-                    🗒️ 병증에 관한 관찰 일지
+                    <FieldIcon kind="journals" /> 병증에 관한 관찰 일지
                   </summary>
                   <div style={{ padding: '0.6rem', background: '#f8f6f0', border: '1px dashed #c4b5a3', borderRadius: '4px', marginTop: '0.45rem', fontSize: '0.8rem', display: 'grid', gap: '0.4rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>
                     <div><strong>관찰된 병증:</strong> {record.ailmentName}</div>
                     <div><strong>중증도:</strong> {canonicalSeverityLabel(record.severity)} · {getNaturalSeverityDescription(record.severity)}</div>
-                    {record.tags && <div><strong>요구되는 약효:</strong> {record.tags}</div>}
+                    {record.tags && <div><strong>요구되는 약효:</strong> <RuleTagText text={record.tags} /></div>}
                     {record.journeyTitle && <div><strong>기록된 여정:</strong> {record.journeyTitle}</div>}
                     {record.remedy && record.remedy.length > 0 && (
                       <div><strong>우려낸 약재들:</strong> {record.remedy.join(', ')}</div>
@@ -30547,6 +30455,7 @@ function initialJournalWorkspace(): JournalWorkspaceState {
 
 function JournalsView({
   state,
+  recentlyObservedIds,
   updateState,
   workspace,
   setWorkspace,
@@ -30555,6 +30464,7 @@ function JournalsView({
   setHighlightedPatientId
 }: {
   state: GameState;
+  recentlyObservedIds: readonly string[];
   updateState: any;
   workspace: JournalWorkspaceState;
   setWorkspace: Dispatch<SetStateAction<JournalWorkspaceState>>;
@@ -30923,7 +30833,7 @@ function JournalsView({
                 {/* Highlight Banner */}
                 {isHighlighted && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fcf8eb', border: '1px dashed #d97706', borderRadius: '4px', padding: '0.45rem 0.65rem', marginBottom: '0.75rem', fontSize: '0.78rem', color: '#b45309', fontStyle: 'italic' }}>
-                    <span>🕯️ 이 물건을 건네주고 떠난 야수의 소중한 기억이 여기에 깃들어 있습니다.</span>
+                    <span> 이 물건을 건네주고 떠난 야수의 소중한 기억이 여기에 깃들어 있습니다.</span>
                     <button
                       onClick={() => setHighlightedPatientId && setHighlightedPatientId(null)}
                       style={{ background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer', color: '#b45309', padding: 0, fontWeight: 'bold', fontSize: '0.75rem' }}
@@ -30972,12 +30882,12 @@ function JournalsView({
                     const keepsake = (state.trinketArchive || []).find(t => t.patientCaseId === record.id || (record.sourceId && t.patientCaseId === memoryKey('case', record.sourceId)));
                     if (keepsake) {
                       if (!keepsake.spent) {
-                        return <div style={{ fontSize: '0.85rem', color: 'var(--accent-orange)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>💝 이 야수는 ’{keepsake.name}’를 남겼습니다.</div>;
+                        return <div style={{ fontSize: '0.85rem', color: 'var(--accent-orange)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}><FieldIcon kind="gift" /> 이 야수는 ’{keepsake.name}’를 남겼습니다.</div>;
                       } else {
-                        return <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>🪙 이 야수의 선물은 이후 거래에 사용되었습니다.</div>;
+                        return <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}><FieldIcon kind="coin" /> 이 야수의 선물은 이후 거래에 사용되었습니다.</div>;
                       }
                     } else {
-                      return <div style={{ fontSize: '0.85rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>🙏 이 야수는 선물 대신 감사의 축복을 남겼습니다.</div>;
+                      return <div style={{ fontSize: '0.85rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}> 이 야수는 선물 대신 감사의 축복을 남겼습니다.</div>;
                     }
                   })()}
 
@@ -30993,12 +30903,12 @@ function JournalsView({
                 {/* 7. Clinical Drawer (🗒️ 병증에 관한 관찰 일지) */}
                 <details className="medical-drawer" style={{ marginTop: '0.85rem', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.55rem' }}>
                   <summary style={{ cursor: 'pointer', fontSize: '0.78rem', fontWeight: 'bold', color: 'var(--text-dim)', outline: 'none', userSelect: 'none' }}>
-                    🗒️ 병증에 관한 관찰 일지
+                    <FieldIcon kind="journals" /> 병증에 관한 관찰 일지
                   </summary>
                   <div style={{ padding: '0.6rem', background: '#f8f6f0', border: '1px dashed #c4b5a3', borderRadius: '4px', marginTop: '0.45rem', fontSize: '0.8rem', display: 'grid', gap: '0.4rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>
                     <div><strong>관찰된 병증:</strong> {record.ailmentName}</div>
                     <div><strong>중증도:</strong> {canonicalSeverityLabel(record.severity)} · {getNaturalSeverityDescription(record.severity)}</div>
-                    {record.tags && <div><strong>요구되는 약효:</strong> {record.tags}</div>}
+                    {record.tags && <div><strong>요구되는 약효:</strong> <RuleTagText text={record.tags} /></div>}
                     {record.journeyTitle && <div><strong>기록된 여정:</strong> {record.journeyTitle}</div>}
                     {record.remedy && record.remedy.length > 0 && (
                       <div><strong>우려낸 약재들:</strong> {record.remedy.join(', ')}</div>
@@ -31042,14 +30952,15 @@ function JournalsView({
                     }
 
                     return (
-                      <div key={entry.id} style={{ border: '1px solid var(--glass-border)', background: '#fbfaf4', padding: '0.75rem', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                      <div key={entry.id} className="world-discovery" data-new-discovery={recentlyObservedIds.includes(entry.id) || undefined} style={{ border: '1px solid var(--glass-border)', background: '#fbfaf4', padding: '0.75rem', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  {recentlyObservedIds.includes(entry.id) && <DiscoveryArrival />}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                           <span style={{ fontWeight: 700, color: 'var(--text-bright)' }}>{matchedReag?.name || getLocalizedLocationName(entry.name)}</span>
                           {matchedReag && matchedReag.rawName && matchedReag.rawName.toLowerCase() !== (matchedReag.name || entry.name).toLowerCase() && (
                             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>({matchedReag.rawName})</span>
                           )}
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>📍 {entry.locationName ? getLocalizedLocationName(entry.locationName) : '정해진 장소 없음'} {entry.region ? `- ${localizeRegionLabel(entry.region)}` : ''}</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}><FieldIcon kind="map" /> {entry.locationName ? getLocalizedLocationName(entry.locationName) : '정해진 장소 없음'} {entry.region ? `- ${localizeRegionLabel(entry.region)}` : ''}</div>
 
                         {entry.category === 'reagent' && preps && preps.length > 0 && (
                           <div style={{
@@ -31061,7 +30972,7 @@ function JournalsView({
                             fontSize: '0.78rem'
                           }}>
                             <div style={{ fontWeight: 'bold', fontSize: '0.74rem', color: 'var(--text-bright)', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.2rem', marginBottom: '0.3rem' }}>
-                              🧪 조제 및 사용법
+                               조제 및 사용법
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                               {preps.map((p, idx) => {
@@ -31082,23 +30993,6 @@ function JournalsView({
                                   prepColor = '#6b21a8';
                                 }
 
-                                let tagBg = '#f3f4f6';
-                                let tagColor = '#4b5563';
-                                const tagUpper = p.tag.toUpperCase();
-                                if (['WOUND', 'BURN', 'PAIN'].includes(tagUpper)) {
-                                  tagBg = '#fee2e2';
-                                  tagColor = '#b91c1c';
-                                } else if (['FEVER', 'STOMACH', 'SENSES', 'BREATH'].includes(tagUpper)) {
-                                  tagBg = '#e0f2fe';
-                                  tagColor = '#0369a1';
-                                } else if (['FAIR', 'JOY', 'MOOD'].includes(tagUpper)) {
-                                  tagBg = '#d1fae5';
-                                  tagColor = '#047857';
-                                } else if (['HIDE', 'FEATHER', 'SCALE', 'FUR', 'INSTINCT'].includes(tagUpper)) {
-                                  tagBg = '#ffedd5';
-                                  tagColor = '#c2410c';
-                                }
-
                                 return (
                                   <div key={idx} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem', padding: '0.2rem 0', borderBottom: idx < preps.length - 1 ? '1px dashed #e2d6b5' : 'none' }}>
                                     <span style={{ fontWeight: 'bold', color: 'var(--text-bright)', fontSize: '0.78rem' }}>
@@ -31117,18 +31011,7 @@ function JournalsView({
                                       {localizePreparationMethod(p.prep)}
                                     </span>
                                     <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>→</span>
-                                    <span style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      padding: '0.1rem 0.4rem',
-                                      borderRadius: '12px',
-                                      fontSize: '0.68rem',
-                                      fontWeight: 'bold',
-                                      background: tagBg,
-                                      color: tagColor
-                                    }}>
-                                      {p.tag} {p.val}
-                                    </span>
+                                    <RuleTagText text={`${p.tag} ${p.val}`} />
                                   </div>
                                 );
                               })}
@@ -31138,7 +31021,7 @@ function JournalsView({
 
                         {entry.notes && (
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-bright)', marginTop: '0.2rem' }}>
-                            📝 {getLocalizedAlmanacNotes(entry.notes)}
+                            <FieldIcon kind="journals" /> {getLocalizedAlmanacNotes(entry.notes)}
                           </div>
                         )}
 
@@ -31396,7 +31279,7 @@ function JournalsView({
                             <JournalPhotoImage photo={photo} alt={photo.name || j.title} imageStyle={{ width: '100%', maxHeight: '620px', objectFit: 'contain', display: 'block' }} />
                           </button>
                           <figcaption style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', padding: '0.45rem 0.6rem', borderTop: '1px solid #e2ddd2', color: 'var(--text-dim)', fontSize: '0.76rem' }}>
-                            <button onClick={() => setViewingPhoto({ photo, title: j.title })} style={{ border: 'none', background: 'transparent', color: 'var(--primary)', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}>🔎 원본 보기</button>
+                            <button onClick={() => setViewingPhoto({ photo, title: j.title })} style={{ border: 'none', background: 'transparent', color: 'var(--primary)', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}><FieldIcon kind="search" /> 원본 보기</button>
                             <button onClick={() => handleRemoveJournalPhoto(j.id, photo.id)} style={{ border: 'none', background: 'transparent', color: 'var(--accent-red)', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}>삭제</button>
                           </figcaption>
                         </figure>
@@ -31460,7 +31343,7 @@ function JournalsView({
       {subTab === 'legacy' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div className="cute-card" style={{ background: '#f8fafc', border: '1px solid #cbd5e1' }}>
-            <h4 style={{ color: 'var(--primary)', margin: '0 0 0.8rem 0' }}>🏛️ 역대 은퇴 약제사 계보</h4>
+            <h4 style={{ color: 'var(--primary)', margin: '0 0 0.8rem 0' }}> 역대 은퇴 약제사 계보</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
               {(state.legacyApothecaries || []).map((ap, i) => (
                 <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '0.8rem', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -31484,11 +31367,11 @@ function JournalsView({
           </div>
 
           <div className="cute-card" style={{ background: '#f8fafc', border: '1px solid #cbd5e1' }}>
-            <h4 style={{ color: 'var(--primary)', margin: '0 0 0.8rem 0' }}>🏡 보존된 세대별 약제소 네트워크</h4>
+            <h4 style={{ color: 'var(--primary)', margin: '0 0 0.8rem 0' }}><FieldIcon kind="home" /> 보존된 세대별 약제소 네트워크</h4>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px, 100%), 1fr))', gap: '0.8rem' }}>
               {(state.legacyClinics || []).map((cl, i) => (
                 <div key={i} style={{ background: '#fff', border: '1px solid #e2e8f0', padding: '0.8rem', borderRadius: '8px' }}>
-                  <div style={{ fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--primary)' }}>📍 {cl.locationName} 지부</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--primary)' }}><FieldIcon kind="map" /> {cl.locationName} 지부</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', margin: '0.2rem 0' }}>
                     지형: {localizeRegionLabel(cl.region)} | 설립자: {cl.founder}
                   </div>

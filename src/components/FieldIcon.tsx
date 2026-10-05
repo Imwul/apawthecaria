@@ -1,6 +1,6 @@
 import type { JournalTab } from '../sessionNavigation';
 
-type IconKind = JournalTab | 'search' | 'download' | 'upload' | 'camera' | 'cloud' | 'exit' | 'reset' | 'card' | 'edit' | 'bookmark';
+type IconKind = JournalTab | 'search' | 'download' | 'upload' | 'camera' | 'cloud' | 'exit' | 'reset' | 'card' | 'edit' | 'bookmark' | 'home' | 'coin' | 'paw' | 'clock' | 'tools' | 'warning' | 'gift';
 
 // Solid ink silhouettes keep utility controls visually consistent on every OS.
 const shapes: Record<IconKind, string> = {
@@ -22,7 +22,14 @@ const shapes: Record<IconKind, string> = {
   reset: 'M4 2v5a9 9 0 1 1-2 9l3-1a6 6 0 1 0 2-7h4v3H1V2h3Z',
   card: 'M5 1h14v22H5V1Zm7 5-4 6 4 6 4-6-4-6Z',
   edit: 'm3 15 12-12 6 6L9 21l-7 1 1-7Zm14-14 3-1 4 4-1 3-6-6Z',
-  bookmark: 'M5 2h14v21l-7-5-7 5V2Z'
+  bookmark: 'M5 2h14v21l-7-5-7 5V2Z',
+  home: 'm12 2 11 9h-3v11h-6v-7h-4v7H4V11H1L12 2Z',
+  coin: 'M12 1a11 11 0 1 0 0 22 11 11 0 0 0 0-22Zm0 3a8 8 0 1 1 0 16 8 8 0 0 1 0-16ZM9 7h6v3h-3v4h3v3H9V7Z',
+  paw: 'M5 4c4-1 5 5 2 6-4 1-5-5-2-6Zm7-3c4 0 4 6 1 7-4 0-5-6-1-7Zm7 3c4 1 1 7-2 6-4-1-2-7 2-6ZM4 11c4-1 5 5 2 6-4 1-5-5-2-6Zm8-1c3 0 4 4 7 6 4 5-1 7-5 5-4 2-9 0-5-5 2-2 1-6 3-6Z',
+  clock: 'M12 1a11 11 0 1 0 0 22 11 11 0 0 0 0-22Zm1 4v6l5 3-2 2-6-4V5h3Z',
+  tools: 'M21 1a7 7 0 0 0-9 8L2 19a3 3 0 0 0 4 4L16 13a7 7 0 0 0 7-9l-4 4-3-3 5-4Z',
+  warning: 'M12 1 0 23h24L12 1Zm-2 7h4l-1 8h-2l-1-8Zm0 10h4v3h-4v-3Z',
+  gift: 'M11 7C1 9 0-1 7 1c3 1 4 3 5 5 1-2 2-4 5-5 7-2 6 8-4 6v3h10v5H1v-5h10V7Zm-4-4c-4 0-1 4 3 3L7 3Zm10 0-3 3c4 1 7-3 3-3ZM3 16h8v7H3v-7Zm10 0h8v7h-8v-7Z'
 };
 
 export function FieldIcon({ kind }: { kind: IconKind }) {

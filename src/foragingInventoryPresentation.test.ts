@@ -13,11 +13,11 @@ import {
 } from './foragingInventoryPresentation';
 
 describe('foraging and inventory presentation', () => {
-  it('explains every canonical tag in Korean while retaining the rule token', () => {
+  it('uses canonical English tag labels while keeping Korean search aliases', () => {
     expect(Object.keys(TAG_READING_KO).sort()).toEqual([...RULE_TAGS].sort());
     for (const tag of RULE_TAGS) {
-      expect(formatRuleTag(tag)).toMatch(/[가-힣]/);
-      expect(formatRuleTag(tag)).toContain(tag);
+      expect(formatRuleTag(tag)).toBe(tag);
+      expect(TAG_READING_KO[tag]).toMatch(/[가-힣]/);
     }
     expect(formatRuleTag('사용자 태그')).toBe('사용자 태그');
   });

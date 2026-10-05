@@ -52,8 +52,8 @@ describe('Treatment workspace requirement comparison', () => {
       ownedTags: { PAIN: 2, FAIR: 3 }
     });
     expect(available.map(row => row.state)).toEqual(['available', 'available']);
-    expect(available[0].selectedProgress).toBe('통증 (PAIN) 0/2');
-    expect(available[1].ownedProgress).toBe('좋은 성질 (FAIR) 3/3');
+    expect(available[0].selectedProgress).toBe('PAIN 0/2');
+    expect(available[1].ownedProgress).toBe('FAIR 3/3');
 
     const selected = buildTreatmentRequirementRows({
       requirement,
@@ -102,7 +102,7 @@ describe('Treatment workspace requirement comparison', () => {
       selectedTags: { JOY: 2 },
       ownedTags: { JOY: 2 }
     });
-    expect(rows[0]).toMatchObject({ label: '기쁨 (JOY) 2', state: 'satisfied' });
+    expect(rows[0]).toMatchObject({ label: 'JOY 2', state: 'satisfied' });
   });
 
   it('removes a discarded Part from every dependent treatment draft field', () => {
