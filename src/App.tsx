@@ -12740,19 +12740,27 @@ export default function App() {
           {isOnboarding ? (
             <section className="onboarding-focus" aria-labelledby="onboarding-title">
               <header className="onboarding-focus__intro">
-                <img className="onboarding-focus__art" src="/art/woodland-whimsy.webp" alt="" />
                 <div className="onboarding-focus__welcome">
                   <p className="folio-chapter-title" aria-hidden="true">Your story begins.</p>
                   <span className="document-kicker">당신의 이야기가 자라는 곳</span>
-                  <h2 id="onboarding-title">당신의 첫 모험을<br />시작해볼까요?</h2>
+                  <h2 id="onboarding-title">당신의 첫 모험을<br /> 시작해볼까요?</h2>
                   <p>길동무와 들녘을 걸으며 약초를 찾고, 아픈 이웃에게 처방을 건네세요. 카드가 만남을 정하고, 당신의 기록이 이야기가 됩니다.</p>
-                  <ol className="onboarding-focus__promise" aria-label="첫 플레이 순서">
-                    <li><span>01</span> 약제사와 길동무 만들기</li>
-                    <li><span>02</span> 첫 여정의 목적지 정하기</li>
-                    <li><span>03</span> 안내를 따라 여행하고 돌보기</li>
-                  </ol>
-                  <p className="onboarding-focus__note">카드 뽑기와 필요한 규칙은 모두 여기 있어요. 작성 중인 내용도 이 기기에 저장됩니다.</p>
+                  <button type="button" className="onboarding-focus__begin" onClick={() => {
+                    const page = document.getElementById('character-creation-page');
+                    page?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+                    page?.focus({ preventScroll: true });
+                  }}>약제사 만들기 <span aria-hidden="true">↓</span></button>
                 </div>
+                <figure className="onboarding-focus__landscape" aria-hidden="true">
+                  <img className="onboarding-focus__art" src="/art/forest-folio.jpg" alt="" />
+                  <figcaption>A little courage. A little kindness.</figcaption>
+                </figure>
+                <ol className="onboarding-focus__promise" aria-label="첫 플레이 순서">
+                  <li><span>01</span> 약제사와 길동무 만들기</li>
+                  <li><span>02</span> 첫 여정의 목적지 정하기</li>
+                  <li><span>03</span> 안내를 따라 여행하고 돌보기</li>
+                </ol>
+                <p className="onboarding-focus__note">카드 뽑기와 필요한 규칙은 모두 여기 있어요. 작성 중인 내용도 이 기기에 저장됩니다.</p>
               </header>
               <CharacterCreationWizard
                 key={`onboarding-character-${campaignUiEpoch}`}
@@ -12788,7 +12796,7 @@ export default function App() {
             </section>
           )}
           {activeTab === 'play' && (
-            <>
+            <div className="woodland-play-spread">
               <TodayOverview
                 state={state}
                 currentWeight={currentWeight}
@@ -12841,7 +12849,7 @@ export default function App() {
                 onOpenFullMap={() => changeActiveTab('map')}
                 onOpenPatientArchive={() => changeActiveTab('patientArchive')}
               />
-            </>
+            </div>
           )}
           {activeTab !== 'play' && (
             <div className={`woodland-spread woodland-spread--${activeTab}`}>
@@ -26287,10 +26295,10 @@ function PlayView({
 // =================================================================
 // 6. CHARACTER SHEET (BIO & BAGS) VIEW
 const WizardFieldCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="wizard-step-content">
+  <section className="wizard-step-content">
     <h4 style={{ margin: '0 0 0.75rem 0', color: 'var(--primary)', fontFamily: 'var(--font-fancy)', fontSize: '1.15rem' }}>{title}</h4>
     {children}
-  </div>
+  </section>
 );
 
 const WizardChoiceSelect = ({ value, onChange, items, labelKey = 'name', label }: { value: string; onChange: (item: any) => void; items: any[]; labelKey?: string; label: string }) => (
@@ -26745,10 +26753,13 @@ function CharacterCreationWizard({
   return (
     <div
       className={`character-wizard ${focused ? 'character-wizard--focused' : ''}`}
+      id={focused ? 'character-creation-page' : undefined}
+      tabIndex={focused ? -1 : undefined}
       onBlurCapture={() => persistCharacterDraftNow()}
     >
       <div className="character-wizard__header">
         <div>
+          <p className="wizard-page-kicker">첫 기록 · {String(step + 1).padStart(2, '0')} / {String(steps.length).padStart(2, '0')}</p>
           <h3 style={{ margin: 0, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)', fontSize: '1.35rem' }}>우리의 첫 여행 채비</h3>
           <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.86rem', color: 'var(--text-muted)' }}>각 단계에서 카드를 뽑거나 마음에 드는 항목을 직접 고르세요. 결과와 능력은 자동으로 기록됩니다.</p>
           <p style={{ margin: '0.25rem 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>필수 선택 {CHARACTER_CREATION_CHOICES.filter(choice => choiceConfirmed(choice.field)).length}/6 · 이야기와 기념품 메모는 나중에 써도 됩니다.</p>
@@ -26768,7 +26779,8 @@ function CharacterCreationWizard({
             aria-current={step === idx ? 'step' : undefined}
             onClick={() => setStep(idx)}
           >
-            {idx + 1}. {label}
+            <span className="wizard-steps__number" aria-hidden="true">{String(idx + 1).padStart(2, '0')}</span>
+            <span>{label}</span>
           </button>
         ))}
       </nav>
@@ -27055,7 +27067,7 @@ function CharacterCreationWizard({
         );
       })()}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.9rem' }}>
+      <div className="wizard-page-actions">
         <button type="button" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0} style={{ padding: '0.45rem 0.8rem', borderRadius: '6px', background: step === 0 ? '#eee' : '#fff', color: step === 0 ? '#aaa' : 'var(--text-muted)', border: '1px solid var(--glass-border)' }}>이전</button>
         <button type="button" onClick={() => setStep(Math.min(steps.length - 1, step + 1))} disabled={step === steps.length - 1} style={{ padding: '0.45rem 0.8rem', borderRadius: '6px', background: step === steps.length - 1 ? '#eee' : 'var(--secondary)', color: step === steps.length - 1 ? '#aaa' : '#fff', border: 'none' }}>다음</button>
       </div>
@@ -31129,6 +31141,8 @@ function JournalsView({
 
       {subTab === 'journals' && (
         <>
+          <details className="journal-origin-pages">
+            <summary>약제사의 첫 기록 <span>출발 계기 · 기념품 · 길동무</span></summary>
           <section className="journal-opening-notes" aria-label="약제사 시작 기록">
             <h3 style={{ margin: '0 0 0.35rem 0', color: 'var(--primary)' }}>약제사 시작 기록</h3>
             <p style={{ margin: '0 0 0.8rem 0', fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
@@ -31161,9 +31175,10 @@ function JournalsView({
             ))}
             </div>
           </section>
+          </details>
           {/* Write custom journal */}
           <form className="journal-editor" onSubmit={handleAddJournal}>
-            <h4>✍️ 새로운 저널 일지 작성하기</h4>
+            <div className="journal-editor__heading"><span className="document-kicker">A letter to remember</span><h4>오늘은 어떤 이야기가 있었나요?</h4></div>
             <input
               type="text"
               placeholder="제목 (예: Odoak 정착지 도착, 곰의 다리를 꿰매다...)"
@@ -31206,7 +31221,7 @@ function JournalsView({
               )}
               <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)' }}>로그인 상태에서는 사진을 서버 파일 저장소에 올리고, 세이브에는 주소만 남깁니다.</div>
             </div>
-            <button type="submit" className="journal-editor__submit btn-cozy-primary">🖋️ 저널 등록</button>
+            <button type="submit" className="journal-editor__submit btn-cozy-primary">이 기억을 남기기 →</button>
           </form>
 
           {/* List journals */}

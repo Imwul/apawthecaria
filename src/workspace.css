@@ -29,7 +29,7 @@ button:disabled { cursor: not-allowed; }
 input,textarea,select { background: var(--paper-light); color: var(--ink); border: 1px solid var(--border-cozy); border-radius: 3px; box-shadow: none; line-height: 1.65; }
 input:focus,textarea:focus,select:focus { outline: 2px solid #294f3c60; outline-offset: 2px; box-shadow: none; }
 :focus-visible { outline: 3px solid #b99251; outline-offset: 4px; }
-.folio-app.journal-app .main-content-panel :is(input:not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),textarea,select) { border-color: var(--folio-field-border,var(--folio-control-border)) !important; border-radius: var(--radius-sm) !important; background: var(--paper-light) !important; color: var(--ink); font-weight: 400; }
+.folio-app.journal-app .main-content-panel :where(input:not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),textarea,select) { border-color: var(--folio-field-border,var(--folio-control-border)) !important; border-radius: var(--radius-sm) !important; background: var(--paper-light) !important; color: var(--ink); font-weight: 400; }
 .folio-app.journal-app .main-content-panel :is(input,textarea,select):focus-visible { outline: 2px solid var(--primary) !important; outline-offset: 3px; box-shadow: none !important; }
 input[aria-invalid="true"],textarea[aria-invalid="true"],select[aria-invalid="true"] { --folio-field-border: var(--accent-red); }
 button,input,textarea,select,[tabindex] { scroll-margin-top: 24px; }

@@ -25,6 +25,17 @@ const CHAPTER_NUMBER: Record<JournalTab, string> = {
   almanack: '06', patientArchive: '07', livingArchive: '08', journals: '09'
 };
 
+const CHAPTER_ART: Record<ChapterTab, { src: string; caption: string }> = {
+  map: { src: '/art/forest-folio.jpg', caption: 'Beyond the next bend.' },
+  ailments: { src: '/art/woodland-herbarium.webp', caption: 'A small remedy, a little kindness.' },
+  reagents: { src: '/art/woodland-herbarium.webp', caption: 'Gathered along the way.' },
+  bio: { src: '/art/woodland-whimsy.webp', caption: 'Everything for the road.' },
+  almanack: { src: '/art/woodland-herbarium.webp', caption: 'The woods have much to teach.' },
+  patientArchive: { src: '/art/woodland-correspondence.webp', caption: 'Those we met, those we helped.' },
+  livingArchive: { src: '/art/woodland-herbarium.webp', caption: 'Little things worth keeping.' },
+  journals: { src: '/art/woodland-correspondence.webp', caption: 'A place for your own words.' }
+};
+
 const NAVIGATION = [
   {
     id: 'primary', label: '모험의 도구', items: [
@@ -69,12 +80,15 @@ export function JournalNavigation({ activeTab, onChange }: { activeTab: JournalT
                 <span className="workspace-nav__copy"><span>{item.label}</span><span className="workspace-nav__english" aria-hidden="true">{CHAPTER_ENGLISH[item.id]}</span></span>
               </button>
             ));
-  const secondaryActive = NAVIGATION.slice(1).some(group => group.items.some(item => item.id === activeTab));
+  const secondaryItem = NAVIGATION.slice(1)
+    .map(group => group.items.find(item => item.id === activeTab))
+    .find(item => item !== undefined);
+  const secondaryActive = Boolean(secondaryItem);
   return (
     <nav className="journal-tabs workspace-nav" aria-label="모험 도구와 기록">
       <div className="workspace-nav__primary">{renderItems(NAVIGATION[0])}</div>
       <details ref={moreRef} className={`workspace-nav__more${secondaryActive ? ' is-active' : ''}`}>
-        <summary>자료 · 기록 <span aria-hidden="true">⌄</span></summary>
+        <summary>{secondaryItem?.label || '자료 · 기록'} <span aria-hidden="true">⌄</span></summary>
         <div className="workspace-nav__menu">
           {NAVIGATION.slice(1).map(group => <div key={group.id} role="group" aria-label={group.label}>
             <p>{group.label}</p>
@@ -177,7 +191,8 @@ export function ChapterOpening({
   return (
     <header className={`chapter-opening adventure-tool-heading chapter-opening--${tab}`} aria-labelledby={`chapter-title-${tab}`}>
       <div className="chapter-opening__plate" aria-hidden="true">
-        <img className="chapter-opening__art" src="/art/woodland-whimsy.webp" alt="" />
+        <img className="chapter-opening__art" src={CHAPTER_ART[tab].src} alt="" />
+        <span className="chapter-opening__caption">{CHAPTER_ART[tab].caption}</span>
       </div>
       <div className="chapter-opening__copy">
         <p className="folio-chapter-title" aria-hidden="true">{CHAPTER_ENGLISH[tab]}</p>
@@ -204,7 +219,7 @@ export function ChapterOpening({
         </details>
         </div>
       </div>
-      <span className="folio-divider" aria-hidden="true"><span>✿</span></span>
+      <span className="chapter-opening__page-number" aria-hidden="true">{CHAPTER_NUMBER[tab]} <span>· Bristley Woods</span></span>
     </header>
   );
 }
@@ -282,7 +297,7 @@ export function TodayOverview({ state, currentWeight, maxCarry, onNavigate, onCo
       </div> : null}
     </div>
     <div className="workspace-today__atmosphere" aria-hidden="true">
-      <img src="/art/woodland-whimsy.webp" alt="" />
+      <img src="/art/forest-folio.jpg" alt="" />
       <span>The Bristley Woods<small>A travelling apothecary's journal</small></span>
     </div>
     <details className="workspace-session">

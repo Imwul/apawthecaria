@@ -1,0 +1,390 @@
+/* The opened field journal. Layout belongs here; game control styling stays in workspace.css. */
+:root {
+  --folio-page-width: 1440px;
+  --book-gutter: 40px;
+  --book-left: 34%;
+  --book-paper: #faf7ed;
+  --book-edge: #d4d8c4;
+}
+.folio-app.journal-app .main-content-panel :is(button,input,select,textarea) { font-size: var(--folio-control-size) !important; }
+.folio-app.journal-app .main-content-panel :is(p,li,dt,dd,label,td,th):where(:not(.folio-scene-title):not(.folio-chapter-title)) { font-size: max(var(--folio-body-size),1em) !important; }
+body { background: #e1e7d8; background-image: radial-gradient(ellipse at 14% 12%, #edf0e5, transparent 55%), radial-gradient(ellipse at 90% 80%, #eee6d8, transparent 60%); }
+.journal-app { padding: 28px 48px 40px; }
+.journal-app .journal-header,.journal-app:not(.journal-app--onboarding) .journal-header,.journal-app--onboarding .journal-header {
+  min-height: 126px; padding: 12px 10px 26px !important; background: transparent; border: 0; border-radius: 0; gap: 36px;
+}
+.journal-header .journal-brand__eyebrow { font-size: 15px; letter-spacing: .09em; margin-bottom: 7px; }
+.journal-header .journal-brand__edition { font-size: 18px; margin-top: 6px; }
+.journal-app .journal-header .journal-brand__title,.journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title,.journal-app--onboarding .journal-header .journal-brand__title { font-size: 62px !important; }
+.journal-header .journal-header__action,.adventure-settings > summary { background: #faf7ed90; border-color: #b7c0aa; }
+.adventure-context { gap: 34px; }
+.adventure-context > div,.adventure-context > button { padding-left: 20px; border-left: 1px solid #b7c0aa; }
+/* Chapter tabs emerge from the book's upper edge rather than a dashboard toolbar. */
+.journal-app .journal-tabs.workspace-nav { align-items: end; padding: 0 26px; margin: 0 auto; min-height: 76px; border: 0; background: transparent; gap: 20px; }
+.workspace-nav__primary { gap: 12px; align-items: end; }
+.journal-tabs.workspace-nav .journal-tab { min-height: 70px; padding: 12px 22px 14px; border: 1px solid #c6cfb9; border-bottom: 0; border-radius: 14px 14px 0 0; background: #e9ecdf; align-items: center; gap: 16px; }
+.journal-tabs.workspace-nav .journal-tab--map { background: #e1e9e3; }
+.journal-tabs.workspace-nav .journal-tab--ailments { background: #ebe3df; }
+.journal-tabs.workspace-nav .journal-tab--reagents { background: #e0e7d6; }
+.journal-tabs.workspace-nav .journal-tab--bio { background: #ece4d8; }
+.journal-tabs.workspace-nav .journal-tab--active { padding-top: 18px; min-height: 82px; background: var(--book-paper); color: var(--forest-dark); z-index: 1; border-color: #b7c2aa; }
+.journal-tabs.workspace-nav .journal-tab:hover:not(.journal-tab--active) { background: #f0f1e7; }
+.workspace-nav__copy { gap: 3px; }
+.workspace-nav__number { font-size: 28px; }
+.workspace-nav__english { font-size: 19px; }
+.workspace-nav__more { flex-basis: 160px; margin-bottom: 8px; }
+.workspace-nav__more > summary { background: #d2dbc5; min-height: 56px; padding-inline: 18px; border-radius: 10px; }
+.workspace-nav__menu { top: calc(100% + 18px); width: 280px; }
+.journal-tabs.workspace-nav .workspace-nav__menu .journal-tab { border: 0; border-radius: 5px; min-height: 60px; }
+/* A cover page and a working page share one uninterrupted paper surface. */
+.journal-app .grid-dashboard,.journal-app:not(.journal-app--onboarding) .grid-dashboard,.journal-app--onboarding .grid-dashboard {
+  padding: 0 !important; background: var(--book-paper); border: 1px solid var(--book-edge); border-radius: 9px 12px 12px 9px; box-shadow: 0 14px 38px #3f513518, 0 4px 0 #f0eddf, 0 5px 0 #d4d8c4;
+}
+.woodland-spread,.woodland-play-spread,.journal-app--onboarding .onboarding-focus { display: grid; grid-template-columns: minmax(0,var(--book-left)) minmax(0,1fr); gap: 0; align-items: start; }
+.woodland-spread { --chapter-tint: #eceddc; }
+.woodland-spread--map { --chapter-tint: #e6ece3; }
+.woodland-spread--ailments,.woodland-spread--patientArchive { --chapter-tint: #f1e8df; }
+.woodland-spread--journals { --chapter-tint: #eee7e0; }
+.woodland-spread--bio { --chapter-tint: #eeeada; }
+.woodland-spread > .chapter-opening,.woodland-play-spread > .workspace-today,.onboarding-focus__intro {
+  grid-column: 1; grid-row: 1 / span 20; padding: var(--book-gutter) !important; margin: 0; min-width: 0; border-radius: 9px 0 0 9px; border-right: 1px solid #d6dac7;
+  background: linear-gradient(90deg, transparent 96%, #60724908), linear-gradient(150deg, var(--chapter-tint,#eeeddd), var(--book-paper) 80%);
+}
+.woodland-spread > .play-guide,.woodland-spread > .journal-chapter,.woodland-play-spread > :not(.workspace-today) { grid-column: 2; min-width: 0; margin: 0 var(--book-gutter); }
+.woodland-spread > .journal-chapter { padding: 0 0 var(--book-gutter); }
+.woodland-spread > .play-guide,.woodland-play-spread > .play-guide { margin-top: var(--book-gutter); margin-bottom: 26px; }
+.woodland-play-spread > :last-child { padding-bottom: var(--book-gutter); }
+.journal-app .chapter-opening { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 30px; min-height: 930px; }
+.journal-app .chapter-opening__copy { display: block; width: 100%; padding: 0; order: 0; }
+.chapter-opening__plate { width: 100%; order: 1; align-self: stretch; margin: 8px 0 0; }
+.chapter-opening__art { width: 100%; height: 320px; object-fit: contain; }
+.chapter-opening--map .chapter-opening__art { height: 340px; object-fit: cover; border-radius: 46% 46% 4px 4px; }
+.chapter-opening__caption { display: block; margin-top: 12px; text-align: center; font-family: var(--font-display); font-size: 25px; font-style: italic; color: #727d67; }
+.folio-app .main-content-panel .chapter-opening .folio-chapter-title { font-size: clamp(58px,5vw,78px); margin: 0 0 24px; line-height: 1.05; }
+.chapter-opening__kicker { margin-bottom: 12px; }
+.chapter-opening__copy h2 { font-size: 32px; line-height: 1.4; }
+.chapter-opening__body { max-width: 35ch; font-size: 21px; margin-top: 20px; }
+.chapter-opening__notes { gap: 10px 20px; margin-top: 26px; padding: 18px 0; border-top: 1px solid #c8d0bb; border-bottom: 1px solid #c8d0bb; }
+.chapter-opening__notes li { padding: 0; border-radius: 0; background: transparent; color: var(--forest); }
+.chapter-opening__actions { margin-top: 20px; gap: 14px 22px; }
+.chapter-opening__page-number { order: 2; display: flex; align-items: baseline; gap: 16px; margin-top: auto; padding-top: 20px; font-family: var(--font-display); color: #7d896f; font-size: 32px !important; }
+.chapter-opening__page-number > span { font-size: 18px !important; letter-spacing: .05em; }
+/* The journey's left page carries the next action and an illustrated view into the world. */
+.workspace-today { display: flex; flex-direction: column; align-items: stretch; gap: 24px; min-height: 950px; }
+.workspace-today__main { padding: 0; }
+.workspace-today__context { margin-bottom: 24px; gap: 12px; }
+.workspace-today__context .workspace-kicker { padding: 0; border-radius: 0; background: transparent; }
+.folio-app .main-content-panel .folio-scene-title { font-size: clamp(54px,4.8vw,78px); max-width: 14ch; }
+.workspace-today h2 { margin: 24px 0 16px; font-size: 34px; }
+.workspace-today__reason { max-width: 36ch; font-size: 21px; }
+.workspace-today__actions { margin: 26px 0 0; gap: 14px 24px; }
+.workspace-primary,.workspace-today .workspace-primary { min-height: 54px; font-size: 21px; padding: 14px 24px; border-radius: 7px; }
+.workspace-today__atmosphere { position: static; display: block; width: 100%; min-height: 0; margin: 18px 0 0; }
+.workspace-today__atmosphere img { display: block; width: 100%; height: 310px; object-fit: cover; border-radius: 46% 46% 4px 4px; }
+.workspace-today__atmosphere > span { display: block; margin-top: 18px; text-align: center; font-family: var(--font-display); font-size: 25px; color: #65765f; }
+.workspace-today__atmosphere small { display: block; font-size: 18px; }
+.workspace-session { margin: auto 0 0; padding: 0; width: 100%; grid-column: auto; }
+.workspace-session > summary { padding: 16px 0; font-size: 19px; }
+.workspace-session__body { display: block; }
+.workspace-session__body dl { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.workspace-session__body p { max-width: 38ch; }
+.woodland-play-spread .play-with-map { display: block; }
+.woodland-play-spread .workspace-map-preview { margin-bottom: 24px; }
+.woodland-play-spread .play-with-map__map { max-width: 100%; }
+.woodland-play-spread #journey-start-panel { border: 0 !important; border-radius: 0 !important; background: transparent !important; padding: 0 !important; }
+.woodland-play-spread .journey-start-layout { grid-template-columns: minmax(0,1fr) minmax(0,1.2fr); gap: 30px; }
+.journey-choice-fieldset { border: 0; border-top: 1px solid #c5cfb7; border-radius: 0; padding: 24px 0; align-content: start; }
+.journey-choice-toggle { align-items: start; }
+.journey-start-summary { border: 0; border-top: 1px solid #c5cfb7; background: #ebeedf; border-radius: 4px; }
+.adventure-action-menu > summary,.workspace-map-preview > summary { padding: 18px 0; font-size: 21px; }
+.play-guide { background: transparent; border-left: 3px solid #b1bda1; border-radius: 0; padding: 0 0 0 18px; }
+.play-guide__overview { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+/* First opening: an invitation facing a page with a proper chapter index. */
+.journal-app--onboarding .onboarding-focus { gap: 0; }
+.onboarding-focus__intro { display: flex; flex-direction: column; min-height: 1000px; }
+.onboarding-focus__welcome { padding: 0; }
+.onboarding-focus__begin { display: none; }
+.folio-app .main-content-panel .onboarding-focus__intro .folio-chapter-title { font-size: 74px; line-height: 1.05; max-width: 12ch; margin: 0 0 28px; }
+.onboarding-focus__intro h2 { font-size: 32px; margin: 18px 0; }
+.onboarding-focus__intro p { font-size: 21px; max-width: 35ch; line-height: 1.8; }
+.onboarding-focus__landscape { margin: 28px 0 0; }
+.onboarding-focus__art { width: 100%; height: 320px; object-fit: cover; border-radius: 46% 46% 4px 4px; }
+.onboarding-focus__landscape figcaption { margin-top: 18px; font-family: var(--font-display); font-style: italic; font-size: 24px; color: #718164; text-align: center; }
+.onboarding-focus__promise { gap: 12px; font-size: 20px; margin-top: 30px; }
+.onboarding-focus__promise > li { grid-template-columns: 36px minmax(0,1fr); gap: 14px; }
+.onboarding-focus__promise span { font-size: 25px; color: #727e62; }
+.onboarding-focus__note { margin-top: auto; font-size: 18px !important; color: #63705c; }
+.onboarding-focus .character-wizard { padding: var(--book-gutter); border: 0; border-radius: 0; background: transparent; min-height: 1000px; display: grid; grid-template-columns: 166px minmax(0,1fr); gap: 26px 30px; align-content: start; }
+.onboarding-focus .character-wizard__header { grid-column: 1/-1; padding-bottom: 24px; margin: 0; border-bottom: 1px solid #c8d0bb; }
+.wizard-page-kicker { font-size: 18px !important; color: #7a785f !important; margin: 0 0 10px !important; }
+.onboarding-focus .wizard-steps { display: flex; flex-direction: column; grid-column: 1; grid-row: 2/span 2; gap: 8px; margin: 0; padding: 0 18px 0 0; border-right: 1px solid #d4dac8; }
+.onboarding-focus .wizard-steps button { display: flex; align-items: baseline; text-align: left; gap: 12px; background: transparent; border: 0; border-radius: 4px; padding: 10px 8px; min-height: 54px; color: #64705d; }
+.onboarding-focus .wizard-steps button[aria-current="step"] { background: #e4e9d8; color: #314e35; }
+.wizard-steps__number { font-family: var(--font-display); color: #7b886d; min-width: 22px; }
+.onboarding-focus .wizard-step-content { grid-column: 2; grid-row: 2; border: 0; padding: 0; min-width: 0; width: 100%; max-width: 1100px; }
+.folio-app .onboarding-focus .wizard-step-content h4 { margin-bottom: 24px !important; }
+.wizard-page-actions { display: flex; justify-content: space-between; gap: 16px; margin-top: 28px; }
+.onboarding-focus .wizard-page-actions { width: 100%; max-width: 1100px; grid-column: 2; grid-row: 3; border-top: 1px solid #d4dac8; padding-top: 24px; }
+.wizard-page-actions button { min-width: 94px; min-height: 52px; font-size: 20px !important; }
+.wizard-animal-choices { gap: 12px; flex-wrap: wrap; }
+.wizard-animal-choices button { min-height: 46px; background: transparent; border-radius: 24px; }
+.onboarding-focus .card-draw-hero { display: grid; grid-template-columns: 148px minmax(0,1fr); gap: 10px 24px; padding: 20px 0; margin: 8px 0; align-items: center; }
+.onboarding-focus .card-draw-hero > * { grid-column: 2; min-width: 0; }
+.onboarding-focus .card-draw-hero__label { text-align: left; margin: 0; }
+.onboarding-focus .card-draw-hero__helper { text-align: left; max-width: 35ch; margin: 0; }
+.onboarding-focus .card-draw-hero .card-draw-hero__card { grid-column: 1; grid-row: 1/span 4; width: 148px; height: 208px; margin: 0; }
+.card-draw-hero .card-draw-hero__card--empty { background: url('/art/woodland-herbarium.webp') center 18% / 110px auto no-repeat, #e8eddc; box-shadow: 3px 4px 0 #d4ddc7; }
+.card-draw-hero .card-draw-hero__card--empty > span { display: block; padding: 110px 6px 0; font-size: 18px !important; line-height: 1.4 !important; }
+.onboarding-focus .card-draw-hero__actions { justify-content: flex-start; flex-wrap: wrap; margin: 0; gap: 10px; }
+.onboarding-focus .card-draw-hero__actions button { min-height: 46px; padding: 10px 16px; }
+/* Herbarium: separate numbered specimen sheets, with ample room to unfold one entry. */
+.herbarium-field-guide__intro { padding-bottom: 24px; border-bottom: 1px solid #c5cfb7; }
+.herbarium-context { border: 0; border-bottom: 1px solid #c5cfb7; background: transparent; gap: 24px; padding: 24px 0; }
+.herbarium-context > button,.herbarium-context > div { background: transparent; border: 0; border-radius: 0; padding: 0 18px 0 0; border-right: 1px solid #d4dac8; }
+.herbarium-context > button[aria-pressed="true"] { background: #e6ecdc; outline: 1px solid #9ba98b; padding: 10px 16px; border-radius: 4px; }
+.herbarium-controls { margin: 26px 0; padding: 0; background: transparent; border: 0; gap: 16px; }
+.herbarium-index { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; }
+.herbarium-entry { border: 1px solid #d9dfcb; border-top: 0; border-radius: 2px; background: #fffdf5; box-shadow: 0 3px 0 #e5e6d6; }
+.herbarium-entry__summary { padding: 24px; }
+.herbarium-entry__folio { background: transparent; border: 0; color: #7f8d6e; font-size: 35px !important; }
+.herbarium-entry:has(.herbarium-entry__detail) { grid-column: 1/-1; }
+.herbarium-entry__detail { background: #f1f2e6; padding: 26px; }
+.herbarium-entry__marks span { border-radius: 0; border-bottom: 1px solid #b9c7a8; background: transparent; }
+.herbarium-more { margin-top: 28px; }
+/* Notes and letters have generous margins and ruled writing surfaces. */
+.folio-section-heading { padding: 0 0 24px; border: 0; border-radius: 0; background: transparent; border-bottom: 1px solid #cecbbd; }
+.journal-subtabs { padding-bottom: 20px; border-bottom: 1px solid #cecbbd; }
+.journal-subtabs button { background: transparent !important; color: #656757 !important; border: 0 !important; border-bottom: 2px solid transparent !important; border-radius: 0 !important; padding: 10px 14px !important; }
+.journal-subtabs button[aria-pressed="true"] { color: #3f5c3e !important; border-bottom-color: #7c8e69 !important; }
+.journal-editor { position: relative; margin: 36px 0; padding: 32px 36px; border: 1px solid #ddd7c5; border-radius: 2px; background: #fffdf6; box-shadow: 0 5px 0 #eee8d9; gap: 20px; }
+.journal-editor__heading { padding-bottom: 14px; }
+.folio-app.journal-app .main-content-panel .journal-editor textarea { border: 0 !important; border-bottom: 1px solid #c8ccb8 !important; border-radius: 0 !important; min-height: 210px; line-height: 36px !important; background: repeating-linear-gradient(transparent 0,transparent 35px,#dfe3d7 35px,#dfe3d7 36px) !important; padding: 0 8px; }
+.journal-editor__photos { border: 0; padding-top: 0; }
+.journal-story-list__entries { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-items: start; gap: 28px; }
+.journal-entry { margin: 0; padding: 28px !important; border: 1px solid #dcd7c8; border-left: 1px solid #dcd7c8; border-radius: 2px; background: #fffdf6; box-shadow: 0 3px 0 #e9e3d7; }
+.journal-entry__memory { line-height: 1.9; }
+.journal-entry__header { border-bottom-style: solid; }
+.journal-writing-spread { gap: 30px; }
+.journal-origin-pages { border-bottom: 1px solid #cecbbd; margin: 24px 0; }
+.journal-origin-pages > summary { display: flex; justify-content: space-between; gap: 16px; min-height: 52px; padding: 12px 0; font-size: var(--folio-body-size); cursor: pointer; }
+.journal-origin-pages > summary > span { color: var(--text-muted); font-size: var(--folio-meta-size); }
+.journal-origin-pages .journal-opening-notes { padding: 24px 0; }
+
+.character-continuity { padding: 26px; border: 0; border-radius: 0; background: #e9eddf; }
+.character-continuity dl { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; }
+.character-continuity dl > div { padding: 8px 0 16px; border: 0; border-bottom: 1px solid #c5cfb7; background: transparent; }
+.character-continuity dd { font-size: 28px; font-weight: 500; }
+.character-continuity dd small { font-size: var(--folio-meta-size); }
+.journal-chapter--bio .bio-sheet { padding: 0 !important; background: transparent !important; border: 0; border-radius: 0; }
+.bio-sheet-sections > .bio-record-fold { border: 0; border-bottom: 1px solid #c5cfb7; border-radius: 0; background: transparent; }
+.bio-record-fold > summary { padding: 20px 0; }
+.field-footer { max-width: var(--folio-page-width); margin-top: 18px; padding: 14px 6px; background: transparent; border: 0; }
+@media (min-width:1800px) {
+  html { font-size: 20px; }
+  :root { --folio-page-width: 2680px; --book-gutter: 48px; --book-left: 33%; --folio-body-size: 1.3rem; --folio-control-size: 1.15rem; --folio-meta-size: 1.05rem; --folio-heading-size: 2rem; }
+  .journal-app { padding: 30px 80px 40px; }
+  .journal-app .journal-header,.journal-app:not(.journal-app--onboarding) .journal-header,.journal-app--onboarding .journal-header { min-height: 158px; }
+  .journal-app .journal-header .journal-brand__title,.journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title,.journal-app--onboarding .journal-header .journal-brand__title { font-size: 80px !important; }
+  .journal-header .journal-brand__eyebrow,.journal-header .journal-brand__edition { font-size: 21px; }
+  .adventure-context span { font-size: 21px; }
+  .adventure-context strong { font-size: 26px; }
+  .journal-header .journal-header__utilities { flex-basis: 310px; max-width: 330px; }
+  .journal-header .journal-header__action,.adventure-settings > summary,.journal-header .save-state { font-size: 21px !important; }
+  .journal-tabs.workspace-nav .journal-tab { font-size: 24px !important; min-height: 86px; padding: 14px 28px; }
+  .journal-tabs.workspace-nav .journal-tab--active { min-height: 96px; }
+  .workspace-nav__english { font-size: 23px; }
+  .workspace-nav__number { font-size: 34px; }
+  .workspace-nav__more { flex-basis: 200px; }
+  .workspace-nav__more > summary { font-size: 23px; }
+  .workspace-nav__menu { width: 340px; }
+  .journal-app .chapter-opening { box-sizing: border-box; min-height: 1040px; gap: 22px; }
+  .folio-app .main-content-panel .chapter-opening .folio-chapter-title,.folio-app .main-content-panel .folio-scene-title { font-size: clamp(76px,3vw,96px); }
+  .chapter-opening__copy h2,.workspace-today h2 { font-size: 42px; }
+  .chapter-opening__body,.workspace-today__reason { font-size: 26px; max-width: 37ch; }
+  .chapter-opening__art { height: 300px; }
+  .chapter-opening--map .chapter-opening__art { height: 330px; }
+  .chapter-opening__caption { font-size: 28px; }
+  .chapter-opening__notes { margin-top: 18px; padding-block: 12px; }
+  .chapter-opening__actions { margin-top: 14px; }
+  .chapter-opening__page-number { padding-top: 10px; }
+  .chapter-opening__page-number { font-size: 42px !important; }
+  .chapter-opening__page-number > span { font-size: 21px !important; }
+  .workspace-today { min-height: 1040px; box-sizing: border-box; }
+  .workspace-today__atmosphere img { height: 380px; }
+  .workspace-primary,.workspace-today .workspace-primary { font-size: 25px; min-height: 62px; }
+  .onboarding-focus__intro,.onboarding-focus .character-wizard { box-sizing: border-box; min-height: 1080px; }
+  .folio-app .main-content-panel .onboarding-focus__intro .folio-chapter-title { font-size: 104px; max-width: 12ch; }
+  .onboarding-focus__intro h2 { font-size: 42px; }
+  .onboarding-focus__intro p { font-size: 26px; }
+  .onboarding-focus__art { height: 400px; }
+  .onboarding-focus__promise { font-size: 25px; gap: 16px; }
+  .onboarding-focus__note { font-size: 22px !important; }
+  .onboarding-focus .character-wizard { grid-template-columns: 220px minmax(0,1fr); gap: 34px 42px; }
+  .folio-app .onboarding-focus .character-wizard__header h3 { font-size: 38px !important; }
+  .wizard-page-kicker { font-size: 22px !important; }
+  .onboarding-focus .wizard-steps button { font-size: 23px !important; padding: 14px 12px; min-height: 64px; }
+  .folio-app .onboarding-focus .wizard-step-content h4 { font-size: 36px !important; }
+  .onboarding-focus .card-draw-hero { grid-template-columns: 190px minmax(0,1fr); gap: 16px 34px; padding: 28px 0; }
+  .onboarding-focus .card-draw-hero .card-draw-hero__card { width: 190px; height: 266px; }
+  .card-draw-hero .card-draw-hero__card--empty { background-size: 155px auto; }
+  .card-draw-hero .card-draw-hero__card--empty > span { padding-top: 148px; font-size: 23px !important; }
+  .wizard-page-actions button { font-size: 24px !important; min-height: 60px; min-width: 120px; }
+  .onboarding-focus .wizard-step-content div[style*="font-size"] { font-size: 25px !important; }
+  .card-draw-hero__label,.card-draw-hero__helper { font-size: 25px !important; }
+  .folio-app .main-content-panel h3 { font-size: 32px !important; }
+  .folio-app .main-content-panel h4 { font-size: 28px !important; }
+  .journey-start-decisions { grid-template-columns: minmax(0,.9fr) minmax(0,1.1fr); gap: 24px 36px !important; }
+  .journey-start-decisions > :first-child { grid-column: 1/-1; }
+  .journey-start-decisions > .journey-choice-fieldset { grid-column: 1; grid-row: 2/span 3; }
+  .journey-start-decisions > .journey-choice-fieldset ~ .journey-choice-fieldset { grid-column: 2; grid-row: 3; }
+  .journey-start-decisions > .journey-start-reason { grid-column: 2; grid-row: 2; }
+  .journey-start-decisions > .journey-goal-result { grid-column: 2; grid-row: 4; }
+  .journey-start-decisions > .journey-start-urgency { grid-column: 1/-1; grid-row: 5; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 8px 32px !important; }
+  .journey-start-urgency > textarea { grid-column: 2; grid-row: 1/span 2; }
+  .character-continuity dl { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .character-continuity dd { font-size: 34px; }
+  .journal-editor { padding: 40px; }
+  .folio-app.journal-app .main-content-panel .journal-editor textarea { line-height: 44px !important; min-height: 264px; background: repeating-linear-gradient(transparent 0,transparent 43px,#dfe3d7 43px,#dfe3d7 44px) !important; }
+}
+@media (min-width:1400px) {
+  .woodland-spread > .chapter-opening,.woodland-play-spread > .workspace-today { position: sticky; top: 24px; }
+}
+@media (max-width:1399px) and (min-width:961px) {
+  :root { --book-left: 32%; --book-gutter: 28px; }
+  .journal-app { padding-inline: 28px; }
+  .journal-app .journal-tabs.workspace-nav { padding-inline: 12px; }
+  .journal-tabs.workspace-nav .journal-tab { padding-inline: 12px; gap: 10px; }
+  .workspace-nav__number { font-size: 24px; }
+  .workspace-nav__more { flex-basis: 130px; }
+  .folio-app .main-content-panel .chapter-opening .folio-chapter-title,.folio-app .main-content-panel .onboarding-focus__intro .folio-chapter-title { font-size: 56px; }
+  .onboarding-focus__intro h2,.chapter-opening__copy h2 { font-size: 30px; }
+  .onboarding-focus .character-wizard { grid-template-columns: minmax(0,1fr); }
+  .onboarding-focus .wizard-steps { grid-column: 1; grid-row: 2; flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid #d4dac8; padding: 0 0 16px; gap: 4px; }
+  .onboarding-focus .wizard-steps button { padding: 6px 10px; gap: 6px; }
+  .onboarding-focus .wizard-step-content { grid-column: 1; grid-row: 3; }
+  .onboarding-focus .wizard-page-actions { grid-column: 1; grid-row: 4; }
+  .herbarium-index,.journal-story-list__entries { grid-template-columns: minmax(0,1fr); }
+  .play-guide__overview { flex-wrap: wrap; }
+}
+@media (max-width:960px) {
+  :root { --book-gutter: 28px; }
+  .journal-app { padding: 18px 20px 28px; }
+  .journal-app .journal-header,.journal-app:not(.journal-app--onboarding) .journal-header,.journal-app--onboarding .journal-header { padding: 4px 6px 22px !important; min-height: 0; flex-wrap: wrap; }
+  .journal-app .journal-tabs.workspace-nav { padding-inline: 0; gap: 4px; min-height: 60px; }
+  .journal-tabs.workspace-nav .journal-tab { gap: 8px; min-height: 60px; padding: 10px 8px; font-size: 18px !important; }
+  .journal-tabs.workspace-nav .journal-tab--active { min-height: 66px; padding-top: 12px; }
+  .workspace-nav__number { display: none; }
+  .workspace-nav__english { font-size: 16px; }
+  .workspace-nav__more { flex-basis: 110px; margin-bottom: 6px; }
+  .workspace-nav__more > summary { font-size: 18px; min-height: 46px; padding-inline: 10px; }
+  .woodland-spread,.woodland-play-spread,.journal-app--onboarding .onboarding-focus { display: block; }
+  .woodland-spread > .chapter-opening,.woodland-play-spread > .workspace-today,.onboarding-focus__intro { min-height: 0; position: relative; border-right: 0; border-bottom: 1px solid #d6dac7; padding: 28px !important; border-radius: 9px 9px 0 0; }
+  .journal-app .chapter-opening { display: grid; grid-template-columns: minmax(0,1fr) 160px; gap: 22px; }
+  .journal-app .chapter-opening__copy { grid-column: 1; grid-row: 1; }
+  .chapter-opening__plate { grid-column: 2; grid-row: 1; margin: 0; align-self: center; }
+  .chapter-opening__art { height: 180px; }
+  .chapter-opening--map .chapter-opening__art { height: 210px; }
+  .chapter-opening__caption,.chapter-opening__page-number { display: none; }
+  .folio-app .main-content-panel .chapter-opening .folio-chapter-title { font-size: 52px; }
+  .chapter-opening__copy h2 { font-size: 30px; }
+  .chapter-opening__body { max-width: 46ch; font-size: 20px; }
+  .chapter-opening__notes { margin-top: 18px; padding: 12px 0; }
+  .chapter-opening__actions { margin-top: 14px; }
+  .woodland-spread > .play-guide,.woodland-play-spread > .play-guide { margin-top: 28px; }
+  .woodland-spread > .journal-chapter { padding-top: 0; }
+  .workspace-today { display: grid; grid-template-columns: minmax(0,1fr) 210px; gap: 24px; }
+  .workspace-today__main { grid-column: 1; }
+  .workspace-today__atmosphere { grid-column: 2; align-self: center; margin: 0; }
+  .workspace-today__atmosphere img { height: 220px; }
+  .workspace-today__atmosphere > span { font-size: 21px; }
+  .workspace-session { grid-column: 1/-1; }
+  .workspace-today__context { padding: 0; min-height: 0; margin-bottom: 14px; }
+  .folio-app .main-content-panel .folio-scene-title { font-size: 54px; }
+  .workspace-today h2 { font-size: 30px; margin-top: 18px; }
+  .workspace-today__reason { font-size: 20px; max-width: 48ch; }
+  .onboarding-focus__intro { display: grid; grid-template-columns: minmax(0,1fr) 220px; gap: 24px; }
+  .onboarding-focus__welcome { min-width: 0; }
+  .onboarding-focus__begin { display: inline-flex; align-items: center; gap: 14px; min-height: 52px; padding: 12px 20px; margin-top: 20px; background: var(--forest); color: var(--paper-light); border: 0; border-radius: 6px; font-size: 21px; }
+  .folio-app .main-content-panel .onboarding-focus__intro .folio-chapter-title { font-size: 56px; margin-bottom: 18px; }
+  .onboarding-focus__intro h2 { font-size: 30px; }
+  .onboarding-focus__intro p { font-size: 20px; }
+  .onboarding-focus__landscape { margin: 0; align-self: center; }
+  .onboarding-focus__art { height: 250px; max-width: none; }
+  .onboarding-focus__landscape figcaption { font-size: 21px; }
+  .onboarding-focus__promise,.onboarding-focus__note { display: none; }
+  .onboarding-focus .character-wizard { min-height: 0; grid-template-columns: minmax(0,1fr); padding: 28px; gap: 24px; }
+  .onboarding-focus .character-wizard__header { grid-column: 1; }
+  .onboarding-focus .wizard-steps { grid-column: 1; grid-row: 2; flex-direction: row; flex-wrap: wrap; gap: 6px; padding: 0 0 18px; border: 0; border-bottom: 1px solid #d4dac8; overflow: visible; }
+  .onboarding-focus .wizard-steps button { min-height: 46px; padding: 6px 10px; gap: 8px; font-size: 18px !important; }
+  .onboarding-focus .wizard-step-content { grid-column: 1; grid-row: 3; }
+  .onboarding-focus .wizard-page-actions { grid-column: 1; grid-row: 4; }
+  .herbarium-index { gap: 18px; }
+  .journal-story-list__entries { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width:600px) {
+  :root { --book-gutter: 20px; }
+  .journal-app { padding: 14px 12px 28px; }
+  .journal-app .journal-header,.journal-app:not(.journal-app--onboarding) .journal-header,.journal-app--onboarding .journal-header { padding: 6px 4px 20px !important; gap: 16px; }
+  .journal-app .journal-header .journal-brand__title,.journal-app:not(.journal-app--onboarding) .journal-header .journal-brand__title,.journal-app--onboarding .journal-header .journal-brand__title { font-size: 45px !important; }
+  .journal-header .journal-brand__edition { font-size: 18px; }
+  .adventure-context { gap: 14px; flex-wrap: wrap; }
+  .adventure-context > div,.adventure-context > button { padding-left: 0; border: 0; }
+  .journal-header .save-state { font-size: 17px !important; }
+  .journal-app .journal-tabs.workspace-nav { min-height: 52px; gap: 4px; }
+  .workspace-nav__primary { gap: 3px; }
+  .journal-tabs.workspace-nav .journal-tab { height: 68px; min-height: 68px; padding: 8px 2px; font-size: 17px !important; border-radius: 8px 8px 0 0; gap: 0; }
+  .journal-tabs.workspace-nav .journal-tab--active { height: 74px; min-height: 74px; }
+  .workspace-nav__more { flex-basis: 67px; margin-bottom: 4px; }
+  .workspace-nav__more > summary { font-size: 16px; padding: 6px 4px; border-radius: 6px; white-space: normal; min-height: 44px; }
+  .workspace-nav__menu { right: 0; width: 250px; }
+  .woodland-spread > .chapter-opening,.woodland-play-spread > .workspace-today,.onboarding-focus__intro { padding: 24px 20px !important; }
+  .journal-app .chapter-opening { display: block; }
+  .chapter-opening__plate { position: absolute; width: 80px; top: 24px; right: 16px; }
+  .chapter-opening__art { height: 75px; }
+  .chapter-opening--map .chapter-opening__art { height: 75px; }
+  .folio-app .main-content-panel .chapter-opening .folio-chapter-title { font-size: 45px; max-width: calc(100% - 68px); margin-bottom: 18px; }
+  .chapter-opening__copy h2 { font-size: 29px; }
+  .chapter-opening__body { font-size: 20px; margin-top: 16px; }
+  .chapter-opening__notes { font-size: 18px; }
+  .workspace-today { display: block; }
+  .workspace-today__atmosphere { display: none; }
+  .workspace-today__context { padding: 0; }
+  .folio-app .main-content-panel .folio-scene-title { font-size: 48px; }
+  .workspace-today h2 { font-size: 29px; }
+  .workspace-today__actions { margin-top: 22px; gap: 12px 18px; }
+  .workspace-primary,.workspace-today .workspace-primary { min-height: 52px; font-size: 21px; }
+  .workspace-session { margin-top: 22px; }
+  .play-guide__overview { display: flex; flex-wrap: wrap; gap: 16px; }
+  .onboarding-focus__intro { display: block; }
+  .folio-app .main-content-panel .onboarding-focus__intro .folio-chapter-title { font-size: 50px; max-width: 14ch; margin-bottom: 18px; }
+  .onboarding-focus__intro h2 { font-size: 30px; margin: 16px 0; }
+  .onboarding-focus__intro h2 br { display: none; }
+  .onboarding-focus__intro p { max-width: none; margin-bottom: 0; }
+  .onboarding-focus__landscape { margin-top: 22px; }
+  .onboarding-focus__art { height: 180px; border-radius: 42% 42% 3px 3px; }
+  .onboarding-focus__landscape figcaption { margin-top: 12px; font-size: 21px; }
+  .onboarding-focus .character-wizard { padding: 24px 20px; gap: 22px; }
+  .folio-app .onboarding-focus .character-wizard__header h3 { font-size: 28px !important; }
+  .onboarding-focus .wizard-steps { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px; }
+  .onboarding-focus .wizard-steps button { min-width: 0; padding: 8px; gap: 8px; font-size: 18px !important; }
+  .onboarding-focus .card-draw-hero { grid-template-columns: 108px minmax(0,1fr); gap: 10px 16px; align-items: start; }
+  .onboarding-focus .card-draw-hero .card-draw-hero__card { width: 108px; height: 160px; }
+  .card-draw-hero .card-draw-hero__card--empty { background-size: 90px auto; }
+  .card-draw-hero .card-draw-hero__card--empty > span { padding-top: 82px; font-size: 17px !important; }
+  .onboarding-focus .card-draw-hero__helper { font-size: 18px !important; }
+  .onboarding-focus .card-draw-hero__label { font-size: 20px !important; }
+  .onboarding-focus .card-draw-hero__actions { grid-column: 1/-1; margin-top: 6px; }
+  .onboarding-focus .card-draw-hero > div:has(.suit-btn-row) { grid-column: 1/-1; }
+  .herbarium-index { grid-template-columns: minmax(0,1fr); }
+  .character-continuity dl { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .herbarium-context { gap: 18px; padding-block: 20px; }
+  .herbarium-entry__summary,.herbarium-entry__detail { padding: 20px; }
+  .herbarium-controls { gap: 14px; }
+  .journal-editor { padding: 24px 20px; margin-block: 26px; }
+  .journal-entry { padding: 22px !important; }
+  .journal-origin-pages > summary { flex-wrap: wrap; gap: 4px; }
+  .folio-section-heading { padding-bottom: 22px; }
+  .character-continuity { padding: 22px; }
+  .field-footer { padding: 14px 4px; }
+}
+@media (prefers-reduced-motion:reduce) { .journal-tabs.workspace-nav .journal-tab { transition: none; } }
