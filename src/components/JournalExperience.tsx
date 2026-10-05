@@ -1,4 +1,6 @@
 import { useRef } from 'react';
+import { FieldIcon } from './FieldIcon';
+import { SeasonSprig } from './SeasonSprig';
 import { localizeJourneyGoalText, localizeLocationName, localizeRegionLabel, localizeSeasonLabel } from '../localization/gameplayKo';
 import { referenceForJournalTab } from '../rulebook/context';
 import type { RulebookReferenceRequest } from '../rulebook/types';
@@ -244,6 +246,7 @@ export function ChapterOpening({
         <span className="chapter-opening__caption">{CHAPTER_ART[tab].caption}</span>
       </div>
       <div className="chapter-opening__copy">
+        <SeasonSprig season={state.currentSeason} />
         <p className="folio-chapter-title" aria-hidden="true">{CHAPTER_ENGLISH[tab]}</p>
         <p className="chapter-opening__kicker">{chapter.kicker}</p>
         <h2 id={`chapter-title-${tab}`}>{chapter.title}</h2>
@@ -259,12 +262,12 @@ export function ChapterOpening({
         <div className="chapter-opening__actions">
         {tab === 'ailments' && patientName ? (
           <button type="button" onClick={onReturnToToday}>
-            <span className="emoji-icon" aria-hidden="true">🧭</span> 모험에서 치료 이어가기
+            <FieldIcon kind="play" /> 모험에서 치료 이어가기
           </button>
         ) : null}
         {tab === 'map' && <button type="button" className="chapter-opening__continue" onClick={onReturnToToday}>{next.label} <span aria-hidden="true">→</span></button>}
         <button type="button" className="chapter-opening__reference" onClick={() => onOpenReference(referenceForJournalTab(tab, state))}>
-          <span className="emoji-icon" aria-hidden="true">🔎</span> 플레이 방법
+          <FieldIcon kind="search" /> 플레이 방법
         </button>
         <details className="chapter-opening__help">
           <summary>이 화면에서 하는 일</summary>
@@ -331,6 +334,7 @@ export function TodayOverview({ state, currentWeight, maxCarry, onNavigate, onCo
 
   return <section className="workspace-today" aria-labelledby="today-title">
     <div className="workspace-today__main">
+      <SeasonSprig season={state.currentSeason} />
       <div className="workspace-today__context">
         <span className="workspace-kicker">{patient || legacy ? '오늘의 진료' : '길 위의 약제사'}</span>
         <span>{localizeLocationName(state.currentLocationName)} · {localizeSeasonLabel(state.currentSeason)}</span>

@@ -447,6 +447,8 @@ import {
 } from './encounterRemedyIntegration';
 import { BarrowPanel } from './components/Phase4Panels';
 import { ChapterOpening, JournalNavigation, TodayOverview, type JournalTab } from './components/JournalExperience';
+import { FieldIcon } from './components/FieldIcon';
+import { useRecordArrivals } from './recordArrival';
 import { getPatientTimerProjection } from './patientTimerProjection';
 import { focusCurrentWorkspace } from './workspaceNavigation';
 import CloudSaveCapacityNotice from './components/CloudSaveCapacityNotice';
@@ -5494,7 +5496,7 @@ const CardDrawSlot = ({
           {card ? (
             <img src={getCardSvgUrl(card.suit, card.value)} alt={`${card.suit} ${cardDisplayValue(card.value)}`} />
           ) : (
-            <span>🃏<br />카드를 뽑아주세요</span>
+            <span>카드를 뽑아주세요</span>
           )}
         </button>
 
@@ -5506,7 +5508,7 @@ const CardDrawSlot = ({
             disabled={disabled || isDrawing}
             style={{ background: 'var(--secondary)', color: '#fff', border: 'none', cursor: disabled || isDrawing ? 'not-allowed' : 'pointer' }}
           >
-            {isDrawing ? '뽑는 중…' : '🃏 랜덤 한 장 뽑기'}
+            <FieldIcon kind="card" /> {isDrawing ? '뽑는 중…' : '랜덤 한 장 뽑기'}
           </button>
           <button
             type="button"
@@ -5514,7 +5516,7 @@ const CardDrawSlot = ({
             disabled={disabled || isDrawing}
             style={{ background: '#fff', color: 'var(--text-muted)', border: '1.5px solid var(--glass-border)', cursor: 'pointer' }}
           >
-            {isChoosing ? '접기' : '✏️ 직접 입력'}
+            <FieldIcon kind="edit" /> {isChoosing ? '접기' : '직접 입력'}
           </button>
         </div>
 
@@ -9077,6 +9079,8 @@ export default function App() {
       onConfirm={() => closeControlledPrompt(controlledPromptValue)}
     />
   ) : null;
+
+  const recentlyDiscoveredIds = useRecordArrivals((state?.customReagentCatalogue || []).map(entry => entry.id), String(campaignUiEpoch), Boolean(state && !loading));
 
   if (loading || !cloudBootstrapComplete || !state) {
     if (saveLoadError) {
@@ -12673,7 +12677,7 @@ export default function App() {
             guide?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             guide?.focus({ preventScroll: true });
           }} aria-label="플레이 길잡이 열기" title="플레이 길잡이">
-            <span className="emoji-icon" aria-hidden="true">🧭</span><span>플레이 길잡이</span>
+            <FieldIcon kind="play" /><span>플레이 길잡이</span>
           </button>}
           <details className="adventure-settings"><summary>기록 · 설정</summary><div className="adventure-settings__content">
           {!isOnboarding && <>
@@ -12685,7 +12689,7 @@ export default function App() {
             </label>
           </>}
           <button type="button" className="journal-header__action" onClick={() => openRulebookReference(currentRulebookRequest)} aria-label="현재 페이지의 자세한 규칙 열기" title="자세한 규칙">
-            <span className="emoji-icon" aria-hidden="true">📚</span><span>자세한 규칙</span>
+            <FieldIcon kind="almanack" /><span>자세한 규칙</span>
           </button>
           {isFirebaseConfigured && auth && (
                 user ? (
@@ -12697,22 +12701,22 @@ export default function App() {
                     )}
                     <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary)' }}>{user.displayName || '약제사'}</span>
                     <button type="button" className="journal-header__icon-button" disabled={cloudSlotBusy} onClick={() => void openCloudSlots()} aria-label="클라우드 기록" title="클라우드 기록">
-                      <span className="emoji-icon" aria-hidden="true">☁️</span><span>클라우드 기록</span>
+                      <FieldIcon kind="cloud" /><span>클라우드 기록</span>
                     </button>
                     <button className="journal-header__icon-button" disabled={cloudSlotBusy} onClick={handleSignOut} title="동기화 연결 해제">
-                      <span className="emoji-icon" aria-hidden="true">🚪</span><span>로그아웃</span>
+                      <FieldIcon kind="exit" /><span>로그아웃</span>
                     </button>
                   </div>
                 ) : (
                   <button onClick={handleSignIn} className="journal-header__action" aria-label="Google 기록 동기화" title="Google 기록 동기화">
-                    <span className="emoji-icon" aria-hidden="true">☁️</span><span>Google 기록 동기화</span>
+                    <FieldIcon kind="cloud" /><span>Google 기록 동기화</span>
                   </button>
                 )
               )}
           {!isOnboarding && (
             <>
               <button onClick={handleReset} className="journal-header__action journal-header__action--reset" aria-label="현재 진행을 지우고 새 약제사 시작" title="현재 진행을 지우고 새 약제사 시작">
-                <span className="emoji-icon" aria-hidden="true">↺</span><span>새 약제사로 초기화</span>
+                <FieldIcon kind="reset" /><span>새 약제사로 초기화</span>
               </button>
               {state.manualEffectQueue.length > 0 && !state.pendingManualEffect && (
                 <button type="button" className="pending-action-button" onClick={() => updateState(s => ({ ...s, pendingManualEffect: s.manualEffectQueue[0] || null, manualEffectDraft: s.manualEffectQueue[0] || null }))}>
@@ -12906,6 +12910,7 @@ export default function App() {
                     typeFilter={reagentTypeFilter}
                     setTypeFilter={setReagentTypeFilter}
                     viewState={herbariumViewState}
+                    recentlyDiscoveredIds={recentlyDiscoveredIds}
                     setViewState={setHerbariumViewState}
                     onOpenReference={openRulebookReference}
                   />
@@ -22906,7 +22911,7 @@ function PlayView({
               동반자 영입 ({state.companionStates?.length || 0})
             </button>
             <button
-              className={`nav-tab-btn ${downtimeTab === 'start' ? 'active' : ''}`}
+              className={`nav-tab-btn downtime-start-action ${downtimeTab === 'start' ? 'active' : ''}`}
               onClick={() => setDowntimeTab('start')}
               disabled={state.downtimeRequired || state.downtimeCompleted}
               title={state.downtimeRequired ? '휴식기 활동을 먼저 완료하세요.' : state.downtimeCompleted ? '계절 정산을 먼저 완료하세요.' : undefined}
@@ -27600,11 +27605,11 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
             onClick={handleRetireClick}
             style={{ padding: '0.5rem 1rem', background: '#fef2f2', color: '#dc2626', border: '1px solid #fee2e2', borderRadius: '6px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 'bold' }}
           >
-            <span className="emoji-icon" aria-hidden="true">🍂</span> 은퇴 및 대승계
+            <FieldIcon kind="livingArchive" /> 은퇴 및 대승계
           </button>
           {!editing && (
             <button onClick={() => setEditing(true)} style={{ padding: '0.5rem 1rem', background: 'var(--primary)', color: '#fff', borderRadius: '6px', fontSize: '0.9rem', border: 'none', boxShadow: 'var(--shadow-sm)' }}>
-              <span className="emoji-icon" aria-hidden="true">✏️</span> 프로필 편집
+              <FieldIcon kind="edit" /> 프로필 편집
             </button>
           )}
         </div>
@@ -28471,7 +28476,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
 // =================================================================
 const HERBARIUM_PAGE_SIZE = 16;
 
-function ReagentsView({ state, updateState, search, setSearch, filter, setFilter, typeFilter, setTypeFilter, viewState, setViewState, onOpenReference, requestControlledPrompt }: {
+function ReagentsView({ state, updateState, search, setSearch, filter, setFilter, typeFilter, setTypeFilter, viewState, setViewState, recentlyDiscoveredIds, onOpenReference, requestControlledPrompt }: {
   state: GameState;
   updateState: any;
   search: string;
@@ -28482,6 +28487,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
   setTypeFilter: any;
   viewState: HerbariumViewState;
   setViewState: Dispatch<SetStateAction<HerbariumViewState>>;
+  recentlyDiscoveredIds: readonly string[];
   onOpenReference: (request: RulebookReferenceRequest) => void;
   requestControlledPrompt: (request: ControlledPromptRequest) => Promise<string | null>;
 }) {
@@ -28532,6 +28538,51 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
   const visibleCount = visiblePage.key === pageKey ? visiblePage.count : HERBARIUM_PAGE_SIZE;
   const visibleRows = rows.slice(0, visibleCount);
 
+  const toggleSpecimen = (id: string) => {
+    const nextId = expandedId === id ? null : id;
+    setViewState(current => ({ ...current, expandedId: nextId }));
+    if (nextId) {
+      window.requestAnimationFrame(() => {
+        const selected = document.getElementById(`specimen-${nextId}`);
+        selected?.focus({ preventScroll: true });
+        if (window.matchMedia('(max-width: 2199px)').matches) {
+          selected?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+        }
+      });
+    }
+  };
+  const closeSpecimen = () => {
+    const selectedId = expandedId;
+    setViewState(current => ({ ...current, expandedId: null }));
+    window.requestAnimationFrame(() => document.getElementById(`reagent-button-${selectedId}`)?.focus());
+  };
+  const selectedRow = visibleRows.find(row => row.reagent.id === expandedId);
+  const specimen = selectedRow ? (() => {
+    const { reagent, display } = selectedRow;
+    return <article key={reagent.id} id={`specimen-${reagent.id}`} className="herbarium-specimen" tabIndex={-1} aria-labelledby={`specimen-title-${reagent.id}`}>
+      <header className="herbarium-specimen__heading">
+        <div><span className="document-kicker">펼친 표본 · p.{reagent.sourcePage}</span><h3 id={`specimen-title-${reagent.id}`}>{formatReagentName(reagent)}</h3></div>
+        <button type="button" className="workspace-link" onClick={closeSpecimen}>표본 접기</button>
+      </header>
+      <p className="herbarium-specimen__description">{reagent.description}</p>
+            <div className="herbarium-entry__detail">
+              <div className="herbarium-entry__relations"><strong>어디서·언제</strong><div>{Object.entries(reagent.regionAvailability).filter(([, availability]) => availability !== 'Unavailable').map(([region, availability]) => <button type="button" key={region} onClick={() => setViewState(current => ({ ...current, regionFilter: region, expandedId: null }))}>{localizeRegionLabel(region)} · {localizeAppAvailabilityLabel(availability)}</button>)}{Object.entries(reagent.seasonAvailability).filter(([, availability]) => availability !== 'Unavailable').map(([season, availability]) => <button type="button" key={season} onClick={() => setViewState(current => ({ ...current, seasonFilter: season, expandedId: null }))}>{localizeSeasonLabel(season)} · {localizeAppAvailabilityLabel(availability)}</button>)}</div></div>
+              <div className="herbarium-parts"><strong>부위와 조제</strong>{reagent.preparations.map(part => { const relevant = treatmentRelevantPreparationTags(part.tags, activeRequirements); return <div key={part.id} className={relevant.length ? 'is-patient-relevant' : ''}><div><strong>{localizePreparationName(part.name)}</strong><span>{localizePreparationMethod(part.method)}</span></div><p>{part.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ') || '약효 태그 없음'} · 무게 {formatWeight(part.weight)} · {part.uses}회분</p>{part.requiredTools.filter(tool => tool !== 'none').length > 0 && <small>필요 도구: {part.requiredTools.filter(tool => tool !== 'none').map(tool => localizeInventoryItemName(TOOL_BY_ID.get(tool)?.canonicalName || tool)).join(', ')}</small>}{relevant.length > 0 && <em>현재 환자에게 {relevant.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ')} 기여</em>}</div>; })}</div>
+              <div className="herbarium-entry__actions"><button type="button" onClick={() => onOpenReference({ entryId: `ingredient:${reagent.id}`, title: `${formatReagentName(reagent)} 관련 기록` })}>원문·관련 기록 보기</button>{state.journeyActive && state.rulesetId === 'sandbox' && <button type="button" onClick={async () => {
+                const parts = splitReagentPreparations(display.preps);
+                const chosenPart = await requestControlledPrompt({ title: `${formatReagentName(reagent)} 수동 획득`, kicker: '자유 플레이',
+                  message: '추가할 부위를 선택하세요. 채집 판정과 시간 비용을 적용하지 않는 자유 플레이 기록입니다.',
+                  options: parts.map((part, index) => ({ value: String(index), label: part.trim() })), defaultValue: '0', confirmLabel: '배낭에 추가' });
+                if (chosenPart === null) return;
+                const partText = parts[Number(chosenPart)];
+                if (!partText) return;
+                updateState((current: GameState) => ({ ...current, bag: [...current.bag, createPreparedReagentItem(display, partText, 'user_reag')] }));
+                showAlert(`${formatReagentName(reagent)}을 수동으로 배낭에 추가했습니다.`);
+              }}>배낭에 수동 획득 추가</button>}</div>
+            </div>
+    </article>;
+  })() : null;
+
   const clearFilters = () => {
     setSearch('');
     setFilter('');
@@ -28573,7 +28624,8 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
       {learnedReagents.length > 0 && <section className="custom-herbarium" aria-label="직접 발견한 영약재">
         <header><div><span className="workspace-kicker">나의 영약재 기록</span><h3>직접 발견한 영약재</h3></div><span>{visibleLearnedReagents.length} / {learnedReagents.length}개</span></header>
         <p>대체 재료와 외지 영약재를 여기 기록합니다. 치료에 쓰고 배낭에서 사라져도 발견한 약재의 정의는 남습니다.</p>
-        {visibleLearnedReagents.length === 0 ? <p>현재 검색·약효·분류 조건에 맞는 발견이 없습니다.</p> : <div className="custom-herbarium__grid">{visibleLearnedReagents.map(entry => <article key={entry.id}>
+        {visibleLearnedReagents.length === 0 ? <p>현재 검색·약효·분류 조건에 맞는 발견이 없습니다.</p> : <div className="custom-herbarium__grid">{visibleLearnedReagents.map(entry => <article key={entry.id} data-new-discovery={recentlyDiscoveredIds.includes(entry.id) || undefined}>
+          {recentlyDiscoveredIds.includes(entry.id) && <span className="specimen-arrival" role="status"><FieldIcon kind="reagents" /> 새 표본을 수첩에 남겼어요</span>}
           <div className="custom-herbarium__origin">{entry.source === 'replacement' ? '대체 재료 · Replacement' : '외지 영약재 · Foreign Reagent'}<span>p.{entry.sourcePage}</span></div>
           <h4>{entry.name}</h4>
           <p><strong>{formatRuleTag(entry.targetTag)} {entry.potency}</strong> · {localizePreparationMethod(entry.preparation)}</p>
@@ -28585,32 +28637,21 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
 
       <div className="herbarium-result-summary"><span aria-live="polite">관찰 기록 {rows.length}개 · 지금 {visibleRows.length}개 펼침</span>{(search || filter || typeFilter || regionFilter || seasonFilter || patientOnly) && <button type="button" onClick={clearFilters}>전체 도감 보기</button>}</div>
 
+      <div className={`herbarium-workbench${selectedRow ? ' has-specimen' : ''}`}>
+      {specimen}
       <div className="herbarium-index" role="list">
-        {visibleRows.map(({ reagent, display, matchingParts, owned, inCurrentRegion, inCurrentSeason }) => {
+        {visibleRows.map(({ reagent, matchingParts, owned, inCurrentRegion, inCurrentSeason }) => {
           const expanded = expandedId === reagent.id;
-          return <article key={reagent.id} className={`herbarium-entry ${expanded ? 'is-expanded' : ''}`} role="listitem">
-            <button type="button" className="herbarium-entry__summary" aria-expanded={expanded} onClick={() => setViewState(current => ({ ...current, expandedId: current.expandedId === reagent.id ? null : reagent.id }))}>
+          return <article key={reagent.id} className={`herbarium-entry ${expanded ? 'is-selected' : ''}`} role="listitem">
+            <button type="button" className="herbarium-entry__summary" id={`reagent-button-${reagent.id}`} aria-expanded={expanded} aria-controls={expanded ? `specimen-${reagent.id}` : undefined} onClick={() => toggleSpecimen(reagent.id)}>
               <span className="herbarium-entry__folio">p.{reagent.sourcePage}</span>
               <div><span className="document-kicker">{localizeReagentType(reagent.type)} · 기본 희귀도 {reagent.baseRarity}</span><h3>{formatReagentName(reagent)}</h3><p>{reagent.description}</p><div className="herbarium-entry__marks">{owned > 0 && <span>보유 {owned}</span>}{matchingParts.length > 0 && <span>현재 환자에 기여</span>}{inCurrentRegion && <span>{localizeRegionLabel(currentRegion)}에서 발견</span>}{inCurrentSeason && <span>{localizeSeasonLabel(state.currentSeason)}에 발견</span>}</div></div>
-              <span className="herbarium-entry__toggle">{expanded ? '접기' : '펼치기'}</span>
+              <span className="herbarium-entry__toggle">{expanded ? '선택됨' : '펼치기'}</span>
             </button>
-            {expanded && <div className="herbarium-entry__detail">
-              <div className="herbarium-entry__relations"><strong>어디서·언제</strong><div>{Object.entries(reagent.regionAvailability).filter(([, availability]) => availability !== 'Unavailable').map(([region, availability]) => <button type="button" key={region} onClick={() => setViewState(current => ({ ...current, regionFilter: region, expandedId: null }))}>{localizeRegionLabel(region)} · {localizeAppAvailabilityLabel(availability)}</button>)}{Object.entries(reagent.seasonAvailability).filter(([, availability]) => availability !== 'Unavailable').map(([season, availability]) => <button type="button" key={season} onClick={() => setViewState(current => ({ ...current, seasonFilter: season, expandedId: null }))}>{localizeSeasonLabel(season)} · {localizeAppAvailabilityLabel(availability)}</button>)}</div></div>
-              <div className="herbarium-parts"><strong>부위와 조제</strong>{reagent.preparations.map(part => { const relevant = treatmentRelevantPreparationTags(part.tags, activeRequirements); return <div key={part.id} className={relevant.length ? 'is-patient-relevant' : ''}><div><strong>{localizePreparationName(part.name)}</strong><span>{localizePreparationMethod(part.method)}</span></div><p>{part.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ') || '약효 태그 없음'} · 무게 {formatWeight(part.weight)} · {part.uses}회분</p>{part.requiredTools.filter(tool => tool !== 'none').length > 0 && <small>필요 도구: {part.requiredTools.filter(tool => tool !== 'none').map(tool => localizeInventoryItemName(TOOL_BY_ID.get(tool)?.canonicalName || tool)).join(', ')}</small>}{relevant.length > 0 && <em>현재 환자에게 {relevant.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' · ')} 기여</em>}</div>; })}</div>
-              <div className="herbarium-entry__actions"><button type="button" onClick={() => onOpenReference({ entryId: `ingredient:${reagent.id}`, title: `${formatReagentName(reagent)} 관련 기록` })}>원문·관련 기록 보기</button>{state.journeyActive && state.rulesetId === 'sandbox' && <button type="button" onClick={async () => {
-                const parts = splitReagentPreparations(display.preps);
-                const chosenPart = await requestControlledPrompt({ title: `${formatReagentName(reagent)} 수동 획득`, kicker: '자유 플레이',
-                  message: '추가할 부위를 선택하세요. 채집 판정과 시간 비용을 적용하지 않는 자유 플레이 기록입니다.',
-                  options: parts.map((part, index) => ({ value: String(index), label: part.trim() })), defaultValue: '0', confirmLabel: '배낭에 추가' });
-                if (chosenPart === null) return;
-                const partText = parts[Number(chosenPart)];
-                if (!partText) return;
-                updateState((current: GameState) => ({ ...current, bag: [...current.bag, createPreparedReagentItem(display, partText, 'user_reag')] }));
-                showAlert(`${formatReagentName(reagent)}을 수동으로 배낭에 추가했습니다.`);
-              }}>배낭에 수동 획득 추가</button>}</div>
-            </div>}
+
           </article>;
         })}
+      </div>
       </div>
       {visibleRows.length < rows.length && (
         <div className="herbarium-more">
@@ -30522,7 +30563,9 @@ function JournalsView({
   setHighlightedPatientId?: any;
 }) {
   const { title: newTitle, text: newText, photos: newPhotos, subTab } = workspace;
-  const setNewTitle = (title: string) => setWorkspace(current => ({ ...current, title }));
+  const [savedJournalId, setSavedJournalId] = useState<string | null>(null);
+  const savedJournal = savedJournalId ? state.journals.find(journal => journal.id === savedJournalId) : null;
+  const setNewTitle = (title: string) => { setSavedJournalId(null); setWorkspace(current => ({ ...current, title })); };
   const setNewText = (text: string) => setWorkspace(current => ({ ...current, text }));
   const setNewPhotos = (next: SetStateAction<JournalPhoto[]>) => setWorkspace(current => ({
     ...current, photos: typeof next === 'function' ? next(current.photos) : next
@@ -30616,11 +30659,11 @@ function JournalsView({
   const handleAddJournal = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || (!newText.trim() && newPhotos.length === 0)) return;
+    const journalId = 'user_journal_' + Date.now();
 
     updateState((s: GameState) => {
       let nextGoalCounter = s.journeyGoalCounter || 0;
       let nextChecklist = [...(s.journeyGoalChecklist || [])];
-      const journalId = 'user_journal_' + Date.now();
 
       if (s.journeyActive) {
         const titleLower = newTitle.toLowerCase();
@@ -30696,7 +30739,7 @@ function JournalsView({
     setNewTitle("");
     setNewText("");
     setNewPhotos([]);
-    showAlert("새 저널 일지가 등록되었습니다.");
+    setSavedJournalId(journalId);
   };
 
   const handleRemoveJournal = (id: string) => {
@@ -30776,9 +30819,9 @@ function JournalsView({
       <header className="folio-section-heading">
         <h2>약제사 연대기 일지</h2>
         <div className="journal-document-actions">
-          <button className="folio-tool-button" onClick={handleExportData}><span className="emoji-icon" aria-hidden="true">📥</span> 내 기록 백업</button>
+          <button className="folio-tool-button" onClick={handleExportData}><FieldIcon kind="download" /> 내 기록 백업</button>
           <label className="folio-file-control">
-            <span className="emoji-icon" aria-hidden="true">📤</span> 기록 불러오기
+            <FieldIcon kind="upload" /> 기록 불러오기
             <input type="file" accept=".json" aria-label="기록 불러오기" onChange={handleImportData} />
           </label>
         </div>
@@ -31181,24 +31224,36 @@ function JournalsView({
           </section>
           </details>
           {/* Write custom journal */}
+          <div className="journal-personal-spread">
           <form className="journal-editor" onSubmit={handleAddJournal}>
-            <div className="journal-editor__heading"><span className="document-kicker">A letter to remember</span><h4>오늘은 어떤 이야기가 있었나요?</h4></div>
+            <div className="journal-editor__heading"><span className="document-kicker">A letter to remember</span><h3>오늘의 기억을 남겨요</h3></div>
+            <label className="journal-editor__field"><span>제목</span>
             <input
               type="text"
-              placeholder="제목 (예: Odoak 정착지 도착, 곰의 다리를 꿰매다...)"
+              required
+              placeholder="예: 버섯 그늘에서"
               value={newTitle}
               onChange={e => setNewTitle(e.target.value)}
             />
+            </label>
+            <label className="journal-editor__field"><span>오늘의 기억</span>
             <textarea
-              placeholder="여행 기록 내용, 묘사, 환자의 상태나 내 동물의 느낌을 자유롭게 서술해 주세요..."
+              placeholder="오늘 만난 이웃, 숲에서 본 것, 길동무와 나눈 이야기를 적어보세요."
+              required={newPhotos.length === 0}
               rows={4}
               value={newText}
               onChange={e => setNewText(e.target.value)}
               style={{ resize: 'vertical' }}
             />
-            <div className="journal-editor__photos">
+            </label>
+            <div className="journal-editor__actions">
+              <button type="submit" className="journal-editor__submit btn-cozy-primary">이 기억을 남기기 →</button>
+              {savedJournal && <span key={savedJournal.id} className="journal-saved-receipt" role="status"><FieldIcon kind="bookmark" /> ‘{journalDisplayTitle(savedJournal)}’을 일지에 남겼어요.</span>}
+            </div>
+            <details className="journal-editor__photos" open={newPhotos.length > 0 || undefined}>
+              <summary><FieldIcon kind="camera" /> 사진도 함께 남기기{newPhotos.length > 0 ? ` · ${newPhotos.length}장` : ''}</summary>
               <div>
-                <span style={{ fontWeight: 'bold', color: 'var(--text-bright)', fontSize: '0.9rem' }}>📷 사진 첨부</span>
+                <span className="journal-editor__photo-label"><FieldIcon kind="camera" /> 사진 첨부</span>
                 <label className="folio-file-control">
                   사진 선택
                   <input
@@ -31207,8 +31262,9 @@ function JournalsView({
                     multiple
                     aria-label="사진 선택"
                     onChange={async e => {
-                      await handleNewJournalPhotos(e.currentTarget.files);
-                      e.currentTarget.value = '';
+                      const input = e.currentTarget;
+                      await handleNewJournalPhotos(input.files);
+                      input.value = '';
                     }}
                   />
                 </label>
@@ -31223,9 +31279,8 @@ function JournalsView({
                   ))}
                 </div>
               )}
-              <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)' }}>로그인 상태에서는 사진을 서버 파일 저장소에 올리고, 세이브에는 주소만 남깁니다.</div>
-            </div>
-            <button type="submit" className="journal-editor__submit btn-cozy-primary">이 기억을 남기기 →</button>
+              <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)' }}>사진을 첨부해 이 기억과 함께 보관할 수 있어요.</div>
+            </details>
           </form>
 
           {/* List journals */}
@@ -31261,7 +31316,7 @@ function JournalsView({
                   ? `${presentation.memory.replace(/\s+/g, ' ').trim().slice(0, 260).trimEnd()}…`
                   : '';
                 return (
-                <article key={j.id} className={`journal-entry journal-entry--${isPlayerMemory ? 'memory' : 'event'}`} data-journal-id={j.id}>
+                <article key={j.id} className={`journal-entry journal-entry--${isPlayerMemory ? 'memory' : 'event'}`} data-journal-id={j.id} data-new-memory={j.id === savedJournalId || undefined}>
                   <header className="journal-entry__header">
                     <div>
                       <span className="journal-entry__kind">{isPlayerMemory ? '남겨 둔 기억' : '여정에서 일어난 일'}</span>
@@ -31277,8 +31332,9 @@ function JournalsView({
                           multiple
                           aria-label="사진 추가"
                           onChange={async e => {
-                            await handleAddPhotosToJournal(j.id, e.currentTarget.files);
-                            e.currentTarget.value = '';
+                            const input = e.currentTarget;
+                            await handleAddPhotosToJournal(j.id, input.files);
+                            input.value = '';
                           }}
                         />
                       </label>
@@ -31375,6 +31431,7 @@ function JournalsView({
                 </div>
               </details>
             )}
+          </div>
           </div>
         </>
       )}
