@@ -1,0 +1,19 @@
+{
+  "testFiles": 135,
+  "tests": 1375,
+  "testsPassed": true,
+  "lintPassed": true,
+  "buildPassed": true,
+  "ruleValidationTests": 4,
+  "referenceValidationTests": 8,
+  "sourceFilesMatched": 322,
+  "sourceMismatches": [],
+  "currentTurnPatchWhitespaceIssues": [],
+  "productFilesChanged": [
+    "src/App.tsx",
+    "src/components/JournalExperience.tsx",
+    "src/workspace.css"
+  ],
+  "existingTestAdjusted": "src/map/mapView.test.ts",
+  "browserValidation": "agent-performed local tasks; no recruited human participants; Firebase disabled"
+}

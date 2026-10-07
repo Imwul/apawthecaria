@@ -116,7 +116,7 @@ describe('map interaction contracts', () => {
   it('orders the reversible journey draft like the printed setup sequence', () => {
     const originAndSeason = appSource.indexOf('<dt>출발</dt>');
     const destination = appSource.indexOf('<legend>목적지 정하기 (p.19)</legend>');
-    const reason = appSource.indexOf('>여정을 떠나는 이유</label>');
+    const reason = appSource.indexOf('>여정을 떠나는 이유 (필수)</label>');
     const goal = appSource.indexOf('<legend>목표 정하기 (p.20–21)</legend>');
     const urgency = appSource.indexOf('여정 기한 (p.21)');
     expect(originAndSeason).toBeGreaterThan(-1);

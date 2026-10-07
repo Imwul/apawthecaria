@@ -1,0 +1,27 @@
+{
+  "desktop": {
+    "width": 1280,
+    "height": 720,
+    "brandCopyBottom": 118.640625,
+    "navTop": 76,
+    "overlapPx": 42.640625
+  },
+  "mobile": {
+    "width": 390,
+    "height": 844,
+    "modeReturnDestination": "reagents",
+    "expectedDestination": "ailments",
+    "modeRoundTripInteractions": 4,
+    "openDetailsAfterReturn": 0
+  },
+  "prescriptionToReagent": {
+    "startingSearch": "Marigold",
+    "tag": "SCALE",
+    "interactions": 4,
+    "emptyResultDetour": 1
+  },
+  "journalDraft": {
+    "preserved": true,
+    "repeatInputs": 0
+  }
+}

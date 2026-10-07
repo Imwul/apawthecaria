@@ -7074,6 +7074,7 @@ export default function App() {
   const [bioRecordFolds, setBioRecordFolds] = useState<BioRecordFoldState>(initialBioRecordFoldState);
   const [journalWorkspace, setJournalWorkspace] = useState<JournalWorkspaceState>(initialJournalWorkspace);
   const [ailmentFilter, setAilmentFilter] = useState("");
+  const [expandedAilmentIds, setExpandedAilmentIds] = useState<string[]>([]);
 
   const resetCampaignScopedUi = useCallback(() => {
     tabScrollPositions.current = {};
@@ -7104,6 +7105,7 @@ export default function App() {
     setReagentFilter('');
     setReagentTypeFilter('');
     setAilmentFilter('');
+    setExpandedAilmentIds([]);
     setHerbariumViewState(initialHerbariumViewState());
     setBioRecordFolds(initialBioRecordFoldState());
     setJournalWorkspace(initialJournalWorkspace());
@@ -12576,7 +12578,7 @@ export default function App() {
           <span className="journal-brand__edition">여행과 돌봄을 위한 작업소</span>
           </span>
         </button>
-          {!isOnboarding && <JournalNavigation activeTab={activeTab} onChange={tab => changeActiveTab(tab, { restoreScroll: true })} />}
+          {!isOnboarding && <JournalNavigation key={campaignUiEpoch} activeTab={activeTab} onChange={tab => changeActiveTab(tab, { restoreScroll: true })} />}
           <div className="station-identity">
             <span className="station-eyebrow">{isOnboarding ? '첫 여행을 앞두고' : '함께 걷는 이'}</span>
             <strong>{state.bio.name || '당신의 이름을 기다립니다'}</strong>
@@ -12851,6 +12853,16 @@ export default function App() {
                     setSearch={setSearchAilment}
                     filter={ailmentFilter}
                     setFilter={setAilmentFilter}
+                    expandedIds={expandedAilmentIds}
+                    setExpandedIds={setExpandedAilmentIds}
+                    onFindReagents={tag => {
+                      setSearchReagent('');
+                      setReagentFilter(tag);
+                      setReagentTypeFilter('');
+                      setHerbariumViewState(initialHerbariumViewState());
+                      changeActiveTab('reagents');
+                      window.requestAnimationFrame(() => focusCurrentWorkspace('herbarium-results'));
+                    }}
                   />
                 )}
                 {activeTab === 'almanack' && (
@@ -24164,9 +24176,11 @@ function PlayView({
                   </fieldset>
 
                   <div className="journey-start-reason" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    <label style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>여정을 떠나는 이유</label>
+                    <label htmlFor="journey-start-reason" style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>여정을 떠나는 이유 (필수)</label>
                     <IsolatedTextarea
                       key={journeyStartDraftRevision}
+                      id="journey-start-reason"
+                      aria-required="true"
                       rows={2}
                       placeholder="선택한 목적지로 지금 떠나는 까닭을 기록하세요."
                       valueRef={journeyReasonRef}
@@ -28558,7 +28572,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
         </article>)}</div>}
       </section>}
 
-      <div className="herbarium-result-summary"><span aria-live="polite">관찰 기록 {rows.length}개 · 지금 {visibleRows.length}개 펼침</span>{rows.length > 0 && (search || filter || typeFilter || regionFilter || seasonFilter || patientOnly) && <button type="button" onClick={clearFilters}>전체 도감 보기</button>}</div>
+      <div id="herbarium-results" className="herbarium-result-summary" tabIndex={-1}><span aria-live="polite">{filter && <><RuleTagBadge tag={filter} /> · </>}관찰 기록 {rows.length}개 · 지금 {visibleRows.length}개 펼침</span>{rows.length > 0 && (search || filter || typeFilter || regionFilter || seasonFilter || patientOnly) && <button type="button" onClick={clearFilters}>전체 도감 보기</button>}</div>
 
       <div className={`herbarium-workbench${selectedRow ? ' has-specimen' : ''}`}>
       {specimen}
@@ -28593,10 +28607,14 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
 // =================================================================
 // 8. AILMENTS VIEW COMPONENT
 // =================================================================
-function AilmentsView({ state, updateState, search, setSearch, filter, setFilter, requestControlledPrompt }: { state: GameState; updateState: any; search: string; setSearch: any; filter: string; setFilter: any; requestControlledPrompt: (request: ControlledPromptRequest) => Promise<string | null> }) {
+function AilmentsView({ state, updateState, search, setSearch, filter, setFilter, expandedIds, setExpandedIds, onFindReagents, requestControlledPrompt }: { state: GameState; updateState: any; search: string; setSearch: any; filter: string; setFilter: any; expandedIds: string[]; setExpandedIds: Dispatch<SetStateAction<string[]>>; onFindReagents: (tag: RuleTag) => void; requestControlledPrompt: (request: ControlledPromptRequest) => Promise<string | null> }) {
   const cleanAilmentName = (n: string) => n.replace(/^PAGE\s*\d+\s*(---|--|-)\s*/i, '');
 
-  const filtered = AILMENTS.map(ailmentDisplayRecord).filter(a => {
+  const filtered = AILMENTS.map(ailment => ({
+    ...ailmentDisplayRecord(ailment),
+    id: ailment.id,
+    requiredTags: Array.from(new Set(requirementRuleTags(ailment.requirements)))
+  })).filter(a => {
     const cleaned = cleanAilmentName(a.name);
     const matchesSearch = cleaned.toLowerCase().includes(search.toLowerCase()) || a.rawName.toLowerCase().includes(search.toLowerCase());
     const matchesFilter = !filter || a.tags.toLowerCase().includes(filter.toLowerCase());
@@ -28625,10 +28643,15 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
       <p className="catalogue-result-count" role="status">질환 {filtered.length}개 · 이름, 등급, 치료 기한 순으로 비교하세요.</p>
       {filtered.length === 0 && <div className="catalogue-empty"><strong>조건에 맞는 질환이 없습니다.</strong><p>다른 이름을 검색하거나 약효 조건을 풀어보세요.</p><button type="button" onClick={() => { setSearch(''); setFilter(''); }}>모든 질환 보기</button></div>}
       <div className="ailment-register">
-        {filtered.map((a, i) => {
+        {filtered.map(a => {
           const cleanedName = cleanAilmentName(a.name);
           return (
-            <details key={a.rawName || i} className="ailment-card">
+            <details key={a.id} className="ailment-card" open={expandedIds.includes(a.id)} onToggle={event => {
+              const open = event.currentTarget.open;
+              setExpandedIds(ids => open
+                ? ids.includes(a.id) ? ids : [...ids, a.id]
+                : ids.includes(a.id) ? ids.filter(id => id !== a.id) : ids);
+            }}>
               <summary className="ailment-card__header">
                 <span>{cleanedName}</span>
                 <span className="ailment-card__timing">
@@ -28641,6 +28664,10 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
               <div className="ailment-card__requirements" style={{ marginTop: '0.4rem', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <strong><FieldIcon kind="ailments" /> 요구 약효 태그:</strong> {parseAndRenderTags(a.tags)}
               </div>
+
+              {a.requiredTags.length > 0 && <div className="ailment-card__reagent-links" role="group" aria-label="필요 약효의 영약재 찾기">
+                {a.requiredTags.map(tag => <button key={tag} type="button" className="workspace-link" onClick={() => onFindReagents(tag)}>{formatRuleTag(tag)} 영약재 찾기 ↗</button>)}
+              </div>}
 
               <p style={{ fontSize: '0.95rem', color: '#333', background: '#fff', padding: '0.8rem', borderRadius: '6px', margin: '0.6rem 0', lineHeight: '1.6' }}>
                 {localizeAilmentPresentationText(a.description)}

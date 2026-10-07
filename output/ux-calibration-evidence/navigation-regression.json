@@ -1,0 +1,56 @@
+[
+  {
+    "activeItems": 1,
+    "heading": "다음 길목을 향해 걸어볼까요",
+    "overflow": 0,
+    "page": "#play"
+  },
+  {
+    "activeItems": 1,
+    "heading": "세계 지도",
+    "overflow": 0,
+    "page": "#map"
+  },
+  {
+    "activeItems": 1,
+    "heading": "약제사와 배낭",
+    "overflow": 0,
+    "page": "#bio"
+  },
+  {
+    "activeItems": 1,
+    "heading": "영약재",
+    "overflow": 0,
+    "page": "#reagents"
+  },
+  {
+    "activeItems": 1,
+    "heading": "질환 사전",
+    "overflow": 0,
+    "page": "#ailments"
+  },
+  {
+    "activeItems": 1,
+    "heading": "규칙 자료실",
+    "overflow": 0,
+    "page": "#almanack"
+  },
+  {
+    "activeItems": 1,
+    "heading": "나의 이야기",
+    "overflow": 0,
+    "page": "#journals"
+  },
+  {
+    "activeItems": 1,
+    "heading": "진료 기록",
+    "overflow": 0,
+    "page": "#patientArchive"
+  },
+  {
+    "activeItems": 1,
+    "heading": "발견과 기억",
+    "overflow": 0,
+    "page": "#livingArchive"
+  }
+]

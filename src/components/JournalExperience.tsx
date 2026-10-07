@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { RuleTagText } from './RuleTag';
 import { localizeJourneyGoalText, localizeLocationName, localizeRegionLabel, localizeSeasonLabel } from '../localization/gameplayKo';
 import { referenceForJournalTab } from '../rulebook/context';
@@ -34,10 +35,16 @@ const WORKSPACES = [
 
 export function JournalNavigation({ activeTab, onChange }: { activeTab: JournalTab; onChange: (tab: JournalTab) => void }) {
   const currentGroup = WORKSPACES.find(group => group.items.some(item => item.id === activeTab))!;
+  const lastVisited = useRef<Partial<Record<typeof WORKSPACES[number]['id'], JournalTab>>>({
+    [currentGroup.id]: activeTab
+  });
+  useEffect(() => {
+    lastVisited.current[currentGroup.id] = activeTab;
+  }, [activeTab, currentGroup.id]);
   return <nav className="station-navigation" aria-label="작업 색인">
     <div className="station-mode-switch" aria-label="작업 모드">
       {WORKSPACES.map(group => <button key={group.id} type="button" aria-pressed={currentGroup.id === group.id}
-        onClick={() => onChange(currentGroup.id === group.id ? activeTab : group.first)}>{group.label}</button>)}
+        onClick={() => onChange(currentGroup.id === group.id ? activeTab : lastVisited.current[group.id] || group.first)}>{group.label}</button>)}
     </div>
     {WORKSPACES.map(group => <div key={group.id} className={`station-nav-group${currentGroup.id === group.id ? ' is-current' : ''}`} role="group" aria-label={group.note}>
       <p className="station-nav-group__label"><span>{group.label}</span><small>{group.note}</small></p>

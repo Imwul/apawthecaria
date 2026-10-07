@@ -1,0 +1,6 @@
+
+> temp-app@1.0.0 lint
+> eslint .
+
+[BABEL] Note: The code generator has deoptimised the styling of /private/tmp/apaw-ux-calibration.BGgeAV/App.before-calibration.tsx as it exceeds the max of 500KB.
+[BABEL] Note: The code generator has deoptimised the styling of /private/tmp/apaw-ux-calibration.BGgeAV/src/App.tsx as it exceeds the max of 500KB.

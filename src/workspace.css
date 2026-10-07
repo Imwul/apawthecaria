@@ -1,6 +1,7 @@
 /* Field Station: a task desk, a reference index, and a place for the player's words. */
 .station-shell { display: grid; grid-template-columns: 232px minmax(0,1fr); min-height: 100dvh; }
 .station-rail { position: sticky; top: 0; height: 100dvh; overflow-y: auto; background: var(--rail); color: #f0f1e9; display: flex; flex-direction: column; padding: 32px 20px 24px; }
+.station-rail > :is(.journal-brand,.station-navigation,.station-identity) { flex-shrink: 0; }
 .journal-brand { display: block; width: 100%; padding: 0 10px 28px; color: inherit; background: transparent; border: 0; text-align: left; border-radius: 0; }
 .journal-brand:hover { background: transparent; color: #fff; }
 .journal-brand:disabled { opacity: 1; }
@@ -226,6 +227,7 @@
 .ailment-card[open] { background: #fff; border-left: 3px solid var(--primary); }
 .ailment-card[open] .ailment-card__header { color: var(--primary); }
 .ailment-card__detail { padding: 0 24px 24px; }
+.ailment-card__reagent-links { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-block: 8px; }
 .ailment-card__detail p { background: transparent !important; padding-inline: 0 !important; }
 .ailment-card__outcomes { background: var(--surface-muted) !important; border-radius: 0 !important; padding: 20px !important; }
 .ailment-card__outcomes > div { line-height: 1.8; }

@@ -1,0 +1,120 @@
+{
+  "desktop": {
+    "width": 1280,
+    "height": 720,
+    "brandCopyBottom": 118.640625,
+    "currentPages": 1,
+    "navTop": 146.640625,
+    "overflow": 0,
+    "overlapPx": 0,
+    "railClientHeight": 720,
+    "railScrollHeight": 941,
+    "railScrollTop": 0
+  },
+  "mobile": {
+    "width": 390,
+    "height": 844,
+    "modeRoundTripInteractions": 2,
+    "repeatOpenInteractions": 0,
+    "openDetails": 1,
+    "overflow": 0,
+    "page": "#ailments",
+    "search": "Monthly"
+  },
+  "prescriptionToReagent": {
+    "startingSearch": "Marigold",
+    "tag": "SCALE",
+    "interactions": 1,
+    "emptyResultDetour": 0,
+    "filter": "SCALE",
+    "focus": "herbarium-results",
+    "overflow": 0,
+    "result": "SCALE · 관찰 기록 10개 · 지금 10개 펼침전체 도감 보기",
+    "search": ""
+  },
+  "journalDraft": {
+    "preserved": true,
+    "repeatInputs": 0,
+    "savedAfterReload": true,
+    "entry": [
+      "약초를 찾아본 하루",
+      "길동무와 함께 비늘을 진정시킬 약초를 살폈다. SCALE과 PAIN 처방을 다시 확인하고 여행 이야기를 이어 쓴다."
+    ]
+  },
+  "mobileResults": {
+    "focus": "herbarium-results",
+    "height": 844,
+    "overflow": 0,
+    "result": "SCALE · 관찰 기록 10개 · 지금 10개 펼침전체 도감 보기",
+    "resultTop": -0.46875,
+    "width": 390
+  },
+  "journey": {
+    "savedAfterReload": true,
+    "destination": "Obridge",
+    "elapsedDays": 0,
+    "deadlineDays": 12,
+    "requiredReason": {
+      "visibleLabel": true,
+      "ariaRequired": true,
+      "labelFocus": "journey-start-reason"
+    }
+  },
+  "navigation": [
+    {
+      "activeItems": 1,
+      "heading": "다음 길목을 향해 걸어볼까요",
+      "overflow": 0,
+      "page": "#play"
+    },
+    {
+      "activeItems": 1,
+      "heading": "세계 지도",
+      "overflow": 0,
+      "page": "#map"
+    },
+    {
+      "activeItems": 1,
+      "heading": "약제사와 배낭",
+      "overflow": 0,
+      "page": "#bio"
+    },
+    {
+      "activeItems": 1,
+      "heading": "영약재",
+      "overflow": 0,
+      "page": "#reagents"
+    },
+    {
+      "activeItems": 1,
+      "heading": "질환 사전",
+      "overflow": 0,
+      "page": "#ailments"
+    },
+    {
+      "activeItems": 1,
+      "heading": "규칙 자료실",
+      "overflow": 0,
+      "page": "#almanack"
+    },
+    {
+      "activeItems": 1,
+      "heading": "나의 이야기",
+      "overflow": 0,
+      "page": "#journals"
+    },
+    {
+      "activeItems": 1,
+      "heading": "진료 기록",
+      "overflow": 0,
+      "page": "#patientArchive"
+    },
+    {
+      "activeItems": 1,
+      "heading": "발견과 기억",
+      "overflow": 0,
+      "page": "#livingArchive"
+    }
+  ],
+  "consoleErrors": []
+}
