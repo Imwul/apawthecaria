@@ -26,10 +26,10 @@ afterEach(() => vi.unstubAllGlobals());
 describe('Home campaign resume regression guards', () => {
   it('uses the actual current location as WHERE and keeps the destination separate', () => {
     const html = renderToday();
-    const context = html.match(/class="workspace-today__context">([\s\S]*?)<\/div>/)?.[1] || '';
+    const context = html.match(/class="station-dossier__top">([\s\S]*?)<\/div>/)?.[1] || '';
     expect(context).toContain('Odoak');
     expect(context).not.toContain('Summit');
-    expect(html).toContain('<dt>여정 목적지</dt><dd>Summit</dd>');
+    expect(html).toMatch(/class="station-journey__destination"[^]*?>목적지<[^]*?>Summit ↗<\/button>/);
   });
 
   it('renders only meaningful persisted resume context instead of empty navigation cards', () => {

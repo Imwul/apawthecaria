@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const appSource = readFileSync('src/App.tsx', 'utf8');
-const cssSource = readFileSync('src/index.css', 'utf8') + readFileSync('src/workspace.css', 'utf8');
+const cssSource = readFileSync('src/index.css', 'utf8') + readFileSync('src/workspace.css', 'utf8') + readFileSync('src/feature-layout.css', 'utf8');
 
 describe('patient identity experience', () => {
   it('lets the descriptor card lead to rulebook animal candidates before severity is drawn', () => {
@@ -68,7 +68,7 @@ describe('local-care journey composition', () => {
     expect(appSource).toContain('{localCarePhase ? (\n        <details className="play-journey-compact-summary"');
     expect(appSource).toContain('{!localCarePhase && !journeyUiContext.atDestination && (\n          <div id="active-journey-panel"');
     expect(appSource).toContain('{!localCarePhase && (\n              <>\n                <div className="prose-summary"');
-    expect(cssSource).toContain('.play-with-map.play-with-map--care');
+    expect(cssSource).toMatch(/\.play-with-map\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column/);
     expect(cssSource).toContain('grid-template-columns: minmax(0, 1fr);');
   });
 

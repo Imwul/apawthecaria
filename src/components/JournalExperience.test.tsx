@@ -11,26 +11,25 @@ const state = {
 };
 const noop = () => {};
 
-describe('book object journal presentation', () => {
+describe('field station workspace presentation', () => {
   it.each(tabs)('keeps all nine navigation actions and a unique current page for %s', tab => {
     const html = renderToStaticMarkup(<JournalNavigation activeTab={tab} onChange={noop} />);
-    expect(html.match(/<button /g)).toHaveLength(9);
+    expect(html.match(/class="journal-tab /g)).toHaveLength(9);
+    expect(html.match(/<button /g)).toHaveLength(12);
     expect(html.match(/aria-current="page"/g)).toHaveLength(1);
     expect(html).toContain(`journal-tab--${tab} journal-tab--active`);
-    expect(html).toContain('title="이야기"');
+    expect(html).toContain('title="나의 이야기"');
   });
 
-  it('keeps the resume action ahead of decorative artwork without mutating the campaign', () => {
+  it('keeps the resume action ahead of journey context without mutating the campaign', () => {
     const original = structuredClone(state);
     const html = renderToStaticMarkup(<TodayOverview state={state} currentWeight={0} maxCarry={4}
       onNavigate={noop} onContinue={noop} onOpenReference={noop} />);
     expect(html).toContain('여정 준비하기');
     expect(html).toContain('이 단계의 규칙');
     expect(html).toContain('aria-labelledby="today-title"');
-    expect(html.indexOf('class="workspace-today__actions"')).toBeLessThan(html.indexOf('class="workspace-today__atmosphere"'));
-    const artwork = html.match(/<div class="workspace-today__atmosphere"[\s\S]*?<\/div>/)?.[0];
-    expect(artwork).toContain('aria-hidden="true"');
-    expect(artwork).toContain('alt=""');
+    expect(html.indexOf('class="workspace-today__actions"')).toBeLessThan(html.indexOf('class="station-journey"'));
+    expect(html).not.toContain('workspace-today__atmosphere');
     expect(state).toEqual(original);
   });
 
@@ -46,7 +45,7 @@ describe('book object journal presentation', () => {
     expect(campaign).toEqual(original);
   });
 
-  it('retains the blocking workflow resume label in an illustrated active journey', () => {
+  it('retains the blocking workflow resume label in an active journey', () => {
     const html = renderToStaticMarkup(<TodayOverview
       state={{ ...state, journeyActive: true, journeyDestination: 'Obridge', calendarDays: 2, calendarMaxDays: 12, pendingForaging: { id: 'forage' } }}
       currentWeight={0} maxCarry={4} onNavigate={noop} onContinue={noop} onOpenReference={noop} />);
@@ -61,14 +60,12 @@ describe('book object journal presentation', () => {
       state={state} maxCarry={4} onReturnToToday={noop} onOpenReference={noop} />);
     expect(html).toContain(`aria-labelledby="chapter-title-${tab}"`);
     expect(html).toContain(`id="chapter-title-${tab}"`);
-    expect(html).toContain('플레이 방법');
-    expect(html).toContain('이 화면에서 하는 일');
+    expect(html).toContain('이 화면의 규칙');
+    expect(html).toContain('현재 상황');
     expect(html).toContain('aria-label="현재 기록 요약"');
     const notes = html.match(/<ul class="chapter-opening__notes"[\s\S]*?<\/ul>/)?.[0];
     expect(notes?.match(/<li>/g)).toHaveLength(2);
-    const artwork = html.match(/<div class="chapter-opening__plate"[\s\S]*?<\/div>/)?.[0];
-    expect(artwork).toContain('aria-hidden="true"');
-    expect(artwork).toContain('alt=""');
+    expect(html).not.toContain('chapter-opening__plate');
     expect(state).toEqual(original);
   });
 
@@ -96,7 +93,7 @@ describe('book object journal presentation', () => {
     expect(campaign).toEqual(original);
   });
 
-  it('retains the shortest active patient timer and a treatment return action alongside decoration', () => {
+  it('retains the shortest active patient timer and a treatment return action in the context disclosure', () => {
     const campaign = {
       ...state,
       activePatientId: 'patient-current',
@@ -109,16 +106,16 @@ describe('book object journal presentation', () => {
     const original = structuredClone(campaign);
     const html = renderToStaticMarkup(<ChapterOpening tab="ailments" state={campaign} maxCarry={4}
       onReturnToToday={noop} onOpenReference={noop} />);
-    expect(html).toContain('현재 환자 · 솔');
-    expect(html).toContain('<li>가시 상처</li><li>4시간</li>');
-    expect(html).toContain('모험에서 치료 이어가기');
-    expect(html).toContain('플레이 방법');
+    expect(html).toContain('<dt>환자</dt><dd>솔</dd>');
+    expect(html).toContain('<dt>가장 급한 기한</dt><dd>4시간</dd>');
+    expect(html).toContain('치료 이어가기');
+    expect(html).toContain('이 화면의 규칙');
     expect(campaign).toEqual(original);
 
     const emptyHtml = renderToStaticMarkup(<ChapterOpening tab="ailments" state={state} maxCarry={4}
       onReturnToToday={noop} onOpenReference={noop} />);
-    expect(emptyHtml).not.toContain('모험에서 치료 이어가기');
-    expect(emptyHtml).toContain('플레이 방법');
+    expect(emptyHtml).not.toContain('치료 이어가기');
+    expect(emptyHtml).toContain('이 화면의 규칙');
   });
 
   it('shows the selected patient’s collection needs instead of a stale legacy ailment', () => {
@@ -128,16 +125,33 @@ describe('book object journal presentation', () => {
         ailments: [{ id: 'a', status: 'active', legacyName: '새 상처', requirementSnapshot: 'WOUND 2, PAIN 1' }], timers: [] }]
     };
     const original = structuredClone(campaign);
-    const html = renderToStaticMarkup(<ChapterOpening tab="reagents" state={campaign} maxCarry={4}
-      onReturnToToday={noop} onOpenReference={noop} />);
-    expect(html).toContain('오늘의 채집 메모');
+    const html = renderToStaticMarkup(<TodayOverview state={campaign} currentWeight={0} maxCarry={4}
+      onNavigate={noop} onContinue={noop} onOpenReference={noop} />);
+    expect(html).toContain('필요 약효');
     expect(html).toContain('새봄');
-    expect(html.replace(/<[^>]*>/g, '')).toContain('WOUND 2 · PAIN 1');
+    expect(html.replace(/<[^>]*>/g, '')).toContain('WOUND 2, PAIN 1');
     expect(html).toContain('data-rule-tag="WOUND"');
     expect(html).toContain('data-rule-tag="PAIN"');
     expect(html).not.toContain('상처 (WOUND)');
     expect(html).not.toContain('Stale');
     expect(html).not.toContain('지난 환자');
+    expect(campaign).toEqual(original);
+  });
+
+  it('reads a newly drawn canonical patient’s name and complete prescription from the catalogue', () => {
+    const campaign = { ...state, activePatientId: 'current',
+      patients: [{ id: 'current', name: '새 환자', status: 'active',
+        ailments: [{ id: 'a', ailmentId: 'ailment-monthly-chore', status: 'active', timerIds: ['t'] }],
+        timers: [{ id: 't', current: 6, status: 'active' }] }],
+      activeAilment: { name: '지난 환자의 병증', tags: 'STALE 9' }
+    };
+    const original = structuredClone(campaign);
+    const html = renderToStaticMarkup(<TodayOverview state={campaign} currentWeight={0} maxCarry={4}
+      onNavigate={noop} onContinue={noop} onOpenReference={noop} />);
+    expect(html).toContain('Monthly Chore');
+    expect(html.replace(/<[^>]*>/g, '')).toContain('SCALE 2 + PAIN 1');
+    expect(html).toContain('6시간');
+    expect(html).not.toContain('STALE');
     expect(campaign).toEqual(original);
   });
 
@@ -147,7 +161,7 @@ describe('book object journal presentation', () => {
     const original = structuredClone(campaign);
     const html = renderToStaticMarkup(<ChapterOpening tab="map" state={campaign} maxCarry={4}
       onReturnToToday={noop} onOpenReference={noop} />);
-    expect(html).toContain('다음 길을 생각하며');
+    expect(html).toContain('다음 이동을 준비합니다.');
     expect(html).not.toContain('OldDestination');
     expect(html).not.toContain('OldObjective');
     expect(campaign).toEqual(original);

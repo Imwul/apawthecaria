@@ -12559,7 +12559,7 @@ export default function App() {
   />;
 
   return (
-    <div className={`journal-app folio-app journal-app--${activeTab} ${isOnboarding ? 'journal-app--onboarding' : ''}`}>
+    <div className={`journal-app station-app journal-app--${activeTab} ${isOnboarding ? 'journal-app--onboarding' : ''}`}>
       <a className="skip-to-play" href="#field-main" onClick={event => {
         event.preventDefault();
         const main = document.getElementById('field-main');
@@ -12567,15 +12567,28 @@ export default function App() {
         main?.focus({ preventScroll: true });
       }}>본문으로 건너뛰기</a>
       {campaignWriteBlocked && <p role="alert" className="cloud-slots__warning">{STALE_CAMPAIGN_TAB_MESSAGE}</p>}
-      {/* Header Banner */}
-      <header className="journal-header">
+      <div className="station-shell">
+        <aside className="station-rail" aria-label="약제사의 작업소">
         <button type="button" className="journal-brand" onClick={() => changeActiveTab('play')} disabled={isOnboarding} aria-label={isOnboarding ? 'Apawthecaria 새 기록 설정' : '오늘의 여행 첫 페이지로 돌아가기'}>
           <span className="journal-brand__copy">
-          <span className="journal-brand__eyebrow">A JOURNAL FROM THE BRISTLEY WOODS</span>
+          <span className="journal-brand__eyebrow">BRISTLEY FIELD STATION</span>
           <h1 className="journal-brand__title">Apawthecaria</h1>
-          <span className="journal-brand__edition">여행하는 약제사의 작업실</span>
+          <span className="journal-brand__edition">여행과 돌봄을 위한 작업소</span>
           </span>
         </button>
+          {!isOnboarding && <JournalNavigation activeTab={activeTab} onChange={tab => changeActiveTab(tab, { restoreScroll: true })} />}
+          <div className="station-identity">
+            <span className="station-eyebrow">{isOnboarding ? '첫 여행을 앞두고' : '함께 걷는 이'}</span>
+            <strong>{state.bio.name || '당신의 이름을 기다립니다'}</strong>
+            <span>{isOnboarding ? '약제사 · 길동무 · 첫 여정' : `${state.bio.familiarName || '길동무'}와 함께`}</span>
+            <div className="station-rail-mark" aria-hidden="true">✳</div>
+            <p>작은 처방이<br />긴 여행의 이야기가 됩니다.</p>
+          </div>
+        </aside>
+        <div className="station-workspace">
+
+      <header className="journal-header">
+
 
         {!isOnboarding && <div className="adventure-context" aria-label="현재 모험 상태">
           <button type="button" onClick={() => changeActiveTab('map')}><span>현재 위치</span><strong>{localizeLocationName(state.currentLocationName)}</strong></button>
@@ -12667,37 +12680,18 @@ export default function App() {
 
       {cloudCapacityIssue && <CloudSaveCapacityNotice issue={cloudCapacityIssue} localSaved={!localSaveUnavailable} onBackup={handleExportBackup} onManageCloud={() => void openCloudSlots()} />}
 
-      {!isOnboarding && <JournalNavigation activeTab={activeTab} onChange={tab => changeActiveTab(tab, { restoreScroll: true })} />}
 
-      <div className={`grid-dashboard ${isOnboarding ? 'grid-dashboard--onboarding' : ''}`}>
+      <div className={`station-canvas ${isOnboarding ? 'station-canvas--onboarding' : ''}`}>
         {/* =================================================================
             MAIN CONTENT VIEWS
            ================================================================= */}
-        <main id="field-main" tabIndex={-1} className="glass-panel main-content-panel">
+        <main id="field-main" tabIndex={-1} className="main-content-panel">
           {isOnboarding ? (
             <section className="onboarding-focus" aria-labelledby="onboarding-title">
               <header className="onboarding-focus__intro">
-                <div className="onboarding-focus__welcome">
-                  <p className="folio-chapter-title" aria-hidden="true">Your story begins.</p>
-                  <span className="document-kicker">당신의 이야기가 자라는 곳</span>
-                  <h2 id="onboarding-title">당신의 첫 모험을<br /> 시작해볼까요?</h2>
-                  <p>길동무와 들녘을 걸으며 약초를 찾고, 아픈 이웃에게 처방을 건네세요. 카드가 만남을 정하고, 당신의 기록이 이야기가 됩니다.</p>
-                  <button type="button" className="onboarding-focus__begin" onClick={() => {
-                    const page = document.getElementById('character-creation-page');
-                    page?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
-                    page?.focus({ preventScroll: true });
-                  }}>약제사 만들기 <span aria-hidden="true">↓</span></button>
-                </div>
-                <figure className="onboarding-focus__landscape" aria-hidden="true">
-                  <img className="onboarding-focus__art" src="/art/woodland-path-watercolor.webp" alt="" />
-                  <figcaption>A little courage. A little kindness.</figcaption>
-                </figure>
-                <ol className="onboarding-focus__promise" aria-label="첫 플레이 순서">
-                  <li><span>01</span> 약제사와 길동무 만들기</li>
-                  <li><span>02</span> 첫 여정의 목적지 정하기</li>
-                  <li><span>03</span> 안내를 따라 여행하고 돌보기</li>
-                </ol>
-                <p className="onboarding-focus__note">카드 뽑기와 필요한 규칙은 모두 여기 있어요. 작성 중인 내용도 이 기기에 저장됩니다.</p>
+                <span className="station-eyebrow">새 캠페인 / FIRST ENTRY</span>
+                <h2 id="onboarding-title">새 약제사의 첫 기록</h2>
+                <p>카드 여섯 장으로 약제사와 길동무를 정하세요. 직접 선택할 수도 있고, 작성하던 내용은 이 기기에 보관됩니다.</p>
               </header>
               <CharacterCreationWizard
                 key={`onboarding-character-${campaignUiEpoch}`}
@@ -12733,7 +12727,7 @@ export default function App() {
             </section>
           )}
           {activeTab === 'play' && (
-            <div className="woodland-play-spread">
+            <div className="station-play">
               <TodayOverview
                 state={state}
                 currentWeight={currentWeight}
@@ -12746,7 +12740,6 @@ export default function App() {
                 }}
                 onOpenReference={openRulebookReference}
               />
-              {playGuide}
               <BarrowPanel delve={state.activeDelve} />
               <PlayView
                 key={campaignUiEpoch}
@@ -12786,10 +12779,11 @@ export default function App() {
                 onOpenFullMap={() => changeActiveTab('map')}
                 onOpenPatientArchive={() => changeActiveTab('patientArchive')}
               />
+              {playGuide}
             </div>
           )}
           {activeTab !== 'play' && (
-            <div className={`woodland-spread woodland-spread--${activeTab}`}>
+            <div className={`station-page station-page--${activeTab}`}>
                 <ChapterOpening
                   tab={activeTab}
                   state={state}
@@ -12933,6 +12927,8 @@ export default function App() {
         <p>오늘 건넨 작은 다정함이, 내일의 숲을 바꿉니다.</p>
         <span>APAWTHECARIA · 들녘 여행 일지</span>
       </footer>
+        </div>
+      </div>
 
       {rulebookRequest && (
         <Suspense fallback={<div className="rulebook-drawer-backdrop"><div className="rulebook-drawer rulebook-drawer--loading" role="status">룰북 맥락을 여는 중...</div></div>}>
@@ -22472,7 +22468,7 @@ function PlayView({
   ) : null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="station-procedures">
 
       {state.pendingPatientArchive && (
         <div id="pending-archive-panel" tabIndex={-1} style={{ position: 'fixed', right: '1.2rem', bottom: '1.2rem', zIndex: 1100, width: 'min(420px, calc(100vw - 2.4rem))' }}>
@@ -22532,36 +22528,6 @@ function PlayView({
         </div>
       )}
 
-        <details className="adventure-action-menu"><summary>이곳에서 할 수 있는 행동 <span>여행 · 현지 활동 · 정비</span></summary>
-        <section id="action-hub" className="action-hub" aria-label="현재 진행판">
-        <div className="action-hub__header">
-          <div>
-            <div className="document-kicker">진행판</div>
-            <h2>지금 이어갈 일</h2>
-          </div>
-        </div>
-        <div className="action-hub__grid">
-                {actionHubItems.map((item, index) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`action-step action-step--${item.tone || 'neutral'}`}
-                  data-play-action-id={item.id}
-                  onClick={() => handleActionHubItem(item)}
-                  disabled={item.disabled}
-                >
-              <span className="action-step__index">{index + 1}</span>
-              <span className="action-step__body">
-                <strong>{item.label}</strong>
-                <span>{item.detail}</span>
-                {item.meta && <em>{item.meta}</em>}
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
-      </details>
-
       {canonicalWagonFromState(state).expansionIds.includes('passenger-booth') && (
         <div className="cute-card" style={{ background: '#fffefa', border: '1.5px solid var(--border-cozy)', borderRadius: '7px', padding: '1rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -22612,97 +22578,6 @@ function PlayView({
       )}
 
       <div className={`play-with-map${localCarePhase ? ' play-with-map--care' : ''}${!journeyUiContext.active ? ' play-with-map--setup' : ''}`}>
-        {localCarePhase ? (
-        <details className="play-journey-compact-summary">
-          <summary>여정 현황과 이동 준비 <span>{state.calendarDays} / {state.calendarMaxDays}일 · {state.journeyDestination}</span></summary>
-          <section className="journey-care-context" aria-label="현지 진료 중 여정 요약">
-            <div>
-              <span>현재 위치</span>
-              <strong>{state.currentLocationName}</strong>
-              <small>{locationTypeLabel(state.currentLocationType)} · {localizeRegionLabel(state.currentRegion)}</small>
-            </div>
-            <div>
-              <span>기한까지</span>
-              <strong>{journeyDaysRemaining}일</strong>
-              <small>{state.calendarDays}/{state.calendarMaxDays}일 진행</small>
-            </div>
-            <div>
-              <span>최종 목적지</span>
-              <strong>{state.journeyDestination || '미정'}</strong>
-              <small>{journeyMinimumDistance === null ? '저장된 연결로 거리 미확정' : `저장된 최소 ${journeyMinimumDistance}경로`}</small>
-            </div>
-            <div className="journey-care-context__goal">
-              <span>이번 여정의 목표</span>
-              <strong>{state.journeyGoalTitle || '기록된 목표 없음'}</strong>
-              <small>{localizeJourneyGoalText(state.journeyGoalDesc || state.journeyGoalProgress || '여정 준비에서 정한 완료 조건을 기억하세요.')}</small>
-            </div>
-            <footer>
-              <p>{state.scroungingMode
-                ? '치료를 마쳤습니다. 여분 채집은 선택이며, 길 떠나기를 마쳐야 다음 이동으로 이어집니다.'
-                : '지금은 현지 야수를 도울 차례입니다. 채집·물물교환은 질환 Timer를 쓰며 여정 달력은 그대로입니다.'}</p>
-              <div>
-                {state.scroungingMode ? (
-                  <button type="button" className="btn-cozy-primary" onClick={handleFinishScrounging}>길 떠나기 · 다음 이동 준비</button>
-                ) : null}
-                <button type="button" className="btn-cozy-secondary" onClick={() => void handleRestartJourneyPlanning()}>이번 여정 다시 준비</button>
-              </div>
-            </footer>
-          </section>
-        </details>
-        ) : (
-        <details className="workspace-map-preview" open={journeyUiContext.active}>
-          <summary>여정 지도 <span>현재 위치 · 목적지 · 연결된 길</span></summary>
-        <aside id="play-journey-map" className="play-with-map__map" aria-label="여정 지도">
-          <MapView
-            state={state}
-            onOpenReference={onOpenReference}
-            variant="companion"
-            highlightLocationIds={playMapHighlightIds}
-            selectedLocationId={playMapSelectedId}
-            destinationPlaceId={playMapMode === 'destination' ? playMapSelectedId : null}
-            includeWilds
-            routePlaceIds={routeDraft.stops.map(stop => stop.id)}
-            onConfirmDestination={playMapMode === 'destination' ? handlePlayMapPick : undefined}
-            onTravelRequest={playMapMode === 'travel' && journeyUiContext.canMove ? handlePlayMapTravel : undefined}
-            onAddWaypoint={playMapMode === 'travel' && journeyUiContext.canMove ? handleAddRouteWaypoint : undefined}
-            onSelectedPlaceChange={playMapMode === 'destination' ? handlePlayMapSelection : undefined}
-            onSetCurrentLocation={journeyUiContext.active ? undefined : handleSetMappedCurrentLocation}
-            onCreatePlace={undefined}
-            onMovePlace={undefined}
-            onEditPlace={undefined}
-            onDeletePlace={undefined}
-            onSavePlaces={undefined}
-            canDeletePlace={undefined}
-            veiled
-            showSavedConnections
-            showWaypointAction={false}
-            travelEnabled={journeyUiContext.canMove}
-            travelBlockedReason={journeyUiContext.canMove ? null : journeyUiContext.moveBlockedReason}
-            onOpenFullMap={onOpenFullMap}
-            showRoutePreview={false}
-            companionCaption={
-              playMapMode === 'destination'
-                ? (journeyDestinationMode === 'choose'
-                  ? (selectedJourneyDestination
-                    ? `직접 선택: ${selectedJourneyDestination.name}`
-                    : '룰북 p.19의 직접 선택입니다. 지도에서 출발지가 아닌 위치를 한 번 누르면 목적지로 선택됩니다.')
-                  : journeyDestinationCard
-                  ? (selectedJourneyDestination
-                    ? `선택된 후보: ${selectedJourneyDestination.name} · ${selectedJourneyDestination.routeSummary ? confirmedRouteSummaryText(selectedJourneyDestination.routeSummary) : '연결 경로 미확정'}`
-                    : journeyDestinationCandidates.length > 0
-                      ? '거리·방향·장소 유형을 모두 만족하는 후보를 한 번 누르세요.'
-                      : '현재 카드 조건과 저장된 연결을 모두 만족하는 후보가 없습니다. 연결을 확인하거나 카드를 다시 뽑으세요.')
-                  : '목적지 카드를 뽑으면 저장된 연결의 최단 거리까지 계산한 후보가 지도에 표시됩니다.')
-                : playMapMode === 'travel'
-                  ? `사이트 지도에서 다음 위치를 누르세요. 경로 편집에서 연결 타입과 순서를 고를 수 있습니다.${currentWeight > maxCarry ? ' 현재 과적 상태라 속도는 1입니다.' : ''}`
-                  : journeyUiContext.atDestination
-                    ? `${state.journeyDestination}에 도착했습니다. 남은 의무를 끝낸 뒤 여정 결말을 정하세요.`
-                    : '현재 단계의 판정을 마치면 다음 이동 경로를 다시 편집할 수 있습니다.'
-            }
-          />
-        </aside>
-        </details>
-        )}
         <div className="play-with-map__panels">
           {(journeyUiContext.phase === 'destination-ready' || journeyUiContext.phase === 'ending') && (
             <section id="journey-ending-panel" className="journey-ending-workspace" tabIndex={-1} aria-labelledby="journey-ending-title">
@@ -26227,7 +26102,126 @@ function PlayView({
         </div>
       )}
         </div>
+        {localCarePhase ? (
+        <details className="play-journey-compact-summary">
+          <summary>여정 현황과 이동 준비 <span>{state.calendarDays} / {state.calendarMaxDays}일 · {state.journeyDestination}</span></summary>
+          <section className="journey-care-context" aria-label="현지 진료 중 여정 요약">
+            <div>
+              <span>현재 위치</span>
+              <strong>{state.currentLocationName}</strong>
+              <small>{locationTypeLabel(state.currentLocationType)} · {localizeRegionLabel(state.currentRegion)}</small>
+            </div>
+            <div>
+              <span>기한까지</span>
+              <strong>{journeyDaysRemaining}일</strong>
+              <small>{state.calendarDays}/{state.calendarMaxDays}일 진행</small>
+            </div>
+            <div>
+              <span>최종 목적지</span>
+              <strong>{state.journeyDestination || '미정'}</strong>
+              <small>{journeyMinimumDistance === null ? '저장된 연결로 거리 미확정' : `저장된 최소 ${journeyMinimumDistance}경로`}</small>
+            </div>
+            <div className="journey-care-context__goal">
+              <span>이번 여정의 목표</span>
+              <strong>{state.journeyGoalTitle || '기록된 목표 없음'}</strong>
+              <small>{localizeJourneyGoalText(state.journeyGoalDesc || state.journeyGoalProgress || '여정 준비에서 정한 완료 조건을 기억하세요.')}</small>
+            </div>
+            <footer>
+              <p>{state.scroungingMode
+                ? '치료를 마쳤습니다. 여분 채집은 선택이며, 길 떠나기를 마쳐야 다음 이동으로 이어집니다.'
+                : '지금은 현지 야수를 도울 차례입니다. 채집·물물교환은 질환 Timer를 쓰며 여정 달력은 그대로입니다.'}</p>
+              <div>
+                {state.scroungingMode ? (
+                  <button type="button" className="btn-cozy-primary" onClick={handleFinishScrounging}>길 떠나기 · 다음 이동 준비</button>
+                ) : null}
+                <button type="button" className="btn-cozy-secondary" onClick={() => void handleRestartJourneyPlanning()}>이번 여정 다시 준비</button>
+              </div>
+            </footer>
+          </section>
+        </details>
+        ) : (
+        <details className="workspace-map-preview">
+          <summary>여정 지도 <span>현재 위치 · 목적지 · 연결된 길</span></summary>
+        <aside id="play-journey-map" className="play-with-map__map" aria-label="여정 지도">
+          <MapView
+            state={state}
+            onOpenReference={onOpenReference}
+            variant="companion"
+            highlightLocationIds={playMapHighlightIds}
+            selectedLocationId={playMapSelectedId}
+            destinationPlaceId={playMapMode === 'destination' ? playMapSelectedId : null}
+            includeWilds
+            routePlaceIds={routeDraft.stops.map(stop => stop.id)}
+            onConfirmDestination={playMapMode === 'destination' ? handlePlayMapPick : undefined}
+            onTravelRequest={playMapMode === 'travel' && journeyUiContext.canMove ? handlePlayMapTravel : undefined}
+            onAddWaypoint={playMapMode === 'travel' && journeyUiContext.canMove ? handleAddRouteWaypoint : undefined}
+            onSelectedPlaceChange={playMapMode === 'destination' ? handlePlayMapSelection : undefined}
+            onSetCurrentLocation={journeyUiContext.active ? undefined : handleSetMappedCurrentLocation}
+            onCreatePlace={undefined}
+            onMovePlace={undefined}
+            onEditPlace={undefined}
+            onDeletePlace={undefined}
+            onSavePlaces={undefined}
+            canDeletePlace={undefined}
+            veiled
+            showSavedConnections
+            showWaypointAction={false}
+            travelEnabled={journeyUiContext.canMove}
+            travelBlockedReason={journeyUiContext.canMove ? null : journeyUiContext.moveBlockedReason}
+            onOpenFullMap={onOpenFullMap}
+            showRoutePreview={false}
+            companionCaption={
+              playMapMode === 'destination'
+                ? (journeyDestinationMode === 'choose'
+                  ? (selectedJourneyDestination
+                    ? `직접 선택: ${selectedJourneyDestination.name}`
+                    : '룰북 p.19의 직접 선택입니다. 지도에서 출발지가 아닌 위치를 한 번 누르면 목적지로 선택됩니다.')
+                  : journeyDestinationCard
+                  ? (selectedJourneyDestination
+                    ? `선택된 후보: ${selectedJourneyDestination.name} · ${selectedJourneyDestination.routeSummary ? confirmedRouteSummaryText(selectedJourneyDestination.routeSummary) : '연결 경로 미확정'}`
+                    : journeyDestinationCandidates.length > 0
+                      ? '거리·방향·장소 유형을 모두 만족하는 후보를 한 번 누르세요.'
+                      : '현재 카드 조건과 저장된 연결을 모두 만족하는 후보가 없습니다. 연결을 확인하거나 카드를 다시 뽑으세요.')
+                  : '목적지 카드를 뽑으면 저장된 연결의 최단 거리까지 계산한 후보가 지도에 표시됩니다.')
+                : playMapMode === 'travel'
+                  ? `사이트 지도에서 다음 위치를 누르세요. 경로 편집에서 연결 타입과 순서를 고를 수 있습니다.${currentWeight > maxCarry ? ' 현재 과적 상태라 속도는 1입니다.' : ''}`
+                  : journeyUiContext.atDestination
+                    ? `${state.journeyDestination}에 도착했습니다. 남은 의무를 끝낸 뒤 여정 결말을 정하세요.`
+                    : '현재 단계의 판정을 마치면 다음 이동 경로를 다시 편집할 수 있습니다.'
+            }
+          />
+        </aside>
+        </details>
+        )}
       </div>
+        <section id="action-hub" className="action-hub" aria-label="현재 진행판">
+        <div className="action-hub__header">
+          <div>
+            <div className="document-kicker">작업 전환</div>
+            <h2>이곳에서 할 수 있는 일</h2>
+          </div>
+        </div>
+        <div className="action-hub__grid">
+                {actionHubItems.map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`action-step action-step--${item.tone || 'neutral'}`}
+                  data-play-action-id={item.id}
+                  onClick={() => handleActionHubItem(item)}
+                  disabled={item.disabled}
+                >
+              <span className="action-step__index">{index + 1}</span>
+              <span className="action-step__body">
+                <strong>{item.label}</strong>
+                <span>{item.detail}</span>
+                {item.meta && <em>{item.meta}</em>}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
     </div>
   );
 }
@@ -27529,11 +27523,10 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
         : '다음 여정을 시작할 수 있음';
 
   return (
-    <div className="parchment-panel cute-border bio-sheet" style={{ padding: '1.8rem', background: '#fffdf9' }}>
+    <div className="bio-sheet">
 
       {/* 1. Header with custom fonts */}
       <div className="bio-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2.5px solid var(--border-cozy)', paddingBottom: '0.8rem', marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.8rem', margin: 0, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)' }}>약제사 기록 시트</h2>
         <div className="bio-page-actions" style={{ display: 'flex', gap: '0.5rem' }}>
           <button
             type="button"
@@ -27602,7 +27595,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
             <div className="grid-2col bio-record-fold__content">
 
             {/* PoulticePounder (약제사) */}
-            <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff', position: 'relative' }}>
+            <div className="station-ledger" style={{ position: 'relative' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
                 <span style={{ fontSize: '1.8rem' }}><FieldIcon kind="paw" /></span>
                 <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>약제사 정보</h3>
@@ -27631,7 +27624,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
             </div>
 
             {/* Familiar (길동무) */}
-            <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff', position: 'relative' }}>
+            <div className="station-ledger" style={{ position: 'relative' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
                 <span style={{ fontSize: '1.8rem' }}><FieldIcon kind="paw" /></span>
                 <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>길동무</h3>
@@ -27669,7 +27662,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
           <div className="grid-bio-middle bio-workbench">
 
             {/* Bags (배낭 보관함) */}
-            <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff' }}>
+            <div className="station-ledger">
               {(() => {
                 const hasBandolier = hasTool(state, 'tool_bandolier') || hasTool(state, 'Greenpaw Bandolier');
 
@@ -28148,7 +28141,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
               {/* Companions (동반자) */}
-              <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff' }}>
+              <div className="station-ledger">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
                   <span style={{ fontSize: '1.8rem' }}><FieldIcon kind="reagents" /></span>
                   <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>동반자 곤충</h3>
@@ -28180,7 +28173,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
               </div>
 
               {/* Trinkets (장신구) */}
-              <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff' }}>
+              <div className="station-ledger">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
                   <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}><FieldIcon kind="coin" /> 물꼬 장신구</h3>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>보유: {state.trinkets.length}개</span>
@@ -28533,11 +28526,6 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
 
   return (
     <div className="herbarium-field-guide">
-      <header className="herbarium-field-guide__intro">
-        <div><span className="document-kicker">FIELD HERBARIUM</span><h2>영약재 관찰 기록</h2><p>지역이나 계절에서 먼저 훑고, 필요한 한 항목만 펼쳐 부위·조제법·약효를 확인하세요.</p></div>
-        <button type="button" onClick={() => onOpenReference({ entryId: 'chapter:reagents', title: '영약재와 조제법' })}>식별 규칙 p.126</button>
-      </header>
-
       <section className="herbarium-context" aria-label="현재 채집 참고">
         <button type="button" aria-pressed={regionFilter === currentRegion && seasonFilter === state.currentSeason} onClick={() => setViewState(current => ({ ...current, regionFilter: currentRegion, seasonFilter: state.currentSeason, patientOnly: false, expandedId: null }))}>
           <span>지금 이곳</span><strong>{state.currentLocationName} · {localizeRegionLabel(currentRegion)} · {localizeSeasonLabel(state.currentSeason)}</strong><small>현재 지역·계절에서 찾기</small>
@@ -28570,7 +28558,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
         </article>)}</div>}
       </section>}
 
-      <div className="herbarium-result-summary"><span aria-live="polite">관찰 기록 {rows.length}개 · 지금 {visibleRows.length}개 펼침</span>{(search || filter || typeFilter || regionFilter || seasonFilter || patientOnly) && <button type="button" onClick={clearFilters}>전체 도감 보기</button>}</div>
+      <div className="herbarium-result-summary"><span aria-live="polite">관찰 기록 {rows.length}개 · 지금 {visibleRows.length}개 펼침</span>{rows.length > 0 && (search || filter || typeFilter || regionFilter || seasonFilter || patientOnly) && <button type="button" onClick={clearFilters}>전체 도감 보기</button>}</div>
 
       <div className={`herbarium-workbench${selectedRow ? ' has-specimen' : ''}`}>
       {specimen}
@@ -28580,7 +28568,7 @@ function ReagentsView({ state, updateState, search, setSearch, filter, setFilter
           return <article key={reagent.id} className={`herbarium-entry ${expanded ? 'is-selected' : ''}`} role="listitem">
             <button type="button" className="herbarium-entry__summary" id={`reagent-button-${reagent.id}`} aria-expanded={expanded} aria-controls={expanded ? `specimen-${reagent.id}` : undefined} onClick={() => toggleSpecimen(reagent.id)}>
               <span className="herbarium-entry__folio">p.{reagent.sourcePage}</span>
-              <div><span className="document-kicker">{localizeReagentType(reagent.type)} · 기본 희귀도 {reagent.baseRarity}</span><h3>{formatReagentName(reagent)}</h3><p>{reagent.description}</p><div className="herbarium-entry__marks">{owned > 0 && <span>보유 {owned}</span>}{matchingParts.length > 0 && <span>현재 환자에 기여</span>}{inCurrentRegion && <span>{localizeRegionLabel(currentRegion)}에서 발견</span>}{inCurrentSeason && <span>{localizeSeasonLabel(state.currentSeason)}에 발견</span>}</div></div>
+              <div><span className="document-kicker">{localizeReagentType(reagent.type)} · 기본 희귀도 {reagent.baseRarity}</span><h3>{formatReagentName(reagent)}</h3><div className="herbarium-entry__marks">{owned > 0 && <span>보유 {owned}</span>}{matchingParts.length > 0 && <span>현재 환자에 기여</span>}{inCurrentRegion && <span>{localizeRegionLabel(currentRegion)}에서 발견</span>}{inCurrentSeason && <span>{localizeSeasonLabel(state.currentSeason)}에 발견</span>}</div></div>
               <span className="herbarium-entry__toggle">{expanded ? '선택됨' : '펼치기'}</span>
             </button>
 
@@ -28616,17 +28604,14 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
   });
 
   return (
-    <div>
-      <h2 style={{ color: 'var(--primary)', borderBottom: '1.5px solid var(--glass-border)', paddingBottom: '0.5rem' }}>병세와 처방 관찰</h2>
-      <p style={{ fontSize: '0.95rem', color: 'var(--text-muted)' }}>
-        약제사는 길녘에서 만나는 야수들의 다양한 병증을 살핍니다. 환자의 병명을 이 기록에서 대조하여 알맞은 탕약을 지으세요.
-      </p>
+    <div className="ailment-catalogue">
 
       {/* Search and Filters */}
       <div className="ailment-search" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', margin: '1rem 0' }}>
         <input
-          type="text"
-          placeholder="기록장에서 병색 찾아보기..."
+          type="search"
+          aria-label="질환 이름 검색"
+          placeholder="질환 이름 또는 원문 이름 검색"
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{ flex: 1 }}
@@ -28637,17 +28622,21 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
         </select>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '0.5rem' }}>
+      <p className="catalogue-result-count" role="status">질환 {filtered.length}개 · 이름, 등급, 치료 기한 순으로 비교하세요.</p>
+      {filtered.length === 0 && <div className="catalogue-empty"><strong>조건에 맞는 질환이 없습니다.</strong><p>다른 이름을 검색하거나 약효 조건을 풀어보세요.</p><button type="button" onClick={() => { setSearch(''); setFilter(''); }}>모든 질환 보기</button></div>}
+      <div className="ailment-register">
         {filtered.map((a, i) => {
           const cleanedName = cleanAilmentName(a.name);
           return (
-            <div key={i} className="cute-card ailment-card" style={{ background: '#fafafa', padding: '1.2rem', borderRadius: '12px' }}>
-              <h4 className="ailment-card__header" style={{ margin: 0, color: 'var(--primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1.1rem', fontWeight: 'bold' }}>
+            <details key={a.rawName || i} className="ailment-card">
+              <summary className="ailment-card__header">
                 <span>{cleanedName}</span>
                 <span className="ailment-card__timing">
                   등급: {localizeSeverityLabel(a.severity)} | 시간: {a.timer}시간
                 </span>
-              </h4>
+                <span className="ailment-card__open">상세<span aria-hidden="true" className="ailment-card__toggle-mark" /></span>
+              </summary>
+              <div className="ailment-card__detail">
               {a.sourceNote && <p className="ailment-source-note">{a.sourceNote}</p>}
               <div className="ailment-card__requirements" style={{ marginTop: '0.4rem', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <strong><FieldIcon kind="ailments" /> 요구 약효 태그:</strong> {parseAndRenderTags(a.tags)}
@@ -28716,7 +28705,8 @@ function AilmentsView({ state, updateState, search, setSearch, filter, setFilter
                   <FieldIcon kind="home" /> 이 환자를 현재 약제소에 진단/등록
                 </button>
               )}
-            </div>
+              </div>
+            </details>
           );
         })}
       </div>

@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest';
 
 const cssSource: string = readFileSync(fileURLToPath(new URL('./workspace.css', import.meta.url)), 'utf8');
 const appSource: string = readFileSync(fileURLToPath(new URL('./App.tsx', import.meta.url)), 'utf8');
-const desktopSource = cssSource.split('@media')[0];
+const baseSource: string = readFileSync(fileURLToPath(new URL('./index.css', import.meta.url)), 'utf8');
+const desktopSource = baseSource.split('@media')[0] + cssSource.split('@media')[0];
 const writingKeys = ['originJournal', 'mementoNote', 'familiarJournal', 'relationshipJournal'];
 
 // Small source guards supplement browser checks; they do not simulate the CSS cascade.
@@ -14,7 +15,8 @@ const rulesIn = (source: string) => [...source.replace(/\/\*[\s\S]*?\*\//g, '').
   .map(([, selector, body]) => ({ selector: selector.trim(), body }));
 
 const declarationsFor = (selector: string, source = desktopSource): string => {
-  const rule = rulesIn(source).find(candidate => candidate.selector === selector);
+  const matching = rulesIn(source).filter(candidate => candidate.selector.split(',').map(part => part.trim()).includes(selector));
+  const rule = matching.length ? { body: matching.map(row => row.body).join(';') } : undefined;
   expect(rule, `Missing presentation rule: ${selector}`).toBeDefined();
   return rule?.body || '';
 };
@@ -35,7 +37,7 @@ const mobileSource = () => {
   throw new Error('Unclosed mobile presentation block');
 };
 
-describe('book object layout regression guards', () => {
+describe('field station layout regression guards', () => {
   it('wraps long register labels without clipping their focus outline', () => {
     const register = declarationsFor('.journal-subtabs');
     const button = declarationsFor('.journal-subtabs button');
@@ -57,7 +59,7 @@ describe('book object layout regression guards', () => {
       return input.match(/aria-label="([^"]+)"/)?.[1];
     });
     expect(accessibleNames).toEqual(['기록 불러오기', '사진 선택', '사진 추가']);
-    const fileInput = declarationsFor('.folio-file-control input[type="file"]');
+    const fileInput = declarationsFor('.folio-file-control input[type=file]');
     expect(property(fileInput, 'display')).not.toBe('none');
     expect(property(fileInput, 'visibility')).not.toBe('hidden');
     expect(property(fileInput, 'width')).toBe('100%');
@@ -79,8 +81,8 @@ describe('book object layout regression guards', () => {
 
   it('keeps index, register, file, and journal action targets at least 44px high', () => {
     [
-      '.journal-tabs.workspace-nav .journal-tab',
-      '.workspace-nav__more > summary',
+      '.station-nav-group .journal-tab',
+      'button',
       '.journal-subtabs button'
     ].forEach(selector => {
       const height = property(declarationsFor(selector), 'min-height');

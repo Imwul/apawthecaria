@@ -50,7 +50,7 @@ const spoolkeep: MapPlace = {
 };
 
 const mapSource = readFileSync(fileURLToPath(new URL('./PaperMap.tsx', import.meta.url)), 'utf8');
-const cssSource = readFileSync(fileURLToPath(new URL('../index.css', import.meta.url)), 'utf8');
+const cssSource = readFileSync(fileURLToPath(new URL('../index.css', import.meta.url)), 'utf8') + readFileSync(fileURLToPath(new URL('../feature-layout.css', import.meta.url)), 'utf8');
 const appSource = readFileSync(fileURLToPath(new URL('../App.tsx', import.meta.url)), 'utf8');
 const appearanceSource = readFileSync(fileURLToPath(new URL('./MapNodeAppearance.tsx', import.meta.url)), 'utf8');
 

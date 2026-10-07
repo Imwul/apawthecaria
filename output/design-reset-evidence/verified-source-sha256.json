@@ -1,0 +1,18 @@
+{
+  "src/App.tsx": "8e852cc5f4938148a35e29361ea1f83e4eb5d59e02de5fac1405a1ca3ff79777",
+  "src/components/JournalExperience.tsx": "4f64a46d758c4093ec3320b897e81400018eee07ee21ed54b6e0f75f2a4bb5c7",
+  "src/main.tsx": "272a544436d5818ca75db86a9b8fb9a76cdce02708d61b7d6c8b0469c82e2b35",
+  "src/index.css": "f1a3a0cee69c352b0c6cc691706816f5ea2a9e68dd7c66601d426d2707d7b2de",
+  "src/feature-layout.css": "3acb9c832276045040f2179ea457be6a7b2588b27c897f12d2b00ddacd467245",
+  "src/workspace.css": "803e220ef1f830f774c100b5f93de5c707ecf3055edd98a6805a6b67b24e73eb",
+  "src/components/JournalExperience.test.tsx": "94c07985b03aaf02def540e0873857c039337fb4f18f6367a0a70d01958ad26f",
+  "src/bookObjectLayout.test.ts": "15bf2ee55d7fe4cdf99fad683c7ea16a070cd9455566b639c5787737b4354817",
+  "src/mobileLayout.test.ts": "638ee098077bb8f80a3e674c9ce14b4269b96c79c6231dc96d2bc68a9e7f3f16",
+  "src/appNotice.test.ts": "a988b65c1b5c669657cb2c1074f41c21f08e3384b84f57ed1ddd1b2db89d0747",
+  "src/homeResume.test.ts": "0b0f61c73aa4c90e1957b385f2e662d643577630d738bb38dd2400acabf17e3b",
+  "src/map/mapView.test.ts": "a7416b4b2e59e169c950c7843e2c0f1374a72947dfb76f7d8910f7866fa41225",
+  "src/patientJourneyExperience.test.ts": "6c6a6618823a7a063adf06b2ae5c4c75646df05a6bf8666c79f6aaa85cee39a4",
+  "src/rulebook/referenceRegistry.test.ts": "537edac3495c500043297107cfbf13eee590ca0e4f136db29b8d3de613336dd9",
+  "package.json": "e4dc33e23b25e86288a1333238387a7a2d80de6fdd4dec7c037c59d2f5f035b3",
+  "package-lock.json": "60cc1315f3c7706a1ad2642e3d819844bc0dcb5d0b71c3523fee5ee8e8f67ae5"
+}

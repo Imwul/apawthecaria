@@ -166,7 +166,7 @@ describe('personal rulebook transplant registry', () => {
     expect(drawerSource).toContain("window.matchMedia('(max-width: 820px)').matches");
     expect(drawerSource).toContain("if (locksPageScroll) document.body.style.overflow = 'hidden'");
     expect(almanackSource).toContain('개인 참고 기록 정말 비우기');
-    expect(cssSource).toMatch(/@media \(max-width: 820px\)[\s\S]*?\.rulebook-drawer\s*\{[\s\S]*?width:\s*100vw/);
-    expect(cssSource).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(cssSource).toMatch(/\.rulebook-drawer\s*\{[^}]*width:\s*min\(800px,100%\)/);
+    expect(cssSource).toContain('@media(prefers-reduced-motion:reduce)');
   });
 });

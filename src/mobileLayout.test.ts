@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 const appSource = readFileSync(fileURLToPath(new URL('./App.tsx', import.meta.url)), 'utf8');
 const routeComposerSource = readFileSync(fileURLToPath(new URL('./components/RouteComposer.tsx', import.meta.url)), 'utf8');
-const cssSource = readFileSync(fileURLToPath(new URL('./index.css', import.meta.url)), 'utf8') + readFileSync(fileURLToPath(new URL('./workspace.css', import.meta.url)), 'utf8');
+const cssSource = readFileSync(fileURLToPath(new URL('./index.css', import.meta.url)), 'utf8') + readFileSync(fileURLToPath(new URL('./workspace.css', import.meta.url)), 'utf8') + readFileSync(fileURLToPath(new URL('./feature-layout.css', import.meta.url)), 'utf8');
 
 describe('mobile layout regression guards', () => {
   it('never hides save feedback and wraps long cloud/error states outside the title lane', () => {
@@ -16,7 +16,7 @@ describe('mobile layout regression guards', () => {
     expect(hiddenSaveRules).toEqual([]);
     expect(cssSource).toMatch(/\.journal-header \.journal-header__utilities\s*\{[^}]*position:\s*static;[^}]*flex-wrap:\s*wrap;/);
     expect(cssSource).toMatch(/\.journal-header \.save-state\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
-    expect(cssSource).toMatch(/\.journal-header \.save-state\s*\{[^}]*flex-basis:\s*100%;/);
+    expect(cssSource).toMatch(/\.journal-header \.save-state\s*\{[^}]*flex-basis:\s*auto;/);
     expect(appSource).toContain("saveStatus === 'error' || localSaveUnavailable ? 'error' : saveStatus");
     expect(appSource).toContain("role={saveStatus === 'error' || localSaveUnavailable ? 'alert' : 'status'}");
   });
@@ -24,7 +24,7 @@ describe('mobile layout regression guards', () => {
   it('allows multi-option ailment requirements to wrap inside the document gutter', () => {
     expect(appSource).toContain('className="tag-choice-group"');
     expect(appSource).toContain('className="ailment-card__outcomes"');
-    expect(cssSource).toMatch(/\.tag-choice-group\s*\{[\s\S]*?max-width:\s*100%;[\s\S]*?flex-wrap:\s*wrap;/);
+    expect(cssSource).toMatch(/\.tag-choice-group\s*\{[\s\S]*?flex-wrap:\s*wrap;[\s\S]*?max-width:\s*100%;/);
     expect(cssSource).toMatch(/\.ailment-card__outcomes\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s*!important;/);
   });
 
@@ -47,7 +47,7 @@ describe('mobile layout regression guards', () => {
     expect(cssSource).toMatch(/\.encounter-dialog-actions\s*\{[\s\S]*?display:\s*grid\s*!important/);
     expect(appSource).toContain('className="encounter-journal-note"');
     expect(appSource).toContain('defaultValue={activeTravelEncounter.journalNote || state.pendingEncounter?.journalNote || \'\'}');
-    expect(cssSource).toMatch(/\.encounter-journal-note textarea\s*\{[\s\S]*?font-size:\s*1\.0625rem\s*!important/);
+    expect(cssSource).toMatch(/\.encounter-journal-note textarea\s*\{[\s\S]*?font-size:\s*18px\s*!important/);
   });
 
   it('keeps the current task ahead of historical and fallback material', () => {
@@ -60,23 +60,23 @@ describe('mobile layout regression guards', () => {
     expect(cssSource).toMatch(/\.patient-intake__history\s*\{[\s\S]*?order:\s*10/);
   });
 
-  it('keeps gameplay controls and semantic copy above the fine-print scale', () => {
-    expect(cssSource).toMatch(/\.main-content-panel :is\(button, input, select, textarea\)[\s\S]*?font-size:\s*1\.125rem\s*!important/);
-    expect(cssSource).toMatch(/\.main-content-panel :is\(p, li, dt, dd, label, td, th\)[\s\S]*?font-size:\s*max\(1\.25rem, 1em\)/);
-    expect(cssSource).toMatch(/\.save-state,[\s\S]*?\.action-hub__chip,[\s\S]*?font-size:\s*1\.0625rem\s*!important/);
-    expect(cssSource).toMatch(/#treatment-workspace :is\(p, span, strong, small, summary, label\),[\s\S]*?font-size:\s*1\.0625rem\s*!important/);
-    expect(cssSource).toMatch(/\.route-composer :is\(span, small, strong, em\)\s*\{[\s\S]*?font-size:\s*1\.0625rem\s*!important/);
+  it('keeps readable controls, semantic copy, and visible keyboard focus', () => {
+    expect(cssSource).toMatch(/\.main-content-panel :is\(button,input,select,textarea\)[^}]*font-size:\s*16px\s*!important/);
+    expect(cssSource).toMatch(/\.main-content-panel :is\(p,li,dt,dd,label,td,th\)[^}]*font-size:\s*max\(1rem,1em\)/);
+    expect(cssSource).toMatch(/body\s*\{[^}]*font:\s*18px\/1\.65/);
+    expect(cssSource).toMatch(/:focus-visible\s*\{[^}]*outline:\s*3px solid/);
+    expect(cssSource).toContain('@media(prefers-reduced-motion:reduce)');
   });
 
   it('keeps treatment comparison, selection, and its primary action in one responsive workspace', () => {
     expect(appSource).toContain('className="treatment-comparison"');
     expect(appSource).toContain('className="treatment-workspace"');
     expect(appSource).toContain('className={`treatment-submit-bar');
-    expect(cssSource).toMatch(/#treatment-workspace \.treatment-workspace\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\)/);
+    expect(cssSource).toMatch(/#treatment-workspace \.treatment-workspace\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\) minmax\(0,\s*1fr\)/);
     expect(cssSource).toMatch(/\.treatment-submit-actions > button\s*\{[\s\S]*?min-height:\s*50px/);
     expect(cssSource).toMatch(/\.patience-clock-mark\s*\{[\s\S]*?min-width:\s*44px[\s\S]*?min-height:\s*44px/);
     expect(cssSource).toMatch(/\.trinket-spend-button\s*\{[\s\S]*?min-width:\s*44px[\s\S]*?min-height:\s*44px/);
-    expect(cssSource).toMatch(/@media \(max-width: 560px\)[\s\S]*?#treatment-workspace \.treatment-workspace,[\s\S]*?\.treatment-submit-bar\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/);
+    expect(cssSource).toMatch(/@media\s*\(max-width:\s*760px\)[\s\S]*?#treatment-workspace \.treatment-workspace,[\s\S]*?\.treatment-submit-bar\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/);
   });
 
   it('exposes the season resolver after downtime outside an active journey', () => {
@@ -98,14 +98,17 @@ describe('mobile layout regression guards', () => {
     expect(cssSource).toMatch(/\.downtime-activity-card\.is-selected\s*\{[\s\S]*?grid-column:\s*1 \/ -1/);
   });
 
-  it('keeps a play-tab map beside journey setup without covering the paper map', () => {
+  it('keeps an optional play-tab map after the primary procedure', () => {
     expect(appSource).toContain('id="play-journey-map"');
     expect(appSource).toContain('variant="companion"');
     expect(appSource).toContain('<RouteComposer');
     expect(appSource).toContain('약제사 시작 기록');
     expect(cssSource).toMatch(/\.play-with-map\s*\{/);
     expect(cssSource).toMatch(/\.route-composer\s*\{/);
-    expect(cssSource).toMatch(/@media \(min-width: 1100px\)[\s\S]*?\.play-with-map__map\s*\{[\s\S]*?position:\s*sticky;[\s\S]*?top:\s*calc\(4rem \+ 0\.75rem\);[\s\S]*?max-height:\s*calc\(100dvh - 5\.5rem\);[\s\S]*?overflow-y:\s*auto;/);
+    expect(appSource).toContain('<details className="workspace-map-preview">');
+    expect(appSource).not.toContain('<details className="workspace-map-preview" open=');
+    const procedures = appSource.slice(appSource.indexOf('<div className="station-procedures">'));
+    expect(procedures.indexOf('id="route-planning-panel"')).toBeLessThan(procedures.indexOf('id="play-journey-map"'));
     expect(appSource).toContain('문양 방향: ♥ 북쪽/위 · ♦ 남쪽/아래 · ♣ 동쪽/오른쪽 · ♠ 서쪽/왼쪽.');
   });
 
@@ -141,7 +144,7 @@ describe('mobile layout regression guards', () => {
     expect(appSource).toContain('className="forage-reference-link"');
     expect(appSource).toContain('className="inventory-reference-button"');
     expect(cssSource).toMatch(/@media \(max-width: 820px\)[\s\S]*?\.rulebook-context-shelf,[\s\S]*?\.herbarium-context,[\s\S]*?\.herbarium-entry__detail[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/);
-    expect(cssSource).toMatch(/@media \(max-width: 480px\)[\s\S]*?\.herbarium-controls\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+    expect(cssSource).toMatch(/@media\s*\(max-width:\s*760px\)[\s\S]*?\.herbarium-controls\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) minmax\(0,\s*1fr\)/);
     expect(cssSource).toMatch(/\.rulebook-reference-detail__actions button,[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px/);
   });
 
