@@ -764,6 +764,7 @@ export function PaperMap({
         </div>
       </div>
 
+      <div className="paper-map__tools">
       <div className="paper-map__controls" aria-label="지도 조절">
         <button type="button" onClick={() => applyScale(scale - 0.25)} aria-label="축소">−</button>
         <button type="button" onClick={() => applyScale(scale + 0.25)} aria-label="확대">+</button>
@@ -908,6 +909,7 @@ export function PaperMap({
           </section>
         </div>
       )}
+      </div>
 
       {createDraft && onCreatePlace && !layersOpen && !searchOpen && (
         <aside className="paper-map__sheet" aria-label="새 표시 고르기">

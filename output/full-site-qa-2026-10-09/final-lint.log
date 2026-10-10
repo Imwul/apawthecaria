@@ -1,0 +1,6 @@
+
+> temp-app@1.0.0 lint
+> eslint .
+
+[BABEL] Note: The code generator has deoptimised the styling of /Users/imwul/Library/Mobile Documents/com~apple~CloudDocs/apawthecaria-apo/src/App.tsx as it exceeds the max of 500KB.
+[BABEL] Note: The code generator has deoptimised the styling of /Users/imwul/Library/Mobile Documents/com~apple~CloudDocs/apawthecaria-apo/tmp/full-site-qa-baseline/App.tsx as it exceeds the max of 500KB.

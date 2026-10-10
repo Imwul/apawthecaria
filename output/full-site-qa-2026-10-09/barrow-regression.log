@@ -1,0 +1,12 @@
+
+> temp-app@1.0.0 test
+> vitest run src/barrowPatientBoundary.test.ts src/rules/barrowCompletion.test.ts src/rules/barrowEngine.test.ts
+
+
+ RUN  v4.1.10 /Users/imwul/Library/Mobile Documents/com~apple~CloudDocs/apawthecaria-apo
+
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  22:25:41
+   Duration  342ms (transform 88ms, setup 0ms, import 276ms, tests 3ms, environment 0ms)

@@ -48,7 +48,11 @@ describe('local-care journey composition', () => {
     expect(appSource).toContain('const keepsActiveTreatmentOpen = patientHasActiveAilments(runtime.patient);');
     expect(appSource).toContain('const activePatientId = keepsActiveTreatmentOpen');
     expect(appSource).toContain('keepsCuredPatientOpen');
-    expect(appSource).toContain('if (!journeyUiContext.canMove) {\n      addActionHubItem({\n        id: \'clinic-open\'');
+    const clinicCondition = appSource.match(/if \(([^\n]*!journeyUiContext\.canMove[^\n]*)\) \{\s*addActionHubItem\(\{\s*id: 'clinic-open'/)?.[1] || '';
+    expect(clinicCondition).toContain('!journeyUiContext.canMove');
+    expect(clinicCondition).toContain('!state.activeAilment');
+    expect(clinicCondition).toContain('!state.scroungingMode');
+    expect(clinicCondition).not.toContain('activePatientId');
     expect(appSource).toContain("if (journeyUiContext.canMove && !state.pursuedByBehemoth\n      && !state.activeAilment && !state.scroungingMode)");
     expect(appSource).not.toContain("if (journeyUiContext.canMove && !state.pursuedByBehemoth\n      && !state.activePatientId && !state.activeAilment && !state.scroungingMode)");
   });

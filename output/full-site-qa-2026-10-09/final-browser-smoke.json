@@ -1,0 +1,202 @@
+{
+  "screens": [
+    {
+      "name": "진행",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360,
+      "url": "http://127.0.0.1:5173/#play"
+    },
+    {
+      "name": "지도",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360,
+      "url": "http://127.0.0.1:5173/#map"
+    },
+    {
+      "name": "약제사·배낭",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360,
+      "url": "http://127.0.0.1:5173/#bio"
+    },
+    {
+      "name": "영약재",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360,
+      "url": "http://127.0.0.1:5173/#reagents"
+    },
+    {
+      "name": "규칙",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360,
+      "url": "http://127.0.0.1:5173/#almanack"
+    },
+    {
+      "name": "일지",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360,
+      "url": "http://127.0.0.1:5173/#journals"
+    },
+    {
+      "name": "질환 사전",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360,
+      "url": "http://127.0.0.1:5173/#ailments"
+    },
+    {
+      "name": "진료 기록",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360,
+      "url": "http://127.0.0.1:5173/#patientArchive"
+    },
+    {
+      "name": "발견과 기억",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360,
+      "url": "http://127.0.0.1:5173/#livingArchive"
+    },
+    {
+      "name": "진행",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768,
+      "url": "http://127.0.0.1:5173/#play"
+    },
+    {
+      "name": "지도",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768,
+      "url": "http://127.0.0.1:5173/#map"
+    },
+    {
+      "name": "약제사·배낭",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768,
+      "url": "http://127.0.0.1:5173/#bio"
+    },
+    {
+      "name": "영약재",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768,
+      "url": "http://127.0.0.1:5173/#reagents"
+    },
+    {
+      "name": "규칙",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768,
+      "url": "http://127.0.0.1:5173/#almanack"
+    },
+    {
+      "name": "일지",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768,
+      "url": "http://127.0.0.1:5173/#journals"
+    },
+    {
+      "name": "질환 사전",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768,
+      "url": "http://127.0.0.1:5173/#ailments"
+    },
+    {
+      "name": "진료 기록",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768,
+      "url": "http://127.0.0.1:5173/#patientArchive"
+    },
+    {
+      "name": "발견과 기억",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768,
+      "url": "http://127.0.0.1:5173/#livingArchive"
+    },
+    {
+      "name": "진행",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440,
+      "url": "http://127.0.0.1:5173/#play"
+    },
+    {
+      "name": "지도",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440,
+      "url": "http://127.0.0.1:5173/#map"
+    },
+    {
+      "name": "약제사·배낭",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440,
+      "url": "http://127.0.0.1:5173/#bio"
+    },
+    {
+      "name": "영약재",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440,
+      "url": "http://127.0.0.1:5173/#reagents"
+    },
+    {
+      "name": "규칙",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440,
+      "url": "http://127.0.0.1:5173/#almanack"
+    },
+    {
+      "name": "일지",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440,
+      "url": "http://127.0.0.1:5173/#journals"
+    },
+    {
+      "name": "질환 사전",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440,
+      "url": "http://127.0.0.1:5173/#ailments"
+    },
+    {
+      "name": "진료 기록",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440,
+      "url": "http://127.0.0.1:5173/#patientArchive"
+    },
+    {
+      "name": "발견과 기억",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440,
+      "url": "http://127.0.0.1:5173/#livingArchive"
+    }
+  ],
+  "checks": {
+    "canonicalLivingArchive": true,
+    "mapSearchCloseLayers": "PASS at360/768/1440",
+    "canonicalPlayMemory": true,
+    "canonicalJournalMemory": true,
+    "refreshRetainsRecord": true
+  },
+  "pageErrors": [],
+  "consoleErrors": []
+}

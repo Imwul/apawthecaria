@@ -1,8 +1,32 @@
 // @ts-expect-error Vitest runs this source audit in Node; the app build intentionally exposes browser types only.
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import * as ts from 'typescript';
+import { REAGENTS, TOOL_BY_ID, isForagingPreparationAvailableInSeason, resolveForaging } from './rules';
+import { splitForagingTags, formatReagentName } from './foragingInventoryPresentation';
+import { localizePreparationName, localizePreparationMethod, localizeInventoryItemName } from './localization/gameplayKo';
+import { formatRuleTag } from './localization/tagReadingKo';
 
 const appSource = readFileSync('src/App.tsx', 'utf8');
+
+/** Execute the app's real callback with a cancelled prompt. This catches UI
+ * rejection before the otherwise-correct engine can receive a selection. */
+const harvestCallback = (bindings: Record<string, unknown>) => {
+  const source = ts.createSourceFile('App.tsx', appSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let initializer: ts.Expression | undefined;
+  const findHandler = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === 'handleAddForageFindToBag') {
+      initializer = node.initializer;
+    } else ts.forEachChild(node, findHandler);
+  };
+  findHandler(source);
+  if (!initializer) throw new Error('Harvest callback was not found');
+  const javascript = ts.transpileModule(`const handler = ${initializer.getText(source)};`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None }
+  }).outputText;
+  return new Function(...Object.keys(bindings), `${javascript}\nreturn handler;`)(...Object.values(bindings)) as
+    (find: { reagentId: string; name: string }, index: number) => Promise<void>;
+};
 
 describe('foraging workflow order', () => {
   it('records the reagent research list before drawing, then leaves the gathered part choice until after the card', () => {
@@ -49,7 +73,7 @@ describe('foraging workflow order', () => {
     expect(appSource).not.toContain('이번 카드로 발견한 재료');
   });
 
-  it('shows seasonally obtainable effects per part and marks preparation methods blocked by missing tools', () => {
+  it('shows seasonally obtainable effects per part and identifies tools needed later for preparation', () => {
     expect(appSource).toContain('const foragePreparationOptions = (find: ForageFind) =>');
     expect(appSource).toContain('isForagingPreparationAvailableInSeason(part, state.currentSeason)');
     expect(appSource).toContain("missingTools: part.requiredTools.filter(tool => tool !== 'none' && !forageToolIds.has(tool))");
@@ -58,7 +82,7 @@ describe('foraging workflow order', () => {
     expect(appSource).toContain('className="forage-candidate__tags"');
     expect(appSource).toContain('부위와 조제법마다 얻을 수 있는 효과');
     expect(appSource).toContain('부위별 효과 · 한 줄이 한 가지 선택지입니다');
-    expect(appSource).toContain('흐린 행은 필요한 조제 도구가 없어 이번에는 고를 수 없습니다.');
+    expect(appSource).toContain('조제 도구가 없어도 부위는 채집할 수 있습니다.');
     expect(appSource).toContain('<RuleTagBadge tag={tag} value={value} />');
     expect(appSource).not.toContain('highestValueByTag');
   });
@@ -69,9 +93,55 @@ describe('foraging workflow order', () => {
     expect(appSource).toContain('<small>치료 약효</small>');
     expect(appSource).toContain('<small>거래 가치 · FAIR/FOUL</small>');
     expect(appSource).toContain('일반 치료 태그와 FAIR/FOUL 거래 가치는 서로 다른 칸에서 확인하세요.');
-    expect(appSource).toContain('도구가 없는 조제법도 미리 볼 수 있지만 이번에는 선택할 수 없습니다.');
-    expect(appSource).toContain('disabledReason: missingTools.length > 0');
+    expect(appSource).toContain('도구는 치료제를 준비할 때 필요합니다.');
     expect(appSource).toContain('선택한 행의 효과만 획득');
+  });
+
+  it.each(['Summer', 'Spring'] as const)('offers every seasonal Cherry Tree part in the actual UI callback without preparation tools (%s)', async season => {
+    const cherry = REAGENTS.find(row => row.canonicalName === 'Cherry Trees')!;
+    const cookedCherries = cherry.preparations.find(part => part.name === 'Cherries' && part.method === 'COOKED')!;
+    const state = {
+      currentSeason: season, pendingForaging: { transactionId: 'ui-harvest-check' },
+      patients: [], bag: [], activePatientId: null
+    };
+    type Prompt = { message: string; options: Array<{ value: string; disabled?: boolean; meta?: string }> };
+    const prompts: Prompt[] = [];
+    const requestControlledPrompt = vi.fn(async (request: Prompt) => { prompts.push(request); return null; });
+    const showAlert = vi.fn();
+    const busy = { current: false };
+    const run = harvestCallback({
+      state, REAGENTS, TOOL_BY_ID, forageCandidateActionRef: busy,
+      canonicalToolsFromState: () => [], isForagingPreparationAvailableInSeason,
+      setForageCandidateActionBusy: vi.fn(), setActiveForageEncounter: vi.fn(), updateState: vi.fn(),
+      getTreatmentAilmentDefinition: () => undefined,
+      requestControlledPrompt, showAlert,
+      localizeSeasonLabel: (value: string) => value,
+      splitForagingTags, formatReagentName, formatRuleTag, localizePreparationName, localizePreparationMethod,
+      localizeInventoryItemName, formatWeight: (value: number) => String(value),
+      treatmentRelevantPreparationTags: () => []
+    });
+    await run({ reagentId: cherry.id, name: cherry.canonicalName }, 0);
+    expect(requestControlledPrompt).toHaveBeenCalledTimes(1);
+    expect(showAlert).not.toHaveBeenCalled();
+    const options = prompts[0].options;
+    const seasonal = cherry.preparations.filter(part => isForagingPreparationAvailableInSeason(part, season));
+    expect(options.map(option => option.value)).toEqual(seasonal.map(part => part.id));
+    expect(options.every(option => !option.disabled)).toBe(true);
+    expect(busy.current).toBe(false);
+    if (season === 'Summer') {
+      const cherries = options.find(option => option.value === cookedCherries.id);
+      expect(cherries).toBeDefined();
+      expect(cherries!.meta).toContain('조제 때 필요:');
+      const gathered = resolveForaging({
+        transactionId: 'ui-engine-harvest',
+        state: { season, currentRegion: 'Forest', currentLocationType: 'Wilds', foragingPoints: 0, inventory: [], toolIds: [] },
+        forageRegion: 'Forest', locationRelation: 'current', card: 12,
+        targetReagentId: cherry.id, parts: [{ preparationId: cookedCherries.id, quantity: 1 }], skipEncounter: true
+      });
+      expect(gathered.value?.gatheredItems[0]?.preparationId).toBe(cherries!.value);
+    } else {
+      expect(options.some(option => option.value === cookedCherries.id)).toBe(false);
+    }
   });
 
   it('keeps optional gather decisions inside the app without changing decline semantics', () => {

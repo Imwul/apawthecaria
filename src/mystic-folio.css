@@ -1,0 +1,314 @@
+/* A lit field journal in the woods: source artwork outside the working ink. */
+:root {
+  --font-folio: 'AppleMyungjo', 'Noto Serif KR', 'Nanum Myeongjo', Georgia, serif;
+  --ink: #322f27;
+  --text-muted: #706b5d;
+  --text-dim: #706b5d;
+  --primary: #8b4c32;
+  --primary-hover: #673420;
+  --primary-light: #eee0c9;
+  --secondary: #355a52;
+  --secondary-hover: #25473f;
+  --secondary-light: #e6e9d9;
+  --surface: #f5eedb;
+  --surface-muted: #ebe0c5;
+  --paper-light: #fff9e9;
+  --glass: #fff9e9;
+  --glass-card: #fff9e9;
+  --glass-border: #d0c5a9;
+  --border-cozy: #bdb193;
+  --line: #d3c8ac;
+  --rail: #242e29;
+  --rail-muted: #c8c5af;
+  --folio-gold: #af9258;
+  --folio-night: #172622;
+  --folio-violet: #716079;
+}
+
+body {
+  background: var(--folio-night);
+}
+.station-app {
+  min-height: 100dvh;
+  padding: 28px clamp(20px, 2vw, 76px);
+  background:
+    linear-gradient(90deg, #12211fe0, #152720a8 42%, #18251db0 70%, #171e22e0),
+    url('/art/forest-folio.jpg') center / cover fixed;
+}
+.station-shell {
+  width: 100%;
+  max-width: 2760px;
+  margin-inline: auto;
+  grid-template-columns: 232px minmax(0, 1fr);
+  border: 1px solid #a48f604d;
+  border-radius: 5px;
+  box-shadow: 0 24px 100px #050e0bbb, 0 0 0 5px #a48f6012;
+  background: var(--surface);
+  overflow: clip;
+}
+.station-rail {
+  top: 28px;
+  height: calc(100dvh - 56px);
+  padding-top: 36px;
+  border-right: 1px solid #b3996138;
+  background:
+    linear-gradient(#1f2925eb, #24332af5 50%, #172823eb),
+    url('/art/botanical-endpaper.webp') center / 500px;
+}
+.journal-brand { position: relative; padding-bottom: 36px; }
+.journal-brand::after {
+  content: '✦';
+  display: block;
+  color: #bfa16b;
+  font-size: 16px;
+  margin-top: 22px;
+  letter-spacing: 8px;
+  text-align: center;
+  border-block: 1px solid #bba16c36;
+}
+.journal-brand__eyebrow { color: #c1b997; font-size: 10px; }
+.journal-brand__title { color: #f0e4c5; font-size: 34px; }
+.journal-brand__edition { color: #babca7; font-size: 12px; }
+.direct-navigation__main .journal-tab,
+.direct-navigation__archives .journal-tab { color: #e1ddc9; }
+.direct-navigation__main .journal-tab--active,
+.direct-navigation__archives .journal-tab--active,
+.direct-navigation__main .journal-tab--active:hover,
+.direct-navigation__archives .journal-tab--active:hover {
+  color: #f5e8c7;
+  background: #84907725;
+  border: 1px solid #c5ad7166;
+  box-shadow: inset 3px 0 #c9a663;
+}
+.direct-navigation__more { border-color: #bba16c38; }
+.station-identity { border-color: #bba16c38; }
+.station-identity > strong { font-family: var(--font-folio); font-size: 17px; line-height: 1.8; }
+.station-rail-mark { color: #baa165; }
+.station-workspace {
+  background:
+    radial-gradient(ellipse at 5% 0, #fff8dc99, transparent 45%),
+    linear-gradient(90deg, #ddd0b82b, transparent 3%, transparent 97%, #c3b08d26),
+    var(--surface);
+}
+.journal-header {
+  min-height: 78px;
+  border-bottom-color: #bdae8780;
+  background: #f6eddad9;
+  padding-inline: clamp(24px, 2.2vw, 60px);
+}
+.adventure-context strong { color: var(--secondary); }
+.adventure-context__patient strong { color: var(--folio-violet); }
+.station-canvas {
+  max-width: 2240px;
+  padding: 0 clamp(24px, 2.2vw, 60px) 48px;
+}
+.folio-frontispiece {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 144px;
+  gap: 28px;
+  margin-bottom: 30px;
+  border-bottom: 1px solid #b9a678;
+  overflow: hidden;
+}
+.folio-frontispiece::after {
+  content: '✧';
+  position: absolute;
+  bottom: -1px;
+  right: 14px;
+  color: var(--folio-gold);
+  background: var(--surface);
+  padding-inline: 12px;
+  font-size: 26px;
+  line-height: 16px;
+}
+.folio-frontispiece__art {
+  width: 240px;
+  height: 144px;
+  object-fit: cover;
+  object-position: 40% 38%;
+  mix-blend-mode: multiply;
+  mask-image: linear-gradient(90deg, #000 70%, transparent);
+}
+.folio-frontispiece__copy { padding-block: 16px; }
+.folio-frontispiece__eyebrow {
+  display: block;
+  color: #81704d;
+  font: 10px/1.6 var(--font-data);
+  letter-spacing: .14em;
+  margin-bottom: 10px;
+}
+.folio-frontispiece__title {
+  color: #464738;
+  font: 27px/1.6 var(--font-folio);
+  letter-spacing: .03em;
+  margin: 0 0 4px;
+}
+.folio-frontispiece__note { font-size: 14px; color: #797160; margin: 0; }
+.folio-frontispiece__seal { width: 92px; height: 92px; color: #9a8050; opacity: .65; margin-left: auto; flex-shrink: 0; }
+
+.station-procedures.play-folio { display: grid; gap: 32px; align-items: start; }
+.play-folio__context,.play-folio__work { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.play-folio__work { outline-offset: 6px; }
+.play-folio__context .action-hub { padding-bottom: 20px; }
+.play-folio__context .action-hub__grid { grid-template-columns: minmax(0, 1fr); }
+.play-overview {
+  position: relative;
+  padding: 24px;
+  background:
+    linear-gradient(135deg, #fff9eccc, #f7f0dd),
+    var(--surface);
+  border: 1px solid #bca778;
+  border-radius: 2px;
+  box-shadow: 0 4px 18px #7a67320a;
+}
+.play-overview::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  inset: 4px;
+  border: 1px solid #caba933b;
+}
+.play-overview__heading h2 { font-family: var(--font-folio); font-size: 23px; line-height: 1.7; color: #384b3f; }
+.play-overview__heading h2 { word-break: keep-all; text-wrap: balance; }
+.play-overview__heading .workspace-link { flex-shrink: 0; white-space: nowrap; }
+.play-overview__place { color: #857044; font-size: 13px !important; }
+.play-overview__reason { color: #716b5a; }
+.play-loop__step { background: #e7dfc85c; border-color: #c9bb9a4f; border-radius: 2px; }
+.play-loop__step.is-current { background: #dce3d455; border-color: #5d786180; }
+.play-clock-grid { border-color: #c4b48d; }
+.play-clock dd strong { color: #504936; font-family: var(--font-folio); font-size: 21px; }
+.play-clock--time dd strong { color: #6d5b75; }
+.action-hub__header h2,.quick-rules__heading h2 { font-family: var(--font-folio); font-size: 19px; color: #4e503d; }
+.action-step--next {
+  position: relative;
+  background: #344f43;
+  border: 1px solid #183c2a;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 3px #d6c78c25;
+}
+.action-step--next:hover { background: #243f33; }
+.action-step--next .action-step__index { color: #d1b574; }
+.action-step--next .action-step__body strong { color: #fff5d9; }
+.action-step--next .action-step__body > span,.action-step--next .action-step__body em { color: #d3d7c6; }
+.quick-rules { background: transparent; border-color: #c9ba95; }
+.quick-rules__rule { border-color: #d0c29f; background: #fff8e7; border-radius: 2px; }
+.quick-rules__label strong { color: #54583e; }
+.quick-rules__label > span { color: #8b7446; }
+.quick-rules__context { color: #736b58; }
+.play-folio__work .cute-card { padding-top: 8px !important; }
+.play-folio__work > .play-with-map { gap: 22px; }
+.patient-care-switch { border-bottom: 1px solid #bda574; padding-bottom: 16px; }
+.patient-care-switch button { border-radius: 2px; background: #ede5d3; border-color: #c8b993; }
+.patient-care-switch button[aria-pressed=true] { background: #dbe2d0; border-color: #5d7560; color: #2c493d; }
+.patient-workflow__acquisition,.patient-workflow__treatment {
+  border-color: #b7a476;
+  background: #fff9e9;
+  border-radius: 2px;
+  box-shadow: 0 8px 24px #7e6c3610;
+}
+.patient-workflow > details { background: #fff9e9; border-color: #b7a476; border-radius: 2px; }
+.action-step:not(.action-step--next),.character-wizard { background: #fff9e9; border-radius: 2px; }
+.adventure-settings__content { background: #fff9e9; }
+.patient-workflow :is(.forage-context,.treatment-comparison,.treatment-selection) { background: #faf4e4; border-color: #d1c39f; }
+.patient-workflow .treatment-selection { background: #eaf0e0; }
+.treatment-selection > header { flex-wrap: wrap; align-items: flex-start; }
+.treatment-selection > header > strong { flex-shrink: 0; white-space: nowrap; }
+.treatment-selection > header > span { flex: 1 1 160px; }
+.treatment-submit-bar { background: #ebe1cb; }
+.play-folio__work :is(.route-composer,.forage-result-receipt,.downtime-result-receipt,.treatment-result-receipt) { border-radius: 2px; }
+.route-composer { background: #fff9e9; border-color: #c0ae84; }
+.route-card { background: #f8f0db; border-color: #baa77b; }
+.station-heading h2 { font-family: var(--font-folio); font-weight: 600; }
+.station-heading { border-color: #99825d; }
+.station-heading .station-eyebrow { color: #857044; }
+.herbarium-context > button { background: #e9e3cf; border-color: #c5b58e; }
+.herbarium-entry { background: #fff9e9; }
+.rulebook-drawer,.app-dialog,.controlled-prompt,.encounter-dialog,.card-choice-dialog,.phase4-modal,.cloud-slots-dialog { background: #f8f0dc; border-color: #ab905c; }
+.rulebook-drawer-backdrop,.app-dialog-backdrop,.controlled-prompt-backdrop,.encounter-dialog-backdrop { background: #111f1dd6; }
+.rulebook-drawer header h2,.encounter-dialog header h2,.app-dialog header h2 { font-family: var(--font-folio); }
+.station-workspace > footer { color: #827153; border-color: #caba96; }
+
+@media(min-width:1560px) {
+  .station-procedures.play-folio { grid-template-columns: minmax(340px, 380px) minmax(0, 1fr); gap: 32px; }
+  .play-folio__work { container-type: inline-size; border-left: 1px solid #ad996657; padding-left: 32px; }
+  .play-overview__heading { align-items: flex-start; gap: 8px; }
+  .play-overview__heading h2 { font-size: 21px; line-height: 1.5; }
+  .play-overview__heading .workspace-link { font-size: 13px; }
+  .play-folio__context .play-loop { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .play-folio__context .play-loop__step small { display: none; }
+  .play-folio__context .play-clock-grid { gap: 12px; }
+  .play-folio__context .play-clock { display: block; }
+  .play-folio__context .quick-rules__list { grid-template-columns: minmax(0, 1fr); }
+  .play-folio__context .quick-rules__rule { padding: 12px 14px; }
+  .play-folio__context .quick-rules__summary { font-size: 13px; line-height: 1.6; }
+  .play-folio__context .quick-rules__heading > span { display: none; }
+  .play-folio__context .action-step { padding-block: 12px; }
+  .play-folio__work :is(.play-guide,p) { max-width: 74ch; }
+}
+@media(min-width:1920px) {
+  .station-procedures.play-folio { grid-template-columns: 440px minmax(0, 1fr); gap: 48px; }
+  .play-folio__work { padding-left: 48px; }
+}
+@container(max-width:840px) {
+  #treatment-workspace .treatment-workspace,.treatment-submit-bar { grid-template-columns: minmax(0, 1fr); }
+  .treatment-option-list,.treatment-tool-list { max-height: none; overflow: visible; }
+  .treatment-comparison__summary { grid-template-columns: auto minmax(0, 1fr); }
+  .patient-care-switch { grid-template-columns: minmax(0, 1fr); }
+}
+@media(min-width:2400px) {
+  .station-app { padding-block: 52px; }
+  .station-shell { grid-template-columns: 252px minmax(0, 1fr); }
+  .station-rail { top: 52px; height: calc(100dvh - 104px); padding-inline: 28px; }
+  .station-canvas { padding-inline: 64px; }
+  .journal-header { padding-inline: 64px; }
+  .folio-frontispiece { min-height: 166px; gap: 40px; margin-bottom: 44px; }
+  .folio-frontispiece__art { width: 290px; height: 166px; }
+  .folio-frontispiece__title { font-size: 32px; }
+  .folio-frontispiece__seal { width: 110px; height: 110px; }
+  .station-procedures.play-folio { grid-template-columns: 460px minmax(0, 1fr); gap: 64px; }
+  .play-folio__work { padding-left: 64px; }
+  .play-folio__work #patient-clinic-panel > h3 { padding-bottom: 20px; }
+}
+@media(min-width:1560px) and (min-height:1100px) {
+  .play-folio__context { position: sticky; top: 28px; }
+}
+@media(max-width:1100px) {
+  .station-app { padding: 14px; }
+  .station-shell { grid-template-columns: 205px minmax(0, 1fr); }
+  .station-rail { top: 14px; height: calc(100dvh - 28px); padding-inline: 14px; }
+  .station-canvas { padding: 0 24px 36px; }
+  .journal-header { padding-inline: 24px; }
+  .folio-frontispiece { min-height: 114px; gap: 16px; }
+  .folio-frontispiece__art { width: 140px; height: 114px; }
+  .folio-frontispiece__title { font-size: 22px; }
+  .folio-frontispiece__eyebrow { font-size: 8px; letter-spacing: .08em; }
+  .folio-frontispiece__note { font-size: 12px; }
+  .folio-frontispiece__seal { display: none; }
+}
+@media(max-width:1050px) {
+  .station-app { padding: 0; background: var(--surface); }
+  .station-shell { display: flex; flex-direction: column; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
+  .station-rail { position: static; height: auto; padding: 14px 16px 12px; border-right: 0; border-bottom: 1px solid #bba16c50; }
+  .journal-brand { padding: 0 0 10px; }
+  .journal-brand::after { display: none; }
+  .journal-brand__title { font-size: 26px; }
+  .direct-navigation__main .journal-tab--active { box-shadow: inset 0 -2px #c9a663; }
+  .journal-header { min-height: 68px; padding: 10px 16px; }
+  .station-canvas { padding: 16px 16px 32px; }
+  .folio-frontispiece { display: none; }
+  .station-procedures.play-folio,.play-folio__context,.play-folio__work { gap: 20px; }
+  .play-overview { padding: 16px; }
+  .play-overview__heading h2 { font-family: var(--font-ui); font-size: 21px; line-height: 1.45; }
+  .play-clock dd strong { font-family: var(--font-ui); font-size: 17px; }
+  .station-heading h2 { font-size: 26px; }
+}
+@media(max-width:360px) {
+  .play-overview__heading h2 { font-size: 17px; }
+  .play-overview__reason { display: none; }
+  .play-folio__context .play-loop { grid-template-columns: repeat(4,minmax(0,1fr)); }
+}
+@media(prefers-reduced-motion:reduce) {
+  .station-app { background-attachment: scroll; }
+}

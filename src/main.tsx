@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import './feature-layout.css'
 import './workspace.css'
+import './mystic-folio.css'
 
 const App = lazy(() => import('./App.tsx'))
 

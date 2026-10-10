@@ -1,0 +1,134 @@
+{
+  "bio": {
+    "name": "룰북 검증용 약제사",
+    "animal": "토끼",
+    "familiarName": "모아",
+    "familiarAnimal": "다람쥐"
+  },
+  "rulesetId": "original-1e-3p",
+  "currentLocationName": "Odoak",
+  "currentLocationType": "City",
+  "currentRegion": "Forest",
+  "currentSeason": "Spring",
+  "journeyActive": true,
+  "journeyOrigin": "Odoak",
+  "journeyDestination": "Summit",
+  "journeyGoalTitle": "책임",
+  "calendarDays": 1,
+  "calendarMaxDays": 12,
+  "needsLocalHelpBeforeMove": true,
+  "bag": [
+    {
+      "id": "qa-belt-knife",
+      "name": "Belt Knife",
+      "type": "tool",
+      "canonicalToolId": "belt-knife",
+      "weight": 0.3333333333333333,
+      "qty": 1
+    },
+    {
+      "id": "qa-mortar-and-pestle",
+      "name": "Wooden Mortar and Pestle",
+      "type": "tool",
+      "canonicalToolId": "mortar-and-pestle",
+      "weight": 0.3333333333333333,
+      "qty": 1
+    },
+    {
+      "id": "qa-camp-kettle",
+      "name": "Battered Camp Kettle",
+      "type": "tool",
+      "canonicalToolId": "camp-kettle",
+      "weight": 0.3333333333333333,
+      "qty": 1
+    },
+    {
+      "id": "qa-teeth",
+      "name": "Jaws",
+      "type": "tool",
+      "canonicalToolId": "teeth",
+      "weight": 0,
+      "qty": 1
+    },
+    {
+      "id": "qa-paws",
+      "name": "Paws/Claws",
+      "type": "tool",
+      "canonicalToolId": "paws",
+      "weight": 0,
+      "qty": 1
+    },
+    {
+      "id": "qa-reagent-marigold",
+      "name": "금잔화/메리골드 · Petals",
+      "type": "reagent",
+      "qty": 1,
+      "weight": 0.6666666666666666,
+      "canonicalReagentId": "reagent-marigold",
+      "preparationId": "marigold-petals-crushed-3",
+      "usesRemaining": 1,
+      "tags": "[PAIN 2] · [BURN 2]",
+      "preps": "CRUSHED"
+    },
+    {
+      "id": "qa-reagent-maggots",
+      "name": "구더기 · Larvae",
+      "type": "reagent",
+      "qty": 1,
+      "weight": 0.6666666666666666,
+      "canonicalReagentId": "reagent-maggots",
+      "preparationId": "maggots-larvae-used-1",
+      "usesRemaining": 1,
+      "tags": "[INFECTION 3] · [WOUND 3]",
+      "preps": "USED"
+    }
+  ],
+  "patients": [
+    {
+      "id": "qa-remedy-patient",
+      "name": "작은 대장장이",
+      "species": "Crow",
+      "foragingPoints": 0,
+      "reagentsGathered": [],
+      "status": "active",
+      "ailments": [
+        {
+          "id": "qa-remedy-patient-ailment-forgeclawed-1",
+          "ailmentId": "ailment-forgeclawed",
+          "severity": "lesser",
+          "timerIds": [
+            "qa-remedy-patient-ailment-forgeclawed-1-timer"
+          ],
+          "conditionIds": [],
+          "treatmentHistoryIds": [],
+          "status": "active",
+          "instance": 1,
+          "repeatIndex": 1,
+          "specialState": {},
+          "successResolved": false,
+          "failureResolved": false,
+          "consequenceResolved": false,
+          "effectIds": []
+        }
+      ],
+      "timers": [
+        {
+          "id": "qa-remedy-patient-ailment-forgeclawed-1-timer",
+          "ailmentInstanceId": "qa-remedy-patient-ailment-forgeclawed-1",
+          "current": 8,
+          "maximum": 8,
+          "status": "active"
+        }
+      ],
+      "conditions": [],
+      "treatmentHistory": [],
+      "journalEvents": []
+    }
+  ],
+  "activePatientId": "qa-remedy-patient",
+  "trinkets": [
+    "검증용 기념품"
+  ],
+  "pendingForaging": null,
+  "pendingBarter": null
+}

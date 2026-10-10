@@ -717,9 +717,10 @@ export const resolveJourneyEnding = (input: {
   const evaluatedJourney = { ...declaredJourney, goalState: { ...declaredJourney.goalState, evaluation } };
   // Merely reopening a saved ending is a read/resume operation. Even a fully
   // populated draft must not commit until this invocation explicitly supplies
-  // the memoir text as the final confirmation step.
+  // the memoir field as the final confirmation step. An empty string is an
+  // intentional confirmation without a written journal (p.7 and p.38).
   const commitRequested = typeof input.journalText === 'string';
-  if (!commitRequested || !selectedOutcome || !journalText?.trim()) {
+  if (!commitRequested || !selectedOutcome) {
     return {
       status: 'manual',
       value: {
@@ -736,7 +737,7 @@ export const resolveJourneyEnding = (input: {
           updatedAt: input.endedAt
         }
       },
-      messages: ['Choose success, partial, failure, or abandoned and write the Journey ending.']
+      messages: ['Choose success, partial, failure, or abandoned and confirm the Journey ending. Journaling is optional.']
     };
   }
   if (selectedOutcome === 'success' && !evaluation.complete && !gmOverride) {
@@ -744,10 +745,12 @@ export const resolveJourneyEnding = (input: {
   }
   const legacyStakes = journey.rulesetId === 'legacy-campaign' && input.journeyStakesEnabled;
   const reputationChange = legacyStakes ? (selectedOutcome === 'success' ? 5 : selectedOutcome === 'failure' ? -3 : 0) : 0;
+  const endingText = journalText ?? '';
+  const hasWrittenJournal = endingText.trim().length > 0;
   const nextJourney: JourneyState = {
     ...evaluatedJourney,
     status: selectedOutcome === 'abandoned' ? 'abandoned' : 'completed',
-    ending: { outcome: selectedOutcome, journalText, endedAt: input.endedAt }
+    ending: { outcome: selectedOutcome, journalText: endingText, endedAt: input.endedAt }
   };
   return {
     status: 'resolved',
@@ -760,7 +763,9 @@ export const resolveJourneyEnding = (input: {
       appliedTransactionIds: [...input.state.appliedTransactionIds, input.transactionId],
       journalEvents: [...input.state.journalEvents, {
         id: `${input.transactionId}:journal`, type: 'travel', title: `Journey ${selectedOutcome}`,
-        text: journalText, authorship: 'player', playerMemory: journalText
+        text: hasWrittenJournal ? endingText : `Journey ${selectedOutcome}`,
+        authorship: hasWrittenJournal ? 'player' : 'system',
+        playerMemory: hasWrittenJournal ? endingText : undefined
       }]
     },
     messages: []

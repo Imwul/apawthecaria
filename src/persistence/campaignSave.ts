@@ -75,6 +75,18 @@ export const tryMigrateCampaignSave = <T>(
 ): { ok: true; state: T } | { ok: false } => {
   try {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false };
+    const record = raw as Record<string, unknown>;
+    // Preserve an absent historical value for the normal migration defaults,
+    // but never import an explicit invalid value into gameplay arithmetic.
+    if ('reputation' in record) {
+      const value = record.reputation;
+      if ((typeof value !== 'number' && typeof value !== 'string')
+        || (typeof value === 'string' && !value.trim())
+        || !Number.isFinite(Number(value))) return { ok: false };
+      // Numeric strings have an unambiguous legacy value. Convert on a copy
+      // rather than leave '+' operations vulnerable to string concatenation.
+      if (typeof value === 'string') return { ok: true, state: migrate({ ...record, reputation: Number(value) }) };
+    }
     return { ok: true, state: migrate(raw) };
   } catch (error) {
     console.error('게임 저장 데이터 마이그레이션 실패. 기존 파일은 유지합니다.', error);

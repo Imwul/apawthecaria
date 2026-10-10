@@ -11,24 +11,28 @@ const state = {
 };
 const noop = () => {};
 
-describe('field station workspace presentation', () => {
+describe('play loop workspace presentation', () => {
   it.each(tabs)('keeps all nine navigation actions and a unique current page for %s', tab => {
     const html = renderToStaticMarkup(<JournalNavigation activeTab={tab} onChange={noop} />);
     expect(html.match(/class="journal-tab /g)).toHaveLength(9);
-    expect(html.match(/<button /g)).toHaveLength(12);
+    expect(html.match(/<button /g)).toHaveLength(9);
     expect(html.match(/aria-current="page"/g)).toHaveLength(1);
     expect(html).toContain(`journal-tab--${tab} journal-tab--active`);
-    expect(html).toContain('title="나의 이야기"');
+    expect(html).toContain('title="일지"');
+    expect(html).not.toContain("station-mode-switch");
+    expect(html).toContain("기록 더 보기");
   });
 
-  it('keeps the resume action ahead of journey context without mutating the campaign', () => {
+  it('shows the source-derived loop without duplicating the action hub or mutating the campaign', () => {
     const original = structuredClone(state);
     const html = renderToStaticMarkup(<TodayOverview state={state} currentWeight={0} maxCarry={4}
-      onNavigate={noop} onContinue={noop} onOpenReference={noop} />);
-    expect(html).toContain('여정 준비하기');
+      onNavigate={noop} onOpenReference={noop} />);
+    expect(html).toContain('어디로 떠나볼까요');
     expect(html).toContain('이 단계의 규칙');
     expect(html).toContain('aria-labelledby="today-title"');
-    expect(html.indexOf('class="workspace-today__actions"')).toBeLessThan(html.indexOf('class="station-journey"'));
+    expect(html).toContain('aria-label="반복 플레이 순서"');
+    expect(html).not.toContain('workspace-primary');
+    expect(html).not.toContain('aria-current="step"');
     expect(html).not.toContain('workspace-today__atmosphere');
     expect(state).toEqual(original);
   });
@@ -40,18 +44,57 @@ describe('field station workspace presentation', () => {
     const campaign = { ...state, currentSeason: season, currentLocationName: location };
     const original = structuredClone(campaign);
     const html = renderToStaticMarkup(<TodayOverview state={campaign} currentWeight={0} maxCarry={4}
-      onNavigate={noop} onContinue={noop} onOpenReference={noop} />);
-    expect(html).toContain(`<span>${caption.split(' · ').reverse().join(' · ')}</span>`);
+      onNavigate={noop} onOpenReference={noop} />);
+    expect(html).toContain(`${caption.split(' · ').reverse().join(' · ')}</p>`);
     expect(campaign).toEqual(original);
   });
 
-  it('retains the blocking workflow resume label in an active journey', () => {
+  it('identifies the blocking care stage and retains the journey clocks', () => {
     const html = renderToStaticMarkup(<TodayOverview
       state={{ ...state, journeyActive: true, journeyDestination: 'Obridge', calendarDays: 2, calendarMaxDays: 12, pendingForaging: { id: 'forage' } }}
-      currentWeight={0} maxCarry={4} onNavigate={noop} onContinue={noop} onOpenReference={noop} />);
-    expect(html).toContain('채집 이어가기');
+      currentWeight={0} maxCarry={4} onNavigate={noop} onOpenReference={noop} />);
+    expect(html).toContain('채집 결과를 끝까지 확인하세요');
+    expect(html).toContain('class="play-loop__step is-current" aria-current="step"');
     expect(html).toContain('Obridge');
     expect(html).toContain('2 / 12일');
+  });
+
+  it('reports a late journey honestly while keeping patient hours independent from calendar days', () => {
+    const campaign = { ...state, journeyActive: true, calendarDays: 14, calendarMaxDays: 12,
+      activePatientId: 'current', patients: [{ id: 'current', name: '솔', status: 'active',
+        ailments: [{ id: 'a', status: 'active', timerIds: ['t1', 't2'], requirementSnapshot: 'WOUND 2' }],
+        timers: [{ id: 't1', current: 7, status: 'active' }, { id: 't2', current: 4, status: 'active' }] }] };
+    const html = renderToStaticMarkup(<TodayOverview state={campaign} currentWeight={0} maxCarry={4}
+      onNavigate={noop} onOpenReference={noop} />);
+    expect(html).toContain('14 / 12일');
+    expect(html).toContain('기한 2일 초과');
+    expect(html).toContain('4시간');
+    expect(html).toContain('2개 기한 중 가장 짧은 시간');
+    expect(html).not.toContain('남은 기한 0일');
+  });
+
+  it('does not imply completed loop steps when a procedure is interrupted or awaiting setup', () => {
+    const html = renderToStaticMarkup(<TodayOverview state={{ ...state, journeyActive: true,
+      pendingEncounter: { encounter: { encounterType: 'social' } } }} currentWeight={0} maxCarry={4}
+      onNavigate={noop} onOpenReference={noop} />);
+    expect(html.match(/aria-current="step"/g)).toHaveLength(1);
+    expect(html).toContain('<strong>조우</strong>');
+    expect(html).not.toContain('is-complete');
+    expect(html).not.toContain('완료');
+  });
+
+  it('preserves requirements for every active ailment in the patient summary', () => {
+    const html = renderToStaticMarkup(<TodayOverview state={{ ...state, activePatientId: 'current',
+      patients: [{ id: 'current', name: '솔', status: 'active', ailments: [
+        { id: 'a', status: 'active', legacyName: '상처', requirementSnapshot: 'WOUND 2' },
+        { id: 'b', status: 'active', legacyName: '추가 질환', requirementSnapshot: 'POISON 1' },
+        { id: 'old', status: 'cured', requirementSnapshot: 'STALE 9' }
+      ], timers: [] }] }} currentWeight={0} maxCarry={4} onNavigate={noop} onOpenReference={noop} />);
+    expect(html).toContain('data-rule-tag="WOUND"');
+    expect(html).toContain('data-rule-tag="POISON"');
+    expect(html).toContain('추가 질환');
+    expect(html).not.toContain('STALE');
+    expect(html).toContain('기한 확인 필요');
   });
 
   it.each(tabs.filter(tab => tab !== 'play'))('keeps source access and an accessible chapter title for %s', tab => {
@@ -126,7 +169,7 @@ describe('field station workspace presentation', () => {
     };
     const original = structuredClone(campaign);
     const html = renderToStaticMarkup(<TodayOverview state={campaign} currentWeight={0} maxCarry={4}
-      onNavigate={noop} onContinue={noop} onOpenReference={noop} />);
+      onNavigate={noop} onOpenReference={noop} />);
     expect(html).toContain('필요 약효');
     expect(html).toContain('새봄');
     expect(html.replace(/<[^>]*>/g, '')).toContain('WOUND 2, PAIN 1');
@@ -147,12 +190,46 @@ describe('field station workspace presentation', () => {
     };
     const original = structuredClone(campaign);
     const html = renderToStaticMarkup(<TodayOverview state={campaign} currentWeight={0} maxCarry={4}
-      onNavigate={noop} onContinue={noop} onOpenReference={noop} />);
+      onNavigate={noop} onOpenReference={noop} />);
     expect(html).toContain('Monthly Chore');
     expect(html.replace(/<[^>]*>/g, '')).toContain('SCALE 2 + PAIN 1');
     expect(html).toContain('6시간');
     expect(html).not.toContain('STALE');
     expect(campaign).toEqual(original);
+  });
+
+  it('shows applied tag replacements and dynamic requirements instead of the original catalogue prescription', () => {
+    const campaign = { ...state, activePatientId: 'current',
+      ailmentTagOverrides: [{ ailmentId: 'ailment-monthly-chore', originalTag: 'SCALE', replacementTag: 'HIDE' }],
+      patients: [{ id: 'current', name: '솔', status: 'active', ailments: [{ id: 'a',
+        ailmentId: 'ailment-monthly-chore', status: 'active', timerIds: [], specialState: {
+          additionalRequirements: [{ tag: 'WOUND', threshold: 3 }], poisonRequirement: 2
+        } }], timers: [] }] };
+    const original = structuredClone(campaign);
+    const html = renderToStaticMarkup(<TodayOverview state={campaign} currentWeight={0} maxCarry={4}
+      onNavigate={noop} onOpenReference={noop} />);
+    expect(html.replace(/<[^>]*>/g, '')).toContain('HIDE 2 + PAIN 1 + WOUND 3 + POISON 2');
+    expect(html).not.toContain('data-rule-tag="SCALE"');
+    expect(campaign).toEqual(original);
+  });
+
+  it('preserves alternative complete recipes when an ailment has more than one treatment', () => {
+    const html = renderToStaticMarkup(<TodayOverview state={{ ...state, activePatientId: 'current',
+      patients: [{ id: 'current', name: '솔', status: 'active', ailments: [{ id: 'a',
+        ailmentId: 'ailment-crestfallen', status: 'active', timerIds: [] }], timers: [] }] }}
+      currentWeight={0} maxCarry={4} onNavigate={noop} onOpenReference={noop} />);
+    expect(html).toContain(' 또는 ');
+    for (const tag of ['FEATHER', 'NERVES', 'INSTINCT', 'JOY']) expect(html).toContain(`data-rule-tag="${tag}"`);
+    expect(html.match(/data-rule-tag="FEATHER"/g)).toHaveLength(2);
+  });
+
+  it('reads encounter-only remedy requirements without a stale snapshot', () => {
+    const html = renderToStaticMarkup(<TodayOverview state={{ ...state, activePatientId: 'current',
+      patients: [{ id: 'current', name: '올챙이', status: 'active', ailments: [{ id: 'a',
+        ailmentId: 'encounter-remedy-sick-tadpoles', status: 'active', timerIds: [], requirementSnapshot: 'STALE 9' }], timers: [] }] }}
+      currentWeight={0} maxCarry={4} onNavigate={noop} onOpenReference={noop} />);
+    expect(html.replace(/<[^>]*>/g, '')).toContain('TEMPERATURE 2 + INFECTION 1');
+    expect(html).not.toContain('STALE');
   });
 
   it('does not carry a completed journey’s destination and objective into the live map note', () => {

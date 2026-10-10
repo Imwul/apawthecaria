@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { REAGENT_BY_NAME } from './data/reagents';
 import type { ForagingEncounterTransactionState } from './foragingEncounterTransactions';
 import {
   FORAGING_ENCOUNTER_TRANSACTION_CODES,
@@ -28,6 +29,55 @@ const state = (overrides: Partial<ForagingEncounterTransactionState> = {}): Fora
 const chooseDefaults: ForagingEncounterPrompt = async request => request.defaultValue ?? '';
 
 describe('foraging encounter transaction planner', () => {
+  it.each([12, 13])('resolves the saved Queen/King %i as Monarch 12 for the p.162 FAIR bonus', async rawValue => {
+    const beech = REAGENT_BY_NAME.get('Beech')!;
+    const nuts = beech.preparations.find(part => part.name === 'Nuts' && part.method === 'USED')!;
+    const existingState = state({ patient: {
+      id: 'patient-1', name: 'Moss', species: 'Badger', status: 'active',
+      ailments: [{
+        id: 'ailment-1', ailmentId: 'ailment-fond-farewell', severity: 'lesser', timerIds: ['timer-1'],
+        conditionIds: [], treatmentHistoryIds: [], status: 'active', instance: 1, repeatIndex: 0,
+        specialState: {}, successResolved: false, failureResolved: false, consequenceResolved: false, effectIds: []
+      }],
+      timers: [{ id: 'timer-1', ailmentInstanceId: 'ailment-1', current: 6, maximum: 8, status: 'active' }],
+      conditions: [], treatmentHistory: [], journalEvents: []
+    } });
+    const plan = await planForagingEncounterTransaction({
+      encounterId: 'foraging-forest-10-spring', choiceId: 'follow-your-nose',
+      transactionId: `forage:alluring:${rawValue}`, state: existingState,
+      secondaryCards: [{ value: rawValue, suit: '♣' }], locationId: 'forest-1',
+      calendarDaysTotal: 90, daysMarkedAtEncounterStart: 20, companionCapacity: 1
+    }, async () => `${beech.id}|${nuts.id}`);
+
+    expect(plan.status).toBe('planned');
+    if (plan.status !== 'planned') return;
+    expect(plan.command.input).toMatchObject({ card: { value: 12, suit: '♣' } });
+    const result = dispatchForagingEncounterTransaction(plan.command);
+    expect(result.status).toBe('resolved');
+    expect(result.value?.nextState.patient?.timers[0].current).toBe(5);
+    expect(result.value?.nextState.inventory).toHaveLength(1);
+    expect(result.value?.nextState.inventory[0]).toMatchObject({ canonicalReagentId: beech.id, preparationId: nuts.id });
+    expect(existingState.patient?.timers[0].current).toBe(6);
+    expect(existingState.inventory).toEqual([]);
+  });
+
+  it('normalizes every saved physical card before storing the p.174 present-hunt targets', async () => {
+    const plan = await planForagingEncounterTransaction({
+      encounterId: 'foraging-meadow-9-winter', choiceId: 'begin-present-hunt',
+      transactionId: 'forage:presents:kings', state: state(),
+      secondaryCards: [{ value: 13, suit: '♣' }, { value: 12, suit: '♣' }, { value: 13, suit: '♥' }],
+      locationId: 'meadow-1', calendarDaysTotal: 90, daysMarkedAtEncounterStart: 20, companionCapacity: 1
+    }, chooseDefaults);
+
+    expect(plan.status).toBe('planned');
+    if (plan.status !== 'planned') return;
+    const result = dispatchForagingEncounterTransaction(plan.command);
+    expect(result.status).toBe('resolved');
+    expect(result.value?.nextState.sainDeClawsQuests[0].targetCards).toEqual([
+      { value: 12, suit: '♣' }, { value: 12, suit: '♣' }, { value: 12, suit: '♥' }
+    ]);
+  });
+
   it('does not invent a mechanical transaction for a narrative sibling choice', async () => {
     const plan = await planForagingEncounterTransaction({
       encounterId: 'foraging-bog-8',

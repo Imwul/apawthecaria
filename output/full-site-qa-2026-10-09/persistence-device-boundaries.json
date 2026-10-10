@@ -1,0 +1,12 @@
+[
+  {
+    "check": "injected localStorage quota failure persists +2 in real IndexedDB and restores on refresh",
+    "pass": true,
+    "primaryRetained": true,
+    "pageErrors": []
+  },
+  {
+    "check": "real shared-context StorageEvent marks older tab stale and prevents overwrite",
+    "pass": true
+  }
+]

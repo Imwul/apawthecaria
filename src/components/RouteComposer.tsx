@@ -515,7 +515,7 @@ export function RouteComposer({
           )}
           {evaluation.overEncumbered && (
             <div className="route-composer__rule-alert route-composer__rule-alert--danger">
-              과적 상태(무게 {weight}/{carry})라 이번 이동의 속도는 1경로입니다. (룰북 p.24)
+              과적 상태(무게 {displayWeight(weight)}/{displayWeight(carry)})라 이번 이동의 속도는 1경로입니다. (룰북 p.24)
             </div>
           )}
           {evaluation.reason === 'loch-locked' && (

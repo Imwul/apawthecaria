@@ -1,0 +1,3075 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-10-10T13:54:32.269423+00:00",
+  "trace_target": {
+    "type": "epic",
+    "id": "full-site-qa-rulebook-fidelity-bug-fixes-ui-audit",
+    "label": "Full-Site QA: Rulebook Fidelity, Bug Fixes & UI Audit"
+  },
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "allow_gate": true,
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "output/full-site-qa-2026-10-09/bmad-audit-requirements.md"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "QA-01",
+      "criterion": "Core adjudication, dice/cards, numeric values, conditions, exceptions and sequencing agree with the supplied source rulebook; source conflicts are retained as uncertain.",
+      "priority": "P0",
+      "coverage": "PARTIAL",
+      "tests": [
+        {
+          "id": "src/rules/printedToolWeights.test.ts:17:%s keeps every printed whole Weight unit",
+          "title": "%s keeps every printed whole Weight unit",
+          "file": "src/rules/printedToolWeights.test.ts",
+          "line": 17,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/printedToolWeights.test.ts:31:repairs old weight-1 saves without changing identities, quantities or unrelated custom weights",
+          "title": "repairs old weight-1 saves without changing identities, quantities or unrelated custom weights",
+          "file": "src/rules/printedToolWeights.test.ts",
+          "line": 31,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/printedToolWeights.test.ts:49:preserves a recorded Bad Idea weight reduction while repairing the erroneous printed base",
+          "title": "preserves a recorded Bad Idea weight reduction while repairing the erroneous printed base",
+          "file": "src/rules/printedToolWeights.test.ts",
+          "line": 49,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/printedToolWeights.test.ts:64:keeps an explicit untracked custom weight instead of guessing its reason",
+          "title": "keeps an explicit untracked custom weight instead of guessing its reason",
+          "file": "src/rules/printedToolWeights.test.ts",
+          "line": 64,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/chattyBarterFidelity.test.ts:22:reduces the printed barter Rarity by 2 while preserving every other modifier",
+          "title": "reduces the printed barter Rarity by 2 while preserving every other modifier",
+          "file": "src/rules/chattyBarterFidelity.test.ts",
+          "line": 22,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/chattyBarterFidelity.test.ts:31:uses the adjusted Rarity during the actual second-card decision after save/restore",
+          "title": "uses the adjusted Rarity during the actual second-card decision after save/restore",
+          "file": "src/rules/chattyBarterFidelity.test.ts",
+          "line": 31,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/chattyBarterFidelity.test.ts:49:also applies the benefit to a BR 12 stand-in Reagent",
+          "title": "also applies the benefit to a BR 12 stand-in Reagent",
+          "file": "src/rules/chattyBarterFidelity.test.ts",
+          "line": 49,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/chattyBarterFidelity.test.ts:68:adds 2 during the named Season and combines with Chatty, without stacking duplicate records",
+          "title": "adds 2 during the named Season and combines with Chatty, without stacking duplicate records",
+          "file": "src/rules/chattyBarterFidelity.test.ts",
+          "line": 68,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/chattyBarterFidelity.test.ts:78:applies the same current-Season penalty to a stand-in Reagent transaction",
+          "title": "applies the same current-Season penalty to a stand-in Reagent transaction",
+          "file": "src/rules/chattyBarterFidelity.test.ts",
+          "line": 78,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/barrowPatientBoundary.test.ts:24:blocks an ordinary intake while a Delve is active",
+          "title": "blocks an ordinary intake while a Delve is active",
+          "file": "src/barrowPatientBoundary.test.ts",
+          "line": 24,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/barrowPatientBoundary.test.ts:31:blocks an ordinary intake at a live Barrow before its challenge",
+          "title": "blocks an ordinary intake at a live Barrow before its challenge",
+          "file": "src/barrowPatientBoundary.test.ts",
+          "line": 31,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/barrowPatientBoundary.test.ts:37:preserves ordinary intake outside a live local Barrow: %j",
+          "title": "preserves ordinary intake outside a live local Barrow: %j",
+          "file": "src/barrowPatientBoundary.test.ts",
+          "line": 37,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        }
+      ],
+      "notes": "Printed p.62 weights, Chatty p.14 and Wingbreak p.115 regressions directly establish corrected calculations. Rule worker compared named core procedures and 45 ailments. All printed effects, nested exceptions, reagent icon semantics and service/clinic/barrow/companion lifecycle branches were not independently executed or fully compared."
+    },
+    {
+      "id": "QA-02",
+      "criterion": "Oracle/random tables have the source text, result range and reference relationships; separate books and convenience modes do not silently mix rules.",
+      "priority": "P0",
+      "coverage": "PARTIAL",
+      "tests": [
+        {
+          "id": "src/rulebook/referenceRegistry.test.ts:16:keeps every canonical catalogue at its certified count",
+          "title": "keeps every canonical catalogue at its certified count",
+          "file": "src/rulebook/referenceRegistry.test.ts",
+          "line": 16,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rulebook/referenceRegistry.test.ts:37:has no reference/runtime drift",
+          "title": "has no reference/runtime drift",
+          "file": "src/rulebook/referenceRegistry.test.ts",
+          "line": 37,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rulebook/referenceRegistry.test.ts:46:uses the exact Guild Reputation term on every canonical reference surface",
+          "title": "uses the exact Guild Reputation term on every canonical reference surface",
+          "file": "src/rulebook/referenceRegistry.test.ts",
+          "line": 46,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rulebook/referenceRegistry.test.ts:64:supports entity, rule ID and printed page searches",
+          "title": "supports entity, rule ID and printed page searches",
+          "file": "src/rulebook/referenceRegistry.test.ts",
+          "line": 64,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rulebook/referenceRegistry.test.ts:73:links field-reference relationships in both directions",
+          "title": "links field-reference relationships in both directions",
+          "file": "src/rulebook/referenceRegistry.test.ts",
+          "line": 73,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rulebook/referenceRegistry.test.ts:92:renders canonical numbers and manual semantics directly from runtime data",
+          "title": "renders canonical numbers and manual semantics directly from runtime data",
+          "file": "src/rulebook/referenceRegistry.test.ts",
+          "line": 92,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rulebook/referenceRegistry.test.ts:131:ships all 220 source pages outside the JavaScript bundle",
+          "title": "ships all 220 source pages outside the JavaScript bundle",
+          "file": "src/rulebook/referenceRegistry.test.ts",
+          "line": 131,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        }
+      ],
+      "notes": "Original PDF SHA and all 220 normalized source pages match. Canonical name/reference structure and 3,380 lookup existence checks passed; reference registry relationships are tested. Lookup existence and derived registry consistency do not establish the original semantic text and every result branch. Source conflicts remain explicit."
+    },
+    {
+      "id": "QA-03",
+      "criterion": "Every major page/tab/menu/modal and user control is exercised in a real development-server browser.",
+      "priority": "P1",
+      "coverage": "PARTIAL",
+      "tests": [
+        {
+          "id": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs:16:canonical and legacy Journal archive preservation",
+          "title": "canonical and legacy Journal count, preserved note, bookmark, no runtime errors",
+          "file": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs",
+          "line": 16,
+          "level": "e2e",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/patientMemoryConsistency.test.ts:28:shows the real canonical treatment rather than an empty legacy-only shelf",
+          "title": "shows the real canonical treatment rather than an empty legacy-only shelf",
+          "file": "src/patientMemoryConsistency.test.ts",
+          "line": 28,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/patientMemoryConsistency.test.ts:36:keeps unresolved intake records out of completed memories",
+          "title": "keeps unresolved intake records out of completed memories",
+          "file": "src/patientMemoryConsistency.test.ts",
+          "line": 36,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/patientMemoryConsistency.test.ts:42:preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+          "title": "preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+          "file": "src/patientMemoryConsistency.test.ts",
+          "line": 42,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/patientMemoryConsistency.test.ts:50:projects a failed case without changing saved records or inventing a resolution day",
+          "title": "projects a failed case without changing saved records or inventing a resolution day",
+          "file": "src/patientMemoryConsistency.test.ts",
+          "line": 50,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "output/full-site-qa-2026-10-09/browser-smoke.cjs:8:final full-site smoke and canonical memories",
+          "title": "27 viewport/page screens, canonical LivingArchive/Play/Journal memories, reload and map controls without runtime/console errors",
+          "file": "output/full-site-qa-2026-10-09/browser-smoke.cjs",
+          "line": 8,
+          "level": "e2e",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        }
+      ],
+      "notes": "Nine main tabs actually visited at 1440/768/360; normal character/journey/patient/foraging/treatment, searches, inventory, Journal and backup controls have browser evidence. Independent Journal archive E2E is re-runnable. Every nested choice, modal and account/cloud control has not been exercised. Later actual Clinic cancel/build/volunteer/season-completion, Wagon/Companion, tool import, Barrow preview/reload/flee and Building Trust special Intermediate patient generation were checked. Every Delve outcome/full Building Trust cure remains unexecuted. Further actual browser checks covered Journal photo upload/save/reload/enlarge/close, photo/journal deletion cancel/confirm/reload, and map creation/cancel/edit/drag/edge cancellation and mutation/delete/reload. The final smoke script was independently rerun by QA with exit0. Every remaining nested effect/account control still lacks coverage."
+    },
+    {
+      "id": "QA-04",
+      "criterion": "Complete normal journeys, cancellation/back navigation, repeated use and boundary/error inputs produce correct visible state without runtime exceptions.",
+      "priority": "P0",
+      "coverage": "PARTIAL",
+      "tests": [
+        {
+          "id": "src/manualAdjustmentInput.test.ts:46:rejects nonzero-unsafe-integer delta %s",
+          "title": "rejects nonzero-unsafe-integer delta %s",
+          "file": "src/manualAdjustmentInput.test.ts",
+          "line": 46,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/manualAdjustmentInput.test.ts:50:rejects Trinket allocation delta %s before updating the campaign",
+          "title": "rejects Trinket allocation delta %s before updating the campaign",
+          "file": "src/manualAdjustmentInput.test.ts",
+          "line": 50,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/manualAdjustmentInput.test.ts:58:adds the exact accepted delta and records it once, without an overall balance cap",
+          "title": "adds the exact accepted delta and records it once, without an overall balance cap",
+          "file": "src/manualAdjustmentInput.test.ts",
+          "line": 58,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/manualAdjustmentInput.test.ts:66:retains normal removal semantics at zero",
+          "title": "retains normal removal semantics at zero",
+          "file": "src/manualAdjustmentInput.test.ts",
+          "line": 66,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/manualAdjustmentInput.test.ts:72:rejects overflow after a valid delta in %s without saving a rounded result",
+          "title": "rejects overflow after a valid delta in %s without saving a rounded result",
+          "file": "src/manualAdjustmentInput.test.ts",
+          "line": 72,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:40:clears the selected file before reading so a failed same-file selection can retry",
+          "title": "clears the selected file before reading so a failed same-file selection can retry",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 40,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:53:reports a file read error and preserves the current campaign",
+          "title": "reports a file read error and preserves the current campaign",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 53,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:62:does nothing after a cancelled file chooser",
+          "title": "does nothing after a cancelled file chooser",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 62,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:69:ignores a superseded read when the earlier large file completes after the latest selection",
+          "title": "ignores a superseded read when the earlier large file completes after the latest selection",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 69,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:81:does not import or display an error after leaving the Journal view",
+          "title": "does not import or display an error after leaving the Journal view",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 81,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:93:keeps the latest selection when native file reads finish in reverse order",
+          "title": "keeps the latest selection when native file reads finish in reverse order",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 93,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs:16:canonical and legacy Journal archive preservation",
+          "title": "canonical and legacy Journal count, preserved note, bookmark, no runtime errors",
+          "file": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs",
+          "line": 16,
+          "level": "e2e",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/barrowPatientBoundary.test.ts:24:blocks an ordinary intake while a Delve is active",
+          "title": "blocks an ordinary intake while a Delve is active",
+          "file": "src/barrowPatientBoundary.test.ts",
+          "line": 24,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/barrowPatientBoundary.test.ts:31:blocks an ordinary intake at a live Barrow before its challenge",
+          "title": "blocks an ordinary intake at a live Barrow before its challenge",
+          "file": "src/barrowPatientBoundary.test.ts",
+          "line": 31,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/barrowPatientBoundary.test.ts:37:preserves ordinary intake outside a live local Barrow: %j",
+          "title": "preserves ordinary intake outside a live local Barrow: %j",
+          "file": "src/barrowPatientBoundary.test.ts",
+          "line": 37,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/patientMemoryConsistency.test.ts:28:shows the real canonical treatment rather than an empty legacy-only shelf",
+          "title": "shows the real canonical treatment rather than an empty legacy-only shelf",
+          "file": "src/patientMemoryConsistency.test.ts",
+          "line": 28,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/patientMemoryConsistency.test.ts:36:keeps unresolved intake records out of completed memories",
+          "title": "keeps unresolved intake records out of completed memories",
+          "file": "src/patientMemoryConsistency.test.ts",
+          "line": 36,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/patientMemoryConsistency.test.ts:42:preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+          "title": "preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+          "file": "src/patientMemoryConsistency.test.ts",
+          "line": 42,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/patientMemoryConsistency.test.ts:50:projects a failed case without changing saved records or inventing a resolution day",
+          "title": "projects a failed case without changing saved records or inventing a resolution day",
+          "file": "src/patientMemoryConsistency.test.ts",
+          "line": 50,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "output/full-site-qa-2026-10-09/browser-smoke.cjs:8:final full-site smoke and canonical memories",
+          "title": "27 viewport/page screens, canonical LivingArchive/Play/Journal memories, reload and map controls without runtime/console errors",
+          "file": "output/full-site-qa-2026-10-09/browser-smoke.cjs",
+          "line": 8,
+          "level": "e2e",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        }
+      ],
+      "notes": "Actual numeric error, malformed save, retry, concurrent import, stale tab and localStorage quota paths have browser evidence; controlled handlers cover cancellation/read error/unmount. Source guards are not a rendered whole-site workflow proof. Every gameplay error/expiry/back/repeated nested choice is not established. Extra photo/map cancel, deletion, repeated line-state changes and reload paths passed, errors0. Odoak/current-marker hit areas overlap at baseline zoom with nearby supplied coordinates; a separate actual browser reproduced it, then one zoom-in step allowed normal Odoak click (search also works), errors0. Every dense-marker/zoom combination remains untested; coordinates were not arbitrarily moved."
+    },
+    {
+      "id": "QA-05",
+      "criterion": "Local save, restore, refresh and cross-view state preserve player data. Live cloud/account behavior is only claimed if actually observed.",
+      "priority": "P0",
+      "coverage": "PARTIAL",
+      "tests": [
+        {
+          "id": "src/rules/printedToolWeights.test.ts:17:%s keeps every printed whole Weight unit",
+          "title": "%s keeps every printed whole Weight unit",
+          "file": "src/rules/printedToolWeights.test.ts",
+          "line": 17,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/printedToolWeights.test.ts:31:repairs old weight-1 saves without changing identities, quantities or unrelated custom weights",
+          "title": "repairs old weight-1 saves without changing identities, quantities or unrelated custom weights",
+          "file": "src/rules/printedToolWeights.test.ts",
+          "line": 31,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/printedToolWeights.test.ts:49:preserves a recorded Bad Idea weight reduction while repairing the erroneous printed base",
+          "title": "preserves a recorded Bad Idea weight reduction while repairing the erroneous printed base",
+          "file": "src/rules/printedToolWeights.test.ts",
+          "line": 49,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/printedToolWeights.test.ts:64:keeps an explicit untracked custom weight instead of guessing its reason",
+          "title": "keeps an explicit untracked custom weight instead of guessing its reason",
+          "file": "src/rules/printedToolWeights.test.ts",
+          "line": 64,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:40:clears the selected file before reading so a failed same-file selection can retry",
+          "title": "clears the selected file before reading so a failed same-file selection can retry",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 40,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:53:reports a file read error and preserves the current campaign",
+          "title": "reports a file read error and preserves the current campaign",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 53,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:62:does nothing after a cancelled file chooser",
+          "title": "does nothing after a cancelled file chooser",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 62,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:69:ignores a superseded read when the earlier large file completes after the latest selection",
+          "title": "ignores a superseded read when the earlier large file completes after the latest selection",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 69,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:81:does not import or display an error after leaving the Journal view",
+          "title": "does not import or display an error after leaving the Journal view",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 81,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:93:keeps the latest selection when native file reads finish in reverse order",
+          "title": "keeps the latest selection when native file reads finish in reverse order",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 93,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs:16:canonical and legacy Journal archive preservation",
+          "title": "canonical and legacy Journal count, preserved note, bookmark, no runtime errors",
+          "file": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs",
+          "line": 16,
+          "level": "e2e",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/patientMemoryConsistency.test.ts:28:shows the real canonical treatment rather than an empty legacy-only shelf",
+          "title": "shows the real canonical treatment rather than an empty legacy-only shelf",
+          "file": "src/patientMemoryConsistency.test.ts",
+          "line": 28,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/patientMemoryConsistency.test.ts:36:keeps unresolved intake records out of completed memories",
+          "title": "keeps unresolved intake records out of completed memories",
+          "file": "src/patientMemoryConsistency.test.ts",
+          "line": 36,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/patientMemoryConsistency.test.ts:42:preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+          "title": "preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+          "file": "src/patientMemoryConsistency.test.ts",
+          "line": 42,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/patientMemoryConsistency.test.ts:50:projects a failed case without changing saved records or inventing a resolution day",
+          "title": "projects a failed case without changing saved records or inventing a resolution day",
+          "file": "src/patientMemoryConsistency.test.ts",
+          "line": 50,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "output/full-site-qa-2026-10-09/browser-smoke.cjs:8:final full-site smoke and canonical memories",
+          "title": "27 viewport/page screens, canonical LivingArchive/Play/Journal memories, reload and map controls without runtime/console errors",
+          "file": "output/full-site-qa-2026-10-09/browser-smoke.cjs",
+          "line": 8,
+          "level": "e2e",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        }
+      ],
+      "notes": "Actual import/reload restored stale tool weights1 to3/2/2; total8,Carry5,Speed1. Treatment cancellation/draft/reward checkpoint reload/inventory consumption passed. Both JSON exports, malformed/same-file/reverse-order import, real StorageEvent stale-tab and actual IndexedDB fallback passed. Canonical/legacy archives preserve data. Live Google/cloud-slot/multi-device behavior remains unverified; these samples do not establish every possible save-state boundary. JOUR-01 projection creates a fresh combined sorted display array without writing either archive; four new tests establish canonical treated/failed visibility, active exclusion, legacy reference/note/bookmark preservation and no state mutation."
+    },
+    {
+      "id": "QA-06",
+      "criterion": "Desktop/tablet/mobile layouts preserve existing design and have no obvious clipping, overlap, overflow, unreachable controls or misleading labels/states.",
+      "priority": "P1",
+      "coverage": "PARTIAL",
+      "tests": [
+        {
+          "id": "output/full-site-qa-2026-10-09/browser-smoke.cjs:8:final full-site smoke and canonical memories",
+          "title": "27 viewport/page screens, canonical LivingArchive/Play/Journal memories, reload and map controls without runtime/console errors",
+          "file": "output/full-site-qa-2026-10-09/browser-smoke.cjs",
+          "line": 8,
+          "level": "e2e",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        }
+      ],
+      "notes": "Final smoke visited9tabs×360/768/1440=27screens, document scrollWidth matched viewport and pageErrors/consoleErrors arrays were empty. Map search overlap was fixed/rechecked at all3widths, desktop/mobile casebook and source drawer return were checked. Nested dialogs, all UI states and native mobile/keyboard behavior are not exhaustive. QA independently reran the final script:27screens and canonical memory/map controls/reload PASS with runtime/console errors0. Nearby Odoak/current markers overlap at baseline zoom; one zoom-in step and search each permit selection. All dense-marker/zoom cases remain untested."
+    },
+    {
+      "id": "QA-07",
+      "criterion": "Confirmed defects are prioritized, fixed with minimal scope, then verified through browser regression and appropriate automated tests.",
+      "priority": "P1",
+      "coverage": "FULL",
+      "tests": [
+        {
+          "id": "src/rules/printedToolWeights.test.ts:17:%s keeps every printed whole Weight unit",
+          "title": "%s keeps every printed whole Weight unit",
+          "file": "src/rules/printedToolWeights.test.ts",
+          "line": 17,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/printedToolWeights.test.ts:31:repairs old weight-1 saves without changing identities, quantities or unrelated custom weights",
+          "title": "repairs old weight-1 saves without changing identities, quantities or unrelated custom weights",
+          "file": "src/rules/printedToolWeights.test.ts",
+          "line": 31,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/printedToolWeights.test.ts:49:preserves a recorded Bad Idea weight reduction while repairing the erroneous printed base",
+          "title": "preserves a recorded Bad Idea weight reduction while repairing the erroneous printed base",
+          "file": "src/rules/printedToolWeights.test.ts",
+          "line": 49,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/printedToolWeights.test.ts:64:keeps an explicit untracked custom weight instead of guessing its reason",
+          "title": "keeps an explicit untracked custom weight instead of guessing its reason",
+          "file": "src/rules/printedToolWeights.test.ts",
+          "line": 64,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/manualAdjustmentInput.test.ts:46:rejects nonzero-unsafe-integer delta %s",
+          "title": "rejects nonzero-unsafe-integer delta %s",
+          "file": "src/manualAdjustmentInput.test.ts",
+          "line": 46,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/manualAdjustmentInput.test.ts:50:rejects Trinket allocation delta %s before updating the campaign",
+          "title": "rejects Trinket allocation delta %s before updating the campaign",
+          "file": "src/manualAdjustmentInput.test.ts",
+          "line": 50,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/manualAdjustmentInput.test.ts:58:adds the exact accepted delta and records it once, without an overall balance cap",
+          "title": "adds the exact accepted delta and records it once, without an overall balance cap",
+          "file": "src/manualAdjustmentInput.test.ts",
+          "line": 58,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/manualAdjustmentInput.test.ts:66:retains normal removal semantics at zero",
+          "title": "retains normal removal semantics at zero",
+          "file": "src/manualAdjustmentInput.test.ts",
+          "line": 66,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/manualAdjustmentInput.test.ts:72:rejects overflow after a valid delta in %s without saving a rounded result",
+          "title": "rejects overflow after a valid delta in %s without saving a rounded result",
+          "file": "src/manualAdjustmentInput.test.ts",
+          "line": 72,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/chattyBarterFidelity.test.ts:22:reduces the printed barter Rarity by 2 while preserving every other modifier",
+          "title": "reduces the printed barter Rarity by 2 while preserving every other modifier",
+          "file": "src/rules/chattyBarterFidelity.test.ts",
+          "line": 22,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/chattyBarterFidelity.test.ts:31:uses the adjusted Rarity during the actual second-card decision after save/restore",
+          "title": "uses the adjusted Rarity during the actual second-card decision after save/restore",
+          "file": "src/rules/chattyBarterFidelity.test.ts",
+          "line": 31,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/chattyBarterFidelity.test.ts:49:also applies the benefit to a BR 12 stand-in Reagent",
+          "title": "also applies the benefit to a BR 12 stand-in Reagent",
+          "file": "src/rules/chattyBarterFidelity.test.ts",
+          "line": 49,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/chattyBarterFidelity.test.ts:68:adds 2 during the named Season and combines with Chatty, without stacking duplicate records",
+          "title": "adds 2 during the named Season and combines with Chatty, without stacking duplicate records",
+          "file": "src/rules/chattyBarterFidelity.test.ts",
+          "line": 68,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/rules/chattyBarterFidelity.test.ts:78:applies the same current-Season penalty to a stand-in Reagent transaction",
+          "title": "applies the same current-Season penalty to a stand-in Reagent transaction",
+          "file": "src/rules/chattyBarterFidelity.test.ts",
+          "line": 78,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:40:clears the selected file before reading so a failed same-file selection can retry",
+          "title": "clears the selected file before reading so a failed same-file selection can retry",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 40,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:53:reports a file read error and preserves the current campaign",
+          "title": "reports a file read error and preserves the current campaign",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 53,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:62:does nothing after a cancelled file chooser",
+          "title": "does nothing after a cancelled file chooser",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 62,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:69:ignores a superseded read when the earlier large file completes after the latest selection",
+          "title": "ignores a superseded read when the earlier large file completes after the latest selection",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 69,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:81:does not import or display an error after leaving the Journal view",
+          "title": "does not import or display an error after leaving the Journal view",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 81,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/persistence/journalImportExperience.test.ts:93:keeps the latest selection when native file reads finish in reverse order",
+          "title": "keeps the latest selection when native file reads finish in reverse order",
+          "file": "src/persistence/journalImportExperience.test.ts",
+          "line": 93,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs:16:canonical and legacy Journal archive preservation",
+          "title": "canonical and legacy Journal count, preserved note, bookmark, no runtime errors",
+          "file": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs",
+          "line": 16,
+          "level": "e2e",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/barrowPatientBoundary.test.ts:24:blocks an ordinary intake while a Delve is active",
+          "title": "blocks an ordinary intake while a Delve is active",
+          "file": "src/barrowPatientBoundary.test.ts",
+          "line": 24,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/barrowPatientBoundary.test.ts:31:blocks an ordinary intake at a live Barrow before its challenge",
+          "title": "blocks an ordinary intake at a live Barrow before its challenge",
+          "file": "src/barrowPatientBoundary.test.ts",
+          "line": 31,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/barrowPatientBoundary.test.ts:37:preserves ordinary intake outside a live local Barrow: %j",
+          "title": "preserves ordinary intake outside a live local Barrow: %j",
+          "file": "src/barrowPatientBoundary.test.ts",
+          "line": 37,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/patientMemoryConsistency.test.ts:28:shows the real canonical treatment rather than an empty legacy-only shelf",
+          "title": "shows the real canonical treatment rather than an empty legacy-only shelf",
+          "file": "src/patientMemoryConsistency.test.ts",
+          "line": 28,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/patientMemoryConsistency.test.ts:36:keeps unresolved intake records out of completed memories",
+          "title": "keeps unresolved intake records out of completed memories",
+          "file": "src/patientMemoryConsistency.test.ts",
+          "line": 36,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/patientMemoryConsistency.test.ts:42:preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+          "title": "preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+          "file": "src/patientMemoryConsistency.test.ts",
+          "line": 42,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "src/patientMemoryConsistency.test.ts:50:projects a failed case without changing saved records or inventing a resolution day",
+          "title": "projects a failed case without changing saved records or inventing a resolution day",
+          "file": "src/patientMemoryConsistency.test.ts",
+          "line": 50,
+          "level": "unit",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        },
+        {
+          "id": "output/full-site-qa-2026-10-09/browser-smoke.cjs:8:final full-site smoke and canonical memories",
+          "title": "27 viewport/page screens, canonical LivingArchive/Play/Journal memories, reload and map controls without runtime/console errors",
+          "file": "output/full-site-qa-2026-10-09/browser-smoke.cjs",
+          "line": 8,
+          "level": "e2e",
+          "status": "active",
+          "skipped": false,
+          "pending": false,
+          "fixme": false
+        }
+      ],
+      "notes": "All currently confirmed rule, numeric/import, casebook, map-search, shop-weight and Barrow-intake defects have minimal source-backed fixes, actual browser regression and appropriate automated regression. JOUR-01 also repaired canonical completed memories in LivingArchive and Play recent-patient lists through a read-only projection; active records remain excluded and legacy notes/bookmarks stay intact. Final post-projection whole suite:146files/1509tests pass. This establishes the confirmed-fix criterion; it does not certify every unexecuted original branch. Final report records all12confirmed fixes and separately retains the Odoak baseline-overlap/zoom-selection observation; additional browser photo/map checks passed and no new confirmed defect was inferred."
+    },
+    {
+      "id": "QA-08",
+      "criterion": "The report identifies actual visits, rule evidence, defects/fixes, executed test results, unresolved issues and unverified areas without claiming unobserved success.",
+      "priority": "P1",
+      "coverage": "FULL",
+      "tests": [],
+      "notes": "Final full-site-qa-report.md was read in full. It lists actual visited surfaces, seeded versus natural paths, original page evidence,12confirmed defects and fixes, before/after comparisons, final146files/1509pass, build/lint, official BMAD outcome and explicit unverified/source-conflicting areas. All37distinct file links exist. Extra photo/map checks and the explicit Odoak baseline-overlap/zoom-selection limitation are reported honestly; no unexecuted nested/account branch is called normal. This document-delivery criterion is FULL by direct artifact review, not invented automated/live cases."
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 8,
+    "fully_covered": 2,
+    "partially_covered": 6,
+    "uncovered": 0,
+    "overall_coverage_percentage": 25,
+    "priority_breakdown": {
+      "P0": {
+        "total": 4,
+        "covered": 0,
+        "percentage": 0
+      },
+      "P1": {
+        "total": 4,
+        "covered": 2,
+        "percentage": 50
+      },
+      "P2": {
+        "total": 0,
+        "covered": 0,
+        "percentage": 100
+      },
+      "P3": {
+        "total": 0,
+        "covered": 0,
+        "percentage": 100
+      }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [
+      {
+        "id": "QA-01",
+        "criterion": "Core adjudication, dice/cards, numeric values, conditions, exceptions and sequencing agree with the supplied source rulebook; source conflicts are retained as uncertain.",
+        "priority": "P0",
+        "coverage": "PARTIAL",
+        "tests": [
+          {
+            "id": "src/rules/printedToolWeights.test.ts:17:%s keeps every printed whole Weight unit",
+            "title": "%s keeps every printed whole Weight unit",
+            "file": "src/rules/printedToolWeights.test.ts",
+            "line": 17,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/printedToolWeights.test.ts:31:repairs old weight-1 saves without changing identities, quantities or unrelated custom weights",
+            "title": "repairs old weight-1 saves without changing identities, quantities or unrelated custom weights",
+            "file": "src/rules/printedToolWeights.test.ts",
+            "line": 31,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/printedToolWeights.test.ts:49:preserves a recorded Bad Idea weight reduction while repairing the erroneous printed base",
+            "title": "preserves a recorded Bad Idea weight reduction while repairing the erroneous printed base",
+            "file": "src/rules/printedToolWeights.test.ts",
+            "line": 49,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/printedToolWeights.test.ts:64:keeps an explicit untracked custom weight instead of guessing its reason",
+            "title": "keeps an explicit untracked custom weight instead of guessing its reason",
+            "file": "src/rules/printedToolWeights.test.ts",
+            "line": 64,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/chattyBarterFidelity.test.ts:22:reduces the printed barter Rarity by 2 while preserving every other modifier",
+            "title": "reduces the printed barter Rarity by 2 while preserving every other modifier",
+            "file": "src/rules/chattyBarterFidelity.test.ts",
+            "line": 22,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/chattyBarterFidelity.test.ts:31:uses the adjusted Rarity during the actual second-card decision after save/restore",
+            "title": "uses the adjusted Rarity during the actual second-card decision after save/restore",
+            "file": "src/rules/chattyBarterFidelity.test.ts",
+            "line": 31,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/chattyBarterFidelity.test.ts:49:also applies the benefit to a BR 12 stand-in Reagent",
+            "title": "also applies the benefit to a BR 12 stand-in Reagent",
+            "file": "src/rules/chattyBarterFidelity.test.ts",
+            "line": 49,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/chattyBarterFidelity.test.ts:68:adds 2 during the named Season and combines with Chatty, without stacking duplicate records",
+            "title": "adds 2 during the named Season and combines with Chatty, without stacking duplicate records",
+            "file": "src/rules/chattyBarterFidelity.test.ts",
+            "line": 68,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/chattyBarterFidelity.test.ts:78:applies the same current-Season penalty to a stand-in Reagent transaction",
+            "title": "applies the same current-Season penalty to a stand-in Reagent transaction",
+            "file": "src/rules/chattyBarterFidelity.test.ts",
+            "line": 78,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/barrowPatientBoundary.test.ts:24:blocks an ordinary intake while a Delve is active",
+            "title": "blocks an ordinary intake while a Delve is active",
+            "file": "src/barrowPatientBoundary.test.ts",
+            "line": 24,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/barrowPatientBoundary.test.ts:31:blocks an ordinary intake at a live Barrow before its challenge",
+            "title": "blocks an ordinary intake at a live Barrow before its challenge",
+            "file": "src/barrowPatientBoundary.test.ts",
+            "line": 31,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/barrowPatientBoundary.test.ts:37:preserves ordinary intake outside a live local Barrow: %j",
+            "title": "preserves ordinary intake outside a live local Barrow: %j",
+            "file": "src/barrowPatientBoundary.test.ts",
+            "line": 37,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          }
+        ],
+        "notes": "Printed p.62 weights, Chatty p.14 and Wingbreak p.115 regressions directly establish corrected calculations. Rule worker compared named core procedures and 45 ailments. All printed effects, nested exceptions, reagent icon semantics and service/clinic/barrow/companion lifecycle branches were not independently executed or fully compared."
+      },
+      {
+        "id": "QA-02",
+        "criterion": "Oracle/random tables have the source text, result range and reference relationships; separate books and convenience modes do not silently mix rules.",
+        "priority": "P0",
+        "coverage": "PARTIAL",
+        "tests": [
+          {
+            "id": "src/rulebook/referenceRegistry.test.ts:16:keeps every canonical catalogue at its certified count",
+            "title": "keeps every canonical catalogue at its certified count",
+            "file": "src/rulebook/referenceRegistry.test.ts",
+            "line": 16,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rulebook/referenceRegistry.test.ts:37:has no reference/runtime drift",
+            "title": "has no reference/runtime drift",
+            "file": "src/rulebook/referenceRegistry.test.ts",
+            "line": 37,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rulebook/referenceRegistry.test.ts:46:uses the exact Guild Reputation term on every canonical reference surface",
+            "title": "uses the exact Guild Reputation term on every canonical reference surface",
+            "file": "src/rulebook/referenceRegistry.test.ts",
+            "line": 46,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rulebook/referenceRegistry.test.ts:64:supports entity, rule ID and printed page searches",
+            "title": "supports entity, rule ID and printed page searches",
+            "file": "src/rulebook/referenceRegistry.test.ts",
+            "line": 64,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rulebook/referenceRegistry.test.ts:73:links field-reference relationships in both directions",
+            "title": "links field-reference relationships in both directions",
+            "file": "src/rulebook/referenceRegistry.test.ts",
+            "line": 73,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rulebook/referenceRegistry.test.ts:92:renders canonical numbers and manual semantics directly from runtime data",
+            "title": "renders canonical numbers and manual semantics directly from runtime data",
+            "file": "src/rulebook/referenceRegistry.test.ts",
+            "line": 92,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rulebook/referenceRegistry.test.ts:131:ships all 220 source pages outside the JavaScript bundle",
+            "title": "ships all 220 source pages outside the JavaScript bundle",
+            "file": "src/rulebook/referenceRegistry.test.ts",
+            "line": 131,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          }
+        ],
+        "notes": "Original PDF SHA and all 220 normalized source pages match. Canonical name/reference structure and 3,380 lookup existence checks passed; reference registry relationships are tested. Lookup existence and derived registry consistency do not establish the original semantic text and every result branch. Source conflicts remain explicit."
+      },
+      {
+        "id": "QA-04",
+        "criterion": "Complete normal journeys, cancellation/back navigation, repeated use and boundary/error inputs produce correct visible state without runtime exceptions.",
+        "priority": "P0",
+        "coverage": "PARTIAL",
+        "tests": [
+          {
+            "id": "src/manualAdjustmentInput.test.ts:46:rejects nonzero-unsafe-integer delta %s",
+            "title": "rejects nonzero-unsafe-integer delta %s",
+            "file": "src/manualAdjustmentInput.test.ts",
+            "line": 46,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/manualAdjustmentInput.test.ts:50:rejects Trinket allocation delta %s before updating the campaign",
+            "title": "rejects Trinket allocation delta %s before updating the campaign",
+            "file": "src/manualAdjustmentInput.test.ts",
+            "line": 50,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/manualAdjustmentInput.test.ts:58:adds the exact accepted delta and records it once, without an overall balance cap",
+            "title": "adds the exact accepted delta and records it once, without an overall balance cap",
+            "file": "src/manualAdjustmentInput.test.ts",
+            "line": 58,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/manualAdjustmentInput.test.ts:66:retains normal removal semantics at zero",
+            "title": "retains normal removal semantics at zero",
+            "file": "src/manualAdjustmentInput.test.ts",
+            "line": 66,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/manualAdjustmentInput.test.ts:72:rejects overflow after a valid delta in %s without saving a rounded result",
+            "title": "rejects overflow after a valid delta in %s without saving a rounded result",
+            "file": "src/manualAdjustmentInput.test.ts",
+            "line": 72,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:40:clears the selected file before reading so a failed same-file selection can retry",
+            "title": "clears the selected file before reading so a failed same-file selection can retry",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 40,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:53:reports a file read error and preserves the current campaign",
+            "title": "reports a file read error and preserves the current campaign",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 53,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:62:does nothing after a cancelled file chooser",
+            "title": "does nothing after a cancelled file chooser",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 62,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:69:ignores a superseded read when the earlier large file completes after the latest selection",
+            "title": "ignores a superseded read when the earlier large file completes after the latest selection",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 69,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:81:does not import or display an error after leaving the Journal view",
+            "title": "does not import or display an error after leaving the Journal view",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 81,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:93:keeps the latest selection when native file reads finish in reverse order",
+            "title": "keeps the latest selection when native file reads finish in reverse order",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 93,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs:16:canonical and legacy Journal archive preservation",
+            "title": "canonical and legacy Journal count, preserved note, bookmark, no runtime errors",
+            "file": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs",
+            "line": 16,
+            "level": "e2e",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/barrowPatientBoundary.test.ts:24:blocks an ordinary intake while a Delve is active",
+            "title": "blocks an ordinary intake while a Delve is active",
+            "file": "src/barrowPatientBoundary.test.ts",
+            "line": 24,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/barrowPatientBoundary.test.ts:31:blocks an ordinary intake at a live Barrow before its challenge",
+            "title": "blocks an ordinary intake at a live Barrow before its challenge",
+            "file": "src/barrowPatientBoundary.test.ts",
+            "line": 31,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/barrowPatientBoundary.test.ts:37:preserves ordinary intake outside a live local Barrow: %j",
+            "title": "preserves ordinary intake outside a live local Barrow: %j",
+            "file": "src/barrowPatientBoundary.test.ts",
+            "line": 37,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:28:shows the real canonical treatment rather than an empty legacy-only shelf",
+            "title": "shows the real canonical treatment rather than an empty legacy-only shelf",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 28,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:36:keeps unresolved intake records out of completed memories",
+            "title": "keeps unresolved intake records out of completed memories",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 36,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:42:preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+            "title": "preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 42,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:50:projects a failed case without changing saved records or inventing a resolution day",
+            "title": "projects a failed case without changing saved records or inventing a resolution day",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 50,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "output/full-site-qa-2026-10-09/browser-smoke.cjs:8:final full-site smoke and canonical memories",
+            "title": "27 viewport/page screens, canonical LivingArchive/Play/Journal memories, reload and map controls without runtime/console errors",
+            "file": "output/full-site-qa-2026-10-09/browser-smoke.cjs",
+            "line": 8,
+            "level": "e2e",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          }
+        ],
+        "notes": "Actual numeric error, malformed save, retry, concurrent import, stale tab and localStorage quota paths have browser evidence; controlled handlers cover cancellation/read error/unmount. Source guards are not a rendered whole-site workflow proof. Every gameplay error/expiry/back/repeated nested choice is not established. Extra photo/map cancel, deletion, repeated line-state changes and reload paths passed, errors0. Odoak marker/current-marker hit target overlap was observed but cause/general behavior remain uncertain and are not silently fixed or certified."
+      },
+      {
+        "id": "QA-05",
+        "criterion": "Local save, restore, refresh and cross-view state preserve player data. Live cloud/account behavior is only claimed if actually observed.",
+        "priority": "P0",
+        "coverage": "PARTIAL",
+        "tests": [
+          {
+            "id": "src/rules/printedToolWeights.test.ts:17:%s keeps every printed whole Weight unit",
+            "title": "%s keeps every printed whole Weight unit",
+            "file": "src/rules/printedToolWeights.test.ts",
+            "line": 17,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/printedToolWeights.test.ts:31:repairs old weight-1 saves without changing identities, quantities or unrelated custom weights",
+            "title": "repairs old weight-1 saves without changing identities, quantities or unrelated custom weights",
+            "file": "src/rules/printedToolWeights.test.ts",
+            "line": 31,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/printedToolWeights.test.ts:49:preserves a recorded Bad Idea weight reduction while repairing the erroneous printed base",
+            "title": "preserves a recorded Bad Idea weight reduction while repairing the erroneous printed base",
+            "file": "src/rules/printedToolWeights.test.ts",
+            "line": 49,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/printedToolWeights.test.ts:64:keeps an explicit untracked custom weight instead of guessing its reason",
+            "title": "keeps an explicit untracked custom weight instead of guessing its reason",
+            "file": "src/rules/printedToolWeights.test.ts",
+            "line": 64,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:40:clears the selected file before reading so a failed same-file selection can retry",
+            "title": "clears the selected file before reading so a failed same-file selection can retry",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 40,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:53:reports a file read error and preserves the current campaign",
+            "title": "reports a file read error and preserves the current campaign",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 53,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:62:does nothing after a cancelled file chooser",
+            "title": "does nothing after a cancelled file chooser",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 62,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:69:ignores a superseded read when the earlier large file completes after the latest selection",
+            "title": "ignores a superseded read when the earlier large file completes after the latest selection",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 69,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:81:does not import or display an error after leaving the Journal view",
+            "title": "does not import or display an error after leaving the Journal view",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 81,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:93:keeps the latest selection when native file reads finish in reverse order",
+            "title": "keeps the latest selection when native file reads finish in reverse order",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 93,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs:16:canonical and legacy Journal archive preservation",
+            "title": "canonical and legacy Journal count, preserved note, bookmark, no runtime errors",
+            "file": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs",
+            "line": 16,
+            "level": "e2e",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:28:shows the real canonical treatment rather than an empty legacy-only shelf",
+            "title": "shows the real canonical treatment rather than an empty legacy-only shelf",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 28,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:36:keeps unresolved intake records out of completed memories",
+            "title": "keeps unresolved intake records out of completed memories",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 36,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:42:preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+            "title": "preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 42,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:50:projects a failed case without changing saved records or inventing a resolution day",
+            "title": "projects a failed case without changing saved records or inventing a resolution day",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 50,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "output/full-site-qa-2026-10-09/browser-smoke.cjs:8:final full-site smoke and canonical memories",
+            "title": "27 viewport/page screens, canonical LivingArchive/Play/Journal memories, reload and map controls without runtime/console errors",
+            "file": "output/full-site-qa-2026-10-09/browser-smoke.cjs",
+            "line": 8,
+            "level": "e2e",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          }
+        ],
+        "notes": "Actual import/reload restored stale tool weights1 to3/2/2; total8,Carry5,Speed1. Treatment cancellation/draft/reward checkpoint reload/inventory consumption passed. Both JSON exports, malformed/same-file/reverse-order import, real StorageEvent stale-tab and actual IndexedDB fallback passed. Canonical/legacy archives preserve data. Live Google/cloud-slot/multi-device behavior remains unverified; these samples do not establish every possible save-state boundary. JOUR-01 projection creates a fresh combined sorted display array without writing either archive; four new tests establish canonical treated/failed visibility, active exclusion, legacy reference/note/bookmark preservation and no state mutation."
+      }
+    ],
+    "high_gaps": [],
+    "medium_gaps": [],
+    "low_gaps": [],
+    "partial_coverage_items": [
+      {
+        "id": "QA-01",
+        "criterion": "Core adjudication, dice/cards, numeric values, conditions, exceptions and sequencing agree with the supplied source rulebook; source conflicts are retained as uncertain.",
+        "priority": "P0",
+        "coverage": "PARTIAL",
+        "tests": [
+          {
+            "id": "src/rules/printedToolWeights.test.ts:17:%s keeps every printed whole Weight unit",
+            "title": "%s keeps every printed whole Weight unit",
+            "file": "src/rules/printedToolWeights.test.ts",
+            "line": 17,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/printedToolWeights.test.ts:31:repairs old weight-1 saves without changing identities, quantities or unrelated custom weights",
+            "title": "repairs old weight-1 saves without changing identities, quantities or unrelated custom weights",
+            "file": "src/rules/printedToolWeights.test.ts",
+            "line": 31,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/printedToolWeights.test.ts:49:preserves a recorded Bad Idea weight reduction while repairing the erroneous printed base",
+            "title": "preserves a recorded Bad Idea weight reduction while repairing the erroneous printed base",
+            "file": "src/rules/printedToolWeights.test.ts",
+            "line": 49,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/printedToolWeights.test.ts:64:keeps an explicit untracked custom weight instead of guessing its reason",
+            "title": "keeps an explicit untracked custom weight instead of guessing its reason",
+            "file": "src/rules/printedToolWeights.test.ts",
+            "line": 64,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/chattyBarterFidelity.test.ts:22:reduces the printed barter Rarity by 2 while preserving every other modifier",
+            "title": "reduces the printed barter Rarity by 2 while preserving every other modifier",
+            "file": "src/rules/chattyBarterFidelity.test.ts",
+            "line": 22,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/chattyBarterFidelity.test.ts:31:uses the adjusted Rarity during the actual second-card decision after save/restore",
+            "title": "uses the adjusted Rarity during the actual second-card decision after save/restore",
+            "file": "src/rules/chattyBarterFidelity.test.ts",
+            "line": 31,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/chattyBarterFidelity.test.ts:49:also applies the benefit to a BR 12 stand-in Reagent",
+            "title": "also applies the benefit to a BR 12 stand-in Reagent",
+            "file": "src/rules/chattyBarterFidelity.test.ts",
+            "line": 49,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/chattyBarterFidelity.test.ts:68:adds 2 during the named Season and combines with Chatty, without stacking duplicate records",
+            "title": "adds 2 during the named Season and combines with Chatty, without stacking duplicate records",
+            "file": "src/rules/chattyBarterFidelity.test.ts",
+            "line": 68,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/chattyBarterFidelity.test.ts:78:applies the same current-Season penalty to a stand-in Reagent transaction",
+            "title": "applies the same current-Season penalty to a stand-in Reagent transaction",
+            "file": "src/rules/chattyBarterFidelity.test.ts",
+            "line": 78,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/barrowPatientBoundary.test.ts:24:blocks an ordinary intake while a Delve is active",
+            "title": "blocks an ordinary intake while a Delve is active",
+            "file": "src/barrowPatientBoundary.test.ts",
+            "line": 24,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/barrowPatientBoundary.test.ts:31:blocks an ordinary intake at a live Barrow before its challenge",
+            "title": "blocks an ordinary intake at a live Barrow before its challenge",
+            "file": "src/barrowPatientBoundary.test.ts",
+            "line": 31,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/barrowPatientBoundary.test.ts:37:preserves ordinary intake outside a live local Barrow: %j",
+            "title": "preserves ordinary intake outside a live local Barrow: %j",
+            "file": "src/barrowPatientBoundary.test.ts",
+            "line": 37,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          }
+        ],
+        "notes": "Printed p.62 weights, Chatty p.14 and Wingbreak p.115 regressions directly establish corrected calculations. Rule worker compared named core procedures and 45 ailments. All printed effects, nested exceptions, reagent icon semantics and service/clinic/barrow/companion lifecycle branches were not independently executed or fully compared."
+      },
+      {
+        "id": "QA-02",
+        "criterion": "Oracle/random tables have the source text, result range and reference relationships; separate books and convenience modes do not silently mix rules.",
+        "priority": "P0",
+        "coverage": "PARTIAL",
+        "tests": [
+          {
+            "id": "src/rulebook/referenceRegistry.test.ts:16:keeps every canonical catalogue at its certified count",
+            "title": "keeps every canonical catalogue at its certified count",
+            "file": "src/rulebook/referenceRegistry.test.ts",
+            "line": 16,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rulebook/referenceRegistry.test.ts:37:has no reference/runtime drift",
+            "title": "has no reference/runtime drift",
+            "file": "src/rulebook/referenceRegistry.test.ts",
+            "line": 37,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rulebook/referenceRegistry.test.ts:46:uses the exact Guild Reputation term on every canonical reference surface",
+            "title": "uses the exact Guild Reputation term on every canonical reference surface",
+            "file": "src/rulebook/referenceRegistry.test.ts",
+            "line": 46,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rulebook/referenceRegistry.test.ts:64:supports entity, rule ID and printed page searches",
+            "title": "supports entity, rule ID and printed page searches",
+            "file": "src/rulebook/referenceRegistry.test.ts",
+            "line": 64,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rulebook/referenceRegistry.test.ts:73:links field-reference relationships in both directions",
+            "title": "links field-reference relationships in both directions",
+            "file": "src/rulebook/referenceRegistry.test.ts",
+            "line": 73,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rulebook/referenceRegistry.test.ts:92:renders canonical numbers and manual semantics directly from runtime data",
+            "title": "renders canonical numbers and manual semantics directly from runtime data",
+            "file": "src/rulebook/referenceRegistry.test.ts",
+            "line": 92,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rulebook/referenceRegistry.test.ts:131:ships all 220 source pages outside the JavaScript bundle",
+            "title": "ships all 220 source pages outside the JavaScript bundle",
+            "file": "src/rulebook/referenceRegistry.test.ts",
+            "line": 131,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          }
+        ],
+        "notes": "Original PDF SHA and all 220 normalized source pages match. Canonical name/reference structure and 3,380 lookup existence checks passed; reference registry relationships are tested. Lookup existence and derived registry consistency do not establish the original semantic text and every result branch. Source conflicts remain explicit."
+      },
+      {
+        "id": "QA-03",
+        "criterion": "Every major page/tab/menu/modal and user control is exercised in a real development-server browser.",
+        "priority": "P1",
+        "coverage": "PARTIAL",
+        "tests": [
+          {
+            "id": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs:16:canonical and legacy Journal archive preservation",
+            "title": "canonical and legacy Journal count, preserved note, bookmark, no runtime errors",
+            "file": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs",
+            "line": 16,
+            "level": "e2e",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:28:shows the real canonical treatment rather than an empty legacy-only shelf",
+            "title": "shows the real canonical treatment rather than an empty legacy-only shelf",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 28,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:36:keeps unresolved intake records out of completed memories",
+            "title": "keeps unresolved intake records out of completed memories",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 36,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:42:preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+            "title": "preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 42,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:50:projects a failed case without changing saved records or inventing a resolution day",
+            "title": "projects a failed case without changing saved records or inventing a resolution day",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 50,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "output/full-site-qa-2026-10-09/browser-smoke.cjs:8:final full-site smoke and canonical memories",
+            "title": "27 viewport/page screens, canonical LivingArchive/Play/Journal memories, reload and map controls without runtime/console errors",
+            "file": "output/full-site-qa-2026-10-09/browser-smoke.cjs",
+            "line": 8,
+            "level": "e2e",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          }
+        ],
+        "notes": "Nine main tabs actually visited at 1440/768/360; normal character/journey/patient/foraging/treatment, searches, inventory, Journal and backup controls have browser evidence. Independent Journal archive E2E is re-runnable. Every nested choice, modal and account/cloud control has not been exercised. Later actual Clinic cancel/build/volunteer/season-completion, Wagon/Companion, tool import, Barrow preview/reload/flee and Building Trust special Intermediate patient generation were checked. Every Delve outcome/full Building Trust cure remains unexecuted. Further actual browser checks covered Journal photo upload/save/reload/enlarge/close, photo/journal deletion cancel/confirm/reload, and map creation/cancel/edit/drag/edge cancellation and mutation/delete/reload. The final smoke script was independently rerun by QA with exit0. Every remaining nested effect/account control still lacks coverage."
+      },
+      {
+        "id": "QA-04",
+        "criterion": "Complete normal journeys, cancellation/back navigation, repeated use and boundary/error inputs produce correct visible state without runtime exceptions.",
+        "priority": "P0",
+        "coverage": "PARTIAL",
+        "tests": [
+          {
+            "id": "src/manualAdjustmentInput.test.ts:46:rejects nonzero-unsafe-integer delta %s",
+            "title": "rejects nonzero-unsafe-integer delta %s",
+            "file": "src/manualAdjustmentInput.test.ts",
+            "line": 46,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/manualAdjustmentInput.test.ts:50:rejects Trinket allocation delta %s before updating the campaign",
+            "title": "rejects Trinket allocation delta %s before updating the campaign",
+            "file": "src/manualAdjustmentInput.test.ts",
+            "line": 50,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/manualAdjustmentInput.test.ts:58:adds the exact accepted delta and records it once, without an overall balance cap",
+            "title": "adds the exact accepted delta and records it once, without an overall balance cap",
+            "file": "src/manualAdjustmentInput.test.ts",
+            "line": 58,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/manualAdjustmentInput.test.ts:66:retains normal removal semantics at zero",
+            "title": "retains normal removal semantics at zero",
+            "file": "src/manualAdjustmentInput.test.ts",
+            "line": 66,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/manualAdjustmentInput.test.ts:72:rejects overflow after a valid delta in %s without saving a rounded result",
+            "title": "rejects overflow after a valid delta in %s without saving a rounded result",
+            "file": "src/manualAdjustmentInput.test.ts",
+            "line": 72,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:40:clears the selected file before reading so a failed same-file selection can retry",
+            "title": "clears the selected file before reading so a failed same-file selection can retry",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 40,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:53:reports a file read error and preserves the current campaign",
+            "title": "reports a file read error and preserves the current campaign",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 53,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:62:does nothing after a cancelled file chooser",
+            "title": "does nothing after a cancelled file chooser",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 62,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:69:ignores a superseded read when the earlier large file completes after the latest selection",
+            "title": "ignores a superseded read when the earlier large file completes after the latest selection",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 69,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:81:does not import or display an error after leaving the Journal view",
+            "title": "does not import or display an error after leaving the Journal view",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 81,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:93:keeps the latest selection when native file reads finish in reverse order",
+            "title": "keeps the latest selection when native file reads finish in reverse order",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 93,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs:16:canonical and legacy Journal archive preservation",
+            "title": "canonical and legacy Journal count, preserved note, bookmark, no runtime errors",
+            "file": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs",
+            "line": 16,
+            "level": "e2e",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/barrowPatientBoundary.test.ts:24:blocks an ordinary intake while a Delve is active",
+            "title": "blocks an ordinary intake while a Delve is active",
+            "file": "src/barrowPatientBoundary.test.ts",
+            "line": 24,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/barrowPatientBoundary.test.ts:31:blocks an ordinary intake at a live Barrow before its challenge",
+            "title": "blocks an ordinary intake at a live Barrow before its challenge",
+            "file": "src/barrowPatientBoundary.test.ts",
+            "line": 31,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/barrowPatientBoundary.test.ts:37:preserves ordinary intake outside a live local Barrow: %j",
+            "title": "preserves ordinary intake outside a live local Barrow: %j",
+            "file": "src/barrowPatientBoundary.test.ts",
+            "line": 37,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:28:shows the real canonical treatment rather than an empty legacy-only shelf",
+            "title": "shows the real canonical treatment rather than an empty legacy-only shelf",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 28,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:36:keeps unresolved intake records out of completed memories",
+            "title": "keeps unresolved intake records out of completed memories",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 36,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:42:preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+            "title": "preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 42,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:50:projects a failed case without changing saved records or inventing a resolution day",
+            "title": "projects a failed case without changing saved records or inventing a resolution day",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 50,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "output/full-site-qa-2026-10-09/browser-smoke.cjs:8:final full-site smoke and canonical memories",
+            "title": "27 viewport/page screens, canonical LivingArchive/Play/Journal memories, reload and map controls without runtime/console errors",
+            "file": "output/full-site-qa-2026-10-09/browser-smoke.cjs",
+            "line": 8,
+            "level": "e2e",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          }
+        ],
+        "notes": "Actual numeric error, malformed save, retry, concurrent import, stale tab and localStorage quota paths have browser evidence; controlled handlers cover cancellation/read error/unmount. Source guards are not a rendered whole-site workflow proof. Every gameplay error/expiry/back/repeated nested choice is not established. Extra photo/map cancel, deletion, repeated line-state changes and reload paths passed, errors0. Odoak marker/current-marker hit target overlap was observed but cause/general behavior remain uncertain and are not silently fixed or certified."
+      },
+      {
+        "id": "QA-05",
+        "criterion": "Local save, restore, refresh and cross-view state preserve player data. Live cloud/account behavior is only claimed if actually observed.",
+        "priority": "P0",
+        "coverage": "PARTIAL",
+        "tests": [
+          {
+            "id": "src/rules/printedToolWeights.test.ts:17:%s keeps every printed whole Weight unit",
+            "title": "%s keeps every printed whole Weight unit",
+            "file": "src/rules/printedToolWeights.test.ts",
+            "line": 17,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/printedToolWeights.test.ts:31:repairs old weight-1 saves without changing identities, quantities or unrelated custom weights",
+            "title": "repairs old weight-1 saves without changing identities, quantities or unrelated custom weights",
+            "file": "src/rules/printedToolWeights.test.ts",
+            "line": 31,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/printedToolWeights.test.ts:49:preserves a recorded Bad Idea weight reduction while repairing the erroneous printed base",
+            "title": "preserves a recorded Bad Idea weight reduction while repairing the erroneous printed base",
+            "file": "src/rules/printedToolWeights.test.ts",
+            "line": 49,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/rules/printedToolWeights.test.ts:64:keeps an explicit untracked custom weight instead of guessing its reason",
+            "title": "keeps an explicit untracked custom weight instead of guessing its reason",
+            "file": "src/rules/printedToolWeights.test.ts",
+            "line": 64,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:40:clears the selected file before reading so a failed same-file selection can retry",
+            "title": "clears the selected file before reading so a failed same-file selection can retry",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 40,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:53:reports a file read error and preserves the current campaign",
+            "title": "reports a file read error and preserves the current campaign",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 53,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:62:does nothing after a cancelled file chooser",
+            "title": "does nothing after a cancelled file chooser",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 62,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:69:ignores a superseded read when the earlier large file completes after the latest selection",
+            "title": "ignores a superseded read when the earlier large file completes after the latest selection",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 69,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:81:does not import or display an error after leaving the Journal view",
+            "title": "does not import or display an error after leaving the Journal view",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 81,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/persistence/journalImportExperience.test.ts:93:keeps the latest selection when native file reads finish in reverse order",
+            "title": "keeps the latest selection when native file reads finish in reverse order",
+            "file": "src/persistence/journalImportExperience.test.ts",
+            "line": 93,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs:16:canonical and legacy Journal archive preservation",
+            "title": "canonical and legacy Journal count, preserved note, bookmark, no runtime errors",
+            "file": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs",
+            "line": 16,
+            "level": "e2e",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:28:shows the real canonical treatment rather than an empty legacy-only shelf",
+            "title": "shows the real canonical treatment rather than an empty legacy-only shelf",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 28,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:36:keeps unresolved intake records out of completed memories",
+            "title": "keeps unresolved intake records out of completed memories",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 36,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:42:preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+            "title": "preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 42,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "src/patientMemoryConsistency.test.ts:50:projects a failed case without changing saved records or inventing a resolution day",
+            "title": "projects a failed case without changing saved records or inventing a resolution day",
+            "file": "src/patientMemoryConsistency.test.ts",
+            "line": 50,
+            "level": "unit",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          },
+          {
+            "id": "output/full-site-qa-2026-10-09/browser-smoke.cjs:8:final full-site smoke and canonical memories",
+            "title": "27 viewport/page screens, canonical LivingArchive/Play/Journal memories, reload and map controls without runtime/console errors",
+            "file": "output/full-site-qa-2026-10-09/browser-smoke.cjs",
+            "line": 8,
+            "level": "e2e",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          }
+        ],
+        "notes": "Actual import/reload restored stale tool weights1 to3/2/2; total8,Carry5,Speed1. Treatment cancellation/draft/reward checkpoint reload/inventory consumption passed. Both JSON exports, malformed/same-file/reverse-order import, real StorageEvent stale-tab and actual IndexedDB fallback passed. Canonical/legacy archives preserve data. Live Google/cloud-slot/multi-device behavior remains unverified; these samples do not establish every possible save-state boundary. JOUR-01 projection creates a fresh combined sorted display array without writing either archive; four new tests establish canonical treated/failed visibility, active exclusion, legacy reference/note/bookmark preservation and no state mutation."
+      },
+      {
+        "id": "QA-06",
+        "criterion": "Desktop/tablet/mobile layouts preserve existing design and have no obvious clipping, overlap, overflow, unreachable controls or misleading labels/states.",
+        "priority": "P1",
+        "coverage": "PARTIAL",
+        "tests": [
+          {
+            "id": "output/full-site-qa-2026-10-09/browser-smoke.cjs:8:final full-site smoke and canonical memories",
+            "title": "27 viewport/page screens, canonical LivingArchive/Play/Journal memories, reload and map controls without runtime/console errors",
+            "file": "output/full-site-qa-2026-10-09/browser-smoke.cjs",
+            "line": 8,
+            "level": "e2e",
+            "status": "active",
+            "skipped": false,
+            "pending": false,
+            "fixme": false
+          }
+        ],
+        "notes": "Final smoke visited9tabs×360/768/1440=27screens, document scrollWidth matched viewport and pageErrors/consoleErrors arrays were empty. Map search overlap was fixed/rechecked at all3widths, desktop/mobile casebook and source drawer return were checked. Nested dialogs, all UI states and native mobile/keyboard behavior are not exhaustive. QA independently reran the final script:27screens and canonical memory/map controls/reload PASS with runtime/console errors0. Odoak dense-marker selection remains an open UI observation."
+      }
+    ],
+    "unit_only_items": [],
+    "rejected_evidence": [
+      {
+        "id": "src/rulebook/referenceRegistry.test.ts:143:keeps the lazy contextual drawer keyboard and mobile accessible",
+        "requirement_id": "QA-06",
+        "test_file": "src/rulebook/referenceRegistry.test.ts",
+        "test_title": "keeps the lazy contextual drawer keyboard and mobile accessible",
+        "line": 143,
+        "reason": "Source-string checks establish implementation safeguards, not real keyboard trapping/mobile rendering; excluded from actual UI accessibility proof and accepted case totals."
+      }
+    ]
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [
+      {
+        "id": "QA-05",
+        "reason": "Live signed-out/denied cloud journeys not observed; local persistence checks and historical auth tests cannot establish the real service."
+      }
+    ],
+    "happy_path_only_gaps": [
+      {
+        "id": "QA-04",
+        "reason": "Error paths sampled in persistence, not every unexecuted gameplay branch."
+      }
+    ],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 1,
+      "happy_path_only_criteria": 1,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "live_evidence": {
+    "present": false,
+    "results_file": "output/full-site-qa-2026-10-09/bmad-test-artifacts/live-verification-results.json",
+    "freshness": "not_present",
+    "recorded_source_sha": "",
+    "current_source_sha": "8e55b84b3333da68cf83a401d8933c2cca96d816",
+    "producer": "",
+    "counted": 0,
+    "stale": 0,
+    "unverifiable": 0,
+    "failed": 0,
+    "contradicted": 0,
+    "blocked": 0,
+    "skipped": 0,
+    "unmatched": 0,
+    "invalid": 0,
+    "requirements_live_only": 0
+  },
+  "live_records": [],
+  "test_inventory": {
+    "summary": {
+      "files": 9,
+      "cases": 36,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": {
+          "tests": 2,
+          "criteria_covered": 5
+        },
+        "api": {
+          "tests": 0,
+          "criteria_covered": 0
+        },
+        "component": {
+          "tests": 0,
+          "criteria_covered": 0
+        },
+        "unit": {
+          "tests": 34,
+          "criteria_covered": 6
+        },
+        "live": {
+          "tests": 0,
+          "criteria_covered": 0
+        },
+        "other": {
+          "tests": 0,
+          "criteria_covered": 0
+        }
+      }
+    },
+    "tests": [
+      {
+        "id": "src/rules/printedToolWeights.test.ts:17:%s keeps every printed whole Weight unit",
+        "title": "%s keeps every printed whole Weight unit",
+        "file": "src/rules/printedToolWeights.test.ts",
+        "line": 17,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/rules/printedToolWeights.test.ts:31:repairs old weight-1 saves without changing identities, quantities or unrelated custom weights",
+        "title": "repairs old weight-1 saves without changing identities, quantities or unrelated custom weights",
+        "file": "src/rules/printedToolWeights.test.ts",
+        "line": 31,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/rules/printedToolWeights.test.ts:49:preserves a recorded Bad Idea weight reduction while repairing the erroneous printed base",
+        "title": "preserves a recorded Bad Idea weight reduction while repairing the erroneous printed base",
+        "file": "src/rules/printedToolWeights.test.ts",
+        "line": 49,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/rules/printedToolWeights.test.ts:64:keeps an explicit untracked custom weight instead of guessing its reason",
+        "title": "keeps an explicit untracked custom weight instead of guessing its reason",
+        "file": "src/rules/printedToolWeights.test.ts",
+        "line": 64,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/rules/chattyBarterFidelity.test.ts:22:reduces the printed barter Rarity by 2 while preserving every other modifier",
+        "title": "reduces the printed barter Rarity by 2 while preserving every other modifier",
+        "file": "src/rules/chattyBarterFidelity.test.ts",
+        "line": 22,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/rules/chattyBarterFidelity.test.ts:31:uses the adjusted Rarity during the actual second-card decision after save/restore",
+        "title": "uses the adjusted Rarity during the actual second-card decision after save/restore",
+        "file": "src/rules/chattyBarterFidelity.test.ts",
+        "line": 31,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/rules/chattyBarterFidelity.test.ts:49:also applies the benefit to a BR 12 stand-in Reagent",
+        "title": "also applies the benefit to a BR 12 stand-in Reagent",
+        "file": "src/rules/chattyBarterFidelity.test.ts",
+        "line": 49,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/rules/chattyBarterFidelity.test.ts:68:adds 2 during the named Season and combines with Chatty, without stacking duplicate records",
+        "title": "adds 2 during the named Season and combines with Chatty, without stacking duplicate records",
+        "file": "src/rules/chattyBarterFidelity.test.ts",
+        "line": 68,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/rules/chattyBarterFidelity.test.ts:78:applies the same current-Season penalty to a stand-in Reagent transaction",
+        "title": "applies the same current-Season penalty to a stand-in Reagent transaction",
+        "file": "src/rules/chattyBarterFidelity.test.ts",
+        "line": 78,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/barrowPatientBoundary.test.ts:24:blocks an ordinary intake while a Delve is active",
+        "title": "blocks an ordinary intake while a Delve is active",
+        "file": "src/barrowPatientBoundary.test.ts",
+        "line": 24,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/barrowPatientBoundary.test.ts:31:blocks an ordinary intake at a live Barrow before its challenge",
+        "title": "blocks an ordinary intake at a live Barrow before its challenge",
+        "file": "src/barrowPatientBoundary.test.ts",
+        "line": 31,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/barrowPatientBoundary.test.ts:37:preserves ordinary intake outside a live local Barrow: %j",
+        "title": "preserves ordinary intake outside a live local Barrow: %j",
+        "file": "src/barrowPatientBoundary.test.ts",
+        "line": 37,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/rulebook/referenceRegistry.test.ts:16:keeps every canonical catalogue at its certified count",
+        "title": "keeps every canonical catalogue at its certified count",
+        "file": "src/rulebook/referenceRegistry.test.ts",
+        "line": 16,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/rulebook/referenceRegistry.test.ts:37:has no reference/runtime drift",
+        "title": "has no reference/runtime drift",
+        "file": "src/rulebook/referenceRegistry.test.ts",
+        "line": 37,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/rulebook/referenceRegistry.test.ts:46:uses the exact Guild Reputation term on every canonical reference surface",
+        "title": "uses the exact Guild Reputation term on every canonical reference surface",
+        "file": "src/rulebook/referenceRegistry.test.ts",
+        "line": 46,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/rulebook/referenceRegistry.test.ts:64:supports entity, rule ID and printed page searches",
+        "title": "supports entity, rule ID and printed page searches",
+        "file": "src/rulebook/referenceRegistry.test.ts",
+        "line": 64,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/rulebook/referenceRegistry.test.ts:73:links field-reference relationships in both directions",
+        "title": "links field-reference relationships in both directions",
+        "file": "src/rulebook/referenceRegistry.test.ts",
+        "line": 73,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/rulebook/referenceRegistry.test.ts:92:renders canonical numbers and manual semantics directly from runtime data",
+        "title": "renders canonical numbers and manual semantics directly from runtime data",
+        "file": "src/rulebook/referenceRegistry.test.ts",
+        "line": 92,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/rulebook/referenceRegistry.test.ts:131:ships all 220 source pages outside the JavaScript bundle",
+        "title": "ships all 220 source pages outside the JavaScript bundle",
+        "file": "src/rulebook/referenceRegistry.test.ts",
+        "line": 131,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs:16:canonical and legacy Journal archive preservation",
+        "title": "canonical and legacy Journal count, preserved note, bookmark, no runtime errors",
+        "file": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-review/verify-legacy-journal.cjs",
+        "line": 16,
+        "level": "e2e",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/patientMemoryConsistency.test.ts:28:shows the real canonical treatment rather than an empty legacy-only shelf",
+        "title": "shows the real canonical treatment rather than an empty legacy-only shelf",
+        "file": "src/patientMemoryConsistency.test.ts",
+        "line": 28,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/patientMemoryConsistency.test.ts:36:keeps unresolved intake records out of completed memories",
+        "title": "keeps unresolved intake records out of completed memories",
+        "file": "src/patientMemoryConsistency.test.ts",
+        "line": 36,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/patientMemoryConsistency.test.ts:42:preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+        "title": "preserves legacy notes and bookmarks while ordering both sources by their recorded times",
+        "file": "src/patientMemoryConsistency.test.ts",
+        "line": 42,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/patientMemoryConsistency.test.ts:50:projects a failed case without changing saved records or inventing a resolution day",
+        "title": "projects a failed case without changing saved records or inventing a resolution day",
+        "file": "src/patientMemoryConsistency.test.ts",
+        "line": 50,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "output/full-site-qa-2026-10-09/browser-smoke.cjs:8:final full-site smoke and canonical memories",
+        "title": "27 viewport/page screens, canonical LivingArchive/Play/Journal memories, reload and map controls without runtime/console errors",
+        "file": "output/full-site-qa-2026-10-09/browser-smoke.cjs",
+        "line": 8,
+        "level": "e2e",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/manualAdjustmentInput.test.ts:46:rejects nonzero-unsafe-integer delta %s",
+        "title": "rejects nonzero-unsafe-integer delta %s",
+        "file": "src/manualAdjustmentInput.test.ts",
+        "line": 46,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/manualAdjustmentInput.test.ts:50:rejects Trinket allocation delta %s before updating the campaign",
+        "title": "rejects Trinket allocation delta %s before updating the campaign",
+        "file": "src/manualAdjustmentInput.test.ts",
+        "line": 50,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/manualAdjustmentInput.test.ts:58:adds the exact accepted delta and records it once, without an overall balance cap",
+        "title": "adds the exact accepted delta and records it once, without an overall balance cap",
+        "file": "src/manualAdjustmentInput.test.ts",
+        "line": 58,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/manualAdjustmentInput.test.ts:66:retains normal removal semantics at zero",
+        "title": "retains normal removal semantics at zero",
+        "file": "src/manualAdjustmentInput.test.ts",
+        "line": 66,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/manualAdjustmentInput.test.ts:72:rejects overflow after a valid delta in %s without saving a rounded result",
+        "title": "rejects overflow after a valid delta in %s without saving a rounded result",
+        "file": "src/manualAdjustmentInput.test.ts",
+        "line": 72,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/persistence/journalImportExperience.test.ts:40:clears the selected file before reading so a failed same-file selection can retry",
+        "title": "clears the selected file before reading so a failed same-file selection can retry",
+        "file": "src/persistence/journalImportExperience.test.ts",
+        "line": 40,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/persistence/journalImportExperience.test.ts:53:reports a file read error and preserves the current campaign",
+        "title": "reports a file read error and preserves the current campaign",
+        "file": "src/persistence/journalImportExperience.test.ts",
+        "line": 53,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/persistence/journalImportExperience.test.ts:62:does nothing after a cancelled file chooser",
+        "title": "does nothing after a cancelled file chooser",
+        "file": "src/persistence/journalImportExperience.test.ts",
+        "line": 62,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/persistence/journalImportExperience.test.ts:69:ignores a superseded read when the earlier large file completes after the latest selection",
+        "title": "ignores a superseded read when the earlier large file completes after the latest selection",
+        "file": "src/persistence/journalImportExperience.test.ts",
+        "line": 69,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/persistence/journalImportExperience.test.ts:81:does not import or display an error after leaving the Journal view",
+        "title": "does not import or display an error after leaving the Journal view",
+        "file": "src/persistence/journalImportExperience.test.ts",
+        "line": 81,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      },
+      {
+        "id": "src/persistence/journalImportExperience.test.ts:93:keeps the latest selection when native file reads finish in reverse order",
+        "title": "keeps the latest selection when native file reads finish in reverse order",
+        "file": "src/persistence/journalImportExperience.test.ts",
+        "line": 93,
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "pending": false,
+        "fixme": false
+      }
+    ],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "URGENT",
+      "action": "Complete source-to-effect semantic review and real browser lifecycle branches before certifying all rules. Suggested QA-01-E2E-remaining: Given each unexecuted service/clinic/barrow/companion/encounter branch and source page, When it resolves and restores, Then numbers/order/state match the printed rule; retain unresolved source conflicts.",
+      "requirements": [
+        "QA-01",
+        "QA-02",
+        "QA-04"
+      ]
+    },
+    {
+      "priority": "HIGH",
+      "action": "Finish remaining gameplay checkpoint/expiry/back/repeat and nested modal journeys with actual browser assertions and the same viewport conditions. Suggested QA-03-E2E-remaining and QA-06-E2E-dialogs: exercise each remaining inventory item, not only rendering its catalogue row.",
+      "requirements": [
+        "QA-03",
+        "QA-04",
+        "QA-05",
+        "QA-06"
+      ]
+    },
+    {
+      "priority": "HIGH",
+      "action": "If live account/cloud behavior is required for complete-site certification, verify login, slot operations, signed-out/permission/error outcomes and cross-device restore in an authorized test account. Keep unit tests and real account observations separate.",
+      "requirements": [
+        "QA-03",
+        "QA-05"
+      ]
+    },
+    {
+      "priority": "LOW",
+      "action": "Focused official Test Review already completed (4 regression files, 100/100 A); broaden only where evidence or changed code warrants it.",
+      "requirements": []
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Expand dense-marker/zoom/lock-state selection checks if this UI is revised. The observed Odoak baseline overlap is reproduced; one zoom step/search selects normally. Preserve data coordinates and the documented limitation instead of asserting every density combination works.",
+      "requirements": [
+        "QA-03",
+        "QA-04",
+        "QA-06"
+      ]
+    }
+  ],
+  "snapshot_note": "Final updated after complete parent report/extra photo+map checks and QA-independent real browser script replay:27screens,memory,reload,map controls PASS/errors0. QA-07fixes and QA-08honest report FULL; remaining6broad criteria PARTIAL. Dirty HEAD identity is not an unstaged hash. No fake formal live record or waived scope.",
+  "supporting_artifacts": [
+    "rulebook-audit.md",
+    "rulebook-source-crosscheck.json",
+    "rulebook-table-crosscheck.json",
+    "persistence-audit.md",
+    "persistence-regression-after.json",
+    "persistence-device-boundaries.json",
+    "persistence-import-race-before.json",
+    "persistence-import-race-after.json",
+    "persistence-header-import-race-after.json",
+    "main-tabs-controls.json",
+    "responsive-audit.json",
+    "journal-casebook-1440-before.png",
+    "journal-casebook-1440-after.png",
+    "chatty-barter-preview-after.png",
+    "wingbreak-barter-preview-after.png",
+    "root-browser-checks.json",
+    "final-browser-smoke.json",
+    "final-tests.log",
+    "final-build.log",
+    "final-lint.log",
+    "barrow-regression.log",
+    "final-test.log",
+    "full-site-qa-report.md",
+    "extra-browser-checks.json",
+    "browser-smoke.cjs",
+    "replay-browser-smoke.json",
+    "replay-browser-smoke.log",
+    "map-dense-marker-check.json"
+  ]
+}

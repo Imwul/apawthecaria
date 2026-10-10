@@ -1,0 +1,171 @@
+{
+  "screens": [
+    {
+      "tab": "play",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360
+    },
+    {
+      "tab": "map",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360
+    },
+    {
+      "tab": "bio",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360
+    },
+    {
+      "tab": "reagents",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360
+    },
+    {
+      "tab": "almanack",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360
+    },
+    {
+      "tab": "journals",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360
+    },
+    {
+      "tab": "ailments",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360
+    },
+    {
+      "tab": "patientArchive",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360
+    },
+    {
+      "tab": "livingArchive",
+      "width": 360,
+      "scroll": 360,
+      "viewport": 360
+    },
+    {
+      "tab": "play",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768
+    },
+    {
+      "tab": "map",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768
+    },
+    {
+      "tab": "bio",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768
+    },
+    {
+      "tab": "reagents",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768
+    },
+    {
+      "tab": "almanack",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768
+    },
+    {
+      "tab": "journals",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768
+    },
+    {
+      "tab": "ailments",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768
+    },
+    {
+      "tab": "patientArchive",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768
+    },
+    {
+      "tab": "livingArchive",
+      "width": 768,
+      "scroll": 768,
+      "viewport": 768
+    },
+    {
+      "tab": "play",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440
+    },
+    {
+      "tab": "map",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440
+    },
+    {
+      "tab": "bio",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440
+    },
+    {
+      "tab": "reagents",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440
+    },
+    {
+      "tab": "almanack",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440
+    },
+    {
+      "tab": "journals",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440
+    },
+    {
+      "tab": "ailments",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440
+    },
+    {
+      "tab": "patientArchive",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440
+    },
+    {
+      "tab": "livingArchive",
+      "width": 1440,
+      "scroll": 1440,
+      "viewport": 1440
+    }
+  ],
+  "canonicalMemories": "PASS",
+  "reload": "PASS",
+  "mapControls": "PASS",
+  "pageErrors": [],
+  "consoleErrors": []
+}

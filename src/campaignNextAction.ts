@@ -124,7 +124,7 @@ export const getCampaignNextAction = (state: CampaignContinuityState): CampaignN
     primary = 'behemoth-chase';
   }
   switch (primary) {
-    case 'archive-patient': return action('archive', '환자에게 남길 말을 적어보세요', '진료 결과는 정해졌습니다. 처방과 그 뒤의 이야기를 기록하면 다음 행동을 이어갈 수 있습니다.',
+    case 'archive-patient': return action('archive', '진료 결과를 확인하고 마감하세요', '진료 결과는 정해졌습니다. 개인 메모는 선택입니다. 기록을 마감하면 다음 행동을 이어갈 수 있습니다.',
       '진료 기록 마감하기', 'pending-archive-panel', 'archive-patient', 'procedure:leave', 36);
     case 'active-delve': return action('delve', '고분 안의 도전을 이어가세요', '고분마다 도전과 시간 규칙이 다릅니다. 현재 도전의 선택지와 결과를 따라 탐사를 마무리합니다.',
       '고분 도전 보기', 'barrow-panel', 'active-delve', 'procedure:barrows', 116, true);

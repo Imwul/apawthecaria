@@ -1,0 +1,25 @@
+{
+  "reviewed_at": "2026-10-10T13:54:32.269423+00:00",
+  "report": "output/full-site-qa-2026-10-09/full-site-qa-report.md",
+  "report_links": 38,
+  "unique_links": 38,
+  "missing_links": [],
+  "confirmed_defect_rows": 12,
+  "final_test_files": 146,
+  "final_tests": 1509,
+  "independent_browser_replay": {
+    "exit_code": 0,
+    "screens": 27,
+    "memories": "PASS",
+    "reload": "PASS",
+    "map_controls": "PASS",
+    "runtime_errors": 0,
+    "console_errors": 0
+  },
+  "qa_08": "FULL",
+  "whole_site_gate": "FAIL",
+  "uncertainty": [
+    "Nearby Odoak/current hit-area overlap at baseline; one zoom step/search allows selection; all density/zoom cases unverified",
+    "Original source conflicts and all nested/account/native-mobile branches unverified"
+  ]
+}

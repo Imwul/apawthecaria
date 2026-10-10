@@ -1,0 +1,32 @@
+{
+  "dimension": "determinism",
+  "score": 100,
+  "max_score": 100,
+  "grade": "A",
+  "violations": [],
+  "violation_summary": {
+    "CRITICAL": 0,
+    "HIGH": 0,
+    "MEDIUM": 0,
+    "LOW": 0
+  },
+  "recommendations": [],
+  "summary": "C1/C2/C3/C4/C6 and H1/H2/H3/H10 inspected: no skips/focus, self assertions, hard waits, live-clock boundaries, unreachable/conditional value checks, or shape-only outcomes. Pact/mobile gates closed.",
+  "reviewed_files": [
+    "src/rules/printedToolWeights.test.ts",
+    "src/manualAdjustmentInput.test.ts",
+    "src/rules/chattyBarterFidelity.test.ts",
+    "src/persistence/journalImportExperience.test.ts"
+  ],
+  "execution_mode": "sequential",
+  "run_key": "epic-full-site-qa-rulebook-fidelity-bug-fixes-ui-audit",
+  "timestamp": "2026-10-10T13-12-04-967139+00-00",
+  "last_revalidated_at": "2026-10-10T13:21:32.425773+00:00",
+  "latest_test_result": {
+    "files": 4,
+    "passed": 33,
+    "failed": 0,
+    "duration_ms": 438
+  },
+  "additional_scope": "Journal/Header reverse FileReader completion and Journal unmount guard tests read; fresh isolated callback fixtures, explicit last-selection outcomes, no waits or shared mutable callbacks."
+}

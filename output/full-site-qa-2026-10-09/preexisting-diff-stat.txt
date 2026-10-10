@@ -1,0 +1,26 @@
+ src/App.tsx                                        | 474 ++++++++++++---------
+ src/campaignNextAction.ts                          |   2 +-
+ src/components/JournalExperience.test.tsx          | 105 ++++-
+ src/components/JournalExperience.tsx               | 168 +++++---
+ src/components/RulebookReferenceDrawer.tsx         |   8 +-
+ src/encounterExperience.test.ts                    | 223 +++++++++-
+ src/foragingCandidateWorkspace.test.ts             |  38 +-
+ src/foragingCandidateWorkspace.ts                  |  11 +
+ src/foragingWorkflow.test.ts                       |  80 +++-
+ src/homeResume.test.ts                             |  47 +-
+ src/localization/engineMessagesKo.test.ts          |   6 +
+ src/localization/engineMessagesKo.ts               |   5 +-
+ src/main.tsx                                       |   1 +
+ src/mobileLayout.test.ts                           |  51 ++-
+ src/patientJourneyExperience.test.ts               |   6 +-
+ src/playGuide.ts                                   |   2 +-
+ src/rulebook/readerGuide.ts                        |   4 +-
+ src/rulebook_ko.json                               |   6 +-
+ src/rules/customRemedyAcquisition.test.ts          |   9 +-
+ .../foragingEncounterTransactionPlanner.test.ts    |  50 +++
+ src/rules/foragingEncounterTransactionPlanner.ts   |  16 +-
+ src/rules/foragingEngine.ts                        |  41 +-
+ src/rules/gameplayEngine.test.ts                   |   4 +-
+ src/rules/journeyEngine.ts                         |  15 +-
+ src/workspace.css                                  | 182 +++++++-
+ 25 files changed, 1191 insertions(+), 363 deletions(-)

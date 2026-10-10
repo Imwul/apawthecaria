@@ -1,0 +1,52 @@
+{
+  "checks": [
+    {
+      "check": "same invalid backup can be selected twice",
+      "pass": true,
+      "changeEvents": 2
+    },
+    {
+      "check": "corrected same-path backup imports and preserves memory",
+      "pass": true
+    },
+    {
+      "check": "huge/unsafe/fractional/zero/blank Trinket deltas rejected before Apply",
+      "pass": true
+    },
+    {
+      "check": "normal +2 Trinket delta persists exactly through refresh",
+      "pass": true,
+      "before": 1,
+      "after": 3
+    },
+    {
+      "check": "normal -2 retains original lower-bound behavior",
+      "pass": true
+    },
+    {
+      "check": "Journal JSON export retains campaign and player memory",
+      "pass": true
+    },
+    {
+      "check": "header JSON backup export yields readable current save",
+      "pass": true
+    },
+    {
+      "check": "malformed explicit Reputation rejected with original campaign retained",
+      "pass": true,
+      "notice": [
+        "기기에 저장됨",
+        "세이브 파일을 올리지 못했습니다. 현재 기록은 그대로 둡니다."
+      ]
+    },
+    {
+      "check": "numeric legacy Reputation string normalized; subsequent +2 produces 9",
+      "pass": true
+    },
+    {
+      "check": "normalized Reputation and manual adjustment survive refresh",
+      "pass": true
+    }
+  ],
+  "pageErrors": []
+}

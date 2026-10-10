@@ -1,0 +1,1234 @@
+[
+  {
+    "tab": "bio",
+    "url": "http://127.0.0.1:5173/#bio",
+    "headings": [
+      "약제사와 배낭",
+      "어디로 떠나볼까요",
+      "배낭을 펼쳐 다음 걸음 준비하기",
+      "QA 약제사의 지금",
+      "약제사 정보",
+      "길동무",
+      " 배낭 수집물",
+      " 여정 계획",
+      "동반자 곤충",
+      " 물꼬 장신구",
+      " Guild Reputation"
+    ],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "이 화면의 규칙 ↗",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "현재 상황"
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "이 화면 사용법과 규칙\n첫 플레이 순서 · 용어 찾기"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": ""
+      },
+      {
+        "tag": "SUMMARY",
+        "text": ""
+      },
+      {
+        "tag": "INPUT",
+        "text": "예: FP, FAIR, 치료 기한",
+        "type": "search",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": " 은퇴 및 대승계",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": " 프로필 편집",
+        "type": "submit",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "약제사와 길동무 기록\nQA 약제사 · QA 길동무"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "원문 효과 보기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "버리기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "원문 효과 보기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "버리기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "원문 효과 보기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "버리기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "원문 효과 보기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "버리기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "원문 효과 보기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "버리기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "text": "물품 이름 직접 입력…",
+        "type": "text",
+        "disabled": false
+      },
+      {
+        "tag": "SELECT",
+        "text": "무게 1/3\n무게 2/3\n무게 1\n무게 0",
+        "type": "select-one",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": " 추가",
+        "type": "submit",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "직접 판정 보정 Timer · 채집 포인트 · Guild Reputation · 장신구 · 영약재 · 도구 · 배낭"
+      },
+      {
+        "tag": "INPUT",
+        "text": "Guild Reputation 보정값",
+        "type": "number",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "submit",
+        "disabled": true
+      },
+      {
+        "tag": "INPUT",
+        "text": "장신구 보정값",
+        "type": "number",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "submit",
+        "disabled": true
+      },
+      {
+        "tag": "INPUT",
+        "text": "채집 포인트 보정값",
+        "type": "number",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "submit",
+        "disabled": true
+      },
+      {
+        "tag": "SELECT",
+        "text": "직접 획득한 영약재",
+        "type": "select-one",
+        "disabled": false
+      },
+      {
+        "tag": "SELECT",
+        "text": "직접 획득한 영약재 부위",
+        "type": "select-one",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "submit",
+        "disabled": false
+      },
+      {
+        "tag": "SELECT",
+        "text": "직접 획득한 정식 도구",
+        "type": "select-one",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "submit",
+        "disabled": false
+      },
+      {
+        "tag": "SELECT",
+        "text": "수량을 보정할 배낭 물품",
+        "type": "select-one",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "text": "배낭 수량 보정값",
+        "type": "number",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "submit",
+        "disabled": true
+      },
+      {
+        "tag": "SELECT",
+        "text": "보정할 환자 Timer",
+        "type": "select-one",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "text": "환자 Timer 보정값",
+        "type": "number",
+        "disabled": true
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "submit",
+        "disabled": true
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "동반자·장신구·길드 기록\n동반자 0 · 장신구 1 · Guild Reputation 5"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "기념품 사용하기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "text": "장신구 직접 입력…",
+        "type": "text",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "submit",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "약제 조제 기법 도장\n기본·확장 기법 11가지"
+      }
+    ],
+    "overflow": false
+  },
+  {
+    "tab": "reagents",
+    "url": "http://127.0.0.1:5173/#reagents",
+    "headings": [
+      "영약재",
+      "어디로 떠나볼까요",
+      "필요한 부위를 찾아보세요",
+      "Animal Sheddings (동물의 부산물)",
+      "Beech (너도밤나무)",
+      "Beehive (벌집)",
+      "Beetles (딱정벌레)",
+      "Behemoth Bits (거수의 부산물)",
+      "Big Fish (큰 물고기)",
+      "Birch Polypore (자작나무버섯)",
+      "Bird Leavings (새가 남긴 흔적)",
+      "Blackcurrant (블랙커런트)",
+      "Blackthorn (슬로나무)",
+      "Brambles (가시덤불)",
+      "Burdock (우엉)",
+      "Butterfly (나비)",
+      "Catnip (개박하)",
+      "Chalk (백악)",
+      "Cherry Trees (벚나무)"
+    ],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "이 화면의 규칙 ↗",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "현재 상황"
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "이 화면 사용법과 규칙\n첫 플레이 순서 · 용어 찾기"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": ""
+      },
+      {
+        "tag": "SUMMARY",
+        "text": ""
+      },
+      {
+        "tag": "INPUT",
+        "text": "예: FP, FAIR, 치료 기한",
+        "type": "search",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "지금 이곳\nOdoak · 숲 · 봄\n현재 지역·계절에서 찾기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "현재 환자\n진료 중인 환자 없음\n필요 약효가 생기면 연결됩니다",
+        "type": "button",
+        "disabled": true
+      },
+      {
+        "tag": "INPUT",
+        "text": "예: Marigold, 꽃잎, PAIN 2",
+        "type": "search",
+        "disabled": false
+      },
+      {
+        "tag": "SELECT",
+        "text": "모든 분류\n풀과 나무\n야수의 흔적\n곤충과 벌레\n흙과 돌\n티탄 유물",
+        "type": "select-one",
+        "disabled": false
+      },
+      {
+        "tag": "SELECT",
+        "text": "모든 지역\n늪지\n숲\n호수\n초원\n산맥\n티탄 유적",
+        "type": "select-one",
+        "disabled": false
+      },
+      {
+        "tag": "SELECT",
+        "text": "모든 계절\n봄\n여름\n가을\n겨울",
+        "type": "select-one",
+        "disabled": false
+      },
+      {
+        "tag": "SELECT",
+        "text": "모든 약효\nELSEWHERE\nINSTINCT\nJOY\nMOOD\nNERVES\nINFECTION\nPAIN\nPARASITE\nSENSES\nSLE",
+        "type": "select-one",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "p.132\n동물 · 기본 희귀도 3\nAnimal Sheddings (동물의 부산물)\n숲에서 발견\n봄에 발견\n펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "p.132\n식물 · 기본 희귀도 5\nBeech (너도밤나무)\n숲에서 발견\n봄에 발견\n펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "p.132\n곤충 · 기본 희귀도 5\nBeehive (벌집)\n숲에서 발견\n봄에 발견\n펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "p.132\n곤충 · 기본 희귀도 4\nBeetles (딱정벌레)\n숲에서 발견\n봄에 발견\n펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "p.133\n동물 · 기본 희귀도 8\nBehemoth Bits (거수의 부산물)\n숲에서 발견\n봄에 발견\n펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "p.133\n동물 · 기본 희귀도 9\nBig Fish (큰 물고기)\n봄에 발견\n펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "p.133\n식물 · 기본 희귀도 5\nBirch Polypore (자작나무버섯)\n숲에서 발견\n봄에 발견\n펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "p.133\n동물 · 기본 희귀도 4\nBird Leavings (새가 남긴 흔적)\n숲에서 발견\n봄에 발견\n펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "p.134\n식물 · 기본 희귀도 5\nBlackcurrant (블랙커런트)\n숲에서 발견\n봄에 발견\n펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "p.134\n식물 · 기본 희귀도 7\nBlackthorn (슬로나무)\n숲에서 발견\n봄에 발견\n펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "p.134\n식물 · 기본 희귀도 4\nBrambles (가시덤불)\n숲에서 발견\n봄에 발견\n펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "p.134\n식물 · 기본 희귀도 3\nBurdock (우엉)\n숲에서 발견\n봄에 발견\n펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "p.135\n곤충 · 기본 희귀도 9\nButterfly (나비)\n숲에서 발견\n봄에 발견\n펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "p.135\n식물 · 기본 희귀도 6\nCatnip (개박하)\n봄에 발견\n펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "p.135\n흙과 광물 · 기본 희귀도 4\nChalk (백악)\n봄에 발견\n펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "p.135\n식물 · 기본 희귀도 4\nCherry Trees (벚나무)\n숲에서 발견\n봄에 발견\n펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "다음 16개 펼치기",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "모두 펼치기",
+        "type": "button",
+        "disabled": false
+      }
+    ],
+    "overflow": false
+  },
+  {
+    "tab": "almanack",
+    "url": "http://127.0.0.1:5173/#almanack",
+    "headings": [
+      "규칙 자료실",
+      "어디로 떠나볼까요",
+      "필요한 규칙만 펼쳐보세요"
+    ],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "이 화면의 규칙 ↗",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "현재 상황"
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "이 화면 사용법과 규칙\n첫 플레이 순서 · 용어 찾기"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": ""
+      },
+      {
+        "tag": "SUMMARY",
+        "text": ""
+      },
+      {
+        "tag": "INPUT",
+        "text": "예: FP, FAIR, 치료 기한",
+        "type": "search",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      }
+    ],
+    "overflow": false
+  },
+  {
+    "tab": "journals",
+    "url": "http://127.0.0.1:5173/#journals",
+    "headings": [
+      "나의 이야기",
+      "어디로 떠나볼까요",
+      "일지는 길 위의 기억이에요",
+      "약제사 연대기 일지",
+      "약제사 시작 기록",
+      "오늘의 기억을 남겨요",
+      "이야기 기록 1편"
+    ],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "text": "이 화면의 규칙 ↗",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "현재 상황"
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "이 화면 사용법과 규칙\n첫 플레이 순서 · 용어 찾기"
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": ""
+      },
+      {
+        "tag": "SUMMARY",
+        "text": ""
+      },
+      {
+        "tag": "INPUT",
+        "text": "예: FP, FAIR, 치료 기한",
+        "type": "search",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "",
+        "type": "button",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": " 내 기록 백업",
+        "type": "submit",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "text": "기록 불러오기",
+        "type": "file",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "진료 기록 (0)",
+        "type": "submit",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "세계 도감 (898)",
+        "type": "submit",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "여정 기록장 (1)",
+        "type": "submit",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "개인 저널 일지 (1)",
+        "type": "submit",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "방랑 연대기 (0)",
+        "type": "submit",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "은퇴의 전당 및 약제소 망",
+        "type": "submit",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": "약제사의 첫 기록\n출발 계기 · 기념품 · 길동무"
+      },
+      {
+        "tag": "TEXTAREA",
+        "text": "아직 적힌 문장이 없습니다.",
+        "type": "textarea",
+        "disabled": false
+      },
+      {
+        "tag": "TEXTAREA",
+        "text": "아직 적힌 문장이 없습니다.",
+        "type": "textarea",
+        "disabled": false
+      },
+      {
+        "tag": "TEXTAREA",
+        "text": "아직 적힌 문장이 없습니다.",
+        "type": "textarea",
+        "disabled": false
+      },
+      {
+        "tag": "TEXTAREA",
+        "text": "아직 적힌 문장이 없습니다.",
+        "type": "textarea",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "text": "예: 버섯 그늘에서",
+        "type": "text",
+        "disabled": false
+      },
+      {
+        "tag": "TEXTAREA",
+        "text": "오늘 만난 이웃, 숲에서 본 것, 길동무와 나눈 이야기를 적어보세요.",
+        "type": "textarea",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "이 기억을 남기기 →",
+        "type": "submit",
+        "disabled": false
+      },
+      {
+        "tag": "SUMMARY",
+        "text": " 사진도 함께 남기기"
+      },
+      {
+        "tag": "INPUT",
+        "text": "사진 선택",
+        "type": "file",
+        "disabled": false
+      },
+      {
+        "tag": "INPUT",
+        "text": "사진 추가",
+        "type": "file",
+        "disabled": false
+      },
+      {
+        "tag": "BUTTON",
+        "text": "삭제",
+        "type": "button",
+        "disabled": false
+      }
+    ],
+    "overflow": false
+  }
+]

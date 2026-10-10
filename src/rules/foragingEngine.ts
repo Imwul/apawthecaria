@@ -82,6 +82,16 @@ export interface ForagingEngineResolution {
   messages: string[];
 }
 
+/** p.12/p.66: ordinary failed searches accrue FP only with a usable Knife.
+ * Direct Encounter/Familiar grants are specific rules and remain independent. */
+const ordinaryMissPointGain = (input: ForagingEngineInput): number => {
+  const trackedKnives = input.state.tools?.filter(tool => tool.toolId === 'belt-knife') || [];
+  const hasKnife = trackedKnives.length > 0
+    ? trackedKnives.some(tool => !tool.broken && !tool.consumed)
+    : input.state.toolIds.includes('belt-knife');
+  return Number(hasKnife);
+};
+
 const applyForagingPointTool = (input: ForagingEngineInput, baseGain: number) => {
   if (baseGain <= 0) return { gain: baseGain, tools: input.state.tools };
   const multiplier = Number.isFinite(input.foragingPointGainMultiplier)
@@ -217,9 +227,6 @@ export const calculateCanonicalForageRarity = (
   return calculateForageRarityBreakdown(reagent, region, season, toolIds, additionalModifier)?.finalRarity ?? null;
 };
 
-const hasPreparationTools = (preparation: ReagentPreparation, toolIds: readonly string[]): boolean =>
-  preparation.requiredTools.every(tool => tool === 'none' || toolIds.includes(tool));
-
 export const isForagingPreparationAvailableInSeason = (
   preparation: ReagentPreparation,
   season: Season
@@ -240,13 +247,14 @@ export interface InBloomCandidate {
 
 /**
  * Forest A/2 travel encounter, p.78: the follow-up card must equal the
- * Reagent's unmodified Base Value. Region/season availability and preparation
- * tools still determine whether that Part can actually be collected.
+ * Reagent's unmodified Base Value. Region/season availability determines which
+ * physical Parts can be collected. Preparation Tools are checked when making
+ * a Remedy, not when gathering those Parts (p.27 and p.31-32).
  */
 export const listInBloomCandidates = (
   card: RuleCard,
   season: Season,
-  toolIds: readonly string[]
+  _toolIds: readonly string[]
 ): InBloomCandidate[] => {
   const value = getRuleCardValue(card, 'travel');
   return REAGENTS.flatMap(reagent => {
@@ -255,8 +263,7 @@ export const listInBloomCandidates = (
       || reagent.regionAvailability.Forest === 'Unavailable'
       || reagent.seasonAvailability[season] === 'Unavailable') return [];
     const preparationIds = reagent.preparations
-      .filter(preparation => hasPreparationTools(preparation, toolIds)
-        && isForagingPreparationAvailableInSeason(preparation, season))
+      .filter(preparation => isForagingPreparationAvailableInSeason(preparation, season))
       .map(preparation => preparation.id);
     return preparationIds.length > 0
       ? [{ reagentId: reagent.id, canonicalName: reagent.canonicalName, preparationIds }]
@@ -379,8 +386,7 @@ export const resolveForagingEngine = (input: ForagingEngineInput): ForagingEngin
     const spent = gatherRequested && !candidate.cardSuccess && !candidate.automaticWithForagingPoints
       && input.spendForagingPoints && input.state.foragingPoints >= candidate.gapCost ? candidate.gapCost : 0;
     const success = gatherRequested && !input.declineGather && (candidate.cardSuccess || candidate.automaticWithForagingPoints || spent > 0);
-    if (success && !hasPreparationTools(preparation, input.state.toolIds)) return { status: 'invalid', value: null, messages: [`Missing Tool for Replacement: ${preparation.requiredTools.join(', ')}`] };
-    const gained = gatherRequested && !success ? applyForagingPointTool(input, 1) : { gain: 0, tools: input.state.tools };
+    const gained = gatherRequested && !success ? applyForagingPointTool(input, ordinaryMissPointGain(input)) : { gain: 0, tools: input.state.tools };
     const gatheredItems = success ? [{ ...item, provenance: { ...item.provenance!, region: input.forageRegion } }] : [];
     const gatherTools = success ? applyGatherTools(input, [preparation]) : { tools: gained.tools, patient: input.state.patient };
     if ('error' in gatherTools && gatherTools.error) return { status: 'invalid', value: null, messages: [gatherTools.error] };
@@ -405,7 +411,7 @@ export const resolveForagingEngine = (input: ForagingEngineInput): ForagingEngin
     if (declined?.cardSuccess || declined?.automaticWithForagingPoints) {
       return { status: 'invalid', value: null, messages: ['This Reagent can already be gathered without spending Foraging Points.'] };
     }
-    const toolGain = applyForagingPointTool(input, 1);
+    const toolGain = applyForagingPointTool(input, ordinaryMissPointGain(input));
     return {
       status: encounter?.support === 'implemented' || skipsPrintedEncounter ? 'resolved' : 'manual',
       value: {
@@ -432,7 +438,7 @@ export const resolveForagingEngine = (input: ForagingEngineInput): ForagingEngin
     const locationEncounterBonus = (input.state.conditions || []).some(condition =>
       condition === 'location-encounter-fp:3'
     ) ? 3 : 0;
-    const toolGain = applyForagingPointTool(input, (candidates.length === 0 ? 1 : 0) + regionBonus + locationEncounterBonus);
+    const toolGain = applyForagingPointTool(input, (candidates.length === 0 ? ordinaryMissPointGain(input) : 0) + regionBonus + locationEncounterBonus);
     const gain = toolGain.gain;
     return {
       status: encounter?.support === 'implemented' || skipsPrintedEncounter ? 'resolved' : 'manual',
@@ -450,7 +456,7 @@ export const resolveForagingEngine = (input: ForagingEngineInput): ForagingEngin
         ailmentInterruption: null
       },
       messages: candidates.length === 0
-        ? ['No Reagent is available for this draw; gain 1 Foraging Point.']
+        ? [`No Reagent is available for this draw; gained ${gain} Foraging Point${gain === 1 ? '' : 's'}.`]
         : ['Choose one Reagent, then choose one or more Parts from that Reagent.']
     };
   }
@@ -479,16 +485,11 @@ export const resolveForagingEngine = (input: ForagingEngineInput): ForagingEngin
   if (oneBottleOnly && selections.reduce((sum, selection) => sum + selection.quantity, 0) > 1) {
     return { status: 'invalid', value: null, messages: ['Only one bottle of Musk Scrapings can be gathered per Forage.'] };
   }
-  const missingTool = selectedPreparations.find(row => !hasPreparationTools(row.preparation!, input.state.toolIds));
-  if (missingTool) {
-    return { status: 'invalid', value: null, messages: [`Missing Tool for ${missingTool.preparation!.name}: ${missingTool.preparation!.requiredTools.join(', ')}`] };
-  }
-
   let pointsSpent = 0;
   const succeedsWithoutSpend = candidate.cardSuccess || candidate.automaticWithForagingPoints;
   if (!succeedsWithoutSpend) {
     if (!input.spendForagingPoints || input.state.foragingPoints < candidate.gapCost) {
-      const toolGain = applyForagingPointTool(input, 1);
+      const toolGain = applyForagingPointTool(input, ordinaryMissPointGain(input));
       return {
         status: encounter?.support === 'implemented' || skipsPrintedEncounter ? 'resolved' : 'manual',
         value: {
@@ -504,7 +505,7 @@ export const resolveForagingEngine = (input: ForagingEngineInput): ForagingEngin
           ignoredNegativeEncounterEffects,
           ailmentInterruption: null
         },
-        messages: [`Card ${cardValue} is below Rarity ${candidate.rarity}. Foraging failed and gained 1 Foraging Point.`]
+        messages: [`Card ${cardValue} is below Rarity ${candidate.rarity}. Foraging failed and gained ${toolGain.gain} Foraging Point${toolGain.gain === 1 ? '' : 's'}.`]
       };
     }
     pointsSpent = candidate.gapCost;

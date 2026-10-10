@@ -1,0 +1,35 @@
+{
+  "checked": 3380,
+  "failures": [],
+  "cards": [
+    {
+      "raw": 1,
+      "value": 1,
+      "travel": "A&2",
+      "foraging": "A"
+    },
+    {
+      "raw": 11,
+      "value": 11,
+      "travel": "J",
+      "foraging": "J"
+    },
+    {
+      "raw": 12,
+      "value": 12,
+      "travel": "M",
+      "foraging": "M"
+    },
+    {
+      "raw": 13,
+      "value": 12,
+      "travel": "M",
+      "foraging": "M"
+    }
+  ],
+  "counts": {
+    "ailments": 45,
+    "encounters": 313
+  },
+  "sourcePending": []
+}

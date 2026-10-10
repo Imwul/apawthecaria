@@ -1,0 +1,32 @@
+{
+  "dimension": "maintainability",
+  "score": 100,
+  "max_score": 100,
+  "grade": "A",
+  "violations": [],
+  "violation_summary": {
+    "CRITICAL": 0,
+    "HIGH": 0,
+    "MEDIUM": 0,
+    "LOW": 0
+  },
+  "recommendations": [],
+  "summary": "M2/M3/M4/M5/M7/H5/L1/L3/L5/L6/L7 inspected: focused subjects, grouped short files, behavioral names, direct value assertions, no UI locator/event API. Required boundary/domain literals are explained by names/comments. Utils/Pact gates closed. No exact repeated payload shape is constructed inline three times; variants are intentional target-specific requirements.",
+  "reviewed_files": [
+    "src/rules/printedToolWeights.test.ts",
+    "src/manualAdjustmentInput.test.ts",
+    "src/rules/chattyBarterFidelity.test.ts",
+    "src/persistence/journalImportExperience.test.ts"
+  ],
+  "execution_mode": "sequential",
+  "run_key": "epic-full-site-qa-rulebook-fidelity-bug-fixes-ui-audit",
+  "timestamp": "2026-10-10T13-12-04-967139+00-00",
+  "last_revalidated_at": "2026-10-10T13:21:32.425773+00:00",
+  "latest_test_result": {
+    "files": 4,
+    "passed": 33,
+    "failed": 0,
+    "duration_ms": 438
+  },
+  "additional_scope": "Journal/Header reverse FileReader completion and Journal unmount guard tests read; fresh isolated callback fixtures, explicit last-selection outcomes, no waits or shared mutable callbacks."
+}

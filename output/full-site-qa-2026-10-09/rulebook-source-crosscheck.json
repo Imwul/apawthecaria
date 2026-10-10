@@ -1,0 +1,27 @@
+{
+  "checked": 499,
+  "mismatches": [
+    [
+      "AILMENTS",
+      "ailment-smokesnout",
+      112,
+      "Smokesnout"
+    ],
+    [
+      "FORAGING_ENCOUNTERS",
+      "foraging-loch-10-summer",
+      169,
+      "Summer Loch 10 · Printed Duplicate"
+    ],
+    [
+      "FORAGING_ENCOUNTERS",
+      "foraging-loch-j-summer",
+      169,
+      "Summer Loch J · No Printed Row"
+    ]
+  ],
+  "source": "Apawthecaria v1.3.pdf",
+  "sha256": "c8c39b80bce8d863a1e978d4dd1079588252d9988e2e9ae94d4bc0d4900ff7a4",
+  "pdfPages": 220,
+  "referencePageTextMismatches": []
+}

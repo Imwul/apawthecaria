@@ -1,0 +1,195 @@
+{
+  "schema_version": "0.3.0",
+  "snapshot_at": "2026-10-10T13:54:32.269423+00:00",
+  "repo": "apawthecaria-apo",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "inventory_basis": "acceptance_criteria",
+  "gate_basis": "priority_thresholds",
+  "source_sha": "8e55b84b3333da68cf83a401d8933c2cca96d816",
+  "target": {
+    "type": "epic",
+    "id": "full-site-qa-rulebook-fidelity-bug-fixes-ui-audit",
+    "label": "Full-Site QA: Rulebook Fidelity, Bug Fixes & UI Audit"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "BMAD QA subagent",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "output/full-site-qa-2026-10-09/bmad-audit-requirements.md"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage": {
+    "inventory": {
+      "covered": 2,
+      "total": 8,
+      "pct": 25
+    },
+    "priority_breakdown": {
+      "P0": {
+        "total": 4,
+        "covered": 0,
+        "pct": 0
+      },
+      "P1": {
+        "total": 4,
+        "covered": 2,
+        "pct": 50
+      },
+      "P2": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      },
+      "P3": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      }
+    },
+    "by_level": {
+      "e2e": {
+        "tests": 2,
+        "criteria_covered": 5
+      },
+      "api": {
+        "tests": 0,
+        "criteria_covered": 0
+      },
+      "component": {
+        "tests": 0,
+        "criteria_covered": 0
+      },
+      "unit": {
+        "tests": 34,
+        "criteria_covered": 6
+      },
+      "live": {
+        "tests": 0,
+        "criteria_covered": 0
+      },
+      "other": {
+        "tests": 0,
+        "criteria_covered": 0
+      }
+    }
+  },
+  "tests": {
+    "files": 9,
+    "cases": 36,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "risk_summary": {
+    "critical_open": 4,
+    "high_open": 0,
+    "medium_open": 0,
+    "low_open": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "partial",
+    "error_path_status": "partial",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "live_evidence": {
+    "present": false,
+    "results_file": "output/full-site-qa-2026-10-09/bmad-test-artifacts/live-verification-results.json",
+    "freshness": "not_present",
+    "recorded_source_sha": "",
+    "current_source_sha": "8e55b84b3333da68cf83a401d8933c2cca96d816",
+    "producer": "",
+    "counted": 0,
+    "stale": 0,
+    "unverifiable": 0,
+    "failed": 0,
+    "contradicted": 0,
+    "blocked": 0,
+    "skipped": 0,
+    "unmatched": 0,
+    "invalid": 0,
+    "requirements_live_only": 0
+  },
+  "blockers": [],
+  "rejected_evidence": [
+    {
+      "id": "src/rulebook/referenceRegistry.test.ts:143:keeps the lazy contextual drawer keyboard and mobile accessible",
+      "requirement_id": "QA-06",
+      "test_file": "src/rulebook/referenceRegistry.test.ts",
+      "test_title": "keeps the lazy contextual drawer keyboard and mobile accessible",
+      "line": 143,
+      "reason": "Source-string checks establish implementation safeguards, not real keyboard trapping/mobile rendering; excluded from actual UI accessibility proof and accepted case totals."
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "URGENT",
+      "action": "Complete source-to-effect semantic review and real browser lifecycle branches before certifying all rules. Suggested QA-01-E2E-remaining: Given each unexecuted service/clinic/barrow/companion/encounter branch and source page, When it resolves and restores, Then numbers/order/state match the printed rule; retain unresolved source conflicts.",
+      "requirements": [
+        "QA-01",
+        "QA-02",
+        "QA-04"
+      ]
+    },
+    {
+      "priority": "HIGH",
+      "action": "Finish remaining gameplay checkpoint/expiry/back/repeat and nested modal journeys with actual browser assertions and the same viewport conditions. Suggested QA-03-E2E-remaining and QA-06-E2E-dialogs: exercise each remaining inventory item, not only rendering its catalogue row.",
+      "requirements": [
+        "QA-03",
+        "QA-04",
+        "QA-05",
+        "QA-06"
+      ]
+    },
+    {
+      "priority": "HIGH",
+      "action": "If live account/cloud behavior is required for complete-site certification, verify login, slot operations, signed-out/permission/error outcomes and cross-device restore in an authorized test account. Keep unit tests and real account observations separate.",
+      "requirements": [
+        "QA-03",
+        "QA-05"
+      ]
+    },
+    {
+      "priority": "LOW",
+      "action": "Focused official Test Review already completed (4 regression files, 100/100 A); broaden only where evidence or changed code warrants it.",
+      "requirements": []
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Expand dense-marker/zoom/lock-state selection checks if this UI is revised. The observed Odoak baseline overlap is reproduced; one zoom step/search selects normally. Preserve data coordinates and the documented limitation instead of asserting every density combination works.",
+      "requirements": [
+        "QA-03",
+        "QA-04",
+        "QA-06"
+      ]
+    }
+  ],
+  "links": {
+    "trace_report_path": "/Users/imwul/Library/Mobile Documents/com~apple~CloudDocs/apawthecaria-apo/output/full-site-qa-2026-10-09/bmad-test-artifacts/trace/traceability-matrix-epic-full-site-qa-rulebook-fidelity-bug-fixes-ui-audit.md",
+    "trace_report_url": "",
+    "artifact_url": "",
+    "journey_evidence_url": ""
+  },
+  "snapshot_note": "Final updated after complete parent report/extra photo+map checks and QA-independent real browser script replay:27screens,memory,reload,map controls PASS/errors0. QA-07fixes and QA-08honest report FULL; remaining6broad criteria PARTIAL. Dirty HEAD identity is not an unstaged hash. No fake formal live record or waived scope.",
+  "phase1_digest_sha256": "55e9718066951305f135179527c2592ecb1f21a062034d231f23082a566dae49",
+  "gate_status": "FAIL",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "0%",
+    "p0_status": "NOT_MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "50%",
+    "p1_status": "NOT_MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "25%",
+    "overall_status": "NOT_MET"
+  }
+}

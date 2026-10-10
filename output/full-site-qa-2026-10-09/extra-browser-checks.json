@@ -1,0 +1,12 @@
+{
+  "photoUploadSaveReloadPreviewClose": "PASS",
+  "photoDeleteCancelConfirm": "PASS",
+  "journalDeleteCancelConfirmReload": "PASS",
+  "pageErrors": [],
+  "consoleErrors": [],
+  "mapCreateCancelSaveReloadSearch": "PASS",
+  "mapEditNameTerrainDragPosition": "PASS",
+  "mapEdgeCreateCancelPathChangeLineDashedDisconnect": "PASS",
+  "mapMarkDeleteReload": "PASS",
+  "mapClickOverlapObservation": "Baseline center hit targets overlap for nearby Odoak/current-location markers. Independently reproduced; one zoom-in step allows normal Odoak click. Search selection also works. Every dense-marker/zoom combination not exhaustively assessed."
+}

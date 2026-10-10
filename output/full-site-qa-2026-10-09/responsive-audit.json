@@ -1,0 +1,282 @@
+[
+  {
+    "id": "play",
+    "width": 360,
+    "w": 360,
+    "sw": 360,
+    "overflow": []
+  },
+  {
+    "id": "map",
+    "width": 360,
+    "w": 360,
+    "sw": 360,
+    "overflow": [
+      {
+        "tag": "DIV",
+        "cl": "paper-map__content",
+        "text": "TTTTTTTTTTTTTTT",
+        "right": 751
+      },
+      {
+        "tag": "IMG",
+        "cl": "",
+        "text": "",
+        "right": 751
+      },
+      {
+        "tag": "DIV",
+        "cl": "paper-map__veil",
+        "text": "",
+        "right": 751
+      },
+      {
+        "tag": "DIV",
+        "cl": "map-location-marker",
+        "text": "",
+        "right": 384.1875
+      },
+      {
+        "tag": "BUTTON",
+        "cl": "map-location-hit is-unvisited",
+        "text": "",
+        "right": 384.1875
+      },
+      {
+        "tag": "SPAN",
+        "cl": "map-location-dot",
+        "text": "",
+        "right": 370.1875
+      },
+      {
+        "tag": "DIV",
+        "cl": "map-location-marker",
+        "text": "",
+        "right": 686.203125
+      },
+      {
+        "tag": "BUTTON",
+        "cl": "map-location-hit is-unvisited",
+        "text": "",
+        "right": 686.203125
+      },
+      {
+        "tag": "SPAN",
+        "cl": "map-location-dot",
+        "text": "",
+        "right": 672.203125
+      },
+      {
+        "tag": "DIV",
+        "cl": "map-location-marker",
+        "text": "",
+        "right": 608.21875
+      },
+      {
+        "tag": "BUTTON",
+        "cl": "map-location-hit is-unvisited",
+        "text": "",
+        "right": 608.21875
+      },
+      {
+        "tag": "SPAN",
+        "cl": "map-location-dot",
+        "text": "",
+        "right": 594.21875
+      },
+      {
+        "tag": "DIV",
+        "cl": "map-location-marker",
+        "text": "",
+        "right": 612.140625
+      },
+      {
+        "tag": "BUTTON",
+        "cl": "map-location-hit is-unvisited",
+        "text": "",
+        "right": 612.140625
+      },
+      {
+        "tag": "SPAN",
+        "cl": "map-location-dot",
+        "text": "",
+        "right": 598.140625
+      }
+    ]
+  },
+  {
+    "id": "bio",
+    "width": 360,
+    "w": 360,
+    "sw": 360,
+    "overflow": []
+  },
+  {
+    "id": "reagents",
+    "width": 360,
+    "w": 360,
+    "sw": 360,
+    "overflow": []
+  },
+  {
+    "id": "almanack",
+    "width": 360,
+    "w": 360,
+    "sw": 360,
+    "overflow": []
+  },
+  {
+    "id": "journals",
+    "width": 360,
+    "w": 360,
+    "sw": 360,
+    "overflow": []
+  },
+  {
+    "id": "ailments",
+    "width": 360,
+    "w": 360,
+    "sw": 360,
+    "overflow": []
+  },
+  {
+    "id": "patientArchive",
+    "width": 360,
+    "w": 360,
+    "sw": 360,
+    "overflow": []
+  },
+  {
+    "id": "livingArchive",
+    "width": 360,
+    "w": 360,
+    "sw": 360,
+    "overflow": []
+  },
+  {
+    "id": "play",
+    "width": 768,
+    "w": 768,
+    "sw": 768,
+    "overflow": []
+  },
+  {
+    "id": "map",
+    "width": 768,
+    "w": 768,
+    "sw": 768,
+    "overflow": []
+  },
+  {
+    "id": "bio",
+    "width": 768,
+    "w": 768,
+    "sw": 768,
+    "overflow": []
+  },
+  {
+    "id": "reagents",
+    "width": 768,
+    "w": 768,
+    "sw": 768,
+    "overflow": []
+  },
+  {
+    "id": "almanack",
+    "width": 768,
+    "w": 768,
+    "sw": 768,
+    "overflow": []
+  },
+  {
+    "id": "journals",
+    "width": 768,
+    "w": 768,
+    "sw": 768,
+    "overflow": []
+  },
+  {
+    "id": "ailments",
+    "width": 768,
+    "w": 768,
+    "sw": 768,
+    "overflow": []
+  },
+  {
+    "id": "patientArchive",
+    "width": 768,
+    "w": 768,
+    "sw": 768,
+    "overflow": []
+  },
+  {
+    "id": "livingArchive",
+    "width": 768,
+    "w": 768,
+    "sw": 768,
+    "overflow": []
+  },
+  {
+    "id": "play",
+    "width": 1440,
+    "w": 1440,
+    "sw": 1440,
+    "overflow": []
+  },
+  {
+    "id": "map",
+    "width": 1440,
+    "w": 1440,
+    "sw": 1440,
+    "overflow": []
+  },
+  {
+    "id": "bio",
+    "width": 1440,
+    "w": 1440,
+    "sw": 1440,
+    "overflow": []
+  },
+  {
+    "id": "reagents",
+    "width": 1440,
+    "w": 1440,
+    "sw": 1440,
+    "overflow": []
+  },
+  {
+    "id": "almanack",
+    "width": 1440,
+    "w": 1440,
+    "sw": 1440,
+    "overflow": []
+  },
+  {
+    "id": "journals",
+    "width": 1440,
+    "w": 1440,
+    "sw": 1440,
+    "overflow": []
+  },
+  {
+    "id": "ailments",
+    "width": 1440,
+    "w": 1440,
+    "sw": 1440,
+    "overflow": []
+  },
+  {
+    "id": "patientArchive",
+    "width": 1440,
+    "w": 1440,
+    "sw": 1440,
+    "overflow": []
+  },
+  {
+    "id": "livingArchive",
+    "width": 1440,
+    "w": 1440,
+    "sw": 1440,
+    "overflow": []
+  }
+]

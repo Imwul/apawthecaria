@@ -82,6 +82,19 @@ describe('campaign save safety', () => {
     expect(tryMigrateCampaignSave([], value => value).ok).toBe(false);
   });
 
+  it.each(['broken', '', ' ', 'Infinity', Number.POSITIVE_INFINITY, Number.NaN, null, true, {}])('rejects an explicit invalid Reputation value %j before migration', reputation => {
+    const migrate = vi.fn(value => value);
+    expect(tryMigrateCampaignSave({ bio: { name: 'QA' }, reputation }, migrate)).toEqual({ ok: false });
+    expect(migrate).not.toHaveBeenCalled();
+  });
+
+  it('normalizes a legacy numeric Reputation string without mutating the source', () => {
+    const raw = { bio: { name: 'QA' }, reputation: ' 7 ' };
+    expect(tryMigrateCampaignSave(raw, value => value)).toEqual({ ok: true, state: { bio: { name: 'QA' }, reputation: 7 } });
+    expect(raw.reputation).toBe(' 7 ');
+    expect(tryMigrateCampaignSave({ bio: { name: 'QA' } }, value => value).ok).toBe(true);
+  });
+
   it('asks before a newer cloud save overwrites local progress', () => {
     const localRaw = JSON.stringify({ bio: { name: 'Bramble' }, journals: [{ id: '1' }], saveRevision: 2 });
     const confirmOverwrite = vi.fn(() => false);

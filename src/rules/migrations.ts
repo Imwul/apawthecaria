@@ -23,7 +23,7 @@ import { normalizeTravelEncounterWorldState } from './travelEncounterRuntime';
 import { CURRENT_SCHEMA_VERSION, type PatientState, type TreatmentDraft } from './state';
 import type { EngineInventoryItem } from './gameplay';
 import { rememberCustomReagents, type CustomReagentCatalogueEntry } from './customReagentCatalogue';
-import type { CanonicalToolState } from './toolEngine';
+import { toolWeight, type CanonicalToolState } from './toolEngine';
 import type { TreatmentAilmentTagOverride } from './treatmentEngine';
 import type { AilmentSeverity, RulebookEdition, RulesetId, RuleTag } from './types';
 
@@ -1035,8 +1035,19 @@ const normalizeCurrentSave = (saved: SaveRecord): SaveRecord => {
   const activePatientId = requestedActivePatientId && patients.some(patient => patient.id === requestedActivePatientId)
     ? requestedActivePatientId
     : null;
-  const bag = recordArray(withMetadata.bag).map(item => migrateLegacyBagItem(item)) as EngineInventoryItem[];
-  const toolStates = canonicalToolStates(withMetadata) as CanonicalToolState[];
+  const migratedBag = recordArray(withMetadata.bag).map(item => migrateLegacyBagItem(item)) as EngineInventoryItem[];
+  const toolStates = canonicalToolStates({ ...withMetadata, bag: migratedBag }) as CanonicalToolState[];
+  // p.62 has multiple whole Weight circles for these Tools. Earlier app
+  // versions collapsed each to Weight 1. Repair that known stored value and
+  // preserve explicit printed reductions (Bad Idea); leave other custom
+  // inventory weights alone rather than guessing why they were changed.
+  const correctedPrintedWeightIds = new Set(['canvas-tent', 'big-iron-cauldron', 'bark-coracle']);
+  const bag = migratedBag.map(item => {
+    if (item.type !== 'tool' || !item.canonicalToolId || !correctedPrintedWeightIds.has(item.canonicalToolId)) return item;
+    const tool = toolStates.find(row => row.instanceId === item.id);
+    if (!tool || (item.weight !== 1 && tool.weightAdjustment === undefined && Number.isFinite(item.weight))) return item;
+    return { ...item, weight: toolWeight(tool) };
+  });
   const ailmentTagOverrides = (Array.isArray(withMetadata.ailmentTagOverrides)
     ? withMetadata.ailmentTagOverrides
     : []) as TreatmentAilmentTagOverride[];

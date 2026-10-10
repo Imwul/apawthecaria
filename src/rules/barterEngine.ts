@@ -1,4 +1,5 @@
 import { getRuleCardValue, type RuleCard } from './cards';
+import { FAMILIAR_BENEFITS } from '../rulesEngine';
 import { REAGENT_BY_ID } from './data/reagents';
 import {
   immediatelyTreatableAilmentIds,
@@ -30,7 +31,7 @@ export interface BarterMapNode {
 }
 
 export interface BarterModifier {
-  id: 'local' | 'trade-route' | 'in-season' | 'curiosity' | 'fair' | 'tag-3' | 'foul' | 'reputation';
+  id: 'local' | 'trade-route' | 'in-season' | 'curiosity' | 'fair' | 'tag-3' | 'foul' | 'reputation' | 'familiar' | 'ailment';
   label: string;
   amount: number;
 }
@@ -147,12 +148,26 @@ const reputationModifier = (reputation: number): number => {
   return 1;
 };
 
+/** Printed p.14: Chatty lowers the desired Reagent Part's Barter Rarity by 2. */
+const familiarBarterModifiers = (familiarBenefit?: string): BarterModifier[] =>
+  FAMILIAR_BENEFITS.find(row => row.name === familiarBenefit)?.mechanic === 'chatty'
+    ? [{ id: 'familiar', label: 'Chatty', amount: -2 }]
+    : [];
+
+/** p.115: the Wingbreak Consequence lasts only for the Season it occurred. */
+const ailmentBarterModifiers = (conditions: readonly string[] | undefined, season: Season): BarterModifier[] =>
+  conditions?.includes(`wingbreak:barter-rarity-plus-2:${season}`)
+    ? [{ id: 'ailment', label: 'Wingbreak', amount: 2 }]
+    : [];
+
 export const calculateBarterBR = (input: {
   targetReagentId: string;
   preparationId: string;
   locationId: string;
   season: Season;
   reputation: number;
+  familiarBenefit?: string;
+  conditions?: readonly string[];
   graph: Record<string, BarterMapNode>;
 }): { br: number; modifiers: BarterModifier[]; availability: PendingBarterState['availability'] } => {
   const reagent = REAGENT_BY_ID.get(input.targetReagentId);
@@ -184,6 +199,8 @@ export const calculateBarterBR = (input: {
   if (tagThree) modifiers.push({ id: 'tag-3', label: 'Highly Prized', amount: 5 });
   if (foul > 0) modifiers.push({ id: 'foul', label: 'Why The Peck Would You Want That?', amount: foul });
   modifiers.push({ id: 'reputation', label: 'Friendly Donation', amount: reputationModifier(input.reputation) });
+  modifiers.push(...familiarBarterModifiers(input.familiarBenefit));
+  modifiers.push(...ailmentBarterModifiers(input.conditions, input.season));
   return {
     br: Math.max(0, reagent.baseRarity + modifiers.reduce((sum, modifier) => sum + modifier.amount, 0)),
     modifiers,
@@ -214,6 +231,8 @@ export const resolveBarterStart = (input: {
   currentLocationId: string;
   locationId: string;
   season: Season;
+  familiarBenefit?: string;
+  conditions?: readonly string[];
   graph: Record<string, BarterMapNode>;
 }): BarterResolution => {
   if (!input.transactionId || input.state.appliedTransactionIds.includes(input.transactionId)) {
@@ -249,10 +268,12 @@ export const resolveBarterStart = (input: {
     ...(replacement.requiredPotency >= 3 && !['FAIR', 'FOUL'].includes(replacement.targetTag) ? [{ id: 'tag-3' as const, label: 'Highly Prized', amount: 5 }] : []),
     ...(replacement.targetTag === 'FAIR' ? [{ id: 'fair' as const, label: 'Gourmand', amount: 3 }] : []),
     ...(replacement.targetTag === 'FOUL' ? [{ id: 'foul' as const, label: 'Why The Peck Would You Want That?', amount: replacement.requiredPotency }] : []),
-    { id: 'reputation', label: 'Friendly Donation', amount: reputationModifier(input.state.reputation) }
+    { id: 'reputation', label: 'Friendly Donation', amount: reputationModifier(input.state.reputation) },
+    ...familiarBarterModifiers(input.familiarBenefit),
+    ...ailmentBarterModifiers(input.conditions, input.season)
   ] : [];
   // A stand-in has no printed locality or seasonal availability. Its BR 12
-  // receives only the applicable Tag and Guild Reputation trade modifiers.
+  // receives the applicable Tag, Guild Reputation, Familiar and Consequence modifiers.
   const calculation = replacement ? { br: Math.max(0, 12 + replacementModifiers.reduce((sum, row) => sum + row.amount, 0)),
     modifiers: replacementModifiers, availability: { region: 'Unavailable' as const, season: 'Unavailable' as const } } : calculateBarterBR({
     targetReagentId: input.targetReagentId,
@@ -260,6 +281,8 @@ export const resolveBarterStart = (input: {
     locationId: input.locationId,
     season: input.season,
     reputation: input.state.reputation,
+    familiarBenefit: input.familiarBenefit,
+    conditions: input.conditions,
     graph: input.graph
   });
   const pendingBarter: PendingBarterState = {

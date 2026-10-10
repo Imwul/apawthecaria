@@ -260,7 +260,7 @@ describe('foraging and treatment transactions', () => {
   it('[FORAGE-001/FORAGE-002/FORAGE-003/FORAGE-004/FORAGE-005/FORAGE-006/FORAGE-008] resolves one Reagent and gains FP on an unboosted failed search', () => {
     const preview = resolveForaging({
       transactionId: 'forage-preview',
-      state: { season: 'Spring', currentRegion: 'Bog', currentLocationType: 'Wilds', foragingPoints: 0, inventory: [], toolIds: [] },
+      state: { season: 'Spring', currentRegion: 'Bog', currentLocationType: 'Wilds', foragingPoints: 0, inventory: [], toolIds: ['belt-knife'] },
       forageRegion: 'Bog', locationRelation: 'current', card: 1, skipEncounter: true
     });
     const candidate = preview.value!.candidates.find(row => row.rarity > 1
@@ -278,7 +278,7 @@ describe('foraging and treatment transactions', () => {
   });
 
   it('[FORAGE-002/UX-001] records a known miss without asking for a Part or quantity', () => {
-    const state = { season: 'Spring' as const, currentRegion: 'Bog' as const, currentLocationType: 'Wilds' as const, foragingPoints: 0, inventory: [], toolIds: [] };
+    const state = { season: 'Spring' as const, currentRegion: 'Bog' as const, currentLocationType: 'Wilds' as const, foragingPoints: 0, inventory: [], toolIds: ['belt-knife'] };
     const preview = resolveForaging({ transactionId: 'forage-miss-preview', state, forageRegion: 'Bog', locationRelation: 'current', card: 1, skipEncounter: true });
     const missed = preview.value!.candidates.find(candidate => candidate.rarity > 1)!;
     const result = resolveForaging({

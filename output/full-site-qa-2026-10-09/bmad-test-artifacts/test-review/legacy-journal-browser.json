@@ -1,0 +1,13 @@
+{
+  "status": "pass",
+  "countLabel": "진료 기록 (2)",
+  "canonicalDisplayed": true,
+  "legacyNoteDisplayed": true,
+  "bookmarkToggled": true,
+  "errors": [],
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "seeded": "Existing treated storage fixture plus one legacy patientCasebook record in an isolated context."
+}

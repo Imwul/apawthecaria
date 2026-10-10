@@ -1,0 +1,24 @@
+{
+  "schema_version": "0.1.0",
+  "evaluated_at": "2026-10-10T13:54:32.269423+00:00",
+  "repo": "apawthecaria-apo",
+  "target": {
+    "type": "epic",
+    "id": "full-site-qa-rulebook-fidelity-bug-fixes-ui-audit",
+    "label": "Full-Site QA: Rulebook Fidelity, Bug Fixes & UI Audit"
+  },
+  "collection_status": "COLLECTED",
+  "gate_basis": "priority_thresholds",
+  "gate_status": "FAIL",
+  "rationale": "P0 coverage0% FULL (required100%): all four broad P0 criteria remain PARTIAL. QA-07confirmed minimal fixes/regressions and QA-08complete honest final report are FULL; P1=50%,overall=25% FULL broad criteria. Final146files/1509tests and QA-independent27-screen/memory/reload/map browser replay passed. Rule1 still returns FAIL for incomplete exhaustive scope evidence, not execution failure.",
+  "p0_status": "NOT_MET",
+  "p1_status": "NOT_MET",
+  "overall_status": "NOT_MET",
+  "critical_open": 4,
+  "links": {
+    "trace_report_path": "/Users/imwul/Library/Mobile Documents/com~apple~CloudDocs/apawthecaria-apo/output/full-site-qa-2026-10-09/bmad-test-artifacts/trace/traceability-matrix-epic-full-site-qa-rulebook-fidelity-bug-fixes-ui-audit.md",
+    "trace_report_url": "",
+    "artifact_url": "",
+    "journey_evidence_url": ""
+  }
+}

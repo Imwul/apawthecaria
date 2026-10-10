@@ -859,6 +859,9 @@
 .paper-map__controls button { min-width: 2rem; padding: 0.22rem 0.45rem; border: 1px solid rgba(74, 54, 40, 0.35); border-radius: 4px; background: rgba(248, 242, 230, 0.82); color: #4a3628; font-size: 0.72rem; line-height: 1.2; cursor: pointer; }
 .paper-map__controls button.is-open,
 .paper-map__controls button:disabled { opacity: 0.72; }
+.paper-map__tools { position: absolute; top: 0.55rem; right: 0.55rem; z-index: 8; width: min(calc(100% - 1rem), 22rem); }
+.paper-map__tools .paper-map__controls { position: static; max-width: 100%; }
+.paper-map__tools .paper-map__popover { top: calc(100% + 0.3rem); right: 0; }
 .paper-map__popover { position: absolute; top: 2.6rem; right: 0.55rem; z-index: 8; width: min(16.5rem, calc(100% - 1.1rem)); max-height: min(52vh, 24rem); overflow: auto; padding: 0.7rem 0.75rem; border: 1px solid rgba(74, 54, 40, 0.28); border-radius: 8px; background: rgba(252, 247, 238, 0.96); color: #3f3126; box-shadow: 0 10px 24px rgba(48, 34, 22, 0.12); }
 .paper-map__layers section + section { margin-top: 0.7rem; }
 .paper-map__layers h3,
@@ -990,6 +993,9 @@
   .paper-map__sheet { left: 0; right: 0; top: auto; bottom: 0; width: 100%; max-height: 42vh; border-radius: 12px 12px 0 0; } }
 @media (max-width: 720px) { .paper-map__controls { max-width: calc(100% - 1rem); } }
 @media (max-width: 720px) { .paper-map__controls button { min-width: 44px; min-height: 44px; } }
+@media (max-width: 720px) { .paper-map__tools { position: static; width: auto; } }
+@media (max-width: 720px) { .paper-map__tools .paper-map__controls { position: absolute; max-width: calc(100% - 1rem); } }
+@media (max-width: 720px) { .paper-map__tools .paper-map__popover { top: auto; right: 0; } }
 .map-route-unmapped { margin: 0.45rem 0 0; color: #6b5c4b; font-size: 0.78rem; }
 .rulebook-hub { display: grid; gap: 2rem; max-width: 100%; }
 .rulebook-return-to-play { min-height: 44px; padding: 0.45rem 0; }

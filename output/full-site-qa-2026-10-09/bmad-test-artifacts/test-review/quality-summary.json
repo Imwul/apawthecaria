@@ -1,0 +1,113 @@
+{
+  "run_key": "epic-full-site-qa-rulebook-fidelity-bug-fixes-ui-audit",
+  "timestamp": "2026-10-10T13-12-04-967139+00-00",
+  "dimension_scores": {
+    "determinism": 100,
+    "isolation": 100,
+    "maintainability": 100,
+    "performance": 100
+  },
+  "violations_summary": {
+    "total": 0,
+    "CRITICAL": 0,
+    "HIGH": 0,
+    "MEDIUM": 0,
+    "LOW": 0
+  },
+  "bonuses": {
+    "excellentBdd": 5,
+    "comprehensiveFixtures": 0,
+    "dataFactories": 0,
+    "networkFirst": 0,
+    "perfectIsolation": 5,
+    "allTestIds": 0
+  },
+  "deductions": 0,
+  "bonus_total": 10,
+  "raw_score": 100,
+  "score_cap": 100,
+  "overall_score": 100,
+  "overall_grade": "A",
+  "recommendation": "Approve",
+  "verdict_rule": "No findings => Approve.",
+  "execution_mode": "sequential",
+  "execution_reason": "Capability probe: collaboration tools exist; all four team slots are occupied. Execute the four worker steps sequentially inside this QA worker rather than spawn unavailable children. Epic design was one worker by default.",
+  "dimension_outputs": [
+    "/tmp/tea-test-review-determinism-epic-full-site-qa-rulebook-fidelity-bug-fixes-ui-audit-2026-10-10T13-12-04-967139+00-00.json",
+    "/tmp/tea-test-review-isolation-epic-full-site-qa-rulebook-fidelity-bug-fixes-ui-audit-2026-10-10T13-12-04-967139+00-00.json",
+    "/tmp/tea-test-review-maintainability-epic-full-site-qa-rulebook-fidelity-bug-fixes-ui-audit-2026-10-10T13-12-04-967139+00-00.json",
+    "/tmp/tea-test-review-performance-epic-full-site-qa-rulebook-fidelity-bug-fixes-ui-audit-2026-10-10T13-12-04-967139+00-00.json"
+  ],
+  "convention_baseline": {
+    "corpusSize": 140,
+    "scanned": 40,
+    "sampled": 8,
+    "sampledFiles": [
+      "src/ailmentPresentation.test.ts",
+      "src/campaignContinuity.test.ts",
+      "src/encounterConditionAppIntegration.test.ts",
+      "src/firebaseAuth.test.ts",
+      "src/foragingRecovery.test.ts",
+      "src/journeyAnnotationRecovery.test.ts",
+      "src/manualEffectDraftState.test.ts",
+      "src/mobileLayout.test.ts"
+    ],
+    "conventions": {
+      "priorityMarkers": {
+        "adopted": 0,
+        "sampled": 8,
+        "status": "absent",
+        "form": "\\[P[0-3]\\]|@P[0-3]|@p[0-3]"
+      },
+      "testIds": {
+        "adopted": 0,
+        "sampled": 8,
+        "status": "absent",
+        "form": "getByTestId|data-testid"
+      },
+      "networkFirst": {
+        "adopted": 0,
+        "sampled": 8,
+        "status": "absent",
+        "form": "interceptNetworkCall|page\\.route\\("
+      },
+      "playwrightUtils": {
+        "adopted": 0,
+        "sampled": 8,
+        "status": "absent",
+        "form": "@seontechnologies/playwright-utils"
+      },
+      "dataFactories": {
+        "adopted": 3,
+        "sampled": 8,
+        "status": "emerging",
+        "form": "\\b(?:function|const)\\s+\\w*(?:[Ff]ixture|[Ff]actory|[Bb]uild\\w*|runtime|patient)\\w*"
+      },
+      "fixtures": {
+        "adopted": 0,
+        "sampled": 8,
+        "status": "absent",
+        "form": "test\\.extend|mergeTests|merged-fixtures"
+      },
+      "assertionStyle": {
+        "adopted": 8,
+        "sampled": 8,
+        "status": "established",
+        "form": "\\bexpect\\("
+      },
+      "bddNaming": {
+        "adopted": 8,
+        "sampled": 8,
+        "status": "established",
+        "form": "behavioral verb phrase"
+      }
+    }
+  },
+  "last_revalidated_at": "2026-10-10T13:21:32.425773+00:00",
+  "latest_test_result": {
+    "files": 4,
+    "passed": 33,
+    "failed": 0,
+    "duration_ms": 438
+  }
+}

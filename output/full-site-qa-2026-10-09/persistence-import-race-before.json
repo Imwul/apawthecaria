@@ -1,0 +1,8 @@
+{
+  "readFinishes": [
+    "Selected last.json",
+    "Selected first.json"
+  ],
+  "storedName": "Selected first",
+  "evidence": "Native FileReader browser result before sequence guards; captured in run output."
+}

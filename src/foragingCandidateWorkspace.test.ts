@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterForageCandidateRows } from './foragingCandidateWorkspace';
+import { defaultForageCandidateFilter, filterForageCandidateRows, type ForageCandidateFilter } from './foragingCandidateWorkspace';
 
 const rows = Array.from({ length: 38 }, (_, index) => ({
   reagentId: `reagent-${index + 1}`,
@@ -32,5 +32,41 @@ describe('large forage candidate workspace', () => {
       .toEqual(['reagent-2', 'reagent-22']);
     expect(filterForageCandidateRows(rows, { ...context, query: '', filter: 'owned' }).map(row => row.reagentId))
       .toEqual(['reagent-3', 'reagent-22']);
+  });
+
+  it('starts with remembered candidates that are in this legal result before patient matches', () => {
+    const original = structuredClone(rows);
+    const selected = defaultForageCandidateFilter(rows, context);
+    expect(selected).toBe('remembered');
+    expect(filterForageCandidateRows(rows, { ...context, query: '', filter: selected }).map(row => row.reagentId))
+      .toEqual(['reagent-22']);
+    expect(rows).toEqual(original);
+  });
+
+  it('falls back to patient matches when the note has no candidates in the current result', () => {
+    const current = { ...context, rememberedReagentIds: new Set(['reagent-not-found-here']) };
+    const selected = defaultForageCandidateFilter(rows, current);
+    expect(selected).toBe('patient');
+    expect(filterForageCandidateRows(rows, { ...current, query: '', filter: selected }).map(row => row.reagentId))
+      .toEqual(['reagent-2', 'reagent-22']);
+  });
+
+  it('keeps every legal candidate when neither notes nor patient needs intersect the result', () => {
+    const current = { ...context, rememberedReagentIds: new Set(['missing-note']), patientRelevantReagentIds: new Set(['missing-need']) };
+    const selected = defaultForageCandidateFilter(rows, current);
+    expect(selected).toBe('all');
+    expect(filterForageCandidateRows(rows, { ...current, query: '', filter: selected })).toEqual(rows);
+    expect(defaultForageCandidateFilter([], current)).toBe('all');
+    expect(defaultForageCandidateFilter([{ name: 'Uncatalogued find' }], current)).toBe('all');
+  });
+
+  it('preserves an explicit all choice and the original off-prescription options after a contextual default', () => {
+    const chosen: ForageCandidateFilter | null = 'all';
+    const active = chosen ?? defaultForageCandidateFilter(rows, context);
+    const visible = filterForageCandidateRows(rows, { ...context, query: '', filter: active });
+    expect(defaultForageCandidateFilter(rows, context)).toBe('remembered');
+    expect(visible).toEqual(rows);
+    expect(visible[0]).toBe(rows[0]);
+    expect(visible.some(row => row.reagentId === 'reagent-38')).toBe(true);
   });
 });

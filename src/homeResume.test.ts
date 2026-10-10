@@ -19,40 +19,43 @@ const journeyState = {
 };
 const renderToday = (overrides: Record<string, unknown> = {}, currentWeight = 1) => renderToStaticMarkup(createElement(TodayOverview, {
   state: { ...journeyState, ...overrides }, currentWeight, maxCarry: 12,
-  onNavigate: () => {}, onContinue: () => {}, onOpenReference: () => {}
+  onNavigate: () => {}, onOpenReference: () => {}
 }));
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Home campaign resume regression guards', () => {
-  it('uses the actual current location as WHERE and keeps the destination separate', () => {
+  it('keeps the current location separate from the journey destination', () => {
     const html = renderToday();
-    const context = html.match(/class="station-dossier__top">([\s\S]*?)<\/div>/)?.[1] || '';
+    const context = html.match(/class="play-overview__place">([\s\S]*?)<\/p>/)?.[1] || '';
     expect(context).toContain('Odoak');
     expect(context).not.toContain('Summit');
-    expect(html).toMatch(/class="station-journey__destination"[^]*?>목적지<[^]*?>Summit ↗<\/button>/);
+    expect(html).toMatch(/class="play-journey-note"[^]*?>목적지<[^]*?>Summit ↗<\/button>/);
   });
 
   it('renders only meaningful persisted resume context instead of empty navigation cards', () => {
     const html = renderToday();
-    expect(html).not.toContain('workspace-patient-strip');
+    expect(html).not.toContain('play-patient-summary');
     expect(html).not.toContain('아직 찾아온 환자가 없습니다');
     expect(html).not.toContain('첫 여행을 떠나면 이곳에 작은 기억이 남습니다.');
     expect(renderToday({}, 13)).toContain('배낭 한도 초과');
     expect(renderToday({ activeAilment: { name: '첫 열병', patientName: '토끼', timer: 3 } })).toContain('현재 환자');
   });
 
-  it('uses the shared next action for the Home label and its actual target', () => {
+  it('describes the saved procedure once and leaves its resume action in the action hub', () => {
     const state = { ...journeyState, pendingBarter: { status: 'awaiting-payment' } };
     const next = getCampaignNextAction(state);
     expect(next.targetId).toBe('patient-acquisition-panel');
     expect(next.actionId).toBeUndefined();
-    expect(renderToday({ pendingBarter: state.pendingBarter })).toContain(`${next.label}<span aria-hidden="true"> →</span>`);
+    const html = renderToday({ pendingBarter: state.pendingBarter });
+    expect(html).toContain(`${next.title}</h2>`);
+    expect(html).not.toContain('workspace-primary');
     const start = appSource.indexOf('<TodayOverview');
-    const callback = appSource.slice(start, appSource.indexOf('onOpenReference={openRulebookReference}', start));
-    expect(callback).toContain('const next = getCampaignNextAction(state);');
-    expect(callback).toContain('changeActiveTab(next.tab);');
-    expect(callback).toContain("focusCurrentWorkspace(next.targetId || 'field-main', next.actionId)");
-    expect(callback).not.toContain('getCampaignResumeActionIds');
+    const overviewProps = appSource.slice(start, appSource.indexOf('/>', start));
+    expect(overviewProps).not.toContain('onContinue');
+    expect(appSource).toContain('const recommendedAction = getCampaignNextAction(state);');
+    expect(appSource).toContain("id: 'pending-barter', label: recommendedAction.label");
+    expect(appSource).toContain('onClick={() => handleActionHubItem(item)}');
+    expect(appSource).toContain('if (target) revealWorkspaceTarget(target);');
   });
 
   it('returns to the saved position when Home opens a reference chapter', () => {
@@ -83,16 +86,20 @@ describe('Home campaign resume regression guards', () => {
     expect(appSource).toContain('setBioRecordFolds(initialBioRecordFoldState())');
   });
 
-  it('separates a newly met patient impression from the diagnosis in the recent journal', () => {
-    const html = renderToday({ journals: [{
+  it('keeps an earlier patient memory from competing with the current patient in the compact overview', () => {
+    const journals = [{
       id: 'diagnosis:journal', title: '새 환자: 토끼', timestamp: 1,
       text: '첫인상: 낯을 가리는 · 풍성한 털\n병증: 첫 열병 (가벼움, 8시간)'
-    }] });
-    expect(html).toMatch(/>첫인상<\/\w+>/);
-    expect(html).toMatch(/>병증<\/\w+>/);
-    expect(html).toContain('낯을 가리는 · 풍성한 털');
-    expect(html).toContain('첫 열병 (가벼움, 8시간)');
-    expect(html).not.toContain('첫인상: 낯을 가리는 · 풍성한 털 병증:');
+    }];
+    const original = structuredClone(journals);
+    const html = renderToday({ journals,
+      activeAilment: { name: '현재 병증', patientName: '현재 환자', timer: 6, tags: 'INFECTION 1' } });
+    expect(html).toContain('현재 환자');
+    expect(html).toContain('현재 병증');
+    expect(html).toContain('6시간');
+    expect(html).not.toContain('첫 열병');
+    expect(html).not.toContain('낯을 가리는');
+    expect(journals).toEqual(original);
   });
 });
 

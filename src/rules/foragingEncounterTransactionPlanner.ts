@@ -1,5 +1,6 @@
 import { REAGENT_BY_ID, REAGENT_BY_NAME } from './data/reagents';
 import { TOOL_BY_ID } from './data/tools';
+import { getRuleCardValue } from './cards';
 import {
   FORAGING_ENCOUNTER_IDS,
   MEEK_ENCOUNTER_IDS,
@@ -116,9 +117,22 @@ const toolOptions = (predicate: (toolId: string) => boolean = () => true): Forag
  * destination), never for values the campaign already knows.
  */
 export const planForagingEncounterTransaction = async (
-  context: ForagingEncounterPlanningContext,
+  drawnContext: ForagingEncounterPlanningContext,
   prompt: ForagingEncounterPrompt
 ): Promise<ForagingEncounterPlan> => {
+  if (drawnContext.secondaryCards.some(drawn => !Number.isInteger(drawn.value)
+    || drawn.value < 1 || drawn.value > 13 || !['♥', '♦', '♣', '♠'].includes(drawn.suit))) {
+    return invalid('추가 카드는 올바른 무늬와 A–K 값이어야 합니다.');
+  }
+  // The UI preserves physical Kings as 13. Printed procedures use Monarch 12
+  // for both Kings and Queens (p.6), including comparisons and rarity rewards.
+  const context = {
+    ...drawnContext,
+    secondaryCards: drawnContext.secondaryCards.map(drawn => ({
+      ...drawn,
+      value: getRuleCardValue(drawn, 'forage')
+    }))
+  };
   const inputBase = base(context);
   const choiceId = context.choiceId || '';
 

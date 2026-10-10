@@ -91,6 +91,12 @@ describe('gameplay message Korean presentation layer', () => {
       .toBe('필요한 도구가 선택되지 않았습니다: 앞발/발톱');
     expect(localizeGameplayMessage('Missing Tool for Leaves: camp-kettle, glass-alembic'))
       .toBe('Leaves에 필요한 도구가 없습니다: 낡은 캠프 주전자, 유리 증류기');
+    expect(localizeGameplayMessage('Card 1 is below Rarity 5. Foraging failed and gained 0 Foraging Points.'))
+      .toBe('카드 1의 값이 희귀도 5보다 낮습니다. 채집에 실패하여 채집 포인트를 얻지 못했습니다.');
+    expect(localizeGameplayMessage('Card 1 is below Rarity 5. Foraging failed and gained 2 Foraging Points.'))
+      .toBe('카드 1의 값이 희귀도 5보다 낮습니다. 채집에 실패하고 채집 포인트 2점을 얻었습니다.');
+    expect(localizeGameplayMessage('No Reagent is available for this draw; gained 0 Foraging Points.'))
+      .toBe('이번 카드로 얻을 수 있는 영약재가 없습니다. 채집 포인트를 얻지 못했습니다.');
     expect(localizeGameplayMessage('BR 8; paid 2 Trinkets and 1 Reputation.'))
       .toBe('기본 희귀도 8; 장신구 2개와 Guild Reputation 1점을 지불했습니다.');
     expect(localizeGameplayMessage('guaranteed-adjacent in Mountain; every active Timer decreased by 2.'))

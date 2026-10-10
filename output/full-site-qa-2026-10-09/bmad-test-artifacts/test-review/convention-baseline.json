@@ -1,0 +1,65 @@
+{
+  "corpusSize": 140,
+  "scanned": 40,
+  "sampled": 8,
+  "sampledFiles": [
+    "src/ailmentPresentation.test.ts",
+    "src/campaignContinuity.test.ts",
+    "src/encounterConditionAppIntegration.test.ts",
+    "src/firebaseAuth.test.ts",
+    "src/foragingRecovery.test.ts",
+    "src/journeyAnnotationRecovery.test.ts",
+    "src/manualEffectDraftState.test.ts",
+    "src/mobileLayout.test.ts"
+  ],
+  "conventions": {
+    "priorityMarkers": {
+      "adopted": 0,
+      "sampled": 8,
+      "status": "absent",
+      "form": "\\[P[0-3]\\]|@P[0-3]|@p[0-3]"
+    },
+    "testIds": {
+      "adopted": 0,
+      "sampled": 8,
+      "status": "absent",
+      "form": "getByTestId|data-testid"
+    },
+    "networkFirst": {
+      "adopted": 0,
+      "sampled": 8,
+      "status": "absent",
+      "form": "interceptNetworkCall|page\\.route\\("
+    },
+    "playwrightUtils": {
+      "adopted": 0,
+      "sampled": 8,
+      "status": "absent",
+      "form": "@seontechnologies/playwright-utils"
+    },
+    "dataFactories": {
+      "adopted": 3,
+      "sampled": 8,
+      "status": "emerging",
+      "form": "\\b(?:function|const)\\s+\\w*(?:[Ff]ixture|[Ff]actory|[Bb]uild\\w*|runtime|patient)\\w*"
+    },
+    "fixtures": {
+      "adopted": 0,
+      "sampled": 8,
+      "status": "absent",
+      "form": "test\\.extend|mergeTests|merged-fixtures"
+    },
+    "assertionStyle": {
+      "adopted": 8,
+      "sampled": 8,
+      "status": "established",
+      "form": "\\bexpect\\("
+    },
+    "bddNaming": {
+      "adopted": 8,
+      "sampled": 8,
+      "status": "established",
+      "form": "behavioral verb phrase"
+    }
+  }
+}

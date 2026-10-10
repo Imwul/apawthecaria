@@ -1,0 +1,74 @@
+{
+  "runtime": "Real headless Chromium1234/Playwright on Vite",
+  "isolated": true,
+  "pages": [
+    "play",
+    "map",
+    "bio",
+    "reagents",
+    "almanack",
+    "journals",
+    "ailments",
+    "patientArchive",
+    "livingArchive"
+  ],
+  "viewports": [
+    360,
+    768,
+    1440
+  ],
+  "checks": {
+    "onboardingDraftAndCompletion": "PASS",
+    "journeyRequiredGoalAndStart": "PASS",
+    "twoPathMoveCalendarAndEncounterResume": "PASS",
+    "patientSeverityCap": "PASS",
+    "twoForagesAndImmediateRemedyOrder": "PASS",
+    "treatmentCancelDraftRewardReloadAndInventoryConsumption": "PASS",
+    "canonicalJournalRecord": "PASS",
+    "profileCancelSaveReload": "PASS",
+    "toolWeightsAcquisitionReloadEncumbrance": "PASS:2/2/3,total8,carry5,speed1",
+    "mapZoomFitCurrentSearchEmptySelectionSave": "PASS",
+    "mapSearchCloseAndLayersAfterOverlapFix": "PASS at360,768,1440",
+    "barterSearchEmptyCancelChattyPreviewTransaction": "PASS:BR2,part acquired,timer3->2",
+    "wingbreakPreview": "PASS:BR4",
+    "wagonCancelCommissionAndSeason": "PASS:27->7,commissioned,Summer",
+    "wingbreakSeasonExpiry": "PASS:conditions[]",
+    "companionRecruit": "PASS:Caterpillar,7->4,one companion",
+    "clinicPrerequisitesCancelBuild": "PASS:20->5,building",
+    "clinicDowntimeAndCompletion": "PASS:+5reputation,Summer,active clinic",
+    "rulebookSearchFilterBookmarkReloadInlineDetail": "PASS",
+    "journalAllSixSubtabs": "VISITED;read/empty/list states",
+    "barrowEmptyNotePreviewReloadFlee": "PASS:days1,speed1,delve null",
+    "barrowNormalIntakeBefore": "FAIL:ordinary personality selector opened",
+    "barrowNormalIntakeAfter": "PASS:intake0,localHelp0",
+    "buildingTrustException": "PASS:Intermediate BrandCare generated,patient panel/research visible; full cure not executed",
+    "staleToolActualImportReload": [
+      {
+        "id": "bark-coracle",
+        "weight": 3
+      },
+      {
+        "id": "big-iron-cauldron",
+        "weight": 2
+      },
+      {
+        "id": "canvas-tent",
+        "weight": 2
+      }
+    ],
+    "canonicalMemoryConsistency": "PASS:Journal,PatientArchive,LivingArchive,Play recent memory;save reload retained"
+  },
+  "pageErrors": {
+    "qaErrors": [],
+    "branchErrors": [],
+    "downErrors": [],
+    "clinicErrors": [],
+    "barrowErrors": [],
+    "trustErrors": []
+  },
+  "limits": [
+    "Every nested encounter and manual effect branch not exhaustively executed",
+    "all clinic agenda, service, companion triggers, Barrow outcomes not exhausted",
+    "authenticated cloud and crossbrowser real mobile not executed"
+  ]
+}

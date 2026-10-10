@@ -32,7 +32,7 @@ const treatment = (started: ReturnType<typeof patientFor>, inventory: EngineInve
 });
 const forageState = (foragingPoints = 0): ForagingEngineState => ({
   season: 'Spring', currentRegion: 'Forest', currentLocationType: 'Wilds', adjacentRegions: ['Meadow'],
-  foragingPoints, inventory: [], toolIds: [], patient: patientFor().patient, conditions: []
+  foragingPoints, inventory: [], toolIds: ['belt-knife'], patient: patientFor().patient, conditions: []
 });
 
 describe('p.30 Replacement acquisition and prepared consumption', () => {
@@ -69,9 +69,12 @@ describe('p.30 Replacement acquisition and prepared consumption', () => {
     expect(automatic.foragingPointsSpent).toBe(0);
   });
 
-  it('requires the invented method tool and rejects a different active patient scope', () => {
+  it('gathers an invented Part without its preparation Tool, but still rejects a different active patient scope', () => {
     const brewed = { ...replacement, preparation: 'BREWED' };
-    expect(resolveForaging({ transactionId: 'forage:tool', state: forageState(), card: 12, locationRelation: 'current', forageRegion: 'Forest', targetReagentId: brewed.id, replacement: brewed, skipEncounter: true }).status).toBe('invalid');
+    const gathered = resolveForaging({ transactionId: 'forage:tool', state: forageState(), card: 12, locationRelation: 'current', forageRegion: 'Forest', targetReagentId: brewed.id, replacement: brewed, skipEncounter: true });
+    expect(gathered.status).toBe('resolved');
+    expect(gathered.value?.gatheredItems).toHaveLength(1);
+    expect(canTreatAilmentWithInventory(gathered.value!.nextState.patient!, patientFor().ailmentInstanceId, gathered.value!.nextState.inventory)).toBe(false);
     expect(resolveForaging({ transactionId: 'forage:wrong-patient', state: forageState(), card: 12, locationRelation: 'current', forageRegion: 'Forest', targetReagentId: replacement.id, replacement: { ...replacement, patientId: 'another-patient' }, skipEncounter: true }).status).toBe('invalid');
   });
 

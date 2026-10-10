@@ -1,0 +1,168 @@
+{
+  "bio": {
+    "name": "룰북 검증용 약제사",
+    "animal": "토끼",
+    "familiarName": "모아",
+    "familiarAnimal": "다람쥐"
+  },
+  "rulesetId": "original-1e-3p",
+  "currentLocationName": "Odoak",
+  "currentLocationType": "City",
+  "currentRegion": "Forest",
+  "currentSeason": "Spring",
+  "journeyActive": true,
+  "journeyOrigin": "Odoak",
+  "journeyDestination": "Summit",
+  "journeyGoalTitle": "책임",
+  "calendarDays": 1,
+  "calendarMaxDays": 12,
+  "needsLocalHelpBeforeMove": false,
+  "bag": [
+    {
+      "id": "qa-belt-knife",
+      "name": "Belt Knife",
+      "type": "tool",
+      "canonicalToolId": "belt-knife",
+      "weight": 0.3333333333333333,
+      "qty": 1
+    },
+    {
+      "id": "qa-mortar-and-pestle",
+      "name": "Wooden Mortar and Pestle",
+      "type": "tool",
+      "canonicalToolId": "mortar-and-pestle",
+      "weight": 0.3333333333333333,
+      "qty": 1
+    },
+    {
+      "id": "qa-camp-kettle",
+      "name": "Battered Camp Kettle",
+      "type": "tool",
+      "canonicalToolId": "camp-kettle",
+      "weight": 0.3333333333333333,
+      "qty": 1
+    },
+    {
+      "id": "qa-teeth",
+      "name": "Jaws",
+      "type": "tool",
+      "canonicalToolId": "teeth",
+      "weight": 0,
+      "qty": 1
+    },
+    {
+      "id": "qa-paws",
+      "name": "Paws/Claws",
+      "type": "tool",
+      "canonicalToolId": "paws",
+      "weight": 0,
+      "qty": 1
+    }
+  ],
+  "patients": [
+    {
+      "id": "qa-remedy-patient",
+      "name": "작은 대장장이",
+      "species": "Crow",
+      "foragingPoints": 0,
+      "reagentsGathered": [],
+      "status": "cured",
+      "ailments": [
+        {
+          "id": "qa-remedy-patient-ailment-forgeclawed-1",
+          "ailmentId": "ailment-forgeclawed",
+          "severity": "lesser",
+          "timerIds": [
+            "qa-remedy-patient-ailment-forgeclawed-1-timer"
+          ],
+          "conditionIds": [],
+          "treatmentHistoryIds": [
+            "qa-remedy-patient:fixture-treatment:treatment"
+          ],
+          "status": "treated",
+          "instance": 1,
+          "repeatIndex": 1,
+          "specialState": {},
+          "successResolved": true,
+          "failureResolved": false,
+          "consequenceResolved": false,
+          "effectIds": [
+            "qa-remedy-patient:fixture-treatment:treatment"
+          ]
+        }
+      ],
+      "timers": [
+        {
+          "id": "qa-remedy-patient-ailment-forgeclawed-1-timer",
+          "ailmentInstanceId": "qa-remedy-patient-ailment-forgeclawed-1",
+          "current": 8,
+          "maximum": 8,
+          "status": "stopped"
+        }
+      ],
+      "conditions": [],
+      "treatmentHistory": [
+        {
+          "id": "qa-remedy-patient:fixture-treatment:treatment",
+          "ailmentInstanceIds": [
+            "qa-remedy-patient-ailment-forgeclawed-1"
+          ],
+          "preparationIds": [
+            "marigold-petals-crushed-3",
+            "maggots-larvae-used-1"
+          ],
+          "providedTags": {
+            "PAIN": 2,
+            "BURN": 2,
+            "INFECTION": 3,
+            "WOUND": 3,
+            "FAIR": 0,
+            "FOUL": 0
+          },
+          "remedyFlags": [],
+          "outcome": "success",
+          "effects": [],
+          "journalEventId": "qa-remedy-patient:fixture-treatment:journal"
+        }
+      ],
+      "journalEvents": []
+    }
+  ],
+  "activePatientId": "qa-remedy-patient",
+  "trinkets": [
+    "검증용 기념품",
+    "치료 보상 장신구"
+  ],
+  "pendingForaging": null,
+  "pendingBarter": null,
+  "activeAilment": null,
+  "activeAilments": [],
+  "scroungingMode": true,
+  "scroungingTimer": 8,
+  "pendingPatientArchive": {
+    "sourceId": "qa-remedy-patient:fixture-treatment",
+    "patientName": "작은 대장장이",
+    "species": "까마귀",
+    "ailmentName": "대장간 불꽃 부상",
+    "severity": "Lesser",
+    "tags": "BURN 1 + WOUND 1",
+    "locationName": "Odoak",
+    "region": "Forest",
+    "season": "Spring",
+    "journeyTitle": "책임",
+    "resolvedAtDay": 1,
+    "outcome": "success",
+    "remedy": [
+      "금잔화 꽃잎",
+      "구더기"
+    ],
+    "consequence": "",
+    "initialRememberedNote": "",
+    "notes": "",
+    "timestamp": 1791421200000
+  },
+  "reputation": 6,
+  "appliedTransactionIds": [
+    "qa-remedy-patient:fixture-treatment"
+  ]
+}

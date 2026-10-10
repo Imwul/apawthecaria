@@ -1,0 +1,78 @@
+[
+  {
+    "name": "unrelated",
+    "errors": [],
+    "preserved": true,
+    "storedName": "Persistence QA",
+    "emptyBody": false,
+    "notices": [
+      "기기에 저장됨",
+      "유효하지 않은 아포테카리아 세이브 파일입니다."
+    ]
+  },
+  {
+    "name": "array",
+    "errors": [],
+    "preserved": true,
+    "storedName": "Persistence QA",
+    "emptyBody": false,
+    "notices": [
+      "기기에 저장됨",
+      "유효하지 않은 아포테카리아 세이브 파일입니다."
+    ]
+  },
+  {
+    "name": "number-name",
+    "errors": [],
+    "preserved": true,
+    "storedName": "Persistence QA",
+    "emptyBody": false,
+    "notices": [
+      "기기에 저장됨",
+      "세이브 파일을 올리지 못했습니다. 현재 기록은 그대로 둡니다."
+    ]
+  },
+  {
+    "name": "object-trinkets",
+    "errors": [],
+    "preserved": true,
+    "storedName": "Persistence QA",
+    "emptyBody": false,
+    "notices": [
+      "기기에 저장됨",
+      "세이브 파일을 올리지 못했습니다. 현재 기록은 그대로 둡니다."
+    ]
+  },
+  {
+    "name": "null-companion",
+    "errors": [],
+    "preserved": true,
+    "storedName": "Persistence QA",
+    "emptyBody": false,
+    "notices": [
+      "기기에 저장됨",
+      "세이브 파일을 올리지 못했습니다. 현재 기록은 그대로 둡니다."
+    ]
+  },
+  {
+    "name": "object-journals",
+    "errors": [],
+    "preserved": true,
+    "storedName": "Persistence QA",
+    "emptyBody": false,
+    "notices": [
+      "기기에 저장됨",
+      "세이브 파일을 올리지 못했습니다. 현재 기록은 그대로 둡니다."
+    ]
+  },
+  {
+    "name": "string-reputation",
+    "errors": [],
+    "preserved": false,
+    "storedName": "Corrupt",
+    "emptyBody": false,
+    "notices": [
+      "기기에 저장됨"
+    ]
+  }
+]

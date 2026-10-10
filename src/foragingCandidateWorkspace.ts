@@ -14,6 +14,17 @@ export interface ForageCandidateViewContext {
   ownedReagentIds: ReadonlySet<string>;
 }
 
+/** Selects a useful first view from the legal result, never from unavailable
+ * notes or an unrelated patient's catalogue. Players can still choose all. */
+export const defaultForageCandidateFilter = (
+  rows: readonly ForageCandidateRowLike[],
+  context: Pick<ForageCandidateViewContext, 'rememberedReagentIds' | 'patientRelevantReagentIds'>
+): ForageCandidateFilter => {
+  if (rows.some(row => row.reagentId && context.rememberedReagentIds.has(row.reagentId))) return 'remembered';
+  if (rows.some(row => row.reagentId && context.patientRelevantReagentIds.has(row.reagentId))) return 'patient';
+  return 'all';
+};
+
 /**
  * Narrows only the current canonical result. Array order and row identity are
  * deliberately preserved: this is a neutral lens, never a ranking function.

@@ -2,11 +2,85 @@
 import { readFileSync } from 'node:fs';
 // @ts-expect-error Vitest runs this source audit in Node; the app build intentionally exposes browser types only.
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import * as ts from 'typescript';
+import * as React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import {
+  hasPendingManualForagingCheckpoint,
+  isAwaitingImmediateRemedy
+} from './foragingRecovery';
+import {
+  isAwaitingImmediateRemedy as isAwaitingImmediateRemedyCheckpoint,
+  releaseImmediateRemedyCheckpoint,
+  withImmediateRemedyCheckpoint,
+  type ImmediateRemedyCheckpointState
+} from './rules/immediateRemedyEngine';
+import type { ManualEffectDraft, PendingForagingState } from './rules';
 
 const appSource = readFileSync(fileURLToPath(new URL('./App.tsx', import.meta.url)), 'utf8');
 const manualSource = readFileSync(fileURLToPath(new URL('./components/ManualEffectPanel.tsx', import.meta.url)), 'utf8');
 const rulebookContextSource = readFileSync(fileURLToPath(new URL('./components/RulebookSourceContext.tsx', import.meta.url)), 'utf8');
+
+interface AcquisitionGuardState {
+  pendingForaging: PendingForagingState | null;
+  pendingBarter: (ImmediateRemedyCheckpointState & { status: string }) | null;
+  pendingTreatmentReward: object | null;
+  manualEffectQueue: ManualEffectDraft[];
+}
+
+/** Run the actual App guard initializers, so a new acquisition gate cannot
+ * silently be dropped while this test continues to verify a copied condition. */
+const acquisitionGuardNames = [
+  'awaitingForagingImmediateRemedy', 'awaitingBarterImmediateRemedy',
+  'awaitingImmediateRemedy', 'awaitingManualForaging', 'awaitingTreatmentReward',
+  'acquisitionInProgress', 'acquisitionCheckpointBlocked', 'forageDisabled', 'newAcquisitionBlocked'
+] as const;
+const appSyntax = ts.createSourceFile('App.tsx', appSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const guardInitializers = new Map<string, ts.Expression>();
+const collectGuardInitializers = (node: ts.Node) => {
+  if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)
+    && acquisitionGuardNames.some(name => name === node.name.getText(appSyntax)) && node.initializer) {
+    guardInitializers.set(node.name.text, node.initializer);
+  }
+  ts.forEachChild(node, collectGuardInitializers);
+};
+collectGuardInitializers(appSyntax);
+const guardJavascript = ts.transpileModule(acquisitionGuardNames.map(name => {
+  const initializer = guardInitializers.get(name);
+  if (!initializer) throw new Error(`App acquisition guard ${name} was not found`);
+  return `const ${name} = ${initializer.getText(appSyntax)};`;
+}).join('\n'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
+const evaluateAcquisitionGuards = new Function(
+  'state', 'locationUnavailable', 'isAwaitingImmediateRemedy', 'isAwaitingImmediateRemedyCheckpoint',
+  'hasPendingManualForagingCheckpoint',
+  `${guardJavascript}\nreturn { ${acquisitionGuardNames.join(', ')} };`
+) as (...bindings: unknown[]) => Record<typeof acquisitionGuardNames[number], boolean>;
+const runAcquisitionGuards = (state: AcquisitionGuardState, locationUnavailable = false) => evaluateAcquisitionGuards(
+  state, locationUnavailable, isAwaitingImmediateRemedy, isAwaitingImmediateRemedyCheckpoint,
+  (current: AcquisitionGuardState) => hasPendingManualForagingCheckpoint(current.pendingForaging, current.manualEffectQueue)
+);
+const emptyAcquisitionState = (): AcquisitionGuardState => ({
+  pendingForaging: null, pendingBarter: null, pendingTreatmentReward: null, manualEffectQueue: []
+});
+const forageTransaction = (phase: PendingForagingState['phase']): PendingForagingState => ({
+  transactionId: 'persisted-forage', region: 'Forest', locationRelation: 'current',
+  card: { value: 6, suit: '♥' }, timerCostAfterEncounter: 1, encounterId: null, phase
+});
+
+const executeAppInitializer = (name: string, bindings: Record<string, unknown>) => {
+  let initializer: ts.Expression | undefined;
+  const find = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name) initializer = node.initializer;
+    ts.forEachChild(node, find);
+  };
+  find(appSyntax);
+  if (!initializer) throw new Error(`App initializer ${name} was not found`);
+  const javascript = ts.transpileModule(`const result = ${initializer.getText(appSyntax)};`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None }
+  }).outputText;
+  return new Function(...Object.keys(bindings), `${javascript}\nreturn result;`)(...Object.values(bindings));
+};
 
 describe('encounter player-experience guards', () => {
   it('uses scene summaries in travel, barter/social, and forage journals instead of generic button labels', () => {
@@ -137,10 +211,155 @@ describe('encounter player-experience guards', () => {
     expect(appSource).toContain('pendingForaging: releaseImmediateRemedyCheckpointRule(s.pendingForaging, nextPatient.id, ailment.id)');
     expect(appSource).toContain('pendingBarter: releaseImmediateRemedyCheckpointRule(s.pendingBarter, nextPatient.id, ailment.id)');
     expect(appSource).toContain('if (hasAcquisitionCheckpoint(state))');
-    expect(appSource).toContain('const forageDisabled = locationUnavailable || acquisitionCheckpointBlocked;');
+    expect(appSource).toContain('disabled={forageDisabled}');
     expect(appSource).toContain('const canBarter = !acquisitionCheckpointBlocked');
     expect(appSource).toContain('Timer 감소 보류');
     expect(appSource).toContain('치료제를 먼저 만드세요');
+  });
+
+  it('prevents a new forage from replacing every unfinished forage or barter transaction', () => {
+    expect(runAcquisitionGuards(emptyAcquisitionState()).forageDisabled).toBe(false);
+    for (const phase of ['choose-reagent', 'encounter', 'timer'] as const) {
+      const guards = runAcquisitionGuards({ ...emptyAcquisitionState(), pendingForaging: forageTransaction(phase) });
+      expect(guards.acquisitionCheckpointBlocked, phase).toBe(false);
+      expect(guards.acquisitionInProgress, phase).toBe(true);
+      expect(guards.forageDisabled, phase).toBe(true);
+    }
+    for (const status of ['manual-social', 'awaiting-second-card', 'awaiting-payment']) {
+      const guards = runAcquisitionGuards({ ...emptyAcquisitionState(), pendingBarter: { status } });
+      expect(guards.acquisitionCheckpointBlocked, status).toBe(false);
+      expect(guards.acquisitionInProgress, status).toBe(true);
+      expect(guards.forageDisabled, status).toBe(true);
+    }
+    for (const status of ['completed', 'abandoned']) {
+      expect(runAcquisitionGuards({ ...emptyAcquisitionState(), pendingBarter: { status } }).forageDisabled, status).toBe(false);
+    }
+    expect(runAcquisitionGuards(emptyAcquisitionState(), true).forageDisabled).toBe(true);
+    expect(runAcquisitionGuards({ ...emptyAcquisitionState(), pendingTreatmentReward: {} }).forageDisabled).toBe(true);
+  });
+
+  it.each(['forage', 'barter'] as const)('keeps a restored %s Remedy checkpoint separate from unfinished acquisition until its captured Ailment is treated', kind => {
+    const checkpoint = withImmediateRemedyCheckpoint<PendingForagingState | (ImmediateRemedyCheckpointState & { status: string })>(
+      kind === 'forage' ? forageTransaction('resolved') : { status: 'completed' },
+      'patient-a', ['ailment-a']
+    );
+    const stateForCheckpoint = (pending: typeof checkpoint | null): AcquisitionGuardState => ({
+      ...emptyAcquisitionState(),
+      ...(kind === 'forage' ? { pendingForaging: pending as PendingForagingState | null } : { pendingBarter: pending as AcquisitionGuardState['pendingBarter'] })
+    });
+    const restored = JSON.parse(JSON.stringify(checkpoint)) as typeof checkpoint;
+    const guards = runAcquisitionGuards(stateForCheckpoint(restored));
+    expect(guards.awaitingImmediateRemedy).toBe(true);
+    expect(guards.acquisitionInProgress).toBe(false);
+    expect(guards.acquisitionCheckpointBlocked).toBe(true);
+    expect(guards.forageDisabled).toBe(true);
+    for (const [patientId, ailmentId] of [['patient-b', 'ailment-a'], ['patient-a', 'ailment-b']]) {
+      const unrelatedTreatment = releaseImmediateRemedyCheckpoint(restored, patientId, ailmentId);
+      expect(unrelatedTreatment).toEqual(restored);
+      expect(runAcquisitionGuards(stateForCheckpoint(unrelatedTreatment)).forageDisabled).toBe(true);
+    }
+    const treated = releaseImmediateRemedyCheckpoint(restored, 'patient-a', 'ailment-a');
+    expect(treated).toBeNull();
+    expect(runAcquisitionGuards(stateForCheckpoint(treated)).forageDisabled).toBe(false);
+  });
+
+  it.each([
+    'executeForageDraw', 'handleForageDraw', 'handleIndependentForage', 'executeScroungeForageDraw',
+    'handleScroungeForage', 'handleScroungeGainReagent', 'handleSoddenLogHarvest', 'handleBarterAttempt',
+    'handleBarrowForage', 'handleFinishScrounging'
+  ])('stops the actual %s callback before drawing, spending time, or replacing a pending acquisition', async name => {
+    const state = { ...emptyAcquisitionState(), pendingForaging: forageTransaction('choose-reagent') };
+    const snapshot = JSON.stringify(state);
+    const guards = runAcquisitionGuards(state);
+    const showAlert = vi.fn();
+    const drawPlayingCard = vi.fn();
+    const updateState = vi.fn();
+    const callback = executeAppInitializer(name, {
+      state, ...guards, showAlert, drawPlayingCard, updateState,
+      newAcquisitionBlockingMessage: '진행 중인 획득을 먼저 마치세요.',
+      acquisitionCheckpointBlockingMessage: '조제 체크포인트'
+    }) as (...args: unknown[]) => unknown;
+    await callback();
+    expect(showAlert).toHaveBeenCalledWith('진행 중인 획득을 먼저 마치세요.');
+    expect(drawPlayingCard).not.toHaveBeenCalled();
+    expect(updateState).not.toHaveBeenCalled();
+    expect(JSON.stringify(state)).toBe(snapshot);
+  });
+
+  it('allows an unused Independent benefit again once the acquisition gate is clear', () => {
+    const drawPlayingCard = vi.fn(() => ({ value: 6, suit: '♥' }));
+    const executeForageDraw = vi.fn();
+    const showAlert = vi.fn();
+    const callback = executeAppInitializer('handleIndependentForage', {
+      state: { ...emptyAcquisitionState(), activeAilment: {}, independentUsedThisAilment: false },
+      newAcquisitionBlocked: false, newAcquisitionBlockingMessage: '', showAlert,
+      scroungeAdjacentRegions: ['Forest'], toRuleRegion: (region: string) => region,
+      drawPlayingCard, executeForageDraw
+    }) as (region: string) => void;
+    callback('Forest');
+    expect(drawPlayingCard).toHaveBeenCalledOnce();
+    expect(executeForageDraw).toHaveBeenCalledWith('♥', 6, 'Forest', 'familiar-independent');
+    expect(showAlert).not.toHaveBeenCalled();
+  });
+
+  it.each(['barter', 'remedy', 'reward'] as const)('preserves a queued Wasp draw while %s must finish first', kind => {
+    const state = {
+      ...emptyAcquisitionState(), companionStates: [{ companionId: 'wasp', pendingForageDraws: 1 }],
+      currentRegion: 'Forest', pendingEncounter: null,
+      ...(kind === 'barter' ? { pendingBarter: { status: 'awaiting-payment' } }
+        : kind === 'remedy' ? { pendingBarter: withImmediateRemedyCheckpoint({ status: 'completed' } as ImmediateRemedyCheckpointState & { status: string }, 'patient-a', ['ailment-a']) }
+          : { pendingTreatmentReward: {} })
+    };
+    const drawPlayingCard = vi.fn();
+    const updateState = vi.fn((update: (current: typeof state) => typeof state) => expect(update(state)).toBe(state));
+    const callback = executeAppInitializer('openPendingWaspForage', {
+      useEffectEvent: (event: unknown) => event, updateState, drawPlayingCard,
+      hasAcquisitionCheckpoint: (current: AcquisitionGuardState) => runAcquisitionGuards(current).awaitingImmediateRemedy
+    }) as () => void;
+    callback();
+    expect(updateState).toHaveBeenCalledOnce();
+    expect(drawPlayingCard).not.toHaveBeenCalled();
+    expect(state.companionStates[0].pendingForageDraws).toBe(1);
+  });
+
+  it('places the single departure action before card foraging and keeps long direct-acquisition catalogues collapsed', () => {
+    let section: ts.JsxElement | undefined;
+    const find = (node: ts.Node) => {
+      if (ts.isJsxElement(node) && node.openingElement.attributes.properties.some(attribute =>
+        ts.isJsxAttribute(attribute) && attribute.name.getText(appSyntax) === 'id'
+        && attribute.initializer && ts.isStringLiteral(attribute.initializer)
+        && attribute.initializer.text === 'patient-scrounging-panel')) section = node;
+      ts.forEachChild(node, find);
+    };
+    find(appSyntax);
+    expect(section).toBeDefined();
+    const javascript = ts.transpileModule(`const panel = ${section!.getText(appSyntax)};`, {
+      compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None, jsx: ts.JsxEmit.React }
+    }).outputText;
+    const bindings = {
+      React, state: { scroungingTimer: 10, currentRegion: 'Forest', patientArchive: [] },
+      newAcquisitionBlocked: false, newAcquisitionBlockingMessage: '',
+      handleFinishScrounging: vi.fn(), handleScroungeForage: vi.fn(), handleScroungeGainReagent: vi.fn(),
+      scroungeAdjacentRegions: ['Forest'], scroungeReagentRegion: 'Forest', setScroungeReagentRegion: vi.fn(),
+      localizeRegionLabel: (region: string) => region, toRuleRegion: (region: string) => region,
+      REAGENTS: Array.from({ length: 80 }, (_, index) => ({
+        id: `reagent-${index}`, displayName: `약재-${index}`, regionAvailability: { Forest: 'Common' },
+        preparations: [{ tags: [{ tag: 'TOUGH', value: 2 }] }]
+      }))
+    };
+    const element = new Function(...Object.keys(bindings), `${javascript}\nreturn panel;`)(...Object.values(bindings));
+    const html = renderToStaticMarkup(element);
+    expect(html.match(/길 떠나기 · 다음 이동 준비/g)).toHaveLength(1);
+    expect(appSource.match(/onClick={handleFinishScrounging}/g)).toHaveLength(1);
+    expect(html.indexOf('길 떠나기 · 다음 이동 준비')).toBeLessThan(html.indexOf('현재 위치 채집'));
+    const catalogues = html.match(/<details class="scrounging-reagent-options"[^>]*>[\s\S]*?<\/details>/g) || [];
+    expect(catalogues).toHaveLength(2);
+    for (const catalogue of catalogues) {
+      expect(catalogue).not.toMatch(/<details[^>]*\bopen(?:=|\s|>)/);
+      expect(catalogue.match(/>약재-\d+<\/button>/g)).toHaveLength(80);
+    }
+    expect(appSource).toContain("targetId: 'patient-scrounging-panel'");
+    expect(appSource).toContain('if (barterLimit > 0 && !newAcquisitionBlocked)');
   });
 
   it('lets the player remove a mistaken reagent without leaving a stale treatment draft', () => {
