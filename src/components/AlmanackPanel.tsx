@@ -231,11 +231,16 @@ export default function AlmanackPanel({
       <header className="almanack__header rulebook-hub__header">
         <div>
           <span className="document-kicker">여행 약제사의 들녘 색인 · 제1판 제3쇄</span>
-          <h2 id="almanack-title">자연사 색인과 룰북</h2>
-          <p>이름을 몰라도 지역, 계절, 환자의 증상에서 시작해 관련 기록을 따라갈 수 있습니다. 필요한 경우에만 원문 페이지를 펼치세요.</p>
+          <h3 id="almanack-title" className="sr-only">자연사 색인과 룰북</h3>
         </div>
         <button type="button" className="rulebook-return-to-play" onClick={onReturnToGameplay}>오늘의 플레이로 돌아가기</button>
       </header>
+
+      <div className="almanack__controls">
+        <label><span>색인 검색</span><input value={query} onChange={event => { setQuery(event.target.value); setVisibleLimit(80); clearContextFilters(); }} placeholder="이름, 지역, 계절, 약효 또는 p.141" /></label>
+        <label><span>분류</span><select value={kind} onChange={event => { setKind(event.target.value as RulebookReferenceKind | 'all'); setVisibleLimit(80); }}>{Object.entries(KIND_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
+        <label><span>처리 방식</span><select value={status} onChange={event => { setStatus(event.target.value as ResolutionFilter); setVisibleLimit(80); }}><option value="all">전체</option>{Object.entries(STATUS_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
+      </div>
 
       <section className="rulebook-context-shelf" aria-labelledby="rulebook-context-title">
         <div className="rulebook-context-shelf__heading"><span className="document-kicker">지금 펼칠 기록</span><h3 id="rulebook-context-title">현재 들녘에서 바로 찾기</h3></div>
@@ -255,12 +260,6 @@ export default function AlmanackPanel({
           <small>내 영약재와 도구 다시 보기</small>
         </button>
       </section>
-
-      <div className="almanack__controls">
-        <label><span>색인 검색</span><input value={query} onChange={event => { setQuery(event.target.value); setVisibleLimit(80); clearContextFilters(); }} placeholder="이름, 지역, 계절, 약효 또는 p.141" /></label>
-        <label><span>분류</span><select value={kind} onChange={event => { setKind(event.target.value as RulebookReferenceKind | 'all'); setVisibleLimit(80); }}>{Object.entries(KIND_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
-        <label><span>처리 방식</span><select value={status} onChange={event => { setStatus(event.target.value as ResolutionFilter); setVisibleLimit(80); }}><option value="all">전체</option>{Object.entries(STATUS_LABELS).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
-      </div>
 
       <div className="rulebook-index-summary">
         <span aria-live="polite">찾은 기록 {visible.length}개</span>

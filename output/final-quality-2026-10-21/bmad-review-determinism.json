@@ -1,0 +1,231 @@
+{
+  "dimension": "determinism",
+  "run_key": "epic-final-editorial-quality-audit",
+  "timestamp": "2026-10-21T07-14-53-743914+00-00",
+  "success": true,
+  "review_files": [
+    "src/journalPhotoSubmission.test.ts",
+    "src/components/editorialHierarchy.test.tsx"
+  ],
+  "score": 100,
+  "max_score": 100,
+  "grade": "A",
+  "violations": [],
+  "passed_checks": 28,
+  "failed_checks": 0,
+  "total_checks": 28,
+  "check_count_basis": "14 owned registry rows evaluated for each of 2 reviewed files. Passed checks include explicitly identified PASS (n/a) checks; 20 file-row checks have Absolute gates open, and 8 file-row checks have closed Applicability gates.",
+  "applicable_checks": 20,
+  "not_applicable_checks": 8,
+  "violation_summary": {
+    "CRITICAL": 0,
+    "HIGH": 0,
+    "MEDIUM": 0,
+    "LOW": 0
+  },
+  "row_assessments": [
+    {
+      "row": "C1",
+      "severity": "CRITICAL",
+      "gate": "Absolute",
+      "status": "PASS",
+      "gate_open": true,
+      "evidence": "Both complete Vitest files use ordinary describe/it declarations; no skip, todo, xit/xdescribe, or disabled annotation appears.",
+      "files": [
+        "src/journalPhotoSubmission.test.ts",
+        "src/components/editorialHierarchy.test.tsx"
+      ]
+    },
+    {
+      "row": "C2",
+      "severity": "CRITICAL",
+      "gate": "Absolute",
+      "status": "PASS",
+      "gate_open": true,
+      "evidence": "No .only, fit, or fdescribe declaration appears in either complete reviewed file.",
+      "files": [
+        "src/journalPhotoSubmission.test.ts",
+        "src/components/editorialHierarchy.test.tsx"
+      ]
+    },
+    {
+      "row": "C3",
+      "severity": "CRITICAL",
+      "gate": "Absolute",
+      "status": "PASS",
+      "gate_open": true,
+      "evidence": "Each test asserts an observed handler outcome or rendered markup against an independent expected result. journalPhotoSubmission.test.ts:140 and 157 compare returned unchanged records against their input references to enforce identity preservation; these are not literal/self comparisons. The saved journal is constrained by concrete title/text/photos and semantic values at lines 151-156.",
+      "files": [
+        "src/journalPhotoSubmission.test.ts",
+        "src/components/editorialHierarchy.test.tsx"
+      ]
+    },
+    {
+      "row": "C4",
+      "severity": "CRITICAL",
+      "gate": "Absolute",
+      "status": "PASS",
+      "gate_open": true,
+      "evidence": "All eight journal-handler test bodies and all four editorial-markup test bodies contain explicit Vitest expect assertions.",
+      "files": [
+        "src/journalPhotoSubmission.test.ts",
+        "src/components/editorialHierarchy.test.tsx"
+      ]
+    },
+    {
+      "row": "C6",
+      "severity": "CRITICAL",
+      "gate": "Absolute",
+      "status": "PASS",
+      "gate_open": true,
+      "evidence": "Assertions occur in executing test bodies, with no unconditional return before them, swallowed test catch, or unawaited assertion callback. Deferred work in journalPhotoSubmission.test.ts:53-130 is settled explicitly and its handler promise is awaited. The state updater callbacks at lines 65, 138, and 150 are invoked synchronously by the tests.",
+      "files": [
+        "src/journalPhotoSubmission.test.ts",
+        "src/components/editorialHierarchy.test.tsx"
+      ]
+    },
+    {
+      "row": "C7",
+      "severity": "CRITICAL",
+      "gate": "Applicability: reviewed file is a Maestro flow",
+      "status": "PASS (n/a)",
+      "gate_open": false,
+      "evidence": "Both files are JS/TS Vitest suites, not Maestro flows.",
+      "files": [
+        "src/journalPhotoSubmission.test.ts",
+        "src/components/editorialHierarchy.test.tsx"
+      ]
+    },
+    {
+      "row": "H1",
+      "severity": "HIGH",
+      "gate": "Absolute",
+      "status": "PASS",
+      "gate_open": true,
+      "evidence": "Neither reviewed file uses sleep, waitForTimeout, cy.wait, or another bare timer to order steps. Photo tests use manually controlled promises rather than timed waits (journalPhotoSubmission.test.ts:20-24, 55-64, 72-84).",
+      "files": [
+        "src/journalPhotoSubmission.test.ts",
+        "src/components/editorialHierarchy.test.tsx"
+      ]
+    },
+    {
+      "row": "H2",
+      "severity": "HIGH",
+      "gate": "Applicability: file builds or asserts a time-bounded value",
+      "status": "PASS (n/a)",
+      "gate_open": false,
+      "evidence": "Neither reviewed file constructs or asserts expiry, token lifetime, TTL, or scheduling data. The actual save handler and updater are now both executed by journalPhotoSubmission.test.ts:146 and 150. Their Date.now calls stamp an opaque journal ID and journal timestamp; these are journal data rather than a time boundary, and the asserted values at lines 151-158 do not depend on the clock. Static editorial markup has no time boundary.",
+      "files": [
+        "src/journalPhotoSubmission.test.ts",
+        "src/components/editorialHierarchy.test.tsx"
+      ]
+    },
+    {
+      "row": "H3",
+      "severity": "HIGH",
+      "gate": "Absolute",
+      "status": "PASS",
+      "gate_open": true,
+      "evidence": "No reviewed test uses if/ternary to select expected outcomes, catches to swallow assertion failures, or assertions in possibly empty loops. The optional match at editorialHierarchy.test.tsx:33 only extracts a label ID; its truthiness and matching ID are asserted unconditionally at lines 36-37.",
+      "files": [
+        "src/journalPhotoSubmission.test.ts",
+        "src/components/editorialHierarchy.test.tsx"
+      ]
+    },
+    {
+      "row": "H6",
+      "severity": "HIGH",
+      "gate": "Absolute",
+      "status": "PASS",
+      "gate_open": true,
+      "evidence": "The predicate targets a Vitest Pact config missing fileParallelism:false. Neither reviewed file is such a config or contains Pact worker configuration; no predicate instance occurs in this review set. No project-wide Pact-config audit was performed.",
+      "files": [
+        "src/journalPhotoSubmission.test.ts",
+        "src/components/editorialHierarchy.test.tsx"
+      ]
+    },
+    {
+      "row": "H7",
+      "severity": "HIGH",
+      "gate": "Applicability: at least two .pacttest.ts files for the pair",
+      "status": "PASS (n/a)",
+      "gate_open": false,
+      "evidence": "The authoritative review set contains ordinary frontend Vitest tests and no Pact artifact or consumer/provider pair. Parent-resolved framework facts state no Pact tests in scope.",
+      "files": [
+        "src/journalPhotoSubmission.test.ts",
+        "src/components/editorialHierarchy.test.tsx"
+      ]
+    },
+    {
+      "row": "H8",
+      "severity": "HIGH",
+      "gate": "Absolute",
+      "status": "PASS",
+      "gate_open": true,
+      "evidence": "Neither reviewed file is a Pact Vitest config or sets sequence.concurrent, maxConcurrency, maxWorkers, or isolate to defeat Pact serialization. No predicate instance occurs in this review set.",
+      "files": [
+        "src/journalPhotoSubmission.test.ts",
+        "src/components/editorialHierarchy.test.tsx"
+      ]
+    },
+    {
+      "row": "H10",
+      "severity": "HIGH",
+      "gate": "Absolute",
+      "status": "PASS",
+      "gate_open": true,
+      "evidence": "Journal tests constrain concrete counters, setter arguments, alert text, non-invocation, appended photo content, preservation of identity/content, and the saved journal title/text/photos/semantic at journalPhotoSubmission.test.ts:151-158. Editorial tests constrain literal markup content and ordering. The titleId presence assertion at editorialHierarchy.test.tsx:36 stands beside value/relationship assertions on the same rendered markup (lines 34-39), so the suite is not shape-only.",
+      "files": [
+        "src/journalPhotoSubmission.test.ts",
+        "src/components/editorialHierarchy.test.tsx"
+      ]
+    },
+    {
+      "row": "L4",
+      "severity": "LOW",
+      "gate": "Applicability: exactly one .pacttest.ts for the pair",
+      "status": "PASS (n/a)",
+      "gate_open": false,
+      "evidence": "No Pact test/config or consumer/provider pair is in the authoritative review set; parent-resolved facts state Pact is not in scope.",
+      "files": [
+        "src/journalPhotoSubmission.test.ts",
+        "src/components/editorialHierarchy.test.tsx"
+      ]
+    }
+  ],
+  "test_inventory": [
+    {
+      "file": "src/journalPhotoSubmission.test.ts",
+      "test_count": 8,
+      "lines": 163,
+      "analysis": "Read the entire current 163-line file in revalidation and verified its supplied SHA-256. The fixture extracts/transpiles actual App handler bodies and provides real createPlayerMemorySemantic. Assertions verify calls/counters, synchronously execute state updaters, and now constrain the saved title/text/photos/semantic while preserving prior-record identity and input state. Explicit deferred promises control pending, concurrent, cancellation, and late-result boundaries without a timer."
+    },
+    {
+      "file": "src/components/editorialHierarchy.test.tsx",
+      "test_count": 4,
+      "lines": 41,
+      "analysis": "Read in full. Tests render real components with renderToStaticMarkup and assert concrete markup. These observations are markup-only; they do not establish live focus, effects, keyboard handling, or user interactions."
+    }
+  ],
+  "context_read": [
+    "src/App.tsx:30630-30790 (relevant photo/save handlers only)",
+    "src/components/JournalPhotoDialog.tsx (full)",
+    "src/components/FolioFrontispiece.tsx (full)",
+    "src/components/AlmanackPanel.tsx (targeted markup and clock-reference search only)",
+    "src/journalSemantics.ts (createPlayerMemorySemantic definition only, read-only context for the added real dependency)"
+  ],
+  "scope_limits": [
+    "Only registry rows C1/C2/C3/C4/C6/C7/H1/H2/H3/H6/H7/H8/H10/L4 evaluated for deductions.",
+    "All application sources were read-only context and were not scored; no whole-App audit is claimed.",
+    "No tests were run and no browser was used. Runtime was not measured by this worker and is intentionally absent.",
+    "No old audit result, score, or evidence was reused. The supplied convention baseline was not rederived and does not waive Absolute rows."
+  ],
+  "recommendations": [],
+  "unscored_observations": [],
+  "summary": "Revalidated current files: no owned determinism row fires across 12 tests. The strengthened normal-save case executes its actual updater and checks saved values plus preservation of prior state. Date.now stamps ordinary journal data, so H2 still does not fire.",
+  "revalidated_at": "2026-10-21T07:22:39Z",
+  "file_hashes": {
+    "src/journalPhotoSubmission.test.ts": "64bda86b10c1f505768e5bea0756e636fdf30e8469b09ffaa14d98640676b43b",
+    "src/components/editorialHierarchy.test.tsx": "133c515acaf2578024c8425b69da17f8861dca0cbb41739c45987631f54f5582"
+  }
+}

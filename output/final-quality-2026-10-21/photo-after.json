@@ -1,0 +1,38 @@
+{
+  "delayedReadBlocksSave": true,
+  "savedPhotos": 1,
+  "blankDraftPhotos": 0,
+  "reloadRetained": true,
+  "keyboardFocusAndEscape": true,
+  "invalidReadRetainsText": true,
+  "draftReturn": true,
+  "sizes": [
+    {
+      "width": 1440,
+      "rect": {
+        "x": 160,
+        "y": 83.5625,
+        "width": 1120,
+        "height": 832.859375
+      }
+    },
+    {
+      "width": 390,
+      "rect": {
+        "x": 16,
+        "y": 342.59375,
+        "width": 358,
+        "height": 314.796875
+      }
+    },
+    {
+      "width": 320,
+      "rect": {
+        "x": 16,
+        "y": 366.90625,
+        "width": 288,
+        "height": 266.1875
+      }
+    }
+  ]
+}

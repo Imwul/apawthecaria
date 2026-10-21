@@ -1,0 +1,57 @@
+import assert from 'node:assert/strict';
+
+export default async ({page,fs,out}) => {
+  await page.setViewportSize({width:390,height:1000});
+  await page.locator('nav .journal-tab--bio').click();
+  if(await page.getByRole('button',{name:/프로필 편집/}).count()) await page.getByRole('button',{name:/프로필 편집/}).click();
+  const form=page.locator('main form').filter({has:page.getByRole('heading',{name:/약제사 프로필 수정/})});
+  const name=page.getByLabel('약제사 이름:',{exact:true});
+  const familiar=page.getByLabel('길동무 이름:',{exact:true});
+  const benefit=page.getByLabel('길동무 혜택 (p.14-15):',{exact:true});
+  const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('apawthecaria_rpg_state')));
+  await page.locator('label[for=bio-profile-name]').click();
+  assert.equal(await name.evaluate(el=>el===document.activeElement),true);
+  await name.fill('취소되어야 하는 편집 QA');
+  await familiar.fill('취소할 길동무');
+  await benefit.selectOption('인맥왕 (Resourceful)');
+  await page.getByLabel('상시 채집할 약재 지정:',{exact:true}).selectOption({index:1});
+  await benefit.selectOption('창의적인 발명가 (Ingenuitive)');
+  await page.getByLabel('모방할 추가 도구 지정:',{exact:true}).selectOption('tool_crossbow');
+  const labels=await form.locator('label').evaluateAll(es=>es.map(el=>({text:el.textContent.trim(),control:el.control?.tagName||null})));
+  assert.ok(labels.every(l=>l.control));
+  await form.getByRole('button',{name:'취소',exact:true}).click();
+  await page.getByRole('button',{name:/프로필 편집/}).click();
+  assert.equal(await name.inputValue(),stored.bio.name);
+  assert.equal(await familiar.inputValue(),stored.bio.familiarName);
+  assert.equal(await benefit.inputValue(),stored.bio.familiarBenefit);
+  await name.fill('검증된 약제사 QA');
+  await form.getByRole('button',{name:'저장',exact:true}).click();
+  await page.getByRole('alertdialog').getByRole('button',{name:'확인',exact:true}).click();
+  await page.reload({waitUntil:'domcontentloaded'});
+  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('apawthecaria_rpg_state')).bio.name),'검증된 약제사 QA');
+  await page.locator('nav .journal-tab--journals').click();
+  const subtabs=page.getByRole('navigation',{name:'일지 분류 색인',exact:true}).getByRole('button');
+  const sections=[];
+  for(let i=0;i<await subtabs.count();i++) {
+    const button=subtabs.nth(i);
+    sections.push(await button.innerText());
+    await button.click();
+    assert.equal(await button.getAttribute('aria-pressed'),'true');
+    const dimensions=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}));
+    assert.ok(dimensions.scroll<=dimensions.viewport);
+  }
+  await page.locator('details.direct-navigation__more').evaluate(el=>{el.open=true;});
+  await page.locator('nav .journal-tab--ailments').click();
+  const search=page.getByRole('searchbox',{name:'질환 이름 검색',exact:true});
+  await search.fill('Monthly Chore');
+  const ailment=page.locator('.ailment-card');
+  assert.equal(await ailment.count(),1);
+  await ailment.locator('summary').click();
+  assert.match(await ailment.innerText(),/SCALE/);
+  await search.fill('NO-AILMENT-20261021');
+  await page.getByText('조건에 맞는 질환이 없습니다.',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'모든 질환 보기',exact:true}).click();
+  assert.ok(await page.locator('.ailment-card').count()>1);
+  await fs.writeFile(out+'/profile-reference-after.json',JSON.stringify({labels,conditionalChoicesLabelled:true,cancelRestoresSavedProfile:true,saveAndReload:true,journalSectionsVisited:sections,ailmentSearchAndEmptyReset:true},null,2));
+  console.log('PASS profile labels/conditional fields, cancel/save/reload, six journal sections, ailment lookup and empty reset');
+};

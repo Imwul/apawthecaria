@@ -1,0 +1,407 @@
+[
+  {
+    "tab": "play",
+    "width": 1440,
+    "scroll": 1440,
+    "viewport": 1440,
+    "openingHeight": 65,
+    "headingEnd": 0,
+    "firstField": null
+  },
+  {
+    "tab": "map",
+    "width": 1440,
+    "scroll": 1440,
+    "viewport": 1440,
+    "openingHeight": 65,
+    "headingEnd": 335.171875,
+    "firstField": null
+  },
+  {
+    "tab": "bio",
+    "width": 1440,
+    "scroll": 1440,
+    "viewport": 1440,
+    "openingHeight": 65,
+    "headingEnd": 335.171875,
+    "firstField": 1468.515625
+  },
+  {
+    "tab": "reagents",
+    "width": 1440,
+    "scroll": 1440,
+    "viewport": 1440,
+    "openingHeight": 65,
+    "headingEnd": 335.171875,
+    "firstField": 529.671875
+  },
+  {
+    "tab": "almanack",
+    "width": 1440,
+    "scroll": 1440,
+    "viewport": 1440,
+    "openingHeight": 65,
+    "headingEnd": 335.171875,
+    "firstField": 508.859375
+  },
+  {
+    "tab": "journals",
+    "width": 1440,
+    "scroll": 1440,
+    "viewport": 1440,
+    "openingHeight": 65,
+    "headingEnd": 335.171875,
+    "firstField": 707.03125
+  },
+  {
+    "tab": "ailments",
+    "width": 1440,
+    "scroll": 1440,
+    "viewport": 1440,
+    "openingHeight": 65,
+    "headingEnd": 335.171875,
+    "firstField": 375.171875
+  },
+  {
+    "tab": "patientArchive",
+    "width": 1440,
+    "scroll": 1440,
+    "viewport": 1440,
+    "openingHeight": 65,
+    "headingEnd": 335.171875,
+    "firstField": null
+  },
+  {
+    "tab": "livingArchive",
+    "width": 1440,
+    "scroll": 1440,
+    "viewport": 1440,
+    "openingHeight": 65,
+    "headingEnd": 335.171875,
+    "firstField": null
+  },
+  {
+    "tab": "play",
+    "width": 390,
+    "scroll": 390,
+    "viewport": 390,
+    "openingHeight": 0,
+    "headingEnd": 0,
+    "firstField": null
+  },
+  {
+    "tab": "map",
+    "width": 390,
+    "scroll": 390,
+    "viewport": 390,
+    "openingHeight": 0,
+    "headingEnd": 476.875,
+    "firstField": null
+  },
+  {
+    "tab": "bio",
+    "width": 390,
+    "scroll": 390,
+    "viewport": 390,
+    "openingHeight": 0,
+    "headingEnd": 476.875,
+    "firstField": 1881.375
+  },
+  {
+    "tab": "reagents",
+    "width": 390,
+    "scroll": 390,
+    "viewport": 390,
+    "openingHeight": 0,
+    "headingEnd": 476.875,
+    "firstField": 643.734375
+  },
+  {
+    "tab": "almanack",
+    "width": 390,
+    "scroll": 390,
+    "viewport": 390,
+    "openingHeight": 0,
+    "headingEnd": 476.875,
+    "firstField": 692.421875
+  },
+  {
+    "tab": "journals",
+    "width": 390,
+    "scroll": 390,
+    "viewport": 390,
+    "openingHeight": 0,
+    "headingEnd": 476.875,
+    "firstField": 936.3125
+  },
+  {
+    "tab": "ailments",
+    "width": 390,
+    "scroll": 390,
+    "viewport": 390,
+    "openingHeight": 0,
+    "headingEnd": 556.0625,
+    "firstField": 596.0625
+  },
+  {
+    "tab": "patientArchive",
+    "width": 390,
+    "scroll": 390,
+    "viewport": 390,
+    "openingHeight": 0,
+    "headingEnd": 528.875,
+    "firstField": null
+  },
+  {
+    "tab": "livingArchive",
+    "width": 390,
+    "scroll": 390,
+    "viewport": 390,
+    "openingHeight": 0,
+    "headingEnd": 528.875,
+    "firstField": null
+  },
+  {
+    "tab": "play",
+    "width": 320,
+    "scroll": 320,
+    "viewport": 320,
+    "openingHeight": 0,
+    "headingEnd": 0,
+    "firstField": null
+  },
+  {
+    "tab": "map",
+    "width": 320,
+    "scroll": 320,
+    "viewport": 320,
+    "openingHeight": 0,
+    "headingEnd": 560.0625,
+    "firstField": null
+  },
+  {
+    "tab": "bio",
+    "width": 320,
+    "scroll": 320,
+    "viewport": 320,
+    "openingHeight": 0,
+    "headingEnd": 532.875,
+    "firstField": 1937.375
+  },
+  {
+    "tab": "reagents",
+    "width": 320,
+    "scroll": 320,
+    "viewport": 320,
+    "openingHeight": 0,
+    "headingEnd": 504.0625,
+    "firstField": 712.953125
+  },
+  {
+    "tab": "almanack",
+    "width": 320,
+    "scroll": 320,
+    "viewport": 320,
+    "openingHeight": 0,
+    "headingEnd": 476.875,
+    "firstField": 692.421875
+  },
+  {
+    "tab": "journals",
+    "width": 320,
+    "scroll": 320,
+    "viewport": 320,
+    "openingHeight": 0,
+    "headingEnd": 476.875,
+    "firstField": 959.5
+  },
+  {
+    "tab": "ailments",
+    "width": 320,
+    "scroll": 320,
+    "viewport": 320,
+    "openingHeight": 0,
+    "headingEnd": 556.0625,
+    "firstField": 596.0625
+  },
+  {
+    "tab": "patientArchive",
+    "width": 320,
+    "scroll": 320,
+    "viewport": 320,
+    "openingHeight": 0,
+    "headingEnd": 528.875,
+    "firstField": null
+  },
+  {
+    "tab": "livingArchive",
+    "width": 320,
+    "scroll": 320,
+    "viewport": 320,
+    "openingHeight": 0,
+    "headingEnd": 556.0625,
+    "firstField": null
+  },
+  {
+    "tab": "play",
+    "width": 768,
+    "scroll": 768,
+    "viewport": 768,
+    "openingHeight": 0,
+    "headingEnd": 0,
+    "firstField": null
+  },
+  {
+    "tab": "map",
+    "width": 768,
+    "scroll": 768,
+    "viewport": 768,
+    "openingHeight": 0,
+    "headingEnd": 394.265625,
+    "firstField": null
+  },
+  {
+    "tab": "bio",
+    "width": 768,
+    "scroll": 768,
+    "viewport": 768,
+    "openingHeight": 0,
+    "headingEnd": 394.265625,
+    "firstField": 1527.609375
+  },
+  {
+    "tab": "reagents",
+    "width": 768,
+    "scroll": 768,
+    "viewport": 768,
+    "openingHeight": 0,
+    "headingEnd": 394.265625,
+    "firstField": 588.765625
+  },
+  {
+    "tab": "almanack",
+    "width": 768,
+    "scroll": 768,
+    "viewport": 768,
+    "openingHeight": 0,
+    "headingEnd": 394.265625,
+    "firstField": 611.453125
+  },
+  {
+    "tab": "journals",
+    "width": 768,
+    "scroll": 768,
+    "viewport": 768,
+    "openingHeight": 0,
+    "headingEnd": 394.265625,
+    "firstField": 813.3125
+  },
+  {
+    "tab": "ailments",
+    "width": 768,
+    "scroll": 768,
+    "viewport": 768,
+    "openingHeight": 0,
+    "headingEnd": 450.265625,
+    "firstField": 490.265625
+  },
+  {
+    "tab": "patientArchive",
+    "width": 768,
+    "scroll": 768,
+    "viewport": 768,
+    "openingHeight": 0,
+    "headingEnd": 450.265625,
+    "firstField": null
+  },
+  {
+    "tab": "livingArchive",
+    "width": 768,
+    "scroll": 768,
+    "viewport": 768,
+    "openingHeight": 0,
+    "headingEnd": 450.265625,
+    "firstField": null
+  },
+  {
+    "tab": "play",
+    "width": 1920,
+    "scroll": 1920,
+    "viewport": 1920,
+    "openingHeight": 65,
+    "headingEnd": 0,
+    "firstField": null
+  },
+  {
+    "tab": "map",
+    "width": 1920,
+    "scroll": 1920,
+    "viewport": 1920,
+    "openingHeight": 65,
+    "headingEnd": 335.171875,
+    "firstField": null
+  },
+  {
+    "tab": "bio",
+    "width": 1920,
+    "scroll": 1920,
+    "viewport": 1920,
+    "openingHeight": 65,
+    "headingEnd": 335.171875,
+    "firstField": 1468.515625
+  },
+  {
+    "tab": "reagents",
+    "width": 1920,
+    "scroll": 1920,
+    "viewport": 1920,
+    "openingHeight": 65,
+    "headingEnd": 335.171875,
+    "firstField": 529.671875
+  },
+  {
+    "tab": "almanack",
+    "width": 1920,
+    "scroll": 1920,
+    "viewport": 1920,
+    "openingHeight": 65,
+    "headingEnd": 335.171875,
+    "firstField": 508.859375
+  },
+  {
+    "tab": "journals",
+    "width": 1920,
+    "scroll": 1920,
+    "viewport": 1920,
+    "openingHeight": 65,
+    "headingEnd": 335.171875,
+    "firstField": 707.03125
+  },
+  {
+    "tab": "ailments",
+    "width": 1920,
+    "scroll": 1920,
+    "viewport": 1920,
+    "openingHeight": 65,
+    "headingEnd": 335.171875,
+    "firstField": 375.171875
+  },
+  {
+    "tab": "patientArchive",
+    "width": 1920,
+    "scroll": 1920,
+    "viewport": 1920,
+    "openingHeight": 65,
+    "headingEnd": 335.171875,
+    "firstField": null
+  },
+  {
+    "tab": "livingArchive",
+    "width": 1920,
+    "scroll": 1920,
+    "viewport": 1920,
+    "openingHeight": 65,
+    "headingEnd": 335.171875,
+    "firstField": null
+  }
+]

@@ -1,0 +1,56 @@
+{
+  "source": "Apawthecaria v1.3.pdf",
+  "sha256": "c8c39b80bce8d863a1e978d4dd1079588252d9988e2e9ae94d4bc0d4900ff7a4",
+  "checks": [
+    {
+      "pdfPage": 33,
+      "text": "4 - Encounter\nAfter Foraging, compare the drawn card to the Region’s \nForaging Encounter table (page 152) and follow the  \nentry’s instructions. \n5 - Check Bags\nAfter completing an Encounter, check your Bags. If you have \ngathered all of the necessary Reagents, you should Create a \nRemedy (before decreasing any Timers).\n6 - Decrease Ailment Timer\nIf you cannot Create a Remedy, instead, decrease the Timer \nbased on where and what you Foraged:\nWhere you  \nForaged...\nHow much you \nGathered...\nDecrease \nBy...\nCurrent \nLocation\n1\nAdjacent \nLocation\n2\nX = Number of Parts \ngathered\nX - 1\nE.G, if you Foraged in an Adjacent Location and gathered 2 \nParts, you would decrease Timers by 3; (2 + 2 - 1).\nIf all Timers reach 0, you should Prepare To Leave.\nIf any Timer is at least 1: Continue Foraging or Bartering, \naccruing Foraging Points, and completing Encounters.\n33\n"
+    },
+    {
+      "pdfPage": 34,
+      "text": "Bartering\nLittle Settlements and thriving Cities dot the Bristley Woods. \nHere, beasts of all shapes and sizes work collaboratively to \nmake life easier.\nYou can Barter in a Current or Adjacent Location containing a \nSettlement or City.\nSupply and Demand\nDuring an Ailment, you can Attempt to Barter once (1x) at \na Settlement and three time (3x) at a City—once you start \nHaggling, regardless of outcome, the Attempt is used up.\n1 - Choose a Reagent\nConsult the Almanack for a single (non-Titan) Reagent Part to \nBarter for. If the Reagent Part matches any of the following \nconditions, apply its modifier to the Reagent's Base Rarity:\n•\t Local (-2). Settlement-based. Can be Foraged locally.\n•\t Trade Route (-2) City-based. Can be Foraged locally or \nin a Location up to 3 Paths away.\n•\t In Season (-1). Is in Season.\n•\t Curiosity (+2). Both out of season and not local or \navailable via a Trade Route.\n•\t Gourmand (+3). Can produce [FAIR] points.\n•\t Highly Prized (+5). Can be Prepared to produce a [TAG 3].\n•\t Why The Peck Would You Want That? (+ X). Produces \nFoul points; +[Foul] Rarity.\nFriendly Donation. The Guild’s Reputation also influences \nBartering. Decrease Reagent Rarity as follows: Unknown (+1), \nKnown (0), Upstanding (-1) and Trusted (-2).\nBacking Out. Some Reagents can have very high Rarities \nwhen Bartering—before you Wander the Streets, you can \ninstead choose to go Foraging.\n34\n"
+    },
+    {
+      "pdfPage": 35,
+      "text": "2 - Wander the Streets\nSeeking your chosen Reagent, you cross paths with beasts \ngoing about their lives. These encounters range from kind to \nbenign, to unexpectedly hostile!\nDraw a card on the Social Encounter tables (page 188) — \nthe Settlement/City and Current Season determine which.\n3 - Finding what you Need\nDraw a second card. If the Value ties or exceeds the Reagent’s \nRarity, you Barter successfully and get the Reagent Part.\nJournal about the beast you traded with and what immaterial \nobject, knowledge or service you exchanged.\n4- Haggling\nIf the second card’s value is too low, you find the needed \nReagent Part but the owner(s) are unwilling to part with it. \nYou can spend Trinkets and/or Reputation to make up the \ndifference or leave empty-pawed.\nJournal about the beast you traded with, and what Trinkets \nyou traded, Guild vows you made or social obligations you \ncalled on to make this deal work.\n5- Decrease Timer\nAfter completing your Barter attempt, if you have the \nnecessary Reagents, start Creating a Remedy. \nOtherwise, reduce Timers by 1.\nIf all Timers reach 0, you should Prepare To Leave.\nIf any Timer is at least 1: Continue Foraging or Bartering, \naccruing Foraging Points and completing Encounters.\n35\n"
+    },
+    {
+      "pdfPage": 36,
+      "text": "Preparing to Leave\nOnce you have concluded your business (or Overstayed Your \nWelcome), Prepare to Leave. Set your Foraging Points to 0 \nand complete the relevant actions on this list.\nOverstaying Your Welcome\nIf all your Timers reached 0 and you failed to create any \nRemedies for any Ailments, you have Overstayed Your Welcome.\nFace the Consequences of all unsolved Ailments and then \nimmediately Move On.\n1 - Providing Remedies\nIf you created a Remedy for your patient’s Ailment, they \nreward your hard work with Trinkets.\nTrading. Gain +1 Trinket per Ailment Severity level, +1 Trinket \nfor every 2 [Fair], and -1 Trinket for every 2 [Foul]. Foul and Fair \ncancel each other.  You always receive at least 0 Trinkets.\nGifting. You can refuse payment, gaining +2 Guild Reputation \ninstead. You can’t do this if you are receiving 0 Trinkets!\n2 - Building Rapport\nResolving an Ailment with a Remedy grants +1 Reputation per \nSeverity. E.G a Serious Ailment grants +3 Guild Reputation.\n3 - Resolving Outcomes\nSome Ailments have optional Outcomes. If you create \na Remedy matching an Outcome’s criteria, follow its \ninstructions.\n36\n"
+    },
+    {
+      "pdfPage": 62,
+      "text": "Tools\nThese are all of the Tools you can \ncollect on your travels. They have \nspecial rules (such as how they help \nyou, how much they weigh, and if they \ncan be found in specific places).\nWhile Preparing To Leave a Settlement \nor city or during Downtime, you can \nbrowse local market stalls and trade \nyour trinkets for them.\nCanvas \nTent \n3 Trinkets - 11 \nMeadows Settlements\nIgnore negative outcomes of a Travel \nEncounter with the Weather r tag. After each \nuse, draw from the deck; if the card is  \n♣ or ♠, the tent breaks.\nBroken tents can be repaired at a settlement \nor city for 2 trinkets.\nCopper Frying Pan \n6 Trinkets - ⅔ \nMountain Settlements\nAccess [COOKED] \npreparation method. \nBig Iron \nCauldron \n7 Trinkets - 11 \nMountain and  \nBog Settlements\nAccess [DISTILLED] \npreparation method, and \ncan [PRESERVE] remedies.\nSome Ailments require \na remedy that has been \n[PRESERVED].\nBark Coracle \n5 Trinkets - 111 \nLoch Settlements\nThis allows you to safely swim \nalong Waterways without \ndiscarding Reagents, and lets \nyou stop in Loch locations. \nWhen Foraging, reduce the \nRarity of Reagents in Loch \nlocations by 2.\nBasic Tools \n1 Trinket \nAny\nIf you somehow lose \nyour Belt Knife, Camp \nKettle or Mortar and \nPestle, you can trade for \na basic replacement.\nCrossbow \n5 Trinkets - 1 \nSpoolkeep\nShoots Bolts to ignore negative outcomes \nfrom an Encounter with Beast e or \nBehemoth h tags.\nIf an Encounter \nspecifically has options \nfor a crossbow, follow \nits instructions instead.\nBolts \n1 Trinket - ⅓ \nAny\nShot by a Crossbow. \nDiscard after use.\n62\n"
+    },
+    {
+      "pdfPage": 103,
+      "text": "Intermediate\ncard\nailment\npage\nA\nBlocked Ears\n105\n2\nBrand Care\n105\n3\nCrestfallen\n106\n4\nForager's Twitch\n107\n5\nMidge Munched\n109\n6\nMigration Migraine\n109\n7\nNight Shift\n110\n8\nSoured Dough\n112\n9\nStingshock\n112\n10\nTrowel Trouble\n114\nJ\nWormridden\n113\nM\nIn Demand \nDraw 2 Lesser Ailments.  \nSolve them at the same time.\n-\nSevere\ncard\nailment\npage\nA\nBad Idea\n104\n2\nBite The Paw That Cures\n105\n3\nBloodthirst\n105\n4\nBroken Beaks, Thinning Fangs 105\n5\nHerbivorous Tendencies\n108\n6\nNervefright\n110\n7\nPinned by Pine\n111\n8\nQuagmire's Scale\n111\n9\nSeasonshift\n111\n10\nSmokesnout\n112\nJ\nSnail Ails\n113\nM\nDuty Calls \nDraw 2 Intermediate Ailments. \nSolve them at the same time.\n-\nDire\ncard\nailment\npage\nA\nFight Marks\n106\n2\nFoul Deceiver\n107\n3\nGroundhog Syndrome\n107\n4\nHunted\n108\n5\nLiving with a Black Beast\n108\n6\nLockjaw\n108\n7\nLongdrop\n109\n8\nMawfoam\n109\n9\nTitan Touched\n114\n10\nWake\n115\nJ\nWingbreak\n115\nM\nPanic! At The Clinic \nDraw 2 Severe Ailments; \nSolve them at the same time.\n-\n103\n"
+    },
+    {
+      "pdfPage": 110,
+      "text": "Monthly Chore\nLesser  -  i 6 \n[scales 2, pain 1]\nThis lizard is rubbing up against every \nhard surface they can find to soothe \nthe itching of their scales. It’s almost \ntime for them to shed, but if they can’t \nfind a way of soothing it soon they may \nrub the new skin underneath raw.\t\nConsequence - Dandruff \nThere are flakes of dead skin \neverywhere, and the lizard is too sore to \nclean up. You can stay and help clean; \nMark 1 Day, and lose no Reputation.\nNervefright\nLesser       -      i 9 \n[instinct 3, nerves 3, mood 3]\nA close call with a Behemoth has left \nthis poor beast frozen in fright. Their \ninstincts won't let them move and they \nwon't respond to anyone.\t\nConsequence - Heart Attack \nThe stress is too much and their heart \ngives out. Who is the Behemoth who \ncaused this? Use the rules on page 40 \nto mark their Barrow on the Map. \nNight Shift\nIntermediate  -  i 6 \n[sleep 3, mood 2]\nThis beast has been honing a special \ncraft, culminating in their Magnum \nOpus. They can't work during their \nnormal waking hours because of their \nroommates conflicting sleep schedules, \nand so have been going without sleep. \nThey're delirious, and desperate to \nfinish their project.\nOutcome - Credits \nWhat is their magnum opus? If you can \ncure them in time, they will make a \ndedication on their creation to you.\t\nConsequence - Sleeping on the Job \nThey fall asleep while working on their \nspecial project, and ruin it completely.\nPaw Rot\nlesser  -  i 9 \n[infection 1 & pain 1]\nAfter walking one too many days on \nsodden soil, the webbing in-between \nthis beast's feet are itchy and swollen. \nSomething applied regularly every day \nfor a few weeks should clear it up…\t\nOutcome - Squeaky Clean \nIf the remedy is PRESERVED - with \nthis long-lasting unguent, this \ninfection can be treated reliably when \nit shows up again. \nNext time you come through this location, \ngain 1 trinket from a grateful patient.\nConsequence - Trodden In \nWhile a minor issue on its own, this \nbeast is rather popular. Who else have \nthey spread their Paw Rot to? \nThe next time you visit this location, \nthe only ailment you can try to resolve \nis Paw Rot.\n110\n"
+    }
+  ],
+  "conclusions": [
+    {
+      "page": 62,
+      "finding": "Canvas Tent=2 whole Weight circles; Big Iron Cauldron=2; Bark Coracle=3. Existing canonical weights agree; no engine edit."
+    },
+    {
+      "page": 33,
+      "finding": "Check gathered Reagents and create remedy before reducing Timer. Prepared UI branch holds Timer at3; cancels and reloads safely."
+    },
+    {
+      "page": 36,
+      "finding": "Lesser/FAIR0/FOUL0 gives1Trinket and1Reputation; actual UI confirms. Exploratory +2 guess was replaced only after checking this primary source; engine unchanged."
+    },
+    {
+      "page": 110,
+      "finding": "Monthly Chore requires SCALE2 and PAIN1. Prepared UI branch displays these values."
+    },
+    {
+      "page": 103,
+      "finding": "Nervefright appears in Severe table, while p110 labels individual entry Lesser. Existing KNOWN_LIMITATIONS.md already documents this source conflict; preserve table-based policy and do not invent an erratum."
+    }
+  ]
+}

@@ -1009,7 +1009,7 @@
 .rulebook-context-shelf > button > span,
 .rulebook-context-shelf > div > span { text-transform: uppercase; }
 .rulebook-context-shelf small { line-height: 1.35; }
-.rulebook-hub__header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2rem; align-items: end; padding: 0 0 1.4rem !important; }
+.rulebook-hub__header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: center; padding: 0 !important; }
 .rulebook-hub__header p { max-width: 76ch; line-height: 1.75; }
 .rulebook-coverage-strip { display: flex; gap: 0; overflow-x: auto; scrollbar-width: thin; }
 .rulebook-coverage-strip span { min-width: max-content; padding: 0.75rem 1rem; }

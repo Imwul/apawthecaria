@@ -1,0 +1,33 @@
+{
+  "validated_at": "2026-10-21T07:29:37.689528+00:00",
+  "run_key": "epic-final-editorial-quality-audit",
+  "reviewed_file_count": 2,
+  "test_count": 12,
+  "expect_calls": 49,
+  "reviewed_hashes": {
+    "src/journalPhotoSubmission.test.ts": "64bda86b10c1f505768e5bea0756e636fdf30e8469b09ffaa14d98640676b43b",
+    "src/components/editorialHierarchy.test.tsx": "133c515acaf2578024c8425b69da17f8861dca0cbb41739c45987631f54f5582"
+  },
+  "excluded_files": [],
+  "context_waivers_applied": 0,
+  "all_four_worker_outputs_read": true,
+  "all_workers_revalidated_final_hash": true,
+  "recommendation_consistent": true,
+  "ledger_arithmetic_valid": true,
+  "baseline_sampled_files": 8,
+  "execution_mode": "subagent",
+  "max_parallel_workers": 2,
+  "old_audit_reused": false,
+  "app_git_browser_modified": false,
+  "completion_hook": "resolved empty via official resolver executed with python3",
+  "root_final_execution_pending": false,
+  "final_evidence_recorded_at": "2026-10-21T07:38:05.731507+00:00",
+  "final_evidence_paths": [
+    "output/final-quality-2026-10-21/final-test.log",
+    "output/final-quality-2026-10-21/final-lint.log",
+    "output/final-quality-2026-10-21/final-build.log",
+    "output/final-quality-2026-10-21/production-smoke.json"
+  ],
+  "final_reviewed_hashes_unchanged": true,
+  "execution_evidence_update_only": true
+}

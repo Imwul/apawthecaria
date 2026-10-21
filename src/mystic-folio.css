@@ -147,6 +147,19 @@ body {
 }
 .folio-frontispiece__note { font-size: 14px; color: #797160; margin: 0; }
 .folio-frontispiece__seal { width: 92px; height: 92px; color: #9a8050; opacity: .65; margin-left: auto; flex-shrink: 0; }
+.folio-frontispiece--chapter { min-height: 64px; gap: 0; margin-bottom: 24px; }
+.folio-frontispiece--chapter::after { content: none; }
+.folio-frontispiece--chapter .folio-frontispiece__art { width: 160px; height: 64px; }
+
+.journal-photo-backdrop { position: fixed; inset: 0; z-index: 1300; display: flex; align-items: center; justify-content: center; padding: 16px; background: #111f1dd6; }
+.journal-photo-dialog { width: min(1120px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; gap: 12px; outline-offset: 6px; }
+.journal-photo-dialog > header { display: flex; justify-content: space-between; align-items: center; gap: 16px; color: #fff9e9; }
+.journal-photo-dialog > header > div { min-width: 0; }
+.journal-photo-dialog h2,.journal-photo-dialog header p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; color: inherit; }
+.journal-photo-dialog h2 { font-size: 1.1rem; }
+.journal-photo-dialog header p { font-size: 0.85rem; }
+.journal-photo-dialog header button { flex-shrink: 0; width: 44px; height: 44px; padding: 0; border: 1px solid currentColor; border-radius: 2px; background: transparent; color: inherit; font-size: 24px; cursor: pointer; }
+.journal-photo-dialog__image { min-height: 0; overflow: auto; padding: 12px; background: var(--paper-light); border-radius: 2px; }
 
 .station-procedures.play-folio { display: grid; gap: 32px; align-items: start; }
 .play-folio__context,.play-folio__work { display: flex; flex-direction: column; gap: 24px; min-width: 0; }

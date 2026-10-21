@@ -1,0 +1,30 @@
+
+> temp-app@1.0.0 test
+> vitest run
+
+
+ RUN  v4.1.10 /Users/imwul/Library/Mobile Documents/com~apple~CloudDocs/apawthecaria-apo
+
+ ❯ src/localization/engineMessagesKo.test.ts (9 tests | 1 failed) 44229ms
+     × keeps every fixed user-facing engine string behind the Korean presentation layer 44179ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/localization/engineMessagesKo.test.ts > gameplay message Korean presentation layer > keeps every fixed user-facing engine string behind the Korean presentation layer
+Error: Test timed out in 30000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/localization/engineMessagesKo.test.ts:172:3
+    170|   });
+    171|
+    172|   it('keeps every fixed user-facing engine string behind the Korean pr…
+       |   ^
+    173|     const uncovered = auditedEngineStrings()
+    174|       .filter(row => localizeGameplayMessage(row.text) === row.text)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 145 passed (146)
+      Tests  1 failed | 1508 passed (1509)
+   Start at  15:54:01
+   Duration  125.55s (transform 582.09s, setup 0ms, import 618.55s, tests 51.78s, environment 21ms)

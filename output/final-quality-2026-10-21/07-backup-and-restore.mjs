@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+
+export default async ({page,context,fs,out}) => {
+  await page.setViewportSize({width:1440,height:1000});
+  await page.locator('nav .journal-tab--journals').click();
+  const downloadWait=page.waitForEvent('download');
+  await page.getByRole('button',{name:/내 기록 백업/}).click();
+  const download=await downloadWait;
+  await download.saveAs(out+'/current-campaign-backup.json');
+  const saved=JSON.parse(await fs.readFile(out+'/current-campaign-backup.json','utf8'));
+  assert.ok(saved.journals.some(j=>j.title==='사진과 함께 남긴 가을 기록 QA'&&j.photos.length===1));
+  await page.getByRole('button',{name:/개인 저널 일지/}).click();
+  await page.getByPlaceholder('예: 버섯 그늘에서',{exact:true}).fill('백업 후 임시 변경 QA');
+  await page.getByPlaceholder('오늘 만난 이웃, 숲에서 본 것, 길동무와 나눈 이야기를 적어보세요.',{exact:true}).fill('이 기록은 원래 백업을 복원하면 사라져야 합니다.');
+  await page.getByRole('button',{name:'이 기억을 남기기 →',exact:true}).click();
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('apawthecaria_rpg_state')).journals.some(j=>j.title==='백업 후 임시 변경 QA'));
+  const before=await page.evaluate(()=>localStorage.getItem('apawthecaria_rpg_state'));
+  await page.getByLabel('기록 불러오기',{exact:true}).setInputFiles({name:'broken.json',mimeType:'application/json',buffer:Buffer.from('{bad JSON')});
+  await page.getByText('세이브 파일 파싱 중 오류가 발생했습니다.',{exact:true}).waitFor();
+  assert.equal(await page.evaluate(()=>localStorage.getItem('apawthecaria_rpg_state')),before);
+  await page.getByLabel('기록 불러오기',{exact:true}).setInputFiles(out+'/current-campaign-backup.json');
+  await page.getByRole('alertdialog').getByText('세이브 파일을 성공적으로 가져왔습니다.',{exact:true}).waitFor();
+  await page.getByRole('alertdialog').getByRole('button',{name:'확인',exact:true}).click();
+  await page.waitForFunction(()=>!JSON.parse(localStorage.getItem('apawthecaria_rpg_state')).journals.some(j=>j.title==='백업 후 임시 변경 QA'));
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.locator('nav .journal-tab--journals').click();
+  await page.getByRole('button',{name:/개인 저널 일지/}).click();
+  const restored=page.locator('article').filter({has:page.getByRole('heading',{name:'사진과 함께 남긴 가을 기록 QA',exact:true})});
+  assert.equal(await restored.locator('img').count(),1);
+  await context.storageState({path:out+'/restored-campaign-state.json'});
+  await fs.writeFile(out+'/backup-restore.json',JSON.stringify({nativeDownload:true,invalidJSONPreservesState:true,validRestoreAndReload:true,savedPhotoCount:1,journalCount:saved.journals.length},null,2));
+  console.log('PASS actual backup download, malformed import preserves state, valid import and reload restores photo association');
+};

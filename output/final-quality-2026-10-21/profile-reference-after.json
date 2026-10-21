@@ -1,0 +1,40 @@
+{
+  "labels": [
+    {
+      "text": "약제사 이름:",
+      "control": "INPUT"
+    },
+    {
+      "text": "길동무 이름:",
+      "control": "INPUT"
+    },
+    {
+      "text": "길동무 혜택 (p.14-15):",
+      "control": "SELECT"
+    },
+    {
+      "text": "모방할 추가 도구 지정:",
+      "control": "SELECT"
+    },
+    {
+      "text": "비행 능력 보유",
+      "control": "INPUT"
+    },
+    {
+      "text": "하우스 룰: 비행 제약 무시",
+      "control": "INPUT"
+    }
+  ],
+  "conditionalChoicesLabelled": true,
+  "cancelRestoresSavedProfile": true,
+  "saveAndReload": true,
+  "journalSectionsVisited": [
+    "진료 기록 (1)",
+    "세계 도감 (901)",
+    "여정 기록장 (4)",
+    "개인 저널 일지 (10)",
+    "방랑 연대기 (0)",
+    "은퇴의 전당 및 약제소 망"
+  ],
+  "ailmentSearchAndEmptyReset": true
+}

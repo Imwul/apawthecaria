@@ -1,0 +1,21 @@
+{
+  "colors": [
+    {
+      "width": 1440,
+      "color": "rgb(255, 249, 233)",
+      "ratio": 9.800013407557238
+    },
+    {
+      "width": 390,
+      "color": "rgb(255, 249, 233)",
+      "ratio": 9.800013407557238
+    },
+    {
+      "width": 320,
+      "color": "rgb(255, 249, 233)",
+      "ratio": 9.800013407557238
+    }
+  ],
+  "completedPhotoDraftSurvivesNavigation": true,
+  "accessibleAttachmentCancel": true
+}

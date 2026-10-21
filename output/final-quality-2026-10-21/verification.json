@@ -1,0 +1,216 @@
+{
+  "verifiedAtUTC": "2026-10-21T07:40:29.560670+00:00",
+  "branch": "codex/forest-play-experience",
+  "startingCommit": "4268eb5933d26b48e912a381b6b0d64a48c597af",
+  "checks": {
+    "test": {
+      "exit": 0,
+      "files": 148,
+      "passed": 1521,
+      "durationSeconds": 7.76
+    },
+    "lint": {
+      "exit": 0
+    },
+    "build": {
+      "exit": 0,
+      "rulesPassed": 4,
+      "referencesPassed": 8,
+      "typecheck": "tsc -b included"
+    },
+    "diffCheck": {
+      "exit": 0
+    },
+    "productionBrowser": {
+      "target": "Local production build preview, not external deployment",
+      "nativeHeaderImport": true,
+      "screens": [
+        {
+          "width": 360,
+          "tab": "play",
+          "scroll": 360,
+          "viewport": 360
+        },
+        {
+          "width": 360,
+          "tab": "map",
+          "scroll": 360,
+          "viewport": 360
+        },
+        {
+          "width": 360,
+          "tab": "bio",
+          "scroll": 360,
+          "viewport": 360
+        },
+        {
+          "width": 360,
+          "tab": "reagents",
+          "scroll": 360,
+          "viewport": 360
+        },
+        {
+          "width": 360,
+          "tab": "almanack",
+          "scroll": 360,
+          "viewport": 360
+        },
+        {
+          "width": 360,
+          "tab": "journals",
+          "scroll": 360,
+          "viewport": 360
+        },
+        {
+          "width": 360,
+          "tab": "ailments",
+          "scroll": 360,
+          "viewport": 360
+        },
+        {
+          "width": 360,
+          "tab": "patientArchive",
+          "scroll": 360,
+          "viewport": 360
+        },
+        {
+          "width": 360,
+          "tab": "livingArchive",
+          "scroll": 360,
+          "viewport": 360
+        },
+        {
+          "width": 768,
+          "tab": "play",
+          "scroll": 768,
+          "viewport": 768
+        },
+        {
+          "width": 768,
+          "tab": "map",
+          "scroll": 768,
+          "viewport": 768
+        },
+        {
+          "width": 768,
+          "tab": "bio",
+          "scroll": 768,
+          "viewport": 768
+        },
+        {
+          "width": 768,
+          "tab": "reagents",
+          "scroll": 768,
+          "viewport": 768
+        },
+        {
+          "width": 768,
+          "tab": "almanack",
+          "scroll": 768,
+          "viewport": 768
+        },
+        {
+          "width": 768,
+          "tab": "journals",
+          "scroll": 768,
+          "viewport": 768
+        },
+        {
+          "width": 768,
+          "tab": "ailments",
+          "scroll": 768,
+          "viewport": 768
+        },
+        {
+          "width": 768,
+          "tab": "patientArchive",
+          "scroll": 768,
+          "viewport": 768
+        },
+        {
+          "width": 768,
+          "tab": "livingArchive",
+          "scroll": 768,
+          "viewport": 768
+        },
+        {
+          "width": 1440,
+          "tab": "play",
+          "scroll": 1440,
+          "viewport": 1440
+        },
+        {
+          "width": 1440,
+          "tab": "map",
+          "scroll": 1440,
+          "viewport": 1440
+        },
+        {
+          "width": 1440,
+          "tab": "bio",
+          "scroll": 1440,
+          "viewport": 1440
+        },
+        {
+          "width": 1440,
+          "tab": "reagents",
+          "scroll": 1440,
+          "viewport": 1440
+        },
+        {
+          "width": 1440,
+          "tab": "almanack",
+          "scroll": 1440,
+          "viewport": 1440
+        },
+        {
+          "width": 1440,
+          "tab": "journals",
+          "scroll": 1440,
+          "viewport": 1440
+        },
+        {
+          "width": 1440,
+          "tab": "ailments",
+          "scroll": 1440,
+          "viewport": 1440
+        },
+        {
+          "width": 1440,
+          "tab": "patientArchive",
+          "scroll": 1440,
+          "viewport": 1440
+        },
+        {
+          "width": 1440,
+          "tab": "livingArchive",
+          "scroll": 1440,
+          "viewport": 1440
+        }
+      ],
+      "mapZoomChangesWidthAndReturns": true,
+      "mapSearchSelectsActualMarker": true,
+      "profileCancel": true,
+      "historyBackForward": true,
+      "ruleLookup": true,
+      "photoKeyboardAndReload": true,
+      "pageErrors": [],
+      "consoleErrors": []
+    }
+  },
+  "sourceSha256": {
+    "src/App.tsx": "06a96ea4d68839e276526a823429203e02e3c279ee2398a179371d43523b72a4",
+    "src/components/AlmanackPanel.tsx": "2652ebca7efa9ad62415ea31f9953d075d2928f4166b4ef5e7c418d940569f55",
+    "src/components/FolioFrontispiece.tsx": "538a72220e7f86595f0420a48cd072cbfe21042724c9d04f8c802eceba9a2fe5",
+    "src/components/JournalPhotoDialog.tsx": "4c424e9092a795de46ad654d7ed5e06f4991ecca5d54fc20f6edaa6fa8a2ad08",
+    "src/feature-layout.css": "4e0f5fbacb5400c6c65ff4e412f76003bebe80299ef9e17af1f73d7db2498dec",
+    "src/mystic-folio.css": "0ffc606a55edf35d4ebd6c7872ac4a0e82167eb87259bca843c9f0428c4c2372",
+    "src/journalPhotoSubmission.test.ts": "64bda86b10c1f505768e5bea0756e636fdf30e8469b09ffaa14d98640676b43b",
+    "src/components/editorialHierarchy.test.tsx": "133c515acaf2578024c8425b69da17f8861dca0cbb41739c45987631f54f5582"
+  },
+  "externalDeploymentVerified": false,
+  "evidenceFormatting": {
+    "json": "The downloaded backup and derived prepared branch are compacted without any parsed-value changes.",
+    "logs": "Trailing line whitespace and extra blank lines at EOF removed; result text unchanged."
+  }
+}

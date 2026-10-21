@@ -1,0 +1,29 @@
+{"step":"01-start.mjs","errors":[],"consoleErrors":[],"failure":"locator.waitFor: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.character-wizard') to be visible\u001b[22m\n"}
+{"step":"01-start.mjs","errors":[],"consoleErrors":[],"failure":"page.goto: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:5178/\", waiting until \"load\"\u001b[22m\n"}
+{"step":"01-start.mjs","errors":[],"consoleErrors":[]}
+{"step":"02-create.mjs","errors":[],"consoleErrors":[],"failure":"locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: '다음 · 이동 방식 →', exact: true })\u001b[22m\n"}
+{"step":"02-create.mjs","errors":[],"consoleErrors":[]}
+{"step":"03-survey.mjs","errors":[],"consoleErrors":[]}
+{"step":"04-photo-before.mjs","errors":[],"consoleErrors":[]}
+{"step":"05-photo-after.mjs","errors":[],"consoleErrors":[]}
+{"step":"06-research-and-survey.mjs","errors":[],"consoleErrors":[],"failure":"locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.almanack-entry').filter({ has: getByRole('heading', { name: /Canvas Tent/ }) }).locator('.almanack-entry__open')\u001b[22m\n"}
+{"step":"inspect.mjs","errors":[],"consoleErrors":[]}
+{"step":"06-research-and-survey.mjs","errors":[],"consoleErrors":[]}
+{"step":"07-backup-and-restore.mjs","errors":[],"consoleErrors":[]}
+{"step":"07-backup-and-restore.mjs","errors":[],"consoleErrors":[]}
+{"step":"08-photo-final-and-map.mjs","errors":[],"consoleErrors":[],"failure":"Expected values to be strictly equal:\n+ actual - expected\n\n+ 'rgb(255, 249, 233)'\n- 'rgb(255, 248, 234)'\n              ^\n"}
+{"step":"08-photo-final-and-map.mjs","errors":[],"consoleErrors":[]}
+{"step":"09-map-and-treatment-setup.mjs","errors":[],"consoleErrors":[],"failure":"locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: '지도 확대', exact: true })\u001b[22m\n"}
+{"step":"09-map-and-treatment-setup.mjs","errors":[],"consoleErrors":[]}
+{"step":"10-treatment.mjs","errors":[],"consoleErrors":[],"failure":"locator.check: Error: strict mode violation: getByRole('checkbox', { name: /나무 절구와 공이/ }) resolved to 3 elements:\n    1) <input type=\"checkbox\"/> aka getByRole('checkbox', { name: 'Beetles (딱정벌레) — 껍질 (Shells' })\n    2) <input type=\"checkbox\"/> aka getByRole('checkbox', { name: 'Marigold (금잔화) — 꽃잎 (Petals' })\n    3) <input type=\"checkbox\"/> aka getByRole('checkbox', { name: '나무 절구와 공이 · 갈기/빻기 선택한 부위에 필요' })\n\nCall log:\n\u001b[2m  - waiting for getByRole('checkbox', { name: /나무 절구와 공이/ })\u001b[22m\n"}
+{"step":"11-fresh-onboarding.mjs","errors":[],"consoleErrors":[]}
+{"step":"10-treatment.mjs","errors":[],"consoleErrors":[]}
+{"step":"12-treatment-complete.mjs","errors":[],"consoleErrors":[],"failure":"Expected values to be strictly equal:\n\n1 !== 2\n"}
+{"step":"13-replay-treatment.mjs","errors":[],"consoleErrors":[],"failure":"locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('nav .journal-tab--journals')\u001b[22m\n\u001b[2m    - locator resolved to <button title=\"일지\" type=\"button\" class=\"journal-tab journal-tab--journals\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div role=\"presentation\" class=\"phase4-modal-backdrop controlled-prompt-backdrop app-dialog-backdrop\">…</div> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div role=\"presentation\" class=\"phase4-modal-backdrop controlled-prompt-backdrop app-dialog-backdrop\">…</div> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    9 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div role=\"presentation\" class=\"phase4-modal-backdrop controlled-prompt-backdrop app-dialog-backdrop\">…</div> intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 500ms\u001b[22m\n"}
+{"step":"13-replay-treatment.mjs","errors":[],"consoleErrors":[]}
+{"step":"14-profile-labels-before.mjs","errors":[],"consoleErrors":[]}
+{"step":"15-profile-cancel-before.mjs","errors":[],"consoleErrors":[]}
+{"step":"16-profile-and-reference.mjs","errors":[],"consoleErrors":[]}
+{"step":"17-production-smoke.mjs","errors":[],"consoleErrors":[]}
+{"step":"17-production-smoke.mjs","errors":[],"consoleErrors":[],"failure":"locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.paper-map__search').getByRole('button', { name: 'Odoak', exact: true })\u001b[22m\n"}
+{"step":"17-production-smoke.mjs","errors":[],"consoleErrors":[]}

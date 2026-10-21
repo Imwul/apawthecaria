@@ -1,6 +1,10 @@
 # Design System — Forest Folio
 
-Updated: 2026-10-04 (Asia/Seoul)
+Updated: 2026-10-21 (Asia/Seoul)
+
+현재 렌더 기준은 `src/main.tsx`가 불러오는 `index.css` → `feature-layout.css` → `workspace.css` → `mystic-folio.css` 순서다. 마지막 층의 숲빛 레일·아이보리 종이·원본 룰북 삽화·명조 장 제목이 현재 정체성이다. 한글 본문과 입력은 기존 Freesentation, 장 제목은 `--font-folio`, 영문 브랜드는 Instrument Serif를 유지한다. 아래 이전 반복의 수치·검증은 당시 기록이다.
+
+2026-10-21 품질 감수에서는 첫 생성의 삽화 도입을 보존하고 작업 페이지의 반복 도입만 짧은 장 머리로 줄였다. 자료실은 검색을 맥락 탐색보다 먼저 배치하며 기존 필터·현재 지역·환자·배낭·복귀 기능을 유지한다. 사진 확대는 기존 공유 포커스 관리와 44px 닫기 조작을 사용하고, 사진 준비 중에는 명확한 상태를 표시하며 일지 저장을 보류한다. 프로필의 보이는 라벨은 입력과 선택에 연결하며 취소 후에는 저장된 값으로 돌아간다. 배경 회화·종이의 깊이·절차별 선택 표시는 역할이 있어 유지했다. 새 장식이나 전체 카드 스타일 변경은 하지 않았다. 실제 검증과 한계는 `output/final-quality-2026-10-21/report.md`에 기록한다.
 
 Latest pass: Ornamented Forest Folio. 사용자의 ‘건조하고 문서 도구 같다’는 피드백에 따라 장식과 책의 물성을 보강했다. 관점 토의, 생성 회화, 구현과 검증은 `output/design-thinking-ornamented-folio-2026-10-04.md`에 기록한다. 이전 attention calibration의 안내/복귀 동작은 유지한다.
 
@@ -104,7 +108,7 @@ Latest pass: Ornamented Forest Folio. 사용자의 ‘건조하고 문서 도구
 
 이전 `woodland-pigment.jpg`, 원본 PNG, 선 SVG, SUITE·Wanted Sans·DM Sans 및 라이선스, 폐기된 forest/adventure/workspace CSS는 `output/design-archive/`에 보존한다. 현재 화면과 배포 자산에서 제외했다.
 
-`src/main.tsx`는 `index.css` → `workspace.css` 순서로 로드한다. `workspace.css`는 현재 shell·타이포·표면 기준이다. `index.css`는 게임 컴포넌트 구조와 공통 읽기 기준을 유지한다. 현재 디자인 파일에 이전 시안을 계속 덧붙이지 않는다.
+`src/main.tsx`의 현재 로드 순서와 최종 스타일 기준은 이 문서 상단을 따른다. `index.css`는 게임 컴포넌트 구조와 공통 읽기 기준을 유지하며 `feature-layout.css`는 세부 기능 구조를, `workspace.css`와 `mystic-folio.css`는 작업 화면과 숲 수첩의 표현을 맡는다.
 
 ## Accessibility and Saves
 

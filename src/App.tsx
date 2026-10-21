@@ -449,6 +449,7 @@ import { BarrowPanel } from './components/Phase4Panels';
 import { ChapterOpening, JournalNavigation, TodayOverview, type JournalTab } from './components/JournalExperience';
 import { FieldIcon } from './components/FieldIcon';
 import FolioFrontispiece from './components/FolioFrontispiece';
+import JournalPhotoDialog from './components/JournalPhotoDialog';
 import { useRecordArrivals } from './recordArrival';
 import { getPatientTimerProjection } from './patientTimerProjection';
 import { focusCurrentWorkspace, revealWorkspaceTarget } from './workspaceNavigation';
@@ -12710,7 +12711,7 @@ export default function App() {
 
 
       <div className={`station-canvas ${isOnboarding ? 'station-canvas--onboarding' : ''}`}>
-        <FolioFrontispiece chapter={activeTab} />
+        <FolioFrontispiece chapter={activeTab} opening={isOnboarding} />
         {/* =================================================================
             MAIN CONTENT VIEWS
            ================================================================= */}
@@ -26809,8 +26810,10 @@ function CharacterCreationWizard({
       <div className="character-wizard__header">
         <div>
           <p className="wizard-page-kicker">첫 기록 · {String(step + 1).padStart(2, '0')} / {String(steps.length).padStart(2, '0')}</p>
-          <h3 style={{ margin: 0, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)', fontSize: '1.35rem' }}>우리의 첫 여행 채비</h3>
-          <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.86rem', color: 'var(--text-muted)' }}>카드를 뽑고, 마음에 드는 모습을 기록하세요. 직접 선택해도 됩니다.</p>
+          {!focused && <>
+            <h3 style={{ margin: 0, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)', fontSize: '1.35rem' }}>우리의 첫 여행 채비</h3>
+            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.86rem', color: 'var(--text-muted)' }}>카드를 뽑고, 마음에 드는 모습을 기록하세요. 직접 선택해도 됩니다.</p>
+          </>}
           <p className="wizard-progress-note">필수 선택 {CHARACTER_CREATION_CHOICES.filter(choice => choiceConfirmed(choice.field)).length}/6 · 메모는 천천히 남겨도 좋아요.</p>
         </div>
         {state.bio.name.trim() ? (
@@ -27150,7 +27153,8 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
       setCanFlyOverride(!!state.canFlyOverride);
     });
     return () => { cancelled = true; };
-  }, [state]);
+    // Reopening after Cancel starts from the saved profile, including conditional choices.
+  }, [state, editing]);
 
   const [newTrinket, setNewTrinket] = useState("");
   const [newBagItemName, setNewBagItemName] = useState("");
@@ -28423,16 +28427,17 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
         <form onSubmit={handleSaveBio} className="cute-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '1rem', maxWidth: '500px', background: '#fff' }}>
           <h3 style={{ borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', fontFamily: 'var(--font-fancy)', color: 'var(--secondary)', fontSize: '1.4rem' }}><FieldIcon kind="tools" /> 약제사 프로필 수정</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <label><strong>약제사 이름:</strong></label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="약제사 동물의 이름을 지어주세요" />
+            <label htmlFor="bio-profile-name"><strong>약제사 이름:</strong></label>
+            <input id="bio-profile-name" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="약제사 동물의 이름을 지어주세요" />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <label><strong>길동무 이름:</strong></label>
-            <input type="text" value={familiarName} onChange={e => setFamiliarName(e.target.value)} placeholder="길동무의 이름을 지어주세요" />
+            <label htmlFor="bio-profile-familiar-name"><strong>길동무 이름:</strong></label>
+            <input id="bio-profile-familiar-name" type="text" value={familiarName} onChange={e => setFamiliarName(e.target.value)} placeholder="길동무의 이름을 지어주세요" />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <label><strong><FieldIcon kind="card" /> 길동무 혜택 (p.14-15):</strong></label>
+            <label htmlFor="bio-profile-benefit"><strong><FieldIcon kind="card" /> 길동무 혜택 (p.14-15):</strong></label>
             <select
+              id="bio-profile-benefit"
               value={familiarBenefitEdit}
               onChange={e => setFamiliarBenefitEdit(e.target.value)}
               style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-cozy)', fontSize: '0.9rem' }}
@@ -28452,8 +28457,9 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
             {/* Resourceful familiar: select target reagent */}
             {FAMILIAR_BENEFITS.find(f => f.name === familiarBenefitEdit)?.mechanic === 'resourceful' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
-                <label style={{ fontSize: '0.88rem' }}><strong><FieldIcon kind="reagents" /> 상시 채집할 약재 지정:</strong></label>
+                <label htmlFor="bio-profile-resourceful" style={{ fontSize: '0.88rem' }}><strong><FieldIcon kind="reagents" /> 상시 채집할 약재 지정:</strong></label>
                 <select
+                  id="bio-profile-resourceful"
                   value={resourcefulReagentEdit}
                   onChange={e => setResourcefulReagentEdit(e.target.value)}
                   style={{ padding: '0.4rem', borderRadius: '6px', fontSize: '0.85rem', border: '1px solid var(--border-cozy)' }}
@@ -28469,8 +28475,9 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
             {/* Ingenuitive familiar: select target tool */}
             {FAMILIAR_BENEFITS.find(f => f.name === familiarBenefitEdit)?.mechanic === 'ingenuitive' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
-                <label style={{ fontSize: '0.88rem' }}><strong><FieldIcon kind="tools" /> 모방할 추가 도구 지정:</strong></label>
+                <label htmlFor="bio-profile-ingenuitive" style={{ fontSize: '0.88rem' }}><strong><FieldIcon kind="tools" /> 모방할 추가 도구 지정:</strong></label>
                 <select
+                  id="bio-profile-ingenuitive"
                   value={ingenuitiveToolEdit}
                   onChange={e => setIngenuitiveToolEdit(e.target.value)}
                   style={{ padding: '0.4rem', borderRadius: '6px', fontSize: '0.85rem', border: '1px solid var(--border-cozy)' }}
@@ -30617,6 +30624,8 @@ function JournalsView({
   const [importNotice, setImportNotice] = useState<{ text: string } | null>(null);
   const journalViewAliveRef = useRef(true);
   const journalImportSequenceRef = useRef(0);
+  const pendingPhotoReadsRef = useRef(0);
+  const [preparingPhotos, setPreparingPhotos] = useState(false);
   useEffect(() => {
     journalViewAliveRef.current = true;
     return () => { journalViewAliveRef.current = false; };
@@ -30642,6 +30651,9 @@ function JournalsView({
   };
 
   const handleNewJournalPhotos = async (files: FileList | null) => {
+    if (!files?.length) return;
+    pendingPhotoReadsRef.current += 1;
+    setPreparingPhotos(true);
     try {
       const photos = await prepareJournalPhotos(files);
       // A replaced campaign or closed view must not receive a late upload.
@@ -30650,7 +30662,10 @@ function JournalsView({
         setNewPhotos(prev => [...prev, ...photos]);
       }
     } catch (err) {
-      showAlert(err instanceof Error ? err.message : '사진을 추가하지 못했습니다.');
+      if (journalViewAliveRef.current) showAlert(err instanceof Error ? err.message : '사진을 추가하지 못했습니다.');
+    } finally {
+      pendingPhotoReadsRef.current -= 1;
+      if (journalViewAliveRef.current) setPreparingPhotos(pendingPhotoReadsRef.current > 0);
     }
   };
 
@@ -30663,7 +30678,7 @@ function JournalsView({
   const handleAddPhotosToJournal = async (journalId: string, files: FileList | null) => {
     try {
       const photos = await prepareJournalPhotos(files);
-      if (photos.length === 0) return;
+      if (!journalViewAliveRef.current || photos.length === 0) return;
       updateState((s: GameState) => ({
         ...s,
         journals: s.journals.map(j =>
@@ -30671,7 +30686,7 @@ function JournalsView({
         )
       }));
     } catch (err) {
-      showAlert(err instanceof Error ? err.message : '사진을 추가하지 못했습니다.');
+      if (journalViewAliveRef.current) showAlert(err instanceof Error ? err.message : '사진을 추가하지 못했습니다.');
     }
   };
 
@@ -30689,6 +30704,7 @@ function JournalsView({
 
   const handleAddJournal = (e: React.FormEvent) => {
     e.preventDefault();
+    if (pendingPhotoReadsRef.current > 0) return;
     if (!newTitle.trim() || (!newText.trim() && newPhotos.length === 0)) return;
     const journalId = 'user_journal_' + Date.now();
 
@@ -31102,7 +31118,7 @@ function JournalsView({
           </details>
           {/* Write custom journal */}
           <div className="journal-personal-spread">
-          <form className="journal-editor" onSubmit={handleAddJournal}>
+          <form className="journal-editor" onSubmit={handleAddJournal} aria-busy={preparingPhotos}>
             <div className="journal-editor__heading"><span className="document-kicker">A letter to remember</span><h3>오늘의 기억을 남겨요</h3></div>
             <label className="journal-editor__field"><span>제목</span>
             <input
@@ -31124,7 +31140,8 @@ function JournalsView({
             />
             </label>
             <div className="journal-editor__actions">
-              <button type="submit" className="journal-editor__submit btn-cozy-primary">이 기억을 남기기 →</button>
+              <button type="submit" className="journal-editor__submit btn-cozy-primary" disabled={preparingPhotos}>{preparingPhotos ? '사진을 준비하는 중…' : '이 기억을 남기기 →'}</button>
+              {preparingPhotos && <span role="status">사진을 준비한 뒤 이 기억에 함께 저장합니다.</span>}
               {savedJournal && <span key={savedJournal.id} className="journal-saved-receipt" role="status"><FieldIcon kind="bookmark" /> ‘{journalDisplayTitle(savedJournal)}’을 일지에 남겼어요.</span>}
             </div>
             <details className="journal-editor__photos" open={newPhotos.length > 0 || undefined}>
@@ -31151,7 +31168,7 @@ function JournalsView({
                   {newPhotos.map(photo => (
                     <div key={photo.id} style={{ position: 'relative', aspectRatio: '1 / 1', borderRadius: '8px', overflow: 'hidden', border: '1px solid #ddd', background: '#f8f6f0' }}>
                       <JournalPhotoImage photo={photo} alt={photo.name} imageStyle={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                      <button type="button" onClick={() => handleRemovePendingPhoto(photo.id)} style={{ position: 'absolute', top: '0.25rem', right: '0.25rem', border: 'none', borderRadius: '999px', background: 'rgba(30, 24, 18, 0.78)', color: '#fff', width: '1.55rem', height: '1.55rem', cursor: 'pointer', lineHeight: 1 }}>×</button>
+                      <button type="button" aria-label={`${photo.name} 첨부 취소`} onClick={() => handleRemovePendingPhoto(photo.id)} style={{ position: 'absolute', top: '0.25rem', right: '0.25rem', border: 'none', borderRadius: '2px', background: 'rgba(30, 24, 18, 0.78)', color: '#fff', width: '2.75rem', height: '2.75rem', cursor: 'pointer', lineHeight: 1 }}>×</button>
                     </div>
                   ))}
                 </div>
@@ -31385,23 +31402,9 @@ function JournalsView({
       )}
 
       {viewingPhoto && (
-        <div
-          onClick={() => setViewingPhoto(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(20, 17, 14, 0.82)', zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}
-        >
-          <div onClick={e => e.stopPropagation()} style={{ width: 'min(1120px, 96vw)', maxHeight: '94vh', display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', color: '#fff' }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 'bold', fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{viewingPhoto.title}</div>
-                <div style={{ fontSize: '0.78rem', opacity: 0.78, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{viewingPhoto.photo.name}</div>
-              </div>
-              <button onClick={() => setViewingPhoto(null)} style={{ border: '1px solid rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.12)', color: '#fff', borderRadius: '999px', width: '2.2rem', height: '2.2rem', cursor: 'pointer', fontSize: '1.25rem', lineHeight: 1 }}>×</button>
-            </div>
-            <div style={{ background: '#f7f3ea', borderRadius: '10px', padding: '0.75rem', overflow: 'auto', boxShadow: '0 18px 40px rgba(0,0,0,0.35)' }}>
-              <JournalPhotoImage photo={viewingPhoto.photo} alt={viewingPhoto.photo.name || viewingPhoto.title} imageStyle={{ display: 'block', maxWidth: '100%', maxHeight: '82vh', width: 'auto', height: 'auto', margin: '0 auto' }} />
-            </div>
-          </div>
-        </div>
+        <JournalPhotoDialog title={viewingPhoto.title} photoName={viewingPhoto.photo.name} onClose={() => setViewingPhoto(null)}>
+          <JournalPhotoImage photo={viewingPhoto.photo} alt={viewingPhoto.photo.name || viewingPhoto.title} imageStyle={{ display: 'block', maxWidth: '100%', maxHeight: '75dvh', width: 'auto', height: 'auto', margin: '0 auto' }} />
+        </JournalPhotoDialog>
       )}
     </div>
   );

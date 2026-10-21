@@ -1,0 +1,11 @@
+{
+  "branch": "Prepared saved patient imported via actual UI; not new-character continuous run",
+  "recordCancelPreservesBagAndDraft": true,
+  "referenceReturnKeepsDraft": true,
+  "rewardCheckpointSurvivesReload": true,
+  "reagentsConsumedOnce": true,
+  "trinketsBefore": 1,
+  "trinketsAfter": 2,
+  "patientStatus": "cured",
+  "journalRecordVisible": true
+}

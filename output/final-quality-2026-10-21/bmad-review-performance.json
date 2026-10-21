@@ -1,0 +1,169 @@
+{
+  "dimension": "performance",
+  "run_key": "epic-final-editorial-quality-audit",
+  "timestamp": "2026-10-21T07-14-53-743914+00-00",
+  "framework": "Vitest",
+  "stack": "frontend",
+  "review_files": [
+    "src/journalPhotoSubmission.test.ts",
+    "src/components/editorialHierarchy.test.tsx"
+  ],
+  "score": 100,
+  "max_score": 100,
+  "grade": "A",
+  "violations": [],
+  "passed_checks": 6,
+  "applicable_passed_checks": 4,
+  "not_applicable_checks": 2,
+  "failed_checks": 0,
+  "violation_summary": {
+    "CRITICAL": 0,
+    "HIGH": 0,
+    "MEDIUM": 0,
+    "LOW": 0
+  },
+  "criteria_assessments": [
+    {
+      "row": "M1",
+      "file": "src/journalPhotoSubmission.test.ts",
+      "severity": "MEDIUM",
+      "gate": "Applicability",
+      "status": "PASS (n/a)",
+      "predicate": "The file navigates and then reads data-dependent content without pre-navigation interception or readiness.",
+      "evidence": "Entire final 163-line file executes extracted handlers with controlled dependencies; no page.goto, cy.visit, router push, or browser navigation occurs."
+    },
+    {
+      "row": "M6",
+      "file": "src/journalPhotoSubmission.test.ts",
+      "severity": "MEDIUM",
+      "gate": "Absolute",
+      "status": "PASS",
+      "predicate": "A promise-returning call is neither awaited nor explicitly returned, so an assertion may run before the effect.",
+      "evidence": "Async photo calls are directly awaited at lines 91, 101-102, 129, and 136, or their saved promises are awaited at lines 64, 78, 84, 114, and 126. Assertions before deferred resolution intentionally inspect pending state. Source handleAddJournal is synchronous; setup.save and the captured updateState updater invoked at lines 146 and 150 are synchronous. Added stored-value assertions at lines 151-158 introduce no unawaited async operation."
+    },
+    {
+      "row": "H5",
+      "file": "src/journalPhotoSubmission.test.ts",
+      "severity": "HIGH",
+      "gate": "Absolute",
+      "status": "PASS",
+      "predicate": "The reviewed file exceeds 1000 lines.",
+      "evidence": "The final file contains 163 lines, below the >1000-line firing threshold."
+    },
+    {
+      "row": "M1",
+      "file": "src/components/editorialHierarchy.test.tsx",
+      "severity": "MEDIUM",
+      "gate": "Applicability",
+      "status": "PASS (n/a)",
+      "predicate": "The file navigates and then reads data-dependent content without pre-navigation interception or readiness.",
+      "evidence": "Entire 41-line file renders static markup at lines 9, 16, 23, and 32. Server rendering does not navigate or execute browser effects."
+    },
+    {
+      "row": "M6",
+      "file": "src/components/editorialHierarchy.test.tsx",
+      "severity": "MEDIUM",
+      "gate": "Absolute",
+      "status": "PASS",
+      "predicate": "A promise-returning call is neither awaited nor explicitly returned, so an assertion may run before the effect.",
+      "evidence": "All four renderToStaticMarkup calls and subsequent string assertions are synchronous; no promise-returning operation occurs in a test body."
+    },
+    {
+      "row": "H5",
+      "file": "src/components/editorialHierarchy.test.tsx",
+      "severity": "HIGH",
+      "gate": "Absolute",
+      "status": "PASS",
+      "predicate": "The reviewed file exceeds 1000 lines.",
+      "evidence": "The file contains 41 lines, below the >1000-line firing threshold."
+    }
+  ],
+  "performance_metrics": {
+    "measured_runtime": null,
+    "runtime_status": "Not measured by this worker; parent supplies execution evidence.",
+    "duration_assessment": "PASS (static): no excessive loops, sleeps, or repeated navigation found in the two reviewed files. This is not a measured duration or a performance SLO claim.",
+    "file_line_counts": {
+      "src/journalPhotoSubmission.test.ts": 163,
+      "src/components/editorialHierarchy.test.tsx": 41
+    }
+  },
+  "notes": [
+    "Evaluated only M1, M6, and H5. No coverage scoring was performed.",
+    "H1 belongs to the determinism worker and was not scored here. Awaited deferred promises are controlled async, not sleeps.",
+    "Source files were read-only context and were not scored. App review was limited to relevant journal photo/save handlers and call sites; no whole-App audit is claimed.",
+    "No tests, browser actions, port operations, application/test edits, Git actions, or prior-score/evidence reuse occurred.",
+    "playwrightUtilsActive=false and pactjsUtilsActive=false: both flags are off and both packages are not installed; M9/L9/M10 do not exist for this run."
+  ],
+  "recommendations": [],
+  "convention_baseline": {
+    "corpusSize": 146,
+    "scanned": 40,
+    "sampled": 8,
+    "sampledFiles": [
+      "src/ailmentPresentation.test.ts",
+      "src/calendarTime.test.ts",
+      "src/components/AlmanackPanel.test.ts",
+      "src/components/rulebookPresentation.test.ts",
+      "src/encounterRemedyIntegration.test.ts",
+      "src/foragingInventoryPresentation.test.ts",
+      "src/interruptedWorkflowExperience.test.ts",
+      "src/journeyUiContext.test.ts"
+    ],
+    "conventions": {
+      "priorityMarkers": {
+        "adopted": 0,
+        "sampled": 8,
+        "status": "absent",
+        "form": "\\[P[0-3]\\]|@P[0-3]|@p[0-3]"
+      },
+      "testIds": {
+        "adopted": 0,
+        "sampled": 8,
+        "status": "absent",
+        "form": "getByTestId|data-testid"
+      },
+      "networkFirst": {
+        "adopted": 0,
+        "sampled": 8,
+        "status": "absent",
+        "form": "interceptNetworkCall|page\\.route\\("
+      },
+      "playwrightUtils": {
+        "adopted": 0,
+        "sampled": 8,
+        "status": "absent",
+        "form": "@seontechnologies/playwright-utils"
+      },
+      "dataFactories": {
+        "adopted": 1,
+        "sampled": 8,
+        "status": "emerging",
+        "form": "active(patch) returns a fresh JourneyUiState with overrides in src/journeyUiContext.test.ts"
+      },
+      "fixtures": {
+        "adopted": 0,
+        "sampled": 8,
+        "status": "absent",
+        "form": "test\\.extend|mergeTests|merged-fixtures"
+      },
+      "bddNaming": {
+        "adopted": 8,
+        "sampled": 8,
+        "status": "established",
+        "form": "behavioral verb phrases in it names"
+      },
+      "assertionStyle": {
+        "adopted": 8,
+        "sampled": 8,
+        "status": "established",
+        "form": "Vitest expect matchers"
+      }
+    }
+  },
+  "summary": "No performance registry violations found in the two reviewed Vitest files. M6 and H5 pass in both; M1 is inapplicable because neither file navigates.",
+  "revalidated_at": "2026-10-21T07:23:48Z",
+  "reviewed_file_hashes": {
+    "src/journalPhotoSubmission.test.ts": "64bda86b10c1f505768e5bea0756e636fdf30e8469b09ffaa14d98640676b43b",
+    "src/components/editorialHierarchy.test.tsx": "133c515acaf2578024c8425b69da17f8861dca0cbb41739c45987631f54f5582"
+  }
+}

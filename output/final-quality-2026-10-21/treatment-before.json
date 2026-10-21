@@ -1,0 +1,81 @@
+{
+  "activePatientId": "patient-patient-intake:1791637008772:sy5n9d",
+  "bag": [
+    {
+      "id": "tool_knife",
+      "name": "벨트 칼",
+      "weight": 0.3333333333333333,
+      "type": "tool",
+      "canonicalToolId": "belt-knife",
+      "ruinedWhenSoaked": false
+    },
+    {
+      "id": "tool_mortar",
+      "name": "나무 절구와 공이 · 갈기/빻기",
+      "weight": 0.3333333333333333,
+      "type": "tool",
+      "canonicalToolId": "mortar-and-pestle",
+      "ruinedWhenSoaked": false
+    },
+    {
+      "id": "tool_kettle",
+      "name": "낡은 캠프 주전자 [BOIL/BREW]",
+      "weight": 0.3333333333333333,
+      "type": "tool",
+      "canonicalToolId": "camp-kettle",
+      "ruinedWhenSoaked": false
+    },
+    {
+      "id": "tool_jaws",
+      "name": "이빨 [CHEW/DIGEST]",
+      "weight": 0,
+      "type": "tool",
+      "canonicalToolId": "teeth",
+      "ruinedWhenSoaked": false
+    },
+    {
+      "id": "tool_paws",
+      "name": "앞발/발톱 [ADD/APPLY]",
+      "weight": 0,
+      "type": "tool",
+      "canonicalToolId": "paws",
+      "ruinedWhenSoaked": false
+    },
+    {
+      "id": "forage:1791637045191:6wej97:beetles-shells-crushed-1:1",
+      "name": "Beetles (Shells, CRUSHED)",
+      "type": "reagent",
+      "weight": 0.3333333333333333,
+      "canonicalReagentId": "reagent-beetles",
+      "preparationId": "beetles-shells-crushed-1",
+      "usesRemaining": 1,
+      "ruinedWhenSoaked": true,
+      "provenance": {
+        "acquisitionId": "forage:1791637045191:6wej97:beetles-shells-crushed-1:1",
+        "source": "forage",
+        "sourceTransactionId": "forage:1791637045191:6wej97",
+        "region": "Forest"
+      }
+    },
+    {
+      "id": "forage:1791637088610:fht9fe:marigold-petals-crushed-3:1",
+      "name": "Marigold (Petals, CRUSHED)",
+      "type": "reagent",
+      "weight": 0.6666666666666666,
+      "canonicalReagentId": "reagent-marigold",
+      "preparationId": "marigold-petals-crushed-3",
+      "usesRemaining": 1,
+      "ruinedWhenSoaked": true,
+      "provenance": {
+        "acquisitionId": "forage:1791637088610:fht9fe:marigold-petals-crushed-3:1",
+        "source": "forage",
+        "sourceTransactionId": "forage:1791637088610:fht9fe",
+        "region": "Forest"
+      }
+    }
+  ],
+  "trinkets": [
+    "기념품 (Memento)"
+  ],
+  "reputation": 5
+}

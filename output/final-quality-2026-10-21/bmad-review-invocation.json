@@ -1,0 +1,90 @@
+{
+  "headless": true,
+  "review_files": [
+    "src/journalPhotoSubmission.test.ts",
+    "src/components/editorialHierarchy.test.tsx"
+  ],
+  "context_files": [
+    "output/final-quality-2026-10-21/requirements.md",
+    "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-design/test-design-epic-final-editorial-quality-audit.md",
+    "src/components/JournalPhotoDialog.tsx",
+    "src/components/FolioFrontispiece.tsx",
+    "src/components/AlmanackPanel.tsx",
+    "src/App.tsx",
+    "src/mystic-folio.css",
+    "src/feature-layout.css"
+  ],
+  "context_basis": "pr_diff",
+  "review_scope": "single",
+  "run_scope": "epic",
+  "run_key": "epic-final-editorial-quality-audit",
+  "output_file_override": "output/final-quality-2026-10-21/bmad-test-review.md",
+  "generate_inline_comments": false,
+  "use_playwright_utils": false,
+  "playwright_utils_installed": false,
+  "use_pactjs_utils": false,
+  "pactjs_utils_installed": false,
+  "pact_mcp": "none",
+  "framework": "vitest",
+  "detected_stack": "frontend",
+  "timestamp": "2026-10-21T07-14-53-743914+00-00",
+  "context_snapshots": [
+    {
+      "path": "output/final-quality-2026-10-21/requirements.md",
+      "exists": true,
+      "sha256": "e333bda04e84b518bb75a96562e20e5a3ba82eedf479727a709a9f7c8be1fcea"
+    },
+    {
+      "path": "output/full-site-qa-2026-10-09/bmad-test-artifacts/test-design/test-design-epic-final-editorial-quality-audit.md",
+      "exists": true,
+      "sha256": "9ccc62c7fb94c1a17a6d10ca4829634124d1abc58d89350c75ecb03b4b6d578c"
+    },
+    {
+      "path": "src/components/JournalPhotoDialog.tsx",
+      "exists": true,
+      "sha256": "4c424e9092a795de46ad654d7ed5e06f4991ecca5d54fc20f6edaa6fa8a2ad08"
+    },
+    {
+      "path": "src/components/FolioFrontispiece.tsx",
+      "exists": true,
+      "sha256": "538a72220e7f86595f0420a48cd072cbfe21042724c9d04f8c802eceba9a2fe5"
+    },
+    {
+      "path": "src/components/AlmanackPanel.tsx",
+      "exists": true,
+      "sha256": "fc38eb37dabd3c835d9b1b5e3174b4de1d4c939e604f48804f0547215151f018"
+    },
+    {
+      "path": "src/App.tsx",
+      "exists": true,
+      "sha256": "1e80452a86a8bd29834f0842cca4d35083eddd547118e76831c97c5db212e9b0"
+    },
+    {
+      "path": "src/mystic-folio.css",
+      "exists": true,
+      "sha256": "0ffc606a55edf35d4ebd6c7872ac4a0e82167eb87259bca843c9f0428c4c2372"
+    },
+    {
+      "path": "src/feature-layout.css",
+      "exists": true,
+      "sha256": "4e0f5fbacb5400c6c65ff4e412f76003bebe80299ef9e17af1f73d7db2498dec"
+    }
+  ],
+  "knowledge_fragments": [
+    "test-quality",
+    "data-factories",
+    "test-levels-framework",
+    "selective-testing",
+    "test-healing-patterns",
+    "selector-resilience",
+    "timing-debugging"
+  ],
+  "final_reviewed_hashes": {
+    "src/journalPhotoSubmission.test.ts": "64bda86b10c1f505768e5bea0756e636fdf30e8469b09ffaa14d98640676b43b",
+    "src/components/editorialHierarchy.test.tsx": "133c515acaf2578024c8425b69da17f8861dca0cbb41739c45987631f54f5582"
+  },
+  "supporting_dependency_lookup": {
+    "path": "src/journalSemantics.ts",
+    "reason": "The determinism worker read the imported real helper definition to interpret the strengthened updater test. It was not reviewed/scored as a test."
+  }
+}

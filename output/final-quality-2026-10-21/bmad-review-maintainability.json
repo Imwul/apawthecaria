@@ -1,0 +1,247 @@
+{
+  "dimension": "maintainability",
+  "run_key": "epic-final-editorial-quality-audit",
+  "timestamp": "2026-10-21T07-14-53-743914+00-00",
+  "review_files": [
+    "src/journalPhotoSubmission.test.ts",
+    "src/components/editorialHierarchy.test.tsx"
+  ],
+  "score": 100,
+  "max_score": 100,
+  "grade": "A",
+  "violations": [],
+  "passed_checks": 11,
+  "failed_checks": 0,
+  "check_count_basis": "One assessment per enabled owned registry row; PASS (n/a) is included among passed checks. The three disabled utility rows are absent from the run, not counted per file.",
+  "violation_summary": {
+    "CRITICAL": 0,
+    "HIGH": 0,
+    "MEDIUM": 0,
+    "LOW": 0
+  },
+  "run_level_preconditions": {
+    "playwrightUtilsActive": false,
+    "pactjsUtilsActive": false,
+    "absent_rows": [
+      "M9",
+      "M10",
+      "L9"
+    ],
+    "note": "M9 and L9 do not exist in this run because use_playwright_utils is false and playwright_utils_installed is false. M10 does not exist because use_pactjs_utils is false and pactjs_utils_installed is false. No deduction or per-file n/a is emitted for these rows."
+  },
+  "row_assessments": [
+    {
+      "row": "M2",
+      "gate": "Applicability: constructs domain payloads",
+      "status": "PASS",
+      "evidence": [
+        {
+          "file": "src/journalPhotoSubmission.test.ts",
+          "line": 18,
+          "detail": "The photo payload is declared once and reused; the dependency fixture is declared once at lines 27-50. Journal before-state objects occur at lines 137 and 149, below the three-inline-payload threshold; a previous-record payload is declared once at line 148. Repeated { length: 1 } stubs provide an input API boundary rather than repeated domain payloads. No concrete applicable factory bypass is evidenced in the supplied context."
+        },
+        {
+          "file": "src/components/editorialHierarchy.test.tsx",
+          "line": 23,
+          "detail": "The gameplayContext payload occurs once. The other tests construct distinct component props rather than three copies of a domain payload."
+        }
+      ]
+    },
+    {
+      "row": "M3",
+      "gate": "Absolute",
+      "status": "PASS",
+      "evidence": [
+        {
+          "file": "src/journalPhotoSubmission.test.ts",
+          "line": 52,
+          "detail": "Each of the eight cases checks one attachment/save/view-ownership behavior. The strengthened normal-save case at lines 144-162 checks the resulting saved journal, prior-record preservation, input nonmutation, and draft clearing as related outcomes of one save; these are not three unrelated subjects."
+        },
+        {
+          "file": "src/components/editorialHierarchy.test.tsx",
+          "line": 7,
+          "detail": "The four cases separately check the illustrated welcome, reduced chapter opening, reference-task hierarchy, and photo-dialog semantics. Artwork/copy checks and modal attributes are related outcomes for their respective rendered subject."
+        }
+      ]
+    },
+    {
+      "row": "M4",
+      "gate": "Absolute",
+      "status": "PASS",
+      "evidence": [
+        {
+          "file": "src/journalPhotoSubmission.test.ts",
+          "line": 52,
+          "detail": "All eight tests are grouped under journal attachment readiness and view ownership."
+        },
+        {
+          "file": "src/components/editorialHierarchy.test.tsx",
+          "line": 7,
+          "detail": "All four tests are grouped under working journal editorial hierarchy."
+        }
+      ]
+    },
+    {
+      "row": "M5",
+      "gate": "Applicability: a user-level interaction API is a project dependency",
+      "status": "PASS (n/a)",
+      "evidence": [
+        {
+          "file": "src/journalPhotoSubmission.test.ts",
+          "line": 53,
+          "detail": "Tests invoke handler functions; no fireEvent or equivalent raw DOM event dispatch occurs."
+        },
+        {
+          "file": "src/components/editorialHierarchy.test.tsx",
+          "line": 8,
+          "detail": "Tests render static markup; no event dispatch occurs. Whether a user-level interaction API is installed cannot open a predicate absent from these files."
+        }
+      ]
+    },
+    {
+      "row": "M7",
+      "gate": "Absolute",
+      "status": "PASS",
+      "evidence": [
+        {
+          "file": "src/journalPhotoSubmission.test.ts",
+          "line": 52,
+          "detail": "One describe level and flat test bodies; no describe/context or test-body nesting deeper than three levels."
+        },
+        {
+          "file": "src/components/editorialHierarchy.test.tsx",
+          "line": 7,
+          "detail": "One describe level and flat test bodies; no excessive nesting."
+        }
+      ]
+    },
+    {
+      "row": "H5",
+      "gate": "Absolute",
+      "status": "PASS",
+      "evidence": [
+        {
+          "file": "src/journalPhotoSubmission.test.ts",
+          "line": 163,
+          "detail": "Entire current file is 163 lines, below the sole 1000-line threshold."
+        },
+        {
+          "file": "src/components/editorialHierarchy.test.tsx",
+          "line": 41,
+          "detail": "Entire file is 41 lines, below the sole 1000-line threshold."
+        }
+      ]
+    },
+    {
+      "row": "L1",
+      "gate": "Applicability: locates DOM elements",
+      "status": "PASS (n/a)",
+      "evidence": [
+        {
+          "file": "src/journalPhotoSubmission.test.ts",
+          "line": 10,
+          "detail": "Lexical source extraction is not DOM element lookup."
+        },
+        {
+          "file": "src/components/editorialHierarchy.test.tsx",
+          "line": 24,
+          "detail": "Class-string index and static-markup value assertions do not locate DOM elements. No CSS/XPath/presentation-text DOM locator is used."
+        }
+      ]
+    },
+    {
+      "row": "L3",
+      "gate": "Convention: testIds",
+      "status": "PASS (n/a)",
+      "basis": "Supplied baseline absent: the repo uses no such convention (0 of 8 sampled).",
+      "evidence": [
+        {
+          "file": "src/journalPhotoSubmission.test.ts",
+          "line": 52,
+          "detail": "No test-id convention deduction applies."
+        },
+        {
+          "file": "src/components/editorialHierarchy.test.tsx",
+          "line": 7,
+          "detail": "No test-id convention deduction applies; role/label locators would satisfy L1 independently."
+        }
+      ]
+    },
+    {
+      "row": "L5",
+      "gate": "Convention: bddNaming",
+      "status": "PASS",
+      "basis": "Supplied baseline established: behavioral names adopted in 8 of 8 sampled files.",
+      "evidence": [
+        {
+          "file": "src/journalPhotoSubmission.test.ts",
+          "line": 53,
+          "detail": "All eight test names describe observable behaviors, such as blocks submission and preserves existing attachments, rather than a method/selector or works correctly."
+        },
+        {
+          "file": "src/components/editorialHierarchy.test.tsx",
+          "line": 8,
+          "detail": "All four names describe resulting welcome, reference hierarchy, or dialog behavior."
+        }
+      ]
+    },
+    {
+      "row": "L6",
+      "gate": "Absolute",
+      "status": "PASS",
+      "evidence": [
+        {
+          "file": "src/journalPhotoSubmission.test.ts",
+          "line": 18,
+          "detail": "Photo identifiers, names, and data URL are named fixture data. Count literals 0 and 1 directly express pending-read counts or empty/nonempty input; no unexplained domain threshold or code is present."
+        },
+        {
+          "file": "src/components/editorialHierarchy.test.tsx",
+          "line": 23,
+          "detail": "Location, region, and season values are explicit named properties of sample gameplay context. Artwork paths and Korean strings are expected output contracts, not unexplained domain constants."
+        }
+      ]
+    },
+    {
+      "row": "L7",
+      "gate": "Convention: assertionStyle",
+      "status": "PASS",
+      "basis": "Supplied baseline established: Vitest expect matchers adopted in 8 of 8 sampled files.",
+      "evidence": [
+        {
+          "file": "src/journalPhotoSubmission.test.ts",
+          "line": 5,
+          "detail": "Uses Vitest expect matchers consistently throughout."
+        },
+        {
+          "file": "src/components/editorialHierarchy.test.tsx",
+          "line": 1,
+          "detail": "Uses Vitest expect matchers consistently throughout."
+        }
+      ]
+    }
+  ],
+  "recommendations": [],
+  "unscored_improvements": [
+    {
+      "file": "src/journalPhotoSubmission.test.ts",
+      "line": 10,
+      "description": "Handler extraction relies on lexical const names and the next const declaration; ordinary refactoring can require fixture maintenance.",
+      "predicate": "No owned registry row defines lexical source-slicing brittleness; this is an unscored maintainability observation, with no severity or deduction.",
+      "suggestion": "Optional future consideration only: if the photo workflow is refactored for other reasons, a directly importable module could remove source slicing. This review does not require introducing a new abstraction.",
+      "code_snippet": "source.slice(source.indexOf(`  const ${name} =`), source.indexOf(`  const ${next} =`, source.indexOf(`  const ${name} =`)))"
+    }
+  ],
+  "limitations": "Static maintainability review only. No tests were executed and no runtime was estimated. No determinism, isolation, coverage, application-wide, or browser audit was performed. Context sources were not scored, and no prior review scores or results were reused.",
+  "summary": "No maintainability registry violations in the two reviewed Vitest files. Informational dimension score 100/100; 11 enabled owned rows assessed, including closed-gate n/a results. Utility rows M9/M10/L9 are absent for the run.",
+  "revalidated_at": "2026-10-21T07:22:48+00:00",
+  "current_hashes": {
+    "src/journalPhotoSubmission.test.ts": "64bda86b10c1f505768e5bea0756e636fdf30e8469b09ffaa14d98640676b43b",
+    "src/components/editorialHierarchy.test.tsx": "133c515acaf2578024c8425b69da17f8861dca0cbb41739c45987631f54f5582"
+  },
+  "current_line_counts": {
+    "src/journalPhotoSubmission.test.ts": 163,
+    "src/components/editorialHierarchy.test.tsx": 41
+  },
+  "revalidation_note": "Re-read all 163 current lines after the normal-save test was strengthened, verified both current file hashes, and rechecked all owned enabled registry predicates. Maintainability conclusions and score remain unchanged. No tests, browser, Git, app, or other QA artifacts were modified."
+}

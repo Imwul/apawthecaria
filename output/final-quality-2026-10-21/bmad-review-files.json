@@ -1,0 +1,72 @@
+[
+  {
+    "path": "src/journalPhotoSubmission.test.ts",
+    "sha256": "64bda86b10c1f505768e5bea0756e636fdf30e8469b09ffaa14d98640676b43b",
+    "bytes": 7488,
+    "lines": 163,
+    "framework": "vitest",
+    "describes": 1,
+    "tests": [
+      {
+        "line": 53,
+        "title": "blocks submission while a real photo preparation boundary is pending and keeps the draft"
+      },
+      {
+        "line": 70,
+        "title": "keeps saving blocked until every concurrent selection has finished"
+      },
+      {
+        "line": 88,
+        "title": "releases the save boundary and reports a failed read without clearing the text"
+      },
+      {
+        "line": 99,
+        "title": "does not start work or show a loading state when the picker is cancelled"
+      },
+      {
+        "line": 107,
+        "title": "ignores a draft photo that finishes after leaving its view"
+      },
+      {
+        "line": 119,
+        "title": "does not apply an existing-journal photo or read error to a replacement view"
+      },
+      {
+        "line": 133,
+        "title": "preserves existing attachments when a live journal receives a new photo"
+      },
+      {
+        "line": 144,
+        "title": "allows the normal save once preparation is ready"
+      }
+    ],
+    "assertions": 32
+  },
+  {
+    "path": "src/components/editorialHierarchy.test.tsx",
+    "sha256": "133c515acaf2578024c8425b69da17f8861dca0cbb41739c45987631f54f5582",
+    "bytes": 2299,
+    "lines": 41,
+    "framework": "vitest",
+    "describes": 1,
+    "tests": [
+      {
+        "line": 8,
+        "title": "retains the full illustrated welcome for a new campaign"
+      },
+      {
+        "line": 15,
+        "title": "preserves the chapter artwork without repeating promotional copy over reference tasks"
+      },
+      {
+        "line": 22,
+        "title": "puts rule lookup before contextual browsing while keeping context and return controls"
+      },
+      {
+        "line": 31,
+        "title": "exposes a named modal with an explicit close control while retaining the actual media"
+      }
+    ],
+    "assertions": 17
+  }
+]

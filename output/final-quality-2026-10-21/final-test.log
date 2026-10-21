@@ -1,0 +1,12 @@
+
+> temp-app@1.0.0 test
+> vitest run
+
+
+ RUN  v4.1.10 /Users/imwul/Library/Mobile Documents/com~apple~CloudDocs/apawthecaria-apo
+
+
+ Test Files  148 passed (148)
+      Tests  1521 passed (1521)
+   Start at  16:33:34
+   Duration  7.76s (transform 9.46s, setup 0ms, import 40.70s, tests 10.02s, environment 8ms)

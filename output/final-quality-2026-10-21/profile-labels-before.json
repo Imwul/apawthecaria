@@ -1,0 +1,22 @@
+[
+  {
+    "text": "약제사 이름:",
+    "control": null
+  },
+  {
+    "text": "길동무 이름:",
+    "control": null
+  },
+  {
+    "text": "길동무 혜택 (p.14-15):",
+    "control": null
+  },
+  {
+    "text": "비행 능력 보유",
+    "control": "INPUT"
+  },
+  {
+    "text": "하우스 룰: 비행 제약 무시",
+    "control": "INPUT"
+  }
+]

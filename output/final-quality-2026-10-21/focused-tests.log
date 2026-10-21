@@ -1,0 +1,12 @@
+
+> temp-app@1.0.0 test
+> vitest run src/journalPhotoSubmission.test.ts src/components/editorialHierarchy.test.tsx
+
+
+ RUN  v4.1.10 /Users/imwul/Library/Mobile Documents/com~apple~CloudDocs/apawthecaria-apo
+
+
+ Test Files  2 passed (2)
+      Tests  12 passed (12)
+   Start at  16:12:07
+   Duration  1.28s (transform 806ms, setup 0ms, import 1.59s, tests 34ms, environment 0ms)
