@@ -46,7 +46,7 @@ export const polishLegacyRuleText = (text: string = ''): string => normalizeGuil
   .replace(/사역마/g, '길동무')
   .replace(/길동무\s*\(Familiar\)/g, '길동무')
   .replace(/Familiar/g, '길동무')
-  .replace(/Bartering/g, '물꼬 거래')
+  .replace(/Bartering/g, '물물교환')
   .replace(/Social Encounter Card Draw/g, '사교 조우 카드 뽑기')
   .replace(/Rarity Check Card Draw/g, '희귀도 판정 카드 뽑기')
   .replace(/Rarity/g, '희귀도')

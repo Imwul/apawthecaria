@@ -33,20 +33,33 @@ const MORE_TABS = [
 
 export function JournalNavigation({ activeTab, onChange }: { activeTab: JournalTab; onChange: (tab: JournalTab) => void }) {
   const moreRef = useRef<HTMLDetailsElement>(null);
-  const archiveActive = MORE_TABS.some(tab => tab.id === activeTab);
+  // The archive list is a small pop-over menu: close it on outside click / Escape and after choosing.
   useEffect(() => {
-    if (archiveActive && moreRef.current) moreRef.current.open = true;
-  }, [activeTab, archiveActive]);
+    const close = (event: Event) => {
+      const menu = moreRef.current;
+      if (!menu?.open) return;
+      if (event instanceof KeyboardEvent ? event.key === 'Escape' : !menu.contains(event.target as Node)) menu.open = false;
+    };
+    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', close);
+    return () => {
+      document.removeEventListener('pointerdown', close);
+      document.removeEventListener('keydown', close);
+    };
+  }, []);
   const renderTab = (item: { id: JournalTab; label: string }) => <button key={item.id} type="button"
     className={`journal-tab journal-tab--${item.id}${activeTab === item.id ? ' journal-tab--active' : ''}`}
-    aria-current={activeTab === item.id ? 'page' : undefined} title={item.label} onClick={() => onChange(item.id)}>
+    aria-current={activeTab === item.id ? 'page' : undefined} title={item.label} onClick={() => {
+      if (moreRef.current) moreRef.current.open = false;
+      onChange(item.id);
+    }}>
     <span>{item.label}</span>
   </button>;
   return <nav className="station-navigation direct-navigation" aria-label="플레이 도구">
     <div className="direct-navigation__main">
       {MAIN_TABS.map(renderTab)}
     </div>
-    <details className="direct-navigation__more" ref={moreRef} open={archiveActive || undefined}>
+    <details className={`direct-navigation__more${MORE_TABS.some(tab => tab.id === activeTab) ? ' direct-navigation__more--current' : ''}`} ref={moreRef}>
       <summary>기록 더 보기</summary>
       <div className="direct-navigation__archives">{MORE_TABS.map(renderTab)}</div>
     </details>
@@ -81,7 +94,6 @@ export function ChapterOpening({ tab, state, maxCarry, onReturnToToday, onOpenRe
     : [localizeSeasonLabel(state.currentSeason), `${localizeRegionLabel(state.currentRegion)} 관찰`];
   return <header className="chapter-opening station-heading" aria-labelledby={`chapter-title-${tab}`}>
     <div className="station-heading__copy">
-      <p className="station-eyebrow">{chapter.group} <span aria-hidden="true">/</span> {chapter.number}</p>
       <h2 id={`chapter-title-${tab}`}>{chapter.title}</h2><p>{chapter.purpose}</p>
     </div>
     <div className="station-heading__tools">

@@ -38,7 +38,7 @@ describe('Encounter persistent-condition shell wiring', () => {
     expect(appSource).toContain('consumeLodgeBarterStepTwoSkip(');
     expect(appSource).toContain('resolveBarterSkipSocialEncounter({');
     expect(barterSource).toContain("status: 'awaiting-second-card'");
-    expect(appSource).toContain('비버의 초대로 거리의 사교 조우(물꼬 거래 2단계)를 건너뛰고');
+    expect(appSource).toContain('비버의 초대로 거리의 사교 조우(물물교환 2단계)를 건너뛰고');
     expect(migrationSource).toContain('const socialStepSkipped = value.socialStepSkipped === true;');
     expect(migrationSource).toContain("status === 'awaiting-second-card' && !socialStepSkipped");
   });

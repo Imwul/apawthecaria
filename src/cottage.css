@@ -1,0 +1,1373 @@
+/*
+  Cottage kitchen table.
+  The page is a blue gingham tablecloth; the journal is a sewn paper notebook lying on it,
+  with recipe-box index tabs along its top edge and luggage tags for the current trip.
+  Gowun Batang (a soft storybook serif) carries headings, tabs and labels; Gowun Dodum, from the
+  same Gowun family, carries reading text. Whimsy comes from the cloth, tape and tabs, not the type.
+  Boldness lives in the tablecloth + tabs. Paper surfaces stay calm so rules stay readable.
+*/
+:root {
+  --font-story: 'Gowun Batang', 'AppleMyungjo', 'Nanum Myeongjo', Georgia, serif;
+  --font-base: 'Gowun Dodum', Freesentation, system-ui, sans-serif;
+  --font-body: var(--font-base); --font-ui: var(--font-base); --font-fancy: var(--font-story); --font-script: var(--font-story);
+  --font-display: var(--font-story);
+  --font-folio: var(--font-story);
+
+  /* tablecloth & paper */
+  --cloth: #fbf8f2;
+  --cloth-check: rgba(116, 148, 208, .2);
+  --paper: #fffdf8;
+  --paper-light: #fffefb;
+  --paper-ruled: #f4ece0;
+
+  /* ink */
+  --ink: #4a3428;
+  --text-bright: var(--ink);
+  --text-muted: #7b6758;
+  --text-dim: #7b6758;
+
+  /* garden colours */
+  --elderberry: #7a3e5f;
+  --elderberry-deep: #5a2945;
+  --moss: #5b7838;
+  --moss-deep: #44602a;
+  --butter: #f5d977;
+  --butter-soft: #fdf3cf;
+  --rose: #f0b5ab;
+  --rose-soft: #fbe6e1;
+  --cornflower: #7f9fd6;
+  --cornflower-soft: #e5ecf8;
+  --kraft: #e3cda1;
+  --kraft-deep: #b89a64;
+  --sage: #cfdcba;
+  --sage-soft: #eef3e5;
+  --lilac: #d9cdea;
+
+  --primary: var(--elderberry);
+  --primary-hover: var(--elderberry-deep);
+  --primary-light: #f4e6ee;
+  --primary-glow: #7a3e5f14;
+  --secondary: var(--moss);
+  --secondary-hover: var(--moss-deep);
+  --secondary-light: var(--sage-soft);
+  --secondary-glow: #5b783814;
+
+  --surface: var(--paper);
+  --surface-muted: #f6efe3;
+  --glass: var(--paper-light);
+  --glass-card: var(--paper-light);
+  --glass-border: #e4d7c3;
+  --border-cozy: #cdbda4;
+  --line: #e6dac8;
+  --rail: var(--ink);
+  --rail-muted: var(--text-muted);
+
+  --success: var(--moss);
+  --warning: #a06d14;
+  --danger: #b2412c;
+  --manual: #6a569a;
+  --unresolved: #3c6c8c;
+
+  --radius-sm: 7px;
+  --radius-md: 11px;
+  --radius-lg: 16px;
+  --hand-radius: 13px 10px 14px 9px / 10px 13px 9px 14px;
+  --shadow-sm: 0 2px 0 rgba(74, 52, 40, .14);
+  --shadow-md: 0 2px 0 rgba(74, 52, 40, .12), 0 16px 30px -18px rgba(74, 52, 40, .45);
+  --edge: 1.5px solid rgba(74, 52, 40, .28);
+
+  --folio-body-size: 18px;
+}
+
+/* ---------- base ---------- */
+html { background: var(--cloth); }
+body {
+  color: var(--ink);
+  font-family: var(--font-body);
+  background-color: var(--cloth);
+  background-image:
+    linear-gradient(90deg, var(--cloth-check) 50%, transparent 50%),
+    linear-gradient(var(--cloth-check) 50%, transparent 50%);
+  background-size: 46px 46px;
+  font-synthesis: weight;
+}
+::selection { background: var(--butter); color: var(--ink); }
+:focus-visible { outline: 3px solid var(--unresolved); outline-offset: 3px; }
+
+h1, h2, h3, h4 { font-family: var(--font-story); font-weight: 700; letter-spacing: -.02em; color: var(--ink); line-height: 1.3; word-break: keep-all; }
+/* display runs sit slightly tighter than body text */
+:is(.journal-brand__title, .station-identity > strong, .adventure-context strong, .journal-tab, .direct-navigation__more > summary,
+  .document-kicker, .station-eyebrow, .workspace-kicker, .wizard-page-kicker, .save-state, legend, .field-footer p,
+  .play-overview__place, .play-clock dd strong, .action-step__index, .action-step--next .action-step__body strong,
+  .chapter-opening__notes li, .folio-frontispiece__title, .play-loop__number, .journal-stamp) { letter-spacing: -.02em; }
+h2 { font-size: 30px; }
+h3 { font-size: 23px; }
+h4 { font-size: 19px; }
+h5, h6 { font-family: var(--font-ui); }
+strong { font-weight: 700; }
+a { color: var(--elderberry); text-decoration-thickness: 1.5px; text-underline-offset: 4px; }
+
+button {
+  color: var(--ink);
+  background: var(--paper-light);
+  border: var(--edge);
+  border-radius: var(--hand-radius);
+  box-shadow: var(--shadow-sm);
+  font-weight: 700;
+  transition: background 140ms, transform 120ms, box-shadow 120ms, border-color 140ms;
+}
+button:hover { background: var(--butter-soft); }
+button:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(74, 52, 40, .14); border-color: rgba(74, 52, 40, .45); }
+button:disabled:hover { background: var(--paper-light); }
+
+input, select, textarea {
+  color: var(--ink);
+  background: var(--paper-light);
+  border: 1.5px solid #cbbba2;
+  border-radius: 10px;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--elderberry); outline: none; box-shadow: 0 0 0 3px var(--primary-light); }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--unresolved); outline-offset: 2px; }
+input::placeholder, textarea::placeholder { color: #9a877a; }
+input[type=checkbox], input[type=radio] { accent-color: var(--moss); }
+label { font-weight: 700; }
+fieldset { border: 1.5px dashed #d4c3a8; border-radius: 14px; }
+legend { font-family: var(--font-story); font-size: 17px; font-weight: 700; }
+summary:hover { color: var(--elderberry); }
+th { color: var(--text-muted); }
+th, td { border-bottom-color: var(--line); }
+hr { border: 0; border-top: 1.5px dashed #dccbb0; }
+
+/* primary & secondary actions */
+.btn-cozy-primary, .workspace-primary {
+  background: var(--elderberry) !important;
+  color: #fff8f4 !important;
+  border: 1.5px solid var(--elderberry-deep) !important;
+  border-radius: var(--hand-radius) !important;
+  box-shadow: 0 3px 0 var(--elderberry-deep) !important;
+}
+.btn-cozy-primary:hover, .workspace-primary:hover { background: #8a4a6e !important; border-color: var(--elderberry-deep) !important; }
+.btn-cozy-primary:active, .workspace-primary:active { box-shadow: 0 1px 0 var(--elderberry-deep) !important; }
+.btn-cozy-secondary, .folio-tool-button {
+  background: var(--paper-light) !important;
+  color: var(--ink) !important;
+  border: var(--edge) !important;
+  border-radius: var(--hand-radius) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+.btn-cozy-secondary:hover, .folio-tool-button:hover { background: var(--butter-soft) !important; }
+.btn-cozy-danger { background: var(--danger); color: #fff; border-color: #8a2f1f; }
+.workspace-link, .journal-text-action { color: var(--elderberry); text-decoration-style: wavy; text-decoration-thickness: 1px; box-shadow: none; border: 0; }
+.workspace-link:hover { color: var(--elderberry-deep); background: transparent; }
+
+/* small labels: quiet storybook captions, never shouted in caps */
+.document-kicker, .station-eyebrow, .workspace-kicker, .wizard-page-kicker {
+  display: inline-block;
+  color: var(--elderberry);
+  font: 700 15px/1.4 var(--font-story);
+  text-transform: none;
+}
+
+/* tags read like little seed-packet stickers */
+.rule-tag, .tag-pill {
+  border-radius: 999px !important;
+  padding: 1px 9px;
+  font-family: var(--font-ui);
+  border-width: 1.5px;
+}
+.tag-choice-group { border-radius: 14px !important; border: 1.5px dashed #cdbda4 !important; }
+.glass-panel, .parchment-panel { background: var(--paper-light); border: var(--edge); border-radius: var(--radius-md); }
+.cute-card { border-bottom: 1.5px dashed #dccbb0 !important; }
+.status-label, .automation-mark { color: var(--moss); }
+.app-loading { font-family: var(--font-story); font-size: 20px; color: var(--ink); }
+
+/* ---------- the table ---------- */
+.station-app {
+  min-height: 100dvh;
+  padding: 26px clamp(14px, 3vw, 48px) 28px;
+  background: transparent;
+}
+.station-app .station-shell {
+  display: block;
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  overflow: visible;
+  min-height: 0;
+}
+
+/* top: name label + luggage tags + tools */
+.cottage-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px 28px;
+  margin-bottom: 22px;
+}
+.station-app .station-rail {
+  position: static;
+  top: auto;
+  height: auto;
+  overflow: visible;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+}
+.station-app .journal-brand {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  width: auto;
+  padding: 12px 22px 12px 16px;
+  color: var(--ink);
+  background: var(--paper-light);
+  border: var(--edge);
+  border-radius: 6px 18px 8px 16px / 14px 8px 18px 8px;
+  box-shadow: 2px 3px 0 rgba(74, 52, 40, .12);
+  transform: rotate(-1.4deg);
+  text-align: left;
+}
+.station-app .journal-brand::before {
+  content: '';
+  position: absolute;
+  top: -11px;
+  left: 18px;
+  width: 74px;
+  height: 22px;
+  background: repeating-linear-gradient(90deg, #f3d36f 0 7px, #f6df92 7px 14px);
+  opacity: .88;
+  transform: rotate(-4deg);
+  box-shadow: 0 1px 0 rgba(74, 52, 40, .08);
+}
+.station-app .journal-brand::after { content: none; }
+.station-app .journal-brand:hover { background: var(--paper-light); color: var(--ink); transform: rotate(-.6deg); }
+.station-app .journal-brand:disabled { opacity: 1; }
+.journal-brand__sprig { width: 40px; height: 40px; color: var(--moss); flex-shrink: 0; }
+.station-app .journal-brand__copy { display: flex; flex-direction: column; gap: 0; }
+.station-app .journal-brand__title {
+  margin: 0;
+  color: var(--elderberry);
+  font: 700 31px/1.05 var(--font-story);
+}
+.station-app .journal-brand__edition { color: var(--text-muted); font: 400 14px/1.5 var(--font-ui); }
+
+.station-app .station-identity {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 8px 18px 8px 34px;
+  border: 1.5px solid var(--kraft-deep);
+  border-radius: 4px 12px 12px 4px;
+  background: var(--kraft);
+  color: var(--ink);
+  clip-path: polygon(14px 0, 100% 0, 100% 100%, 14px 100%, 0 50%);
+  transform: rotate(1.5deg);
+}
+.station-app .station-identity::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  background: var(--cloth);
+  box-shadow: inset 0 0 0 1.5px var(--kraft-deep);
+}
+.station-app .station-identity > strong { color: var(--ink); font: 700 17px/1.3 var(--font-story); }
+.station-app .station-identity > span { color: #6e5a45; font-size: 13px; }
+
+/* header: luggage tags for the trip, then tools */
+.station-app .journal-header {
+  display: flex;
+  flex: 1 1 520px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  position: static;
+}
+.station-app .adventure-context { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+.station-app .adventure-context > :is(button, div) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  min-height: 0;
+  padding: 6px 14px 7px;
+  background: var(--paper-light);
+  border: 1.5px dashed #c3ad86;
+  border-radius: 10px;
+  box-shadow: none;
+}
+.station-app .adventure-context > button:hover { background: var(--butter-soft); }
+.station-app .adventure-context > :nth-child(2) { transform: rotate(-1deg); }
+.station-app .adventure-context > :nth-child(3) { transform: rotate(.8deg); }
+.station-app .adventure-context span { color: var(--text-muted); font-size: 12px; line-height: 1.4; }
+.station-app .adventure-context strong { color: var(--ink); font: 700 16px/1.35 var(--font-story); }
+.station-app .adventure-context__patient { border-color: var(--danger) !important; background: var(--rose-soft) !important; }
+.station-app .adventure-context__patient strong { color: var(--danger); }
+
+.station-app .journal-header .journal-header__utilities { position: static; display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+.station-app .journal-header__action, .station-app .journal-header__icon-button {
+  min-height: 44px;
+  padding: 8px 14px;
+  font-size: 15px;
+  background: var(--paper-light);
+  border: var(--edge);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+}
+.station-app .journal-header__action:hover { background: var(--butter-soft); }
+.station-app .adventure-settings > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: var(--edge);
+  border-radius: 999px;
+  background: var(--paper-light);
+  box-shadow: var(--shadow-sm);
+  font-size: 15px;
+  font-weight: 700;
+}
+.station-app .adventure-settings > summary::after { content: ' ▾'; color: var(--elderberry); margin-left: 4px; }
+.station-app .adventure-settings[open] > summary::after { content: ' ▴'; }
+.station-app .adventure-settings__content {
+  background: var(--paper-light);
+  border: var(--edge);
+  border-radius: 14px;
+  box-shadow: var(--shadow-md);
+  gap: 8px;
+}
+.station-app .adventure-settings__content .journal-header__action { border-radius: 10px; justify-content: flex-start; }
+.station-app .journal-header .save-state { color: var(--moss); font: 700 13px/1.4 var(--font-ui); flex-basis: auto; white-space: normal; overflow-wrap: anywhere; }
+.save-state::before { width: 7px; height: 7px; }
+
+/* ---------- recipe-box index tabs ---------- */
+.station-app .station-navigation.direct-navigation {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0 4px;
+  padding: 0 18px;
+  margin: 0 0 -1.5px;
+}
+.station-app .direct-navigation__main, .station-app .direct-navigation__archives {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  grid-template-columns: none;
+}
+.station-app .direct-navigation .journal-tab {
+  --tab: var(--butter);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-height: 46px;
+  padding: 8px 18px 10px;
+  margin: 0;
+  color: var(--ink);
+  background: var(--tab);
+  border: var(--edge);
+  border-bottom: 0;
+  border-radius: 14px 14px 0 0;
+  box-shadow: none;
+  font: 700 17px/1.1 var(--font-story);
+  transform: translateY(7px);
+  transition: transform 140ms ease;
+}
+.station-app .direct-navigation .journal-tab:hover { color: var(--ink); background: var(--tab); transform: translateY(3px); }
+.station-app .direct-navigation .journal-tab:active { box-shadow: none; }
+.station-app .direct-navigation .journal-tab--play { --tab: var(--butter); }
+.station-app .direct-navigation .journal-tab--map { --tab: var(--cornflower-soft); }
+.station-app .direct-navigation .journal-tab--bio { --tab: var(--rose); }
+.station-app .direct-navigation .journal-tab--reagents { --tab: var(--sage); }
+.station-app .direct-navigation .journal-tab--almanack { --tab: var(--kraft); }
+.station-app .direct-navigation .journal-tab--journals { --tab: var(--lilac); }
+.station-app .direct-navigation .journal-tab--ailments,
+.station-app .direct-navigation .journal-tab--patientArchive,
+.station-app .direct-navigation .journal-tab--livingArchive { --tab: #f3ece0; font-size: 15px; }
+.station-app .direct-navigation .journal-tab--active,
+.station-app .direct-navigation .journal-tab--active:hover {
+  --tab: var(--paper);
+  position: relative;
+  z-index: 3;
+  color: var(--elderberry);
+  background: var(--paper);
+  transform: translateY(1.5px);
+  box-shadow: none;
+  padding-bottom: 14px;
+}
+.station-app .direct-navigation__more { display: flex; align-items: flex-end; gap: 4px; margin: 0 0 0 10px; padding: 0; border: 0; }
+.station-app .direct-navigation__more > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 6px 12px 8px;
+  color: var(--text-muted);
+  font: 700 15px/1.1 var(--font-story);
+  list-style: none;
+  transform: translateY(4px);
+}
+.station-navigation summary::-webkit-details-marker { display: none; }
+.station-app .direct-navigation__more > summary::after { content: ' ›'; }
+.station-app .direct-navigation__more[open] > summary::after { content: ' ‹'; }
+
+/* ---------- the notebook ---------- */
+.station-app .station-workspace {
+  position: relative;
+  min-width: 0;
+  background: var(--paper);
+  border: var(--edge);
+  border-radius: 6px 16px 16px 16px;
+  box-shadow: 4px 5px 0 rgba(74, 52, 40, .09), 0 26px 50px -30px rgba(74, 52, 40, .55);
+}
+.station-app .station-workspace::before {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  border: 1.5px dashed rgba(122, 62, 95, .2);
+  border-radius: 10px;
+  pointer-events: none;
+}
+.journal-app--onboarding .station-workspace { border-radius: 16px; }
+.station-app .station-canvas {
+  position: relative;
+  max-width: none;
+  margin: 0;
+  padding: 40px clamp(22px, 3.6vw, 56px) 56px;
+}
+.station-app .folio-frontispiece--chapter { display: none; }
+
+/* first-entry welcome: the rulebook cover as a taped snapshot */
+.station-app .folio-frontispiece:not(.folio-frontispiece--chapter) {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  min-height: 0;
+  margin: 0 0 34px;
+  padding: 0;
+  border: 0;
+  overflow: visible;
+}
+.station-app .folio-frontispiece::after { content: none; }
+.station-app .folio-frontispiece:not(.folio-frontispiece--chapter) .folio-frontispiece__art {
+  width: 230px;
+  height: 170px;
+  object-fit: cover;
+  object-position: 40% 35%;
+  padding: 8px 8px 26px;
+  background: #fff;
+  border: 1px solid #e7dccb;
+  box-shadow: 2px 4px 0 rgba(74, 52, 40, .1), 0 14px 22px -14px rgba(74, 52, 40, .5);
+  transform: rotate(-3deg);
+  mix-blend-mode: normal;
+  mask-image: none;
+  flex-shrink: 0;
+}
+.station-app .folio-frontispiece__copy { padding: 0; }
+.station-app .folio-frontispiece__title { margin: 0 0 6px; color: var(--ink); font: 700 31px/1.25 var(--font-story); }
+.station-app .folio-frontispiece__note { margin: 0; color: var(--text-muted); font-size: 17px; }
+.station-app .folio-frontispiece__seal { width: 84px; height: 84px; margin-left: auto; color: var(--elderberry); opacity: .5; flex-shrink: 0; transform: rotate(8deg); }
+
+.station-app .field-footer {
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  padding: 26px 16px 4px;
+  border: 0;
+  text-align: center;
+  background: none;
+}
+.station-app .field-footer p { display: inline-block; margin: 0; padding: 4px 14px; background: var(--paper-light); border-radius: 999px; color: var(--ink); font: 700 15px/1.5 var(--font-story); }
+
+/* ---------- chapter heading ---------- */
+.station-app .station-heading { border-bottom: 2px dashed #d9c7aa; padding-bottom: 22px; }
+.station-app .station-heading h2 { font: 700 34px/1.25 var(--font-story); letter-spacing: -.02em; color: var(--ink); }
+.station-app .chapter-opening__notes li { font-family: var(--font-story); font-size: 15px; }
+.station-context-note dl, .station-context-note > p { background: var(--paper-light); border: var(--edge); border-radius: 12px; box-shadow: var(--shadow-md); }
+
+/* onboarding intro */
+.onboarding-focus__intro h2 { font: 700 36px/1.25 var(--font-story); }
+.onboarding-focus__intro p { color: var(--text-muted); max-width: 56ch; }
+.character-wizard { background: var(--paper-light); border: var(--edge); border-radius: 18px; box-shadow: var(--shadow-sm); }
+
+/* character creation steps: a row of seed-packet stickers */
+.onboarding-focus__intro { border-bottom: 2px dashed #d9c7aa !important; }
+.wizard-steps { border-block: 0; gap: 6px; padding: 4px 0 10px; }
+.wizard-steps button {
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper-light);
+  box-shadow: none;
+  font-size: 14px !important;
+  color: var(--text-muted);
+}
+.wizard-steps button:hover { background: var(--butter-soft); }
+.wizard-steps button[aria-current=step] { color: var(--elderberry); background: var(--primary-light); border: 1.5px solid var(--elderberry); }
+.wizard-steps__number { font-family: var(--font-ui); font-size: 12px; font-weight: 700; }
+.wizard-steps__check { color: var(--moss); }
+
+/* ---------- play page ---------- */
+.station-procedures.play-folio { display: grid; gap: 30px; align-items: start; }
+.play-folio__context, .play-folio__work { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.play-folio__work { outline-offset: 6px; }
+.play-folio__context .action-hub { padding-bottom: 8px; }
+.play-folio__context .action-hub__grid { grid-template-columns: minmax(0, 1fr); }
+
+.play-overview {
+  position: relative;
+  padding: 24px 24px 22px;
+  background: var(--butter-soft);
+  border: var(--edge);
+  border-radius: var(--hand-radius);
+  box-shadow: 3px 4px 0 rgba(74, 52, 40, .08);
+  transform: rotate(-.5deg);
+}
+.play-overview::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  right: 26px;
+  width: 64px;
+  height: 20px;
+  background: repeating-linear-gradient(45deg, var(--rose) 0 6px, #f6cbc3 6px 12px);
+  opacity: .9;
+  transform: rotate(5deg);
+  border: 0;
+  inset: auto;
+  inset-block-start: -10px;
+  inset-inline-end: 26px;
+}
+.play-overview__heading h2 { font: 700 25px/1.35 var(--font-story); color: var(--ink); word-break: keep-all; text-wrap: balance; }
+.play-overview__heading .workspace-link { flex-shrink: 0; white-space: nowrap; }
+.play-overview__place { color: var(--elderberry); font-family: var(--font-story); font-weight: 700; font-size: 15px !important; }
+.play-overview__reason { color: var(--text-muted); }
+
+.play-loop__step { background: var(--paper-light); border: 1.5px solid var(--line); border-radius: 12px; }
+.play-loop__step.is-current { background: var(--sage-soft); border-color: var(--moss); }
+.play-loop__number { font-weight: 700; }
+.play-clock-grid { border-color: var(--line); }
+.play-clock dd strong { color: var(--ink); font: 700 21px/1.3 var(--font-story); }
+.play-clock--time dd strong { color: var(--elderberry); }
+
+.action-hub__header h2, .quick-rules__heading h2 { font: 700 21px/1.3 var(--font-story); color: var(--ink); }
+.action-step {
+  background: var(--paper-light);
+  border: var(--edge) !important;
+  border-radius: var(--hand-radius) !important;
+  box-shadow: var(--shadow-sm);
+}
+.action-step:hover { background: var(--butter-soft); }
+.action-step__index { font-weight: 700; color: var(--elderberry); }
+.action-step--next {
+  position: relative;
+  background: var(--moss) !important;
+  border: 1.5px solid var(--moss-deep) !important;
+  box-shadow: 0 3px 0 var(--moss-deep) !important;
+}
+.action-step--next:hover { background: #4f6b2f !important; }
+.action-step--next .action-step__index { color: var(--butter); }
+.action-step--next .action-step__body strong { color: #fffbea; font-family: var(--font-story); font-size: 19px; }
+.action-step--next .action-step__body > span, .action-step--next .action-step__body em { color: #eef3dd; }
+
+.quick-rules { background: transparent; border-color: #dccbb0; }
+.quick-rules__rule { background: var(--paper-light); border: 1.5px solid var(--line); border-radius: 12px; }
+.quick-rules__label strong { color: var(--ink); }
+.quick-rules__label > span { color: var(--elderberry); }
+.quick-rules__context { color: var(--text-muted); }
+
+.play-folio__work .cute-card { padding-top: 8px !important; }
+.play-folio__work > .play-with-map { gap: 22px; }
+.journal-stamp { font-family: var(--font-story); }
+
+.patient-care-switch { border-bottom: 1.5px dashed #d9c7aa; padding-bottom: 16px; }
+.patient-care-switch button { background: var(--paper-light); border: var(--edge); border-radius: 999px; }
+.patient-care-switch button[aria-pressed=true] { background: var(--sage); border-color: var(--moss); color: var(--moss-deep); }
+.patient-workflow__acquisition, .patient-workflow__treatment, .patient-workflow > details {
+  background: var(--paper-light);
+  border: var(--edge);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.patient-workflow :is(.forage-context, .treatment-comparison, .treatment-selection) { background: var(--surface-muted); border-color: var(--line); border-radius: 12px; }
+.patient-workflow .treatment-selection { background: var(--sage-soft); }
+.treatment-selection > header { flex-wrap: wrap; align-items: flex-start; }
+.treatment-selection > header > strong { flex-shrink: 0; white-space: nowrap; }
+.treatment-selection > header > span { flex: 1 1 160px; }
+.treatment-submit-bar { background: var(--butter-soft); border-radius: 14px; }
+
+.play-folio__work :is(.route-composer, .forage-result-receipt, .downtime-result-receipt, .treatment-result-receipt) { border-radius: 16px; }
+.route-composer { background: var(--paper-light); border-color: var(--line); }
+.route-card { background: var(--cornflower-soft); border-color: #b9c9e8; border-radius: 12px; }
+.herbarium-context > button { background: var(--sage-soft); border-color: var(--sage); }
+.herbarium-entry { background: var(--paper-light); border-radius: 14px; }
+
+/* sections and workspaces that used to be white boxes with hairlines */
+:is(.journey-start-workspace, .downtime-stage, .play-guide, .action-hub, .quick-rules, .card-draw-compact, .journey-choice-fieldset, .workspace-map-preview, .station-dossier, .pending-follow-ups) {
+  border-radius: 16px;
+  border-color: var(--line);
+}
+.card-draw-compact__random, .card-draw-compact__rail { border-radius: 12px; }
+.play-guide__details { border-radius: 14px; }
+.paper-map { border-radius: 16px; overflow: hidden; }
+
+/* ---------- dialogs ---------- */
+.rulebook-drawer, .app-dialog, .controlled-prompt, .encounter-dialog, .card-choice-dialog, .phase4-modal, .cloud-slots-dialog {
+  background: var(--paper);
+  border: var(--edge);
+  border-radius: 18px;
+  box-shadow: 0 30px 60px -28px rgba(40, 28, 20, .6);
+}
+.rulebook-drawer-backdrop, .app-dialog-backdrop, .controlled-prompt-backdrop, .encounter-dialog-backdrop, .phase4-modal-backdrop {
+  background: rgba(58, 42, 34, .55);
+}
+/* Dialogs receive programmatic focus on open (tabindex=-1, never tabbable); the container needs no ring. */
+:is(.rulebook-drawer, .app-dialog, .controlled-prompt, .encounter-dialog, .card-choice-dialog, .phase4-modal, .cloud-slots-dialog, .journal-photo-dialog)[tabindex="-1"]:focus { outline: none; }
+.rulebook-drawer header h2, .encounter-dialog header h2, .app-dialog header h2 { font-family: var(--font-story); font-weight: 700; }
+
+.journal-photo-backdrop { position: fixed; inset: 0; z-index: 1300; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(48, 34, 28, .82); }
+.journal-photo-dialog { width: min(1120px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; gap: 12px; outline-offset: 6px; }
+.journal-photo-dialog > header { display: flex; justify-content: space-between; align-items: center; gap: 16px; color: #fffaf0; }
+.journal-photo-dialog > header > div { min-width: 0; }
+.journal-photo-dialog h2, .journal-photo-dialog header p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; color: inherit; }
+.journal-photo-dialog h2 { font-size: 1.4rem; }
+.journal-photo-dialog header p { font-size: .85rem; }
+.journal-photo-dialog header button { flex-shrink: 0; width: 44px; height: 44px; padding: 0; border: 1.5px solid currentColor; border-radius: 50%; background: transparent; color: inherit; font-size: 24px; cursor: pointer; box-shadow: none; }
+.journal-photo-dialog__image { min-height: 0; overflow: auto; padding: 12px; background: #fff; border-radius: 6px; }
+
+/* ---------- wide screens ---------- */
+@media (min-width: 1500px) {
+  .station-app .station-shell { max-width: 1480px; }
+  .play-folio__work { max-width: none; }
+  .play-folio__work :is(.play-guide, p) { max-width: 78ch; }
+}
+@container (max-width: 840px) {
+  #treatment-workspace .treatment-workspace, .treatment-submit-bar { grid-template-columns: minmax(0, 1fr); }
+  .treatment-option-list, .treatment-tool-list { max-height: none; overflow: visible; }
+  .treatment-comparison__summary { grid-template-columns: auto minmax(0, 1fr); }
+  .patient-care-switch { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------- tablet & phone ---------- */
+@media (max-width: 1050px) {
+  .station-app { padding: 18px 14px 20px; }
+  .cottage-top { gap: 14px; }
+  .station-app .journal-header { flex-basis: 100%; justify-content: space-between; }
+  .station-app .journal-header__utilities > button { display: inline-flex; }
+  .station-app .station-identity { display: flex; }
+  .station-app .journal-brand__edition { display: block; }
+  .station-app .station-navigation.direct-navigation {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px 10px 0;
+    scrollbar-width: none;
+  }
+  .station-app .station-navigation::-webkit-scrollbar { height: 0; }
+  .station-app .direct-navigation__main, .station-app .direct-navigation__archives { display: flex; flex-wrap: nowrap; }
+  .station-app .direct-navigation .journal-tab { flex: 0 0 auto; width: auto; font-size: 16px; padding-inline: 14px; white-space: nowrap; text-align: center; }
+  .station-app .direct-navigation__more { flex: 0 0 auto; }
+  .station-app .direct-navigation__more > summary { white-space: nowrap; }
+  .station-app .station-canvas { padding: 28px 22px 40px; }
+  .station-app .folio-frontispiece:not(.folio-frontispiece--chapter) { display: flex; }
+}
+@media (max-width: 760px) {
+  h2 { font-size: 25px; }
+  .station-app .journal-brand { padding: 10px 16px 10px 12px; }
+  .station-app .journal-brand__title { font-size: 26px; }
+  .journal-brand__sprig { width: 32px; height: 32px; }
+  .station-app .journal-brand__edition { font-size: 12px; }
+  .station-app .station-heading h2 { font-size: 28px; }
+  .onboarding-focus__intro h2 { font-size: 29px; }
+  .station-app .folio-frontispiece:not(.folio-frontispiece--chapter) { gap: 18px; margin-bottom: 24px; }
+  .station-app .folio-frontispiece:not(.folio-frontispiece--chapter) .folio-frontispiece__art { width: 132px; height: 104px; padding: 6px 6px 18px; }
+  .station-app .folio-frontispiece__title { font-size: 23px; }
+  .station-app .folio-frontispiece__note { font-size: 15px; }
+  .station-app .folio-frontispiece__seal { display: none; }
+  .play-overview { padding: 18px; transform: none; }
+  .play-overview__heading h2 { font-size: 21px; }
+}
+@media (max-width: 560px) {
+  .station-app { padding: 12px 8px 16px; }
+  .station-app .station-rail { width: 100%; justify-content: space-between; }
+  .station-app .journal-brand__edition { display: none; }
+  .station-app .station-identity > strong { font-size: 15px; }
+  .cottage-top { gap: 12px; margin-bottom: 16px; }
+  .station-app .station-rail { flex-wrap: nowrap; gap: 10px; }
+  .station-app .journal-brand { padding: 8px 12px 8px 10px; gap: 6px; }
+  .station-app .journal-brand__title { font-size: 23px; }
+  .journal-brand__sprig { width: 26px; height: 26px; }
+  .station-app .station-identity { min-width: 0; flex: 0 1 auto; padding: 6px 12px 6px 28px; }
+  .station-app .station-identity > span { display: none; }
+  .station-app .journal-header { gap: 10px; }
+  .station-app .journal-header .journal-header__utilities { width: 100%; max-width: none; flex-direction: row; align-items: center; flex-wrap: nowrap; justify-content: flex-start; gap: 8px; }
+  .station-app .journal-header__utilities > .adventure-settings { order: 0; margin-left: 0; }
+  .station-app .journal-header .save-state { margin-left: auto; font-size: 15px; }
+  .station-app .journal-header__action, .station-app .adventure-settings > summary { padding: 6px 12px; font-size: 14px; }
+  .station-app .adventure-context { width: 100%; gap: 6px; flex-wrap: nowrap; }
+  .station-app .adventure-context > :is(button, div) { flex: 1 1 0; min-width: 0; padding: 5px 10px 6px; transform: none !important; }
+  .station-app .adventure-context strong { font-size: 15px; overflow-wrap: anywhere; }
+  .station-app .station-workspace { border-radius: 6px 12px 12px 12px; }
+  .station-app .station-workspace::before { inset: 6px; border-radius: 8px; }
+  .station-app .station-canvas { padding: 22px 16px 32px; }
+  .station-app .folio-frontispiece:not(.folio-frontispiece--chapter) .folio-frontispiece__art { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .station-app .direct-navigation .journal-tab, button { transition: none; }
+}
+
+/* =====================================================================
+   Desk: the printed character sheet on the left, the notebook on the right.
+   ===================================================================== */
+.cottage-desk { display: grid; grid-template-columns: minmax(0, 1fr); gap: 26px; align-items: start; }
+.cottage-book { min-width: 0; }
+
+.sheet { display: none; }
+@media (min-width: 1100px) {
+  .cottage-desk:not(.cottage-desk--opening) { grid-template-columns: 300px minmax(0, 1fr); }
+  .sheet {
+    position: sticky;
+    top: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-height: calc(100dvh - 36px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin-top: 40px;
+    padding: 22px 20px 26px;
+    color: var(--ink);
+    background: #fffefa;
+    border: 2px solid var(--ink);
+    border-radius: 22px 18px 24px 16px / 16px 24px 18px 22px;
+    box-shadow: 5px 6px 0 rgba(74, 52, 40, .14);
+    transform: rotate(-.6deg);
+    scrollbar-width: none;
+  }
+  /* the sheet replaces these on wide screens */
+  .station-app:not(.journal-app--onboarding) .adventure-context,
+  .station-app:not(.journal-app--onboarding) .station-identity { display: none; }
+  .journal-app--play .play-clock-grid,
+  .journal-app--play .play-journey-note,
+  .journal-app--play .play-patient-summary,
+  .journal-app--play .play-overview__place { display: none; }
+}
+
+.sheet-sticker { display: block; mix-blend-mode: multiply; pointer-events: none; user-select: none; }
+.sheet-label { display: block; color: var(--text-muted); font: 700 13px/1.3 var(--font-ui); }
+.sheet-heading { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; font: 700 19px/1.2 var(--font-story); }
+.sheet-heading b { color: var(--elderberry); }
+
+.sheet-who { position: relative; display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 4px 10px; align-items: end; }
+.sheet-sticker--otter { grid-row: 1 / span 2; width: 74px; height: auto; margin: -6px 0 -4px -6px; }
+.sheet-who__name, .sheet-where, .sheet-link, .sheet-patient, .sheet-box--carry {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+.sheet-who__name { display: flex; flex-direction: column; min-width: 0; border-bottom: 2px solid var(--ink); padding-bottom: 4px; }
+.sheet-who__name strong { font: 700 26px/1.15 var(--font-story); overflow-wrap: anywhere; }
+.sheet-who__name span { color: var(--text-muted); font-size: 13px; }
+.sheet-where { font: 700 15px/1.4 var(--font-story); color: var(--elderberry); }
+.sheet-where span { display: block; color: var(--text-muted); font: 400 13px/1.4 var(--font-ui); }
+:is(.sheet-who__name, .sheet-where, .sheet-link, .sheet-patient, .sheet-box--carry):hover { color: var(--elderberry); }
+:is(.sheet-who__name, .sheet-where, .sheet-link, .sheet-patient, .sheet-box--carry):focus-visible { outline: 3px solid var(--unresolved); outline-offset: 3px; border-radius: 8px; }
+
+.sheet-stats { display: grid; grid-template-columns: 62px minmax(0, 1fr) 62px; gap: 8px; }
+.sheet-box { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 76px; padding: 8px 6px; border: 2px solid var(--ink); border-radius: 12px 14px 10px 14px; text-align: center; }
+.sheet-box > strong { font: 700 30px/1 var(--font-story); }
+.sheet-box small { font-size: 11px; color: var(--moss); }
+.sheet-box--carry { align-items: stretch; border-style: solid; }
+.sheet-box--carry .sheet-label { text-align: center; }
+.sheet-box--carry .sheet-label b { color: var(--ink); }
+.sheet-box--carry.is-over { border-color: var(--danger); background: var(--rose-soft); }
+.sheet-box--carry.is-over small { color: var(--danger); }
+.sheet-pips { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; margin-top: 3px; }
+.sheet-pip { width: 19px; height: 19px; }
+.sheet-pip circle { fill: none; stroke: var(--ink); stroke-width: 1.6; }
+.sheet-pip path { fill: transparent; stroke: rgba(74, 52, 40, .35); stroke-width: .8; }
+.sheet-pip path.is-filled { fill: var(--moss); }
+.sheet-pip--over circle { stroke: var(--danger); stroke-dasharray: 3 2; }
+.sheet-pip--over path.is-filled { fill: var(--danger); }
+
+.sheet-patient { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; background: var(--rose-soft); border: 2px dashed #c98a80; border-radius: 14px; }
+.sheet-patient > strong { font: 700 20px/1.25 var(--font-story); }
+.sheet-patient__ailments { font-size: 13px; color: #8a4b3f; }
+.sheet-patient__clock { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 4px; font: 700 15px/1.3 var(--font-story); color: var(--danger); }
+.sheet-hours { display: inline-flex; flex-wrap: wrap; gap: 2px; }
+.sheet-hours i { width: 8px; height: 12px; border: 1.5px solid var(--danger); border-radius: 2px; background: #f7d2cb; }
+.sheet-patient.is-urgent { background: #f6c9c0; border-style: solid; }
+
+.sheet-journey dl { display: grid; gap: 4px; margin: 0 0 10px; }
+.sheet-journey dl > div { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 8px; align-items: baseline; border-bottom: 1.5px solid #d8cbb6; padding-bottom: 3px; }
+.sheet-journey dt { color: var(--text-muted); font-size: 13px; }
+.sheet-journey dd { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+.sheet-link { color: var(--elderberry); font-weight: 700; text-decoration: underline wavy 1px; text-underline-offset: 4px; }
+.sheet-empty { margin: 0 0 10px; color: var(--text-muted); font-size: 14px; }
+.sheet-calendar { display: block; padding: 8px 10px 10px; border: 2px solid var(--ink); border-radius: 6px 6px 14px 14px; }
+.sheet-calendar__title { display: block; margin: -2px 0 6px; font: 700 15px/1.2 var(--font-story); text-align: center; letter-spacing: .3em; }
+.sheet-calendar__grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.sheet-calendar__grid i { position: relative; aspect-ratio: 1; border: 1.5px dashed #b6a68c; border-radius: 4px; }
+.sheet-calendar__grid i.is-marked { border-style: solid; border-color: var(--ink); }
+.sheet-calendar__grid i.is-marked::after { content: '✕'; position: absolute; inset: 0; display: grid; place-items: center; font: 700 15px/1 var(--font-ui); color: var(--ink); }
+.sheet-calendar__grid i.is-late { border-color: var(--danger); background: var(--rose-soft); }
+.sheet-calendar__note { display: block; text-align: center; color: var(--text-muted); font-size: 13px; }
+
+.sheet-familiar { position: relative; padding: 14px 14px 12px; border: 2px solid var(--ink); border-radius: 14px; }
+.sheet-familiar .sheet-heading { margin-bottom: 2px; }
+.sheet-sticker--squirrel { position: absolute; right: -14px; top: -34px; width: 92px; height: auto; transform: rotate(4deg); }
+.sheet-familiar > strong { display: block; font: 700 18px/1.3 var(--font-story); padding-right: 66px; }
+.sheet-familiar > span { display: block; color: var(--text-muted); font-size: 13px; }
+.sheet-familiar > p { margin: 6px 0 0; font-size: 13px; line-height: 1.55; color: var(--ink); }
+
+.sheet-guild { padding: 12px 14px; border: 2px solid var(--ink); border-radius: 4px 16px 4px 16px; background: #fbf3e2; }
+.sheet-guild ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.sheet-guild li { font-size: 14px; color: var(--text-muted); }
+.sheet-guild li small { color: #a89580; }
+.sheet-guild li.is-current { color: var(--ink); font-weight: 700; }
+
+/* =====================================================================
+   Play page: one clear "what now" written on the page, then the work.
+   No stacked summary cards — status lives on the character sheet.
+   ===================================================================== */
+.play-folio__work { container-type: inline-size; }
+.station-procedures.play-folio { gap: 26px; }
+.play-folio__context { gap: 18px; }
+.play-folio__context::after {
+  content: '';
+  display: block;
+  height: 14px;
+  margin-top: 6px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='14'%3E%3Cpath d='M0 7 Q11 0 22 7 T44 7' fill='none' stroke='%23c4ab82' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") repeat-x center / 44px 14px;
+}
+
+.play-overview { padding: 0; background: none; border: 0; border-radius: 0; box-shadow: none; transform: none; }
+.play-overview::before { content: none; }
+.play-overview__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.play-overview__heading h2 { margin: 0 0 6px; font: 700 34px/1.25 var(--font-story); }
+.play-overview__reason { margin: 0 0 14px; font-size: 17px; color: var(--text-muted); max-width: 62ch; }
+
+/* the loop as a little trail: ①‒‒②‒‒③‒‒④ */
+.play-overview .play-loop { display: flex; flex-wrap: wrap; align-items: center; gap: 0; margin: 0; padding: 0; list-style: none; border: 0; background: none; }
+.play-overview .play-loop__step { position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 4px 0; margin: 0; background: none; border: 0; border-radius: 0; color: var(--text-muted); min-height: 0; }
+.play-overview .play-loop__step:not(:last-child)::after { content: ''; width: 34px; height: 0; margin: 0 10px; border-top: 2px dashed #c4ab82; }
+.play-overview .play-loop__number { display: inline-grid; place-items: center; width: 28px; height: 28px; border: 2px solid currentColor; border-radius: 50%; font: 700 14px/1 var(--font-ui); }
+.play-overview .play-loop__step strong { font: 700 17px/1.2 var(--font-story); color: inherit; }
+.play-overview .play-loop__step small { display: none; }
+.play-overview .play-loop__step.is-current { color: var(--moss-deep); background: none; }
+.play-overview .play-loop__step.is-current .play-loop__number { background: var(--moss); border-color: var(--moss-deep); color: #fff; }
+.play-overview .play-loop__current { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* next actions as a row: one stamp-like main action, the rest as quiet pills */
+.play-folio__context .action-hub { padding: 0; background: none; border: 0; box-shadow: none; }
+.play-folio__context .action-hub__header { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.play-folio__context .action-hub__grid { display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px; grid-template-columns: none; }
+.play-folio__context .action-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: auto;
+  min-height: 48px;
+  padding: 8px 16px;
+  text-align: left;
+  border-radius: 999px !important;
+}
+.play-folio__context .action-step__index { display: none; }
+.play-folio__context .action-step__body { display: flex; flex-direction: column; gap: 0; }
+.play-folio__context .action-step__body strong { font: 700 16px/1.25 var(--font-story); }
+.play-folio__context .action-step:not(.action-step--next) .action-step__body > :not(strong) { display: none; }
+.play-folio__context .action-step--next { padding: 12px 24px 12px 20px; border-radius: 18px 22px 16px 24px !important; }
+.play-folio__context .action-step--next .action-step__body strong { font-size: 20px; }
+.play-folio__context .action-step--next .action-step__body > span { font-size: 13px; }
+.play-folio__context .action-step--next .action-step__body em { display: none; }
+.play-folio__context .action-step--next::before { content: '→'; font: 700 20px/1 var(--font-ui); color: var(--butter); }
+
+/* rule notes: a row of page bookmarks */
+.play-folio__context .quick-rules { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 0; background: none; border: 0; }
+.play-folio__context .quick-rules__heading { display: contents; }
+.play-folio__context .quick-rules__heading h2 { margin: 0; font: 700 15px/1.3 var(--font-story); color: var(--text-muted); }
+.play-folio__context .quick-rules__heading > span, .play-folio__context .quick-rules__context { display: none; }
+.play-folio__context .quick-rules > .quick-rules__list { display: contents; }
+.play-folio__context .quick-rules__rule {
+  display: inline-flex;
+  width: auto;
+  min-height: 36px;
+  padding: 4px 12px;
+  background: var(--paper-light);
+  border: 1.5px solid #d6c3a3;
+  border-radius: 4px 4px 12px 12px;
+  box-shadow: none;
+}
+.play-folio__context .quick-rules__rule:hover { background: var(--butter-soft); }
+.play-folio__context .quick-rules__label { display: inline-flex; gap: 6px; align-items: baseline; }
+.play-folio__context .quick-rules__label strong { font-size: 14px; }
+.play-folio__context .quick-rules__label > span { font-size: 12px; }
+.play-folio__context .quick-rules__summary { display: none; }
+.play-folio__context .quick-rules__more { flex-basis: 100%; border: 0; padding: 0; }
+.play-folio__context .quick-rules__more > summary { display: inline-flex; min-height: 36px; padding: 4px 0; font-size: 13px; color: var(--text-muted); }
+.play-folio__context .quick-rules__more[open] > .quick-rules__list { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* =====================================================================
+   Notebook contents: coloured paper scraps instead of white bordered cards.
+   ===================================================================== */
+.station-app .station-canvas :is(.cute-card, .route-planning-workspace, .journey-start-workspace, .journey-ending-workspace,
+  .patient-workflow__acquisition, .patient-workflow__treatment, .route-composer, .patient-archive-receipt, .pending-follow-ups,
+  .downtime-stage, .play-guide, .herbarium-entry, .station-dossier) {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.station-app .station-canvas :is(.route-planning-workspace, .journey-start-workspace, .journey-ending-workspace, .route-composer) {
+  background: #f3f6fb !important;
+  border-radius: 20px 14px 22px 16px !important;
+  padding: 22px !important;
+}
+.station-app .station-canvas :is(.patient-workflow__acquisition, .patient-workflow__treatment) {
+  background: #f5f8ee !important;
+  border-radius: 14px 22px 16px 20px !important;
+}
+.station-app .station-canvas :is(.downtime-stage, #downtime-panel) {
+  background: #fbf6e6 !important;
+  border: 0 !important;
+  border-radius: 16px 20px 14px 22px !important;
+}
+.station-app .station-canvas .cute-card { border-bottom: 0 !important; }
+.station-app .station-canvas :is(.play-guide__details, .workspace-map-preview, .journey-route-receipt, .patient-workflow > details) {
+  background: transparent !important;
+  border: 0 !important;
+  border-top: 2px dashed #dccbb0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+/* section titles inside the work get a short hand-drawn underline, not a rule across the page */
+.station-app .play-folio__work :is(h2, h3) { position: relative; padding-bottom: 8px; }
+.station-app .play-folio__work :is(h2, h3)::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 88px;
+  height: 8px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='88' height='8'%3E%3Cpath d='M1 5 C 20 1, 40 7, 60 3 S 82 4, 87 2' fill='none' stroke='%23d9a441' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat;
+}
+/* labels inside panels: plain words, not grey caps */
+.station-app .station-canvas :is(dt, th) { color: var(--text-muted); font-weight: 700; letter-spacing: 0; text-transform: none; }
+
+@media (max-width: 1099px) {
+  .play-overview { padding: 18px; background: var(--butter-soft); border-radius: 18px 14px 20px 12px; }
+  .play-overview__heading h2 { font-size: 26px; }
+  .play-overview .play-loop__step:not(:last-child)::after { width: 14px; margin: 0 6px; }
+}
+@media (max-width: 560px) {
+  .play-overview .play-loop__step strong { font-size: 15px; }
+  .play-overview .play-loop__number { width: 24px; height: 24px; font-size: 12px; }
+  .play-overview .play-loop__step:not(:last-child)::after { width: 8px; margin: 0 4px; }
+  .play-folio__context .action-step { width: 100%; }
+}
+.station-app .journal-header__utilities > button { display: inline-flex; }
+
+/* =====================================================================
+   Phone: tabs become a bottom bar (thumb reach), the top shrinks to one strip.
+   ===================================================================== */
+@media (max-width: 760px) {
+  body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .station-app .station-navigation.direct-navigation {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 900;
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
+    margin: 0;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    overflow: visible;
+    background: var(--paper);
+    border-top: 2px solid var(--ink);
+    box-shadow: 0 -8px 20px -12px rgba(74, 52, 40, .45);
+  }
+  .station-app .direct-navigation__main { flex: 1; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; }
+  .station-app .direct-navigation .journal-tab {
+    width: 100%;
+    min-height: 52px;
+    padding: 4px 2px;
+    font: 700 12px/1.2 var(--font-story);
+    white-space: normal;
+    word-break: keep-all;
+    text-align: center;
+    border: 0;
+    border-top: 5px solid var(--tab);
+    border-radius: 8px;
+    background: transparent;
+    transform: none;
+  }
+  .station-app .direct-navigation .journal-tab:hover { background: var(--butter-soft); transform: none; }
+  .station-app .direct-navigation .journal-tab--active,
+  .station-app .direct-navigation .journal-tab--active:hover { background: var(--primary-light); color: var(--elderberry); box-shadow: none; border-top-color: var(--elderberry); padding-bottom: 4px; }
+  .station-app .direct-navigation__more { position: relative; flex: 0 0 44px; display: flex; margin: 0; }
+  .station-app .direct-navigation__more > summary {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    min-height: 52px;
+    padding: 0;
+    font-size: 0;
+    transform: none;
+    border-radius: 8px;
+  }
+  .station-app .direct-navigation__more > summary::before { content: '⋯'; font: 700 22px/1 var(--font-ui); color: var(--ink); }
+  .station-app .direct-navigation__more > summary::after { content: none; }
+  .station-app .direct-navigation__more[open] > .direct-navigation__archives {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 10px);
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr);
+    gap: 4px;
+    padding: 8px;
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    border-radius: 14px;
+    box-shadow: var(--shadow-md);
+  }
+  .station-app .direct-navigation__archives .journal-tab { min-height: 44px; font-size: 14px; border-top: 0; border-left: 5px solid var(--tab); text-align: left; padding: 6px 10px; }
+  .station-app .station-workspace { margin-top: 0; }
+
+  .cottage-top { gap: 10px; margin-bottom: 12px; }
+  .station-app .journal-header { gap: 8px; }
+  .station-app .adventure-context { flex-wrap: nowrap; gap: 4px; width: 100%; }
+  .station-app .adventure-context > :is(button, div) { flex: 1 1 0; min-width: 0; padding: 4px 8px; border-radius: 8px; transform: none !important; }
+  .station-app .adventure-context span { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .station-app .adventure-context strong { font-size: 14px; }
+  .journal-app--play .play-overview__place { display: none; }
+}
+
+/* archive tabs open as a small menu under "기록 더 보기" instead of pushing a second tab row */
+@media (min-width: 761px) {
+  .station-app .direct-navigation__more { position: relative; }
+  .station-app .direct-navigation__more[open] > .direct-navigation__archives {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr);
+    gap: 4px;
+    padding: 8px;
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    border-radius: 14px;
+    box-shadow: var(--shadow-md);
+  }
+  .station-app .direct-navigation__archives .journal-tab { transform: none; border: 0; border-left: 5px solid var(--tab); border-radius: 8px; justify-content: flex-start; min-height: 44px; padding: 8px 12px; }
+  .station-app .direct-navigation__archives .journal-tab:hover { transform: none; background: var(--butter-soft); }
+  .station-app .direct-navigation__archives .journal-tab--active { background: var(--primary-light); padding-bottom: 8px; }
+  .station-app .direct-navigation__more--current > summary {
+    color: var(--elderberry);
+    background: var(--paper);
+    border: var(--edge);
+    border-bottom: 0;
+    border-radius: 14px 14px 0 0;
+    transform: translateY(1.5px);
+    padding: 8px 14px 12px;
+  }
+}
+@media (min-width: 761px) {
+  .station-app .direct-navigation__more--current > summary::before { content: '● '; color: var(--elderberry); font-size: 10px; }
+}
+@media (max-width: 760px) {
+  .station-app .direct-navigation__more--current > summary { background: var(--primary-light); }
+  .station-app .direct-navigation__more--current > summary::before { color: var(--elderberry); }
+}
+
+/* stat rows become little hand-ruled boxes, like the printed sheet */
+.station-app .character-continuity { padding: 8px 0 18px; border: 0; }
+.station-app .character-continuity__heading h3 { font: 700 26px/1.25 var(--font-story); }
+.station-app .character-continuity dl { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.station-app .character-continuity dl > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 2px solid var(--ink);
+  border-radius: 14px 10px 16px 12px;
+  background: var(--paper-light);
+}
+.station-app .character-continuity dl > div:nth-child(3n+2) { border-radius: 10px 16px 12px 14px; }
+.station-app .character-continuity dt { font-size: 13px !important; }
+.station-app .character-continuity dd { font: 700 24px/1.2 var(--font-story); }
+.station-app .character-continuity dd small { font-size: 13px; font-weight: 400; }
+.station-app .character-continuity__footer { border-top: 2px dashed #dccbb0; }
+/* every other hairline table row in the notebook is pen-ruled */
+.station-app .station-canvas :is(dl > div, tr > td, tr > th, li) { border-bottom-style: dashed; border-bottom-color: #dccbb0; }
+
+/* =====================================================================
+   Line setting
+   - Hangul breaks between words, never inside one (keep-all); a token that
+     cannot fit still wraps instead of overflowing.
+   - Paragraphs avoid one-word last lines; headings balance their lines.
+   - Text of different sizes sitting side by side shares a baseline.
+   - Figures line up in columns.
+   ===================================================================== */
+body { word-break: keep-all; overflow-wrap: anywhere; line-break: strict; }
+:is(p, li, dd, figcaption, blockquote, summary, label, small) { text-wrap: pretty; }
+:is(h1, h2, h3, h4, legend) { text-wrap: balance; }
+pre, code, kbd, .rule-tag__value { word-break: normal; }
+
+/* headings with something on their right (a link, a count, a deadline) */
+.station-app .play-overview__heading,
+.station-app .station-canvas :is(h2, h3, h4),
+.station-app .station-canvas :where(header, [class$="__heading"], [class$="__header"], [class*="__heading "], [class*="__header "]):where(:not(.play-guide__summary)) {
+  align-items: baseline;
+}
+/* chapter openings: the tools on the right sit on the description's last line */
+.station-app .station-canvas .station-heading { align-items: flex-end; align-items: last baseline; }
+.station-app .station-canvas .station-heading__tools { align-items: last baseline; padding-top: 0; }
+.station-app .station-heading__copy > p:last-child { margin-bottom: 0; }
+.station-app .station-heading h2 { margin-bottom: 6px; }
+
+/* numbers */
+.sheet, .station-app .adventure-context strong, .play-clock dd, .character-continuity dd,
+.station-app .station-canvas :is(td, dd, .rule-tag__value, time) { font-variant-numeric: tabular-nums lining-nums; }
+
+/* one measure for running text inside the notebook */
+.station-app .station-canvas :is(.play-overview__reason, .station-heading__copy > p) { max-width: 60ch; }
+.station-app .almanack-entry__meta { align-items: baseline; }
+
+/* controls: label text sits on the optical centre of every pill */
+.station-app :is(.journal-header__action, .journal-header__icon-button, .adventure-settings > summary) { align-items: center; justify-content: center; line-height: 1.2; }
+.station-app :is(.journal-header__action, .journal-header__icon-button) > span { line-height: 1.2; }
+
+@media (max-width: 560px) {
+  /* the loop stays on one line: numbers over labels, four equal columns */
+  .play-overview .play-loop { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; }
+  .play-overview .play-loop__step { flex-direction: column; gap: 4px; justify-content: flex-start; }
+  .play-overview .play-loop__step:not(:last-child)::after {
+    position: absolute;
+    top: 16px;
+    left: calc(50% + 16px);
+    width: calc(100% - 32px);
+    margin: 0;
+  }
+  .play-overview .play-loop__step strong { font-size: 14px; }
+}
+@media (max-width: 760px) {
+  .station-app .direct-navigation__more > summary::before { line-height: 52px; }
+  .station-app .direct-navigation__more > summary { align-content: center; }
+}
+
+/* =====================================================================
+   Leading & reading size
+   Gowun Dodum has a large x-height; it needs open leading to breathe.
+   - root 17px lifts the many 0.7–0.85rem inline notes to ~12–14px
+   - reading text 1.75, small notes 1.65, headings 1.35–1.45
+   - paragraphs separated by space, not crammed
+   ===================================================================== */
+html { font-size: 17px; }
+body { line-height: 1.75; }
+.station-app :is(p, li, dd, blockquote, figcaption, td):not(button *, .sheet *) { line-height: 1.75 !important; }
+.station-app :is(small, dt, th, label):not(button *, .sheet *) { line-height: 1.65; }
+.station-app :is(p, blockquote) + :is(p, blockquote, ul, ol) { margin-top: .7em; }
+.station-app p { margin-bottom: .8em; }
+.station-app p:last-child { margin-bottom: 0; }
+.station-app h2 { line-height: 1.35; }
+.station-app h3 { line-height: 1.4; }
+.station-app h4 { line-height: 1.45; }
+.station-app :is(ul, ol):not([class]) > li + li { margin-top: .35em; }
+.station-app button { line-height: 1.4; }
+.station-app :is(input, select) { line-height: 1.4; }
+.station-app textarea { line-height: 1.8; }
+/* nothing in the notebook reads smaller than 13px */
+.station-app .station-canvas :is(small, span, p, li, dd, dt, label, em, div):where([style*="0.7rem"], [style*="0.72rem"], [style*="0.75rem"], [style*="0.76rem"]) { font-size: 13px !important; }
+.sheet { line-height: 1.55; }
+.sheet-journey dd, .sheet-familiar > p { line-height: 1.65; }
+/* breathing room between blocks of the work area */
+.play-folio__work { gap: 30px; }
+/* dialogs read like the notebook */
+:is(.rulebook-drawer, .app-dialog, .controlled-prompt, .encounter-dialog, .phase4-modal) :is(p, li, dd) { line-height: 1.75; }
+/* no shouted labels anywhere, including dialog kickers */
+.station-app :is(.app-dialog__kicker, [class*="kicker"], [class*="eyebrow"]) { text-transform: none; letter-spacing: 0; }
+.station-app .app-dialog__kicker { color: var(--elderberry); font: 700 14px/1.4 var(--font-story); }
+.station-app :is(.almanack-entry__kind, .route-composer__endpoint span, .paper-map__layers h4, .map-node-appearance__heading,
+  .rulebook-context-shelf > div > span, .rulebook-reference-detail__layers > section > span, .rulebook-drawer__context > span) {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* =====================================================================
+   Clinic: a kraft case card for the patient, a ℞ slip for what they need,
+   folder tabs for "find ingredients" / "check bag & brew", and the
+   ingredient hunt split into a list (left) and an action column (right).
+   ===================================================================== */
+#patient-clinic-panel .grid-patient-stats.patient-case {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 22px;
+  align-items: stretch;
+  margin: 18px 0 6px;
+  padding: 0;
+  border: 0;
+}
+.patient-case__card {
+  position: relative;
+  padding: 22px 22px 16px;
+  background: #f4e8cc;
+  border: 2px solid var(--kraft-deep);
+  border-radius: 6px 16px 10px 14px;
+  box-shadow: 3px 4px 0 rgba(74, 52, 40, .1);
+  transform: rotate(-.4deg);
+}
+.patient-case__card::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 28px;
+  width: 70px;
+  height: 20px;
+  background: repeating-linear-gradient(90deg, #cfe0b4 0 7px, #dfeaca 7px 14px);
+  transform: rotate(-3deg);
+  opacity: .92;
+}
+.patient-case__ailment { font: 700 23px/1.4 var(--font-story); color: var(--ink); }
+.patient-case__card > div[style] { color: #6c5946 !important; }
+.patient-case__card .patient-identity-row + div, .patient-case__card div[style*="dashed"] { background: rgba(255, 253, 246, .75) !important; border-color: #cdb489 !important; border-radius: 10px !important; }
+.patient-case__card .patient-story { margin-top: 10px; border-top: 1.5px dashed #cdb489; }
+
+.patient-case__rx {
+  position: relative;
+  padding: 18px 20px 16px 66px;
+  background: #fffefa;
+  border: 2px solid var(--ink);
+  border-top-width: 6px;
+  border-top-style: double;
+  border-radius: 4px 4px 14px 14px;
+}
+.patient-case__rx-mark { position: absolute; left: 16px; top: 10px; font: 700 42px/1 var(--font-story); color: var(--danger); }
+.patient-case__rx-label { margin-bottom: 8px; font: 700 15px/1.4 var(--font-story); color: var(--text-muted); }
+.patient-case__rx-tags { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 8px; font-size: 16px; }
+.patient-case__rx-tags .rule-tag { font-size: 16px; padding: 3px 12px; }
+.patient-case__rx-meta { display: flex; align-items: baseline; gap: 8px; margin-top: 14px; padding-top: 10px; border-top: 1.5px dashed #dccbb0; font-size: 14px; color: var(--text-muted); }
+.patient-case__rx-meta strong { font: 700 22px/1 var(--font-story); color: var(--elderberry); }
+
+/* folder tabs */
+.station-app .patient-care-switch {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  margin: 26px 0 0;
+  padding: 0 0 0 14px;
+  border: 0;
+  grid-template-columns: none;
+}
+.station-app .patient-care-switch button {
+  flex: 0 1 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 0;
+  padding: 10px 18px 12px;
+  color: var(--text-muted);
+  background: #ece5d6;
+  border: 0;
+  border-radius: 16px 16px 0 0;
+  box-shadow: none;
+  transform: translateY(5px);
+  text-align: left;
+}
+.station-app .patient-care-switch button:hover { background: var(--butter-soft); transform: translateY(2px); }
+.station-app .patient-care-switch button strong { font: 700 17px/1.35 var(--font-story); color: inherit; }
+.station-app .patient-care-switch button span { font-size: 13px; line-height: 1.5; color: inherit; display: block; }
+.station-app .patient-care-switch button[aria-pressed=true] { transform: none; color: var(--ink); padding-bottom: 16px; }
+.station-app .patient-care-switch button[aria-controls="patient-acquisition-panel"][aria-pressed=true] { background: #eef4e3; }
+.station-app .patient-care-switch button[aria-controls="treatment-workspace"][aria-pressed=true] { background: #fbf2d6; }
+.station-app .station-canvas #patient-acquisition-panel { background: #eef4e3 !important; border-radius: 4px 20px 20px 20px !important; padding: 20px 22px 24px !important; margin-top: 0; }
+.station-app .station-canvas #treatment-workspace { background: #fbf2d6 !important; border-radius: 4px 20px 20px 20px !important; padding: 20px 22px 24px !important; }
+.station-app .patient-workflow__acquisition-summary { list-style: none; text-align: left; padding: 0 0 12px; border-bottom: 1.5px dashed #c9d6b2; }
+.station-app .patient-workflow__acquisition-summary::after { color: var(--elderberry); font-size: 14px; }
+.station-app .patient-workflow__acquisition-summary::-webkit-details-marker { display: none; }
+.station-app .patient-workflow__acquisition-summary > span { font: 700 19px/1.4 var(--font-story); }
+.station-app .patient-workflow__acquisition-summary > small { color: var(--text-muted); }
+
+/* ingredient hunt: list | actions */
+.station-app .forage-context { margin: 16px 0 0; padding: 0; background: none !important; border: 0 !important; }
+.station-app .forage-action-row { display: flex; flex-direction: column; align-items: stretch; gap: 12px; margin: 0; width: 100%; }
+.station-app .forage-action-row > * { width: 100%; flex: 0 0 auto; min-width: 0; }
+.station-app .forage-action-row button { justify-content: center; }
+@container (min-width: 640px) {
+  .station-app .forage-context {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(250px, 320px);
+    grid-template-areas:
+      "controls controls"
+      "summary summary"
+      "plan plan"
+      "draw actions"
+      "note actions";
+    grid-template-rows: auto auto auto auto 1fr;
+    column-gap: 24px;
+    row-gap: 16px;
+    align-items: start;
+  }
+  .station-app .forage-location-controls { grid-area: controls; }
+  .station-app .forage-context__summary { grid-area: summary; }
+  .station-app .forage-context > :is(.forage-plan, .forage-context__note:not(.forage-context__carry-note)) { grid-area: plan; }
+  .station-app .forage-draw-step { grid-area: draw; }
+  .station-app .forage-action-row { grid-area: actions; }
+  .station-app .forage-context__carry-note { grid-area: note; }
+}
+/* the "go" area right under the list: card on the left, buttons on the right */
+.station-app :is(.forage-draw-step, .forage-action-row) { padding: 16px; background: #fffefa; border-radius: 16px; }
+.station-app .forage-context__summary { padding: 12px 16px; background: rgba(255, 254, 250, .7); border-radius: 14px; }
+.station-app .forage-context__summary strong { font: 700 16px/1.4 var(--font-story); }
+@media (max-width: 700px) {
+  #patient-clinic-panel .grid-patient-stats.patient-case { grid-template-columns: minmax(0, 1fr); }
+  .station-app .patient-care-switch { padding-left: 6px; gap: 4px; }
+  .station-app .patient-care-switch button { flex: 1 1 0; padding: 10px 12px 12px; }
+  .station-app .patient-care-switch button span { display: none; }
+  .station-app .station-canvas :is(#patient-acquisition-panel, #treatment-workspace) { padding: 16px 14px 20px !important; }
+}
+.station-app .station-canvas :is(#patient-acquisition-panel, #treatment-workspace) { border: 0 !important; outline: 0; }
+
+/* =====================================================================
+   Map: the map is the page. Editing tools live in a closed drawer below.
+   ===================================================================== */
+.station-app .map-atelier { display: flex; flex-direction: column; gap: 22px; grid-template-columns: none; }
+.station-app .map-atelier > .paper-map { width: 100%; }
+.station-app .map-atelier__desk { padding: 0; background: none; border: 0; }
+.station-app .map-atelier__drawer { border-top: 2px dashed #dccbb0; padding-top: 6px; }
+.station-app .map-atelier__drawer > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; list-style: none; padding: 10px 0; }
+.station-app .map-atelier__drawer > summary::-webkit-details-marker { display: none; }
+.station-app .map-atelier__drawer > summary::before { content: '▸'; color: var(--elderberry); }
+.station-app .map-atelier__drawer[open] > summary::before { content: '▾'; }
+.station-app .map-atelier__drawer > summary h3 { margin: 0; padding: 0; font-size: 19px; }
+.station-app .map-atelier__drawer > summary h3::after { content: none; }
+.station-app .map-atelier__drawer > summary span { color: var(--text-muted); font-size: 14px; }
+.station-app .map-atelier__drawer[open] { padding: 6px 20px 20px; background: #f6f1e6; border-top: 0; border-radius: 18px; }

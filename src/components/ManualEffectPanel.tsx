@@ -386,7 +386,7 @@ export default function ManualEffectPanel({
     <header className="manual-effect__header">
       <span className="status-label status-label--manual">직접 고를 장면</span>
       <h2 id="manual-effect-title">{localizedSummary}</h2>
-      <p>{draft.ruleIds.join(' · ')} · 원문 p.{draft.sourcePage} · {localizeManualEffectTrigger(draft.trigger)}</p>
+      <p title={draft.ruleIds.join(' · ')}>원문 p.{draft.sourcePage} · {localizeManualEffectTrigger(draft.trigger)}</p>
       <button type="button" className="manual-effect__defer-top" onClick={() => onDefer()}>닫고 나중에</button>
     </header>
 

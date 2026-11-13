@@ -142,7 +142,7 @@ const journeyGoalText: Record<string, string> = {
 
 const legacyPolishedGoal = (value: string): string => value
   .replace(/Familiar/g, '길동무')
-  .replace(/Bartering/g, '물꼬 거래')
+  .replace(/Bartering/g, '물물교환')
   .replace(/Rarity/g, '희귀도')
   .replace(/Trinkets?/g, '장신구')
   .replace(/Reagents?/g, '영약재')

@@ -1015,7 +1015,7 @@ export const localizeManualEffectTrigger = (trigger: string): string => ({
   encounter: '조우',
   diagnosis: '진단',
   'timer-change': '타이머 변화',
-  barter: '물꼬 거래',
+  barter: '물물교환',
   'treatment-success': '치료 성공',
   'treatment-failure': '치료 실패',
   leave: '환자 떠남',

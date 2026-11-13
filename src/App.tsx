@@ -8,6 +8,7 @@ import { GAME_DATA } from "./gameData";
 import { ailmentDisplayRecord } from './ailmentPresentation';
 import { guildThreatTargets, removeGuildThreat } from './serviceThreats';
 import { localizeCanonicalToolName } from './localization/gameplayKo';
+import CharacterSheet from './components/CharacterSheet';
 import {
   CAMPAIGN_SAVE_KEY,
   campaignSaveHasNamedApothecary,
@@ -4160,7 +4161,7 @@ const applyBarterRuntime = (s: GameState, runtime: BarterRuntimeState): GameStat
   customReagentCatalogue: rememberCustomReagents(s.customReagentCatalogue, runtime.inventory),
   patients: replacePatient(s.patients, runtime.patient),
   reputation: runtime.reputation,
-  trinkets: resizeTrinkets(s.trinkets, runtime.trinkets, '물꼬 거래 장신구'),
+  trinkets: resizeTrinkets(s.trinkets, runtime.trinkets, '물물교환 장신구'),
   barterAttemptHistory: runtime.attemptHistory,
   barterCountThisAilment: Object.entries(runtime.attemptHistory)
     .filter(([key]) => key.startsWith(`${runtime.patient.id}:`))
@@ -4911,7 +4912,7 @@ const getLocalizedStory = (story: string): string => {
 };
 
 const getLocalizedSpentStory = (spentLine: string): string => {
-  if (!spentLine) return '물꼬 거래나 조력에 사용됨';
+  if (!spentLine) return '물물교환나 조력에 사용됨';
   const clean = spentLine.replace(/^Spent from the pouch at /, '').replace(/\.$/, '').trim();
   const loc = getLocalizedLocationName(clean);
   return `약제사 배낭에서 꺼내어 [${loc}]에서 거래나 조력을 위해 사용함.`;
@@ -8195,7 +8196,7 @@ export default function App() {
         }
         const resolvedPatient = resolvedGameState.patients.find(row => row.id === patient.id) || patient;
         if (!patientHasActiveAilments(resolvedPatient)) {
-          showAlert('사교 조우 중 환자 타이머가 만료되어 실패 결과를 정산하고 물꼬 거래를 마감했습니다. 남은 장면을 확인한 뒤 다음 행동으로 이어가세요.');
+          showAlert('사교 조우 중 환자 타이머가 만료되어 실패 결과를 정산하고 물물교환을 마감했습니다. 남은 장면을 확인한 뒤 다음 행동으로 이어가세요.');
           return;
         }
         // The next Barter transaction must inherit the settled Patient,
@@ -12597,24 +12598,26 @@ export default function App() {
       }}>본문으로 건너뛰기</a>
       {campaignWriteBlocked && <p role="alert" className="cloud-slots__warning">{STALE_CAMPAIGN_TAB_MESSAGE}</p>}
       <div className="station-shell">
+        <div className="cottage-top">
         <aside className="station-rail" aria-label="약제사의 작업소">
         <button type="button" className="journal-brand" onClick={() => changeActiveTab('play')} disabled={isOnboarding} aria-label={isOnboarding ? 'Apawthecaria 새 기록 설정' : '오늘의 여행 첫 페이지로 돌아가기'}>
+          <svg className="journal-brand__sprig" viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M24 44c0-11 1-21 6-31" />
+            <path d="M25.5 30c-6-1-10-5-11-11 6 0 10.5 4.5 11 11Z" />
+            <path d="M27.5 21c4.5-1.5 7.5-5.5 7.5-10.5-4.5 1.5-7.5 5-7.5 10.5Z" />
+            <path d="M25 37c4-.5 7.5-3 9-7-4 .2-7.5 3-9 7Z" />
+            <circle cx="30.5" cy="9" r="2.4" />
+          </svg>
           <span className="journal-brand__copy">
-          <span className="journal-brand__eyebrow">브리스틀리 숲의 여행 수첩</span>
           <h1 className="journal-brand__title">Apawthecaria</h1>
-          <span className="journal-brand__edition">여행과 돌봄을 위한 작업소</span>
+          <span className="journal-brand__edition">브리스틀리 숲 약초 오두막의 여행 수첩</span>
           </span>
         </button>
-          {!isOnboarding && <JournalNavigation key={campaignUiEpoch} activeTab={activeTab} onChange={tab => changeActiveTab(tab, { restoreScroll: true })} />}
           <div className="station-identity">
-            <span className="station-eyebrow">{isOnboarding ? '첫 여행을 앞두고' : '함께 걷는 이'}</span>
-            <strong>{state.bio.name || '당신의 이름을 기다립니다'}</strong>
-            <span>{isOnboarding ? '약제사 · 길동무 · 첫 여정' : `${state.bio.familiarName || '길동무'}와 함께`}</span>
-            <div className="station-rail-mark" aria-hidden="true">✳</div>
-            <p>작은 처방이<br />긴 여행의 이야기가 됩니다.</p>
+            <strong>{state.bio.name || '아직 이름 없는 약제사'}</strong>
+            <span>{isOnboarding ? '첫 여행 채비 중' : `${state.bio.familiarName || '길동무'}와 함께 걷는 중`}</span>
           </div>
         </aside>
-        <div className="station-workspace">
 
       <header className="journal-header">
 
@@ -12706,6 +12709,21 @@ export default function App() {
           </span>
         </div>
       </header>
+        </div>
+        <div className={`cottage-desk${isOnboarding ? ' cottage-desk--opening' : ''}`}>
+        {!isOnboarding && <CharacterSheet
+          state={state}
+          currentWeight={currentWeight}
+          maxCarry={maxCarry}
+          onNavigate={tab => changeActiveTab(tab, { restoreScroll: true })}
+          onOpenPatient={() => {
+            changeActiveTab('play');
+            window.requestAnimationFrame(() => focusCurrentWorkspace('treatment-workspace'));
+          }}
+        />}
+        <div className="cottage-book">
+        {!isOnboarding && <JournalNavigation key={campaignUiEpoch} activeTab={activeTab} onChange={tab => changeActiveTab(tab, { restoreScroll: true })} />}
+        <div className="station-workspace">
 
       {cloudCapacityIssue && <CloudSaveCapacityNotice issue={cloudCapacityIssue} localSaved={!localSaveUnavailable} onBackup={handleExportBackup} onManageCloud={() => void openCloudSlots()} />}
 
@@ -12719,9 +12737,8 @@ export default function App() {
           {isOnboarding ? (
             <section className="onboarding-focus" aria-labelledby="onboarding-title">
               <header className="onboarding-focus__intro">
-                <span className="station-eyebrow">새 캠페인 / FIRST ENTRY</span>
                 <h2 id="onboarding-title">새 약제사의 첫 기록</h2>
-                <p>카드 여섯 장으로 약제사와 길동무를 정하세요. 직접 선택할 수도 있고, 작성하던 내용은 이 기기에 보관됩니다.</p>
+                <p>카드 여섯 장으로 나와 길동무를 정해요. 마음에 드는 걸 직접 골라도 괜찮고, 쓰던 내용은 이 기기에 남아 있어요.</p>
               </header>
               <CharacterCreationWizard
                 key={`onboarding-character-${campaignUiEpoch}`}
@@ -12957,11 +12974,12 @@ export default function App() {
         </main>
       </div>
 
-      <footer className="field-footer">
-        <p>오늘 건넨 작은 다정함이, 내일의 숲을 바꿉니다.</p>
-        <span>APAWTHECARIA · 들녘 여행 일지</span>
-      </footer>
         </div>
+        </div>
+        </div>
+      <footer className="field-footer">
+        <p>오늘 건넨 작은 다정함이 내일의 숲을 바꿉니다.</p>
+      </footer>
       </div>
 
       {rulebookRequest && (
@@ -19649,7 +19667,7 @@ function PlayView({
     const activeRegion = isAdjacent ? effectiveForageAdjacentRegion : state.currentRegion;
     const canForageCurrentLocation = ['Wilds', 'Ruin', 'Barrow'].includes(state.currentLocationType);
     if (!isAdjacent && !canForageCurrentLocation) {
-      showAlert("룰북 p.32 기준으로 현재 위치 채집은 야생 구역, 티탄 유적, 거수 고분에서만 가능합니다. 정착지나 도시에 있다면 인접 위치 채집이나 물꼬 거래를 사용하세요.");
+      showAlert("룰북 p.32 기준으로 현재 위치 채집은 야생 구역, 티탄 유적, 거수 고분에서만 가능합니다. 정착지나 도시에 있다면 인접 위치 채집이나 물물교환을 사용하세요.");
       return;
     }
     if (isAdjacent && !scroungeAdjacentRegions.includes(toRuleRegion(activeRegion))) {
@@ -20637,14 +20655,14 @@ function PlayView({
       return;
     }
     if (reagent?.type === 'TITAN') {
-      showAlert('티탄 영약재는 물꼬 거래로 구할 수 없습니다.');
+      showAlert('티탄 영약재는 물물교환으로 구할 수 없습니다.');
       return;
     }
 
     const availableBarterLocations = getAvailableBarterLocations(state);
     const selectedBarterLocation = barterLocation || availableBarterLocations[0];
     if (!selectedBarterLocation) {
-      showAlert("룰북 p.34 기준으로 물꼬 거래는 현재 위치 또는 인접한 정착지/도시에서만 가능합니다.");
+      showAlert("룰북 p.34 기준으로 물물교환은 현재 위치 또는 인접한 정착지/도시에서만 가능합니다.");
       return;
     }
 
@@ -20702,7 +20720,7 @@ function PlayView({
         journals: [{
           id: `${transactionId}:lodge-trade`,
           title: '비버집의 특별 거래',
-          text: '비버의 초대로 거리의 사교 조우(물꼬 거래 2단계)를 건너뛰고, 곧바로 거래 카드를 뽑습니다.',
+          text: '비버의 초대로 거리의 사교 조우(물물교환 2단계)를 건너뛰고, 곧바로 거래 카드를 뽑습니다.',
           timestamp: Date.now()
         }, ...s.journals]
       }));
@@ -22248,7 +22266,7 @@ function PlayView({
       id: 'barter-immediate-remedy',
       label: '즉시 치료제 만들기',
       detail: '거래로 필요한 재료가 모두 모였습니다. p.35에 따라 Timer를 줄이거나 다음 행동을 하기 전에 치료제를 만듭니다.',
-      meta: '물꼬 거래 완료 · Timer 감소 보류',
+      meta: '물물교환 완료 · Timer 감소 보류',
       targetId: 'treatment-workspace',
       tone: 'warning',
       activate: () => focusCurrentWorkspace('treatment-workspace')
@@ -23403,7 +23421,7 @@ function PlayView({
                       if (benefit.includes("덤불") || benefit.includes("Brushwise") || benefit.includes("덤불 마스터")) {
                         return `식물 채집 희귀도 -${trust >= 80 ? 4 : trust >= 40 ? 3 : 2} 적용`;
                       } else if (benefit.includes("말동무") || benefit.includes("Chatty")) {
-                        return `물꼬 거래 희귀도 -${trust >= 80 ? 4 : trust >= 40 ? 3 : 2} 적용`;
+                        return `물물교환 희귀도 -${trust >= 80 ? 4 : trust >= 40 ? 3 : 2} 적용`;
                       } else if (benefit.includes("유적") || benefit.includes("Titanwise") || benefit.includes("유적/고분 마스터")) {
                         return `고분/유물 채집 희귀도 -${trust >= 80 ? 4 : trust >= 40 ? 3 : 2} 적용`;
                       }
@@ -24911,7 +24929,7 @@ function PlayView({
           {(!currentBarrow && !state.activeDelve || state.activeAilment || state.scroungingMode) && (
           <div id="patient-clinic-panel" className="cute-card" tabIndex={-1}>
 
-            <h3 style={{ color: 'var(--secondary)', margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ color: 'var(--secondary)', margin: 0, display: 'flex', flexWrap: 'wrap', gap: '4px 16px', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <span>{state.scroungingMode ? "여분 채집" : "환자 약제소"}</span>
               {state.scroungingMode ? (
                 <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>여분 채집 기한: <strong>{getPatientTimerProjection(state).scroungingHours ?? state.scroungingTimer}시간 남음</strong></span>
@@ -25254,9 +25272,9 @@ function PlayView({
                     </div>
                   );
                 })()}
-                <div className="grid-patient-stats" style={{ borderBottom: '1px dashed var(--glass-border)', paddingBottom: '1rem' }}>
-                  <div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-bright)' }}>{state.activeAilment.name}</div>
+                <div className="grid-patient-stats patient-case">
+                  <div className="patient-case__card">
+                    <div className="patient-case__ailment">{state.activeAilment.name}</div>
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-dim)', marginTop: '2px' }}>
                       중증도: {canonicalSeverityLabel(state.activeAilment.severity)} · {getNaturalSeverityDescription(state.activeAilment.severity)}
                     </div>
@@ -25287,15 +25305,14 @@ function PlayView({
                     )}
                     <details className="patient-story"><summary>질환 설명 읽기</summary><p>{localizeAilmentPresentationText(state.activeAilment.description)}</p></details>
                   </div>
-                  <div>
-                    <div style={{ fontSize: '0.9rem' }}>
-                      <FieldIcon kind="ailments" /> <strong>필요 약효 성분:</strong>
-                      <div style={{ marginTop: '0.4rem' }}>
-                        {parseAndRenderTags(state.activeAilment.tags)}
-                      </div>
+                  <div className="patient-case__rx" aria-label="처방전">
+                    <div className="patient-case__rx-mark" aria-hidden="true">℞</div>
+                    <div className="patient-case__rx-label">필요 약효 성분</div>
+                    <div className="patient-case__rx-tags">
+                      {parseAndRenderTags(state.activeAilment.tags)}
                     </div>
-                    <div style={{ marginTop: '0.8rem', fontSize: '0.85rem' }}>
-                      <FieldIcon kind="reagents" /> <strong>누적 채집 포인트:</strong> <strong style={{ color: 'var(--primary)' }}>{state.activeAilment.foragingPoints}</strong>
+                    <div className="patient-case__rx-meta">
+                      <span>누적 채집 포인트</span> <strong>{state.activeAilment.foragingPoints}</strong>
                     </div>
                   </div>
                 </div>
@@ -25523,11 +25540,10 @@ function PlayView({
                       disabled={!forageContext.actionAllowed || acquisitionCheckpointBlocked || acquisitionInProgress}
                     />
                   </div>
-                  {currentWeight > maxCarry && <p className="forage-context__note">소지 한도를 넘겨도 채집 자체는 할 수 있습니다. 조우 뒤 가방을 정리하세요.</p>}
-                </section>
+                  {currentWeight > maxCarry && <p className="forage-context__note forage-context__carry-note">소지 한도를 넘겨도 채집 자체는 할 수 있습니다. 조우 뒤 가방을 정리하세요.</p>}
 
                 {/* Foraging and Bartering buttons */}
-                <div className="forage-action-row" style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', width: '100%' }}>
+                <div className="forage-action-row">
                   {(() => {
                     const currentForageAllowed = ['Wilds', 'Ruin', 'Barrow'].includes(state.currentLocationType);
                     const locationUnavailable = (forageLocationType === 'current' && !currentForageAllowed)
@@ -25590,7 +25606,7 @@ function PlayView({
                     const barterButtonLabel = pendingBarter?.status === 'manual-social'
                       ? '사교 조우 판정 계속'
                       : pendingBarter?.status === 'awaiting-second-card'
-                        ? '물꼬 거래 카드 뽑기'
+                        ? '물물교환 카드 뽑기'
                         : pendingBarter?.status === 'awaiting-payment'
                           ? `거래 대가 ${pendingBarter.paymentRequired} 지불`
                           : barterOptions.length > 0
@@ -25628,7 +25644,7 @@ function PlayView({
                               title: '거래 대가를 정하세요',
                               message: `부족한 값 ${pendingBarter.paymentRequired}을 장신구와 길드 명성으로 정확히 채웁니다. 거래를 포기하면 진행 중인 모든 질환의 치료 기한이 1시간 줄어듭니다.`,
                               defaultValue: paymentOptions.length > 0 ? '0' : 'abandon',
-                              kicker: '물꼬 거래 마감',
+                              kicker: '물물교환 마감',
                               options: [
                                 ...paymentOptions.map((payment, index) => ({
                                   value: String(index),
@@ -25655,7 +25671,7 @@ function PlayView({
                                 title: '거래할 장소를 선택하세요',
                                 message: '현재 또는 인접 장소마다 이 환자의 거래 횟수를 따로 기록합니다. 정착지는 1회, 도시는 3회이며 남은 횟수가 있는 장소를 선택하세요.',
                                 defaultValue: String(barterOptions.indexOf(selectedLocation) + 1),
-                                kicker: '물꼬 거래',
+                                kicker: '물물교환',
                                 options: barterOptions.map((option, idx) => ({
                                   value: String(idx + 1),
                                   label: `${idx + 1}. ${localizeLocationName(option.name)} · ${option.type === 'City' ? '도시' : '정착지'} · ${option.relation === 'current' ? '현재 위치' : '인접 위치'} · ${option.remaining}/${option.limit}회 남음`,
@@ -25683,7 +25699,7 @@ function PlayView({
                               title: '거래할 영약재 부위를 고르세요',
                               message: `${patientDisplayName(treatmentPatient?.name)}의 현재 처방: ${treatmentRequirementRows.map(row => row.label).join(' · ') || '원문에서 직접 확인할 조건'}\n현재 처방의 약효 수치를 그 부위 하나로 충족하는 경우에만 작은 표시를 덧붙였습니다. 어느 재료를 고를지는 약제사의 몫이며, 다른 비티탄 부위도 모두 고를 수 있습니다.`,
                               defaultValue: '',
-                              kicker: `${selectedLocation.name} · 물꼬 거래`,
+                              kicker: `${selectedLocation.name} · 물물교환`,
                               label: '영약재·부위 검색',
                               confirmLabel: '이 부위로 거래 시작',
                               searchable: {
@@ -25800,6 +25816,7 @@ function PlayView({
                     <FieldIcon kind="clock" /> 1시간 흘려보내기
                   </button>}
                 </div>
+                </section>
 
                 {/* Independent Familiar UI */}
                 {(() => {
@@ -27136,7 +27153,13 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
   const [familiarName, setFamiliarName] = useState(state.bio.familiarName);
   const [familiarBenefitEdit, setFamiliarBenefitEdit] = useState(state.bio.familiarBenefit);
   const [resourcefulReagentEdit, setResourcefulReagentEdit] = useState(state.resourcefulReagent || "");
-  const [ingenuitiveToolEdit, setIngenuitiveToolEdit] = useState(state.ingenuitiveTool || "");
+  const [ingenuitiveToolEdit, setIngenuitiveToolEdit] = useState(() => {
+    // Older profile edits stored placeholder ids (tool_crossbow…) that the Tool engine never recognised.
+    const legacyIngenuitiveIds: Record<string, string> = { tool_crossbow: 'crossbow', tool_saddlebags: 'saddlebags', tool_stilts: 'stilts' };
+    const stored = state.ingenuitiveTool || '';
+    const normalized = legacyIngenuitiveIds[stored] || stored;
+    return ALMANACK_TOOLS.some(tool => tool.id === normalized) ? normalized : '';
+  });
   const [canFly, setCanFly] = useState(!!state.bio.canFly);
   const [canFlyOverride, setCanFlyOverride] = useState(!!state.canFlyOverride);
 
@@ -27597,8 +27620,8 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
     if (!trinketName) return;
     const confirmation = await requestControlledPrompt({
       title: `${localizeInventoryItemName(trinketName)}을(를) 사용할까요?`,
-      message: '물꼬 거래나 조력을 위해 주머니에서 꺼냅니다. 사용한 장신구는 추억 기록에 남습니다.',
-      kicker: '물꼬 장신구',
+      message: '물물교환나 조력을 위해 주머니에서 꺼냅니다. 사용한 장신구는 추억 기록에 남습니다.',
+      kicker: '물물교환 장신구',
       defaultValue: String(index),
       hideField: true,
       cancelLabel: '주머니에 두기',
@@ -27836,7 +27859,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                 return (
                   <>
                     <div style={{ display: 'flex', flexDirection: 'column', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.6rem', marginBottom: '0.8rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', justifyContent: 'space-between', alignItems: 'baseline' }}>
                         <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}><FieldIcon kind="bio" /> 배낭 수집물</h3>
                         <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                           총 무게: <span style={{ color: currentWeight > getMaxCarry(state) ? 'var(--accent-red)' : 'var(--primary)', fontWeight: 'bold' }}>{formatWeight(currentWeight)}</span> / {getMaxCarry(state)}
@@ -27945,7 +27968,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                               const sourceText = item.provenance?.source === 'forage'
                                 ? `${localizeRegionLabel(item.provenance.region || '')}에서 채집`
                                 : item.provenance?.source === 'barter'
-                                  ? '물꼬 거래로 획득'
+                                  ? '물물교환으로 획득'
                                   : '';
                               return (
                                 <tr key={item.id} style={{ borderBottom: '1px solid #eee', background: inBando ? '#f3faf5' : 'transparent' }}>
@@ -28307,7 +28330,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
               {/* Trinkets (장신구) */}
               <div className="station-ledger">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}><FieldIcon kind="coin" /> 물꼬 장신구</h3>
+                  <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}><FieldIcon kind="coin" /> 물물교환 장신구</h3>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>보유: {state.trinkets.length}개</span>
                 </div>
                 <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
@@ -28483,12 +28506,9 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                   style={{ padding: '0.4rem', borderRadius: '6px', fontSize: '0.85rem', border: '1px solid var(--border-cozy)' }}
                 >
                   <option value="">-- 도구 선택 --</option>
-                  <option value="tool_crossbow">석궁 (Crossbow)</option>
-                  <option value="tool_saddlebags">안장가방 (Saddlebags)</option>
-                  <option value="tool_stilts">죽마 (Stilts)</option>
-                  <option value="tool_mortar">나무 절구와 공이 (Mortar & Pestle)</option>
-                  <option value="tool_kettle">낡은 캠프 주전자 (Kettle)</option>
-                  <option value="tool_knife">벨트 칼 (Knife)</option>
+                  {ALMANACK_TOOLS.map(tool => (
+                    <option key={tool.id} value={tool.id}>{localizeCanonicalToolName(tool.canonicalName)} ({tool.canonicalName})</option>
+                  ))}
                 </select>
               </div>
             )}
@@ -29479,7 +29499,8 @@ function AtlasMapPanel({
           : '이 탭은 지도를 고치는 자리입니다. ⌘+클릭으로 표시를 남기고, 이동 잠금 뒤에 끌어 자리를 고칩니다.'}
       />
       <aside className="map-atelier__desk" aria-label="표시 자세히 고치기">
-        <h3>지도 고치기</h3>
+        <details className="map-atelier__drawer" open={connectionEditMode || undefined}>
+        <summary><h3>지도 고치기</h3><span>표시와 길 연결을 직접 고치는 서랍이에요. 여행에는 필요 없어요.</span></summary>
         <p>오늘의 여행은 이동 순서를 짜고, 여기서는 표시와 직접 확인한 연결 데이터를 기록합니다.</p>
 
         <section className={`map-atelier__connection-mode${connectionEditMode ? ' is-on' : ''}`} aria-label="지도 연결 편집 모드">
@@ -29786,6 +29807,7 @@ function AtlasMapPanel({
             </ul>
           </div>
         )}
+        </details>
       </aside>
     </div>
   );
@@ -31119,7 +31141,7 @@ function JournalsView({
           {/* Write custom journal */}
           <div className="journal-personal-spread">
           <form className="journal-editor" onSubmit={handleAddJournal} aria-busy={preparingPhotos}>
-            <div className="journal-editor__heading"><span className="document-kicker">A letter to remember</span><h3>오늘의 기억을 남겨요</h3></div>
+            <div className="journal-editor__heading"><span className="document-kicker">오늘 쓰는 한 장</span><h3>오늘의 기억을 남겨요</h3></div>
             <label className="journal-editor__field"><span>제목</span>
             <input
               type="text"

@@ -2,15 +2,15 @@ export const FAMILIAR_BENEFITS = [
   { card: 'A', name: '덤불 마스터 (Brushwise)', desc: '모든 식물(PLANT) 약재 채집 희귀도 -2', mechanic: 'brushwise' },
   { card: '2', name: '따뜻한 약제사 (Helpful)', desc: '모든 질병 치료 시작 타이머 +2시간', mechanic: 'helpful' },
   { card: '3', name: '용감한 동반자 (Brave)', desc: '거수(Behemoth) 태그 조우 시 ♥/♦ 드로우 → 지역 약재(희귀도≤6) 획득', mechanic: 'brave' },
-  { card: '4', name: '말동무 (Chatty)', desc: '물꼬 거래(Bartering) 시 목표 희귀도 -2', mechanic: 'chatty' },
+  { card: '4', name: '말동무 (Chatty)', desc: '물물교환(Bartering) 시 목표 희귀도 -2', mechanic: 'chatty' },
   { card: '5', name: '현명한 장사꾼 (Shrewd)', desc: '치료제를 장신구로 교환 시 장신구 +1', mechanic: 'shrewd' },
   { card: '6', name: '힘센 일꾼 (Vigorous)', desc: '가방 소지 한도 +2 (마차 있으면 +4)', mechanic: 'vigorous' },
-  { card: '7', name: '인맥왕 (Resourceful)', desc: '특정 약재 1종 선택, 어느 지역에서든 채집 가능 (여정마다 변경 가능)', mechanic: 'resourceful' },
+  { card: '7', name: '인맥왕 (Resourceful)', desc: '기본 희귀도 ≤7 약재 1종 선택, 어느 지역에서든 채집 가능 (새 여정마다 변경 가능)', mechanic: 'resourceful' },
   { card: '8', name: '베테랑 여행자 (Seasoned)', desc: '여행 조우 드로우 시 2장 드로우 후 원하는 카드 선택', mechanic: 'seasoned' },
   { card: '9', name: '예리한 관찰자 (Perceptive)', desc: '각 질병마다 채집 포인트(FP) +2 시작', mechanic: 'perceptive' },
-  { card: '10', name: '자유로운 영혼 (Independent)', desc: '질병당 1회, 인접 지역에서 채집 (이벤트/타이머 영향 없음)', mechanic: 'independent' },
+  { card: '10', name: '자유로운 영혼 (Independent)', desc: '질병당 1회, 인접 장소에서 채집 (조우 없음·타이머 감소 없음)', mechanic: 'independent' },
   { card: 'J', name: '유적/고분 마스터 (Titanwise)', desc: 'TITAN 약재 희귀도 -2 + 티탄/고분 채집 시 2장 드로우 후 선택', mechanic: 'titanwise' },
-  { card: 'M', name: '창의적인 발명가 (Ingenuitive)', desc: '도구(Tool) 1개의 효과를 추가로 보유 (여정마다 선택)', mechanic: 'ingenuitive' },
+  { card: 'M', name: '창의적인 발명가 (Ingenuitive)', desc: '도구(Tool, p.62) 1개의 효과를 길동무가 제공 (여정 시작 때 지정)', mechanic: 'ingenuitive' },
 ] as const;
 
 export interface RuleBagItem {

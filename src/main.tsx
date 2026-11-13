@@ -4,13 +4,13 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import './feature-layout.css'
 import './workspace.css'
-import './mystic-folio.css'
+import './cottage.css'
 
 const App = lazy(() => import('./App.tsx'))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Suspense fallback={<main className="app-loading" role="status"><span aria-hidden="true">✿</span> 숲으로 가는 일지를 펼치고 있어요…</main>}>
+    <Suspense fallback={<main className="app-loading" role="status"><span aria-hidden="true">✿</span> 수첩을 펼치는 중이에요…</main>}>
       <App />
     </Suspense>
   </StrictMode>,

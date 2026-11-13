@@ -8,7 +8,7 @@ const appSource = readFileSync(fileURLToPath(new URL('./App.tsx', import.meta.ur
 const routeComposerSource = readFileSync(fileURLToPath(new URL('./components/RouteComposer.tsx', import.meta.url)), 'utf8');
 const journalExperienceSource = readFileSync(fileURLToPath(new URL('./components/JournalExperience.tsx', import.meta.url)), 'utf8');
 // Keep the same cascade order as main.tsx when checking responsive overrides.
-const cssSource = readFileSync(fileURLToPath(new URL('./index.css', import.meta.url)), 'utf8') + readFileSync(fileURLToPath(new URL('./feature-layout.css', import.meta.url)), 'utf8') + readFileSync(fileURLToPath(new URL('./workspace.css', import.meta.url)), 'utf8') + readFileSync(fileURLToPath(new URL('./mystic-folio.css', import.meta.url)), 'utf8');
+const cssSource = readFileSync(fileURLToPath(new URL('./index.css', import.meta.url)), 'utf8') + readFileSync(fileURLToPath(new URL('./feature-layout.css', import.meta.url)), 'utf8') + readFileSync(fileURLToPath(new URL('./workspace.css', import.meta.url)), 'utf8') + readFileSync(fileURLToPath(new URL('./cottage.css', import.meta.url)), 'utf8');
 
 describe('mobile layout regression guards', () => {
   it('never hides save feedback and wraps long cloud/error states outside the title lane', () => {
