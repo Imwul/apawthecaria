@@ -2,13 +2,14 @@
   Cottage kitchen table.
   The page is a blue gingham tablecloth; the journal is a sewn paper notebook lying on it,
   with recipe-box index tabs along its top edge and luggage tags for the current trip.
-  Gowun Batang (a soft storybook serif) carries headings, tabs and labels; Gowun Dodum, from the
-  same Gowun family, carries reading text. Whimsy comes from the cloth, tape and tabs, not the type.
+  MaruBuri (a soft storybook serif) carries headings, tabs and labels; Freesentation carries reading
+  text and UI. Both have real bold cuts (Gowun Dodum had one weight, so bold was faux and smeared).
+  Whimsy comes from the cloth, tape and tabs, not the type.
   Boldness lives in the tablecloth + tabs. Paper surfaces stay calm so rules stay readable.
 */
 :root {
-  --font-story: 'Gowun Batang', 'AppleMyungjo', 'Nanum Myeongjo', Georgia, serif;
-  --font-base: 'Gowun Dodum', Freesentation, system-ui, sans-serif;
+  --font-story: MaruBuri, 'AppleMyungjo', 'Nanum Myeongjo', Georgia, serif;
+  --font-base: Freesentation, system-ui, sans-serif;
   --font-body: var(--font-base); --font-ui: var(--font-base); --font-fancy: var(--font-story); --font-script: var(--font-story);
   --font-display: var(--font-story);
   --font-folio: var(--font-story);
@@ -1183,7 +1184,7 @@ pre, code, kbd, .rule-tag__value { word-break: normal; }
 
 /* =====================================================================
    Leading & reading size
-   Gowun Dodum has a large x-height; it needs open leading to breathe.
+   Korean reading text needs open leading to breathe.
    - root 17px lifts the many 0.7–0.85rem inline notes to ~12–14px
    - reading text 1.75, small notes 1.65, headings 1.35–1.45
    - paragraphs separated by space, not crammed
