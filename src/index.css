@@ -74,13 +74,13 @@ th { color: var(--text-muted); font-size: 14px; font-weight: 600; }
 .rule-tag,.tag-pill { display: inline-flex; align-items: baseline; gap: 4px; padding: 2px 5px; border: 1px solid #c7d1c6; border-radius: 2px !important; color: #355347; background: #edf2e9; font: 14px/1.5 var(--font-ui); }
 .rule-tag__value { font-family: var(--font-data); font-size: 13px; font-weight: 700; }
 .app-loading,.panel-loading { padding: 48px; color: var(--text-muted); font-size: 18px; }
-.app-loading { min-height: 100vh; display: flex; align-items: center; justify-content: center; gap: 12px; }
+.app-loading { min-height: calc(100 * var(--vh)); display: flex; align-items: center; justify-content: center; gap: 12px; }
 .folio-file-control,.journal-header__action--import { display: inline-flex; position: relative; min-height: 44px; align-items: center; justify-content: center; gap: 8px; border: 1px solid #aab6ac; border-radius: 3px; padding: 10px 16px; cursor: pointer; font-size: 16px; }
 .folio-file-control input[type=file],.journal-header__action--import input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .folio-file-control:focus-within,.journal-header__action--import:focus-within { outline: 3px solid #287487; outline-offset: 3px; }
 /* Modal mechanics are inherited; every dialog reads as one focused sheet. */
 .app-dialog-backdrop,.controlled-prompt-backdrop,.encounter-dialog-backdrop,.card-choice-backdrop,.phase4-modal-backdrop,.cloud-slots-dialog-backdrop,.rulebook-drawer-backdrop { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center; padding: 24px; background: #162a25a6; }
-.app-dialog,.controlled-prompt,.encounter-dialog,.card-choice-dialog,.phase4-modal,.cloud-slots-dialog { width: min(760px,100%); max-height: calc(100dvh - 48px); overflow-y: auto; background: var(--surface); color: var(--ink); border: 0; border-top: 4px solid var(--primary); border-radius: 4px; padding: 28px; box-shadow: 0 20px 70px #12231f40; }
+.app-dialog,.controlled-prompt,.encounter-dialog,.card-choice-dialog,.phase4-modal,.cloud-slots-dialog { width: min(760px,100%); max-height: calc(calc(100 * var(--dvh)) - 48px); overflow-y: auto; background: var(--surface); color: var(--ink); border: 0; border-top: 4px solid var(--primary); border-radius: 4px; padding: 28px; box-shadow: 0 20px 70px #12231f40; }
 .encounter-dialog--forage { width: min(1180px,100%); }
 .app-dialog :is(input,textarea,select),.controlled-prompt :is(input,textarea,select) { width: 100%; }
 .app-dialog :is(button,input,select,textarea),.encounter-dialog :is(button,input,select,textarea),.phase4-modal :is(button,input,select,textarea) { font-size: 16px !important; }
@@ -88,7 +88,7 @@ th { color: var(--text-muted); font-size: 14px; font-weight: 600; }
 .app-dialog footer,.controlled-prompt footer,.encounter-dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; padding-top: 20px; }
 .app-dialog--destructive { border-top-color: var(--danger); }
 .rulebook-drawer-backdrop { justify-content: flex-end; padding: 0; }
-.rulebook-drawer { width: min(800px,100%); height: 100dvh; background: var(--surface); overflow-y: auto; padding: 28px; border-left: 1px solid var(--line); }
+.rulebook-drawer { width: min(800px,100%); height: calc(100 * var(--dvh)); background: var(--surface); overflow-y: auto; padding: 28px; border-left: 1px solid var(--line); }
 .rulebook-drawer__header { background: var(--surface); }
 .rulebook-source-text { line-height: 1.8; }
 .rulebook-source-text p { font-size: 18px; }
@@ -115,7 +115,7 @@ th { color: var(--text-muted); font-size: 14px; font-weight: 600; }
 @media(max-width:700px) {
   h2 { font-size: 27px; } body { font-size: 17px; }
   .app-dialog-backdrop,.encounter-dialog-backdrop,.phase4-modal-backdrop,.controlled-prompt-backdrop { padding: 12px; }
-  .app-dialog,.encounter-dialog,.phase4-modal,.controlled-prompt { max-height: calc(100dvh - 24px); padding: 20px; }
+  .app-dialog,.encounter-dialog,.phase4-modal,.controlled-prompt { max-height: calc(calc(100 * var(--dvh)) - 24px); padding: 20px; }
   .rulebook-drawer { padding: 20px; }
   .encounter-dialog-actions { display: grid !important; grid-template-columns: minmax(0,1fr); }
   .encounter-dialog-actions button { width: 100%; }

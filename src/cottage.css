@@ -183,7 +183,7 @@ hr { border: 0; border-top: 1.5px dashed #dccbb0; }
 
 /* ---------- the table ---------- */
 .station-app {
-  min-height: 100dvh;
+  min-height: calc(100 * var(--dvh));
   padding: 26px clamp(14px, 3vw, 48px) 28px;
   background: transparent;
 }
@@ -651,7 +651,7 @@ hr { border: 0; border-top: 1.5px dashed #dccbb0; }
 .rulebook-drawer header h2, .encounter-dialog header h2, .app-dialog header h2 { font-family: var(--font-story); font-weight: 700; }
 
 .journal-photo-backdrop { position: fixed; inset: 0; z-index: 1300; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(48, 34, 28, .82); }
-.journal-photo-dialog { width: min(1120px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; gap: 12px; outline-offset: 6px; }
+.journal-photo-dialog { width: min(1120px, 100%); max-height: calc(calc(100 * var(--dvh)) - 32px); display: flex; flex-direction: column; gap: 12px; outline-offset: 6px; }
 .journal-photo-dialog > header { display: flex; justify-content: space-between; align-items: center; gap: 16px; color: #fffaf0; }
 .journal-photo-dialog > header > div { min-width: 0; }
 .journal-photo-dialog h2, .journal-photo-dialog header p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; color: inherit; }
@@ -756,7 +756,7 @@ hr { border: 0; border-top: 1.5px dashed #dccbb0; }
     display: flex;
     flex-direction: column;
     gap: 18px;
-    max-height: calc(100dvh - 36px);
+    max-height: calc(calc(100 * var(--dvh)) - 36px);
     overflow-y: auto;
     overscroll-behavior: contain;
     margin-top: 40px;
@@ -1415,3 +1415,17 @@ body { line-height: 1.75; }
 .sheet-trinket-draw:hover { background: var(--butter-soft); }
 
 .manual-effect__blocked { margin: 0 0 .6rem; padding: .5rem .8rem .5rem 1.6rem; background: var(--butter-soft); border-radius: 8px; color: var(--ink); line-height: 1.6; font-size: .9rem; }
+
+/* ---------- big & ultra-wide monitors ----------
+   Every size here is in px and tuned for a ~1500px-wide window. On 1440p/ultra-wide screens the
+   notebook reads tiny, so the whole page is scaled with `zoom` instead of rewriting every size.
+   CSS zoom also scales vh/dvh, so heights go through --dvh / --vh, which undo the zoom. */
+:root {
+  --page-zoom: 1;
+  --dvh: calc(1dvh / var(--page-zoom));
+  --vh: calc(1vh / var(--page-zoom));
+}
+@media (min-width: 1900px) and (min-height: 880px) { :root { --page-zoom: 1.12; zoom: 1.12; } }
+@media (min-width: 2240px) and (min-height: 980px) { :root { --page-zoom: 1.25; zoom: 1.25; } }
+@media (min-width: 2600px) and (min-height: 1100px) { :root { --page-zoom: 1.4; zoom: 1.4; } }
+@media (min-width: 3100px) and (min-height: 1220px) { :root { --page-zoom: 1.55; zoom: 1.55; } }

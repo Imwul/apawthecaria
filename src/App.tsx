@@ -9313,7 +9313,7 @@ export default function App() {
     if (saveLoadError) {
       return (
         <>
-        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '1rem', background: 'var(--bg-gradient)', color: 'var(--text-bright)', padding: '1.5rem', textAlign: 'center' }}>
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 'calc(100 * var(--vh))', gap: '1rem', background: 'var(--bg-gradient)', color: 'var(--text-bright)', padding: '1.5rem', textAlign: 'center' }}>
           <label
             className="journal-header__action journal-header__action--import"
             title="JSON 백업 기록 가져오기"
@@ -9376,7 +9376,7 @@ export default function App() {
     }
     return (
       <>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', gap: '1.2rem', background: 'var(--bg-gradient)', color: 'var(--text-bright)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 'calc(100 * var(--vh))', gap: '1.2rem', background: 'var(--bg-gradient)', color: 'var(--text-bright)' }}>
         <h2 style={{ letterSpacing: 0, color: 'var(--text-bright)' }}>Apawthecaria 들녘 일지</h2>
         <p style={{ color: 'var(--text-muted)' }}>
           {loading ? '기기에 저장된 기록을 확인하는 중...' : '로그인한 계정의 클라우드 기록을 확인하는 중...'}
@@ -31831,7 +31831,7 @@ function JournalsView({
 
       {viewingPhoto && (
         <JournalPhotoDialog title={viewingPhoto.title} photoName={viewingPhoto.photo.name} onClose={() => setViewingPhoto(null)}>
-          <JournalPhotoImage photo={viewingPhoto.photo} alt={viewingPhoto.photo.name || viewingPhoto.title} imageStyle={{ display: 'block', maxWidth: '100%', maxHeight: '75dvh', width: 'auto', height: 'auto', margin: '0 auto' }} />
+          <JournalPhotoImage photo={viewingPhoto.photo} alt={viewingPhoto.photo.name || viewingPhoto.title} imageStyle={{ display: 'block', maxWidth: '100%', maxHeight: 'calc(75 * var(--dvh))', width: 'auto', height: 'auto', margin: '0 auto' }} />
         </JournalPhotoDialog>
       )}
     </div>

@@ -16,6 +16,12 @@ import type { MapGlyphKind, MapTerrain } from './mapGlyphTypes';
 import { MapNodeAppearance } from './MapNodeAppearance';
 import { glyphKindFromLocation, nearestTerrain, terrainFromRegion } from './routeComposer';
 
+/** Ratio between on-screen and layout px, so pointer deltas stay right under the large-screen page zoom. */
+const pageZoomOf = (element: HTMLElement): number => {
+  const ratio = element.offsetWidth > 0 ? element.getBoundingClientRect().width / element.offsetWidth : 1;
+  return Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
+};
+
 export type MapClinicOverlay = {
   id: string;
   name: string;
@@ -401,8 +407,9 @@ export function PaperMap({
     const viewport = viewportRef.current;
     const drag = dragRef.current;
     if (!viewport || !drag?.active) return;
-    const dx = clientX - drag.startX;
-    const dy = clientY - drag.startY;
+    const zoom = pageZoomOf(viewport);
+    const dx = (clientX - drag.startX) / zoom;
+    const dy = (clientY - drag.startY) / zoom;
     if (Math.hypot(dx, dy) > 4) drag.moved = true;
     viewport.scrollLeft = drag.scrollLeft - dx;
     viewport.scrollTop = drag.scrollTop - dy;
@@ -502,8 +509,9 @@ export function PaperMap({
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
       const rect = viewport.getBoundingClientRect();
-      const originX = viewport.scrollLeft + (event.clientX - rect.left);
-      const originY = viewport.scrollTop + (event.clientY - rect.top);
+      const zoom = pageZoomOf(viewport);
+      const originX = viewport.scrollLeft + (event.clientX - rect.left) / zoom;
+      const originY = viewport.scrollTop + (event.clientY - rect.top) / zoom;
       const delta = event.deltaY > 0 ? -0.18 : 0.18;
       applyScale(scale + delta, originX, originY);
     };
