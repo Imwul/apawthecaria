@@ -328,7 +328,7 @@ export const ENCOUNTER_REVIEW_FORAGING_CHOICE_KO: Readonly<
     sing: '노래 부르기 — 모든 타이머를 1 줄이고 장신구 1개를 얻습니다.',
   },
   'foraging-forest-m-spring': {
-    'mark-barrow': '물러나기 — 현재 위치를 ‘거대한 거수의 고분’으로 표시합니다. 이곳이나 인접 위치에서 채집할 때 군주 카드 결과를 ‘달아나기!’로 바꿉니다.',
+    'mark-barrow': '물러나기 — 현재 위치를 ‘거대한 거수의 고분’으로 표시합니다. 이곳이나 인접 위치에서 채집할 때 군주 카드 결과를 ‘종종걸음!’로 바꿉니다.',
     appease: '달래기 — 누적 [FAIR 5]를 제공해 곰을 떠나보내고 지도에서 고분 표시를 지웁니다. 이곳에서 채집하거나 이동할 때 실행할 수 있습니다.',
   },
   'foraging-forest-m-summer': {

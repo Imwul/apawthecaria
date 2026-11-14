@@ -55,7 +55,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
       label: 'Silver Lining — 거머리를 떼어 내 보관하고 Leech 영약재 부위 하나를 얻습니다.',
       effects: [manual(
         'THAT_SUCKS_LEECH',
-        'Leech의 canonical 부위와 조제법 중 하나를 골라 가방에 넣습니다.'
+        'Leech의 부위와 조제법 중 하나를 골라 가방에 넣습니다.'
       )]
     }],
     support: 'manual-only'
@@ -306,7 +306,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
       label: 'Luck — Earth 영약재를 먼저 고르고 카드를 뽑습니다. 카드 값이 Base Rarity 이상이면 고른 부위를 가방에 넣습니다.',
       effects: [manual(
         'PLEASANT_SURPRISE_EARTH',
-        'canonical Earth 영약재 부위를 먼저 선택한 뒤 카드 값을 입력합니다. Base Rarity 이상일 때만 그 부위를 얻습니다.'
+        'Earth 영약재 부위를 먼저 선택한 뒤 카드 값을 입력합니다. Base Rarity 이상일 때만 그 부위를 얻습니다.'
       )]
     }],
     support: 'manual-only'
@@ -1726,7 +1726,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
       label: 'Curiosity — 먹을 수 있는 영약재 부위 1개를 왜가리에게 먹이고, 다음 환자의 질환을 시작할 때 채집 포인트 5를 얻습니다.',
       effects: [manual(
         'MARSH_WADER_FEED',
-        '플레이어가 먹을 수 있다고 판단한 canonical 영약재 부위 1개를 가방에서 제거하고, 다음 Ailment 시작 시 채집 포인트 5를 추가하는 후속 효과를 기록합니다.'
+        '플레이어가 먹을 수 있다고 판단한 영약재 부위 1개를 가방에서 제거하고, 다음 Ailment 시작 시 채집 포인트 5를 추가하는 후속 효과를 기록합니다.'
       )]
     }],
     support: 'manual-only'
@@ -1997,7 +1997,7 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
       {
         id: 'projects-wide',
         label: 'Projects Wide — 원한다면 장신구 5개로 Bark Coracle을 구입합니다.',
-        effects: [manual('WICKERWEAVER_CORACLE_PURCHASE', '구매하면 장신구 5개를 내고 canonical Bark Coracle 도구를 얻습니다.')]
+        effects: [manual('WICKERWEAVER_CORACLE_PURCHASE', '구매하면 장신구 5개를 내고 Bark Coracle 도구를 얻습니다.')]
       }
     ],
     support: 'manual-only'

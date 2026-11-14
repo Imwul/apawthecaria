@@ -4,8 +4,9 @@ import { isPrintedResolutionInputSatisfied } from '../rules/printedEffects';
 import { ENCOUNTERS } from '../rules/data/encounters';
 import { REAGENTS } from '../rules/data/reagents';
 import { formatReagentName } from '../foragingInventoryPresentation';
-import { localizePreparationName, localizePreparationMethod } from '../localization/gameplayKo';
+import { localizePreparationName, localizePreparationMethod, localizeRegionLabel } from '../localization/gameplayKo';
 import { useDialogFocus } from './useDialogFocus';
+import { AILMENT_WORLD_OWNERS } from '../rules/ailmentWorldEffects';
 import {
   patchManualEffectDraft,
   setManualEffectActionSelected,
@@ -22,6 +23,8 @@ import {
   localizeManualEffectTrigger,
   localizeManualEffectValue
 } from '../localization/manualEffectKo';
+
+const AILMENT_WORLD_OWNER_IDS = new Set<string>(Object.values(AILMENT_WORLD_OWNERS));
 
 const RulebookSourceContext = lazy(() => import('./RulebookSourceContext'));
 
@@ -154,6 +157,7 @@ const buildManualEffectStructuredSummary = (
 function ManualEffectRecordStage({
   draft,
   canResolve,
+  blockingReasons,
   automaticSummary,
   onChange,
   onDefer,
@@ -161,6 +165,7 @@ function ManualEffectRecordStage({
 }: {
   draft: ManualEffectDraft;
   canResolve: boolean;
+  blockingReasons: string[];
   automaticSummary: string;
   onChange: (updater: ManualEffectDraftUpdater) => void;
   onDefer: (recordText?: ManualEffectRecordText) => void;
@@ -215,6 +220,10 @@ function ManualEffectRecordStage({
       <label><span>예외 처리 사유</span><textarea value={recordText.overrideReason} onChange={event => updateRecordText('overrideReason', event.target.value)} onBlur={commitRecordText} rows={2} placeholder="원문과 다른 처리를 선택한 이유" /></label>
     </details>
 
+    {(blockingReasons.length > 0 || !canRecordResult) && <ul className="manual-effect__blocked" role="note">
+      {blockingReasons.map(reason => <li key={reason}>{reason}</li>)}
+      {!canRecordResult && <li>결과 메모를 한 줄 적어 주세요.</li>}
+    </ul>}
     <div className="manual-effect__actions"><button type="button" onClick={() => onDefer(recordTextRef.current)}>나중에 마무리</button><button type="button" className="btn-cozy-primary" disabled={!canResolve || !canRecordResult} onClick={() => onResolve(false, resolvedRecordText())}>선택한 결과 적용</button><button type="button" className="btn-cozy-danger" disabled={!canResolve || !canRecordResult || !recordText.overrideReason.trim()} onClick={() => onResolve(true, resolvedRecordText())}>원문과 다르게 적용</button></div>
   </section>;
 }
@@ -300,7 +309,7 @@ export default function ManualEffectPanel({
           }}
         >
           <option value="">기존 지도 위치에서 선택</option>
-          {mapLocations.map(location => <option key={location.id} value={location.id}>{location.name}{location.region ? ` · ${location.region}` : ''}</option>)}
+          {mapLocations.map(location => <option key={location.id} value={location.id}>{location.name}{location.region ? ` · ${localizeRegionLabel(location.region)}` : ''}</option>)}
         </select>
       </div>
       <BufferedTextControl
@@ -359,6 +368,15 @@ export default function ManualEffectPanel({
       : Boolean(actionTarget(action).trim())
   );
   const canResolve = requiredComplete && actionTargetsComplete;
+  // Say what is still missing instead of leaving a silently disabled button.
+  const blockingReasons = [
+    ...draft.inputFields
+      .filter(field => isGameplayRequiredField(field) && !isPrintedResolutionInputSatisfied(field, draft.inputValues[field.id]))
+      .map(field => `‘${localizeManualEffectValue(field.label)}’을(를) 정해 주세요.`),
+    ...selectedActions
+      .filter(action => ['inventory-item', 'location', 'free-text'].includes(action.targetType || '') && !actionTarget(action).trim())
+      .map(action => `‘${localizeManualEffectValue(action.label)}’의 대상을 골라 주세요.`)
+  ];
   const hasChoiceField = draft.inputFields.some(field => field.type === 'choice');
 
   const localizedOption = (option: string, optionIndex: number, options: string[]): string => {
@@ -500,7 +518,9 @@ export default function ManualEffectPanel({
           {selected && !targetOwnedByInput && action.targetType === 'free-text' && <BufferedTextControl aria-label={`${localizeManualEffectValue(action.label)} 대상 또는 결과`} value={target} onCommit={next => onChange(setManualEffectActionTarget(action.id, next))} placeholder="원문이 지정한 대상이나 결과" />}
         </div>;
       })}{selectedActions.length > 0 && <div className="manual-effect__preview"><strong>적용할 변화</strong><ul>{selectedActions.map(action => { const target = actionTarget(action); const readableTarget = readableActionTarget(action, target); return <li key={action.id}>{localizeManualEffectValue(action.label)}{readableTarget ? ` · ${localizeManualEffectValue(readableTarget)}` : ''}</li>; })}</ul></div>}</div>
-         : <p className="manual-effect__no-change">이 판정은 앱의 수치를 자동으로 바꾸지 않습니다. 필요한 선택만 확인한 뒤 진행하세요. 장면 메모는 선택입니다.</p>}
+         : AILMENT_WORLD_OWNER_IDS.has(draft.ownerId) && draft.canonicalActions.length > 0
+           ? <div className="manual-effect__preview"><strong>확정하면 앱이 적용할 지속 효과</strong><ul>{draft.canonicalActions.map(line => <li key={line}>{localizeManualEffectLine(line)}</li>)}</ul></div>
+           : <p className="manual-effect__no-change">이 판정은 앱의 수치를 자동으로 바꾸지 않습니다. 필요한 선택만 확인한 뒤 진행하세요. 장면 메모는 선택입니다.</p>}
 
       {draft.followUpRequirements.length > 0 && <div className="manual-effect__follow-up"><h4>이어서 확인할 판정</h4><ul>{draft.followUpRequirements.map((row, index) => <li key={`${index}:${row}`}>{localizeManualEffectLine(row)}</li>)}</ul><p>지금 완료 내용을 입력하지 않으면 별도의 미해결 후속 판정으로 저장됩니다.</p></div>}
     </section>
@@ -509,6 +529,7 @@ export default function ManualEffectPanel({
     <ManualEffectRecordStage
       draft={draft}
       canResolve={canResolve}
+      blockingReasons={blockingReasons}
       automaticSummary={buildManualEffectStructuredSummary(draft, readableActionTarget) || `장면 확인 · ${localizedSummary}`}
       onChange={onChange}
       onDefer={onDefer}

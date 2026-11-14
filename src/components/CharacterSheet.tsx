@@ -28,10 +28,12 @@ function CarryPips({ weight, carry }: { weight: number; carry: number }) {
   </span>;
 }
 
-export default function CharacterSheet({ state, currentWeight, maxCarry, onNavigate, onOpenPatient }: {
+export default function CharacterSheet({ state, currentWeight, maxCarry, onNavigate, onOpenPatient, onTrinketInspiration }: {
   // The app state is large and loosely typed at this boundary, like the other journal panels.
   state: any; currentWeight: number; maxCarry: number;
   onNavigate: (tab: JournalTab) => void; onOpenPatient: () => void;
+  /** p.56: draw three times on the trinket table for inspiration. */
+  onTrinketInspiration?: () => void;
 }) {
   const bio = state.bio || {};
   const timers = getPatientTimerProjection(state);
@@ -77,6 +79,7 @@ export default function CharacterSheet({ state, currentWeight, maxCarry, onNavig
       <div className="sheet-box sheet-box--trinkets">
         <span className="sheet-label">장신구</span>
         <strong>{trinketCount}</strong>
+        {onTrinketInspiration && trinketCount > 0 && <button type="button" className="sheet-trinket-draw" onClick={onTrinketInspiration} title="장신구 영감표 (p.56)에서 세 번 뽑아 어떤 물건인지 정합니다">어떤 물건?</button>}
       </div>
     </div>
 

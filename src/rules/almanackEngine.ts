@@ -21,8 +21,8 @@ import {
 import type { PatientState } from './state';
 import type { Season } from './types';
 
-const OBJECTS = ['Implement or Gadget', 'Container', 'Accessory', 'Clothing or Equipment', 'Book', 'Toy / Animal / Entertainment', 'Instrument', 'Tchotchke', 'Pilgrimage Memento', 'Local Souvenir', 'Food / Delicacy', 'Seedling / Potted Plant'] as const;
-const MATERIALS = ['Titanesque', 'Hardwood', 'Bone', 'Iron', 'Silver', 'Repurposed', 'Copper', 'Flint', 'Grasses / Plant Fibres', 'Pretty Stone', 'Glass', 'Softwood'] as const;
+const OBJECTS = ['Implement or Gadget', 'Container', 'Accessory', 'Clothing or Equipment', 'Book', 'Toy / Entertainment', 'Instrument', 'Tchotchke', 'Pilgrimage Memento', 'Local Souvenir', 'Food / Delicacy', 'Seedling / Potted Plant'] as const;
+const MATERIALS = ['Titanesque', 'Hardwood', 'Bone', 'Iron', 'Silver', 'Animal / Repurposed', 'Copper', 'Flint', 'Grasses / Plant Fibres', 'Pretty Stone', 'Glass', 'Softwood'] as const;
 const ORIGINS = ['Unwanted Gift', 'Tattered & sentimental', 'Inherited from family', 'Discovered by roadside', 'Handmade by owner', 'Part of a collection', 'Traded from faraway', 'Survived spring cleaning', 'Imported from the west coast', 'Permanently borrowed', 'Too big or small for the original owner', 'A friend’s (they went Elsewhere)'] as const;
 const uniqueRows = <T,>(rows: T[]): T[] => [...new Set(rows)];
 
@@ -182,6 +182,38 @@ export interface TrinketRecord {
   spent: boolean;
   journalEntryId: string;
 }
+
+/** Korean reading of the p.56 trinket inspiration table, row for row. */
+const OBJECTS_KO = ['도구나 장치', '그릇·상자', '몸에 다는 장신구', '옷이나 장비', '책', '장난감·놀잇감', '악기', '자잘한 장식품', '순례 기념품', '그 고장 기념품', '음식·별미', '묘목·화분'] as const;
+const MATERIALS_KO = ['티탄 유물', '단단한 나무', '뼈', '쇠', '은', '동물 재료·재활용품', '구리', '부싯돌', '풀·식물 섬유', '예쁜 돌', '유리', '무른 나무'] as const;
+const ORIGINS_KO = ['달갑지 않았던 선물', '해지고 정든 물건', '집안에서 물려받음', '길가에서 주움', '주인이 손수 만듦', '모아 온 수집품 중 하나', '먼 곳에서 거래해 옴', '봄맞이 대청소에서 살아남음', '서쪽 해안에서 들여옴', '영영 ‘빌려 온’ 물건', '원래 주인에게 너무 크거나 작음', '저편으로 떠난 친구의 물건'] as const;
+
+/** Korean instrumental particle: 로 after a vowel or ㄹ, otherwise 으로. */
+const withRo = (word: string): string => {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  if (code < 0 || code > 11171) return `${word}로`;
+  const final = code % 28;
+  return `${word}${final === 0 || final === 8 ? '로' : '으로'}`;
+};
+
+export interface TrinketInspiration {
+  object: string;
+  material: string;
+  origin: string;
+  /** e.g. "부싯돌로 만든 도구나 장치 · 주인이 손수 만듦" */
+  text: string;
+}
+
+/** p.56: three draws give an Object, a Material and an Origin. */
+export const drawTrinketInspiration = (cards: [RuleCard, RuleCard, RuleCard]): TrinketInspiration => {
+  const [objectIndex, materialIndex, originIndex] = cards.map(card => Math.min(11, Math.max(0, getRuleCardValue(card, 'table') - 1)));
+  return {
+    object: OBJECTS[objectIndex],
+    material: MATERIALS[materialIndex],
+    origin: ORIGINS[originIndex],
+    text: `${withRo(MATERIALS_KO[materialIndex])} 만든 ${OBJECTS_KO[objectIndex]} · ${ORIGINS_KO[originIndex]}`
+  };
+};
 
 export const createTrinketRecord = (input: { transactionId: string; cards: [RuleCard, RuleCard, RuleCard]; acquiredAt: number; source: string; journalEntryId: string }): TrinketRecord => {
   const indexes = input.cards.map(card => getRuleCardValue(card, 'table') - 1);

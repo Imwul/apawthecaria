@@ -29,6 +29,8 @@ type RouteComposerProps = {
   moveDays?: number;
   travelBlockedReason?: string | null;
   availableStops?: RouteStop[];
+  /** Locations joined by a Path to the current end of the route. */
+  adjacentStopIds?: readonly string[];
   journeyTarget?: RouteStop | null;
   confirmedSegmentCount?: number;
   journeyMinimumDistance?: number | null;
@@ -88,6 +90,7 @@ export function RouteComposer({
   moveDays = 1,
   travelBlockedReason,
   availableStops = [],
+  adjacentStopIds = [],
   journeyTarget = null,
   confirmedSegmentCount = 0,
   journeyMinimumDistance = null,
@@ -274,7 +277,7 @@ export function RouteComposer({
             />
             <datalist id="route-stop-options">
               {availableStopOptions.map(({ stop, inputValue }) => (
-                <option key={stop.id} value={inputValue}>{stopMeta(stop)}</option>
+                <option key={stop.id} value={inputValue}>{adjacentStopIds.includes(stop.id) ? `바로 이어진 곳 · ${stopMeta(stop)}` : stopMeta(stop)}</option>
               ))}
             </datalist>
             <button

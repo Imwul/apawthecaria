@@ -52,6 +52,8 @@ export interface PatientCardEngineInput {
   severityCard: { value: number; suit: CardSuit };
   ailmentCard: RuleCard;
   chosenAilmentId?: string;
+  /** p.113 Tickbitten: a marked Settlement replaces the draw with two concurrent cases. */
+  chosenAilmentCopies?: number;
   multipleAilmentCards?: RuleCard[];
   reputation: number;
   timerBonus?: number;
@@ -243,7 +245,7 @@ export const resolvePatientCards = (input: PatientCardEngineInput): PatientCardE
   const chosenAilment = input.chosenAilmentId ? AILMENTS.find(ailment => ailment.id === input.chosenAilmentId) : null;
   if (input.chosenAilmentId && !chosenAilment) return { status: 'invalid', value: null, messages: ['Send a Missive selected an unknown canonical Ailment.'] };
   const draw = chosenAilment
-    ? { ailments: [chosenAilment] }
+    ? { ailments: Array.from({ length: Math.max(1, input.chosenAilmentCopies || 1) }, () => chosenAilment) }
     : resolveAilmentDraw(appliedSeverity, input.ailmentCard, input.multipleAilmentCards || [], { value: 0 });
   if (draw.message) return { status: 'manual', value: null, messages: [draw.message] };
   const ailmentsToCreate = draw.ailments;

@@ -390,7 +390,7 @@ const optionTranslations: Record<string, string> = {
   'Help!': '돕기!',
   'Gimme!': '가져가기!',
   'Take cover! Hide': '몸을 숨기기!',
-  'Scamper!': '달아나기!',
+  'Scamper!': '종종걸음!',
   'Hold!': '재채기 참기!',
   'Go Panning': '사금 채취하기',
   'A Reintroduction': '다시 인사하기',
@@ -915,8 +915,65 @@ const localizeEncounterDisplayTextUnnormalized = (summary: string, text: string,
 export const localizeEncounterDisplayText = (summary: string, text: string, encounterId?: string): string =>
   normalizeGuildReputationTerms(localizeEncounterDisplayTextUnnormalized(summary, text, encounterId));
 
+/** Korean for the English source lines shown under typed manual actions. */
+const ACTION_SOURCE_KO: Record<string, string> = {
+  "Draw a card. Decrease all Timers by its value.": "카드 한 장을 뽑아 그 값만큼 모든 타이머를 줄입니다.",
+  "Gain a Handmade Pot.": "손으로 빚은 항아리(Handmade Pot)를 얻습니다.",
+  "Gain +1 Carry until the end of this Journey.": "이번 여정이 끝날 때까지 짐 칸 +1.",
+  "If your card is Lower, lose an item from your Bags.": "내 카드가 더 낮으면 가방에서 물품 하나를 잃습니다.",
+  "♥ or ♦ - You are pulled along; travel an additional 2 Paths.": "♥ 또는 ♦ — 물살에 끌려가 2경로를 더 이동합니다.",
+  "♣ or ♠ - You are pushed back; travel backwards 1 Path.": "♣ 또는 ♠ — 밀려나 1경로 뒤로 이동합니다.",
+  "Swap a Reagent Part of your own.": "내 영약재 부위 하나를 맞바꿉니다.",
+  "Gain any Reagent Part that can be found in the Forest.": "숲에서 찾을 수 있는 영약재 부위 하나를 얻습니다.",
+  "Swap the Pearl for 3 Trinkets.": "진주를 장신구 3개와 바꿉니다.",
+  "Give a Part from Big Fish, Small Fish, Beehive, Blackcurrant, Cucumber, Strawberries, Roses, or Wild Garlic.": "큰 물고기, 작은 물고기, 벌집, 블랙커런트, 오이, 딸기, 장미, 산마늘 중 한 부위를 건넵니다.",
+  "Receive the newly found Pearl.": "새로 찾은 진주를 받습니다.",
+  "Trade an INFECTION, BURN, or PAIN Reagent.": "INFECTION, BURN, PAIN 영약재 하나를 거래합니다.",
+  "Gain 1 Trinket per eligible Potency provided.": "조건에 맞는 약효 1마다 장신구 1개를 얻습니다.",
+  "♠ - You lose 3 Trinkets.": "♠ — 장신구 3개를 잃습니다.",
+  "Travel to a nearby non-Mountain Location.": "산맥이 아닌 가까운 위치로 이동합니다.",
+  "You do not gather anything for this Forage.": "이번 채집에서는 아무것도 얻지 못합니다.",
+  "Barter for a Reagent. During this Barter, skip step 2.": "영약재를 물물교환합니다. 이번 거래에서는 2단계를 건너뜁니다.",
+  "If you lose the fight, lower your Speed by 1.": "싸움에서 지면 속도가 1 줄어듭니다.",
+  "If you lose the fight, lower your Carry by 1.": "싸움에서 지면 짐 칸이 1 줄어듭니다.",
+  "Put one carried Titan Thingamabob in the hollow.": "가지고 있던 티탄 잡동사니 하나를 구멍에 넣습니다.",
+  "Reveal a Titan Reagent of your choice.": "원하는 티탄 영약재 하나가 드러납니다.",
+  "Use a PLANT Reagent to befriend the Butterfly.": "식물 영약재 하나로 나비와 친구가 됩니다.",
+  "Gain the Butterfly Companion.": "나비 동료를 얻습니다.",
+  "Gain a Plant Reagent Part with Base Rarity no higher than the card value.": "기본 희귀도가 카드 값 이하인 식물 영약재 부위 하나를 얻습니다.",
+  "Reduce all Timers and Foraging Points by a total of 5.": "모든 타이머와 채집 포인트를 합쳐서 5만큼 줄입니다.",
+  "Give a Reagent Part that provides ELSEWHERE.": "ELSEWHERE 약효가 있는 영약재 부위 하나를 건넵니다.",
+  "Gain 1 Guild Reputation, plus 1 for every ELSEWHERE Potency provided.": "Guild Reputation +1, 건넨 ELSEWHERE 약효 1마다 1씩 더.",
+  "Give away one Reagent Part.": "영약재 부위 하나를 내줍니다.",
+  "Increase the current Foraging Timer by 1.": "현재 채집 타이머를 1 늘립니다.",
+  "Gain the Honeybee Companion.": "꿀벌 동료를 얻습니다.",
+  "Use Honey or another FAIR Reagent to nurse the bee back to health.": "꿀이나 다른 FAIR 영약재로 벌을 돌봐 회복시킵니다.",
+  "With neither Honey nor a FAIR Reagent, decrease all Timers by 4.": "꿀도 FAIR 영약재도 없으면 모든 타이머를 4 줄입니다.",
+  "Decrease any Timers by 1.": "타이머 하나를 1 줄입니다.",
+  "Gain Fresh Clams (Weight 2/3), worth 3 Trinkets while Bartering.": "싱싱한 조개(무게 2/3)를 얻습니다. 물물교환 때 장신구 3개 값어치입니다.",
+  "Fresh Clams spoil when you next Mark a Day.": "다음에 달력에 하루를 표시하면 싱싱한 조개가 상합니다.",
+  "If its value is less than 5, Mark 1 Day.": "값이 5 미만이면 달력에 1일을 표시합니다.",
+  "If its value is 10 or more, gain an in-season Bog Reagent of your choice.": "값이 10 이상이면 제철인 수렁 영약재 하나를 골라 얻습니다.",
+  "Silver Lining — Gain a Leech Reagent.": "전화위복 — 거머리 영약재를 얻습니다.",
+  "Eavesdrop — Add Gossip (No Weight) to your Bags.": "엿듣기 — 소문(무게 없음)을 가방에 넣습니다.",
+  "Equal to or greater than 10 — Add a Titan Thingamabob to your Bags.": "10 이상 — 티탄 잡동사니를 가방에 넣습니다.",
+  "If the card is equal to or higher than the Reagent's Base Rarity, add it to your Bags.": "카드가 그 영약재의 기본 희귀도 이상이면 가방에 넣습니다.",
+  "Feed the heron an edible Reagent.": "먹을 수 있는 영약재를 왜가리에게 줍니다.",
+  "Gain 5 Foraging Points at the start of your next Ailment.": "다음 질환을 시작할 때 채집 포인트 5를 얻습니다.",
+  "If you drew a Heart, add Silver Shards to your Bags.": "하트를 뽑았다면 은 조각을 가방에 넣습니다.",
+  "Wish them luck. Lose 1 Guild Reputation.": "행운을 빌어 줍니다. Guild Reputation -1.",
+  "When the Queen Bee is re-homed in a wild Meadow, Bog, or Forest, mark that Location as a new Beehive.": "여왕벌을 야생 초원·수렁·숲에 옮겨 주면 그 위치를 새 벌집으로 표시합니다.",
+  "Add a 'Cocoon' (Weight 1/3) to your Bags.": "고치(무게 1/3)를 가방에 넣습니다.",
+  "Choose a Location 4 Paths away for its address.": "4경로 떨어진 위치 하나를 주소로 정합니다.",
+};
+
 export const localizeManualEffectLine = (text: string): string => {
   const compact = text.trim();
+  if (ACTION_SOURCE_KO[compact]) return ACTION_SOURCE_KO[compact];
+  const pay = compact.match(/^Pay (\d+) Trinkets for the (.+)\.$/);
+  if (pay) return `장신구 ${pay[1]}개를 내고 ${pay[2]}을(를) 삽니다.`;
+  const gainThe = compact.match(/^Gain the (.+)\.$/);
+  if (gainThe) return `${gainThe[1]}을(를) 얻습니다.`;
   if (/^Dam Burst\s*-/i.test(compact)) return '겨울이 끝나면 댐이 무너져 이 위치가 다시 숲 지역이 됩니다.';
   if (/Beaver Dam/i.test(compact) && /Region.{0,20}(?:changed|Loch)/i.test(compact)) {
     return '이 위치를 비버 댐으로 표시하고 지역을 호수로 바꾸세요.';

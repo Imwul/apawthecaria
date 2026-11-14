@@ -186,7 +186,7 @@ export const planForagingEncounterTransaction = async (
         label: `${preparation.name} · ${preparation.method}`
       })));
       if (preparationId === null) return cancelled();
-      if (!preparationId) return invalid(`${partName}의 canonical 조제법을 고를 수 없습니다.`);
+      if (!preparationId) return invalid(`${partName}의 조제법을 고를 수 없습니다.`);
       partSelections.push({ preparationId });
     }
     return { status: 'planned', command: {
@@ -318,7 +318,7 @@ export const planForagingEncounterTransaction = async (
     if (choiceId !== 'take') return { status: 'not-applicable' };
     const charcoal = REAGENT_BY_NAME.get('Doused Bonfires')?.preparations.find(preparation => preparation.name === 'Charcoal');
     const sheddings = REAGENT_BY_NAME.get('Animal Sheddings')?.preparations.find(preparation => /hair|fur/i.test(preparation.name));
-    if (!charcoal || !sheddings) return invalid('Charcoal 또는 Animal Sheddings canonical 부위를 찾지 못했습니다.');
+    if (!charcoal || !sheddings) return invalid('Charcoal 또는 Animal Sheddings 부위를 찾지 못했습니다.');
     return { status: 'planned', command: {
       code: FORAGING_ENCOUNTER_TRANSACTION_CODES.lifeSavingTransplant,
       input: { ...inputBase, charcoalPreparationId: charcoal.id, sheddingsPreparationId: sheddings.id }
@@ -386,7 +386,7 @@ export const planForagingEncounterTransaction = async (
           const selected = parsePartKey(reward.slice('part:'.length));
           return selected ? { kind: 'reagent' as const, ...selected } : null;
         })();
-    if (!rewardInput) return invalid('선택한 발견물을 canonical 데이터에서 찾지 못했습니다.');
+    if (!rewardInput) return invalid('선택한 발견물을 데이터에서 찾지 못했습니다.');
     return { status: 'planned', command: {
       code: FORAGING_ENCOUNTER_TRANSACTION_CODES.finalRestingPlace,
       input: { ...inputBase, card: drawn, reward: rewardInput, companionCapacity: context.companionCapacity }
@@ -419,7 +419,7 @@ export const planForagingEncounterTransaction = async (
     if (action === 'borrow' || action === 'both') {
       const selectedTool = await chooseOne(prompt, 'What Remains · Tool', '빌려 쓸 Tool 하나를 고르세요.', toolOptions());
       if (selectedTool === null) return cancelled();
-      if (!selectedTool) return invalid('선택 가능한 canonical Tool이 없습니다.');
+      if (!selectedTool) return invalid('선택 가능한 Tool이 없습니다.');
       borrowedToolId = selectedTool;
     }
     return { status: 'planned', command: {
@@ -498,7 +498,7 @@ export const planForagingEncounterTransaction = async (
       const sourceToolId = carried.find(item => item.id === sourceToolItemId)?.canonicalToolId;
       const targetToolId = await chooseOne(prompt, 'Odoak Market · 받을 Tool', 'Tools 목록에서 다른 Tool 하나를 고르세요.', toolOptions(toolId => toolId !== sourceToolId));
       if (targetToolId === null) return cancelled();
-      if (!targetToolId) return invalid('받을 canonical Tool을 고를 수 없습니다.');
+      if (!targetToolId) return invalid('받을 Tool을 고를 수 없습니다.');
       return { status: 'planned', command: {
         code: FORAGING_ENCOUNTER_TRANSACTION_CODES.odoakMarket,
         input: { ...inputBase, encounterId: FORAGING_ENCOUNTER_IDS.odoakMarket, choice: 'irresistible-bargain', sourceToolItemId, targetToolId }

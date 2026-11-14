@@ -57,6 +57,8 @@ export interface TreatmentSuccessInput {
   purifyEligible?: boolean;
   gifting?: boolean;
   trinketRewardBonus?: number;
+  /** p.112 Soured Dough Consequence: this Remedy earns 0 Trinkets. */
+  suppressTrinketReward?: boolean;
   doseCount?: number;
   confirmedManualRequirements?: string[];
   badIdeaOutcome?: BadIdeaOutcomeChoice;
@@ -775,7 +777,8 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
   const rewardsSuppressed = specialState.rewardMode === 'none'
     || specialState.encounterRemedy === true
     || definition.encounterOnly;
-  const gifting = Boolean(!rewardsSuppressed && input.gifting && baseReward > 0);
+  const trinketsZeroed = Boolean(input.suppressTrinketReward);
+  const gifting = Boolean(!rewardsSuppressed && !trinketsZeroed && input.gifting && baseReward > 0);
   const brandCareChange = definition.canonicalName === 'Brand Care' && specialState.brandCareChoice !== 'treat' ? -2 : 0;
   const stingshockChange = definition.canonicalName === 'Stingshock' && doseCount >= 2 ? 3 : 0;
   const cookedWakeChange = definition.canonicalName === 'Wake'
@@ -786,7 +789,7 @@ export const resolveTreatmentTransaction = (input: TreatmentEngineInput): Treatm
       + brandCareChange + stingshockChange + cookedWakeChange;
   const convertsReputationToTrinkets = specialState.rewardMode === 'reputation-as-trinkets';
   const reputationChange = convertsReputationToTrinkets ? 0 : printedReputationReward;
-  const trinketReward = rewardsSuppressed
+  const trinketReward = rewardsSuppressed || trinketsZeroed
     ? 0
     : gifting ? 0 : baseReward + Math.max(0, Math.floor(input.trinketRewardBonus || 0))
       + (convertsReputationToTrinkets ? Math.max(0, printedReputationReward) : 0);

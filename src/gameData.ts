@@ -89,7 +89,7 @@ export const GAME_DATA = {
       {
         "card": "M",
         "name": "위엄 있는 조류/포유류",
-        "examples": "맷닭, 소나무담비"
+        "examples": "멧닭, 소나무담비"
       }
     ],
     "travelStyles": [
@@ -929,7 +929,7 @@ export const GAME_DATA = {
       "preps": "🟢⚪⚪ 버섯: [HIDE 2] 및 [WOUND 1]에 발라 사용"
     },
     {
-      "name": "새 배설물/배사",
+      "name": "새가 남긴 흔적",
       "rawName": "Bird Leavings",
       "type": "ANIMAL",
       "br": 4,

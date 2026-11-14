@@ -18,6 +18,7 @@ import {
   type PrintedResolutionInput
 } from './rules/printedEffects';
 import { RACING_BETS_SNACK_SPEED_TEXT } from './racingBetsSpeedCondition';
+import { AILMENT_WORLD_INPUTS, AILMENT_WORLD_OWNERS, TROWEL_POTENCY_OPTIONS } from './rules/ailmentWorldEffects';
 
 type ManualEffectInputValue = ManualEffectDraft['inputValues'][string];
 
@@ -587,7 +588,7 @@ const scopeCollectorSwap = (draft: ManualEffectDraft, choiceId: string): ManualE
     label: '받을 숲 영약재 부위',
     required: true,
     options: [...FOREST_REAGENT_PART_OPTIONS],
-    helpText: 'Forest에서 발견 가능한 canonical 영약재와 준비법만 표시합니다.'
+    helpText: 'Forest에서 발견 가능한 영약재와 준비법만 표시합니다.'
   }],
   [
     requiredAction(draft.ownerId, 'give-reagent-part', {
@@ -858,7 +859,7 @@ const scopeTitanPower = (draft: ManualEffectDraft, choiceId: string): ManualEffe
       label: '드러난 Titan 영약재 부위',
       required: true,
       options: [...TITAN_REAGENT_PART_OPTIONS],
-      helpText: '공식 도감에서 type이 Titan인 영약재의 canonical 부위만 표시합니다.'
+      helpText: '공식 도감에서 type이 Titan인 영약재의 부위만 표시합니다.'
     }], [
       consume,
       requiredAction(draft.ownerId, 'lock-and-key:action:reagent', {
@@ -1116,7 +1117,7 @@ const scopeBranchBeaten = (draft: ManualEffectDraft, choiceId: string): ManualEf
       label: `${season}에 얻을 Bog 영약재 부위`,
       required: true,
       options: bogReagentPartOptionsForSeason(season),
-      helpText: '현재 계절과 Bog에서 실제로 얻을 수 있는 canonical 부위만 표시합니다.'
+      helpText: '현재 계절과 Bog에서 실제로 얻을 수 있는 부위만 표시합니다.'
     }] : [])
   ];
   const action = result === BRANCH_BEATEN_RESULT_OPTIONS[0]
@@ -1146,7 +1147,7 @@ const scopeThatSucks = (draft: ManualEffectDraft, choiceId: string): ManualEffec
     label: '보관할 Leech 영약재 부위',
     required: true,
     options: [...LEECH_REAGENT_PART_OPTIONS],
-    helpText: 'Leech의 canonical 부위와 조제법 중 하나를 고릅니다.'
+    helpText: 'Leech의 부위와 조제법 중 하나를 고릅니다.'
   }],
   [requiredAction(draft.ownerId, 'that-sucks:leech', {
     kind: 'gain-inventory',
@@ -1852,7 +1853,119 @@ const scopeParcelDeliveryDraft = (draft: ManualEffectDraft): ManualEffectDraft =
   };
 };
 
+
+const AILMENT_WORLD_FIELD_IDS = new Set<string>(Object.values(AILMENT_WORLD_INPUTS));
+
+const settlementField = (label: string): PrintedResolutionInput => ({
+  id: AILMENT_WORLD_INPUTS.settlement,
+  type: 'target',
+  label,
+  required: false,
+  helpText: '처음에는 가장 가까운 정착지(도시 포함)가 골라져 있습니다. 비워 두면 앱이 가장 가까운 곳을 다시 찾습니다.'
+});
+
+const targetField = (id: string, label: string, helpText: string): PrintedResolutionInput => ({
+  id, type: 'target', label, required: true, helpText
+});
+
+/**
+ * Ailment Outcomes/Consequences that change the map or world (pp.107-115).
+ * App applies the returned summary through resolveAilmentWorldEffect, so the
+ * generic regex-derived "record condition" text actions are replaced by the
+ * exact inputs each rule needs.
+ */
+const ailmentWorldSpec = (draft: ManualEffectDraft): { fields: PrintedResolutionInput[]; summary: string[] } | null => {
+  const { ownerId, trigger } = draft;
+  if (trigger === 'treatment-failure') {
+    if (ownerId === AILMENT_WORLD_OWNERS.snailAils) return {
+      fields: [settlementField('격리되는 가장 가까운 정착지')],
+      summary: ['확정하면 이 정착지는 다음 계절이 시작될 때까지 이동 경로에 넣을 수 없습니다.']
+    };
+    if (ownerId === AILMENT_WORLD_OWNERS.groundhog) return {
+      fields: [settlementField('봄·여름 실패 · 거래와 사교가 막히는 가장 가까운 정착지')],
+      summary: [
+        '봄·여름: 현재 위치와 이 정착지에서 다음 계절이 끝날 때까지 물물교환·사교 행사를 할 수 없습니다.',
+        '가을·겨울: 현재 위치에서 2경로 이내에서는 다음 계절이 끝날 때까지 식물·곤충 영약재를 채집할 수 없습니다.'
+      ]
+    };
+    if (ownerId === AILMENT_WORLD_OWNERS.stingshock) return {
+      fields: [],
+      summary: ['확정하면 현재 위치에서 벌·벌집 영약재(Beehive, Honeybees)를 영구히 채집·거래할 수 없습니다.']
+    };
+    if (ownerId === AILMENT_WORLD_OWNERS.wingbreak) return {
+      fields: [],
+      summary: ['확정하면 이번 계절이 끝날 때까지 모든 물물교환 희귀도가 2 올라갑니다.']
+    };
+    if (ownerId === AILMENT_WORLD_OWNERS.souredDough) return {
+      fields: [],
+      summary: ['네 건 중 하나도 치료하지 못했다면 다음 치료제 보상은 장신구 0개가 됩니다.']
+    };
+    if (ownerId === AILMENT_WORLD_OWNERS.titanTouched) return {
+      fields: [],
+      summary: ['확정하면 다음 계절이 끝날 때까지 모든 티탄 영약재의 희귀도가 1 올라갑니다.']
+    };
+    if (ownerId === AILMENT_WORLD_OWNERS.tickbitten) return {
+      fields: [settlementField('표시할 가장 가까운 정착지')],
+      summary: ['다음에 이 정착지에 도착해 환자를 받으면 질환을 뽑는 대신 진드기 물림 2건을 타이머를 함께 흘리며 치료합니다.']
+    };
+  }
+  if (trigger === 'treatment-success') {
+    if (ownerId === AILMENT_WORLD_OWNERS.titanTouched) return {
+      fields: [
+        targetField(AILMENT_WORLD_INPUTS.ruin, '티탄 유적이 될 근처 위치', '지도 가까운 곳의 야생 위치를 고르면 티탄 유적으로 바뀝니다.'),
+        targetField(AILMENT_WORLD_INPUTS.ruinLinkA, '유적과 이을 위치 1', '유적에서 새 경로로 이어질 다른 위치입니다.'),
+        targetField(AILMENT_WORLD_INPUTS.ruinLinkB, '유적과 이을 위치 2', '유적에서 새 경로로 이어질 또 다른 위치입니다.')
+      ],
+      summary: ['확정하면 고른 위치가 티탄 유적이 되고, 두 위치까지 새 경로가 지도에 그려집니다.']
+    };
+    if (ownerId === AILMENT_WORLD_OWNERS.trowelTrouble) {
+      const usedPotencyThree = draft.inputValues[AILMENT_WORLD_INPUTS.potency] === TROWEL_POTENCY_OPTIONS[0];
+      return {
+        fields: [
+          {
+            id: AILMENT_WORLD_INPUTS.potency,
+            type: 'choice',
+            label: '치료제에 약효 3 영약재를 썼나요?',
+            required: true,
+            options: [...TROWEL_POTENCY_OPTIONS]
+          },
+          ...(usedPotencyThree ? [targetField(AILMENT_WORLD_INPUTS.pathEnd, '새 경로가 닿을 위치', '현재 위치에서 적당한 거리의 다른 위치를 고르세요.')] : [])
+        ],
+        summary: ['약효 3 영약재로 치료했다면 현재 위치에서 고른 위치까지 새 경로가 지도에 그려집니다.']
+      };
+    }
+  }
+  return null;
+};
+
+const scopeAilmentWorldDraft = (draft: ManualEffectDraft): ManualEffectDraft | null => {
+  if (draft.ownerType !== 'ailment') return null;
+  const spec = ailmentWorldSpec(draft);
+  if (!spec) return null;
+  const narrativeFields = draft.inputFields.filter(field =>
+    !AILMENT_WORLD_FIELD_IDS.has(field.id) && field.type === 'free-text');
+  const inputFields = [...spec.fields, ...narrativeFields];
+  const fieldIds = new Set(inputFields.map(field => field.id));
+  const inputValues = Object.fromEntries(Object.entries(draft.inputValues).filter(([id]) => fieldIds.has(id)));
+  const unchanged = draft.actionTemplates.length === 0
+    && JSON.stringify(draft.inputFields) === JSON.stringify(inputFields)
+    && JSON.stringify(draft.canonicalActions) === JSON.stringify(spec.summary)
+    && JSON.stringify(draft.inputValues) === JSON.stringify(inputValues);
+  if (unchanged) return draft;
+  return {
+    ...draft,
+    inputFields,
+    inputValues,
+    actionTemplates: [],
+    selectedActionIds: [],
+    actionTargets: {},
+    canonicalActions: spec.summary
+  };
+};
+
 const scopeBranchWithoutTimestamp = (draft: ManualEffectDraft): ManualEffectDraft => {
+  const ailmentWorld = scopeAilmentWorldDraft(draft);
+  if (ailmentWorld) return ailmentWorld;
   if (draft.ownerId === PARCEL_ENCOUNTER_OWNER_ID && contextChoice(draft) === PARCEL_DELIVERY_CHOICE_ID) {
     return scopeParcelDeliveryDraft(draft);
   }

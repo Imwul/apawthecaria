@@ -92,7 +92,7 @@ const PROCEDURES: RulebookReferenceEntry[] = [
   ['journey-close', 'Journey 종료', 38, 39, '목표 달성과 결론 선택을 확인하고 보상과 후속 기록을 적용합니다.', ['JOURNEY-006']],
   ['downtime', 'Downtime', 40, 43, 'Journey 뒤 한 번의 Downtime 활동과 계절 경계 효과를 적용합니다.', ['DOWNTIME-001', 'SEASON-001']],
   ['clinic', 'Clinic', 44, 47, 'Clinic을 열고 Agenda 조건을 충족한 action만 사용합니다.', ['CLINIC-001', 'CLINIC-005']],
-  ['services', 'Guild Services', 58, 61, '구입, pending lifecycle, 소비 시점과 canonical consumer를 추적합니다.', ['ALMANACK-004', 'SERVICE-001', 'SERVICE-002', 'SERVICE-005']],
+  ['services', 'Guild Services', 58, 61, '구입, pending lifecycle, 소비 시점과 consumer를 추적합니다.', ['ALMANACK-004', 'SERVICE-001', 'SERVICE-002', 'SERVICE-005']],
   ['tools', 'Tools와 Upgrades', 62, 67, 'Tool effect, trigger, replacement, break/repair와 Upgrade를 공통 resolver로 처리합니다.', ['TOOL-003', 'TOOL-005']],
   ['wagon', 'Wagon', 68, 69, 'Carry, Speed, Waterway, Passenger, Clay Pots와 expansion lifecycle을 적용합니다.', ['WAGON-001', 'WAGON-002', 'WAGON-004']],
   ['companions', 'Companions', 70, 71, '지역 제한, Journey/Encounter/Season trigger, milestone과 reward를 적용합니다.', ['COMPANION-001', 'COMPANION-005']],
@@ -327,7 +327,7 @@ const DOWNTIME_ENTRIES = [createEntry({
   id: 'downtime:general-practice', kind: 'downtime', title: 'General Practice and Downtime',
   summary: 'Journey 뒤 한 번의 Downtime action, General Practice, 영구 지도 기록과 계절 경계를 함께 확인합니다.',
   sourcePage: 40, endPage: 43, ownerId: 'general-practice', ruleIds: ['DOWNTIME-001', 'SEASON-001'], runtimeStatus: 'canonical',
-  details: [detail('Requirement', 'Journey 종료 뒤 Downtime이 필요할 때'), detail('Effect', '선택한 한 가지 canonical Downtime action'), detail('Permanence', '원문이 영구로 지정한 지도/Clinic 변화만 유지'), detail('Canonical consumer', 'resolveDowntime / resolveSeasonBoundary')],
+  details: [detail('Requirement', 'Journey 종료 뒤 Downtime이 필요할 때'), detail('Effect', '선택한 한 가지 Downtime action'), detail('Permanence', '원문이 영구로 지정한 지도/Clinic 변화만 유지'), detail('Canonical consumer', 'resolveDowntime / resolveSeasonBoundary')],
   relatedIds: ['procedure:downtime', 'chapter:downtime', ...SEASON_ENTRIES.map(season => season.id)], search: ['general practice map season clinic permanence']
 })];
 
@@ -338,7 +338,7 @@ const GUIDANCE_ENTRIES = [
 ];
 
 const EXAMPLE_ENTRIES = [
-  createEntry({ id: 'example:character-identity', kind: 'example', title: 'Apothecary identity examples', summary: '크기와 생김새를 나타내는 카드 값을 동물 예시와 대조하는 Character 생성 예시.', sourcePage: 10, ruleIds: ['CHARACTER-001'], runtimeStatus: 'reference-only', details: [detail('구분', 'Example; canonical choice가 아님')], relatedIds: ['chapter:character'] }),
+  createEntry({ id: 'example:character-identity', kind: 'example', title: 'Apothecary identity examples', summary: '크기와 생김새를 나타내는 카드 값을 동물 예시와 대조하는 Character 생성 예시.', sourcePage: 10, ruleIds: ['CHARACTER-001'], runtimeStatus: 'reference-only', details: [detail('구분', 'Example; choice가 아님')], relatedIds: ['chapter:character'] }),
   createEntry({ id: 'example:movement', kind: 'example', title: 'Move across Paths', summary: 'Travel Style과 Speed를 이용해 여러 Path를 지나 목적지에 도착하는 이동 예시.', sourcePage: 24, endPage: 25, ruleIds: ['TRAVEL-002'], runtimeStatus: 'reference-only', details: [detail('구분', 'Worked movement example')], relatedIds: ['procedure:move', 'chapter:travel'] }),
   createEntry({ id: 'example:patient-cards', kind: 'example', title: 'Patient card pairing', summary: '두 카드 값을 조합해 환자의 Descriptor와 species를 만드는 예시.', sourcePage: 28, ruleIds: ['PATIENT-001'], runtimeStatus: 'reference-only', details: [detail('구분', 'Patient generation example')], relatedIds: ['chapter:patients'] }),
   createEntry({ id: 'example:rarity', kind: 'example', title: 'Reagent Rarity by location', summary: 'Current 또는 Adjacent Location에 따라 Reagent Rarity가 달라지는 예시.', sourcePage: 30, ruleIds: ['FORAGE-001'], runtimeStatus: 'reference-only', details: [detail('구분', 'Rarity example')], relatedIds: ['procedure:foraging'] }),
