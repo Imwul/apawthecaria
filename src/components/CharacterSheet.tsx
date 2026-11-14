@@ -54,7 +54,6 @@ export default function CharacterSheet({ state, currentWeight, maxCarry, onNavig
 
   return <aside className="sheet" aria-label="나의 캐릭터 시트">
     <header className="sheet-who">
-      <img className="sheet-sticker sheet-sticker--otter" src="/art/sheet/otter.png" alt="" width="186" height="260" />
       <button type="button" className="sheet-who__name" onClick={() => onNavigate('bio')}>
         <strong>{bio.name || '이름 없는 약제사'}</strong>
         <span>{[bio.animal, localizeTravelStyle(bio.travelStyle || '')].filter(Boolean).join(' · ')}</span>
@@ -110,7 +109,6 @@ export default function CharacterSheet({ state, currentWeight, maxCarry, onNavig
     </section>
 
     <section className="sheet-familiar" aria-label="길동무">
-      <img className="sheet-sticker sheet-sticker--squirrel" src="/art/sheet/squirrel.png" alt="" width="260" height="238" />
       <h3 className="sheet-heading">길동무</h3>
       <strong>{bio.familiarName || '아직 없음'}</strong>
       {bio.familiarAnimal ? <span>{bio.familiarAnimal}</span> : null}

@@ -144,25 +144,14 @@ export function TodayOverview({ state, currentWeight, maxCarry, onNavigate, onOp
     };
   });
   if (legacy) prescriptions.push({ id: 'legacy', name: legacy.name || '병증 확인 중', requirements: legacy.tags || '' });
-  return <section className="play-overview" aria-labelledby="today-title">
-    <header className="play-overview__heading">
-      <div>
-        <p className="play-overview__place">{localizeLocationName(state.currentLocationName)} · {localizeSeasonLabel(state.currentSeason)}</p>
-        <h2 id="today-title">{next.title}</h2>
-      </div>
-      <button type="button" className="workspace-link" onClick={() => onOpenReference(next.reference)}>이 단계의 규칙 ↗</button>
-    </header>
-    <p className="play-overview__reason">{next.reason}</p>
-    <ol className="play-loop" aria-label="반복 플레이 순서">
-      {PLAY_LOOP_STAGES.map((stage, index) => <li key={stage.id}
-        className={`play-loop__step${currentStage === stage.id ? ' is-current' : ''}`}
-        aria-current={currentStage === stage.id ? 'step' : undefined}>
-        <span className="play-loop__number" aria-hidden="true">{index + 1}</span>
-        <span><strong>{stage.label}</strong><small>{stage.detail}</small></span>
-        {currentStage === stage.id && <span className="play-loop__current">현재</span>}
-      </li>)}
-    </ol>
-    <dl className="play-clock-grid" aria-label="달력과 치료 시간">
+  return <section className="play-overview trail-page" aria-labelledby="today-title">
+    <div className="trail-page__note">
+      <p className="play-overview__place">{localizeLocationName(state.currentLocationName)} · {localizeSeasonLabel(state.currentSeason)}</p>
+      <h2 id="today-title">{next.title}</h2>
+      <p className="play-overview__reason">{next.reason}</p>
+      <button type="button" className="workspace-link trail-page__rule" onClick={() => onOpenReference(next.reference)}>이 단계의 규칙 ↗</button>
+    </div>
+    <dl className="play-clock-grid trail-page__keepsakes" aria-label="달력과 치료 시간">
       <div className={`play-clock play-clock--calendar${journey.active && calendarLimit > 0 && daysRemaining < 0 ? ' is-urgent' : ''}`}>
         <dt>여정 달력 · 일</dt>
         <dd><strong>{journey.active ? `${calendar.calendarDays} / ${calendarLimit || '미정'}일` : '여정 시작 전'}</strong>
@@ -178,6 +167,15 @@ export function TodayOverview({ state, currentWeight, maxCarry, onNavigate, onOp
               : timeHours === null ? '진단 후 별도 시간으로 추적합니다' : '채집·거래·조우에 따라 줄어듭니다'}</small></dd>
       </div>
     </dl>
+    <ol className="play-loop trail-page__path" aria-label="반복 플레이 순서">
+      {PLAY_LOOP_STAGES.map((stage, index) => <li key={stage.id}
+        className={`play-loop__step${currentStage === stage.id ? ' is-current' : ''}`}
+        aria-current={currentStage === stage.id ? 'step' : undefined}>
+        <span className="play-loop__number" aria-hidden="true">{index + 1}</span>
+        <span className="trail-page__stop"><strong>{stage.label}</strong><small>{stage.detail}</small></span>
+        {currentStage === stage.id && <span className="play-loop__current">지금 여기</span>}
+      </li>)}
+    </ol>
     {journey.active && <div className="play-journey-note">
       <span>목적지</span><button type="button" className="workspace-link" onClick={() => onNavigate('map')}>{localizeLocationName(state.journeyDestination) || '미정'} ↗</button>
       {state.journeyGoalTitle && <details><summary>여정 목표: {state.journeyGoalTitle}</summary><p>{localizeJourneyGoalText(state.journeyGoalDesc || '')}</p></details>}

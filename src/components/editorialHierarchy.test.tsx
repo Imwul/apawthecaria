@@ -9,7 +9,7 @@ describe('working journal editorial hierarchy', () => {
     const html = renderToStaticMarkup(<FolioFrontispiece opening />);
     expect(html).toContain('/art/rulebook-cover.jpg');
     expect(html).toContain('숲의 작은 약제사에게');
-    expect(html).toContain('folio-frontispiece__seal');
+    expect(html).not.toContain('folio-frontispiece__seal');
   });
 
   it('preserves the chapter artwork without repeating promotional copy over reference tasks', () => {

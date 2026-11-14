@@ -5,6 +5,7 @@ import './index.css'
 import './feature-layout.css'
 import './workspace.css'
 import './cottage.css'
+import './storybook.css'
 
 const App = lazy(() => import('./App.tsx'))
 

@@ -1,8 +1,6 @@
+/* 이서윤체 (noonnu, free; one weight). Its Hangul draws ~10% smaller than system fonts, so it is sized up here. */
+@font-face { font-family: LeeSeoyun; src: url('https://cdn.jsdelivr.net/npm/@noonnu/lee-seoyun@0.1.0/fonts/leeseoyun-normal.woff') format('woff'); font-weight: 400; font-display: swap; size-adjust: 110%; }
 @font-face { font-family: Freesentation; src: url('/fonts/Freesentation-Variable.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
-/* MaruBuri (Naver, OFL) for headings: real 400/600/700 cuts, so bold never gets faux-smeared. */
-@font-face { font-family: MaruBuri; src: url('https://hangeul.pstatic.net/hangeul_static/webfont/MaruBuri/MaruBuri-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
-@font-face { font-family: MaruBuri; src: url('https://hangeul.pstatic.net/hangeul_static/webfont/MaruBuri/MaruBuri-SemiBold.woff2') format('woff2'); font-weight: 600; font-display: swap; }
-@font-face { font-family: MaruBuri; src: url('https://hangeul.pstatic.net/hangeul_static/webfont/MaruBuri/MaruBuri-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
 @font-face { font-family: 'Instrument Serif'; src: url('/fonts/InstrumentSerif-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
 :root {
   --font-base: Freesentation, system-ui, sans-serif;
@@ -74,7 +72,7 @@ th { color: var(--text-muted); font-size: 14px; font-weight: 600; }
 .status-label--unresolved,.automation-mark--pending { color: var(--unresolved); }
 .is-urgent { color: var(--danger) !important; }
 .tag-badge-list,.tag-choice-group { display: flex; flex-wrap: wrap; max-width: 100%; align-items: center; gap: 8px; }
-.tag-choice-group { border-radius: 3px !important; border: 1px dashed #9fae9f !important; box-shadow: none !important; }
+.tag-choice-group { border-radius: 3px !important; border: 1px solid #9fae9f !important; box-shadow: none !important; }
 .rule-tag,.tag-pill { display: inline-flex; align-items: baseline; gap: 4px; padding: 2px 5px; border: 1px solid #c7d1c6; border-radius: 2px !important; color: #355347; background: #edf2e9; font: 14px/1.5 var(--font-ui); }
 .rule-tag__value { font-family: var(--font-data); font-size: 13px; font-weight: 700; }
 .app-loading,.panel-loading { padding: 48px; color: var(--text-muted); font-size: 18px; }

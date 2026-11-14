@@ -451,6 +451,8 @@ import { BarrowPanel } from './components/Phase4Panels';
 import { ChapterOpening, JournalNavigation, TodayOverview, type JournalTab } from './components/JournalExperience';
 import { FieldIcon } from './components/FieldIcon';
 import FolioFrontispiece from './components/FolioFrontispiece';
+import { SpreadCard, SpreadTag } from './components/CharacterSpread';
+import { randomSpreadCard } from './components/characterSpreadCards';
 import JournalPhotoDialog from './components/JournalPhotoDialog';
 import { useRecordArrivals } from './recordArrival';
 import { getPatientTimerProjection } from './patientTimerProjection';
@@ -5701,7 +5703,7 @@ const CardDrawSlot = ({
 
         {/* Manual input: suit buttons + value chips */}
         {isChoosing && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem', padding: '0.8rem', background: '#fff', border: '1.5px dashed var(--border-cozy)', borderRadius: '10px', width: '100%', maxWidth: '400px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem', padding: '0.8rem', background: '#fff', border: '1.5px solid var(--border-cozy)', borderRadius: '10px', width: '100%', maxWidth: '400px' }}>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>오프라인에서 뽑은 카드를 눌러 입력하세요</span>
 
             {/* Suit buttons */}
@@ -5767,7 +5769,7 @@ const CardDrawSlot = ({
           style={{
             width: '112px',
             minHeight: card ? '144px' : '44px',
-            border: card ? '1px solid #d8d1bf' : '2px dashed var(--glass-border)',
+            border: card ? '1px solid #d8d1bf' : '2px solid var(--glass-border)',
             borderRadius: '8px',
             background: card ? '#fff' : '#f8f6ef',
             display: 'flex',
@@ -6002,7 +6004,7 @@ const parseAndRenderTags = (tagsStr: string) => {
               className="tag-choice-group"
               style={{
                 padding: '0.25rem 0.5rem',
-                border: '1.5px dashed var(--border-cozy)',
+                border: '1.5px solid var(--border-cozy)',
                 borderRadius: '10px',
                 background: '#fcfaf6',
                 boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)'
@@ -12863,13 +12865,6 @@ export default function App() {
         <div className="cottage-top">
         <aside className="station-rail" aria-label="약제사의 작업소">
         <button type="button" className="journal-brand" onClick={() => changeActiveTab('play')} disabled={isOnboarding} aria-label={isOnboarding ? 'Apawthecaria 새 기록 설정' : '오늘의 여행 첫 페이지로 돌아가기'}>
-          <svg className="journal-brand__sprig" viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M24 44c0-11 1-21 6-31" />
-            <path d="M25.5 30c-6-1-10-5-11-11 6 0 10.5 4.5 11 11Z" />
-            <path d="M27.5 21c4.5-1.5 7.5-5.5 7.5-10.5-4.5 1.5-7.5 5-7.5 10.5Z" />
-            <path d="M25 37c4-.5 7.5-3 9-7-4 .2-7.5 3-9 7Z" />
-            <circle cx="30.5" cy="9" r="2.4" />
-          </svg>
           <span className="journal-brand__copy">
           <h1 className="journal-brand__title">Apawthecaria</h1>
           <span className="journal-brand__edition">브리스틀리 숲 약초 오두막의 여행 수첩</span>
@@ -12999,10 +12994,6 @@ export default function App() {
         <main id="field-main" tabIndex={-1} className="main-content-panel">
           {isOnboarding ? (
             <section className="onboarding-focus" aria-labelledby="onboarding-title">
-              <header className="onboarding-focus__intro">
-                <h2 id="onboarding-title">새 약제사의 첫 기록</h2>
-                <p>카드 여섯 장으로 나와 길동무를 정해요. 마음에 드는 걸 직접 골라도 괜찮고, 쓰던 내용은 이 기기에 남아 있어요.</p>
-              </header>
               <CharacterCreationWizard
                 key={`onboarding-character-${campaignUiEpoch}`}
                 state={state}
@@ -13749,7 +13740,7 @@ export default function App() {
               )}
 
               {/* Effect shortcuts */}
-              {state.rulesetId === 'sandbox' && <div style={{ marginTop: '0.9rem', padding: '0.75rem', background: '#fbfaf4', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
+              {state.rulesetId === 'sandbox' && <div style={{ marginTop: '0.9rem', padding: '0.75rem', background: '#fbfaf4', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
                 <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: '0.45rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>조우 효과 적용</div>
                 <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                   {([
@@ -14234,7 +14225,7 @@ export default function App() {
 
               {/* Secondary draw guidance */}
               {hasSecondaryDraw && (
-                <div className="encounter-dialog__secondary-draw" style={{ marginTop: '0.9rem', padding: '0.8rem 1rem', background: '#f0f4ff', border: '1.5px dashed #7a8ec9', borderRadius: '10px', fontSize: '0.88rem', lineHeight: 1.65 }}>
+                <div className="encounter-dialog__secondary-draw" style={{ marginTop: '0.9rem', padding: '0.8rem 1rem', background: '#f0f4ff', border: '1.5px solid #7a8ec9', borderRadius: '10px', fontSize: '0.88rem', lineHeight: 1.65 }}>
                   <div style={{ fontWeight: 'bold', color: '#3a4c8a', marginBottom: '0.35rem' }}><FieldIcon kind="card" /> 카드 판정이 필요합니다</div>
                   <div style={{ color: '#3a4c8a', marginBottom: '0.6rem' }}>
                     인쇄된 지시에 적힌 장수만큼 실제 덱이나 아래 도구를 사용하세요.<br />
@@ -14408,7 +14399,7 @@ export default function App() {
                 </div>
               )}
 
-              {state.rulesetId === 'sandbox' && <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#fbfaf4', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
+              {state.rulesetId === 'sandbox' && <div style={{ marginTop: '1rem', padding: '0.75rem', background: '#fbfaf4', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
                 <div className="document-kicker" style={{ marginBottom: '0.45rem' }}>조우 효과 적용</div>
                 <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                   {[
@@ -14650,7 +14641,7 @@ export default function App() {
       {showSuccessionModal && (
         <FocusDialog label="스승의 유산 계승" className="card-choice-dialog" onEscape={() => setShowSuccessionModal(false)}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <h3 style={{ margin: 0, color: 'var(--secondary)', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ margin: 0, color: 'var(--secondary)', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                스승의 유산 계승
             </h3>
             <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text)', lineHeight: 1.4 }}>
@@ -23041,7 +23032,7 @@ function PlayView({
       {state.pendingPatientArchive && (
         <section id="pending-archive-panel" tabIndex={-1} aria-label="진료 기록 마감" className="patient-archive-receipt">
           <div className="cute-card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.45rem', marginBottom: '0.7rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.45rem', marginBottom: '0.7rem' }}>
               <div>
                 <div className="document-kicker">진료 일지 덮기</div>
                 <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1rem' }}>{state.pendingPatientArchive.ailmentName}</h3>
@@ -23225,7 +23216,7 @@ function PlayView({
 
           {/* Downtime record */}
           <div id="downtime-panel" className="cute-card" tabIndex={-1} style={{ background: '#fffefa', border: '1.5px solid var(--secondary)', borderRadius: '7px', padding: '1.5rem', boxShadow: 'var(--shadow-md)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.6rem', marginBottom: '0.8rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', borderBottom: '1.5px solid var(--border-cozy)', paddingBottom: '0.6rem', marginBottom: '0.8rem' }}>
               <span className="journal-stamp">휴식</span>
               <div>
                 <h2 style={{ margin: 0, fontSize: '1.4rem', color: 'var(--secondary)', fontFamily: 'var(--font-fancy)' }}>휴식기 기록</h2>
@@ -23646,7 +23637,7 @@ function PlayView({
                     </button>
 
                     {rumourCards.length > 0 && (
-                      <div style={{ marginTop: '1rem', padding: '1rem', background: '#fcfaf6', border: '1.5px dashed var(--border-cozy)', borderRadius: '8px' }}>
+                      <div style={{ marginTop: '1rem', padding: '1rem', background: '#fcfaf6', border: '1.5px solid var(--border-cozy)', borderRadius: '8px' }}>
                         <h4 style={{ margin: '0 0 0.8rem 0', fontSize: '0.95rem' }}> 드로우된 거수 정보</h4>
                         <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', marginBottom: '1rem' }}>
                           {rumourCards.map((c, idx) => (
@@ -23817,7 +23808,7 @@ function PlayView({
                   </button>
                 </div>
 
-                <div style={{ marginTop: '1rem', borderTop: '1px dashed #eee', paddingTop: '1rem' }}>
+                <div style={{ marginTop: '1rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
                   <label style={{ display: 'block', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '0.4rem' }}><FieldIcon kind="play" />{' '}이동 스타일 변경:</label>
                   <div style={{ display: 'flex', gap: '0.4rem' }}>
                     <select id="style_select" style={{ padding: '0.4rem', fontSize: '0.85rem', flex: 1 }}>
@@ -24620,7 +24611,7 @@ function PlayView({
               </dl>
 
               <form className="journey-start-form" onSubmit={handleStartJourney} onBlurCapture={() => persistJourneyDraftNow()} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-                <div className="journey-start-decisions" style={{ display: 'grid', gap: '0.75rem', padding: '0.85rem', background: '#fffdf8', border: '1px dashed var(--glass-border)', borderRadius: '8px' }}>
+                <div className="journey-start-decisions" style={{ display: 'grid', gap: '0.75rem', padding: '0.85rem', background: '#fffdf8', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
                   <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
                     룰북 p.19–21: 목적지는 뽑기 또는 직접 선택, 목표는 표에서 뽑기/선택 또는 직접 만들기 중 하나를 고릅니다.
                   </div>
@@ -24793,7 +24784,7 @@ function PlayView({
                     )}
                   </fieldset>
                   {journeyGoalMode === 'table' && journeyGoalCard && (
-                    <div className="journey-goal-result" style={{ padding: '0.75rem', borderRadius: '7px', border: '1px dashed var(--glass-border)', background: '#fffdfa', color: 'var(--text)' }}>
+                    <div className="journey-goal-result" style={{ padding: '0.75rem', borderRadius: '7px', border: '1px solid var(--glass-border)', background: '#fffdfa', color: 'var(--text)' }}>
                       {journeyGoalPreview ? (
                         <div style={{ fontSize: '0.9rem', lineHeight: 1.4 }}>
                           <div style={{ fontWeight: 'bold', color: 'var(--primary)' }}>{journeyGoalPreview.title}</div>
@@ -25060,7 +25051,7 @@ function PlayView({
               </details>
             )}
             {canonicalWagonFromState(state).expansionIds.includes('clay-pots') && canonicalWagonFromState(state).clayPotReagentId && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0', borderTop: '1px dashed var(--glass-border)', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0', borderTop: '1px solid var(--glass-border)', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
                 <span>
                   이식용 진흙 화분 · {REAGENT_BY_ID.get(canonicalWagonFromState(state).clayPotReagentId!)?.displayName || '제철 식물'} · 재성장 {canonicalWagonFromState(state).clayPotMoves}/2회 이동
                 </span>
@@ -25483,7 +25474,7 @@ function PlayView({
             ) : !state.activeAilment ? (
               <div className="patient-intake" style={{ marginTop: '1rem' }}>
                 {state.lostPatientLegacy && (
-                  <div className="cute-card" style={{ border: '1.5px dashed #c4b5a3', background: '#fbf9f4', padding: '1.25rem', marginBottom: '1.2rem', position: 'relative', boxShadow: 'inset 0 0 12px rgba(139, 90, 43, 0.04)' }}>
+                  <div className="cute-card" style={{ border: '1.5px solid #c4b5a3', background: '#fbf9f4', padding: '1.25rem', marginBottom: '1.2rem', position: 'relative', boxShadow: 'inset 0 0 12px rgba(139, 90, 43, 0.04)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div style={{ flex: 1 }}>
                         <div className="document-kicker" style={{ color: '#8c7a6b', borderColor: '#c4b5a3', marginBottom: '0.45rem', textTransform: 'uppercase', fontSize: '0.74rem', fontWeight: 600, letterSpacing: '0.04em' }}>
@@ -25496,7 +25487,7 @@ function PlayView({
                           아침 햇살이 창문을 넘어 들어왔을 때, 침상은 이미 싸늘하게 비어 있었습니다. 밤새 가쁜 호흡을 몰아쉬던 그 가여운 생명은 결국 마지막 한 숨을 거두고 길을 잃고 말았습니다. 식어버린 짚더미 위에 남겨진 흩뜨려진 모포를 보며, 약효가 닿지 못했던 내 부족한 손길을 탓해 봅니다. 가슴을 짓누르는 정적 속에 슬픔만이 자욱하게 내려앉습니다.
                         </p>
                         {state.lostPatientLegacy.consequence && (
-                          <div style={{ padding: '0.75rem', background: '#f8f5ee', border: '1px dashed #dcd3c1', borderRadius: '4px', fontSize: '0.84rem', color: '#5c4d3c', lineHeight: '1.55' }}>
+                          <div style={{ padding: '0.75rem', background: '#f8f5ee', border: '1px solid #dcd3c1', borderRadius: '4px', fontSize: '0.84rem', color: '#5c4d3c', lineHeight: '1.55' }}>
                             <span style={{ display: 'block', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8c7a6b', fontWeight: 'bold', marginBottom: '0.25rem' }}>남겨진 흔적:</span>
                             {state.lostPatientLegacy.consequence}
                           </div>
@@ -25595,7 +25586,7 @@ function PlayView({
                   </div>
 
                   {/* Ambient Workshop Lines */}
-                  <div style={{ gridColumn: '1 / -1', borderTop: '1.5px dashed var(--glass-border)', paddingTop: '0.75rem', marginTop: '0.4rem', textAlign: 'center' }}>
+                  <div style={{ gridColumn: '1 / -1', borderTop: '1.5px solid var(--glass-border)', paddingTop: '0.75rem', marginTop: '0.4rem', textAlign: 'center' }}>
                     {(() => {
                       const dayVal = state.cumulativeDays || state.calendarDays || 0;
                       const casebookLen = (state.patientCasebook || []).length;
@@ -25682,7 +25673,7 @@ function PlayView({
                       중증도: {canonicalSeverityLabel(state.activeAilment.severity)} · {getNaturalSeverityDescription(state.activeAilment.severity)}
                     </div>
                     {(state.activeAilment.patientName || state.activeAilment.species || state.activeAilment.initialRememberedNote) && (
-                      <div style={{ marginTop: '0.5rem', padding: '0.65rem', border: '1px dashed var(--glass-border)', background: '#fffefa', borderRadius: '4px', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
+                      <div style={{ marginTop: '0.5rem', padding: '0.65rem', border: '1px solid var(--glass-border)', background: '#fffefa', borderRadius: '4px', fontSize: '0.84rem', color: 'var(--text-muted)' }}>
                         <div className="patient-identity-row">
                           <div><strong>환자:</strong> {patientDisplayName(state.activeAilment.patientName)} · {patientSpeciesLabel(state.activeAilment.species, treatmentIsEncounterPatient ? undefined : treatmentPatient?.descriptor)}</div>
                           <button
@@ -26258,12 +26249,12 @@ function PlayView({
                 })()}
 
                 {/* Scrounging — rulebook p.37: spend remaining timer to forage extra reagents */}
-                <div style={{ marginTop: '0.5rem', padding: '0.6rem', background: '#f9f5ee', border: '1px dashed #c9b68a', borderRadius: '8px', fontSize: '0.82rem' }}>
+                <div style={{ marginTop: '0.5rem', padding: '0.6rem', background: '#f9f5ee', border: '1px solid #c9b68a', borderRadius: '8px', fontSize: '0.82rem' }}>
                   <strong>여분 채집 (p.37)</strong> — 치료 완료 후 모든 치료 기한이 0보다 클 때 남은 시간을 사용할 수 있습니다.<br />
                   카드 채집: 현재 지역 1시간 · 인접 지역 2시간. 약효 2 이하 부위 1개 직접 확보: 현재 지역 3시간 · 인접 지역 4시간.<br />
                   <span>필요한 시간만큼 모든 기한이 남아 있어야 합니다. 채집 조우 등 필수 절차를 마친 뒤 바로 길을 떠나도 됩니다.</span>
                   {(hasTool(state, 'tool_needles') || hasTool(state, '뜨개바늘') || hasTool(state, 'Knitting Needles')) && (
-                    <div style={{ marginTop: '0.65rem', paddingTop: '0.55rem', borderTop: '1px dashed #d6c8a8' }}>
+                    <div style={{ marginTop: '0.65rem', paddingTop: '0.55rem', borderTop: '1px solid #d6c8a8' }}>
                       <strong style={{ color: '#7c5a2a' }}><FieldIcon kind="bio" /> 뜨개질 프로젝트 (Knitting Needles, p.64)</strong>
                       <div style={{ marginTop: '0.35rem' }}>
                         <button
@@ -26281,7 +26272,7 @@ function PlayView({
                     if (saleableOddments.length === 0) return null;
                     const preview = calculatePawnReward(toEngineInventory(state.bag), pawnItemIds);
                     return (
-                      <div style={{ marginTop: '0.65rem', paddingTop: '0.55rem', borderTop: '1px dashed #d6c8a8' }}>
+                      <div style={{ marginTop: '0.65rem', paddingTop: '0.55rem', borderTop: '1px solid #d6c8a8' }}>
                         <strong style={{ color: '#7c5a2a' }}>떠나기 전 담보 판매</strong>
                         <div style={{ display: 'grid', gap: '0.35rem', marginTop: '0.45rem' }}>
                           {saleableOddments.map(item => (
@@ -26429,7 +26420,7 @@ function PlayView({
                           ))}
                           {treatmentPreview?.separateDoses?.length ? <small>각 회분의 사용 횟수를 따로 확보했습니다. {Object.entries(treatmentPreview.ingredientUses || {}).map(([id, uses]) => `${state.bag.find(item => item.id === id)?.name || id} ${uses}회 소비`).join(' · ')}</small> : null}
                         </div>
-                        <details style={{ marginBottom: '1rem', padding: '0.65rem 0', borderBottom: '1px dashed #d4a853', fontSize: '0.82rem', lineHeight: 1.45 }} open={Boolean(alternative)}>
+                        <details style={{ marginBottom: '1rem', padding: '0.65rem 0', borderBottom: '1px solid #d4a853', fontSize: '0.82rem', lineHeight: 1.45 }} open={Boolean(alternative)}>
                           <summary style={{ cursor: 'pointer', color: '#8b5e1a', fontWeight: 700, minHeight: '40px', display: 'flex', alignItems: 'center' }}>필요한 약효가 없나요? 대용품과 대안 영약재 (p.30)</summary>
                           <p><strong>대용품 쓰기(Make Do)</strong>: 필요한 약효보다 1 높은 대용품을 확보하고, 그 재료가 질환을 어떻게 가라앉히는지 기록합니다.</p>
                           <p><strong>대안 영약재(Replacement)</strong>: 필요한 약효를 가진 새 재료의 이름과 부위를 정합니다. 기본 희귀도 12 · 무게 2/3이며 실제 채집이나 거래에 성공한 뒤 도감과 일지에 남깁니다.</p>
@@ -26765,13 +26756,6 @@ function PlayView({
 
 // =================================================================
 // 6. CHARACTER SHEET (BIO & BAGS) VIEW
-const WizardFieldCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <section className="wizard-step-content">
-    <h4 style={{ margin: '0 0 0.75rem 0', color: 'var(--primary)', fontFamily: 'var(--font-fancy)', fontSize: '1.15rem' }}>{title}</h4>
-    {children}
-  </section>
-);
-
 const WizardChoiceSelect = ({ value, onChange, items, labelKey = 'name', label }: { value: string; onChange: (item: any) => void; items: any[]; labelKey?: string; label: string }) => (
   <select
     className="wizard-choice-select"
@@ -26805,6 +26789,9 @@ const WizardAnimalChoices = ({ examples, selected, onPick }: { examples: string;
     ))}
   </div>
 );
+
+/** Draft snapshots are only taken from effects and event handlers, never while rendering. */
+const draftTimestamp = () => Date.now();
 
 // =================================================================
 function CharacterCreationWizard({
@@ -26870,16 +26857,7 @@ function CharacterCreationWizard({
     ingenuitiveTool: savedText('ingenuitiveTool', state.ingenuitiveTool || "")
   });
   type CharacterWizardLocalDraft = ReturnType<typeof createInitialLocalDraft>;
-  const inferredResumeStep = savedDraft?.cards.relationship || savedTouched.has('relationshipJournal') ? 6
-    : savedDraft?.cards.familiarBenefit || savedTouched.has('familiarBenefitName') ? 5
-      : savedDraft?.cards.familiar || savedTouched.has('familiarName') ? 4
-        : savedTouched.has('mementoNote') ? 3
-          : savedDraft?.cards.origin || savedTouched.has('originJournal') ? 2
-            : savedDraft?.cards.travel || savedTouched.has('travelName') ? 1
-              : 0;
-
   const [open, setOpen] = useState(!state.bio.name);
-  const [step, setStep] = useState(inferredResumeStep);
   const [draft, setDraftState] = useState<CharacterWizardLocalDraft>(createInitialLocalDraft);
   const [wizardCards, setWizardCardsState] = useState<Record<string, PlayingCard | null>>(() => ({ ...(savedDraft?.cards || {}) }));
   const [hasCharacterDraftEdits, setHasCharacterDraftEdits] = useState(Boolean(savedDraft));
@@ -26998,7 +26976,7 @@ function CharacterCreationWizard({
     const values = characterValues(draftRef.current);
     return {
       version: 1,
-      updatedAt: Date.now(),
+      updatedAt: draftTimestamp(),
       touched,
       ...Object.fromEntries(touched.map(field => [field, values[field]])),
       cards
@@ -27064,16 +27042,6 @@ function CharacterCreationWizard({
     };
   }, [persistCharacterDraftNow]);
 
-  const steps = [
-    '약제사 동물',
-    '이동 방식',
-    '출발 계기',
-    '장비와 기념품',
-    '길동무 동물',
-    '길동무 도움',
-    '관계',
-    '확정'
-  ];
 
   const applyWizardCard = (key: string, card: PlayingCard, action: (card: PlayingCard) => void) => {
     const previous = wizardCards[key];
@@ -27121,7 +27089,6 @@ function CharacterCreationWizard({
   const saveCharacter = (timestamp: number) => {
     const missingFields = getCharacterCreationIssues(characterValues(draft), choiceEvidence);
     if (missingFields.length > 0) {
-      setStep(missingFields[0].step);
       showAlert(`시트를 저장하려면 다음 항목을 입력하거나 직접 선택해 주세요: ${missingFields.map(issue => issue.label).join(', ')}`);
       return;
     }
@@ -27175,7 +27142,7 @@ function CharacterCreationWizard({
 
   if (!open) {
     return (
-      <div style={{ border: '1.5px dashed var(--border-cozy)', borderRadius: '10px', padding: '0.8rem 1rem', background: '#fff', display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', marginBottom: '1.2rem' }}>
+      <div style={{ border: '1.5px solid var(--border-cozy)', borderRadius: '10px', padding: '0.8rem 1rem', background: '#fff', display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center', marginBottom: '1.2rem' }}>
         <div>
           <strong style={{ color: 'var(--primary)' }}>룰북 기반 캐릭터 생성</strong>
           <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>10-16쪽 순서대로 약제사와 길동무를 다시 정리합니다.</div>
@@ -27213,7 +27180,6 @@ function CharacterCreationWizard({
     };
     draftRef.current = initial;
     setDraftState(initial);
-    setStep(0);
     setHasCharacterDraftEdits(false);
     persistedCharacterDraftRef.current = JSON.stringify(null);
     updateState((current: GameState) => ({
@@ -27222,332 +27188,153 @@ function CharacterCreationWizard({
     }));
   };
 
+  const descriptorTitle = (descriptor: { name: string }) => localizeCharacterDescriptor(descriptor.name);
+  const turnFns: Record<CharacterChoiceField, () => void> = {
+    descriptorName: () => applyDescriptorCard('self', 'self', randomSpreadCard()),
+    travelName: () => applyTravelCard(randomSpreadCard()),
+    originName: () => applyOriginCard(randomSpreadCard()),
+    familiarDescriptorName: () => applyDescriptorCard('familiar', 'familiar', randomSpreadCard()),
+    familiarBenefitName: () => applyBenefitCard(randomSpreadCard()),
+    relationshipName: () => applyRelationshipCard(randomSpreadCard())
+  };
+  const faceDown = CHARACTER_CREATION_CHOICES.filter(choice => !choiceConfirmed(choice.field));
+  const turnAllCards = () => {
+    faceDown.forEach((choice, index) => window.setTimeout(() => turnFns[choice.field](), index * 170));
+  };
+  const faceSrc = (key: string) => {
+    const card = wizardCards[key];
+    return card ? getCardSvgUrl(card.suit, card.value) : undefined;
+  };
+  const matchedBenefit = FAMILIAR_BENEFITS.find(f => f.card === draft.familiarBenefit.card);
+  const hasDraft = Boolean(savedDraft || hasCharacterDraftEdits || Object.keys(wizardCards).length > 0);
+
   return (
     <div
-      className={`character-wizard ${focused ? 'character-wizard--focused' : ''}`}
-      data-step={step}
+      className={`origin-spread ${focused ? 'origin-spread--focused' : ''}`}
       id={focused ? 'character-creation-page' : undefined}
       tabIndex={focused ? -1 : undefined}
       onBlurCapture={() => persistCharacterDraftNow()}
     >
-      <div className="character-wizard__header">
+      <header className="origin-spread__head">
         <div>
-          <p className="wizard-page-kicker">첫 기록 · {String(step + 1).padStart(2, '0')} / {String(steps.length).padStart(2, '0')}</p>
-          {!focused && <>
-            <h3 style={{ margin: 0, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)', fontSize: '1.35rem' }}>우리의 첫 여행 채비</h3>
-            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.86rem', color: 'var(--text-muted)' }}>카드를 뽑고, 마음에 드는 모습을 기록하세요. 직접 선택해도 됩니다.</p>
-          </>}
-          <p className="wizard-progress-note">필수 선택 {CHARACTER_CREATION_CHOICES.filter(choice => choiceConfirmed(choice.field)).length}/6 · 메모는 천천히 남겨도 좋아요.</p>
+          <p className="origin-spread__kicker">첫 장</p>
+          <h2 id={focused ? 'onboarding-title' : undefined}>여섯 장의 카드로 시작해요</h2>
+          <p className="origin-spread__lede">엎어 둔 카드를 한 장씩 뒤집으면 약제사와 길동무의 이야기가 정해져요. 표에서 직접 골라도 괜찮아요.</p>
         </div>
-        {state.bio.name.trim() ? (
-          <button type="button" onClick={() => setOpen(false)} style={{ padding: '0.35rem 0.65rem', background: '#eee', color: '#555', borderRadius: '6px' }}>접기</button>
-        ) : (savedDraft || hasCharacterDraftEdits || Object.keys(wizardCards).length > 0) ? (
-          <button type="button" onClick={abandonCharacterDraft} style={{ padding: '0.35rem 0.65rem', background: '#fff', color: 'var(--accent-red)', border: '1px solid #e7b9b9', borderRadius: '6px' }}>작성 내용 지우기</button>
-        ) : null}
-      </div>
+        <div className="origin-spread__head-actions">
+          {faceDown.length > 0 && <button type="button" className="origin-spread__turn-all" onClick={turnAllCards}>남은 {faceDown.length}장 모두 뒤집기</button>}
+          {state.bio.name.trim()
+            ? <button type="button" className="origin-spread__quiet" onClick={() => setOpen(false)}>접기</button>
+            : hasDraft && <button type="button" className="origin-spread__quiet" onClick={abandonCharacterDraft}>처음부터 다시</button>}
+        </div>
+      </header>
 
-      <nav className="wizard-steps" aria-label="캐릭터 생성 단계">
-        {steps.map((label, idx) => (
-          <button
-            key={label}
-            type="button"
-            aria-current={step === idx ? 'step' : undefined}
-            data-complete={idx < 7 && (idx === 3 ? Boolean(draft.mementoNote.trim()) : !characterIssues.some(issue => issue.step === idx))}
-            onClick={() => setStep(idx)}
-          >
-            <span className="wizard-steps__number" aria-hidden="true">{String(idx + 1).padStart(2, '0')}</span>
-            <span>{label}</span>
-            {idx < 7 && (idx === 3 ? Boolean(draft.mementoNote.trim()) : !characterIssues.some(issue => issue.step === idx)) && <span className="wizard-steps__check" aria-label="입력됨">✓</span>}
-          </button>
-        ))}
-      </nav>
+      <section className="spread-row" aria-labelledby="spread-row-self">
+        <SpreadTag kicker="약제사">
+          <h3 id="spread-row-self" className="sr-only">약제사</h3>
+          <label className="spread-tag__field spread-tag__field--name">
+            <span>이름</span>
+            <input value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} placeholder="어떤 이름으로 불리나요?" autoComplete="off" />
+          </label>
+          <label className="spread-tag__field">
+            <span>어떤 동물?</span>
+            <input value={draft.animal} onChange={e => setDraft(d => ({ ...d, animal: e.target.value }))} placeholder={choiceConfirmed('descriptorName') ? '아래에서 고르거나 적어요' : '동물 카드를 먼저 뒤집어 봐요'} />
+          </label>
+          {choiceConfirmed('descriptorName') && <WizardAnimalChoices examples={draft.descriptor.examples} selected={draft.animal} onPick={value => setDraft(d => ({ ...d, animal: value }))} />}
+        </SpreadTag>
+        <div className="spread-row__cards">
+          <SpreadCard topic="동물" page="p.10" card={wizardCards.self || null} chosen={choiceConfirmed('descriptorName')} faceSrc={faceSrc('self')}
+            title={descriptorTitle(draft.descriptor)} detail={draft.descriptor.examples}
+            onTurn={turnFns.descriptorName} onPhysical={card => applyDescriptorCard('self', 'self', card)}
+            chooser={<WizardChoiceSelect label="약제사 동물 유형" value={choiceConfirmed('descriptorName') ? draft.descriptor.name : ''} items={bioChoices.descriptors as any[]} onChange={item => selectCharacterChoice('descriptor', item)} />} />
+          <SpreadCard topic="이동" page="p.11" card={wizardCards.travel || null} chosen={choiceConfirmed('travelName')} faceSrc={faceSrc('travel')}
+            title={localizeTravelStyle(draft.travel.name)} detail={`하루 ${draft.travel.speed}경로 · 짐 ${draft.travel.carry}칸`}
+            onTurn={turnFns.travelName} onPhysical={applyTravelCard}
+            chooser={<WizardChoiceSelect label="이동 방식" value={choiceConfirmed('travelName') ? draft.travel.name : ''} items={bioChoices.travelStyles as any[]} onChange={item => selectCharacterChoice('travel', item)} />} />
+          <SpreadCard topic="떠난 계기" page="p.12" card={wizardCards.origin || null} chosen={choiceConfirmed('originName')} faceSrc={faceSrc('origin')}
+            title={draft.origin.name} detail={draft.origin.desc}
+            onTurn={turnFns.originName} onPhysical={applyOriginCard}
+            chooser={<WizardChoiceSelect label="출발 계기" value={choiceConfirmed('originName') ? draft.origin.name : ''} items={bioChoices.origins as any[]} onChange={item => selectCharacterChoice('origin', item)} />} />
+        </div>
+      </section>
 
-      {step === 0 && (
-        <WizardFieldCard title="어떤 동물인가요?">
-          <div className="wizard-decision-flow">
-            <label className="wizard-name-field"><span>약제사 이름</span><input value={draft.name} onChange={e => setDraft(d => ({ ...d, name: e.target.value }))} placeholder="어떤 이름으로 불리나요?" autoComplete="off" /></label>
-            <CardDrawSlot
-              variant="hero"
-              label="약제사 정체성 카드 (p.10)"
-              helper="카드 한 장을 뽑아 당신의 종족을 알아보세요. 오프라인 덱이 있다면 직접 입력도 가능합니다."
-              card={wizardCards.self || null}
-              onCard={card => applyDescriptorCard('self', 'self', card)}
-            />
-            <div className="wizard-result" aria-live="polite">
-              {choiceConfirmed('descriptorName') ? (
-                <>선택한 약제사의 유형은 <strong style={{ color: 'var(--primary)' }}>{localizeCharacterDescriptor(draft.descriptor.name)}</strong>입니다.<br /><span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.descriptor.examples} 중에서 골라보세요.</span></>
-              ) : (
-                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑거나 아래에서 동물 유형을 직접 선택하세요.</span>
-              )}
-            </div>
-            <WizardAnimalChoices examples={draft.descriptor.examples} selected={draft.animal} onPick={value => setDraft(d => ({ ...d, animal: value }))} />
-            <label className="wizard-name-field"><span>약제사의 동물 · 외형</span><input value={draft.animal} onChange={e => setDraft(d => ({ ...d, animal: e.target.value }))} placeholder="목록에서 고르거나 직접 적으세요" /></label>
-            <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
-              <div style={{ marginTop: '0.4rem' }}>
-                <WizardChoiceSelect label="약제사 동물 유형 직접 선택" value={choiceConfirmed('descriptorName') ? draft.descriptor.name : ''} items={bioChoices.descriptors as any[]} onChange={item => selectCharacterChoice('descriptor', item)} />
-              </div>
-            </details>
-          </div>
-        </WizardFieldCard>
-      )}
+      <section className="spread-row" aria-labelledby="spread-row-familiar">
+        <SpreadTag kicker="길동무">
+          <h3 id="spread-row-familiar" className="sr-only">길동무</h3>
+          <label className="spread-tag__field spread-tag__field--name">
+            <span>이름</span>
+            <input value={draft.familiarName} onChange={e => setDraft(d => ({ ...d, familiarName: e.target.value }))} placeholder="함께 걸을 친구의 이름" autoComplete="off" />
+          </label>
+          <label className="spread-tag__field">
+            <span>어떤 동물?</span>
+            <input value={draft.familiarAnimal} onChange={e => setDraft(d => ({ ...d, familiarAnimal: e.target.value }))} placeholder={choiceConfirmed('familiarDescriptorName') ? '아래에서 고르거나 적어요' : '동물 카드를 먼저 뒤집어 봐요'} />
+          </label>
+          {choiceConfirmed('familiarDescriptorName') && <WizardAnimalChoices examples={draft.familiarDescriptor.examples} selected={draft.familiarAnimal} onPick={value => setDraft(d => ({ ...d, familiarAnimal: value }))} />}
+        </SpreadTag>
+        <div className="spread-row__cards">
+          <SpreadCard topic="동물" page="p.14" card={wizardCards.familiar || null} chosen={choiceConfirmed('familiarDescriptorName')} faceSrc={faceSrc('familiar')}
+            title={descriptorTitle(draft.familiarDescriptor)} detail={draft.familiarDescriptor.examples}
+            onTurn={turnFns.familiarDescriptorName} onPhysical={card => applyDescriptorCard('familiar', 'familiar', card)}
+            chooser={<WizardChoiceSelect label="길동무 동물 유형" value={choiceConfirmed('familiarDescriptorName') ? draft.familiarDescriptor.name : ''} items={bioChoices.descriptors as any[]} onChange={item => selectCharacterChoice('familiarDescriptor', item)} />} />
+          <SpreadCard topic="도움" page="p.15" card={wizardCards.familiarBenefit || null} chosen={choiceConfirmed('familiarBenefitName')} faceSrc={faceSrc('familiarBenefit')}
+            title={draft.familiarBenefit.name} detail={draft.familiarBenefit.desc}
+            onTurn={turnFns.familiarBenefitName} onPhysical={applyBenefitCard}
+            chooser={<WizardChoiceSelect label="길동무 도움" value={choiceConfirmed('familiarBenefitName') ? draft.familiarBenefit.name : ''} items={bioChoices.familiars as any[]} onChange={item => selectCharacterChoice('familiarBenefit', item)} />} />
+          <SpreadCard topic="관계" page="p.16" card={wizardCards.relationship || null} chosen={choiceConfirmed('relationshipName')} faceSrc={faceSrc('relationship')}
+            title={draft.relationship.name} detail={draft.relationship.desc}
+            onTurn={turnFns.relationshipName} onPhysical={applyRelationshipCard}
+            chooser={<WizardChoiceSelect label="길동무와의 관계" value={choiceConfirmed('relationshipName') ? draft.relationship.name : ''} items={bioChoices.relationships as any[]} onChange={item => selectCharacterChoice('relationship', item)} />} />
+        </div>
+        {choiceConfirmed('familiarBenefitName') && matchedBenefit?.mechanic === 'resourceful' && (
+          <label className="spread-row__extra">
+            <span>길동무가 늘 찾아올 영약재 (희귀도 7 이하)</span>
+            <select value={draft.resourcefulReagent} onChange={e => setDraft(d => ({ ...d, resourcefulReagent: e.target.value }))}>
+              <option value="">영약재 고르기</option>
+              {REAGENTS.filter(r => r.baseRarity <= 7).map(r => <option key={r.id} value={r.displayName}>{r.displayName} · 희귀도 {r.baseRarity}</option>)}
+            </select>
+          </label>
+        )}
+        {choiceConfirmed('familiarBenefitName') && matchedBenefit?.mechanic === 'ingenuitive' && (
+          <label className="spread-row__extra">
+            <span>길동무가 흉내 낼 도구</span>
+            <select value={draft.ingenuitiveTool} onChange={e => setDraft(d => ({ ...d, ingenuitiveTool: e.target.value }))}>
+              <option value="">도구 고르기</option>
+              <option value="tool_crossbow">석궁 (Crossbow)</option>
+              <option value="tool_saddlebags">안장가방 (Saddlebags)</option>
+              <option value="tool_stilts">죽마 (Stilts)</option>
+              <option value="tool_mortar">나무 절구와 공이 (Mortar & Pestle)</option>
+              <option value="tool_kettle">낡은 캠프 주전자 (Kettle)</option>
+              <option value="tool_knife">벨트 칼 (Knife)</option>
+            </select>
+          </label>
+        )}
+      </section>
 
-      {step === 1 && (
-        <WizardFieldCard title="어떻게 여행하나요?">
-          <div className="wizard-decision-flow">
-            <CardDrawSlot
-              variant="hero"
-              label="이동 방식 카드 (p.11)"
-              helper="문양이 여행 스타일을 정합니다. 느릿느릿 짐을 잔뜩 싣거나, 가볍게 날듯이 움직이거나."
-              card={wizardCards.travel || null}
-              onCard={applyTravelCard}
-            />
-            <div className="wizard-result" aria-live="polite">
-              {choiceConfirmed('travelName') ? (
-                <>
-                  <strong style={{ color: 'var(--primary)' }}>{localizeTravelStyle(draft.travel.name)}</strong> 방식으로 여행합니다.<br />
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>
-                    하루에 {draft.travel.speed}경로를 이동하고, 짐은 {draft.travel.carry}칸까지 들 수 있습니다.
-                  </span><br />
-                  <span style={{ color: 'var(--text-dim)', fontSize: '0.82rem', fontStyle: 'italic' }}>{draft.travel.desc}</span>
-                </>
-              ) : (
-                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑거나 아래에서 이동 방식을 직접 선택하세요.</span>
-              )}
-            </div>
-            <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
-              <div style={{ marginTop: '0.4rem' }}>
-                <WizardChoiceSelect label="이동 방식 직접 선택" value={choiceConfirmed('travelName') ? draft.travel.name : ''} items={bioChoices.travelStyles as any[]} onChange={item => selectCharacterChoice('travel', item)} />
-              </div>
-            </details>
-          </div>
-        </WizardFieldCard>
-      )}
+      <section className="origin-spread__satchel" aria-labelledby="spread-satchel">
+        <h3 id="spread-satchel">가방에 챙긴 것</h3>
+        <p className="origin-spread__gear">벨트 칼 · 나무 절구와 공이 · 낡은 캠프 주전자 · 이빨 · 앞발/발톱 <span>그리고 기념품 하나 (p.12)</span></p>
+        <label className="origin-spread__note">
+          <span>기념품은 무엇이고, 왜 소중한가요? <em>선택</em></span>
+          <textarea value={draft.mementoNote} onChange={e => setDraft(d => ({ ...d, mementoNote: e.target.value }))} rows={2} />
+        </label>
+        <details className="origin-spread__more">
+          <summary>이야기 메모 더 남기기 <em>선택</em></summary>
+          <label className="origin-spread__note"><span>그 계기가 약제사의 길로 어떻게 이어졌나요?</span><textarea aria-label="출발 계기 메모" value={draft.originJournal} onChange={e => setDraft(d => ({ ...d, originJournal: e.target.value }))} rows={3} /></label>
+          <label className="origin-spread__note"><span>길동무와 처음 어떻게 만났나요?</span><textarea aria-label="첫 만남 메모" value={draft.familiarJournal} onChange={e => setDraft(d => ({ ...d, familiarJournal: e.target.value }))} rows={3} /></label>
+          <label className="origin-spread__note"><span>둘 사이를 보여주는 짧은 장면</span><textarea aria-label="우리의 관계 메모" value={draft.relationshipJournal} onChange={e => setDraft(d => ({ ...d, relationshipJournal: e.target.value }))} rows={3} /></label>
+        </details>
+      </section>
 
-      {step === 2 && (
-        <WizardFieldCard title="왜 약제사의 길을 떠났나요?">
-          <div className="wizard-decision-flow">
-            <CardDrawSlot
-              variant="hero"
-              label="출발 계기 카드 (p.12)"
-              helper="문양이 약제사가 된 동기를 알려줍니다."
-              card={wizardCards.origin || null}
-              onCard={applyOriginCard}
-            />
-            <div className="wizard-result" aria-live="polite">
-              {choiceConfirmed('originName') ? (
-                <>
-                  <strong style={{ color: 'var(--primary)' }}>{draft.origin.name}</strong><br />
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.origin.desc}</span>
-                </>
-              ) : (
-                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑거나 아래에서 출발 계기를 직접 선택하세요.</span>
-              )}
-            </div>
-            <details className="wizard-optional-note"><summary>출발 계기 메모 <span>선택</span></summary><label><span className="sr-only">출발 계기 메모</span><textarea aria-label="출발 계기 메모" value={draft.originJournal} onChange={e => setDraft(d => ({ ...d, originJournal: e.target.value }))} rows={4} placeholder="선택 메모 · 그 계기가 약제사의 길로 어떻게 이어졌나요?" /></label></details>
-            <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
-              <div style={{ marginTop: '0.4rem' }}>
-                <WizardChoiceSelect label="출발 계기 직접 선택" value={choiceConfirmed('originName') ? draft.origin.name : ''} items={bioChoices.origins as any[]} onChange={item => selectCharacterChoice('origin', item)} />
-              </div>
-            </details>
-          </div>
-        </WizardFieldCard>
-      )}
-
-      {step === 3 && (
-        <WizardFieldCard title="가방에 무엇을 챙겼나요?">
-          <div style={{ display: 'grid', gap: '0.75rem', fontSize: '0.9rem' }}>
-            <div style={{ padding: '0.8rem', background: '#fff', border: '1px dashed var(--border-cozy)', borderRadius: '8px', lineHeight: 1.55 }}>
-              벨트 칼, 나무 절구와 공이, 낡은 캠프 주전자, 이빨, 앞발/발톱을 챙겼습니다.<br />
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>그리고 소중한 기념품 하나를 장신구 대신 들고 떠납니다. (규칙서 p.12: 기념품 장신구 1개로 시작)</span>
-            </div>
-
-            <textarea
-              value={draft.mementoNote}
-              onChange={e => setDraft(d => ({ ...d, mementoNote: e.target.value }))}
-              rows={4}
-              placeholder="선택 메모 · 첫 여정에 들고 가는 기념품은 무엇이고, 왜 소중한가요?"
-            />
-          </div>
-        </WizardFieldCard>
-      )}
-
-
-      {step === 4 && (
-        <WizardFieldCard title="함께하는 길동무는 누구인가요?">
-          <div className="wizard-decision-flow">
-            <label className="wizard-name-field"><span>길동무 이름</span><input value={draft.familiarName} onChange={e => setDraft(d => ({ ...d, familiarName: e.target.value }))} placeholder="함께 걸을 친구의 이름" autoComplete="off" /></label>
-            <CardDrawSlot
-              variant="hero"
-              label="길동무 정체성 카드 (p.14)"
-              helper="약제사와 같은 동물 표를 사용합니다. 카드 한 장으로 길동무의 종족을 알아보세요."
-              card={wizardCards.familiar || null}
-              onCard={card => applyDescriptorCard('familiar', 'familiar', card)}
-            />
-            <div className="wizard-result" aria-live="polite">
-              {choiceConfirmed('familiarDescriptorName') ? (
-                <>당신의 길동무는 <strong style={{ color: 'var(--primary)' }}>{localizeCharacterDescriptor(draft.familiarDescriptor.name)}</strong> 유형입니다.<br /><span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.familiarDescriptor.examples} 중에서 골라보세요.</span></>
-              ) : (
-                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑거나 아래에서 길동무의 동물 유형을 직접 선택하세요.</span>
-              )}
-            </div>
-            <WizardAnimalChoices examples={draft.familiarDescriptor.examples} selected={draft.familiarAnimal} onPick={value => setDraft(d => ({ ...d, familiarAnimal: value }))} />
-            <label className="wizard-name-field"><span>길동무의 동물 · 외형</span><input value={draft.familiarAnimal} onChange={e => setDraft(d => ({ ...d, familiarAnimal: e.target.value }))} placeholder="목록에서 고르거나 직접 적으세요" /></label>
-            <details className="wizard-optional-note"><summary>첫 만남 메모 <span>선택</span></summary><label><span className="sr-only">첫 만남 메모</span><textarea aria-label="첫 만남 메모" value={draft.familiarJournal} onChange={e => setDraft(d => ({ ...d, familiarJournal: e.target.value }))} rows={3} placeholder="선택 메모 · 길동무와 처음 어떻게 만났나요?" /></label></details>
-            <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
-              <div style={{ marginTop: '0.4rem' }}>
-                <WizardChoiceSelect label="길동무 동물 유형 직접 선택" value={choiceConfirmed('familiarDescriptorName') ? draft.familiarDescriptor.name : ''} items={bioChoices.descriptors as any[]} onChange={item => selectCharacterChoice('familiarDescriptor', item)} />
-              </div>
-            </details>
-          </div>
-        </WizardFieldCard>
-      )}
-
-      {step === 5 && (() => {
-        const matchedBenefit = FAMILIAR_BENEFITS.find(f => f.card === draft.familiarBenefit.card);
-        return (
-          <WizardFieldCard title="길동무가 어떻게 도와주나요?">
-            <div className="wizard-decision-flow">
-              <CardDrawSlot
-                variant="hero"
-                label="길동무 도움 카드 (p.15)"
-                helper="카드 값이 길동무의 특기를 정합니다. Q와 K는 Monarch로 처리됩니다."
-                card={wizardCards.familiarBenefit || null}
-                onCard={applyBenefitCard}
-              />
-              <div className="wizard-result" aria-live="polite">
-                {choiceConfirmed('familiarBenefitName') ? (
-                  <>
-                    길동무의 특기: <strong style={{ color: 'var(--primary)' }}>{draft.familiarBenefit.name}</strong><br />
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.familiarBenefit.desc}</span>
-                  </>
-                ) : (
-                  <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑거나 아래에서 길동무의 도움을 직접 선택하세요.</span>
-                )}
-              </div>
-
-              {/* Resourceful familiar: select target reagent */}
-              {matchedBenefit?.mechanic === 'resourceful' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
-                  <label style={{ fontSize: '0.88rem' }}><strong><FieldIcon kind="reagents" /> 상시 채집할 약재 지정 (희귀도 7 이하):</strong></label>
-                  <select
-                    value={draft.resourcefulReagent}
-                    onChange={e => setDraft(d => ({ ...d, resourcefulReagent: e.target.value }))}
-                    style={{ padding: '0.4rem', borderRadius: '6px', fontSize: '0.85rem', border: '1px solid var(--border-cozy)' }}
-                  >
-                    <option value="">-- 약재 선택 --</option>
-                    {REAGENTS.filter(r => r.baseRarity <= 7).map(r => (
-                      <option key={r.id} value={r.displayName}>{r.displayName} (희귀도: {r.baseRarity})</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Ingenuitive familiar: select target tool */}
-              {matchedBenefit?.mechanic === 'ingenuitive' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
-                  <label style={{ fontSize: '0.88rem' }}><strong><FieldIcon kind="tools" /> 모방할 추가 도구 지정:</strong></label>
-                  <select
-                    value={draft.ingenuitiveTool}
-                    onChange={e => setDraft(d => ({ ...d, ingenuitiveTool: e.target.value }))}
-                    style={{ padding: '0.4rem', borderRadius: '6px', fontSize: '0.85rem', border: '1px solid var(--border-cozy)' }}
-                  >
-                    <option value="">-- 도구 선택 --</option>
-                    <option value="tool_crossbow">석궁 (Crossbow)</option>
-                    <option value="tool_saddlebags">안장가방 (Saddlebags)</option>
-                    <option value="tool_stilts">죽마 (Stilts)</option>
-                    <option value="tool_mortar">나무 절구와 공이 (Mortar & Pestle)</option>
-                    <option value="tool_kettle">낡은 캠프 주전자 (Kettle)</option>
-                    <option value="tool_knife">벨트 칼 (Knife)</option>
-                  </select>
-                </div>
-              )}
-
-              <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
-                <div style={{ marginTop: '0.4rem' }}>
-                  <WizardChoiceSelect label="길동무 도움 직접 선택" value={choiceConfirmed('familiarBenefitName') ? draft.familiarBenefit.name : ''} items={bioChoices.familiars as any[]} onChange={item => selectCharacterChoice('familiarBenefit', item)} />
-                </div>
-              </details>
-            </div>
-          </WizardFieldCard>
-        );
-      })()}
-
-      {step === 6 && (
-        <WizardFieldCard title="길동무와 어떤 사이인가요?">
-          <div className="wizard-decision-flow">
-            <CardDrawSlot
-              variant="hero"
-              label="관계 카드 (p.16)"
-              helper="카드 값이 약제사와 길동무 사이의 관계를 정합니다."
-              card={wizardCards.relationship || null}
-              onCard={applyRelationshipCard}
-            />
-            <div className="wizard-result" aria-live="polite">
-              {choiceConfirmed('relationshipName') ? (
-                <>
-                  둘의 관계: <strong style={{ color: 'var(--primary)' }}>{draft.relationship.name}</strong><br />
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.84rem' }}>{draft.relationship.desc}</span>
-                </>
-              ) : (
-                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>카드를 뽑거나 아래에서 관계를 직접 선택하세요.</span>
-              )}
-            </div>
-            <details className="wizard-optional-note"><summary>우리의 관계 메모 <span>선택</span></summary><label><span className="sr-only">우리의 관계 메모</span><textarea aria-label="우리의 관계 메모" value={draft.relationshipJournal} onChange={e => setDraft(d => ({ ...d, relationshipJournal: e.target.value }))} rows={4} placeholder="선택 메모 · 둘의 관계를 보여주는 짧은 장면이나 기억을 남겨보세요." /></label></details>
-            <details style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 600 }}>직접 고르기 ▾</summary>
-              <div style={{ marginTop: '0.4rem' }}>
-                <WizardChoiceSelect label="관계 직접 선택" value={choiceConfirmed('relationshipName') ? draft.relationship.name : ''} items={bioChoices.relationships as any[]} onChange={item => selectCharacterChoice('relationship', item)} />
-              </div>
-            </details>
-          </div>
-        </WizardFieldCard>
-      )}
-
-      {step === 7 && (() => {
-        const matchedBenefit = FAMILIAR_BENEFITS.find(f => f.card === draft.familiarBenefit.card);
-        return (
-          <WizardFieldCard title="시트를 확정할까요?">
-            <div style={{ display: 'grid', gap: '0.7rem', fontSize: '0.92rem', lineHeight: 1.6 }}>
-              <div className="prose-summary">
-                <strong>{choiceConfirmed('descriptorName') ? localizeCharacterDescriptor(draft.descriptor.name) : '(동물 유형 미선택)'}</strong> 약제사 <strong>{draft.name || '(이름 미정)'}</strong>.<br />
-                {draft.animal && <>{draft.animal}의 모습으로, </>}이동 방식: <strong>{choiceConfirmed('travelName') ? localizeTravelStyle(draft.travel.name) : '미선택'}</strong>.<br />
-                <span className="dim">{choiceConfirmed('travelName') && <>하루 {draft.travel.speed}경로 이동, 짐 {draft.travel.carry}칸. </>}출발 동기: {choiceConfirmed('originName') ? draft.origin.name : '미선택'}.</span>
-              </div>
-              <div className="prose-summary" style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '0.6rem' }}>
-                길동무 <strong>{draft.familiarName || '(이름 미정)'}</strong>{draft.familiarAnimal && `, ${draft.familiarAnimal}`}.<br />
-                유형: {choiceConfirmed('familiarDescriptorName') ? localizeCharacterDescriptor(draft.familiarDescriptor.name) : '미선택'}.<br />
-                특기: <strong>{choiceConfirmed('familiarBenefitName') ? draft.familiarBenefit.name : '미선택'}</strong>
-                {matchedBenefit?.mechanic === 'resourceful' && draft.resourcefulReagent && ` (지정 약재: ${draft.resourcefulReagent})`}
-                {matchedBenefit?.mechanic === 'ingenuitive' && draft.ingenuitiveTool && ` (지정 도구: ${draft.ingenuitiveTool})`}
-                .<br />
-                관계: {choiceConfirmed('relationshipName') ? draft.relationship.name : '미선택'}.
-              </div>
-              {characterIssues.length > 0 && (
-                <div className="prose-summary" role="status">
-                  <strong>아직 정하지 않은 항목이 있습니다.</strong>
-                  <p style={{ margin: '0.35rem 0' }}>항목을 눌러 돌아가세요. 표의 선택은 카드 뽑기나 직접 선택 중 원하는 방식으로 정하면 됩니다.</p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                    {characterIssues.map(issue => <button key={issue.field} type="button" onClick={() => setStep(issue.step)}>{issue.label}</button>)}
-                  </div>
-                </div>
-              )}
-              <button type="button" onClick={() => saveCharacter(Date.now())} disabled={characterIssues.length > 0} style={{ marginTop: '0.5rem', padding: '0.75rem 1rem', background: 'var(--primary)', color: '#fff', borderRadius: '8px', border: 'none', fontWeight: 'bold', fontSize: '1rem' }}>
-                 약제사 시트에 저장
-              </button>
-            </div>
-          </WizardFieldCard>
-        );
-      })()}
-
-      <div className="wizard-page-actions" aria-label="생성 단계 이동">
-        <button type="button" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0} style={{ padding: '0.45rem 0.8rem', borderRadius: '6px', background: step === 0 ? '#eee' : '#fff', color: step === 0 ? '#aaa' : 'var(--text-muted)', border: '1px solid var(--glass-border)' }}>← 이전</button>
-        {step < steps.length - 1 && <button type="button" className="wizard-next" onClick={() => setStep(step + 1)}>다음 · {steps[step + 1]} <span aria-hidden="true">→</span></button>}
-      </div>
+      <footer className="origin-spread__foot">
+        <p className="origin-spread__remaining" role="status">
+          {characterIssues.length === 0
+            ? <>모두 정했어요. <strong>{draft.name}</strong> · <strong>{draft.familiarName}</strong> — 떠나면 첫 여정이 시작돼요.</>
+            : <>아직 정할 것 {characterIssues.length}가지 · {characterIssues.slice(0, 3).map(issue => issue.label).join(', ')}{characterIssues.length > 3 ? ' …' : ''}</>}
+        </p>
+        <button type="button" className="origin-spread__depart" onClick={() => saveCharacter(Date.now())} disabled={characterIssues.length > 0}>
+          이 모습으로 떠나기
+        </button>
+      </footer>
     </div>
   );
 }
@@ -28155,7 +27942,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
 
             {/* PoulticePounder (약제사) */}
             <div className="station-ledger" style={{ position: 'relative' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1.5px solid var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
                 <span style={{ fontSize: '1.8rem' }}><FieldIcon kind="paw" /></span>
                 <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>약제사 정보</h3>
               </div>
@@ -28175,7 +27962,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                     <p style={{ margin: '0.2rem 0 0', whiteSpace: 'pre-wrap', color: 'var(--text-muted)', lineHeight: 1.55 }}>{state.bio.mementoNote}</p>
                   </div>
                 )}
-                <div style={{ display: 'flex', gap: '1.5rem', borderTop: '1px dashed #e5dec9', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '1.5rem', borderTop: '1px solid #e5dec9', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
                   <div><strong>이동 속도:</strong> {getTravelSpeed(state, currentWeight)} (기본: {state.bio.speed})</div>
                   <div><strong>가방 소지 한도:</strong> {getMaxCarry(state)} (기본: {state.bio.carry})</div>
                 </div>
@@ -28184,7 +27971,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
 
             {/* Familiar (길동무) */}
             <div className="station-ledger" style={{ position: 'relative' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1.5px solid var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
                 <span style={{ fontSize: '1.8rem' }}><FieldIcon kind="paw" /></span>
                 <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>길동무</h3>
               </div>
@@ -28264,7 +28051,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
 
                 return (
                   <>
-                    <div style={{ display: 'flex', flexDirection: 'column', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.6rem', marginBottom: '0.8rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', borderBottom: '1.5px solid var(--border-cozy)', paddingBottom: '0.6rem', marginBottom: '0.8rem' }}>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', justifyContent: 'space-between', alignItems: 'baseline' }}>
                         <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}><FieldIcon kind="bio" /> 배낭 수집물</h3>
                         <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
@@ -28451,7 +28238,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                 );
               })()}
 
-              <form onSubmit={handleAddBagItem} className="grid-bag-add-form" style={{ marginTop: '0.8rem', borderTop: '1px dashed #eee', paddingTop: '0.8rem' }}>
+              <form onSubmit={handleAddBagItem} className="grid-bag-add-form" style={{ marginTop: '0.8rem', borderTop: '1px solid #eee', paddingTop: '0.8rem' }}>
                 <input
                   type="text"
                   placeholder="물품 이름 직접 입력…"
@@ -28471,7 +28258,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
             {/* Journey & Calendar */}
             <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
-                <h3 style={{ margin: 0, borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem', fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}><FieldIcon kind="play" /> 여정 계획</h3>
+                <h3 style={{ margin: 0, borderBottom: '1.5px solid var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem', fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}><FieldIcon kind="play" /> 여정 계획</h3>
                 {state.journeyActive ? (
                   <div style={{ fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                     <div><strong>목적지:</strong> {state.journeyDestination}</div>
@@ -28490,7 +28277,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
               </div>
 
               {/* Calendar stamp grid */}
-              <div style={{ borderTop: '1.5px dashed var(--border-cozy)', paddingTop: '0.8rem', marginTop: '0.8rem' }}>
+              <div style={{ borderTop: '1.5px solid var(--border-cozy)', paddingTop: '0.8rem', marginTop: '0.8rem' }}>
                 <div className="calendar-ledger-heading">
                   <h4><FieldIcon kind="clock" /> 일정 소모 기록</h4>
                   {state.journeyActive ? (
@@ -28552,7 +28339,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
               </div>
 
               {/* Patience Tracker (인내심 기록) */}
-              <div style={{ borderTop: '1.5px dashed var(--border-cozy)', paddingTop: '0.8rem', marginTop: '0.8rem' }}>
+              <div style={{ borderTop: '1.5px solid var(--border-cozy)', paddingTop: '0.8rem', marginTop: '0.8rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                   <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--secondary)', fontFamily: 'var(--font-fancy)' }}><FieldIcon kind="clock" /> 환자 인내심 기록</h4>
                 </div>
@@ -28596,7 +28383,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
               {/* Manual corrections for paper/off-app rulings.  These are
                   deliberately explicit and journalled; they never replace
                   the deterministic treatment, travel, or calendar engines. */}
-              <details className="bio-manual-adjustments" style={{ borderTop: '1.5px dashed var(--border-cozy)', paddingTop: '0.8rem', marginTop: '0.8rem' }}>
+              <details className="bio-manual-adjustments" style={{ borderTop: '1.5px solid var(--border-cozy)', paddingTop: '0.8rem', marginTop: '0.8rem' }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 700, color: 'var(--secondary)', fontFamily: 'var(--font-fancy)', fontSize: '1.05rem' }}>
                   직접 판정 보정 <small style={{ fontFamily: 'var(--font-body)', color: 'var(--text-muted)', fontWeight: 400 }}>Timer · 채집 포인트 · Guild Reputation · 장신구 · 영약재 · 도구 · 배낭</small>
                 </summary>
@@ -28703,7 +28490,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
 
               {/* Companions (동반자) */}
               <div className="station-ledger">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1.5px solid var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
                   <span style={{ fontSize: '1.8rem' }}><FieldIcon kind="reagents" /></span>
                   <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>동반자 곤충</h3>
                 </div>
@@ -28735,7 +28522,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
 
               {/* Trinkets (장신구) */}
               <div className="station-ledger">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px solid var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
                   <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}><FieldIcon kind="coin" /> 물물교환 장신구</h3>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>보유: {state.trinkets.length}개</span>
                 </div>
@@ -28770,7 +28557,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
             {/* The Guild (약제사 치유 길드) */}
             <div style={{ border: '2px solid var(--border-cozy)', borderRadius: '12px', padding: '1.2rem', background: '#fff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
-                <h3 style={{ margin: 0, borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem', fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}> Guild Reputation</h3>
+                <h3 style={{ margin: 0, borderBottom: '1.5px solid var(--border-cozy)', paddingBottom: '0.5rem', marginBottom: '0.8rem', fontSize: '1.3rem', color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}> Guild Reputation</h3>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#faf6ee', padding: '0.8rem', borderRadius: '8px', border: '1px solid #e5dec9', marginBottom: '1rem' }}>
                   <div><strong>Guild Reputation 수치:</strong></div>
                   <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>{state.reputation}</div>
@@ -28795,7 +28582,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
                   })}
                 </div>
               </div>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '10px 0 0 0', borderTop: '1px dashed #eee', paddingTop: '0.8rem', lineHeight: '1.4' }}>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '10px 0 0 0', borderTop: '1px solid #eee', paddingTop: '0.8rem', lineHeight: '1.4' }}>
                 성공적으로 약제 처방을 마칠 때마다 Guild Reputation이 올라갑니다. 높은 Guild Reputation 등급에서는 새로운 마차 확장 칸과 업그레이드가 개방됩니다.
               </p>
             </div>
@@ -28854,7 +28641,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
         </div>
       ) : (
         <form onSubmit={handleSaveBio} className="cute-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '1rem', maxWidth: '500px', background: '#fff' }}>
-          <h3 style={{ borderBottom: '1.5px dashed var(--border-cozy)', paddingBottom: '0.5rem', fontFamily: 'var(--font-fancy)', color: 'var(--secondary)', fontSize: '1.4rem' }}><FieldIcon kind="tools" /> 약제사 프로필 수정</h3>
+          <h3 style={{ borderBottom: '1.5px solid var(--border-cozy)', paddingBottom: '0.5rem', fontFamily: 'var(--font-fancy)', color: 'var(--secondary)', fontSize: '1.4rem' }}><FieldIcon kind="tools" /> 약제사 프로필 수정</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             <label htmlFor="bio-profile-name"><strong>약제사 이름:</strong></label>
             <input id="bio-profile-name" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="약제사 동물의 이름을 지어주세요" />
@@ -28920,7 +28707,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
             )}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', borderTop: '1px dashed #eee', paddingTop: '0.8rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', borderTop: '1px solid #eee', paddingTop: '0.8rem' }}>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.95rem' }}>
               <input
                 type="checkbox"
@@ -30483,7 +30270,7 @@ function LivingArchiveView({ state, recentlyObservedIds, setActiveTab, setHighli
 
       <div className="woodland-memory-spread" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)', gap: '1rem', alignItems: 'start' }}>
         <section className="cute-card" style={{ background: '#fffefa' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
             <h3 style={{ margin: 0, color: 'var(--primary)' }}>환자 기록장</h3>
           </div>
           <div style={{ display: 'grid', gap: '0.7rem' }}>
@@ -30521,7 +30308,7 @@ function LivingArchiveView({ state, recentlyObservedIds, setActiveTab, setHighli
         </section>
 
         <section className="cute-card" style={{ background: '#fffefa' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
             <h3 style={{ margin: 0, color: 'var(--primary)' }}>길동무와의 기억</h3>
           </div>
           <div style={{ fontSize: '0.86rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
@@ -30540,7 +30327,7 @@ function LivingArchiveView({ state, recentlyObservedIds, setActiveTab, setHighli
         </section>
 
         <section className="cute-card" style={{ background: '#fffefa' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
             <h3 style={{ margin: 0, color: 'var(--primary)' }}>채집 약초 표본지</h3>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))', gap: '0.65rem' }}>
@@ -30592,7 +30379,7 @@ function LivingArchiveView({ state, recentlyObservedIds, setActiveTab, setHighli
                           }
 
                           return (
-                            <div key={idx} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.3rem', padding: '0.15rem 0', borderBottom: idx < preps.length - 1 ? '1px dashed #e2d6b5' : 'none' }}>
+                            <div key={idx} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.3rem', padding: '0.15rem 0', borderBottom: idx < preps.length - 1 ? '1px solid #e2d6b5' : 'none' }}>
                               <span style={{ fontWeight: 'bold', color: 'var(--text-bright)', fontSize: '0.74rem' }}>
                                 {localizePreparationName(p.part)}
                               </span>
@@ -30626,7 +30413,7 @@ function LivingArchiveView({ state, recentlyObservedIds, setActiveTab, setHighli
         </section>
 
         <section className="cute-card" style={{ background: '#fffefa' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
             <h3 style={{ margin: 0, color: 'var(--primary)' }}>방랑 지도 기록</h3>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
@@ -30639,7 +30426,7 @@ function LivingArchiveView({ state, recentlyObservedIds, setActiveTab, setHighli
               const presentation = presentJournalEntry(entry);
               const body = presentation.memory || presentation.outcome || entry.text;
               return (
-                <article key={entry.id} style={{ borderTop: '1px dashed var(--glass-border)', paddingTop: '0.5rem' }}>
+                <article key={entry.id} style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '0.5rem' }}>
                   <strong>{journalDisplayTitle(entry)}</strong>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{entry.stamp}</div>
                   <div style={{ fontSize: '0.82rem', marginTop: '0.25rem', whiteSpace: 'pre-wrap' }}>
@@ -30655,7 +30442,7 @@ function LivingArchiveView({ state, recentlyObservedIds, setActiveTab, setHighli
         </section>
 
         <section className="cute-card" style={{ background: '#f8f5ee', border: '1.5px solid #a89684', gridColumn: '1 / -1', boxShadow: 'inset 0 0 15px rgba(139, 90, 43, 0.04)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px dashed #c4b5a3', paddingBottom: '0.55rem', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.8rem', borderBottom: '1px solid #c4b5a3', paddingBottom: '0.55rem', marginBottom: '0.75rem' }}>
             <h3 style={{ margin: 0, color: 'var(--primary)', fontFamily: 'var(--font-fancy)' }}>선물 보관함</h3>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: '0.75rem' }}>
@@ -30723,7 +30510,7 @@ function LivingArchiveView({ state, recentlyObservedIds, setActiveTab, setHighli
                             }
                           }}
                           className="btn-cozy-secondary"
-                          style={{ padding: '0.2rem 0.55rem', fontSize: '0.72rem', border: '1px dashed #c4b5a3', background: '#fff', color: '#6e5d4f', cursor: 'pointer' }}
+                          style={{ padding: '0.2rem 0.55rem', fontSize: '0.72rem', border: '1px solid #c4b5a3', background: '#fff', color: '#6e5d4f', cursor: 'pointer' }}
                         >
                           <FieldIcon kind="reagents" /> 선물을 보낸 인연 돌아보기
                         </button>
@@ -30884,14 +30671,14 @@ function PatientArchiveView({
                   background: isHighlighted ? '#fffef2' : '#fcfaf5',
                   border: isHighlighted
                     ? '2px solid #d97706'
-                    : `1px dashed ${isFailure ? '#b9aca3' : '#c4b5a3'}`,
+                    : `1px solid ${isFailure ? '#b9aca3' : '#c4b5a3'}`,
                   boxShadow: isHighlighted ? '0 0 14px rgba(217, 119, 6, 0.4)' : 'none',
                   transition: 'all 0.3s ease',
                   padding: '1.1rem'
                 }}
               >
                 {/* Visual Header: Date & Bookmark */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.55rem', marginBottom: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.8rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.55rem', marginBottom: '0.75rem' }}>
                   <div className="document-kicker" style={{ color: 'var(--text-muted)', fontSize: '0.74rem', margin: 0 }}>
                     {getLocalizedLocationName(record.locationName)} {record.resolvedAtDay ? `| ${record.resolvedAtDay}일째 되던 날` : ''}
                   </div>
@@ -30906,7 +30693,7 @@ function PatientArchiveView({
 
                 {/* Visual Highlight Banner if clicked from Trinket cabinet */}
                 {isHighlighted && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fcf8eb', border: '1px dashed #d97706', borderRadius: '4px', padding: '0.45rem 0.65rem', marginBottom: '0.75rem', fontSize: '0.78rem', color: '#b45309', fontStyle: 'italic' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fcf8eb', border: '1px solid #d97706', borderRadius: '4px', padding: '0.45rem 0.65rem', marginBottom: '0.75rem', fontSize: '0.78rem', color: '#b45309', fontStyle: 'italic' }}>
                     <span> 이 물건을 건네주고 떠난 야수의 소중한 기억이 여기에 깃들어 있습니다.</span>
                     <button
                       onClick={() => setHighlightedPatientId(null)}
@@ -30939,7 +30726,7 @@ function PatientArchiveView({
 
                   {/* 3. First Impression */}
                   {record.initialRememberedNote && (
-                    <div style={{ padding: '0.65rem', border: '1px dashed #dcd3c1', background: '#fcfbf7', borderRadius: '4px' }}>
+                    <div style={{ padding: '0.65rem', border: '1px solid #dcd3c1', background: '#fcfbf7', borderRadius: '4px' }}>
                       <div className="document-kicker" style={{ color: '#8c7a6b', fontSize: '0.7rem' }}>첫인상</div>
                       <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.86rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>{record.initialRememberedNote}</div>
                     </div>
@@ -30967,7 +30754,7 @@ function PatientArchiveView({
 
                   {/* 6. Narrative notes */}
                   {record.notes && record.notes !== record.finalArchiveNote && (
-                    <div style={{ padding: '0.65rem', border: '1px dashed #dcd3c1', background: '#fcfbf7', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.82rem', lineHeight: '1.45' }}>
+                    <div style={{ padding: '0.65rem', border: '1px solid #dcd3c1', background: '#fcfbf7', borderRadius: '4px', color: 'var(--text-muted)', fontSize: '0.82rem', lineHeight: '1.45' }}>
                       <div className="document-kicker" style={{ color: '#8c7a6b', fontSize: '0.7rem' }}>경과기록</div>
                       <div style={{ whiteSpace: 'pre-wrap' }}>{record.notes}</div>
                     </div>
@@ -30975,11 +30762,11 @@ function PatientArchiveView({
                 </div>
 
                 {/* 7. Clinical Drawer (🗒️ 병증에 관한 관찰 일지) */}
-                <details className="medical-drawer" style={{ marginTop: '0.85rem', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.55rem' }}>
+                <details className="medical-drawer" style={{ marginTop: '0.85rem', borderTop: '1px solid var(--glass-border)', paddingTop: '0.55rem' }}>
                   <summary style={{ cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-dim)', outline: 'none', userSelect: 'none' }}>
                     <FieldIcon kind="journals" /> 병증에 관한 관찰 일지
                   </summary>
-                  <div style={{ padding: '0.6rem', background: '#f8f6f0', border: '1px dashed #c4b5a3', borderRadius: '4px', marginTop: '0.45rem', fontSize: '0.8rem', display: 'grid', gap: '0.4rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>
+                  <div style={{ padding: '0.6rem', background: '#f8f6f0', border: '1px solid #c4b5a3', borderRadius: '4px', marginTop: '0.45rem', fontSize: '0.8rem', display: 'grid', gap: '0.4rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>
                     <div><strong>관찰된 병증:</strong> {record.ailmentName}</div>
                     <div><strong>중증도:</strong> {canonicalSeverityLabel(record.severity)} · {getNaturalSeverityDescription(record.severity)}</div>
                     {record.tags && <div><strong>요구되는 약효:</strong> <RuleTagText text={record.tags} /></div>}
@@ -31409,7 +31196,7 @@ function JournalsView({
                             border: '1px solid var(--glass-border)',
                             fontSize: '0.78rem'
                           }}>
-                            <div style={{ fontWeight: 'bold', fontSize: '0.74rem', color: 'var(--text-bright)', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.2rem', marginBottom: '0.3rem' }}>
+                            <div style={{ fontWeight: 'bold', fontSize: '0.74rem', color: 'var(--text-bright)', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.2rem', marginBottom: '0.3rem' }}>
                                조제 및 사용법
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -31432,7 +31219,7 @@ function JournalsView({
                                 }
 
                                 return (
-                                  <div key={idx} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem', padding: '0.2rem 0', borderBottom: idx < preps.length - 1 ? '1px dashed #e2d6b5' : 'none' }}>
+                                  <div key={idx} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem', padding: '0.2rem 0', borderBottom: idx < preps.length - 1 ? '1px solid #e2d6b5' : 'none' }}>
                                     <span style={{ fontWeight: 'bold', color: 'var(--text-bright)', fontSize: '0.78rem' }}>
                                       {localizePreparationName(p.part)}
                                     </span>
@@ -31463,7 +31250,7 @@ function JournalsView({
                           </div>
                         )}
 
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', borderTop: '1px dashed var(--glass-border)', paddingTop: '0.3rem', marginTop: '0.2rem', display: 'flex', justifyContent: 'space-between' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)', borderTop: '1px solid var(--glass-border)', paddingTop: '0.3rem', marginTop: '0.2rem', display: 'flex', justifyContent: 'space-between' }}>
                           <span>출처: {getLocalizedSource(entry.source)}</span>
                           <span>발견 횟수: {entry.sightings}</span>
                         </div>
@@ -31484,7 +31271,7 @@ function JournalsView({
             const body = presentation.memory || presentation.outcome || entry.text;
             return (
               <div key={entry.id} className="cute-card" style={{ background: '#fffefa' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--glass-border)', paddingBottom: '0.45rem', marginBottom: '0.7rem', gap: '0.8rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.45rem', marginBottom: '0.7rem', gap: '0.8rem' }}>
                   <h4 style={{ margin: 0, color: 'var(--text-bright)' }}>{journalDisplayTitle(entry)}</h4>
                   <span className="document-kicker">{scrapbookLabels[entry.kind]}</span>
                 </div>
@@ -31762,7 +31549,7 @@ function JournalsView({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {(state.journeyChronicles || []).map(c => (
             <div key={c.id} className="cute-card" style={{ background: '#fefcf8', border: '1.5px solid #e2d6b5', borderRadius: '12px', padding: '1.2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e2d6b5', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #e2d6b5', paddingBottom: '0.5rem', marginBottom: '0.8rem' }}>
                 <h4 style={{ margin: 0, color: '#854d0e', fontSize: '1.05rem', fontWeight: 'bold' }}>{c.title}</h4>
                 <span style={{ fontSize: '0.8rem', color: '#a16207' }}>{c.date}</span>
               </div>

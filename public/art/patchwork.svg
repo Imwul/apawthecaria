@@ -1,0 +1,204 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+  <!-- Patchwork scrapbook backdrop: fabric scraps, marbled paper and book-page stars, stitched together. Original drawing. -->
+  <defs>
+    <path id="star" d="M0-50 L12-15 L48-15 L19 6 L30 41 L0 20 L-30 41 L-19 6 L-48-15 L-12-15Z"/>
+    <path id="tiny-star" d="M0-9 L2.4-2.6 L9-2.6 L3.6 1.4 L5.6 8 L0 4 L-5.6 8 L-3.6 1.4 L-9-2.6 L-2.4-2.6Z"/>
+    <g id="flower">
+      <g fill="#f3d9de" stroke="#3b2a22" stroke-width="1.4">
+        <ellipse cx="0" cy="-10" rx="6" ry="9"/><ellipse cx="0" cy="10" rx="6" ry="9"/>
+        <ellipse cx="-10" cy="0" rx="9" ry="6"/><ellipse cx="10" cy="0" rx="9" ry="6"/>
+      </g>
+      <circle r="5" fill="#d9a441" stroke="#3b2a22" stroke-width="1.4"/>
+      <path d="M-2 0 a2 2 0 1 1 4 0 a3.5 3.5 0 1 1 -7 0" fill="none" stroke="#3b2a22" stroke-width="1"/>
+    </g>
+    <g id="sprig" fill="none" stroke-linecap="round">
+      <path d="M0 22 C2 8 0 -4 -3 -18" stroke="#5d6b3a" stroke-width="2"/>
+      <path d="M-1 6 C-9 2 -12 -4 -12 -9 C-6 -7 -2 -2 -1 6Z" fill="#9fae7b" stroke="#5d6b3a" stroke-width="1.2"/>
+      <path d="M0 -4 C7 -7 10 -13 9 -18 C3 -16 0 -11 0 -4Z" fill="#9fae7b" stroke="#5d6b3a" stroke-width="1.2"/>
+      <circle cx="-3" cy="-20" r="3.2" fill="#d99a9a"/>
+    </g>
+
+    <!-- fabric prints -->
+    <pattern id="rust-stars" width="90" height="80" patternUnits="userSpaceOnUse">
+      <rect width="90" height="80" fill="#a8502f"/>
+      <use href="#tiny-star" x="18" y="18" fill="#e8b04b" transform="rotate(12 18 18)"/>
+      <use href="#tiny-star" x="62" y="54" fill="#e8b04b" transform="rotate(-18 62 54)"/>
+      <path d="M58 16 l0 8 M54 20 l8 0" stroke="#e8b04b" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M20 60 l0 6 M17 63 l6 0" stroke="#f3cf86" stroke-width="1.4" stroke-linecap="round"/>
+    </pattern>
+    <pattern id="plum-stars" width="110" height="100" patternUnits="userSpaceOnUse">
+      <rect width="110" height="100" fill="#5f3f6e"/>
+      <use href="#tiny-star" x="28" y="30" fill="#f6e7c4" transform="rotate(-8 28 30) scale(1.2)"/>
+      <use href="#tiny-star" x="80" y="74" fill="#d9a441" transform="rotate(20 80 74)"/>
+      <circle cx="84" cy="22" r="2" fill="#f6e7c4"/><circle cx="22" cy="80" r="1.6" fill="#f6e7c4"/>
+    </pattern>
+    <pattern id="lilac-dots" width="34" height="34" patternUnits="userSpaceOnUse">
+      <rect width="34" height="34" fill="#c3b0dc"/>
+      <circle cx="8" cy="8" r="3.4" fill="#f7f0ff"/><circle cx="25" cy="25" r="3.4" fill="#f7f0ff"/>
+    </pattern>
+    <pattern id="mustard-spirals" width="70" height="70" patternUnits="userSpaceOnUse">
+      <rect width="70" height="70" fill="#d39b37"/>
+      <path d="M20 22 a3 3 0 1 1 6 0 a6 6 0 1 1 -12 0 a9 9 0 1 1 18 0" fill="none" stroke="#8e5b1c" stroke-width="1.6"/>
+      <path d="M52 52 a3 3 0 1 1 6 0 a6 6 0 1 1 -12 0 a9 9 0 1 1 18 0" fill="none" stroke="#f3d79a" stroke-width="1.6"/>
+    </pattern>
+    <pattern id="sage-stripes" width="26" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(90)">
+      <rect width="26" height="26" fill="#a9b58a"/>
+      <rect width="9" height="26" fill="#93a173"/>
+      <path d="M17 0 v26" stroke="#e9e3c6" stroke-width="1.2" stroke-dasharray="3 4"/>
+    </pattern>
+    <pattern id="meadow" width="140" height="120" patternUnits="userSpaceOnUse">
+      <rect width="140" height="120" fill="#7f8e4e"/>
+      <use href="#sprig" x="24" y="34"/><use href="#sprig" x="96" y="88" transform="rotate(14 96 88)"/>
+      <use href="#flower" x="92" y="28" transform="scale(.8)"/>
+      <use href="#flower" x="30" y="96" transform="rotate(20 30 96) scale(.65)"/>
+      <circle cx="64" cy="62" r="2.4" fill="#f6e7c4"/><circle cx="122" cy="12" r="2" fill="#f6e7c4"/>
+    </pattern>
+    <pattern id="doodle" width="120" height="120" patternUnits="userSpaceOnUse">
+      <rect width="120" height="120" fill="#8d8396"/>
+      <use href="#flower" x="30" y="32"/>
+      <use href="#flower" x="88" y="86" transform="rotate(30 88 86) scale(1.1)"/>
+      <path d="M86 30 c6-6 14-2 12 6 c-2 6-10 6-10 0 c0-3 4-4 5-1" fill="none" stroke="#f6e7c4" stroke-width="1.4" stroke-linecap="round"/>
+      <path d="M22 86 c4-10 14-10 16 0 M30 80 l2 12" fill="none" stroke="#c9d6a0" stroke-width="1.6" stroke-linecap="round"/>
+    </pattern>
+
+    <!-- marbled paper: soft stripes pushed around by noise -->
+    <linearGradient id="marble-cool" x1="0" y1="0" x2="1" y2="0" spreadMethod="repeat" gradientTransform="scale(.18 1)">
+      <stop offset="0" stop-color="#efe2d6"/><stop offset=".22" stop-color="#d99a9a"/>
+      <stop offset=".4" stop-color="#f4ece0"/><stop offset=".58" stop-color="#9fae7b"/>
+      <stop offset=".76" stop-color="#b9c3d9"/><stop offset="1" stop-color="#efe2d6"/>
+    </linearGradient>
+    <linearGradient id="marble-warm" x1="0" y1="0" x2="1" y2="0" spreadMethod="repeat" gradientTransform="scale(.16 1)">
+      <stop offset="0" stop-color="#f3d79a"/><stop offset=".25" stop-color="#d77a52"/>
+      <stop offset=".45" stop-color="#f5e6cf"/><stop offset=".65" stop-color="#b98fb8"/>
+      <stop offset=".85" stop-color="#e9b45c"/><stop offset="1" stop-color="#f3d79a"/>
+    </linearGradient>
+    <filter id="marble" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency=".006 .012" numOctaves="3" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="150" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="marble-b" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency=".009 .005" numOctaves="3" seed="21" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="130" xChannelSelector="G" yChannelSelector="R"/>
+    </filter>
+    <filter id="wobble">
+      <feTurbulence type="fractalNoise" baseFrequency=".02" numOctaves="2" seed="3" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="14"/>
+    </filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="5"/>
+      <feColorMatrix values="0 0 0 0 .23  0 0 0 0 .16  0 0 0 0 .13  0 0 0 .11 0"/>
+    </filter>
+
+    <!-- woven cloth: crossing threads lit from the top-left, plus uneven dye -->
+    <filter id="fabric" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="1.2 .07" numOctaves="2" seed="2" result="h"/>
+      <feTurbulence type="fractalNoise" baseFrequency=".07 1.2" numOctaves="2" seed="9" result="v"/>
+      <feComposite in="h" in2="v" operator="arithmetic" k2=".5" k3=".5" result="weave"/>
+      <feDiffuseLighting in="weave" surfaceScale="2.6" diffuseConstant="1.14" lighting-color="#fff" result="lit">
+        <feDistantLight azimuth="225" elevation="58"/>
+      </feDiffuseLighting>
+      <feTurbulence type="fractalNoise" baseFrequency=".011" numOctaves="4" seed="4" result="blot"/>
+      <feDiffuseLighting in="blot" surfaceScale="9" diffuseConstant="1.16" lighting-color="#fff" result="dye">
+        <feDistantLight azimuth="120" elevation="62"/>
+      </feDiffuseLighting>
+      <feBlend in="SourceGraphic" in2="lit" mode="multiply" result="a"/>
+      <feBlend in="a" in2="dye" mode="multiply" result="b"/>
+      <feComposite in="b" in2="SourceGraphic" operator="in"/>
+    </filter>
+    <!-- paper: fine fibres and a little tooth -->
+    <filter id="paper" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency=".55" numOctaves="3" seed="12" result="tooth"/>
+      <feDiffuseLighting in="tooth" surfaceScale="1.4" diffuseConstant="1.13" lighting-color="#fff" result="lit">
+        <feDistantLight azimuth="225" elevation="60"/>
+      </feDiffuseLighting>
+      <feTurbulence type="fractalNoise" baseFrequency=".015" numOctaves="3" seed="31" result="stain"/>
+      <feDiffuseLighting in="stain" surfaceScale="5" diffuseConstant="1.15" lighting-color="#fff8ea" result="aged">
+        <feDistantLight azimuth="80" elevation="64"/>
+      </feDiffuseLighting>
+      <feBlend in="SourceGraphic" in2="lit" mode="multiply" result="a"/>
+      <feBlend in="a" in2="aged" mode="multiply" result="b"/>
+      <feComposite in="b" in2="SourceGraphic" operator="in"/>
+    </filter>
+    <!-- hand-printed: blocks shift a little, like a block print or a painted repeat -->
+    <filter id="handprint" x="-2%" y="-2%" width="104%" height="104%">
+      <feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="2" seed="17" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="7" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="puff" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="11"/></filter>
+    <filter id="soft-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="5"/><feOffset dx="3" dy="6" result="o"/>
+      <feComponentTransfer><feFuncA type="linear" slope=".35"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="c-a"><rect x="0" y="0" width="360" height="460"/></clipPath>
+    <clipPath id="c-c"><rect x="760" y="0" width="420" height="380"/></clipPath>
+    <clipPath id="c-d"><rect x="360" y="260" width="400" height="380"/></clipPath>
+    <clipPath id="c-i"><rect x="760" y="760" width="420" height="240"/></clipPath>
+  </defs>
+
+  <g filter="url(#fabric)">
+  <!-- column 1 -->
+  <rect x="0" y="0" width="360" height="460" fill="url(#meadow)" filter="url(#handprint)"/>
+  <rect x="0" y="460" width="360" height="540" fill="url(#rust-stars)" filter="url(#handprint)"/>
+  <!-- column 2 -->
+  <rect x="360" y="0" width="400" height="260" fill="url(#lilac-dots)"/>
+  <g clip-path="url(#c-d)">
+    <rect x="360" y="260" width="400" height="380" fill="#e9b45c"/>
+    <g fill="none" stroke-width="13" filter="url(#wobble)">
+      <circle cx="560" cy="450" r="250" stroke="#b5532f"/><circle cx="560" cy="450" r="226" stroke="#f3d79a"/>
+      <circle cx="560" cy="450" r="202" stroke="#6e4a7e"/><circle cx="560" cy="450" r="178" stroke="#d99a9a"/>
+      <circle cx="560" cy="450" r="154" stroke="#4f7d7a"/><circle cx="560" cy="450" r="130" stroke="#f6e7c4"/>
+      <circle cx="560" cy="450" r="106" stroke="#b5532f"/><circle cx="560" cy="450" r="82" stroke="#e9b45c"/>
+      <circle cx="560" cy="450" r="58" stroke="#6e4a7e"/><circle cx="560" cy="450" r="34" stroke="#f3d79a"/>
+    </g>
+  </g>
+  <rect x="360" y="640" width="400" height="360" fill="url(#mustard-spirals)" filter="url(#handprint)"/>
+  <!-- column 3 -->
+  <g clip-path="url(#c-c)"><rect x="700" y="-60" width="540" height="500" fill="url(#marble-cool)" filter="url(#marble)"/></g>
+  <rect x="760" y="380" width="420" height="380" fill="url(#doodle)" filter="url(#handprint)"/>
+  <g clip-path="url(#c-i)"><rect x="700" y="700" width="540" height="360" fill="url(#marble-warm)" filter="url(#marble-b)"/></g>
+  <!-- column 4 -->
+  <rect x="1180" y="0" width="420" height="560" fill="url(#plum-stars)" filter="url(#handprint)"/>
+  <rect x="1180" y="560" width="420" height="440" fill="url(#sage-stripes)"/>
+
+  </g>
+  <!-- quilting: the batting puffs up between seams -->
+  <g fill="none" stroke="#2a1d16" stroke-width="30" opacity=".42" filter="url(#puff)" style="mix-blend-mode:multiply">
+    <path d="M360 0 V1000 M760 0 V1000 M1180 0 V1000 M0 460 H360 M360 260 H760 M360 640 H760 M760 380 H1180 M760 760 H1180 M1180 560 H1600"/>
+  </g>
+  <!-- stitched seams -->
+  <g fill="none" stroke="#fbf3e1" stroke-width="2" stroke-dasharray="7 6" stroke-linecap="round" opacity=".85">
+    <path d="M354 0 V1000 M366 0 V1000 M754 0 V1000 M766 0 V1000 M1174 0 V1000 M1186 0 V1000"/>
+    <path d="M0 454 H360 M0 466 H360 M360 254 H760 M360 266 H760 M360 634 H760 M360 646 H760"/>
+    <path d="M760 374 H1180 M760 386 H1180 M760 754 H1180 M760 766 H1180 M1180 554 H1600 M1180 566 H1600"/>
+  </g>
+
+  <!-- stars cut from an old book page, pasted over the seams -->
+  <g filter="url(#soft-shadow)">
+    <g transform="translate(360 470) rotate(-14) scale(2.3)">
+      <use href="#star" fill="#efe4cc" stroke="#cdbb95" stroke-width=".8" filter="url(#paper)"/>
+      <g stroke="#8a7a66" stroke-width=".9" opacity=".6"><path d="M-30 -12 H28 M-36 -4 H34 M-24 4 H26 M-18 12 H20 M-12 20 H12"/></g>
+    </g>
+    <g transform="translate(1178 580) rotate(18) scale(1.7)">
+      <use href="#star" fill="#efe4cc" stroke="#cdbb95" stroke-width=".8" filter="url(#paper)"/>
+      <g stroke="#8a7a66" stroke-width=".9" opacity=".6"><path d="M-30 -12 H26 M-34 -4 H32 M-22 4 H24 M-16 12 H18"/></g>
+    </g>
+    <g transform="translate(760 92) rotate(8) scale(1.1)">
+      <use href="#star" fill="#e9b45c" stroke="#8e5b1c" stroke-width="1.2"/>
+      <path d="M-4 2 a4 4 0 1 1 8 0 a8 8 0 1 1 -16 0" fill="none" stroke="#8e5b1c" stroke-width="1.6"/>
+    </g>
+    <g transform="translate(140 820) rotate(-6) scale(.9)">
+      <use href="#star" fill="#e9b45c" stroke="#8e5b1c" stroke-width="1.2"/>
+      <path d="M-4 2 a4 4 0 1 1 8 0 a8 8 0 1 1 -16 0" fill="none" stroke="#8e5b1c" stroke-width="1.6"/>
+    </g>
+    <!-- a ladybug wandering across the doodle patch -->
+    <g transform="translate(1100 470) rotate(-30)">
+      <ellipse rx="13" ry="16" fill="#c2412d" stroke="#3b2a22" stroke-width="1.6"/>
+      <path d="M0 -16 V16" stroke="#3b2a22" stroke-width="1.4"/>
+      <circle cy="-18" r="7" fill="#3b2a22"/>
+      <circle cx="-6" cy="-4" r="2.6" fill="#3b2a22"/><circle cx="6" cy="2" r="2.6" fill="#3b2a22"/><circle cx="-5" cy="8" r="2.2" fill="#3b2a22"/>
+    </g>
+  </g>
+
+  <rect width="1600" height="1000" filter="url(#grain)"/>
+</svg>

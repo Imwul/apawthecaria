@@ -214,7 +214,7 @@
 .herbarium-parts p,.herbarium-parts small { font-size: 14px !important; margin-block: 4px; }
 .herbarium-more { display: flex; flex-wrap: wrap; gap: 12px; padding-block: 12px; }
 .herbarium-more p { flex-basis: 100%; font-size: 14px !important; margin: 0; }
-.herbarium-empty,.catalogue-empty { border: 1px dashed #aab6ac; padding: 32px; background: #eeefe7; }
+.herbarium-empty,.catalogue-empty { border: 1px solid #aab6ac; padding: 32px; background: #eeefe7; }
 .herbarium-empty p,.catalogue-empty p { margin: 8px 0 16px; font-size: 16px !important; }
 .ailment-search { align-items: stretch; padding-bottom: 12px; }
 .ailment-search input { min-width: min(240px,100%); }
@@ -259,7 +259,7 @@
 .bio-record-fold { border-block: 1px solid var(--line); }
 .bio-record-fold > summary { background: transparent; }
 .bio-record-fold label { font-size: 14px !important; color: var(--text-muted); }
-.bio-manual-adjustments { border: 1px dashed var(--line); padding: 16px; }
+.bio-manual-adjustments { border: 1px solid var(--line); padding: 16px; }
 .inventory-ledger-scroll { overflow-x: auto; max-width: 100%; }
 .inventory-ledger { border-collapse: collapse; }
 .inventory-ledger th { white-space: nowrap; font-size: 13px; }

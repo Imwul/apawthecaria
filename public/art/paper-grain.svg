@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="420" viewBox="0 0 420 420">
+  <!-- Seamless paper tooth + faint fibres as transparent ink specks, layered over the page colour (no blend mode needed). -->
+  <filter id="p" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency=".75" numOctaves="3" seed="8" stitchTiles="stitch" result="tooth"/>
+    <feTurbulence type="fractalNoise" baseFrequency=".012 .1" numOctaves="2" seed="3" stitchTiles="stitch" result="fib"/>
+    <feComposite in="tooth" in2="fib" operator="arithmetic" k2=".85" k3=".2" result="mix"/>
+    <feColorMatrix in="mix" values="0 0 0 0 .23  0 0 0 0 .16  0 0 0 0 .13  -.9 0 0 0 .5"/>
+  </filter>
+  <rect width="420" height="420" filter="url(#p)"/>
+</svg>
