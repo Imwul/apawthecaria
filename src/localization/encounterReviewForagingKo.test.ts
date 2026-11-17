@@ -50,7 +50,7 @@ describe('human-reviewed Korean foraging encounters', () => {
       ))
       .sort();
 
-    expect(canonicalChoiceKeys).toHaveLength(226);
+    expect(canonicalChoiceKeys).toHaveLength(227);
     expect(reviewedChoiceKeys).toEqual(canonicalChoiceKeys);
   });
 
@@ -87,9 +87,10 @@ describe('human-reviewed Korean foraging encounters', () => {
   });
 
   it('keeps printed branches that the legacy table parser omitted', () => {
+    // Farmer's Demands is a printed branch of its own, so its Foraging Point loss is applied.
     expect(ENCOUNTER_REVIEW_FORAGING_CONTEXT_KO['foraging-meadow-j-spring'])
-      .toContain('농부의 요구');
-    expect(ENCOUNTER_REVIEW_FORAGING_CONTEXT_KO['foraging-meadow-j-spring'])
+      .not.toContain('농부의 요구');
+    expect(ENCOUNTER_REVIEW_FORAGING_CHOICE_KO['foraging-meadow-j-spring']['farmers-demands'])
       .toContain('채집 포인트 2');
 
     expect(ENCOUNTER_REVIEW_FORAGING_CONTEXT_KO['foraging-mountain-10-autumn'])

@@ -2773,6 +2773,23 @@ const MAP_WILD_LOCATIONS = MAP_WAYPOINTS.map(([x, y], index) => {
   };
 });
 
+// A few reviewed/published map entries kept their internal id as the label ("loc_104", "screens").
+// Name them the way every other wild spot is named: loc_103 is "숲 위치 104".
+// Hand-added marks ("mark_1787292814518") follow the "초원 추가 표시 22" pattern; the tail of the
+// timestamp stands in for the sequence number those marks never received.
+const mapLabelOrPlaceholder = (id: string, label: string | undefined, region: string | undefined, kind?: string): string => {
+  if (label && label !== id) return label;
+  const regionLabel = MAP_REGION_LABELS[(region || 'Wilds') as MapRegion] || '야생';
+  const numbered = id.match(/^loc_(\d+)$/);
+  if (numbered) return `${regionLabel} 위치 ${Number(numbered[1]) + 1}`;
+  const mark = id.match(/^mark_(\d+)$/);
+  if (mark) {
+    const markPrefix = kind === 'ruin' ? '티탄 유적' : regionLabel === '호수/강' ? '호수·강' : regionLabel;
+    return `${markPrefix} 추가 표시 ${mark[1].slice(-4)}`;
+  }
+  return id.charAt(0).toUpperCase() + id.slice(1).replace(/_/g, ' ');
+};
+
 const MAP_SERVICE_HOPS = 3;
 
 type ReviewedMapLocation = {
@@ -2796,7 +2813,7 @@ const MAP_GRAPH_NODES: Record<string, MapLocationNode> = (() => {
     if (reviewed?.hidden) return;
     nodes[key] = {
       ...node,
-      label: reviewed?.label || node.label,
+      label: mapLabelOrPlaceholder(key, reviewed?.label || node.label, (reviewed?.region as string | undefined) || node.region, reviewed?.kind || node.kind),
       x: reviewed?.x ?? node.x,
       y: reviewed?.y ?? node.y,
       region: (reviewed?.region as MapRegion | undefined) || node.region,
@@ -2812,7 +2829,7 @@ const MAP_GRAPH_NODES: Record<string, MapLocationNode> = (() => {
     if (reviewed?.hidden) return;
     nodes[id] = {
       ...location,
-      label: reviewed?.label || location.label,
+      label: mapLabelOrPlaceholder(id, reviewed?.label || location.label, (reviewed?.region as string | undefined) || location.region, reviewed?.kind || location.kind),
       x: reviewed?.x ?? location.x,
       y: reviewed?.y ?? location.y,
       region: (reviewed?.region as MapRegion | undefined) || location.region,
@@ -2824,7 +2841,7 @@ const MAP_GRAPH_NODES: Record<string, MapLocationNode> = (() => {
   REVIEWED_MAP_LOCATIONS.forEach(location => {
     if (location.hidden || nodes[location.id]) return;
     nodes[location.id] = {
-      label: location.label,
+      label: mapLabelOrPlaceholder(location.id, location.label, location.region, location.kind),
       x: location.x,
       y: location.y,
       region: location.region as MapRegion | undefined,
@@ -2883,7 +2900,12 @@ const buildMapGraphNodes = (customLocations: CustomMapLocation[] = [], customEdg
     };
   });
 
-  customLocations.forEach(location => {
+  customLocations.forEach(rawLocation => {
+    // Some published map corrections kept the internal id ("loc_104", "screens") as their label.
+    // An id is not a name: fall back to the printed/region name instead of showing it to players.
+    const location = rawLocation.label && rawLocation.label === rawLocation.id
+      ? { ...rawLocation, label: nodes[rawLocation.id]?.label || mapLabelOrPlaceholder(rawLocation.id, rawLocation.label, rawLocation.region, rawLocation.kind) }
+      : rawLocation;
     if (REVIEWED_MAP_LOCATION_BY_ID.get(location.id)?.hidden) {
       delete nodes[location.id];
       return;
@@ -2914,6 +2936,7 @@ const buildMapGraphNodes = (customLocations: CustomMapLocation[] = [], customEdg
     }
     nodes[location.id] = {
       ...location,
+      label: mapLabelOrPlaceholder(location.id, location.label, location.region, location.kind),
       aliases: location.aliases ? [...location.aliases] : undefined,
       neighbors: [...(location.neighbors || [])]
     };
@@ -3060,7 +3083,7 @@ const applyCalendarAdvanceWithEncounterExpiry = (
 const canonicalToolsFromState = (state: GameState): CanonicalToolState[] => {
   const familiarMechanic = getActiveFamiliarMechanic(state);
   const ingenuitiveToolId = familiarMechanic === 'ingenuitive'
-    ? state.activePassenger?.ingenuitiveToolId || state.ingenuitiveTool
+    ? state.activePassenger?.ingenuitiveToolId || normalizeIngenuitiveToolId(state.ingenuitiveTool)
     : null;
   const ingenuitiveSourceId = state.activePassenger?.id || state.journey?.journeyId || 'current-journey';
   const ingenuitiveInstanceId = `familiar:ingenuitive:${ingenuitiveSourceId}:${ingenuitiveToolId || 'none'}`;
@@ -3195,7 +3218,7 @@ const manualMapLocationOptionsFor = (s: Pick<GameState, 'customMapLocations' | '
     ? distances.get(id)!
     : isPlaceholderLocationName(name) ? 20 : 10;
   return Object.entries(nodes)
-    .map(([id, node]) => ({ id, name: node.label, region: node.region, kind: node.kind }))
+    .map(([id, node]) => ({ id, name: node.label, region: node.region, kind: node.kind, hops: distances.get(id) }))
     .sort((left, right) => rank(left.id, left.name) - rank(right.id, right.name)
       || left.name.localeCompare(right.name, 'ko', { numeric: true }));
 };
@@ -6072,7 +6095,7 @@ const patientDiagnosisContextKeyFor = (value: GameState): string => {
     reputation: value.reputation,
     effectiveFamiliarBenefit: getActiveFamiliarBenefit(value),
     ingenuitiveToolId: getActiveFamiliarMechanic(value) === 'ingenuitive'
-      ? value.activePassenger?.ingenuitiveToolId || value.ingenuitiveTool || ''
+      ? value.activePassenger?.ingenuitiveToolId || normalizeIngenuitiveToolId(value.ingenuitiveTool)
       : '',
     currentLocationType: value.currentLocationType,
     currentRegion: value.currentRegion,
@@ -6940,6 +6963,13 @@ const CANONICAL_TOOL_IDS: Record<string, string> = {
   tool_comb: 'fine-toothed-comb', tool_needles: 'knitting-needles',
   tool_instruments: 'instruments', tool_waxed_satchel: 'waxed-satchel',
   tool_stilts: 'stilts', tool_saddlebags: 'saddlebags'
+};
+
+// The opening spread used to save shop ids (tool_stilts) for the Ingenuitive familiar; the Tool engine
+// only knows Almanack ids (stilts), so an unconverted pick silently gave no effect.
+const normalizeIngenuitiveToolId = (stored: string | undefined | null): string => {
+  const id = stored ? CANONICAL_TOOL_IDS[stored] || stored : '';
+  return ALMANACK_TOOLS.some(tool => tool.id === id) ? id : '';
 };
 
 const BASIC_TOOL_EFFECTS_KO: Record<string, string> = {
@@ -11184,8 +11214,8 @@ export default function App() {
         })
         : resolveMushroomPickers({ transactionId, encounterId: encounter.id, expectedRevision, state: base, choice: 'senior' });
       return finalize(result, choiceId === 'junior'
-        ? card?.suit === '♥' ? 'Junior가 버섯을 맛보고 맛있는 장신구 1개를 나눠 주었습니다.' : 'Junior가 버섯을 먹고 실수에서 배웠습니다. 보상은 없습니다.'
-        : 'Senior의 조언을 따라 버섯을 집으로 가져가기로 했습니다. Guild Reputation +1.');
+        ? card?.suit === '♥' ? '풋내기가 버섯을 맛보고 맛있는 장신구 1개를 나눠 주었습니다.' : '풋내기가 버섯을 먹고 탈이 났고, 당신은 그 실수에서 교훈을 얻었습니다. 보상은 없습니다.'
+        : '숙련자의 조언을 따라 버섯을 따로 집으로 가져가기로 했습니다. Guild Reputation +1.');
     }
 
     if (encounter.id === 'foraging-loch-9-autumn' && (choiceId === 'patience' || choiceId === 'startle')) {
@@ -12524,6 +12554,13 @@ export default function App() {
               }
             };
           }
+        }
+        // The P1 patch carries the patient as it was right after the encounter; the p.33 Timer
+        // decrease (and any immediate Remedy) was applied afterwards to runtimePatient. Applying the
+        // stale patient here used to undo the forage's Timer cost.
+        const settledPatient = fixedRemedyPatient || runtimePatient;
+        if (settledPatient && p1NextState.patient?.id === settledPatient.id) {
+          p1NextState = { ...p1NextState, patient: settledPatient };
         }
         next = applyEncounterP1TransactionState(next, p1NextState);
         if (forageP1Patch.forcedLeave) {
@@ -16733,7 +16770,7 @@ function PlayView({
       const toolChoice = await requestControlledPrompt({
         title: '🐾 기발한 승객 · 도구 효과 선택',
         message: '기발한 승객이 제공할 도구 효과를 선택하세요:',
-        options: ALMANACK_TOOLS.map(tool => ({ label: tool.canonicalName, value: tool.id })),
+        options: ALMANACK_TOOLS.map(tool => ({ label: `${localizeCanonicalToolName(tool.canonicalName)} (${tool.canonicalName})`, value: tool.id })),
         defaultValue: ALMANACK_TOOLS[0]?.id || ''
       });
       if (!toolChoice) return;
@@ -17881,10 +17918,8 @@ function PlayView({
 	      const choice = ingenuitiveTool || await requestControlledPrompt({
         title: '🐾 기발한 길동무 · 도구 효과',
         message: '기발한 길동무가 제공할 도구 효과를 선택하세요:',
-        options: ALMANACK_TOOLS.map(tool => ({ label: tool.canonicalName, value: tool.id })),
-	        defaultValue: ALMANACK_TOOLS.some(tool => tool.id === state.ingenuitiveTool)
-	          ? state.ingenuitiveTool
-	          : ALMANACK_TOOLS[0]?.id || ''
+        options: ALMANACK_TOOLS.map(tool => ({ label: `${localizeCanonicalToolName(tool.canonicalName)} (${tool.canonicalName})`, value: tool.id })),
+	        defaultValue: normalizeIngenuitiveToolId(state.ingenuitiveTool) || ALMANACK_TOOLS[0]?.id || ''
 	      });
 	      if (!choice) return;
 	      ingenuitiveTool = choice;
@@ -18620,6 +18655,8 @@ function PlayView({
         };
       }
       let foragingFollowUp = toForagingEncounterTransactionState(next);
+      const reputationBeforeDeliveries = foragingFollowUp.reputation;
+      const deliveredNotes: string[] = [];
       for (const delivery of foragingFollowUp.deliveries.filter(row => row.status === 'pending')) {
         const matches = delivery.destination.kind === 'any-settlement'
           ? destinationForagingLocationType === 'Settlement'
@@ -18635,7 +18672,12 @@ function PlayView({
           currentLocationType: destinationForagingLocationType,
           returnBorrowedTool: remainsReturnChoices.get(delivery.id) || false
         });
-        if (delivered.value) foragingFollowUp = delivered.value.nextState;
+        if (delivered.value) {
+          foragingFollowUp = delivered.value.nextState;
+          deliveredNotes.push(delivery.kind === 'guild-rumour'
+            ? `길드 소문을 ${outcome.nextState.currentLocationName}에 전했습니다.`
+            : `유품을 ${outcome.nextState.currentLocationName}에 전했습니다.`);
+        }
       }
       for (const questId of sainReturns) {
         const quest = foragingFollowUp.sainDeClawsQuests.find(row => row.id === questId);
@@ -18654,6 +18696,26 @@ function PlayView({
       }
       if (foragingFollowUp.revision !== toForagingEncounterTransactionState(next).revision) {
         next = applyForagingEncounterTransactionState(next, foragingFollowUp);
+      }
+      if (deliveredNotes.length > 0) {
+        // Arrival quietly paid out the delivery; leave the player a record of why Reputation rose.
+        const gained = foragingFollowUp.reputation - reputationBeforeDeliveries;
+        const text = `${deliveredNotes.join('\n')}${gained > 0 ? `\nGuild Reputation +${gained}.` : ''}`;
+        next = {
+          ...next,
+          journals: [{
+            id: `${transactionId}:foraging-delivery:journal`,
+            title: '배달 완료',
+            text,
+            semantic: createGameplayEventSemantic({
+              outcome: text,
+              location: outcome.nextState.currentLocationName,
+              season: next.currentSeason,
+              journey: next.journeyGoalTitle || next.journey?.customGoal.title
+            }),
+            timestamp: Date.now()
+          }, ...next.journals]
+        };
       }
       return next;
     });
@@ -20969,7 +21031,7 @@ function PlayView({
           kicker: '채집 조우 · p.177',
           label: '정식 도구',
           defaultValue: ALMANACK_TOOLS[0]?.id || '',
-          options: ALMANACK_TOOLS.map(tool => ({ value: tool.id, label: tool.canonicalName }))
+          options: ALMANACK_TOOLS.map(tool => ({ value: tool.id, label: `${localizeCanonicalToolName(tool.canonicalName)} (${tool.canonicalName})` }))
         });
         if (!selectedTool) return;
         toolId = selectedTool;
@@ -22022,7 +22084,7 @@ function PlayView({
           kicker: 'Knights of the Round Table · p.91',
           label: '정식 도구',
           defaultValue: ALMANACK_TOOLS[0]?.id || '',
-          options: ALMANACK_TOOLS.map(tool => ({ value: tool.id, label: tool.canonicalName }))
+          options: ALMANACK_TOOLS.map(tool => ({ value: tool.id, label: `${localizeCanonicalToolName(tool.canonicalName)} (${tool.canonicalName})` }))
         });
         if (!selectedTool) return;
         hoardToolId = selectedTool;
@@ -22091,7 +22153,7 @@ function PlayView({
           kicker: 'The Gift of Knowledge · p.78',
           label: '정식 도구',
           defaultValue: ALMANACK_TOOLS[0]?.id || '',
-          options: ALMANACK_TOOLS.map(tool => ({ value: tool.id, label: tool.canonicalName }))
+          options: ALMANACK_TOOLS.map(tool => ({ value: tool.id, label: `${localizeCanonicalToolName(tool.canonicalName)} (${tool.canonicalName})` }))
         });
         if (!selectedTool) return;
         sketchToolId = selectedTool;
@@ -26916,7 +26978,7 @@ function CharacterCreationWizard({
     familiarJournal: savedText('familiarJournal', state.bio.familiarJournal),
     relationshipJournal: savedText('relationshipJournal', state.bio.relationshipJournal),
     resourcefulReagent: savedText('resourcefulReagent', state.resourcefulReagent || ""),
-    ingenuitiveTool: savedText('ingenuitiveTool', state.ingenuitiveTool || "")
+    ingenuitiveTool: normalizeIngenuitiveToolId(savedText('ingenuitiveTool', state.ingenuitiveTool || ""))
   });
   type CharacterWizardLocalDraft = ReturnType<typeof createInitialLocalDraft>;
   const [open, setOpen] = useState(!state.bio.name);
@@ -27184,7 +27246,7 @@ function CharacterCreationWizard({
         mementoNote: draft.mementoNote
       },
       resourcefulReagent: matchedBenefit?.mechanic === 'resourceful' ? draft.resourcefulReagent : "",
-      ingenuitiveTool: matchedBenefit?.mechanic === 'ingenuitive' ? draft.ingenuitiveTool : "",
+      ingenuitiveTool: matchedBenefit?.mechanic === 'ingenuitive' ? normalizeIngenuitiveToolId(draft.ingenuitiveTool) : "",
       trinkets: s.trinkets.length > 0 ? s.trinkets : ["기념품 (Memento)"],
       journals: mergeCharacterJournals(s.journals, {
         originName: draft.origin.name,
@@ -27361,12 +27423,7 @@ function CharacterCreationWizard({
             <span>길동무가 흉내 낼 도구</span>
             <select value={draft.ingenuitiveTool} onChange={e => setDraft(d => ({ ...d, ingenuitiveTool: e.target.value }))}>
               <option value="">도구 고르기</option>
-              <option value="tool_crossbow">석궁 (Crossbow)</option>
-              <option value="tool_saddlebags">안장가방 (Saddlebags)</option>
-              <option value="tool_stilts">죽마 (Stilts)</option>
-              <option value="tool_mortar">나무 절구와 공이 (Mortar & Pestle)</option>
-              <option value="tool_kettle">낡은 캠프 주전자 (Kettle)</option>
-              <option value="tool_knife">벨트 칼 (Knife)</option>
+              {ALMANACK_TOOLS.map(tool => <option key={tool.id} value={tool.id}>{localizeCanonicalToolName(tool.canonicalName)} ({tool.canonicalName})</option>)}
             </select>
           </label>
         )}
@@ -27410,10 +27467,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
   const [resourcefulReagentEdit, setResourcefulReagentEdit] = useState(state.resourcefulReagent || "");
   const [ingenuitiveToolEdit, setIngenuitiveToolEdit] = useState(() => {
     // Older profile edits stored placeholder ids (tool_crossbow…) that the Tool engine never recognised.
-    const legacyIngenuitiveIds: Record<string, string> = { tool_crossbow: 'crossbow', tool_saddlebags: 'saddlebags', tool_stilts: 'stilts' };
-    const stored = state.ingenuitiveTool || '';
-    const normalized = legacyIngenuitiveIds[stored] || stored;
-    return ALMANACK_TOOLS.some(tool => tool.id === normalized) ? normalized : '';
+    return normalizeIngenuitiveToolId(state.ingenuitiveTool);
   });
   const [canFly, setCanFly] = useState(!!state.bio.canFly);
   const [canFlyOverride, setCanFlyOverride] = useState(!!state.canFlyOverride);
@@ -27426,7 +27480,7 @@ function BioView({ state, updateState, recordFolds, setRecordFolds, currentWeigh
       setFamiliarName(state.bio.familiarName);
       setFamiliarBenefitEdit(state.bio.familiarBenefit);
       setResourcefulReagentEdit(state.resourcefulReagent || "");
-      setIngenuitiveToolEdit(state.ingenuitiveTool || "");
+      setIngenuitiveToolEdit(normalizeIngenuitiveToolId(state.ingenuitiveTool));
       setCanFly(!!state.bio.canFly);
       setCanFlyOverride(!!state.canFlyOverride);
     });

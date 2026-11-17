@@ -142,12 +142,17 @@ export function RouteComposer({
       const key = stop.name.trim().toLocaleLowerCase();
       nameCounts.set(key, (nameCounts.get(key) || 0) + 1);
     });
-    return availableStops.map(stop => ({
-      stop,
-      inputValue: (nameCounts.get(stop.name.trim().toLocaleLowerCase()) || 0) > 1
-        ? `${stop.name} · ${stop.id}`
-        : stop.name
-    }));
+    // Two places can share a printed name (Blueberry Pond the lake and the bog settlement).
+    // Tell them apart by what players see on the map, not by the internal id.
+    const seen = new Map<string, number>();
+    return availableStops.map(stop => {
+      if ((nameCounts.get(stop.name.trim().toLocaleLowerCase()) || 0) <= 1) return { stop, inputValue: stop.name };
+      const described = `${stop.name} · ${stopMeta(stop)}`;
+      const key = described.toLocaleLowerCase();
+      const ordinal = (seen.get(key) || 0) + 1;
+      seen.set(key, ordinal);
+      return { stop, inputValue: ordinal > 1 ? `${described} ${ordinal}` : described };
+    });
   }, [availableStops]);
   const exactStopMatch = useMemo(() => {
     const query = placeQuery.trim().toLocaleLowerCase();

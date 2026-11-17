@@ -277,8 +277,9 @@ describe('manual effect draft functional state (A)', () => {
     const spices = setManualEffectEncounterChoice('bargain')(
       draftFor('travel-meadow-j-spring')
     );
+    // "You can trade for some Fairwind Spices": the fixed Tool is offered, but buying it is the player's call.
     expect(spices.actionTemplates).toEqual([
-      expect.objectContaining({ kind: 'gain-inventory', fixedTarget: 'Fairwind Spices', required: true })
+      expect.objectContaining({ kind: 'gain-inventory', fixedTarget: 'Fairwind Spices', required: false })
     ]);
 
     const mushroom = setManualEffectEncounterChoice('junior')(

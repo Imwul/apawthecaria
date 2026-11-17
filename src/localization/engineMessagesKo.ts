@@ -573,7 +573,8 @@ const dynamicEngineMessages: Array<[RegExp, (...matches: string[]) => string]> =
   [/^([A-Z]+) (.+) \(provided (.+)\)$/, (tag, required, provided) => `${tag} ${required} 필요 · 현재 ${provided}`],
   [/^(.+) requires (.+) Timer hours, and no Timer may already be 0\.$/, (project, hours) => `${project}에는 타이머 ${hours}시간이 필요하며 이미 0인 타이머가 없어야 합니다.`]
   ,[/^Barter: (.+)$/, reagent => `물물교환: ${reagent}`]
-  ,[/^BR (.+); paid (.+) Trinkets and (.+) Reputation\.$/, (br, trinkets, reputation) => `기본 희귀도 ${br}; 장신구 ${trinkets}개와 길드 명성 ${reputation}점을 지불했습니다.`]
+  // barterEngine writes "paid N Trinkets, M Reputation[, and K printed Barter item(s)]."; older saves used "and".
+  ,[/^BR (.+?); paid (.+?) Trinkets(?:,| and) (.+?) Reputation(?:, and (\d+) printed Barter item\(s\))?\.$/, (br, trinkets, reputation, items) => `거래 희귀도 ${br}; 장신구 ${trinkets}개와 길드 명성 ${reputation}점${items ? `, 인쇄된 거래 물품 ${items}개를` : '을'} 지불했습니다.`]
   ,[/^(.+) unresolved Ailments faced their Consequences\.$/, count => `해결되지 않은 질병 ${count}개의 결과를 적용했습니다.`]
   ,[/^(.+) was diagnosed with (.+)\.$/, (patient, ailment) => `${patient}에게 ${ailment} 진단을 내렸습니다.`]
   ,[/^(.+): (Challenge|Failed|Attempt|Diagnosis)$/, (name, step) => `${exactEngineMessages[name] || name}: ${{ Challenge: '도전', Failed: '실패', Attempt: '시도', Diagnosis: '진단' }[step] || step}`]
@@ -612,7 +613,7 @@ const dynamicEngineMessages: Array<[RegExp, (...matches: string[]) => string]> =
   ,[/^Unknown Reagent: (.+)$/, reagent => `알 수 없는 영약재입니다: ${reagent}`]
   ,[/^Preparation (.+) does not belong to (.+)\.$/, (preparation, reagent) => `${preparation} 조제 부위는 ${reagent}에 속하지 않습니다.`]
   ,[/^Unknown Barter location: (.+)$/, location => `알 수 없는 물물교환 장소입니다: ${location}`]
-  ,[/^BR (.+); paid (.+) Trinkets and (.+) Reputation\. Juicy Gossip was discarded to automatically obtain the Reagent\.$/, (br, trinkets, reputation) => `기본 희귀도 ${br}; 장신구 ${trinkets}개와 길드 명성 ${reputation}점을 지불했습니다. Juicy Gossip을 버리고 영약재를 자동으로 획득했습니다.`]
+  ,[/^BR (.+?); paid (.+?) Trinkets(?:,| and) (.+?) Reputation(?:, and (\d+) printed Barter item\(s\))?\. Juicy Gossip was discarded to automatically obtain the Reagent\.$/, (br, trinkets, reputation, items) => `거래 희귀도 ${br}; 장신구 ${trinkets}개와 길드 명성 ${reputation}점${items ? `, 인쇄된 거래 물품 ${items}개를` : '을'} 지불했습니다. Juicy Gossip을 버리고 영약재를 자동으로 획득했습니다.`]
   ,[/^(.+) requires its canonical preparation Tool\.$/, preparation => `${preparation} 조제에는 룰북에 지정된 도구가 필요합니다.`]
   ,[/^(.+) is not both local and in season\.$/, reagent => `${reagent}은(는) 이 지역에서 자라면서 제철인 영약재가 아닙니다.`]
   ,[/^Pantry Hibernation requires (.+) Trinkets for (.+) occupant\(s\)\.$/, (cost, occupants) => `식료품 저장고 동면에는 ${occupants}명 기준 장신구 ${cost}개가 필요합니다.`]

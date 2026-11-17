@@ -105,7 +105,7 @@ export const ENCOUNTER_REVIEW_FORAGING_CONTEXT_KO: Readonly<Record<string, strin
   'foraging-meadow-10-summer': '바람 한 점 없이 뜨겁고 무거운 해가 높이 걸려 있습니다. 이런 날씨를 좋아하나요? 아니라면 어떻게 더위를 식히나요?',
   'foraging-meadow-10-autumn': '이른 아침 안개가 가까운 산비탈을 타고 내려와 시야와 후각을 흐리고 방향 감각을 빼앗습니다. 설상가상으로 안개 속에 무언가 더 있습니다. 초원의 안개에 관해 어떤 괴담을 들었나요?',
   'foraging-meadow-10-winter': '소리 없이 쌓인 눈이 초원을 덮어, 간신히 살아남은 식물마저 감춥니다. 앞발이 저릴 만큼 추운데 벌써 어두워집니다.',
-  'foraging-meadow-j-spring': '이맘때 초원은 몹시 분주합니다. 야수들은 밭에 씨를 뿌리고 겨울이 남긴 피해를 고칩니다. 현지에서는 무엇을 심고 있으며, 서리 때문에 무엇이 망가졌나요? 농부의 요구 — 씨앗을 밟지 말고 밭에서 나가세요. 채집 포인트 2를 잃습니다.',
+  'foraging-meadow-j-spring': '이맘때 초원은 몹시 분주합니다. 야수들은 밭에 씨를 뿌리고 겨울이 남긴 피해를 고칩니다. 현지에서는 무엇을 심고 있으며, 서리 때문에 무엇이 망가졌나요?',
   'foraging-meadow-j-summer': '알록달록한 들꽃 사이를 지나가다가 땅에 쓰러진 채 어리둥절해하는 벌을 발견합니다. 눈부신 꽃빛에 정신을 잃은 벌을 도울 건가요?',
   'foraging-meadow-j-autumn': '불안한 울림이 발밑의 부드러운 흙을 타고 전해지더니, 무언가 땅을 뚫고 솟아오릅니다! 이 기묘한 장치는 무엇이며 원래 무슨 용도였을까요?',
   'foraging-meadow-j-winter': '짧은 겨울날의 좋은 날씨를 누리러 나온 야수들과 마주칩니다.',
@@ -486,6 +486,7 @@ export const ENCOUNTER_REVIEW_FORAGING_CHOICE_KO: Readonly<
     'continue-in-the-cold': '추위 속에서 계속 — 선택적인 Tent와 Hot Toddy 절차는 사용하지 않고, 감기 타이머 6을 유지한 채 채집을 계속합니다.',
   },
   'foraging-meadow-j-spring': {
+    'farmers-demands': '농부의 요구 — 씨앗을 밟지 말고 밭에서 나가라는 호통을 듣습니다. 채집 포인트 2를 잃습니다.',
     'hedgerow-wandering': '산울타리로 돌아가기 — 밭을 둘러 가느라 모든 타이머를 1 줄입니다.',
     'greased-paws': '통행료 내기 — 장신구 1개를 내고 농지의 지름길을 지나며 모든 타이머를 2 늘립니다.',
   },

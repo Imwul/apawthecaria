@@ -243,7 +243,8 @@ export default function ManualEffectPanel({
   draft: ManualEffectDraft;
   inventoryItems?: Array<{ id: string; name: string }>;
   timers?: Array<{ id: string; label: string }>;
-  mapLocations?: Array<{ id: string; name: string; region?: string; kind?: string }>;
+  /** hops: path distance from the current location (0 = here, 1 = already connected), when known. */
+  mapLocations?: Array<{ id: string; name: string; region?: string; kind?: string; hops?: number }>;
   currentLocation?: { id: string; name: string; region?: string; kind?: string } | null;
   onChange: (updater: ManualEffectDraftUpdater) => void;
   onDefer: (recordText?: ManualEffectRecordText) => void;
@@ -293,6 +294,12 @@ export default function ManualEffectPanel({
   ) => {
     const selected = mapLocationFor(key, value);
     const canUseCurrent = Boolean(allowCurrentShortcut && currentLocation && canMarkCurrentLocation(contextText));
+    // "Draw a new Path that joins this Location to an unconnected nearby Location": the current
+    // place and its existing neighbours can never be the far end of that new Path.
+    const newPathFromHere = /unconnected|아직\s*이어지지\s*않은|연결되지\s*않은/iu.test(contextText);
+    const targetOptions = newPathFromHere
+      ? mapLocations.filter(location => location.id === selected?.id || location.hops === undefined || location.hops > 1)
+      : mapLocations;
     return <div className="manual-effect__map-target">
       <div className="manual-effect__map-target-actions">
         {canUseCurrent && <button
@@ -309,7 +316,7 @@ export default function ManualEffectPanel({
           }}
         >
           <option value="">기존 지도 위치에서 선택</option>
-          {mapLocations.map(location => <option key={location.id} value={location.id}>{location.name}{location.region ? ` · ${localizeRegionLabel(location.region)}` : ''}</option>)}
+          {targetOptions.map(location => <option key={location.id} value={location.id}>{location.name}{location.region ? ` · ${localizeRegionLabel(location.region)}` : ''}</option>)}
         </select>
       </div>
       <BufferedTextControl

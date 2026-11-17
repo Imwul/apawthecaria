@@ -273,6 +273,11 @@ const manualDescriptionsForEncounterBranch = (ownerId: string, choiceId: string)
 const actionDependsOnUnresolvedOutcome = (action: PrintedCanonicalActionTemplate): boolean =>
   /\b(?:if|unless|otherwise|depending on|draw(?:n)?|card|suit|higher|lower|winning|losing|success|fail)\b|(?:이면|라면|없다면|있다면|경우에만|실패하면|성공하면|뽑은\s*카드|카드가|더\s*(?:높|낮)|승리하면|패배하면)/i.test(action.sourceText);
 
+// "You can trade for some Fairwind Spices": an offer the player may take or decline (and pay for),
+// not something that simply happens. Such an effect is offered, never forced.
+const actionIsPlayerOption = (action: PrintedCanonicalActionTemplate): boolean =>
+  /\b(?:can|may)\s+(?:trade|buy|barter|purchase)\b|\btrade\s+for\b|(?:거래할\s*수|살\s*수\s*있)/i.test(action.sourceText);
+
 const branchFollowUps = (descriptions: string[]): string[] => descriptions.filter(description =>
   /\b(?:until|next Move|next Timer|next Ailment|next time|in the future|when you return|following Season|after (?:travelling|you have)|at the end of|before the end of|during Haggling|if you go to)\b|(?:다음\s*(?:이동|질환|타이머|계절)|나중에|이후|도착하면|돌아오면|여정이\s*끝|여정\s*끝|계절\s*끝|전까지)/i.test(description)
 );
@@ -302,7 +307,7 @@ const scopeGenericEncounterBranch = (draft: ManualEffectDraft, choiceId: string)
     .filter(action => !actionIsDeferredFollowUp(action))
     .map(action => ({
       ...action,
-      required: !actionDependsOnUnresolvedOutcome(action)
+      required: !actionDependsOnUnresolvedOutcome(action) && !actionIsPlayerOption(action)
     }));
   const choiceField = printedChoiceField(draft, [choice.label]);
   const cardField = descriptions.some(description => /\bdraw(?:n)?\b|카드(?:를|가)?\s*(?:뽑|확인)/i.test(description))

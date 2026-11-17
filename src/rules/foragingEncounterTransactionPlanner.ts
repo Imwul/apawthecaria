@@ -155,18 +155,19 @@ export const planForagingEncounterTransaction = async (
 
   if (context.encounterId === FORAGING_ENCOUNTER_IDS.friendInNeed) {
     if (choiceId === 'keep-to-yourself') return { status: 'not-applicable' };
-    if (choiceId !== 'help-your-guildmate') return invalid('Friend in Need 선택지를 먼저 고르세요.');
+    if (choiceId !== 'help-your-guildmate') return invalid('도움이 필요한 동료 선택지를 먼저 고르세요.');
     const drawn = card(context.secondaryCards, 0, '영약재 희귀도');
     if ('status' in drawn) return drawn;
-    const selectedPart = await choosePart(prompt, 'Friend in Need · 영약재', `Forest에서 Base Rarity가 정확히 ${drawn.value}인 부위 하나를 고르세요.`, canonicalEncounterPartCandidates({ region: 'Forest', exactRarity: drawn.value }));
+    const selectedPart = await choosePart(prompt, '도움이 필요한 동료 · 영약재', `숲에서 기본 희귀도가 정확히 ${drawn.value}인 부위 하나를 고르세요.`, canonicalEncounterPartCandidates({ region: 'Forest', exactRarity: drawn.value }));
     if (selectedPart === null) return cancelled();
-    if (!selectedPart) return invalid('이 카드 값에 맞는 Forest 영약재 부위가 없습니다.');
-    const timerId = await chooseOne(prompt, 'Friend in Need · 타이머', '1 줄일 활성 질환 타이머를 고르세요.', activeTimerOptions(context.state));
+    // No Forest Reagent has every Base Rarity (a Monarch is 12): the guildmate's help then
+    // yields nothing to gather, but the Timer still drops. Blocking here soft-locked the encounter.
+    const timerId = await chooseOne(prompt, '도움이 필요한 동료 · 타이머', '1 줄일 활성 질환 타이머를 고르세요.', activeTimerOptions(context.state));
     if (timerId === null) return cancelled();
     if (!timerId) return invalid('줄일 활성 질환 타이머가 없습니다.');
     return { status: 'planned', command: {
       code: FORAGING_ENCOUNTER_TRANSACTION_CODES.friendInNeed,
-      input: { ...inputBase, choice: 'help', card: drawn, ...selectedPart, timerId }
+      input: { ...inputBase, choice: 'help', card: drawn, ...(selectedPart || {}), timerId }
     } };
   }
 
@@ -206,7 +207,7 @@ export const planForagingEncounterTransaction = async (
       code: FORAGING_ENCOUNTER_TRANSACTION_CODES.alluringOdours,
       input: { ...inputBase, card: drawn }
     } };
-    const selectedPart = await choosePart(prompt, 'Alluring Odours · FAIR 영약재', 'Forest에서 채집할 수 있고 FAIR를 제공하는 부위 하나를 고르세요.', canonicalEncounterPartCandidates({ region: 'Forest', requiredTag: 'FAIR' }));
+    const selectedPart = await choosePart(prompt, '매혹적인 향기 · FAIR 영약재', '숲에서 채집할 수 있고 FAIR를 제공하는 부위 하나를 고르세요.', canonicalEncounterPartCandidates({ region: 'Forest', requiredTag: 'FAIR' }));
     if (selectedPart === null) return cancelled();
     if (!selectedPart) return { status: 'planned', command: {
       code: FORAGING_ENCOUNTER_TRANSACTION_CODES.alluringOdours,
@@ -237,7 +238,7 @@ export const planForagingEncounterTransaction = async (
       if ('status' in drawn) return drawn;
       let reagentItemId: string | undefined;
       if (drawn.suit === '♠') {
-        const selected = await chooseOne(prompt, 'Fabled Behemoth · 영약재 손실', '급히 노를 젓다 떨어뜨릴 영약재 부위 하나를 고르세요.', context.state.inventory.filter(item => item.type === 'reagent').map(item => ({ value: item.id, label: item.name })));
+        const selected = await chooseOne(prompt, '전설의 거수 · 영약재 손실', '급히 노를 젓다 떨어뜨릴 영약재 부위 하나를 고르세요.', context.state.inventory.filter(item => item.type === 'reagent').map(item => ({ value: item.id, label: item.name })));
         if (selected === null) return cancelled();
         if (!selected) return invalid('스페이드 결과로 버릴 영약재가 없습니다.');
         reagentItemId = selected;
@@ -248,7 +249,7 @@ export const planForagingEncounterTransaction = async (
       } };
     }
     if (choiceId === 'face-the-goliath') {
-      const selectedPart = await choosePart(prompt, 'Fabled Behemoth · Titan 영약재', '수면 위로 떠오른 Titan 영약재 부위 하나를 고르세요.', canonicalEncounterPartCandidates({ types: ['TITAN'] }));
+      const selectedPart = await choosePart(prompt, '전설의 거수 · 티탄 영약재', '수면 위로 떠오른 티탄 영약재 부위 하나를 고르세요.', canonicalEncounterPartCandidates({ types: ['TITAN'] }));
       if (selectedPart === null) return cancelled();
       if (!selectedPart) return invalid('선택 가능한 Titan 영약재 부위가 없습니다.');
       return { status: 'planned', command: {
@@ -266,23 +267,23 @@ export const planForagingEncounterTransaction = async (
   if (context.encounterId === FORAGING_ENCOUNTER_IDS.antHeist) {
     const firstCard = card(context.secondaryCards, 0, 'Snatch and Go');
     if ('status' in firstCard) return firstCard;
-    const firstPart = await choosePart(prompt, 'Ant Heist · 첫 영약재', `Meadow의 Plant/Insect 중 Base Rarity ${firstCard.value} 이하인 부위 하나를 고르세요.`, canonicalEncounterPartCandidates({ region: 'Meadow', maximumRarity: firstCard.value, types: ['PLANT', 'INSECT'] }));
+    const firstPart = await choosePart(prompt, '개미들의 대도둑질 · 첫 영약재', `초원의 식물·곤충 중 기본 희귀도 ${firstCard.value} 이하인 부위 하나를 고르세요.`, canonicalEncounterPartCandidates({ region: 'Meadow', maximumRarity: firstCard.value, types: ['PLANT', 'INSECT'] }));
     if (firstPart === null) return cancelled();
-    if (!firstPart) return invalid('첫 카드에 맞는 Meadow Plant/Insect 부위가 없습니다.');
+    if (!firstPart) return invalid('첫 카드에 맞는 초원 식물·곤충 부위가 없습니다.');
     if (choiceId === 'snatch-and-go') return { status: 'planned', command: {
       code: FORAGING_ENCOUNTER_TRANSACTION_CODES.antHeist,
       input: { ...inputBase, firstCard, firstPart }
     } };
-    if (choiceId !== 'going-for-broke') return invalid('Ant Heist 선택지를 먼저 고르세요.');
+    if (choiceId !== 'going-for-broke') return invalid('개미들의 대도둑질 선택지를 먼저 고르세요.');
     const secondCard = card(context.secondaryCards, 1, 'Going for Broke');
     if ('status' in secondCard) return secondCard;
     if (secondCard.suit !== '♥') return { status: 'planned', command: {
       code: FORAGING_ENCOUNTER_TRANSACTION_CODES.antHeist,
       input: { ...inputBase, firstCard, firstPart, secondCard }
     } };
-    const secondPart = await choosePart(prompt, 'Ant Heist · 두 번째 영약재', `하트 결과로 Base Rarity ${secondCard.value} 이하인 부위 하나를 더 고르세요.`, canonicalEncounterPartCandidates({ region: 'Meadow', maximumRarity: secondCard.value, types: ['PLANT', 'INSECT'] }));
+    const secondPart = await choosePart(prompt, '개미들의 대도둑질 · 두 번째 영약재', `하트 결과로 기본 희귀도 ${secondCard.value} 이하인 부위 하나를 더 고르세요.`, canonicalEncounterPartCandidates({ region: 'Meadow', maximumRarity: secondCard.value, types: ['PLANT', 'INSECT'] }));
     if (secondPart === null) return cancelled();
-    if (!secondPart) return invalid('두 번째 카드에 맞는 Meadow Plant/Insect 부위가 없습니다.');
+    if (!secondPart) return invalid('두 번째 카드에 맞는 초원 식물·곤충 부위가 없습니다.');
     return { status: 'planned', command: {
       code: FORAGING_ENCOUNTER_TRANSACTION_CODES.antHeist,
       input: { ...inputBase, firstCard, firstPart, secondCard, secondPart }
@@ -302,9 +303,9 @@ export const planForagingEncounterTransaction = async (
     const remaining = context.calendarDaysTotal - marked;
     let selectedPart: { reagentId: string; preparationId: string } | undefined;
     if (remaining > marked) {
-      const chosen = await choosePart(prompt, 'Mycophiliacs · Mushroom', 'Early Bird로 얻을 Mushroom 영약재 부위 하나를 고르세요.', canonicalEncounterPartCandidates({ mushroomsOnly: true }));
+      const chosen = await choosePart(prompt, '버섯 애호가들 · 버섯', '부지런한 새(Early Bird)로 얻을 버섯 영약재 부위 하나를 고르세요.', canonicalEncounterPartCandidates({ mushroomsOnly: true }));
       if (chosen === null) return cancelled();
-      if (!chosen) return invalid('선택 가능한 Mushroom 영약재 부위가 없습니다.');
+      if (!chosen) return invalid('선택 가능한 버섯 영약재 부위가 없습니다.');
       selectedPart = chosen;
     }
     const beseech = choiceId === 'beseech';
@@ -371,11 +372,11 @@ export const planForagingEncounterTransaction = async (
       }
     };
     const rewardOptions: ForagingEncounterPromptOption[] = [
-      ...(context.state.companions.length < context.companionCapacity ? [{ value: 'companion', label: 'Cranky Contraption 길동무' }] : []),
-      { value: 'thingamabob', label: 'Titan Thingamabob' },
+      ...(context.state.companions.length < context.companionCapacity ? [{ value: 'companion', label: '성질 고약한 기계장치(Cranky Contraption) 길동무' }] : []),
+      { value: 'thingamabob', label: '티탄 장치(Titan Thingamabob)' },
       ...partOptions(canonicalEncounterPartCandidates({ maximumRarity: 8, types: ['TITAN'] })).map(option => ({ ...option, value: `part:${option.value}` }))
     ];
-    const reward = await chooseOne(prompt, 'Final Resting Place · 발견물', '방에 들어갔다면 발견물 하나를 고르세요.', rewardOptions);
+    const reward = await chooseOne(prompt, '마지막 안식처 · 발견물', '방에 들어갔다면 발견물 하나를 고르세요.', rewardOptions);
     if (reward === null) return cancelled();
     if (!reward) return invalid('선택 가능한 발견물이 없습니다.');
     const rewardInput = reward === 'companion'
@@ -394,10 +395,10 @@ export const planForagingEncounterTransaction = async (
   }
 
   if (context.encounterId === FORAGING_ENCOUNTER_IDS.whatRemains && choiceId === 'attend-to-the-remains') {
-    const action = await chooseOne(prompt, 'What Remains · 무엇을 할까요?', '조사와 빌려 쓰기는 각각 선택할 수 있습니다.', [
+    const action = await chooseOne(prompt, '남겨진 것 · 무엇을 할까요?', '조사와 빌려 쓰기는 각각 선택할 수 있습니다.', [
       { value: 'investigate', label: '조사한다' },
-      { value: 'borrow', label: 'Tool만 빌린다' },
-      { value: 'both', label: '조사하고 Tool도 빌린다' },
+      { value: 'borrow', label: '도구만 빌린다' },
+      { value: 'both', label: '조사하고 도구도 빌린다' },
       { value: 'leave', label: '아무것도 하지 않는다' }
     ]);
     if (action === null) return cancelled();
@@ -410,16 +411,16 @@ export const planForagingEncounterTransaction = async (
       if ('status' in drawn) return drawn;
       investigateCard = drawn;
       if (drawn.value > 6) {
-        const location = await chooseOne(prompt, 'What Remains · 고향', '유품에서 알아낸 야수의 고향을 지도 위치 중에서 고르세요.', context.locationOptions || []);
+        const location = await chooseOne(prompt, '남겨진 것 · 고향', '유품에서 알아낸 야수의 고향을 지도 위치 중에서 고르세요.', context.locationOptions || []);
         if (location === null) return cancelled();
         if (!location) return invalid('성공한 조사에 기록할 고향 위치가 없습니다.');
         homeLocationId = location;
       }
     }
     if (action === 'borrow' || action === 'both') {
-      const selectedTool = await chooseOne(prompt, 'What Remains · Tool', '빌려 쓸 Tool 하나를 고르세요.', toolOptions());
+      const selectedTool = await chooseOne(prompt, '남겨진 것 · 도구', '빌려 쓸 도구 하나를 고르세요.', toolOptions());
       if (selectedTool === null) return cancelled();
-      if (!selectedTool) return invalid('선택 가능한 Tool이 없습니다.');
+      if (!selectedTool) return invalid('선택 가능한 도구가 없습니다.');
       borrowedToolId = selectedTool;
     }
     return { status: 'planned', command: {
@@ -431,7 +432,7 @@ export const planForagingEncounterTransaction = async (
   if (context.encounterId === 'foraging-titan-6') {
     if (!['light', 'cameras', 'action'].includes(choiceId)) return invalid('Lock and Key 선택지를 먼저 고르세요.');
     if (choiceId === 'action') {
-      const selectedPart = await choosePart(prompt, 'Lock and Key · Titan 영약재', '드러낼 Titan 영약재 부위 하나를 고르세요.', canonicalEncounterPartCandidates({ types: ['TITAN'] }));
+      const selectedPart = await choosePart(prompt, '자물쇠와 열쇠 · 티탄 영약재', '드러낼 티탄 영약재 부위 하나를 고르세요.', canonicalEncounterPartCandidates({ types: ['TITAN'] }));
       if (selectedPart === null) return cancelled();
       if (!selectedPart) return invalid('선택 가능한 Titan 영약재 부위가 없습니다.');
       return { status: 'planned', command: {
@@ -461,7 +462,7 @@ export const planForagingEncounterTransaction = async (
     if (choiceId !== 'rescue') return invalid('Trapped 선택지를 먼저 고르세요.');
     const drawn = card(context.secondaryCards, 0, 'Rescue');
     if ('status' in drawn) return drawn;
-    const timerId = await chooseOne(prompt, 'Trapped · 타이머', '이번 구조 시도로 1 줄일 활성 타이머를 고르세요.', activeTimerOptions(context.state));
+    const timerId = await chooseOne(prompt, '갇힘 · 타이머', '이번 구조 시도로 1 줄일 활성 타이머를 고르세요.', activeTimerOptions(context.state));
     if (timerId === null) return cancelled();
     if (!timerId) return invalid('줄일 활성 질환 타이머가 없습니다.');
     return { status: 'planned', command: {
@@ -479,7 +480,7 @@ export const planForagingEncounterTransaction = async (
       const reagent = REAGENT_BY_NAME.get(name);
       return reagent?.preparations.map(preparation => ({ reagentId: reagent.id, preparationId: preparation.id, label: `${reagent.canonicalName} · ${preparation.name} · ${preparation.method}` })) || [];
     });
-    const selectedPart = await choosePart(prompt, 'The Meek Shall Inherit · 영약재', '발견한 영약재 부위 하나를 고르세요.', candidates);
+    const selectedPart = await choosePart(prompt, '온순한 이들의 유산 · 영약재', '발견한 영약재 부위 하나를 고르세요.', candidates);
     if (selectedPart === null) return cancelled();
     if (!selectedPart) return invalid('인쇄된 목록에서 선택 가능한 영약재 부위가 없습니다.');
     return { status: 'planned', command: {
@@ -492,30 +493,30 @@ export const planForagingEncounterTransaction = async (
     if (choiceId === 'delightful-indulgence') return { status: 'not-applicable' };
     if (choiceId === 'irresistible-bargain') {
       const carried = context.state.inventory.filter(item => item.type === 'tool' && item.canonicalToolId && TOOL_BY_ID.get(item.canonicalToolId)?.category !== 'basic');
-      const sourceToolItemId = await chooseOne(prompt, 'Odoak Market · 내놓을 Tool', '교환할 비기본 Tool 하나를 고르세요.', carried.map(item => ({ value: item.id, label: item.name })));
+      const sourceToolItemId = await chooseOne(prompt, 'Odoak 시장 · 내놓을 도구', '교환할 기본 도구가 아닌 도구 하나를 고르세요.', carried.map(item => ({ value: item.id, label: item.name })));
       if (sourceToolItemId === null) return cancelled();
-      if (!sourceToolItemId) return invalid('교환할 비기본 Tool이 없습니다.');
+      if (!sourceToolItemId) return invalid('교환할 수 있는, 기본 도구가 아닌 도구가 없습니다.');
       const sourceToolId = carried.find(item => item.id === sourceToolItemId)?.canonicalToolId;
-      const targetToolId = await chooseOne(prompt, 'Odoak Market · 받을 Tool', 'Tools 목록에서 다른 Tool 하나를 고르세요.', toolOptions(toolId => toolId !== sourceToolId));
+      const targetToolId = await chooseOne(prompt, 'Odoak 시장 · 받을 도구', '도구 목록에서 다른 도구 하나를 고르세요.', toolOptions(toolId => toolId !== sourceToolId));
       if (targetToolId === null) return cancelled();
-      if (!targetToolId) return invalid('받을 Tool을 고를 수 없습니다.');
+      if (!targetToolId) return invalid('받을 도구를 고를 수 없습니다.');
       return { status: 'planned', command: {
         code: FORAGING_ENCOUNTER_TRANSACTION_CODES.odoakMarket,
         input: { ...inputBase, encounterId: FORAGING_ENCOUNTER_IDS.odoakMarket, choice: 'irresistible-bargain', sourceToolItemId, targetToolId }
       } };
     }
     if (choiceId === 'impulse-purchase') {
-      const reagentName = await prompt({ title: 'Odoak Market · Foreign Reagent', message: 'Foreign Reagent의 이름을 기록하세요.' });
+      const reagentName = await prompt({ title: 'Odoak 시장 · 외지 영약재', message: '외지 영약재(Foreign Reagent)의 이름을 기록하세요.' });
       if (reagentName === null) return cancelled();
-      if (!reagentName.trim()) return invalid('Foreign Reagent 이름이 필요합니다.');
-      const reagentType = await chooseOne(prompt, 'Odoak Market · Type', '영약재 Type 하나를 고르세요.', ['PLANT', 'ANIMAL', 'INSECT', 'EARTH', 'TITAN'].map(value => ({ value, label: value })));
+      if (!reagentName.trim()) return invalid('외지 영약재 이름이 필요합니다.');
+      const reagentType = await chooseOne(prompt, 'Odoak 시장 · 종류', '영약재 종류 하나를 고르세요.', ['PLANT', 'ANIMAL', 'INSECT', 'EARTH', 'TITAN'].map(value => ({ value, label: value })));
       if (reagentType === null) return cancelled();
-      const tag = await chooseOne(prompt, 'Odoak Market · Tag', '이 영약재가 제공할 [TAG 2]의 Tag 하나를 고르세요.', ['ELSEWHERE', 'INSTINCT', 'JOY', 'MOOD', 'NERVES', 'INFECTION', 'PAIN', 'PARASITE', 'SENSES', 'SLEEP', 'BREATH', 'BURN', 'FEATHER', 'FUR', 'HIDE', 'POISON', 'SCALE', 'STOMACH', 'TEMPERATURE', 'WOUND', 'FAIR', 'FOUL'].map(value => ({ value, label: value })));
+      const tag = await chooseOne(prompt, 'Odoak 시장 · 약효', '이 영약재가 제공할 약효 [TAG 2] 하나를 고르세요.', ['ELSEWHERE', 'INSTINCT', 'JOY', 'MOOD', 'NERVES', 'INFECTION', 'PAIN', 'PARASITE', 'SENSES', 'SLEEP', 'BREATH', 'BURN', 'FEATHER', 'FUR', 'HIDE', 'POISON', 'SCALE', 'STOMACH', 'TEMPERATURE', 'WOUND', 'FAIR', 'FOUL'].map(value => ({ value, label: value })));
       if (tag === null) return cancelled();
-      const preparationMethod = await chooseOne(prompt, 'Odoak Market · 조제법', '이 방법의 도구가 있어야 치료제에 사용할 수 있습니다.',
+      const preparationMethod = await chooseOne(prompt, 'Odoak 시장 · 조제법', '이 방법의 도구가 있어야 치료제에 사용할 수 있습니다.',
         ['USED', 'GROUND', 'CRUSHED', 'BOILED', 'BREWED', 'CHEWED', 'APPLIED', 'COOKED', 'DISTILLED'].map(value => ({ value, label: value })));
       if (preparationMethod === null) return cancelled();
-      if (!reagentType || !tag || !preparationMethod) return invalid('Type, Tag, Preparation Method가 모두 필요합니다.');
+      if (!reagentType || !tag || !preparationMethod) return invalid('종류, 약효, 조제법이 모두 필요합니다.');
       return { status: 'planned', command: {
         code: FORAGING_ENCOUNTER_TRANSACTION_CODES.odoakMarket,
         input: {

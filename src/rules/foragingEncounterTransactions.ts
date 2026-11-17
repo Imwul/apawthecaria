@@ -533,8 +533,9 @@ export const resolveRightPlaceWrongTime = (input: TransactionEnvelope & ({
 export const resolveFriendInNeed = (input: TransactionEnvelope & ({
   choice: 'help';
   card: EncounterCardResult;
-  reagentId: string;
-  preparationId: string;
+  /** Omitted only when no Forest Reagent has this exact Base Rarity (e.g. a Monarch): nothing is gained. */
+  reagentId?: string;
+  preparationId?: string;
   timerId: string;
 } | {
   choice: 'keep-to-yourself';
@@ -546,12 +547,18 @@ export const resolveFriendInNeed = (input: TransactionEnvelope & ({
     return finish(input, started);
   }
   if (!cardIsValid(input.card)) return invalid('invalid-card', 'Help Your Guildmate requires the drawn card.');
-  const selected = canonicalPart(input.reagentId, input.preparationId);
-  if (!selected || selected.reagent.baseRarity !== input.card.value || !isAvailableIn(selected.reagent, 'Forest')) {
-    return invalid('invalid-selection', 'Choose a canonical Forest Reagent whose Base Rarity exactly equals the card value.');
+  const cardValue = input.card.value;
+  const exactForestMatchExists = Array.from(REAGENT_BY_ID.values())
+    .some(reagent => reagent.baseRarity === cardValue && isAvailableIn(reagent, 'Forest'));
+  if (input.reagentId || input.preparationId || exactForestMatchExists) {
+    const selected = input.reagentId && input.preparationId ? canonicalPart(input.reagentId, input.preparationId) : null;
+    if (!selected || selected.reagent.baseRarity !== cardValue || !isAvailableIn(selected.reagent, 'Forest')) {
+      return invalid('invalid-selection', 'Choose a canonical Forest Reagent whose Base Rarity exactly equals the card value.');
+    }
   }
   if (!activeTimer(started.state.patient, input.timerId)) return invalid('invalid-selection', 'Choose the active Ailment Timer affected by this encounter.');
-  if (!addCanonicalPart(started, input.transactionId, 'friend-in-need', input.reagentId, input.preparationId)) {
+  if (input.reagentId && input.preparationId
+    && !addCanonicalPart(started, input.transactionId, 'friend-in-need', input.reagentId, input.preparationId)) {
     return invalid('invalid-selection', 'The selected canonical Reagent Part cannot be acquired.');
   }
   modifyTimers(started, -1, { kind: 'one', timerId: input.timerId });

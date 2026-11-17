@@ -171,6 +171,23 @@ describe('foraging encounter transactions', () => {
     expect(forged).toMatchObject({ status: 'invalid', code: 'invalid-selection' });
   });
 
+  it('still decreases the Timer when no Forest Reagent has the drawn rarity (p.161 Monarch)', () => {
+    expect(canonicalEncounterPartCandidates({ region: 'Forest', exactRarity: 12 })).toHaveLength(0);
+    const empty = resolveFriendInNeed({
+      transactionId: 'friend:3', encounterId: FORAGING_ENCOUNTER_IDS.friendInNeed, expectedRevision: 3,
+      state: state(), choice: 'help', card: { value: 12, suit: '♣' }, timerId: 'timer-1'
+    });
+    expect(empty.status).toBe('resolved');
+    expect(empty.value?.nextState.patient?.timers.map(row => row.current)).toEqual([5, 2]);
+    expect(empty.value?.nextState.inventory).toHaveLength(0);
+
+    const skipped = resolveFriendInNeed({
+      transactionId: 'friend:4', encounterId: FORAGING_ENCOUNTER_IDS.friendInNeed, expectedRevision: 3,
+      state: state(), choice: 'help', card: { value: 5, suit: '♦' }, timerId: 'timer-1'
+    });
+    expect(skipped).toMatchObject({ status: 'invalid', code: 'invalid-selection' });
+  });
+
   it('treats p.161 all Parts as physical parts, not duplicate preparation variants', () => {
     const beetles = REAGENT_BY_NAME.get('Beetles')!;
     const oneShell = beetles.preparations[0];

@@ -528,7 +528,7 @@ describe('engine Journal boundary', () => {
     });
 
     expect(barter.title).toBe('물물교환: Nettles');
-    expect(barter.text).toBe('기본 희귀도 8; 장신구 2개와 Guild Reputation 1점을 지불했습니다.');
+    expect(barter.text).toBe('거래 희귀도 8; 장신구 2개와 Guild Reputation 1점을 지불했습니다.');
     expect(barter.semantic.category).toBe('gameplay-event');
     expect(downtime.title).toBe('휴식기 활동: 도움의 손길');
     expect(downtime.text).toBe('휴식기 활동을 마쳤습니다.');

@@ -98,7 +98,12 @@ describe('gameplay message Korean presentation layer', () => {
     expect(localizeGameplayMessage('No Reagent is available for this draw; gained 0 Foraging Points.'))
       .toBe('이번 카드로 얻을 수 있는 영약재가 없습니다. 채집 포인트를 얻지 못했습니다.');
     expect(localizeGameplayMessage('BR 8; paid 2 Trinkets and 1 Reputation.'))
-      .toBe('기본 희귀도 8; 장신구 2개와 Guild Reputation 1점을 지불했습니다.');
+      .toBe('거래 희귀도 8; 장신구 2개와 Guild Reputation 1점을 지불했습니다.');
+    // The current barterEngine wording (comma, optional printed items) must not leak as English.
+    expect(localizeGameplayMessage('BR 0; paid 0 Trinkets, 0 Reputation.'))
+      .toBe('거래 희귀도 0; 장신구 0개와 Guild Reputation 0점을 지불했습니다.');
+    expect(localizeGameplayMessage('BR 6; paid 1 Trinkets, 2 Reputation, and 1 printed Barter item(s).'))
+      .toBe('거래 희귀도 6; 장신구 1개와 Guild Reputation 2점, 인쇄된 거래 물품 1개를 지불했습니다.');
     expect(localizeGameplayMessage('guaranteed-adjacent in Mountain; every active Timer decreased by 2.'))
       .toBe('산악에서 인접 위치의 약효 강도 2 이하 부위 획득을(를) 수행해 진행 중인 모든 타이머가 2 줄었습니다.');
     expect(localizeGameplayMessage('guaranteed-current in Forest; every active Timer decreased by 3.'))

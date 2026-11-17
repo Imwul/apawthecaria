@@ -1337,6 +1337,32 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     ],
     support: 'manual-only'
   },
+  // p.174: Grind Mentality prints three "Name - result" branches. Farmer's Demands was parsed
+  // away, leaving its Foraging Point loss neither a choice nor an effect.
+  'foraging-meadow-j-spring': {
+    mandatoryEffects: [],
+    choices: [
+      {
+        id: 'farmers-demands',
+        label: "Farmer's Demands — Get off their land and stop trampling seeds! Lose 2 Foraging Points.",
+        effects: [{ support: 'implemented', effect: { type: 'modifyForagingPoints', amount: -2 } }]
+      },
+      {
+        id: 'hedgerow-wandering',
+        label: 'Hedgerow Wandering — Navigate around the fields; Reduce Timers by 1',
+        effects: [{ support: 'implemented', effect: { type: 'modifyTimer', amount: -1, target: 'all' } }]
+      },
+      {
+        id: 'greased-paws',
+        label: 'Greased Paws — Pay 1 Trinket to pass through the farmland short cut, and Increase Timers by 2.',
+        effects: [
+          { support: 'implemented', effect: { type: 'modifyTimer', amount: 2, target: 'all' } },
+          { support: 'implemented', effect: { type: 'modifyTrinkets', amount: -1 } }
+        ]
+      }
+    ],
+    support: 'manual-only'
+  },
   // p.175: Sweet and Rescue are mutually exclusive inventory results of the
   // same decision to help, not two outcomes the player may choose freely.
   'foraging-meadow-j-summer': {
