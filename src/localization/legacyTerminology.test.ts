@@ -61,4 +61,14 @@ describe('legacy terminology migration', () => {
     });
     expect(migrated.pendingManualEffect.inputValues.answer).toBe('Reputation보다 우정을 골랐다.');
   });
+
+  it('keeps printed rule sentences verbatim so they still match their translations', () => {
+    const description = 'Cocoon follow-up: after travelling 10 Paths, or when the Journey ends, it hatches into a Butterfly Companion.';
+    const migrated = migrateLegacyTerminology({
+      pendingManualFollowUps: [{ id: 'cocoon', description }],
+      manualEffectQueue: [{ printedText: 'Gain 1 Trinket.' }]
+    }) as any;
+    expect(migrated.pendingManualFollowUps[0].description).toBe(description);
+    expect(migrated.manualEffectQueue[0].printedText).toBe('Gain 1 Trinket.');
+  });
 });

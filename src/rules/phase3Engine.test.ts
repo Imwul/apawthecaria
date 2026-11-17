@@ -766,13 +766,13 @@ describe('Phase 3 Journey, Goal, and Ending engines', () => {
     expect(arrived.value?.reputation).toBe(5);
     expect(arrived.value?.downtimeRequired).toBe(true);
 
+    // House reading: p.25 local help is owed only to Move again, and arriving ends the Journey.
     const untreatedArrival = resolveJourneyEnding({
       transactionId: 'end-before-local-ailment',
       state: { ...journeyRuntime(), currentLocationId: journey.destinationId, journey, reputation: 5, needsLocalHelp: true },
-      endedAt: 2, outcome: 'success', journalText: 'I tried to leave before earning my keep.'
+      endedAt: 2, outcome: 'success', journalText: 'I arrived and chose not to stay for a local patient.'
     });
-    expect(untreatedArrival.status).toBe('invalid');
-    expect(untreatedArrival.messages.join(' ')).toMatch(/local beast.*Ailment/i);
+    expect(untreatedArrival.status).toBe('resolved');
   });
 
   it('[ENDING-001/CORE-002] blocks Journey ending until pending and queued manual rulings are resolved', () => {

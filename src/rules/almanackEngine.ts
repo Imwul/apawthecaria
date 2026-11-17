@@ -1015,7 +1015,8 @@ export const resolveManualEffectTransaction = (input: {
   const helpBee = isBranch('foraging-meadow-j-summer', 'help-the-bee');
   const workingForSnack = isBranch('social-loch-autumn-♣', 'working-for-a-snack');
   const fixedPurchase = isBranch('social-loch-settlement-♦', 'projects-wide')
-    || isBranch('social-mountain-spoolkeep-♥', 'offcuts');
+    || isBranch('social-mountain-spoolkeep-♥', 'offcuts')
+    || isBranch('travel-meadow-j-spring', 'bargain');
   const branchBeaten = isBranch('travel-bog-5-6', 'draw-and-pass-the-branches');
   const thatSucks = isBranch('travel-bog-9-10-summer', 'continue');
   const hotTea = isBranch('travel-forest-5-6', 'eavesdrop');
@@ -1218,9 +1219,12 @@ export const resolveManualEffectTransaction = (input: {
   if (beeRescue && input.state.inventory.some(isHoneyOrFairReagent)) {
     return { status: 'invalid', value: null, messages: ['Rescue is only available when no Honey or FAIR Reagent Part is carried.'] };
   }
-  if (fixedPurchase && selectedCanonicalActions.some(action => action.id.endsWith(':purchase:cost'))
-    && input.state.trinkets < 5) {
-    return { status: 'invalid', value: null, messages: ['This purchase requires 5 Trinkets.'] };
+  const purchaseCost = fixedPurchase
+    ? selectedCanonicalActions.find(action => action.id.endsWith(':purchase:cost'))
+    : undefined;
+  const purchasePrice = purchaseCost ? Math.abs(purchaseCost.amount ?? 5) : 0;
+  if (purchaseCost && input.state.trinkets < purchasePrice) {
+    return { status: 'invalid', value: null, messages: [`This purchase requires ${purchasePrice} Trinkets.`] };
   }
 
   const companionId = butterflyBefriend ? 'butterfly' as const : helpBee ? 'honeybee' as const : null;
@@ -1368,6 +1372,15 @@ export const resolveManualEffectTransaction = (input: {
         quantity: 1,
         ruinedWhenSoaked: /ruined if soaked/i.test(`${rawItemName} ${action.sourceText}`)
       };
+      // A printed Tool gained from an Encounter ("Fairwind Spices") is that canonical Tool, with its
+      // Almanack weight and effects, not a weightless-looking note named after it.
+      const catalogTool = Array.from(TOOL_BY_ID.values())
+        .find(tool => tool.canonicalName.toLowerCase() === itemName.trim().toLowerCase());
+      if (catalogTool) {
+        gainedItem.type = 'tool';
+        gainedItem.weight = catalogTool.weight;
+        gainedItem.canonicalToolId = catalogTool.id;
+      }
       if (/^Juicy Gossip$/i.test(itemName)) {
         gainedItem.weight = 0;
         gainedItem.guildNote = { kind: 'gossip' };
@@ -1380,7 +1393,7 @@ export const resolveManualEffectTransaction = (input: {
           gainedItem.type = 'tool';
           gainedItem.weight = 1;
           gainedItem.canonicalToolId = 'bark-coracle';
-        } else {
+        } else if (isBranch('social-mountain-spoolkeep-♥', 'offcuts')) {
           gainedItem.weight = 1;
           gainedItem.craftedItemId = 'knitted-blanket';
         }

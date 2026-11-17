@@ -9,6 +9,7 @@ import {
 } from './rules/almanackEngine';
 import { ENCOUNTERS } from './rules/data/encounters';
 import { REAGENTS } from './rules/data/reagents';
+import { TOOL_BY_ID } from './rules/data/tools';
 import { ENCOUNTER_CONDITION_CODES } from './rules/encounterConditionRuntime';
 import { isForagingPreparationAvailableInSeason } from './rules/foragingEngine';
 import type { Season } from './rules/types';
@@ -1035,18 +1036,21 @@ const scopeHelpBee = (draft: ManualEffectDraft, choiceId: string): ManualEffectD
   }], actions);
 };
 
+export const purchaseDecisionOption = (price: number): string => `구입 · 장신구 ${price}개 지불`;
+
 const scopePurchase = (
   draft: ManualEffectDraft,
   choiceId: string,
-  item: 'Bark Coracle' | 'Lumpy Blanket'
+  item: 'Bark Coracle' | 'Lumpy Blanket' | 'Fairwind Spices',
+  price = 5
 ): ManualEffectDraft => {
-  const buy = draft.inputValues[PURCHASE_DECISION_INPUT_ID] === '구입 · 장신구 5개 지불';
+  const buy = draft.inputValues[PURCHASE_DECISION_INPUT_ID] === purchaseDecisionOption(price);
   const actions = buy ? [
     requiredAction(draft.ownerId, 'purchase:cost', {
       kind: 'modify-trinkets',
-      label: '장신구 -5',
-      amount: -5,
-      sourceText: `Pay 5 Trinkets for the ${item}.`
+      label: `장신구 -${price}`,
+      amount: -price,
+      sourceText: `Pay ${price} Trinkets for the ${item}.`
     }),
     requiredAction(draft.ownerId, 'purchase:item', {
       kind: 'gain-inventory',
@@ -1060,7 +1064,7 @@ const scopePurchase = (
     type: 'choice',
     label: `${item} 구입 여부`,
     required: true,
-    options: ['구입 · 장신구 5개 지불', '구입하지 않음']
+    options: [purchaseDecisionOption(price), '구입하지 않음']
   }], actions);
 };
 
@@ -1390,6 +1394,12 @@ const scopeKnownExclusiveEncounterOutcome = (
   }
   if (draft.ownerId === 'social-loch-settlement-♦' && choiceId === 'projects-wide') {
     return scopePurchase(draft, choiceId, 'Bark Coracle');
+  }
+  // p.87 Return Migration: "You can trade for some Fairwind Spices (Tools, page 62)". Trading for a
+  // Tool means paying its p.63 price (10 Trinkets); declining is always allowed.
+  if (draft.ownerId === 'travel-meadow-j-spring' && choiceId === 'bargain') {
+    const price = TOOL_BY_ID.get('fairwind-spices')?.cost ?? 10;
+    return scopePurchase(draft, choiceId, 'Fairwind Spices', price);
   }
   if (draft.ownerId === 'social-loch-autumn-♣' && choiceId === 'working-for-a-snack') {
     return scopeWorkingForSnack(draft, choiceId);

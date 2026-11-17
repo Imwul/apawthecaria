@@ -46,7 +46,7 @@ type RouteComposerProps = {
 };
 
 const reasonText = (reason: ReturnType<typeof evaluateRouteDraft>['reason'], speed: number, cost: number): string => {
-  if (reason === 'incomplete') return `지도나 위치 검색에서 이번 이동이 지날 경로를 이동력 ${speed}에 맞게 순서대로 고르세요.`;
+  if (reason === 'incomplete') return `지도나 위치 검색에서 이번 이동이 지날 경로를 이동력 ${speed} 안에서 순서대로 고르세요.`;
   if (reason === 'legal') return cost === speed
     ? `이동력 ${speed}을 모두 사용합니다. 이 경로로 이동할 수 있습니다.`
     : `이동력 ${speed} 중 ${cost}만 사용합니다. 짧은 경로로 이동할 수 있습니다.`;
@@ -70,9 +70,15 @@ const stopTerrainLabel = (stop: RouteStop): string =>
 const stopMeta = (stop: RouteStop): string =>
   `${stopKindLabel(stop)}${stopTerrainLabel(stop) ? ` · ${stopTerrainLabel(stop)}` : ''}`;
 
-const displayWeight = (value: number): string => Number.isInteger(value)
-  ? String(value)
-  : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+// Bag weights come in thirds (1/3, 2/3); show them the way the bag and the rulebook do: "1 1/3".
+const displayWeight = (value: number): string => {
+  const thirds = Math.round(value * 3);
+  if (Math.abs(value * 3 - thirds) > 0.01) return value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+  const whole = Math.floor(thirds / 3);
+  const rem = thirds % 3;
+  if (rem === 0) return String(whole);
+  return whole === 0 ? `${rem}/3` : `${whole} ${rem}/3`;
+};
 
 export function RouteComposer({
   draft,
@@ -177,7 +183,7 @@ export function RouteComposer({
   const addStop = (stop: RouteStop) => {
     onAddStop?.(stop);
     setPlaceQuery('');
-    setRouteFeedback(`${stop.name || '위치'}을(를) 이번 이동 경로에 추가했습니다.`);
+    setRouteFeedback(`이번 이동 경로에 추가했습니다: ${stop.name || '위치'}`);
   };
 
   const removeStop = (index: number, stop: RouteStop) => {
@@ -212,7 +218,7 @@ export function RouteComposer({
         </div>
         <div className="route-composer__conditions" aria-label="이번 이동 조건">
           <span>속도 <strong>{evaluation.effectiveSpeed}</strong></span>
-          <span>짐 <strong>{displayWeight(weight)}/{displayWeight(carry)}</strong></span>
+          <span>짐 <strong>{displayWeight(weight)} / {displayWeight(carry)}</strong></span>
           {seasonLabel && <span>계절 <strong>{seasonLabel}</strong></span>}
           {daysRemaining !== null && <span>기한 <strong>{Math.max(0, daysRemaining)}일</strong></span>}
         </div>
@@ -523,7 +529,7 @@ export function RouteComposer({
           )}
           {evaluation.overEncumbered && (
             <div className="route-composer__rule-alert route-composer__rule-alert--danger">
-              과적 상태(무게 {displayWeight(weight)}/{displayWeight(carry)})라 이번 이동의 속도는 1경로입니다. (룰북 p.24)
+              과적 상태(무게 {displayWeight(weight)} / {displayWeight(carry)})라 이번 이동의 속도는 1경로입니다. (룰북 p.24)
             </div>
           )}
           {evaluation.reason === 'loch-locked' && (

@@ -272,7 +272,8 @@ export const ENCOUNTER_REVIEW_TRAVEL_CHOICE_KO: Readonly<Record<string, Reviewed
 
   // Meadow travel, pp.86-89
   'travel-meadow-a-2': {
-    'resolve-obstruction': '가로막힌 길 확인 — 현재 이동에 Wagon을 쓰는지 확인합니다. Wagon과 함께라면 교통이 풀리길 기다리며 달력에 1일을 표시합니다. Wagon 없이 이동 중이라면 마차 사이를 빠져나와 비버의 도움으로 나무줄기를 넘고 지체 없이 계속합니다.'
+    'stuck-in-traffic': '길이 풀리길 기다리기 — Wagon과 함께 이동 중이라 교통이 풀릴 때까지 기다리며 달력에 1일을 표시합니다.',
+    'scramble-over': '나무줄기 넘기 — Wagon 없이 이동 중이라 마차 사이를 빠져나와 비버의 도움으로 나무줄기를 넘고 지체 없이 계속합니다.'
   },
   'travel-meadow-3-4': {
     'sugar-rush': '당 충전 — 다음에 채집할 때 경로 2개 거리 안에 있는 위치도 인접한 곳으로 취급합니다.'

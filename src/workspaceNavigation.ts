@@ -16,7 +16,9 @@ export const PLAY_TASK_PANELS = [
 export const PLAY_TASK_SUB_PANELS: Record<string, string> = {
   'patient-acquisition-panel': 'patient-clinic-panel',
   'treatment-workspace': 'patient-clinic-panel',
-  'patient-scrounging-panel': 'patient-clinic-panel'
+  'patient-scrounging-panel': 'patient-clinic-panel',
+  // "Choose a Downtime activity" points inside the Downtime panel; without this the shelf marked New Journey as now.
+  'downtime-activity-choice': 'downtime-panel'
 };
 
 export const PLAY_TASK_FOCUS_EVENT = 'apawthecaria:play-task-focus';

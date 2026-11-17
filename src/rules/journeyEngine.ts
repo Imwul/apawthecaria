@@ -696,7 +696,8 @@ export const resolveJourneyEnding = (input: {
   if (input.state.pendingBarter) blockers.push('Resolve the pending Barter.');
   if (input.state.pendingForaging) blockers.push('Resolve the pending Foraging action.');
   if (input.state.pendingManualEffect || (input.state.manualEffectQueue?.length || 0) > 0) blockers.push('Resolve the pending manual effect.');
-  if (input.state.needsLocalHelp) blockers.push('Resolve a local beast’s Ailment before ending the Move at this Location.');
+  // p.25 asks for local help only "to be able to Move again"; arriving ends the Journey instead,
+  // so an untreated local beast at the Destination no longer blocks the ending (house reading 2026-11-17).
   if (input.state.patients.some(patient => patient.status === 'active' && (patient.ailments.some(row => row.status === 'active') || patient.timers.some(row => row.status === 'active')))) blockers.push('Resolve or leave every active Patient and Timer.');
   if (blockers.length > 0) return { status: 'invalid', value: null, messages: blockers };
   const selectedOutcome = input.outcome ?? savedDraft?.selectedOutcome;

@@ -130,7 +130,8 @@ export const getJourneyUiContext = (state: JourneyUiState): JourneyUiContext => 
   if (state.activeDelve) {
     return context('local-care', true, atDestination, 'active-delve', 'barrow-panel', '진행 중인 거수 고분 탐사를 먼저 마무리하세요.');
   }
-  if (state.scroungingMode) {
+  // At the Destination nothing waits for the next Move: Moving On and local help are optional there.
+  if (state.scroungingMode && !atDestination) {
     return context('local-care', true, atDestination, 'scrounging', 'patient-clinic-panel', 'Moving On으로 떠날 준비를 마무리하세요.');
   }
   // activePatientId is a legacy mirror and can outlive a cured/failed case.
@@ -139,7 +140,7 @@ export const getJourneyUiContext = (state: JourneyUiState): JourneyUiContext => 
   if (state.activeAilment) {
     return context('local-care', true, atDestination, 'active-patient', 'treatment-workspace', '현재 환자의 진료를 먼저 마무리하세요.');
   }
-  if (state.needsLocalHelpBeforeMove) {
+  if (state.needsLocalHelpBeforeMove && !atDestination) {
     return context('local-care', true, atDestination, 'local-help', 'patient-clinic-panel', '현지 야수의 질환을 해결한 뒤 이동할 수 있습니다.');
   }
   const matchingEnding = status === 'ending'

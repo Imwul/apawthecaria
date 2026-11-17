@@ -153,6 +153,10 @@ export interface EncounterChoice {
     maxGuildReputation?: number;
     minTrinkets?: number;
     requiredConditionId?: string;
+    /** true: only when this Move uses a Wagon; false: only when it does not. */
+    travellingWithWagon?: boolean;
+    /** Canonical Tool ids that must all be carried and usable ("If you have a Crossbow and Bolt"). */
+    requiredToolIds?: string[];
   };
   followUp?: {
     type: 'start-patient';

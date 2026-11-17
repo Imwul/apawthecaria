@@ -116,7 +116,7 @@ export const getCampaignNextAction = (state: CampaignContinuityState): CampaignN
   if (timer.hasActiveAilment && ['travel-next', 'journey-end', 'local-help'].includes(primary || '')) {
     primary = 'active-patient';
   } else if (primary === 'active-patient' && !timer.hasActiveAilment) {
-    primary = state.needsLocalHelpBeforeMove ? 'local-help' : journey.atDestination ? 'journey-end' : 'travel-next';
+    primary = journey.atDestination ? 'journey-end' : state.needsLocalHelpBeforeMove ? 'local-help' : 'travel-next';
   }
   // Escape obligations take precedence over ordinary care. Delve and unfinished
   // transactions retain their earlier priority and cannot be bypassed here.

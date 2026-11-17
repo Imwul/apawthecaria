@@ -73,12 +73,51 @@ describe('printed conditional and follow-up hierarchy', () => {
   it('uses one state check for Obstruction instead of letting the player declare a travel mode', () => {
     const row = encounter('travel-meadow-a-2');
     expect(row.sourcePage).toBe(86);
-    expect(row.choices.map(choice => choice.id)).toEqual(['resolve-obstruction']);
-    expectManualCode(row.id, 'resolve-obstruction', 'OBSTRUCTION_WAGON_CHECK');
-    const localized = ENCOUNTER_REVIEW_TRAVEL_CHOICE_KO[row.id]['resolve-obstruction'];
-    expect(localized).toContain('Wagon');
-    expect(localized).toContain('1일');
-    expect(localized).toContain('Wagon 없이');
+    expect(row.choices.map(choice => choice.id)).toEqual(['stuck-in-traffic', 'scramble-over']);
+    const [stuck, scramble] = row.choices;
+    // The saved Wagon picks the branch; the other one is unavailable.
+    const onFoot = { reputation: 5, trinkets: 0, travellingWithWagon: false };
+    const byWagon = { reputation: 5, trinkets: 0, travellingWithWagon: true };
+    expect(encounterChoiceAvailability(stuck, onFoot).available).toBe(false);
+    expect(encounterChoiceAvailability(scramble, onFoot).available).toBe(true);
+    expect(encounterChoiceAvailability(stuck, byWagon).available).toBe(true);
+    expect(encounterChoiceAvailability(scramble, byWagon).available).toBe(false);
+    expect(stuck.effects).toEqual([{ support: 'implemented', effect: { type: 'markDays', amount: 1 } }]);
+    expect(scramble.effects).toEqual([]);
+    expect(ENCOUNTER_REVIEW_TRAVEL_CHOICE_KO[row.id]['stuck-in-traffic']).toContain('1일');
+    expect(ENCOUNTER_REVIEW_TRAVEL_CHOICE_KO[row.id]['scramble-over']).toContain('Wagon 없이');
+  });
+
+  it('gates choices whose printed condition is a carried Tool or a Trinket payment', () => {
+    const gated: Array<[string, string, Record<string, unknown>]> = [
+      ['foraging-bog-8', 'archer', { requiredToolIds: ['crossbow', 'bolts'] }],
+      ['foraging-bog-10-spring', 'sail', { requiredToolIds: ['bark-coracle'] }],
+      ['foraging-meadow-10-winter', 'hot-toddy', { requiredToolIds: ['canvas-tent'] }],
+      ['foraging-meadow-j-spring', 'greased-paws', { minTrinkets: 1 }],
+      ['foraging-titan-j-autumn', 'open-says-me', { requiredToolIds: ['titan-thingamabob'] }]
+    ];
+    for (const [encounterId, choiceId, requirements] of gated) {
+      const choice = encounter(encounterId).choices.find(row => row.id === choiceId);
+      expect(choice?.requirements, `${encounterId}/${choiceId}`).toMatchObject(requirements);
+    }
+    const archer = encounter('foraging-bog-8').choices.find(row => row.id === 'archer')!;
+    const base = { reputation: 5, trinkets: 0 };
+    expect(encounterChoiceAvailability(archer, { ...base, availableToolIds: ['crossbow'] }).available).toBe(false);
+    expect(encounterChoiceAvailability(archer, { ...base, availableToolIds: ['crossbow', 'bolts'] }).available).toBe(true);
+    // Unknown carried Tools (no list) never blocks, so older callers keep working.
+    expect(encounterChoiceAvailability(archer, base).available).toBe(true);
+  });
+
+  it('never leaves a player without a choice, whatever they carry', () => {
+    // Bare states (no Tools, no Trinkets, no conditions) across Reputation and Wagon: some choice stays open.
+    for (const row of ENCOUNTERS) {
+      if (row.choices.length === 0) continue;
+      for (const reputation of [0, 14, 15, 30]) for (const travellingWithWagon of [false, true]) {
+        const state = { reputation, trinkets: 0, conditions: [], availableToolIds: [], travellingWithWagon };
+        const open = row.choices.some(choice => encounterChoiceAvailability(choice, state).available);
+        expect(open, `${row.id} rep ${reputation} wagon ${travellingWithWagon}`).toBe(true);
+      }
+    }
   });
 
   it('keeps later Ailment failures under their triggering checks', () => {

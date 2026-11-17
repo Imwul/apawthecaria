@@ -573,6 +573,13 @@ const dynamicEngineMessages: Array<[RegExp, (...matches: string[]) => string]> =
   [/^([A-Z]+) (.+) \(provided (.+)\)$/, (tag, required, provided) => `${tag} ${required} 필요 · 현재 ${provided}`],
   [/^(.+) requires (.+) Timer hours, and no Timer may already be 0\.$/, (project, hours) => `${project}에는 타이머 ${hours}시간이 필요하며 이미 0인 타이머가 없어야 합니다.`]
   ,[/^Barter: (.+)$/, reagent => `물물교환: ${reagent}`]
+  // Special Remedy requirements arrive as "CODE: printed description"; players should see the rule, not the code.
+  ,[/^BRIGHTLY_COLOURED_PLANT: .+$/, () => '밝은 색 식물 영약재를 하나 이상 넣었나요? (꽃잎·열매처럼 눈에 띄는 색의 식물 부위)']
+  ,[/^MULTIPLE_TAG_DOSES: .+$/, () => 'ELSEWHERE 3과 2, JOY 3과 2를 각각 따로 채운 처방인가요?']
+  ,[/^BONE_SETTING_ITEM: .+$/, () => '뼈를 고정할 길고 튼튼한 것(예: 참나무 가지)을 넣었거나, 제대로 된 도구를 기증했나요?']
+  ,[/^DRAW_LOWER_AILMENT_AND_FIND_PATIENT: .+$/, () => '가벼움 또는 중간 질환을 뽑고, 현재·인접 위치에서 거래 희귀도 8로 환자를 찾았나요?']
+  ,[/^MANUAL_REQUIREMENT: (.+)$/, description => `원문 조건: ${description}`]
+  ,[/^This purchase requires (\d+) Trinkets\.$/, price => `이 물품을 구입하려면 장신구 ${price}개가 필요합니다.`]
   // barterEngine writes "paid N Trinkets, M Reputation[, and K printed Barter item(s)]."; older saves used "and".
   ,[/^BR (.+?); paid (.+?) Trinkets(?:,| and) (.+?) Reputation(?:, and (\d+) printed Barter item\(s\))?\.$/, (br, trinkets, reputation, items) => `거래 희귀도 ${br}; 장신구 ${trinkets}개와 길드 명성 ${reputation}점${items ? `, 인쇄된 거래 물품 ${items}개를` : '을'} 지불했습니다.`]
   ,[/^(.+) unresolved Ailments faced their Consequences\.$/, count => `해결되지 않은 질병 ${count}개의 결과를 적용했습니다.`]

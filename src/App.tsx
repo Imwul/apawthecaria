@@ -530,6 +530,7 @@ import {
   BEE_HIVE_REAGENT_IDS,
   SOURED_DOUGH_CONDITION,
   advanceAilmentWorldConditionsForSeason,
+  collectPawRotGratefulTrinkets,
   consumeTickbittenReturnPair,
   describeAilmentWorldConditions,
   ailmentWorldCondition,
@@ -680,7 +681,20 @@ const showAlert = (message: unknown) => {
   }));
 };
 
-const askWindowConfirm = (message: string) => window.confirm.call(window, message);
+// Yes/no questions use the app's own dialog. App registers the bridge on mount; before that (or in
+// tests) it falls back to the browser box so nothing is silently confirmed.
+type AppConfirmOptions = { title?: string; kicker?: string; confirmLabel?: string; cancelLabel?: string };
+let appConfirmBridge: ((message: string, options: AppConfirmOptions) => Promise<boolean>) | null = null;
+const askAppConfirm = (message: string, options: AppConfirmOptions = {}): Promise<boolean> =>
+  appConfirmBridge ? appConfirmBridge(message, options) : Promise.resolve(window.confirm.call(window, message));
+
+// "가을로·겨울로" but "봄으로·여름으로": ㄹ-final and vowel-final syllables take 로.
+const seasonWithRo = (season: Parameters<typeof localizeSeasonLabel>[0]): string => {
+  const label = localizeSeasonLabel(season);
+  const last = label.charCodeAt(label.length - 1) - 0xac00;
+  const final = last >= 0 && last < 11172 ? last % 28 : 0;
+  return `${label}${final === 0 || final === 8 ? '로' : '으로'}`;
+};
 
 const createClientTransaction = (prefix: string) => {
   const at = Date.now();
@@ -757,6 +771,13 @@ const localizeEncounterChoiceRequirement = (message: string, reputation: number,
   if (maximum) return `Guild Reputation ${maximum[1]} 이하 필요 · 현재 ${reputation}`;
   const trinketMinimum = message.match(/^Requires (\d+) Trinket\(s\)\.$/);
   if (trinketMinimum) return `장신구 ${trinketMinimum[1]}개 필요 · 현재 ${trinkets}개`;
+  const toolRequirement = message.match(/^Requires Tool: (.+)\.$/);
+  if (toolRequirement) {
+    const names = toolRequirement[1].split(', ').map(id => localizeCanonicalToolName(TOOL_BY_ID.get(id)?.canonicalName || id));
+    return `${names.join('·')} 필요`;
+  }
+  if (message === 'Requires travelling with a Wagon.') return 'Wagon으로 이동 중일 때만';
+  if (message === 'Requires travelling without a Wagon.') return 'Wagon 없이 이동 중일 때만';
   if (message === 'Requires encounter condition: helped-exiled-or-branded-beast.') {
     return '이전에 추방되었거나 낙인찍힌 야수를 도운 기록 필요';
   }
@@ -2790,6 +2811,12 @@ const mapLabelOrPlaceholder = (id: string, label: string | undefined, region: st
   return id.charAt(0).toUpperCase() + id.slice(1).replace(/_/g, ' ');
 };
 
+// p.24 says "Move along a number of Paths equal to your Speed". Read strictly, a destination two
+// Paths away is unreachable at Speed 3 without detours (no revisiting within a Move), which cost a
+// playtest two extra Moves and two extra patients. House reading (2026-11-17): Speed is the most
+// Paths a Move may use, and a Move may stop earlier anywhere.
+const MOVE_MUST_USE_FULL_SPEED = false;
+
 const MAP_SERVICE_HOPS = 3;
 
 type ReviewedMapLocation = {
@@ -3079,6 +3106,10 @@ const applyCalendarAdvanceWithEncounterExpiry = (
     ]
   };
 };
+
+const usableToolIdsFor = (state: GameState): string[] => canonicalToolsFromState(state)
+  .filter(tool => !tool.broken && !tool.consumed)
+  .map(tool => tool.toolId);
 
 const canonicalToolsFromState = (state: GameState): CanonicalToolState[] => {
   const familiarMechanic = getActiveFamiliarMechanic(state);
@@ -6945,7 +6976,7 @@ const TOOLS_DB = [
   { id: 'tool_bandolier', name: '그린포 반도리어 (Greenpaw Bandolier)', cost: 5, weight: 1, desc: '식물 및 곤충 약재를 5 무게분까지 수납 가능하며, 수납된 무게에 상관없이 반도리어의 총 무게는 1로 고정됩니다.', places: 'Noonhill' },
   { id: 'tool_alembic', name: '유리 증류기 (Glass Alembic)', cost: 10, weight: 2/3, desc: '치료제 조제 시 동일 태그의 두 약재를 촉매[CATALYSE]하여 태그 가치 합산.', places: 'Loch Settlements' },
   { id: 'tool_spidersilk_net', name: '스파이더실크 그물 (Fine Spidersilk Net)', cost: 4, weight: 1/3, desc: '채집 시 곤충 약재 및 작은 물고기의 희귀도 -3.', places: 'Forest Settlements' },
-  { id: 'tool_fairwind_spices', name: '페어윈드 양념 (Fairwind Spices)', cost: 10, weight: 1, desc: '제작하는 모든 치료제에 [FAIR 1] 효과를 추가합니다.', places: 'Odoak' },
+  { id: 'tool_fairwind_spices', name: '페어윈드 향신료 (Fairwind Spices)', cost: 10, weight: 1, desc: '제작하는 모든 치료제에 [FAIR 1] 효과를 추가합니다.', places: 'Odoak' },
   { id: 'tool_comb', name: '참빗 (Fine-toothed Comb)', cost: 3, weight: 1/3, desc: '치료제에 [FUR 3] 및 [PARASITE 1] 제공. 사용 후 스페이드 드로우 시 파손.', places: 'Forest/Mountain Settlements' },
   { id: 'tool_needles', name: '뜨개바늘 (Knitting Needles)', cost: 2, weight: 1/3, desc: '채집 대신 뜨개질 프로젝트(담요, 코트, 가방, 목도리)를 개시하여 도구를 제작합니다.', places: 'Noonhill' },
   { id: 'tool_instruments', name: '악기 (Instruments)', cost: 5, weight: 1, desc: '정착지/도시 진입 후 길동무나 다른 동료와 연주회를 열어 장신구를 획득합니다.', places: 'Forest/Bog Settlements' },
@@ -7167,6 +7198,19 @@ export default function App() {
     setControlledPromptEpoch(epoch => epoch + 1);
     setControlledPrompt(request);
   }), []);
+
+  useEffect(() => {
+    appConfirmBridge = (message, options) => requestControlledPrompt({
+      title: options.title || '확인',
+      message,
+      kicker: options.kicker || '여행 기록',
+      defaultValue: 'yes',
+      hideField: true,
+      confirmLabel: options.confirmLabel || '확인',
+      cancelLabel: options.cancelLabel || '취소'
+    }).then(value => value !== null);
+    return () => { appConfirmBridge = null; };
+  }, [requestControlledPrompt]);
 
   const closeControlledPrompt = useCallback((value: string | null) => {
     settleControlledPromptResolver(controlledPromptResolverRef, value);
@@ -8827,7 +8871,7 @@ export default function App() {
   const handleSignOut = async () => {
     if (!ensureCurrentCampaignWrite()) return;
     if (!auth || cloudSlotBusy || cloudSlotOperationInFlightRef.current) return;
-    if (askWindowConfirm("로그아웃 하시겠습니까?")) {
+    if (await askAppConfirm("로그아웃 하시겠습니까?")) {
       try {
         authBootstrapGenerationRef.current += 1;
         cloudSlotOperationGenerationRef.current += 1;
@@ -9377,7 +9421,7 @@ export default function App() {
               type="button"
               onClick={async () => {
                 if (!ensureCurrentCampaignWrite()) return;
-                if (!askWindowConfirm('기존 기록을 지우고 새 약제사로 시작할까요? 먼저 원본을 내보내세요.')) return;
+                if (!await askAppConfirm('기존 기록을 지우고 새 약제사로 시작할까요? 먼저 원본을 내보내세요.')) return;
                 const fresh = syncWorldMemory(INITIAL_STATE);
                 if (!clearCloudAccountBinding()) {
                   showAlert('기기 저장소에 접근할 수 없어 새 기록을 시작하지 않았습니다. 기존 기록은 그대로 두었습니다.');
@@ -10347,6 +10391,7 @@ export default function App() {
       return;
     }
 
+    if (effect === 'endJourney' && !await askAppConfirm('이 조우 효과로 현재 여정을 종료할까요?', { title: '여정 종료', confirmLabel: '여정 종료', cancelLabel: '계속 여행' })) return;
     updateState(s => {
       let nextAilment = s.activeAilment;
       let nextBag = [...s.bag];
@@ -10404,7 +10449,6 @@ export default function App() {
         nextCalendarHistory = [...nextCalendarHistory, `${nextCalendarDays}일째: 조우 지시를 달력에 표시했습니다. (+${amount}일)`];
         note = `조우 효과: 일정 +${amount}일`;
       } else if (effect === 'endJourney') {
-        if (!askWindowConfirm("이 조우 효과로 현재 여정을 종료할까요?")) return s;
         note = `조우 효과: 여정 종료`;
       }
 
@@ -11390,11 +11434,11 @@ export default function App() {
         .map(tool => tool.toolId);
       const candidates = listInBloomCandidates(secondaryCard, state.currentSeason, toolIds);
       if (candidates.length === 0) {
-        inBloomNote = `${getRuleCardLabel(secondaryCard)}와 Base Value가 같은 현재 계절의 숲 식물 부위가 없어 획득하지 못했다.`;
+        inBloomNote = `기본 희귀도가 ${getRuleCardLabel(secondaryCard)}인 현재 계절의 숲 식물 부위가 없어 획득하지 못했다.`;
       } else {
         const reagentChoice = await requestControlledPrompt({
           title: '한창 피어난 숲 · 식물 선택',
-          message: `후속 카드 ${getRuleCardLabel(secondaryCard)}와 Base Value가 같은 숲 식물입니다. 하나를 선택하세요.`,
+          message: `기본 희귀도가 후속 카드 ${getRuleCardLabel(secondaryCard)}와 같은 숲 식물입니다. 하나를 선택하세요.`,
           kicker: '여정 조우 p.78',
           defaultValue: '1',
           options: candidates.map((candidate, index) => ({
@@ -11852,6 +11896,9 @@ export default function App() {
           ? `${fixedRemedyDecision.remedy.displayName} 치료 기록을 열었습니다. 환자 치료로 이어가세요.`
         : runtime.patient && unsettledExpiredAilmentIds(runtime.patient).length > 0
           ? '타이머가 만료된 질환의 실패 결과를 정산했습니다. 남은 질환이나 후속 장면을 확인한 뒤 계속하세요.'
+        : state.journey?.destinationId && resolveCurrentMapLocationKey(state) === state.journey.destinationId
+          // Local help only gates the next Move; at the Destination the Journey can end right away.
+          ? '목적지에 도착했습니다. 여정 결말을 정하거나, 원하면 현지 환자를 먼저 돌볼 수 있습니다.'
         : encounter.encounterType === 'social'
           ? '정착지 화면에서 현지 의무와 다음 행동을 확인하세요.'
           : runtime.movementBlocked
@@ -13556,7 +13603,9 @@ export default function App() {
           ? encounterChoiceAvailability(selectedTravelChoice, {
               reputation: state.reputation,
               trinkets: state.trinkets.length,
-              conditions: state.manualConditions || []
+              conditions: state.manualConditions || [],
+              travellingWithWagon: canonicalWagonFromState(state).commissioned,
+              availableToolIds: usableToolIdsFor(state)
             })
           : null;
         const selectedTravelChoiceDisabledReason = selectedTravelChoiceAvailability?.reasons
@@ -13660,7 +13709,9 @@ export default function App() {
                       const choiceAvailability = encounterChoiceAvailability(choice, {
                         reputation: state.reputation,
                         trinkets: state.trinkets.length,
-                        conditions: state.manualConditions || []
+                        conditions: state.manualConditions || [],
+                        travellingWithWagon: canonicalWagonFromState(state).commissioned,
+                        availableToolIds: usableToolIdsFor(state)
                       });
                       const disabledReason = choiceAvailability.reasons
                         .map(message => localizeEncounterChoiceRequirement(message, state.reputation, state.trinkets.length))
@@ -13952,7 +14003,8 @@ export default function App() {
           ? encounterChoiceAvailability(selectedForageChoice, {
               reputation: state.reputation,
               trinkets: state.trinkets.length,
-              conditions: state.manualConditions || []
+              conditions: state.manualConditions || [],
+              availableToolIds: usableToolIdsFor(state)
             })
           : null;
         const selectedForageChoiceDisabledReason = selectedForageChoiceAvailability?.reasons
@@ -14219,7 +14271,9 @@ export default function App() {
                       const choiceAvailability = encounterChoiceAvailability(choice, {
                         reputation: state.reputation,
                         trinkets: state.trinkets.length,
-                        conditions: state.manualConditions || []
+                        conditions: state.manualConditions || [],
+                        travellingWithWagon: canonicalWagonFromState(state).commissioned,
+                        availableToolIds: usableToolIdsFor(state)
                       });
                       const requirementReason = choiceAvailability.reasons
                         .map(message => localizeEncounterChoiceRequirement(message, state.reputation, state.trinkets.length))
@@ -14820,10 +14874,12 @@ const patientSpeciesCandidates = (descriptor?: string): string[] => {
   return entry ? examplesToOptions(entry.examples) : [];
 };
 
+// "냉정한 · 날카로운 발톱을 지닌 동물": the personality and the animal category are two cards, so keep
+// them apart instead of stacking two adjectives ("냉정한 날카로운 발톱을…").
 const patientImpressionLabel = (personality?: string, descriptor?: string): string =>
   [personality ? patientPersonalityLabel(personality) : '', descriptor ? localizeCharacterDescriptor(descriptor) : '']
     .filter(Boolean)
-    .join(' ');
+    .join(' · ');
 
 const journeyOutcomeLabel = (outcome?: JourneyEndingOutcome): string | null => outcome === 'success'
   ? '성공'
@@ -17062,8 +17118,9 @@ function PlayView({
 
   const handleGeneralPractice = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!gpAilment || !gpTagChange || !gpReplacementTag || !gpNote.trim()) {
-      showAlert("질환과 바꿀 태그, 그리고 진료 일지를 모두 선택해 주세요.");
+    // p.41 asks for a journal entry, but like every other memoir in the app it may live on paper.
+    if (!gpAilment || !gpTagChange || !gpReplacementTag) {
+      showAlert("진료한 질환과 바꿀 태그를 골라 주세요.");
       return;
     }
     const ailment = AILMENTS.find(row => row.id === gpAilment);
@@ -17644,8 +17701,8 @@ function PlayView({
     showAlert(`${companion.name}을 동반자로 영입했습니다!`);
   };
 
-	  const handleReleaseCompanion = (id: string) => {
-	    if (askWindowConfirm("이 동료를 자연의 야생으로 방생하시겠습니까?")) {
+	  const handleReleaseCompanion = async (id: string) => {
+	    if (await askAppConfirm("이 동료를 자연의 야생으로 방생하시겠습니까?")) {
 	      const transaction = createClientTransaction('companion-release');
 	      const result = resolveCompanionRelease({ transactionId: transaction.id, state: toMobilityRuntime(state), companionInstanceId: id });
 	      if (!result.value) return showAlert(result.messages.join('\n'));
@@ -18063,7 +18120,7 @@ function PlayView({
     let repairedTentState: ReturnType<typeof repairCanonicalTool>['value'] = null;
     const brokenTent = travelTools.find(tool => tool.toolId === 'canvas-tent' && tool.broken && !tool.consumed);
     if (brokenTent && ['Settlement', 'City'].includes(state.currentLocationType) && state.trinkets.length >= 2
-      && askWindowConfirm('출발 전에 파손된 캔버스 천막을 장신구 2개로 수리할까요?')) {
+      && await askAppConfirm('출발 전에 파손된 캔버스 천막을 장신구 2개로 수리할까요?')) {
       const repaired = repairCanonicalTool({
         transactionId: `${transactionId}:tool:repair-tent`,
         state: {
@@ -18209,7 +18266,7 @@ function PlayView({
       waterwaySpan: wagonCapabilities.waterwaySpan,
       // p.24 requires exactly Speed Paths; compatibility saves retain their
       // previous shorter-route behaviour.
-      mustUseFullSpeed: state.rulesetId === 'original-1e-3p',
+      mustUseFullSpeed: MOVE_MUST_USE_FULL_SPEED,
       freePathLocationIds: (state.manualConditions || [])
         .filter(condition => condition.startsWith('free-path:'))
         .map(condition => condition.slice('free-path:'.length))
@@ -18258,7 +18315,7 @@ function PlayView({
       && Boolean(canonicalWagon.clayPotReagentId)
       && canonicalWagon.clayPotMoves + 1 >= 2;
     const harvestClayPot = clayPotWillBeReady
-      ? askWindowConfirm('이식용 진흙 화분의 식물이 두 번의 이동을 마쳐 수확할 수 있습니다. 지금 부위 하나를 수확할까요?')
+      ? await askAppConfirm('이식용 진흙 화분의 식물이 두 번의 이동을 마쳐 수확할 수 있습니다. 지금 부위 하나를 수확할까요?')
       : false;
     const servicePreview = consumeGuildServiceMove({
       transactionId: `${transactionId}:services`,
@@ -18321,7 +18378,7 @@ function PlayView({
       && outcome.encounter.tags?.some(tag => tag === 'Beast' || tag === 'Behemoth')
       && resolvedTravelTools.some(tool => tool.toolId === 'crossbow' && !tool.broken && !tool.consumed)
       && resolvedTravelTools.some(tool => tool.toolId === 'bolts' && !tool.broken && !tool.consumed)
-      && askWindowConfirm('석궁과 볼트를 사용해 이 조우의 부정적 결과를 무시할까요? 볼트 하나를 버립니다.')) {
+      && await askAppConfirm('석궁과 볼트를 사용해 이 조우의 부정적 결과를 무시할까요? 볼트 하나를 버립니다.')) {
       const protectedState = resolveCrossbowProtection({
         transactionId: `${transactionId}:tool:crossbow`,
         state: {
@@ -18696,6 +18753,33 @@ function PlayView({
       }
       if (foragingFollowUp.revision !== toForagingEncounterTransactionState(next).revision) {
         next = applyForagingEncounterTransactionState(next, foragingFollowUp);
+      }
+      // p.110 Paw Rot: a grateful patient waits at each place this Move came through (not the start).
+      const routeAfterOrigin = (composedMatches ? [...composedIds] : [originId, destinationId]).slice(1);
+      const grateful = collectPawRotGratefulTrinkets(next.manualConditions || [], routeAfterOrigin);
+      if (grateful.trinkets > 0) {
+        const placeNames = grateful.locationIds
+          .map(id => toTravelEngineGraph(next)[id]?.name || id)
+          .map(localizeLocationName)
+          .join(', ');
+        const text = `${placeNames}에서 발썩음 병을 고쳐 준 환자가 고마움의 표시로 장신구 ${grateful.trinkets}개를 건넸습니다.`;
+        next = {
+          ...next,
+          manualConditions: grateful.conditions,
+          trinkets: [...next.trinkets, ...Array.from({ length: grateful.trinkets }, () => '고마운 환자의 선물')],
+          journals: [{
+            id: `${transactionId}:paw-rot-grateful:journal`,
+            title: '고마운 환자',
+            text,
+            semantic: createGameplayEventSemantic({
+              outcome: text,
+              location: outcome.nextState.currentLocationName,
+              season: next.currentSeason,
+              journey: next.journeyGoalTitle || next.journey?.customGoal.title
+            }),
+            timestamp: Date.now()
+          }, ...next.journals]
+        };
       }
       if (deliveredNotes.length > 0) {
         // Arrival quietly paid out the delivery; leave the player a record of why Reputation rose.
@@ -20382,12 +20466,12 @@ function PlayView({
     }));
   };
 
-  const handleSellOddment = () => {
+  const handleSellOddment = async () => {
     const patient = state.patients.find(row => row.id === state.activePatientId) || state.patients.at(-1);
     if (!patient || pawnItemIds.length === 0) return;
     const inventory = toEngineInventory(state.bag);
     const preview = calculatePawnReward(inventory, pawnItemIds);
-    if (!askWindowConfirm(`선택한 물건의 전체 무게 ${formatWeight(preview.totalWeight)}를 버리고 장신구 ${preview.trinketReward}개를 받을까요?`)) return;
+    if (!await askAppConfirm(`선택한 물건의 전체 무게 ${formatWeight(preview.totalWeight)}를 버리고 장신구 ${preview.trinketReward}개를 받을까요?`)) return;
     const graph = toRuleMapGraph(state);
     const currentId = resolveCurrentMapLocationKey(state);
     const result = resolvePawn({
@@ -20965,11 +21049,11 @@ function PlayView({
     }
   };
 
-  const handleGoodwillDonate = (itemId: string) => {
+  const handleGoodwillDonate = async (itemId: string) => {
     const item = state.bag.find(i => i.id === itemId);
     if (!item) return;
 
-    if (!askWindowConfirm(`🎁 이 아이템 (${localizeInventoryItemName(item.name)}, 무게: ${formatWeight(item.weight)})을 약제소 친선 매대에 기부하시겠습니까?\n시즌 종료 시 기부한 무게만큼 Guild Reputation을 획득합니다.`)) {
+    if (!await askAppConfirm(`🎁 이 아이템 (${localizeInventoryItemName(item.name)}, 무게: ${formatWeight(item.weight)})을 약제소 친선 매대에 기부하시겠습니까?\n시즌 종료 시 기부한 무게만큼 Guild Reputation을 획득합니다.`)) {
       return;
     }
 
@@ -21092,25 +21176,40 @@ function PlayView({
       }
       return applyTravelEncounterSeasonTransition(next, outcome.nextSeason);
     });
-    showAlert(`${localizeSeasonLabel(outcome.nextSeason)}으로 계절이 바뀌었습니다. 장신구 +${outcome.clinicIncome}, Guild Reputation +${outcome.goodwillReputation}.`);
+    showAlert(`${seasonWithRo(outcome.nextSeason)} 계절이 바뀌었습니다. 장신구 +${outcome.clinicIncome}, Guild Reputation +${outcome.goodwillReputation}.`);
   };
 
   const handleAdvanceSeason = async () => {
     const nextSeason = ({ Spring: 'Summer', Summer: 'Autumn', Autumn: 'Winter', Winter: 'Spring' } as const)[state.currentSeason];
     const confirmation = await requestControlledPrompt({
       title: '계절 정산 및 전환',
-      message: `${localizeSeasonLabel(state.currentSeason)}을 마치고 ${localizeSeasonLabel(nextSeason)}으로 넘어갑니다. 약제소 수입·기부로 얻는 Guild Reputation·건설·동반자 계절 효과가 함께 정산됩니다.`,
+      message: `${localizeSeasonLabel(state.currentSeason)}을 마치고 ${seasonWithRo(nextSeason)} 넘어갑니다. 약제소 수입·기부로 얻는 Guild Reputation·건설·동반자 계절 효과가 함께 정산됩니다.`,
       defaultValue: 'advance',
       kicker: '다운타임 완료',
       label: '계절',
       options: [
-        { value: 'advance', label: `${localizeSeasonLabel(nextSeason)}으로 전환` },
+        { value: 'advance', label: `${seasonWithRo(nextSeason)} 전환` },
         { value: 'stay', label: `${localizeSeasonLabel(state.currentSeason)}에 머무르기` }
       ]
     });
     if (confirmation === 'advance') {
       await handleSettleSeasonTipsAndDonations();
       setDowntimeTab('start');
+    } else if (confirmation === 'stay') {
+      // Staying is a real choice (p.40 does not force a new Season): close Downtime without any
+      // seasonal income, clinic completion or companion change, and open the next Journey.
+      updateState((s: GameState) => ({
+        ...s,
+        downtimeCompleted: false,
+        journals: [{
+          id: `${createClientTransaction('season-stay').id}:journal`,
+          title: `계절 유지: ${localizeSeasonLabel(s.currentSeason)}`,
+          text: `${localizeSeasonLabel(s.currentSeason)}에 머무르며 다음 여정을 준비했습니다. 계절 효과는 정산하지 않았습니다.`,
+          timestamp: Date.now()
+        }, ...s.journals]
+      }));
+      setDowntimeTab('start');
+      showAlert(`${localizeSeasonLabel(state.currentSeason)}에 머무릅니다. 바로 새 여정을 떠날 수 있습니다.`);
     }
   };
 
@@ -21459,7 +21558,22 @@ function PlayView({
       ? ailment.specialState.previousActivePatientId
       : null;
     const previousMovementBlocked = ailment.specialState?.previousMovementBlocked === true;
+    // Some printed Outcomes only happen for a particular Remedy (p.110 Paw Rot: PRESERVED; p.115 Wake:
+    // a COOKED part). Do not open their ruling when the Remedy plainly does not qualify.
+    const remedyUsedMethod = (method: string) => selectedItemIds.some(itemId => {
+      const item = sourceState.bag.find(row => row.id === itemId);
+      const reagent = item?.canonicalReagentId ? REAGENT_BY_ID.get(item.canonicalReagentId) : undefined;
+      return reagent?.preparations.find(row => row.id === item?.preparationId)?.method === method;
+    });
+    const remedyPreserved = outcome.remedyFlags.includes('PRESERVED');
+    const pawRotGratefulTrinket = ailment.ailmentId === 'ailment-paw-rot' && remedyPreserved;
+    const successOutcomeQualifies = ailment.ailmentId === 'ailment-paw-rot'
+      ? false // handled below as a world token, never as an immediate Trinket
+      : ailment.ailmentId === 'ailment-wake'
+        ? remedyUsedMethod('COOKED')
+        : true;
     const treatmentManualDraft = !isFixedEncounterRemedy && ailment.ailmentId && outcome.printedEffectTrigger !== null
+      && (outcome.printedEffectTrigger === 'treatment-failure' || successOutcomeQualifies)
       ? createPrintedManualDraft(ailment.ailmentId, outcome.printedEffectTrigger || 'treatment-success', {
         encounterTransactionId: transactionId,
         patientId: nextPatient.id,
@@ -21615,6 +21729,13 @@ function PlayView({
           region: toRuleRegion(s.currentRegion)
         })
       }, [treatmentManualDraft]);
+      if (pawRotGratefulTrinket) {
+        const here = resolveCurrentMapLocationKey(s);
+        if (here) withArchive = {
+          ...withArchive,
+          manualConditions: Array.from(new Set([...(withArchive.manualConditions || []), ailmentWorldCondition.pawRotGratefulTrinket(here)]))
+        };
+      }
       const questRuntime = toEncounterP1TransactionState(withArchive);
       const activeQuest = activeKnightsQuest(questRuntime);
       if (activeQuest) {
@@ -21675,7 +21796,7 @@ function PlayView({
       const fixedTrinkets = outcome.trinketReward + (fixedSuccessPlan?.trinketDelta || 0);
       showAlert(`조우 치료가 완료되었습니다.\n소비: ${consumedNames.join(', ') || '없음'}${fixedSuccessPlan ? `\n${fixedSuccessPlan.journalLine}` : ''}\nGuild Reputation ${fixedReputation >= 0 ? '+' : ''}${fixedReputation} · 장신구 +${fixedTrinkets}\n${previousActivePatientId ? '이전에 돌보던 환자 기록으로 돌아갑니다.' : '다음 행동을 이어갈 수 있습니다.'}`);
     } else {
-      showAlert(`치료가 완료되었습니다.\n소비: ${consumedNames.join(', ')}\nGuild Reputation ${outcome.reputationChange >= 0 ? '+' : ''}${outcome.reputationChange} · 장신구 +${outcome.trinketReward}\n남은 질환 Timer: ${remainingTime}시간\n${remainingTime > 0 ? '여분 채집을 하거나 Moving On으로 바로 떠날 준비를 마칠 수 있습니다.' : 'Moving On이 완료되어 다음 Move를 준비할 수 있습니다. 다음 Move 완료 시 달력 1일이 경과합니다.'}${outcome.badIdeaOutcomeApplied ? '\nInspiration 도구 보상도 함께 저장했습니다.' : ''}${treatmentManualDraft ? '\n이어지는 인쇄 효과는 전용 직접 판정에 열었습니다.' : ''}`);
+      showAlert(`치료가 완료되었습니다.\n소비: ${consumedNames.join(', ')}\nGuild Reputation ${outcome.reputationChange >= 0 ? '+' : ''}${outcome.reputationChange} · 장신구 +${outcome.trinketReward}\n남은 질환 Timer: ${remainingTime}시간\n${remainingTime > 0 ? '여분 채집을 하거나 바로 길 떠날 준비(Moving On)를 마칠 수 있습니다.' : '길 떠날 준비(Moving On)를 마쳐 다음 이동을 준비할 수 있습니다. 다음 이동을 마치면 달력에 1일이 지납니다.'}${outcome.badIdeaOutcomeApplied ? '\nInspiration 도구 보상도 함께 저장했습니다.' : ''}${pawRotGratefulTrinket ? '\n보존한 연고 덕분에, 다음에 이곳을 지나면 고마운 환자가 장신구 1개를 줍니다.' : ''}${treatmentManualDraft ? '\n이어지는 인쇄 효과는 전용 직접 판정에 열었습니다.' : ''}`);
     }
     window.setTimeout(() => {
       document.getElementById('patient-clinic-panel')?.scrollIntoView({ block: 'start' });
@@ -21750,8 +21871,12 @@ function PlayView({
     ]));
     const selectedAlembic = canonicalTools.find(tool => effectiveSelectedTools.includes(tool.instanceId) && tool.toolId === 'glass-alembic');
     let catalyse: any[] | undefined;
+    // Workbench questions use the app's own dialog, not the browser's bare confirm box.
+    const askRemedyChoice = async (title: string, message: string, yes: string, no: string) => (await requestControlledPrompt({
+      title, message, kicker: '치료제 조제', defaultValue: 'yes', hideField: true, confirmLabel: yes, cancelLabel: no
+    })) !== null;
     const useCatalyse = Boolean(selectedAlembic && selectedBagItems.length >= 2
-      && (treatmentPreview?.requiresCatalyse || askWindowConfirm('유리 증류기로 CATALYSE를 적용하시겠습니까?')));
+      && (treatmentPreview?.requiresCatalyse || await askRemedyChoice('촉매 처리 (CATALYSE)', '유리 증류기로 두 부위의 같은 태그를 합산할까요?', 'CATALYSE 적용', '적용하지 않음')));
     if (useCatalyse) {
       const tag = (await requestControlledPrompt({
         title: 'CATALYSE 태그',
@@ -21770,11 +21895,11 @@ function PlayView({
       && tool.toolId === 'big-iron-cauldron'
       && !tool.broken
       && !tool.consumed
-    ) && askWindowConfirm('철제 가마솥으로 이 치료제를 PRESERVE 처리할까요?');
+    ) && await askRemedyChoice('보존 처리 (PRESERVE)', '철제 가마솥으로 이 치료제를 오래 두고 쓸 수 있게 보존할까요? 일부 질환은 보존한 치료제에만 특별한 결과가 있습니다.', '보존 처리', '보존하지 않음');
     const currentAilmentDefinition = getTreatmentAilmentDefinition(ailment.ailmentId);
     const canPrepareTwoDoses = currentAilmentDefinition?.canonicalName === 'Stingshock'
       && selectedBagItems.every(itemId => (availableTreatmentReagents.find(row => row.item.id === itemId)?.totalUses || 0) >= 2);
-    const doseCount = canPrepareTwoDoses && askWindowConfirm('Stingshock 치료제를 두 번의 완전한 투약분으로 만들까요? 재료 사용 횟수를 각각 2회 소비하고 Guild Reputation +3을 받습니다.')
+    const doseCount = canPrepareTwoDoses && await askRemedyChoice('두 회분 조제', 'Stingshock 치료제를 두 번의 완전한 투약분으로 만들까요? 재료 사용 횟수를 각각 2회 소비하고 Guild Reputation +3을 받습니다.', '두 회분 만들기', '한 회분만')
       ? 2
       : 1;
     const transactionId = `treatment:${Date.now()}`;
@@ -21992,7 +22117,7 @@ function PlayView({
     updateState(s => applyJourneyRuntime(s, endingRuntime));
     const blanket = state.bag.find(item => item.craftedItemId === 'knitted-blanket' || item.name.includes('Knitted Blanket'));
     if ((outcome === 'failure' || outcome === 'abandoned') && blanket
-      && askWindowConfirm('뜨개 담요를 버려 이 여정의 조기 종료를 막을까요?')) {
+      && await askAppConfirm('뜨개 담요를 버려 이 여정의 조기 종료를 막을까요?')) {
       const transaction = createClientTransaction('tool:knitted-blanket');
       const saved = resolveKnittedBlanket({
         transactionId: transaction.id,
@@ -22195,13 +22320,45 @@ function PlayView({
         transactionId: `${transactionId}:services`,
         state: toServiceRuntime(journeyState)
       });
-      const next = serviceEnd.value ? applyServiceRuntime(journeyState, serviceEnd.value) : journeyState;
+      let next = serviceEnd.value ? applyServiceRuntime(journeyState, serviceEnd.value) : journeyState;
+      // p.196 Betting Match: a Cocoon hatches into a Butterfly when its Journey ends. Hatch it here
+      // instead of leaving a follow-up the player must remember; a full companion roster keeps it pending.
+      for (const cocoon of next.pendingManualFollowUps.filter(row => row.status === 'pending' && row.kind === 'cocoon-hatch')) {
+        const hatched = resolveManualFollowUpTransaction({
+          followUpId: cocoon.id,
+          transactionId: `${transactionId}:cocoon:${cocoon.id}`,
+          eligibilityEvidence: 'journey-ended',
+          state: {
+            inventory: toEngineInventory(next.bag),
+            companions: next.companionStates,
+            companionCapacity: resolveWagonCapabilities(canonicalWagonFromState(next)).companionSlots,
+            pendingFollowUps: next.pendingManualFollowUps,
+            appliedTransactionIds: next.appliedTransactionIds
+          }
+        });
+        if (!hatched.value) continue;
+        next = {
+          ...next,
+          bag: fromEngineInventory(hatched.value.nextState.inventory, next.bag),
+          companionStates: hatched.value.nextState.companions,
+          pendingManualFollowUps: hatched.value.nextState.pendingFollowUps,
+          appliedTransactionIds: hatched.value.nextState.appliedTransactionIds,
+          journals: [{
+            id: `${transactionId}:cocoon:${cocoon.id}:journal`,
+            title: '고치가 깨어남',
+            text: `여정을 마치자 고치가 깨어나 나비(Butterfly) 동료가 되었습니다.\n${hatched.value.canonicalResult}`,
+            timestamp: endingAttempt.at
+          }, ...next.journals]
+        };
+      }
       return {
       ...next,
       journeyActive: false,
       downtimeCompleted: false,
       journeyOrigin: '',
       needsLocalHelpBeforeMove: false,
+      scroungingMode: false,
+      scroungingTimer: 0,
       pursuedByBehemoth: null,
       manualConditions: clearJourneyScopedCarryConditions(next.manualConditions || []),
       calendarDays: 0,
@@ -22450,7 +22607,7 @@ function PlayView({
         speed: activeTravelSpeed,
         canStopInLoch: hasLochStoppingGear(state),
         waterwaySpan: resolveWagonCapabilities(canonicalWagonFromState(state)).waterwaySpan,
-        mustUseFullSpeed: state.rulesetId === 'original-1e-3p'
+        mustUseFullSpeed: MOVE_MUST_USE_FULL_SPEED
       });
     }
     return [];
@@ -23019,6 +23176,24 @@ function PlayView({
     return '';
   })();
 
+  // Lives beside the route composer: the card it records is used by "이 경로로 이동".
+  const travelEncounterCardPrep = (
+    <details className="travel-encounter-prep">
+      <summary>실물 덱의 조우 카드 사용 <span>선택</span></summary>
+      <p>기본값은 이동을 확정할 때 앱이 p.25 조우 카드를 자동으로 한 장 뽑는 것입니다. 실물 덱에서 이미 뽑았을 때만 아래에 입력하세요.</p>
+      <CardDrawSlot
+        label={activeMoveEncounterKind === 'social'
+          ? '이번 이동의 사회 조우 카드 · 문양 사용'
+          : '이번 이동의 여정 조우 카드'}
+        helper={activeMoveEncounterKind === 'social'
+          ? '정착지·도시에 도착하면 문양으로 사회 조우를 찾습니다. 숫자는 카드 기록으로만 남으며 판정표에는 쓰지 않습니다.'
+          : '야생·유적·고분에 도착하면 숫자와 계절로 여정 조우를 찾습니다. 비워두면 앱이 자동으로 뽑습니다.'}
+        card={travelDrawCard}
+        onCard={setTravelDrawCard}
+      />
+    </details>
+  );
+
   const routeComposerElement = journeyUiContext.active ? (
     <RouteComposer
       draft={routeDraft}
@@ -23032,7 +23207,7 @@ function PlayView({
       canTravel={routeTravelBlockedReason === null}
       readOnly={!journeyUiContext.canMove}
       movementMode={activeRouteMode}
-      mustUseFullSpeed={state.rulesetId === 'original-1e-3p'}
+      mustUseFullSpeed={MOVE_MUST_USE_FULL_SPEED}
       moveDays={activeRouteMode === 'soar' && activeTravelWagonCapabilities.canSoar ? 3 : 1}
       travelBlockedReason={routeTravelBlockedReason}
       availableStops={routeStopChoices}
@@ -23300,7 +23475,7 @@ function PlayView({
                 <small>
                   {activeRouteMode === 'soar'
                     ? '출발지와 마지막 위치를 잇고 계절별 Soar 조우를 해결합니다.'
-                    : `이동력 ${activeTravelSpeed}${state.rulesetId === 'sandbox' ? ' 이내로' : '을 모두 사용해'} 경로를 이은 뒤 도착지 조우를 해결합니다.`}
+                    : `이동력 ${activeTravelSpeed}${state.rulesetId === 'sandbox' || !MOVE_MUST_USE_FULL_SPEED ? ' 이내로' : '을 모두 사용해'} 경로를 이은 뒤 도착지 조우를 해결합니다.`}
                 </small>
               </div>
               <select
@@ -23314,7 +23489,10 @@ function PlayView({
               </select>
             </section>
           )}
-          {journeyUiContext.active && (journeyUiContext.canMove ? routeComposerElement : (
+          {journeyUiContext.active && (journeyUiContext.canMove ? <>
+            {routeComposerElement}
+            {activeRouteMode === 'move' && travelEncounterCardPrep}
+          </> : (
             <details className="journey-route-receipt">
               <summary>마지막 이동 경로 보기</summary>
               <p>완료한 경로는 읽기 전용으로 남습니다. 현재 단계의 판정을 마치기 전에는 새 이동을 시작하거나 경로를 바꿀 수 없습니다.</p>
@@ -23812,8 +23990,9 @@ function PlayView({
                 <form onSubmit={handleGeneralPractice} style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.85rem' }}>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <div style={{ flex: 1 }}>
-                      <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.2rem' }}>현재 Guild Reputation으로 다룰 수 있는 질환:</label>
+                      <label htmlFor="gp-ailment" style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.2rem' }}>현재 Guild Reputation으로 다룰 수 있는 질환:</label>
                       <select
+                        id="gp-ailment"
                         value={gpAilment}
                         onChange={e => {
                           const ailmentId = e.target.value;
@@ -23833,19 +24012,20 @@ function PlayView({
                     <div style={{ flex: 1 }}>
                       <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.2rem' }}>영구적으로 바꿀 태그:</label>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '0.35rem', alignItems: 'center' }}>
-                        <select value={gpTagChange} onChange={e => setGpTagChange(e.target.value)} disabled={!gpAilment} style={{ width: '100%', padding: '0.4rem' }}>
+                        <select aria-label="바꿀 원래 태그" value={gpTagChange} onChange={e => setGpTagChange(e.target.value)} disabled={!gpAilment} style={{ width: '100%', padding: '0.4rem' }}>
                           {Array.from(new Set(requirementRuleTags(AILMENTS.find(row => row.id === gpAilment)?.requirements || { kind: 'special', code: 'NONE', description: '' }))).map(tag => <option key={tag} value={tag}>{formatRuleTag(tag)}</option>)}
                         </select>
                         <span aria-hidden="true">→</span>
-                        <select value={gpReplacementTag} onChange={e => setGpReplacementTag(e.target.value)} disabled={!gpAilment} style={{ width: '100%', padding: '0.4rem' }}>
+                        <select aria-label="새 태그" value={gpReplacementTag} onChange={e => setGpReplacementTag(e.target.value)} disabled={!gpAilment} style={{ width: '100%', padding: '0.4rem' }}>
                           {RULE_TAGS.filter(tag => tag !== 'FAIR' && tag !== 'FOUL' && tag !== gpTagChange).map(tag => <option key={tag} value={tag}>{formatRuleTag(tag)}</option>)}
                         </select>
                       </div>
                     </div>
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.2rem' }}>진료 일지 소감 기록:</label>
+                    <label htmlFor="gp-note" style={{ display: 'block', fontWeight: 'bold', marginBottom: '0.2rem' }}>진료 일지 소감 기록 <span style={{ fontWeight: 'normal', opacity: 0.75 }}>(선택 · 종이에 썼다면 비워 두세요)</span></label>
                     <textarea
+                      id="gp-note"
                       placeholder="지역 약제사로서 진료하며 겪은 이야기를 일지로 기록합니다."
                       value={gpNote}
                       onChange={e => setGpNote(e.target.value)}
@@ -24235,14 +24415,12 @@ function PlayView({
                   다른 길드나 이웃 동물들의 공공 프로젝트에 자원봉사하여 <strong>Guild Reputation +5점</strong>을 획득합니다.
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.85rem' }}>
+                  <label htmlFor="lending_note" style={{ fontWeight: 'bold' }}>자원봉사 일지 <span style={{ fontWeight: 'normal', opacity: 0.75 }}>(선택 · 종이에 썼다면 비워 두세요)</span></label>
                   <textarea id="lending_note" placeholder="어떤 프로젝트를 도왔는지 묘사해 일지에 남겨주세요." style={{ width: '100%', height: '50px', padding: '0.4rem', border: '1px solid #ccc', borderRadius: '4px' }} />
                   <button
                     onClick={() => {
 	                      const note = (document.getElementById('lending_note') as HTMLTextAreaElement)?.value || '';
-	                      if (!note.trim()) {
-                        showAlert('도운 프로젝트와 함께한 길드, 맡은 일을 기록해 주세요.');
-                        return;
-                      }
+	                      // Like General Practice, the p.42 journal may live on paper; never block the activity on it.
                       const transaction = createClientTransaction('downtime:lend-a-paw');
                       const downtime = resolveDowntimeActivity('lend-a-paw', transaction.id);
                       if (!downtime) return;
@@ -24254,9 +24432,9 @@ function PlayView({
                           {
                             id: `${transaction.id}:project`,
                             title: `🐾 자원봉사: 도움의 손길`,
-                            text: note,
+                            text: note.trim() || '공공 프로젝트에 자원봉사했습니다.',
                             semantic: {
-                              ...createPlayerMemorySemantic(note),
+                              ...(note.trim() ? createPlayerMemorySemantic(note) : {}),
                               outcome: '공공 자원봉사 활동에 참여해 Guild Reputation +5를 얻었습니다.'
                             },
                             timestamp: transaction.at
@@ -25182,20 +25360,7 @@ function PlayView({
             )}
             {!localCarePhase && journeyUiContext.canMove && (
               <form id="travel-move-form" ref={travelFormRef} onSubmit={handleTravelMove} className="grid-travel-form">
-                <details className="travel-encounter-prep">
-                  <summary>실물 덱의 조우 카드 사용 <span>선택</span></summary>
-                  <p>기본값은 Move를 확정할 때 앱이 p.25 조우 카드를 자동으로 한 장 뽑는 것입니다. 실물 덱에서 이미 뽑았을 때만 아래에 입력하세요.</p>
-                  <CardDrawSlot
-                    label={activeMoveEncounterKind === 'social'
-                      ? '이번 Move 사회 조우 카드 · 문양 사용'
-                      : '이번 Move 여정 조우 카드'}
-                    helper={activeMoveEncounterKind === 'social'
-                      ? '정착지·도시에 도착하면 문양으로 사회 조우를 찾습니다. 숫자는 카드 기록으로만 남으며 판정표에는 쓰지 않습니다.'
-                      : '야생·유적·고분에 도착하면 숫자와 계절로 여정 조우를 찾습니다. 비워두면 앱이 자동으로 뽑습니다.'}
-                    card={travelDrawCard}
-                    onCard={setTravelDrawCard}
-                  />
-                </details>
+                {/* The physical-card slot now sits under the route composer, next to "이 경로로 이동". */}
               </form>
             )}
           </div>
@@ -25265,8 +25430,8 @@ function PlayView({
                   </button>
                 )}
                 <button
-                  onClick={() => {
-                    if (askWindowConfirm('탈출 도구 없이 버텼다면 주의하세요. 현재 추격 상태를 기록하고 계속 이동합니까?')) {
+                  onClick={async () => {
+                    if (await askAppConfirm('탈출 도구 없이 버텼다면 주의하세요. 현재 추격 상태를 기록하고 계속 이동합니까?')) {
                       // Just leave the HUD in place; travel will update head start via handleTravelMove
                     }
                   }}
@@ -27167,10 +27332,10 @@ function CharacterCreationWizard({
   }, [persistCharacterDraftNow]);
 
 
-  const applyWizardCard = (key: string, card: PlayingCard, action: (card: PlayingCard) => void) => {
+  const applyWizardCard = async (key: string, card: PlayingCard, action: (card: PlayingCard) => void) => {
     const previous = wizardCards[key];
     const isChanging = previous && (previous.suit !== card.suit || previous.value !== card.value);
-    if (isChanging && !askWindowConfirm("이미 나온 카드가 있습니다. 룰북의 우연성을 살리려면 지금 결과를 그대로 가져가는 편을 추천합니다. 그래도 조심스럽게 바꿀까요?")) return;
+    if (isChanging && !await askAppConfirm("이미 나온 카드가 있습니다. 룰북의 우연성을 살리려면 지금 결과를 그대로 가져가는 편을 추천합니다. 그래도 조심스럽게 바꿀까요?")) return;
     setWizardCards(cards => ({ ...cards, [key]: card }));
     action(card);
   };
@@ -27278,8 +27443,8 @@ function CharacterCreationWizard({
     );
   }
 
-  const abandonCharacterDraft = () => {
-    if (!askWindowConfirm('아직 저장하지 않은 캐릭터 작성 내용을 지우고 처음부터 다시 시작할까요?')) return;
+  const abandonCharacterDraft = async () => {
+    if (!await askAppConfirm('아직 저장하지 않은 캐릭터 작성 내용을 지우고 처음부터 다시 시작할까요?')) return;
     touchedFieldsRef.current = new Set();
     setTouchedFields(new Set());
     wizardCardsRef.current = {};
@@ -29388,12 +29553,12 @@ function AtlasMapPanel({
     setConnectionArchive(archive);
     return { ...recorded, archive };
   }, []);
-  const applyConnectionSnapshot = useCallback((snapshot: MapConnectionSnapshot, description: string) => {
+  const applyConnectionSnapshot = useCallback(async (snapshot: MapConnectionSnapshot, description: string) => {
     if (snapshot.fingerprint === currentMapFingerprint) {
       showAlert(`${description} 연결이 이미 지도에 열려 있습니다.`);
       return false;
     }
-    if (currentMapEdges.length > 0 && !window.confirm(
+    if (currentMapEdges.length > 0 && !await askAppConfirm(
       `현재 지도 연결 ${currentMapEdges.length}개를 ${description} ${snapshot.edgeCount}개로 바꿀까요? 현재 상태도 이전 버전에 남아 있어 다시 복원할 수 있습니다.`
     )) return false;
     updateState(s => ({ ...s, customMapEdges: snapshot.edges }));
@@ -29584,7 +29749,7 @@ function AtlasMapPanel({
       return;
     }
     const customLocationCount = officialPublishLocations.length;
-    if (!window.confirm(
+    if (!await askAppConfirm(
       `현재 표시 보정 ${customLocationCount}개와 연결 ${currentMapEdges.length}개를 모든 새 캠페인의 공식 지도로 게시할까요? 기존 캠페인의 개인 수정은 덮어쓰지 않습니다.`
     )) return;
     setOfficialMapStatus('새 공식 지도 버전을 게시하는 중입니다.');
@@ -29607,7 +29772,7 @@ function AtlasMapPanel({
       showAlert(cloudWriteErrorMessage(error as { code?: string; message?: string }));
     }
   };
-  const loadOfficialMapIntoCampaign = () => {
+  const loadOfficialMapIntoCampaign = async () => {
     if (!officialMapSnapshot) {
       showAlert('불러올 공식 지도 버전이 없습니다.');
       return;
@@ -29616,7 +29781,7 @@ function AtlasMapPanel({
       showAlert('현재 캠페인이 이미 최신 공식 지도와 같습니다.');
       return;
     }
-    if (!window.confirm(
+    if (!await askAppConfirm(
       `현재 캠페인의 표시 보정과 연결을 공식 지도 v${officialMapSnapshot.revision}로 바꿀까요? 현재 연결은 이전 버전 보관함에서 다시 복원할 수 있습니다.`
     )) return;
     const locations = officialMapSnapshot.locations.map(location => ({
@@ -29989,8 +30154,8 @@ function AtlasMapPanel({
                       <span>{record.label}{record.sourcePage ? ` · p.${record.sourcePage}` : ''}</span>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (!askWindowConfirm('이 지도 기록을 지울까요?')) return;
+                        onClick={async () => {
+                          if (!await askAppConfirm('이 지도 기록을 지울까요?', { confirmLabel: '지우기' })) return;
                           updateState(s => ({
                             ...s,
                             mapEncounterRecords: (s.mapEncounterRecords || []).filter(row => row.id !== record.id)
@@ -30241,7 +30406,7 @@ const MapView = memo(function MapView({
       speed: previewTravelSpeed(state, weight),
       canStopInLoch: hasLochStoppingGear(state),
       waterwaySpan: resolveWagonCapabilities(canonicalWagonFromState(state)).waterwaySpan,
-      mustUseFullSpeed: state.rulesetId === 'original-1e-3p',
+      mustUseFullSpeed: MOVE_MUST_USE_FULL_SPEED,
       freePathLocationIds: freePathLocationIdsFromState(state)
     })
     : {};
@@ -31021,8 +31186,8 @@ function JournalsView({
     }
   };
 
-  const handleRemoveJournalPhoto = (journalId: string, photoId: string) => {
-    if (!askWindowConfirm("이 사진을 일지에서 삭제하시겠습니까?")) return;
+  const handleRemoveJournalPhoto = async (journalId: string, photoId: string) => {
+    if (!await askAppConfirm("이 사진을 일지에서 삭제하시겠습니까?")) return;
     const photo = state.journals.find(j => j.id === journalId)?.photos?.find(item => item.id === photoId);
     if (photo) void deleteJournalPhotoFromStorage(photo);
     updateState((s: GameState) => ({
@@ -31120,8 +31285,8 @@ function JournalsView({
     setSavedJournalId(journalId);
   };
 
-  const handleRemoveJournal = (id: string) => {
-    if (askWindowConfirm("이 일지 기록을 삭제하시겠습니까?")) {
+  const handleRemoveJournal = async (id: string) => {
+    if (await askAppConfirm("이 일지 기록을 삭제하시겠습니까?")) {
       const journal = state.journals.find(j => j.id === id);
       (journal?.photos || []).forEach(photo => void deleteJournalPhotoFromStorage(photo));
       updateState(s => {

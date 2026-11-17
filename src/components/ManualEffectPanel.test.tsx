@@ -242,8 +242,9 @@ describe('ManualEffectPanel', () => {
       onResolve={() => undefined}
     />);
 
-    expect(markup).toContain('A Snack!');
-    expect(markup).toContain('A Friend!');
+    // The nested options keep their own (Korean) labels, not the top-level branch names.
+    expect(markup).toContain('간식으로 먹기');
+    expect(markup).toContain('친구로 삼기');
   });
 
   it('renders one authoritative selector for an affected inventory item', () => {

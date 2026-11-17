@@ -100,6 +100,8 @@ describe('gameplay message Korean presentation layer', () => {
     expect(localizeGameplayMessage('BR 8; paid 2 Trinkets and 1 Reputation.'))
       .toBe('거래 희귀도 8; 장신구 2개와 Guild Reputation 1점을 지불했습니다.');
     // The current barterEngine wording (comma, optional printed items) must not leak as English.
+    expect(localizeGameplayMessage('This purchase requires 10 Trinkets.'))
+      .toBe('이 물품을 구입하려면 장신구 10개가 필요합니다.');
     expect(localizeGameplayMessage('BR 0; paid 0 Trinkets, 0 Reputation.'))
       .toBe('거래 희귀도 0; 장신구 0개와 Guild Reputation 0점을 지불했습니다.');
     expect(localizeGameplayMessage('BR 6; paid 1 Trinkets, 2 Reputation, and 1 printed Barter item(s).'))

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  collectPawRotGratefulTrinkets,
   AILMENT_WORLD_INPUTS,
   AILMENT_WORLD_OWNERS,
   TROWEL_POTENCY_OPTIONS,
@@ -141,6 +142,17 @@ describe('ailment world effects', () => {
     ], id => graph[id]?.label || id);
     expect(lines[0]).toContain('Town 격리');
     expect(lines[1]).toContain('티탄 영약재 희귀도 +1');
+  });
+});
+
+describe('p.110 Paw Rot grateful patient', () => {
+  it('pays one Trinket the next time a Move comes through, then retires the token', () => {
+    const token = ailmentWorldCondition.pawRotGratefulTrinket('spoutneck');
+    const elsewhere = collectPawRotGratefulTrinkets([token, 'other'], ['obridge', 'loc_187']);
+    expect(elsewhere).toEqual({ conditions: [token, 'other'], trinkets: 0, locationIds: [] });
+    const through = collectPawRotGratefulTrinkets([token, 'other'], ['loc_187', 'spoutneck', 'loc_211']);
+    expect(through).toEqual({ conditions: ['other'], trinkets: 1, locationIds: ['spoutneck'] });
+    expect(describeAilmentWorldConditions([token], id => id)[0]).toContain('장신구 1개');
   });
 });
 

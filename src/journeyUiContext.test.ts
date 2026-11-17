@@ -38,8 +38,13 @@ describe('Journey UI context', () => {
     const encounter = getJourneyUiContext(active({ currentMapLocationId: 'destination', pendingEncounter: { id: 'encounter' } }));
     expect(encounter).toMatchObject({ phase: 'encounter-pending', atDestination: true, canMove: false, primaryActionId: 'pending-encounter' });
 
+    // Local help and Moving On only gate the next Move; at the Destination they are optional.
     const patient = getJourneyUiContext(active({ currentMapLocationId: 'destination', needsLocalHelpBeforeMove: true }));
-    expect(patient).toMatchObject({ phase: 'local-care', atDestination: true, canMove: false, primaryActionId: 'local-help' });
+    expect(patient).toMatchObject({ phase: 'destination-ready', atDestination: true, canMove: false, primaryActionId: 'journey-end' });
+    const movingOn = getJourneyUiContext(active({ currentMapLocationId: 'destination', scroungingMode: true }));
+    expect(movingOn).toMatchObject({ phase: 'destination-ready', primaryActionId: 'journey-end' });
+    const awayFromDestination = getJourneyUiContext(active({ currentMapLocationId: 'elsewhere', needsLocalHelpBeforeMove: true }));
+    expect(awayFromDestination).toMatchObject({ phase: 'local-care', primaryActionId: 'local-help' });
 
     const ready = getJourneyUiContext(active({ currentMapLocationId: 'destination' }));
     expect(ready).toMatchObject({ phase: 'destination-ready', canMove: false, primaryActionId: 'journey-end' });

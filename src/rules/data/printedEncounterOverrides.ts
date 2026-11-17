@@ -985,14 +985,19 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
     title: 'Obstruction',
     prompt: 'Little wagons laden with foods and goods are backed up along the path; a fallen tree blocks the road while beavers gnaw it clear. If you have a Wagon, mark 1 Day on the Calendar while stuck in traffic. Without a Wagon, slip through and scramble over the trunk with a friendly boost from the beavers.',
     mandatoryEffects: [],
+    // The saved Wagon decides the branch: only the matching one can be chosen.
     choices: [
       {
-        id: 'resolve-obstruction',
-        label: 'Resolve the Obstruction — If travelling with a Wagon, mark 1 Day while stuck in traffic. Without a Wagon, slip through and continue without delay.',
-        effects: [manual(
-          'OBSTRUCTION_WAGON_CHECK',
-          '현재 이동에 Wagon을 쓰는지 확인합니다. Wagon과 함께라면 교통이 풀릴 때까지 기다리며 달력에 1일을 표시합니다. Wagon 없이 이동 중이라면 마차 사이를 빠져나와 비버의 도움으로 나무줄기를 넘고 지체 없이 계속합니다.'
-        )]
+        id: 'stuck-in-traffic',
+        label: 'Stuck in Traffic — Travelling with a Wagon, mark 1 Day on the Calendar while you wait for the traffic to clear.',
+        requirements: { travellingWithWagon: true },
+        effects: [{ support: 'implemented', effect: { type: 'markDays', amount: 1 } }]
+      },
+      {
+        id: 'scramble-over',
+        label: 'Scramble Over — Without a Wagon, slip between the carts and climb the trunk with a boost from the beavers; continue without delay.',
+        requirements: { travellingWithWagon: false },
+        effects: []
       }
     ],
     support: 'manual-only'
@@ -2074,7 +2079,32 @@ export const PRINTED_ENCOUNTER_OVERRIDES: Record<string, Partial<EncounterDefini
   }
 };
 
+// Choices whose printed condition the app can read from saved state: offer them only when it holds,
+// instead of trusting the player to remember what is in the Bags.
+const CHOICE_REQUIREMENTS: Record<string, Record<string, NonNullable<EncounterDefinition['choices'][number]['requirements']>>> = {
+  'foraging-bog-8': { archer: { requiredToolIds: ['crossbow', 'bolts'] } },
+  'foraging-bog-10-spring': { sail: { requiredToolIds: ['bark-coracle'] } },
+  'foraging-meadow-10-winter': { 'hot-toddy': { requiredToolIds: ['canvas-tent'] } },
+  'foraging-meadow-j-spring': { 'greased-paws': { minTrinkets: 1 } },
+  ...Object.fromEntries(['spring', 'summer', 'autumn', 'winter'].map(season => [
+    `foraging-titan-j-${season}`,
+    { 'open-says-me': { requiredToolIds: ['titan-thingamabob'] } }
+  ]))
+};
+
 export const applyPrintedEncounterOverride = (encounter: EncounterDefinition): EncounterDefinition => ({
   ...encounter,
   ...(PRINTED_ENCOUNTER_OVERRIDES[encounter.id] || {})
 });
+
+/** Runs after choices exist (some are only split from the printed text by enrichEncounterChoices). */
+export const applyEncounterChoiceRequirements = (encounter: EncounterDefinition): EncounterDefinition => {
+  const extra = CHOICE_REQUIREMENTS[encounter.id];
+  if (!extra) return encounter;
+  return {
+    ...encounter,
+    choices: encounter.choices.map(choice => extra[choice.id]
+      ? { ...choice, requirements: { ...(choice.requirements || {}), ...extra[choice.id] } }
+      : choice)
+  };
+};

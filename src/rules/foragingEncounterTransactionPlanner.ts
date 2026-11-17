@@ -1,3 +1,4 @@
+import { AILMENT_BY_ID } from './data/ailments';
 import { REAGENT_BY_ID, REAGENT_BY_NAME } from './data/reagents';
 import { TOOL_BY_ID } from './data/tools';
 import { getRuleCardValue } from './cards';
@@ -90,7 +91,13 @@ const chooseOne = async (
 
 const activeTimerOptions = (state: ForagingEncounterTransactionState): ForagingEncounterPromptOption[] => state.patient?.timers
   .filter(timer => timer.status === 'active')
-  .map((timer, index) => ({ value: timer.id, label: `타이머 ${index + 1} · ${timer.current}/${timer.maximum}` })) || [];
+  .map((timer, index) => {
+    // Name the Ailment the Timer belongs to; "타이머 1" alone does not say which patient it is.
+    const ailment = state.patient?.ailments.find(row => row.id === timer.ailmentInstanceId);
+    const definition = ailment?.ailmentId ? AILMENT_BY_ID.get(ailment.ailmentId) : undefined;
+    const name = definition?.displayName || ailment?.legacyName || `타이머 ${index + 1}`;
+    return { value: timer.id, label: `${name} · ${timer.current}/${timer.maximum}시간` };
+  }) || [];
 
 const card = (cards: readonly EncounterCardResult[], index: number, label: string): EncounterCardResult | ForagingEncounterPlan => cards[index]
   ? cards[index]

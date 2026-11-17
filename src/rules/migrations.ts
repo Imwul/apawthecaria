@@ -3,6 +3,7 @@ import { AILMENTS } from './data/ailments';
 import type { CompanionState } from './data/mobility';
 import { SOCIAL_ENCOUNTERS } from './data/encounters';
 import { REAGENTS, REAGENT_BY_ID } from './data/reagents';
+import { ALMANACK_TOOLS } from './data/tools';
 import { normalizeLegacyArchiveRecord } from './archiveEngine';
 import {
   acquireQueenBeeCompanion,
@@ -59,6 +60,15 @@ export const migrateLegacyBagItem = (item: LegacyBagItem): LegacyBagItem => {
       tooltent: 'canvas-tent'
     };
     return { ...item, canonicalToolId: item.canonicalToolId || toolAliases[normalize(item.id || '')] };
+  }
+  // Encounter rewards ("Fairwind Spices" from Return Migration) used to land as a plain item named
+  // after the Tool, without its weight or effects. Only encounter-created items (":inventory:" ids)
+  // are repaired, so a player's own note that happens to share a Tool's name is left alone.
+  if (item.type === 'item' && !item.canonicalToolId && typeof item.id === 'string' && item.id.includes(':inventory:')
+    && typeof item.name === 'string') {
+    const name = item.name.trim().toLowerCase();
+    const tool = ALMANACK_TOOLS.find(candidate => candidate.canonicalName.toLowerCase() === name);
+    if (tool) return { ...item, type: 'tool', canonicalToolId: tool.id, weight: tool.weight };
   }
   if (item.type !== 'reagent') return item;
   // A deliberately invented Foreign/Replacement Part can share a printed

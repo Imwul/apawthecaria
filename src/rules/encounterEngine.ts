@@ -40,7 +40,12 @@ export interface EncounterChoiceAvailability {
 
 export const encounterChoiceAvailability = (
   choice: EncounterChoice,
-  state: Pick<EncounterRuntimeState, 'reputation' | 'trinkets'> & { conditions?: readonly string[] }
+  state: Pick<EncounterRuntimeState, 'reputation' | 'trinkets'> & {
+    conditions?: readonly string[];
+    travellingWithWagon?: boolean;
+    /** Usable canonical Tool ids; omitted means Tool requirements are not checked. */
+    availableToolIds?: readonly string[];
+  }
 ): EncounterChoiceAvailability => {
   const requirements = choice.requirements;
   if (!requirements) return { available: true, reasons: [] };
@@ -56,6 +61,15 @@ export const encounterChoiceAvailability = (
   }
   if (requirements.requiredConditionId && !state.conditions?.includes(requirements.requiredConditionId)) {
     reasons.push(`Requires encounter condition: ${requirements.requiredConditionId}.`);
+  }
+  // Travel mode is a fact of the saved Wagon, not something the player declares; unknown means unchecked.
+  if (typeof requirements.travellingWithWagon === 'boolean' && typeof state.travellingWithWagon === 'boolean'
+    && requirements.travellingWithWagon !== state.travellingWithWagon) {
+    reasons.push(requirements.travellingWithWagon ? 'Requires travelling with a Wagon.' : 'Requires travelling without a Wagon.');
+  }
+  if (requirements.requiredToolIds?.length && state.availableToolIds) {
+    const missing = requirements.requiredToolIds.filter(toolId => !state.availableToolIds!.includes(toolId));
+    if (missing.length > 0) reasons.push(`Requires Tool: ${missing.join(', ')}.`);
   }
   return { available: reasons.length === 0, reasons };
 };

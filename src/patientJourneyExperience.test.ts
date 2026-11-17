@@ -78,7 +78,7 @@ describe('local-care journey composition', () => {
 
   it('keeps the physical encounter-card override optional and collapsed by default', () => {
     expect(appSource).toContain('실물 덱의 조우 카드 사용');
-    expect(appSource).toContain('Move를 확정할 때 앱이 p.25 조우 카드를 자동으로 한 장 뽑는 것');
+    expect(appSource).toContain('이동을 확정할 때 앱이 p.25 조우 카드를 자동으로 한 장 뽑는 것');
     expect(appSource).not.toContain('<strong>도착지 조우</strong>');
   });
 });

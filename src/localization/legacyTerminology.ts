@@ -61,8 +61,17 @@ export const polishLegacyRuleText = (text: string = ''): string => normalizeGuil
   .replace(/Behemoth/g, '거수')
   .replace(/\s+\)/g, ')'));
 
+// Printed rule text kept in English on purpose: the display layer translates it by exact source
+// sentence, and parsers read it ("Cocoon ... hatches"). Half-translating it ("when the 여정 ends")
+// breaks both, so these containers are kept verbatim like player prose.
+const RULE_SOURCE_CONTAINERS = new Set([
+  'pendingManualFollowUps',
+  'pendingManualEffect',
+  'manualEffectQueue'
+]);
+
 const isUserAuthoredPath = (path: readonly string[]): boolean =>
-  path.some(segment => USER_AUTHORED_CONTAINERS.has(segment))
+  path.some(segment => USER_AUTHORED_CONTAINERS.has(segment) || RULE_SOURCE_CONTAINERS.has(segment))
   || (path.length > 0 && USER_AUTHORED_FIELDS.has(path[path.length - 1]));
 
 /**

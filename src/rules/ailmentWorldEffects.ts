@@ -41,7 +41,8 @@ type AilmentWorldKind =
   | 'titan-rarity-plus-1'
   | 'tickbitten-return-pair'
   | 'location-ban'
-  | 'path-closed';
+  | 'path-closed'
+  | 'paw-rot-grateful-trinket';
 
 interface ParsedAilmentWorldCondition {
   kind: AilmentWorldKind;
@@ -66,6 +67,8 @@ export const ailmentWorldCondition = {
   titanRarityPlusOne: () => token('titan-rarity-plus-1', null, 2),
   /** p.113 Tickbitten: the next visit to this Settlement replaces the Ailment draw with two Tickbitten cases. */
   tickbittenReturnPair: (settlementId: string) => token('tickbitten-return-pair', settlementId, null),
+  /** p.110 Paw Rot (PRESERVED Remedy): the next time you come through here, a grateful patient gives 1 Trinket. */
+  pawRotGratefulTrinket: (locationId: string) => token('paw-rot-grateful-trinket', locationId, null),
   /** p.39 Tangible Effect: this character may not enter or move through the Location. */
   locationBan: (locationId: string) => token('location-ban', locationId, null),
   /** p.39 Tangible Effect: a Path removed from the map. */
@@ -86,7 +89,7 @@ export const parseAilmentWorldCondition = (condition: string): ParsedAilmentWorl
   const kind = body[0] as AilmentWorldKind;
   if (!['snail-quarantine', 'groundhog-no-barter-social', 'groundhog-no-plant-insect',
     'stingshock-no-bee-hive', 'titan-rarity-plus-1', 'tickbitten-return-pair',
-    'location-ban', 'path-closed'].includes(kind)) return null;
+    'location-ban', 'path-closed', 'paw-rot-grateful-trinket'].includes(kind)) return null;
   let locationId: string | null = null;
   let seasonsLeft: number | null = null;
   for (let index = 1; index < body.length; index += 1) {
@@ -145,6 +148,27 @@ export const consumeTickbittenReturnPair = (conditions: readonly string[], locat
     }
     return true;
   });
+};
+
+/**
+ * p.110 Paw Rot: pay out every grateful-patient Trinket waiting at a Location this Move came
+ * through (route stops after the origin) and retire those tokens.
+ */
+export const collectPawRotGratefulTrinkets = (
+  conditions: readonly string[],
+  routeLocationIds: readonly string[]
+): { conditions: string[]; trinkets: number; locationIds: string[] } => {
+  const passed = new Set(routeLocationIds);
+  const locationIds: string[] = [];
+  const kept = conditions.filter(condition => {
+    const row = parseAilmentWorldCondition(condition);
+    if (row?.kind === 'paw-rot-grateful-trinket' && row.locationId && passed.has(row.locationId)) {
+      locationIds.push(row.locationId);
+      return false;
+    }
+    return true;
+  });
+  return { conditions: kept, trinkets: locationIds.length, locationIds };
 };
 
 export const BEE_HIVE_REAGENT_IDS = new Set(['reagent-beehive', 'reagent-honeybees']);
@@ -331,6 +355,7 @@ export const describeAilmentWorldConditions = (
     case 'stingshock-no-bee-hive': return `${where} (벌침 쇼크) · 벌·벌집 영약재 영구 불가`;
     case 'titan-rarity-plus-1': return `보물 열풍 (티탄 접촉병) · 티탄 영약재 희귀도 +1${until}`;
     case 'tickbitten-return-pair': return `${where} (진드기 물림) · 다음 방문 때 진드기 물림 환자 2명`;
+    case 'paw-rot-grateful-trinket': return `${where} (발썩음 병) · 다음에 이곳을 지나면 고마운 환자가 장신구 1개를 줌`;
     case 'location-ban': return `${where} · 이 약제사는 들어가거나 지나갈 수 없음 (영구적 결과)`;
     case 'path-closed': return `${(row.locationId || '').split('|').map(locationName).join(' ↔ ')} 경로가 사라짐 (영구적 결과)`;
     default: return '';

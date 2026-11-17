@@ -277,10 +277,12 @@ describe('manual effect draft functional state (A)', () => {
     const spices = setManualEffectEncounterChoice('bargain')(
       draftFor('travel-meadow-j-spring')
     );
-    // "You can trade for some Fairwind Spices": the fixed Tool is offered, but buying it is the player's call.
-    expect(spices.actionTemplates).toEqual([
-      expect.objectContaining({ kind: 'gain-inventory', fixedTarget: 'Fairwind Spices', required: false })
-    ]);
+    // "You can trade for some Fairwind Spices": a purchase at the p.63 price, which the player may decline.
+    expect(spices.actionTemplates).toEqual([]);
+    expect(spices.inputFields).toContainEqual(expect.objectContaining({
+      id: PURCHASE_DECISION_INPUT_ID,
+      options: ['구입 · 장신구 10개 지불', '구입하지 않음']
+    }));
 
     const mushroom = setManualEffectEncounterChoice('junior')(
       draftFor('foraging-forest-4')
@@ -1532,25 +1534,26 @@ describe('typed canonical Encounter transactions (D)', () => {
     expect(resolved.value?.nextState.foragingPoints).toBe(4);
   });
 
-  it('charges exactly five Trinkets only when buying each canonical market item', () => {
+  it('charges the printed price only when buying each canonical market item', () => {
     const cases = [
-      ['social-loch-settlement-♦', 'projects-wide', 'Bark Coracle', { canonicalToolId: 'bark-coracle' }],
-      ['social-mountain-spoolkeep-♥', 'offcuts', 'Lumpy Blanket', { craftedItemId: 'knitted-blanket' }]
+      ['social-loch-settlement-♦', 'projects-wide', 'Bark Coracle', { canonicalToolId: 'bark-coracle' }, 5],
+      ['social-mountain-spoolkeep-♥', 'offcuts', 'Lumpy Blanket', { craftedItemId: 'knitted-blanket' }, 5],
+      ['travel-meadow-j-spring', 'bargain', 'Fairwind Spices', { canonicalToolId: 'fairwind-spices' }, 10]
     ] as const;
-    for (const [ownerId, choiceId, itemName, metadata] of cases) {
-      const buy = complete(setManualEffectInput(PURCHASE_DECISION_INPUT_ID, '구입 · 장신구 5개 지불')(
+    for (const [ownerId, choiceId, itemName, metadata, price] of cases) {
+      const buy = complete(setManualEffectInput(PURCHASE_DECISION_INPUT_ID, `구입 · 장신구 ${price}개 지불`)(
         setManualEffectEncounterChoice(choiceId)(draftFor(ownerId))
       ));
       const bought = resolveManualEffectTransaction({
         draft: buy, transactionId: `purchase:${choiceId}`,
-        state: { ...manualState(), trinkets: 5 }, resolvedAt: 207
+        state: { ...manualState(), trinkets: price }, resolvedAt: 207
       });
       expect(bought.status).toBe('resolved');
       expect(bought.value?.nextState.trinkets).toBe(0);
       expect(bought.value?.nextState.inventory).toContainEqual(expect.objectContaining({ name: itemName, ...metadata }));
       expect(resolveManualEffectTransaction({
         draft: { ...buy, transactionId: null }, transactionId: `purchase:poor:${choiceId}`,
-        state: { ...manualState(), trinkets: 4 }, resolvedAt: 207
+        state: { ...manualState(), trinkets: price - 1 }, resolvedAt: 207
       }).status).toBe('invalid');
 
       const decline = complete(setManualEffectInput(PURCHASE_DECISION_INPUT_ID, '구입하지 않음')(

@@ -310,8 +310,8 @@ const canonicalToolNamesKo: Record<string, string> = {
   'Glass Alembic': '유리 증류기',
   'fine-spidersilk-net': '스파이더실크 그물',
   'Fine Spidersilk Net': '스파이더실크 그물',
-  'fairwind-spices': '페어윈드 양념',
-  'Fairwind Spices': '페어윈드 양념',
+  'fairwind-spices': '페어윈드 향신료',
+  'Fairwind Spices': '페어윈드 향신료',
   'fine-toothed-comb': '참빗',
   'Fine-toothed Comb': '참빗',
   'knitting-needles': '뜨개바늘',
@@ -339,6 +339,13 @@ export const localizeInventoryItemName = (value: string): string => {
   };
   if (legacyToolLabels[value]) return legacyToolLabels[value];
   if (value === '기념품 (Memento)') return '기념품';
+  // Encounter keepsakes stored under their printed English names.
+  const encounterItemLabels: Record<string, string> = {
+    'Guild Rumour': '길드 소문',
+    Cocoon: '고치',
+    'Juicy Gossip': '흥미로운 소문(Juicy Gossip)'
+  };
+  if (encounterItemLabels[value]) return encounterItemLabels[value];
   const canonicalToolName = localizeCanonicalToolName(value);
   if (canonicalToolName !== value) return canonicalToolName;
   const preparedReagent = value.match(/^(.+?) \(([^,]+),\s*([^)]+)\)$/);

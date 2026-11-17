@@ -1,7 +1,7 @@
 import { GAME_DATA } from '../../gameData';
 import { getTableLookupKey, type RuleCard } from '../cards';
 import { canonicalMetadata } from '../source';
-import { applyPrintedEncounterOverride } from './printedEncounterOverrides';
+import { applyEncounterChoiceRequirements, applyPrintedEncounterOverride } from './printedEncounterOverrides';
 import { enrichEncounterChoices } from './encounterChoices';
 import type {
   CardSuit,
@@ -205,7 +205,7 @@ export const TRAVEL_ENCOUNTERS: EncounterDefinition[] = [
   ...buildTravelRegion('Mountain', 90, 93),
   ...buildTravelRegion('Soar', 94, 97),
   ...buildTitanTravel()
-].map(applyPrintedEncounterOverride).map(encounter => enrichEncounterChoices(encounter));
+].map(applyPrintedEncounterOverride).map(encounter => enrichEncounterChoices(encounter)).map(applyEncounterChoiceRequirements);
 
 const FORAGING_ACE_ROWS: Record<Exclude<Region, 'Titan'>, { page: number; title: string; prompt: string }> = {
   Bog: {
@@ -346,7 +346,7 @@ export const FORAGING_ENCOUNTERS: EncounterDefinition[] = [
   ...buildForagingRegion('Meadow', 172, 177),
   ...buildForagingRegion('Mountain', 178, 183),
   ...buildTitanForaging()
-].map(applyPrintedEncounterOverride).map(encounter => enrichEncounterChoices(encounter));
+].map(applyPrintedEncounterOverride).map(encounter => enrichEncounterChoices(encounter)).map(applyEncounterChoiceRequirements);
 
 const socialGroup = (region: Region, firstPage: number, lastPage: number, genericPage: number, cities: Record<number, string>): EncounterDefinition[] => {
   const rows = pageRows(socialLegacy, firstPage, lastPage);
@@ -413,7 +413,7 @@ export const SOCIAL_ENCOUNTERS: EncounterDefinition[] = [
     ...canonicalMetadata(213),
     support: 'manual-only' as const
   }))
-].map(applyPrintedEncounterOverride).map(encounter => enrichEncounterChoices(encounter, socialEncounterPlayerText(encounter)));
+].map(applyPrintedEncounterOverride).map(encounter => enrichEncounterChoices(encounter, socialEncounterPlayerText(encounter))).map(applyEncounterChoiceRequirements);
 
 /** p.162 persistent replacement for a future Monarch near Bear's Necessities. */
 export const BEAR_SCURRY_ENCOUNTER: EncounterDefinition = {
