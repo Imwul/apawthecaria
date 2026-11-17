@@ -1,4 +1,4 @@
-import { formatPreparationName, localizeInventoryItemName, localizePreparationMethod, localizePreparationName } from './localization/gameplayKo';
+import { formatPreparationName, localizeCanonicalToolName, localizeInventoryItemName, localizePreparationMethod, localizePreparationName, localizeReagentType } from './localization/gameplayKo';
 import { formatRuleTag } from './localization/tagReadingKo';
 import { REAGENT_BY_ID, REAGENTS } from './rules/data/reagents';
 import type { ReagentDefinition, ReagentPreparation, RuleTag, TagValue } from './rules/types';
@@ -141,10 +141,14 @@ const findReagent = (value: string, canonicalReagentId?: string | null): Reagent
   ) || null;
 };
 
-const parsedReagentItem = (value: string, canonicalReagentId?: string | null): ParsedReagentItem => {
-  const parsed = splitItemName(value);
+const parsedReagentItem = (value: string, canonicalReagentId?: string | null, preparationId?: string | null): ParsedReagentItem => {
   const reagent = findReagent(value, canonicalReagentId);
   if (!reagent) return { reagent: null, detail: localizeInventoryItemName(value) };
+  // Barter, leave and other acquisitions store "Name (Part)" without a method; the stored
+  // preparation id still knows it, so the bag can say "Membranes · 증류" like a foraged part.
+  const stored = preparationId ? reagent.preparations.find(part => part.id === preparationId) : undefined;
+  const split = splitItemName(value);
+  const parsed = stored && !split.method ? { ...split, preparation: stored.name, method: stored.method } : split;
   const canonicalPreparation = parsed.preparation
     ? reagent.preparations.find(part =>
       part.name === parsed.preparation || localizePreparationName(part.name) === parsed.preparation
@@ -162,11 +166,36 @@ export const formatReagentName = (reagent: ReagentDefinition): string => {
   return korean ? `${reagent.canonicalName} (${korean})` : reagent.canonicalName;
 };
 
-export const formatReagentPartChoice = (part: ReagentPreparation): string =>
+/**
+ * Encounter prompts are planned in rule terms ("Beetles · Shells · CRUSHED"). Translate each
+ * " · " segment that names a reagent, a part or a preparation method; leave anything else as is.
+ */
+export const localizeEncounterChoiceText = (text: string): string => {
+  const segments = text.split(' · ');
+  return segments.map((segment, index) => {
+    const trimmed = segment.trim();
+    if (/^[A-Z]+$/.test(trimmed)) {
+      const method = localizePreparationMethod(trimmed);
+      if (method !== trimmed) return method;
+      const type = localizeReagentType(trimmed);
+      if (type !== trimmed) return `${type} (${trimmed})`;
+    }
+    const tool = localizeCanonicalToolName(trimmed);
+    if (tool !== trimmed) return `${tool} (${trimmed})`;
+    // Some names are both a reagent and a part ("Shells"): only "Reagent · Part · Method" leads with a reagent.
+    const reagent = REAGENTS.find(candidate => candidate.canonicalName === trimmed);
+    const part = formatPreparationName(trimmed);
+    const leadsWithReagent = index === 0 && segments.length >= 3;
+    if (reagent && (leadsWithReagent || part === trimmed)) return formatReagentName(reagent);
+    return part !== trimmed ? part : segment;
+  }).join(' · ');
+};
+
+export const formatReagentPartChoice =(part: ReagentPreparation): string =>
   `${formatPreparationName(part.name)} · ${localizePreparationMethod(part.method)} · ${part.tags.map(tag => `${formatRuleTag(tag.tag)} ${tag.value}`).join(' / ') || '약효 없음'} · ${part.uses}회분`;
 
-export const formatReagentItemName = (value: string, canonicalReagentId?: string | null): string => {
-  const parsed = parsedReagentItem(value, canonicalReagentId);
+export const formatReagentItemName = (value: string, canonicalReagentId?: string | null, preparationId?: string | null): string => {
+  const parsed = parsedReagentItem(value, canonicalReagentId, preparationId);
   if (!parsed.reagent) return parsed.detail;
   const label = formatReagentName(parsed.reagent);
   return parsed.detail ? `${label} — ${parsed.detail}` : label;

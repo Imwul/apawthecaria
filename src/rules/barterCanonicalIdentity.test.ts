@@ -175,12 +175,13 @@ describe('canonical Barter transaction identity', () => {
     expect(acquired.every(item => item.quantity === 1)).toBe(true);
     expect(acquired.every(item => item.provenance?.source === 'barter')).toBe(true);
     expect(acquired.every(item => item.provenance?.sourceTransactionId)).toBe(true);
-    expect(acquired.filter(item => item.canonicalReagentId === 'reagent-roses').map(item => item.name)).toEqual([
-      '장미 (Rosehips)',
-      '장미 (Rosehips)'
+    // Each part keeps the one stored name foraging uses, so the two Rosehips preparations stay distinct.
+    expect(acquired.map(item => item.name)).toEqual([
+      'Nettles (Leaves, BREWED)',
+      'Roses (Rosehips, CRUSHED)',
+      'Roses (Rosehips, DISTILLED)'
     ]);
     expect(acquired.some(item => item.canonicalReagentId === 'reagent-rosehip')).toBe(false);
-    expect(new Set(acquired.filter(item => item.canonicalReagentId === 'reagent-roses').map(item => item.name))).toHaveLength(1);
   });
 
   it('allows the same exact preparation to be acquired repeatedly within the City attempt limit', () => {

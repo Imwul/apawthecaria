@@ -296,3 +296,43 @@ export const ENCOUNTER_TITLE_KO: Record<string, string> = {
   Glassblowers: '유리 공예가들',
   'Wandering The City': '도시 산책'
 };
+
+// Prompt headings reuse a few rule names that are not encounter titles.
+const PROMPT_HEADING_KO: Record<string, string> = {
+  Electrician: '전기공',
+  Damselfly: '실잠자리',
+  'Great Silence': '거대한 침묵',
+  Cocoon: '고치',
+  'Racing Bets': '경주 내기',
+  Replacement: '대체 영약재',
+  'Make Do': '임시방편',
+  'The Gift of Knowledge': '지식의 선물',
+  'Odoak Market': 'Odoak 시장',
+  'Titan Codex': '티탄 기록서',
+  Sketch: '소묘'
+};
+
+const normalizeHeading = (value: string) => value.toLocaleLowerCase().replace(/[^a-z0-9]/g, '');
+let headingLookup: Map<string, string> | null = null;
+const lookupHeading = (value: string): string | undefined => {
+  headingLookup ??= new Map(Object.entries({ ...ENCOUNTER_TITLE_KO, ...PROMPT_HEADING_KO })
+    .map(([english, korean]) => [normalizeHeading(english), korean]));
+  return headingLookup.get(normalizeHeading(value));
+};
+
+/**
+ * Dialog titles and kickers often lead with the rulebook's English name ("What Remains · 고향",
+ * "Damselfly 동료 칸 만들기"). Swap the longest leading English name the title table knows for its
+ * Korean title; guild and place names the app keeps in English are left alone.
+ */
+export const localizePromptHeading = (text: string): string => text.split(' · ').map(segment => {
+  const run = segment.match(/^[A-Za-z][A-Za-z0-9' ,!?-]*/)?.[0]?.trimEnd();
+  if (!run) return segment;
+  const words = run.split(' ');
+  for (let count = words.length; count > 0; count -= 1) {
+    const english = words.slice(0, count).join(' ').replace(/[,]$/, '');
+    const korean = lookupHeading(english);
+    if (korean) return `${korean}${segment.slice(english.length)}`;
+  }
+  return segment;
+}).join(' · ');

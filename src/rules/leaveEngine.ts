@@ -1,3 +1,4 @@
+import { canonicalReagentItemName } from './reagentItemName';
 import { REAGENT_BY_ID } from './data/reagents';
 import { createPatientArchiveRecord, upsertPatientArchive, type CanonicalPatientArchiveRecord } from './archiveEngine';
 import type { EngineInventoryItem, EngineJournalEvent } from './gameplay';
@@ -103,7 +104,7 @@ export const resolveScrounge = (input: ScroungeInput): LeaveResolution => {
     if (maximumPotency(preparation.id, reagent.id) > 2) return { status: 'invalid', value: null, messages: ['Guaranteed Scrounging is limited to Potency 2 or lower.'] };
     inventory = [...inventory, {
       id: `${input.transactionId}:${preparation.id}`,
-      name: `${reagent.displayName} (${preparation.name})`,
+      name: canonicalReagentItemName(reagent, preparation),
       type: 'reagent',
       weight: preparation.weight,
       canonicalReagentId: reagent.id,

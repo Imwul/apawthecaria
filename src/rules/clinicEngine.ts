@@ -1,3 +1,4 @@
+import { canonicalReagentItemName } from './reagentItemName';
 import { CLINIC_AGENDA_BY_ID } from './data/clinics';
 import { REAGENT_BY_ID } from './data/reagents';
 import { shortestPathDistance } from './serviceEngine';
@@ -121,7 +122,7 @@ const agendaItem = (transactionId: string, reagentId: string, preparationId: str
   if (!reagent || !preparation) return null;
   return {
     id: `${transactionId}:${reagent.id}:${preparation.id}`,
-    name: `${reagent.displayName} (${preparation.name})`,
+    name: canonicalReagentItemName(reagent, preparation),
     type: 'reagent',
     weight: preparation.weight,
     canonicalReagentId: reagent.id,

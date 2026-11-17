@@ -398,9 +398,9 @@ const deriveManualResolution = (input: {
       ? `“${input.ownerName}”의 후속 카드를 뽑고 해당 결과를 기록하세요.`
       : actionTemplates.length > 0
         ? `“${input.ownerName}”에서 실제로 적용된 원문 상태 변화를 확인하세요.`
-        : `“${input.ownerName}”이 요구하는 서사적 판단을 직접 정하고 기록하세요.`;
+        : `“${input.ownerName}” 장면이 요구하는 서사적 판단을 직접 정하고 기록하세요.`;
   const reason = actionTemplates.length > 0 || choices.length > 0
-    ? `“${input.ownerName}”은 대상·분기·후속 결과를 플레이어가 정해야 하므로 자동 수치를 확정할 수 없습니다.`
+    ? `“${input.ownerName}” 장면은 대상·분기·후속 결과를 플레이어가 정해야 하므로 자동 수치를 확정할 수 없습니다.`
     : `“${input.ownerName}”의 결과는 원문상 서사적 판단이며 앱이 대신 결론을 만들 수 없습니다.`;
 
   const categoryFor = (kind: PrintedCanonicalActionKind): PrintedStateChange['category'] => {

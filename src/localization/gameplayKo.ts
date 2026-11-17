@@ -68,7 +68,7 @@ const preparationNames: Record<string, string> = {
   Slime: '점액',
   Slivers: '조각',
   Sloes: '슬로 열매',
-  Slugs: '민달팡이',
+  Slugs: '민달팽이',
   'Spike Head': '가시 돋친 꽃머리',
   'Spiky Husks': '가시 껍질',
   'Perfect Conker': '잘 여문 마로니에 열매',

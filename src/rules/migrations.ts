@@ -1,3 +1,4 @@
+import { canonicalReagentItemName, isLegacyAcquiredReagentName } from './reagentItemName';
 import { AILMENTS } from './data/ailments';
 import type { CompanionState } from './data/mobility';
 import { SOCIAL_ENCOUNTERS } from './data/encounters';
@@ -85,6 +86,10 @@ export const migrateLegacyBagItem = (item: LegacyBagItem): LegacyBagItem => {
     : reagent.preparations.find(candidate => itemName.includes(normalize(candidate.name))) || reagent.preparations[0];
   return {
     ...item,
+    // Older barter/leave/clinic rewards stored "displayName (Part)"; give them the one stored name.
+    ...(preparation && typeof item.name === 'string' && isLegacyAcquiredReagentName(item.name, reagent, preparation)
+      ? { name: canonicalReagentItemName(reagent, preparation) }
+      : {}),
     canonicalReagentId: reagent.id,
     preparationId: preparation?.id,
     weight: typeof item.weight === 'number' ? item.weight : preparation?.weight || 1 / 3,

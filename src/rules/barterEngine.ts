@@ -1,3 +1,4 @@
+import { canonicalReagentItemName } from './reagentItemName';
 import { getRuleCardValue, type RuleCard } from './cards';
 import { FAMILIAR_BENEFITS } from '../rulesEngine';
 import { REAGENT_BY_ID } from './data/reagents';
@@ -433,7 +434,7 @@ const finalizeSuccessfulBarter = (
     ? replacementInventoryItem(pending.replacement, 'barter', pending.barterId, `${pending.barterId}:replacement`)
     : {
     id: `${pending.barterId}:${preparation!.id}`,
-    name: `${reagent!.displayName} (${preparation!.name})`,
+    name: canonicalReagentItemName(reagent!, preparation!),
     type: 'reagent',
     weight: preparation!.weight,
     canonicalReagentId: reagent!.id,

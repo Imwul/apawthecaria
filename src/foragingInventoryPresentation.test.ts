@@ -8,6 +8,7 @@ import {
   formatReagentPartChoice,
   gatheredReagentSummary,
   groupReagentPartNames,
+  localizeEncounterChoiceText,
   reagentInventorySearchText,
   splitForagingTags
 } from './foragingInventoryPresentation';
@@ -106,5 +107,21 @@ describe('foraging and inventory presentation', () => {
       remedy: [],
       trade: [{ tag: 'FAIR', value: 2 }]
     });
+  });
+
+  it('translates encounter prompt labels without mistaking a part for a reagent', () => {
+    expect(localizeEncounterChoiceText('Shells · CRUSHED')).toBe('껍질 (Shells) · 부수기');
+    expect(localizeEncounterChoiceText('썩은 통나무 · Shells')).toBe('썩은 통나무 · 껍질 (Shells)');
+    expect(localizeEncounterChoiceText('Beetles')).toBe('Beetles (딱정벌레)');
+    expect(localizeEncounterChoiceText('Beetles · Shells · CRUSHED')).toBe('Beetles (딱정벌레) · 껍질 (Shells) · 부수기');
+    expect(localizeEncounterChoiceText('INSECT')).toBe('곤충 (INSECT)');
+    expect(localizeEncounterChoiceText('PAIN')).toBe('PAIN');
+  });
+
+  it('recovers the preparation method from the stored preparation id', () => {
+    const chillies = REAGENTS.find(reagent => reagent.canonicalName === 'Chillies')!;
+    const distilled = chillies.preparations.find(part => part.name === 'Membranes' && part.method === 'DISTILLED')!;
+    expect(formatReagentItemName(`${chillies.displayName} (Membranes)`, chillies.id, distilled.id))
+      .toBe('Chillies (고추) — 막 (Membranes) · 증류');
   });
 });

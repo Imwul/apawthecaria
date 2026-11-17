@@ -1,3 +1,4 @@
+import { canonicalReagentItemName } from './reagentItemName';
 import { COMPANION_BY_ID, WAGON_EXPANSION_BY_ID, type CompanionState, type WagonState } from './data/mobility';
 import { REAGENT_BY_ID } from './data/reagents';
 import { TOOL_BY_ID } from './data/tools';
@@ -232,7 +233,7 @@ const reagentItem = (transactionId: string, reagentId: string, index: number): E
   if (!reagent || !preparation) return null;
   return {
     id: `${transactionId}:${reagentId}:${index}`,
-    name: `${reagent.displayName} (${preparation.name})`,
+    name: canonicalReagentItemName(reagent, preparation),
     type: 'reagent',
     weight: preparation.weight,
     canonicalReagentId: reagent.id,

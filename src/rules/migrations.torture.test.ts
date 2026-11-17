@@ -561,7 +561,8 @@ describe('save migration torture matrix', () => {
     const twice = migrateSavedRulesState(JSON.parse(JSON.stringify(once)));
     const restored = (once.bag as Array<Record<string, unknown>>).find(item => item.id === acquiredPart.id);
 
-    expect(restored).toMatchObject(acquiredPart);
+    // The legacy "displayName (Part)" name is upgraded to the one stored name; identity is unchanged.
+    expect(restored).toMatchObject({ ...acquiredPart, name: 'Nettles (Leaves, BREWED)' });
     expect(twice).toEqual(once);
   });
 

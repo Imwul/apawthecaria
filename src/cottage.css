@@ -1429,4 +1429,5 @@ body { line-height: 1.75; }
 @media (min-width: 1900px) and (min-height: 880px) { :root { --page-zoom: 1.12; zoom: 1.12; } }
 @media (min-width: 2240px) and (min-height: 980px) { :root { --page-zoom: 1.25; zoom: 1.25; } }
 @media (min-width: 2600px) and (min-height: 1100px) { :root { --page-zoom: 1.4; zoom: 1.4; } }
-@media (min-width: 3100px) and (min-height: 1220px) { :root { --page-zoom: 1.55; zoom: 1.55; } }
+/* 3440×1440: Chrome's toolbar, bookmarks bar and the Dock leave roughly 1150–1300px of height */
+@media (min-width: 3100px) and (min-height: 1120px) { :root { --page-zoom: 1.55; zoom: 1.55; } }
